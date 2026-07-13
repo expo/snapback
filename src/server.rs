@@ -38,10 +38,11 @@ use crate::live_wire::{
     LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AdmittedCronClaim, AppActionStage, ConfigVerifyStage, DetachedMutationRead,
-    EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
-    FunctionRunResult, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
-    LocalSnapback, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    AdmittedCronClaim, AppActionStage, AuthorizationInvalidationAckInput, ConfigVerifyStage,
+    DetachedMutationRead, EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest,
+    EnsureAppResponse, EphemeralApi, FunctionRunResult, InspectState, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction,
+    StagedAppAction, StagedConfigVerify, StagedNestedMutation,
 };
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -906,9 +907,13 @@ pub(crate) async fn execute_cron_claim_detached(
 ///
 /// @ref LLP 0031#connection-capability-grants — server-issued grants; the
 /// ConnectionAuth policy class marks every route this gate covers.
+/// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — the exact-v1
+/// offer binds a never-reused issuer and connection generation into the grant.
 #[derive(Clone, Default)]
 pub struct ConnectionRegistry {
     grants: Arc<std::sync::Mutex<ConnectionRegistryState>>,
+    invalidation_issuer:
+        Arc<std::sync::Mutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>>,
 }
 
 #[derive(Default)]
@@ -932,6 +937,8 @@ struct ConnectionGrantRecord {
     used: bool,
     managed_authority: bool,
     authority: BoundGrantAuthority,
+    authorization_invalidation:
+        Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -1143,6 +1150,8 @@ struct PreparedConnectionAct {
     grant_id: String,
     resolved: ResolvedAppAuthority,
     bound: BoundGrantAuthority,
+    authorization_invalidation:
+        Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
 }
 
 impl PreparedConnectionOpenAuthority {
@@ -1359,6 +1368,9 @@ impl ConnectionRegistryState {
         authority: BoundGrantAuthority,
         managed_authority: bool,
         now_ms: u64,
+        authorization_invalidation: Option<
+            crate::auth::invalidation::AuthorizationInvalidationConnection,
+        >,
     ) {
         self.unused.insert((now_ms, connection_id.clone()));
         self.index_grant(&connection_id, &authority);
@@ -1371,6 +1383,7 @@ impl ConnectionRegistryState {
                 used: false,
                 managed_authority,
                 authority,
+                authorization_invalidation,
             },
         );
     }
@@ -1557,6 +1570,13 @@ pub struct ConnectionGrant {
     pub connection_id: String,
     #[serde(rename = "connectionToken")]
     pub connection_token: String,
+    #[serde(
+        rename = "authorizationInvalidation",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_invalidation:
+        Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
 }
 
 impl std::fmt::Debug for ConnectionGrant {
@@ -1567,6 +1587,10 @@ impl std::fmt::Debug for ConnectionGrant {
             .debug_struct("ConnectionGrant")
             .field("connection_id", &self.connection_id)
             .field("connection_token", &"[REDACTED]")
+            .field(
+                "authorization_invalidation",
+                &self.authorization_invalidation,
+            )
             .finish()
     }
 }
@@ -1586,6 +1610,10 @@ pub struct OpenConnectionRequest {
     /// server response and from all receipt/capsule schemas.
     #[serde(default, alias = "previous_token")]
     pub previous_token: Option<String>,
+    /// Exact must-understand offer. Missing or any value other than v1 opens a
+    /// legacy connection that cannot admit session-mode auth-scoped live work.
+    #[serde(default, alias = "auth_invalidation_protocol")]
+    pub auth_invalidation_protocol: Option<u32>,
 }
 
 impl std::fmt::Debug for OpenConnectionRequest {
@@ -1596,6 +1624,10 @@ impl std::fmt::Debug for OpenConnectionRequest {
             .field(
                 "previous_token",
                 &self.previous_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "auth_invalidation_protocol",
+                &self.auth_invalidation_protocol,
             )
             .finish()
     }
@@ -1616,7 +1648,21 @@ impl ConnectionRegistry {
             })
             .collect::<Vec<_>>();
         *state = ConnectionRegistryState::default();
+        *self
+            .invalidation_issuer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         captures
+    }
+
+    pub(crate) fn install_invalidation_issuer(
+        &self,
+        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+    ) {
+        *self
+            .invalidation_issuer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
     }
 
     /// Remove every grant bound to one exact predecessor session generation.
@@ -1852,6 +1898,7 @@ impl ConnectionRegistry {
         prepared: PreparedConnectionOpenAuthority,
         now_ms: u64,
         monotonic_now: Instant,
+        auth_invalidation_protocol: Option<u32>,
     ) -> SnapbackResult<OpenedConnectionGrant> {
         let stale = prepared.bound.stale_error();
         let publication = prepared.bound.publication().clone();
@@ -1884,11 +1931,14 @@ impl ConnectionRegistry {
                     existing.managed_authority = prepared.managed_authority;
                     let grant_id = existing.grant_id.clone();
                     let connection_token = existing.token.clone();
+                    let authorization_invalidation =
+                        existing.authorization_invalidation.clone();
                     grants.touch(id, now_ms);
                     return Ok(OpenedConnectionGrant {
                         grant: ConnectionGrant {
                             connection_id: id.clone(),
                             connection_token,
+                            authorization_invalidation,
                         },
                         grant_id,
                         newly_minted: false,
@@ -1913,6 +1963,32 @@ impl ConnectionRegistry {
                 };
                 let grant_id = Uuid::now_v7().to_string();
                 let connection_token = format!("sct_{}", Uuid::new_v4().simple());
+                let authorization_invalidation = if auth_invalidation_protocol
+                    == Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION)
+                {
+                    self.invalidation_issuer
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .clone()
+                        .map(|issuer| {
+                            let issuer_retirement =
+                                issuer.authenticate_prior_issuer_retirement()?;
+                            Ok::<_, SnapbackError>(
+                                crate::auth::invalidation::AuthorizationInvalidationConnection {
+                                    protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+                                    issuer_id: issuer.authenticated().issuer_id.clone(),
+                                    connection_generation: issuer
+                                        .reserve_connection_generation()?,
+                                    authorization: issuer.authorization_expectation()?,
+                                    version_stream: issuer.version_stream()?,
+                                    issuer_retirement,
+                                },
+                            )
+                        })
+                        .transpose()?
+                } else {
+                    None
+                };
                 grants.insert(
                     connection_id.clone(),
                     grant_id.clone(),
@@ -1920,11 +1996,13 @@ impl ConnectionRegistry {
                     prepared.bound,
                     prepared.managed_authority,
                     now_ms,
+                    authorization_invalidation.clone(),
                 );
                 Ok(OpenedConnectionGrant {
                     grant: ConnectionGrant {
                         connection_id,
                         connection_token,
+                        authorization_invalidation,
                     },
                     grant_id,
                     newly_minted: true,
@@ -2051,8 +2129,19 @@ impl ConnectionRegistry {
             },
             now_millis(),
             Instant::now(),
+            None,
         )
         .map(|opened| opened.grant)
+    }
+
+    pub(crate) fn authorization_invalidation(
+        &self,
+        connection_id: &str,
+    ) -> Option<crate::auth::invalidation::AuthorizationInvalidationConnection> {
+        self.lock()
+            .grants
+            .get(connection_id)
+            .and_then(|record| record.authorization_invalidation.clone())
     }
 
     /// Verify a presented token for one connection-scoped operation. Unknown
@@ -2074,7 +2163,7 @@ impl ConnectionRegistry {
                 connection_id,
             ));
         };
-        let (grant_id, bound) = {
+        let (grant_id, bound, authorization_invalidation) = {
             let grants = self.lock();
             let Some(record) = grants
                 .grants
@@ -2094,7 +2183,11 @@ impl ConnectionRegistry {
                     connection_id,
                 ));
             }
-            (record.grant_id.clone(), record.authority.clone())
+            (
+                record.grant_id.clone(),
+                record.authority.clone(),
+                record.authorization_invalidation.clone(),
+            )
         };
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
@@ -2132,6 +2225,7 @@ impl ConnectionRegistry {
             grant_id,
             resolved,
             bound,
+            authorization_invalidation,
         })
     }
 
@@ -2186,6 +2280,7 @@ impl ConnectionRegistry {
                 grant_id: record.grant_id.clone(),
                 resolved: ResolvedAppAuthority::Anonymous,
                 bound: record.authority.clone(),
+                authorization_invalidation: record.authorization_invalidation.clone(),
             }
         };
         prepared
@@ -2386,8 +2481,14 @@ async fn open_connection(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
     let body = parse_optional_json::<OpenConnectionRequest>(&headers, body)?;
-    let (suggested, previous_token) = body
-        .map(|body| (body.connection_id, body.previous_token))
+    let (suggested, previous_token, auth_invalidation_protocol) = body
+        .map(|body| {
+            (
+                body.connection_id,
+                body.previous_token,
+                body.auth_invalidation_protocol,
+            )
+        })
         .unwrap_or_default();
     let allow_suggested = runtime.server.profile.allows_provisioning();
     let use_key = prepared.authenticated_use_key();
@@ -2401,6 +2502,7 @@ async fn open_connection(
             prepared.clone(),
             epoch_now_ms,
             monotonic_now,
+            auth_invalidation_protocol,
         )?
     };
     let deadline = match record_connection_authenticated_use(&runtime, use_key, &admission).await {
@@ -2422,6 +2524,17 @@ async fn open_connection(
             runtime.connections.discard_unpublished_open(&opened);
             return Err(ApiError::from(error));
         }
+    }
+    if opened.grant.authorization_invalidation.is_some() {
+        let projection_connection = opened.grant.connection_id.clone();
+        let projection_admission = admission.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.reproject_authorization_invalidations(
+                &projection_connection,
+                &projection_admission,
+            )
+        })
+        .await?;
     }
     Ok(Json(opened.grant))
 }
@@ -3355,6 +3468,16 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 response_sensitivity: None,
             }),
             post(open_connection),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
+                "/live/authorization-invalidation/acknowledge",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(acknowledge_authorization_invalidation),
         ),
         RegisteredRoute::new(
             connection_route(
@@ -8656,6 +8779,36 @@ async fn ensure_app(
     }
 }
 
+async fn acknowledge_authorization_invalidation(
+    State(runtime): State<AppState>,
+    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
+    Extension(admission): Extension<AdmissionLease>,
+    input: Result<Json<AuthorizationInvalidationAckInput>, JsonRejection>,
+) -> Result<Json<crate::local::AuthorizationInvalidationAckOutput>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let connection = connection_act
+        .authorization_invalidation
+        .clone()
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                "auth",
+                "connection did not negotiate authInvalidationProtocol: 1",
+            )
+        })?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let ack_admission = admission.clone();
+    let output = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.acknowledge_authorization_invalidation(input, connection, &ack_admission)
+    })
+    .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    Ok(Json(output))
+}
+
 async fn subscribe_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -8666,8 +8819,12 @@ async fn subscribe_live(
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let invalidation = LiveInvalidationAdmission {
+        connection: connection_act.authorization_invalidation.clone(),
+        ..LiveInvalidationAdmission::default()
+    };
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.subscribe_live_prepared(&name, input, authority)
+        snapback.subscribe_live_prepared_with_invalidation(&name, input, authority, invalidation)
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
@@ -8685,8 +8842,12 @@ async fn resume_live(
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let invalidation = LiveInvalidationAdmission {
+        connection: connection_act.authorization_invalidation.clone(),
+        ..LiveInvalidationAdmission::default()
+    };
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.resume_live_prepared(&name, input, authority)
+        snapback.resume_live_prepared_with_invalidation(&name, input, authority, invalidation)
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
@@ -8956,10 +9117,16 @@ async fn live_stream(
         connection_id.clone(),
         generation,
     ));
-    // Delivery is event-driven (the 25ms poll is gone); this heartbeat is only a
-    // defensive fallback if a wake is ever missed. At 30s it is ~1200× less lock
-    // traffic than the old poll, so an idle connection is effectively idle.
-    let mut safety_net = interval(Duration::from_secs(30));
+    let reproject_authorization = active_mode == AuthMode::Sessions
+        && connection_act.authorization_invalidation.is_some();
+    // Session invalidation is level-triggered, so its safety-net tick is also
+    // the bounded re-fire. Dev retains the lower-traffic 30s fallback.
+    let heartbeat_ms = if reproject_authorization {
+        crate::auth::invalidation::AUTH_INVALIDATION_REFIRE_MAX_MS
+    } else {
+        30_000
+    };
+    let mut safety_net = interval(Duration::from_millis(heartbeat_ms));
     safety_net.tick().await; // consume the immediate first tick
 
     // Flush anything enqueued before (or racing) registration under one short
@@ -8993,6 +9160,7 @@ async fn live_stream(
         });
     if !initial_current
         || drain_and_send(
+            &state,
             &ephemeral,
             &connection_id,
             generation,
@@ -9000,6 +9168,7 @@ async fn live_stream(
             &initial_admission,
             &connections,
             &connection_act,
+            reproject_authorization,
         )
         .await
         .is_break()
@@ -9231,6 +9400,7 @@ async fn live_stream(
                 break 'stream;
             }
             if drain_and_send(
+                &state,
                 &ephemeral,
                 &connection_id,
                 generation,
@@ -9238,6 +9408,7 @@ async fn live_stream(
                 &admission,
                 &connections,
                 &connection_act,
+                reproject_authorization,
             )
             .await
             .is_break()
@@ -9296,6 +9467,7 @@ async fn teardown_live_stream(
 /// room authority's per-connection queue directly — no global mutex (L9).
 /// Returns `Break` if the socket send failed (the caller should tear down).
 async fn drain_and_send(
+    state: &SharedSnapback,
     ephemeral: &EphemeralApi,
     connection_id: &str,
     generation: u64,
@@ -9303,8 +9475,9 @@ async fn drain_and_send(
     admission: &AdmissionLease,
     connections: &ConnectionRegistry,
     connection_act: &PreparedConnectionAct,
+    reproject_authorization: bool,
 ) -> std::ops::ControlFlow<()> {
-    let messages = {
+    let mut messages = {
         let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
             return std::ops::ControlFlow::Break(());
         };
@@ -9317,6 +9490,19 @@ async fn drain_and_send(
         };
         messages
     };
+    if reproject_authorization {
+        let connection = connection_id.to_owned();
+        let rerun_admission = admission.clone();
+        let projections = match with_snapback(state, move |snapback| {
+            snapback.authorization_invalidation_frames(&connection, &rerun_admission)
+        })
+        .await
+        {
+            Ok(projections) => projections,
+            Err(_) => return std::ops::ControlFlow::Break(()),
+        };
+        messages.extend(projections);
+    }
     for message in messages {
         if !send_live_with_admission(
             writer,
@@ -9636,6 +9822,40 @@ fn handle_live_socket_text(
         );
     }
 
+    let protected_collection = match &message {
+        LiveSocketClientMessage::EphemeralSubscribe { request, .. }
+        | LiveSocketClientMessage::EphemeralUnsubscribe { request, .. } => {
+            Some(request.collection.as_str())
+        }
+        LiveSocketClientMessage::EphemeralPublish { request, .. } => {
+            Some(request.collection.as_str())
+        }
+        LiveSocketClientMessage::EphemeralDelete { request, .. } => {
+            Some(request.collection.as_str())
+        }
+        LiveSocketClientMessage::Ping { .. } => None,
+    };
+    // The dependency-indexed two-phase room barrier is a mandatory part of
+    // item 6, not something a negotiated durable-query protocol may imply.
+    // Until the server composes fresh bound authority into that barrier,
+    // protected room operations remain fail-closed in sessions mode.
+    // @ref LLP 0053#ephemeral-room-authority-invalidation — a protected room
+    // may not cross a sink without the generation permit published at commit.
+    if policy_mode == PolicyAuthMode::Sessions
+        && protected_collection
+            .is_some_and(|collection| ephemeral.collection_requires_room_permission(collection))
+    {
+        return socket_error(
+            live_socket_request_id(&message),
+            operation_name,
+            Diagnostic::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "protected ephemeral rooms require the two-phase room-authority invalidation barrier",
+            ),
+        );
+    }
+
     // Liveness probe: answered immediately and statelessly (no lock, no
     // connection binding to check — the probe carries no connection_id and
     // performs no operation on connection state).
@@ -9800,20 +10020,41 @@ fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnos
 /// are inconvenient.
 async fn drain_outbox(
     State(runtime): State<AppState>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     Path(_connection_id): Path<String>,
 ) -> Result<Json<Vec<crate::ephemeral::RealtimeEnvelope>>, ApiError> {
-    let _effect = admission.effect_guard("HTTP outbox drain publication")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
-        Ok(Json(
-            runtime
-                .ephemeral
-                .drain_outbox(&connection_act.connection_id),
-        ))
-    })
+    let mut drained = {
+        let _effect = admission.effect_guard("HTTP outbox drain publication")?;
+        connection_act.try_act(
+            &runtime.connections,
+            epoch_now_ms,
+            monotonic_now,
+            || {
+                Ok(runtime
+                    .ephemeral
+                    .drain_outbox(&connection_act.connection_id))
+            },
+        )?
+    };
+    if authority.active_mode() == AuthMode::Sessions
+        && connection_act.authorization_invalidation.is_some()
+    {
+        let projection_connection = connection_act.connection_id.clone();
+        let rerun_admission = admission.clone();
+        let projections = with_snapback(&runtime.snapback, move |snapback| {
+            snapback.authorization_invalidation_frames(&projection_connection, &rerun_admission)
+        })
+        .await?;
+        drained.extend(projections.into_iter().map(|payload| {
+            crate::ephemeral::RealtimeEnvelope::Durable(crate::ephemeral::DurableMessage {
+                payload: payload.into_bytes(),
+            })
+        }));
+    }
+    Ok(Json(drained))
 }
 
 #[derive(Debug, Deserialize)]
@@ -10142,6 +10383,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         | "SNAPBACK_AUTH_TABLE_COLLISION"
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
+        | "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
+        | "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE"
         | "SNAPBACK_AUTH_MODE_DOWNGRADE"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
@@ -10159,6 +10402,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CONNECTION_TOKEN_INVALID"
         | "SNAPBACK_AUTH_CODE_LOCKED"
         | "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+        | "SNAPBACK_AUTH_PERMISSION_DENIED"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -10174,6 +10418,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED"
         | "SNAPBACK_AUTH_THROTTLED"
+        | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
@@ -10200,20 +10445,26 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CAPABILITY_WORKERD_MISSING"
         | "SNAPBACK_AUTH_CATALOG_CORRUPT"
         | "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED"
-        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
         | "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
         | "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
         | "SNAPBACK_AUTH_MODE_PENDING"
         | "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
         | "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED"
+        | "SNAPBACK_AUTH_CLOCK_ROLLBACK"
+        | "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED"
+        | "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED"
+        | "SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED"
+        | "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE"
+        | "SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED"
+        | "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
-        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
+        | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
         | "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT"
         | "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED"
         | "SNAPBACK_APP_GENERATION_EXHAUSTED"
@@ -10234,11 +10485,15 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED"
         | "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY"
         | "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED"
+        | "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT"
+        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+        | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
         | "SNAPBACK_AUTH_REQUEST_INVALID"
         | "SNAPBACK_AUTH_RESCUE_INVALID"
         | "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_USER_MISSING"
+        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_BINDING_MISSING"
         | "SNAPBACK_CAPTURED_READ_INVALID"
         | "SNAPBACK_CLIENT_MUTATION_ID_INVALID"
@@ -12809,6 +13064,7 @@ mod tests {
         let grant = ConnectionGrant {
             connection_id: "conn_debug".to_owned(),
             connection_token: SENTINEL.to_owned(),
+            authorization_invalidation: None,
         };
         let grant_debug = format!("{grant:?}");
         assert!(!grant_debug.contains(SENTINEL), "{grant_debug}");
@@ -12817,6 +13073,7 @@ mod tests {
         let open = OpenConnectionRequest {
             connection_id: Some("conn_debug".to_owned()),
             previous_token: Some(SENTINEL.to_owned()),
+            auth_invalidation_protocol: None,
         };
         let open_debug = format!("{open:?}");
         assert!(!open_debug.contains(SENTINEL), "{open_debug}");
@@ -12995,14 +13252,6 @@ mod tests {
             "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
         ),
         (
-            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
-            "handshake unavailable-reason identifier, not an emitted diagnostic",
-        ),
-        (
-            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-            "handshake unavailable-reason identifier, not an emitted diagnostic",
-        ),
-        (
             "SNAPBACK_BUILD_GIT_COMMIT",
             "compile-time environment variable carrying build provenance",
         ),
@@ -13108,11 +13357,15 @@ mod tests {
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
         "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
+        "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT",
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+        "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
         "SNAPBACK_AUTH_REQUEST_INVALID",
         "SNAPBACK_AUTH_RESCUE_INVALID",
         "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED",
         "SNAPBACK_AUTH_STALE_RESULT",
         "SNAPBACK_AUTH_USER_MISSING",
+        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_BINDING_MISSING",
         "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
         "SNAPBACK_CAPTURED_READ_INVALID",
@@ -13259,6 +13512,7 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
         "SNAPBACK_AUTH_CODE_LOCKED",
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+        "SNAPBACK_AUTH_PERMISSION_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
         "SNAPBACK_PROFILE_FORBIDS",
@@ -13277,6 +13531,8 @@ mod tests {
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
+        "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+        "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE",
         "SNAPBACK_AUTH_MODE_DOWNGRADE",
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_AUTH_TABLE_COLLISION",
@@ -13302,6 +13558,7 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
         "SNAPBACK_AUTH_THROTTLED",
+        "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY",
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
         "SNAPBACK_EPHEMERAL_RATE_LIMITED",
         "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
@@ -13319,6 +13576,14 @@ mod tests {
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_CATALOG_CORRUPT",
         "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
+        "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+        "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED",
+        "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
+        "SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED",
+        "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+        "SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED",
+        "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
+        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
         "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
         "SNAPBACK_AUTH_MODE_PENDING",
@@ -13326,8 +13591,8 @@ mod tests {
         "SNAPBACK_AUTH_PROJECTION_CORRUPT",
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
-        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+        "SNAPBACK_AUTH_RETRY_EXHAUSTED",
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
         "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
@@ -13367,6 +13632,9 @@ mod tests {
         // the fail-safe HTTP projection remains 500.
         "SNAPBACK_AUTH_BACKUP_INVALID",
         "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+        "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
+        "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID",
+        "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
@@ -14258,6 +14526,7 @@ globalThis.__snapbackHandlers = {
                     synthetic_connection_authority(base.clone()),
                     1,
                     Instant::now(),
+                    None,
                 )
                 .expect("seed exact grant");
             let error = registry
@@ -14268,6 +14537,7 @@ globalThis.__snapbackHandlers = {
                     synthetic_connection_authority(mismatch),
                     2,
                     Instant::now(),
+                    None,
                 )
                 .expect_err("identity drift must invalidate and refuse reuse");
             assert_eq!(
@@ -14288,6 +14558,7 @@ globalThis.__snapbackHandlers = {
                 synthetic_connection_authority(base.clone()),
                 1,
                 Instant::now(),
+                None,
             )
             .expect("seed deadline grant");
         let later = synthetic_session_bound(
@@ -14307,6 +14578,7 @@ globalThis.__snapbackHandlers = {
                 synthetic_connection_authority(later),
                 2,
                 Instant::now(),
+                None,
             )
             .expect("deadline-only change reuses exact grant");
         assert_eq!(reused.grant, opened.grant);
@@ -14427,6 +14699,7 @@ globalThis.__snapbackHandlers = {
                     )),
                     1,
                     Instant::now(),
+                    None,
                 )
                 .expect("session grant");
         }
@@ -14446,6 +14719,7 @@ globalThis.__snapbackHandlers = {
                 )),
                 1,
                 Instant::now(),
+                None,
             )
             .expect("sibling session grant");
         registry
@@ -14459,6 +14733,7 @@ globalThis.__snapbackHandlers = {
                 }),
                 1,
                 Instant::now(),
+                None,
             )
             .expect("anonymous grant");
         registry.lock().assert_grant_indexes_consistent();
@@ -14563,6 +14838,7 @@ globalThis.__snapbackHandlers = {
                 prepared,
                 super::now_millis(),
                 Instant::now(),
+                None,
             )
             .expect("open managed grant");
         let act = state

@@ -446,6 +446,7 @@ fn seeded_snapback() -> LocalSnapback {
                     args: json!({ "probe": RECEIPT_SCOPE_SENTINEL }),
                     ..HandlerInput::default()
                 },
+                authorization_namespace: None,
                 supersedes: None,
             },
         )

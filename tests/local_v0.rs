@@ -32,6 +32,7 @@ fn local_sqlite_host_plan_runs_todo_live_query_and_mutation() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -81,6 +82,7 @@ fn ibex_ctx_db_handlers_run_todo_query_mutation_and_live_update() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -125,6 +127,7 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
                 input: input(json!({}), "cron"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -137,6 +140,7 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
             LiveSubscribeInput {
                 connection_id: "grace_client".to_owned(),
                 input: input(json!({}), "user_2"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -180,6 +184,7 @@ fn live_matcher_skips_hidden_row_patches_and_deletes() {
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -226,6 +231,7 @@ fn zero_change_mutation_does_not_fan_out_or_count_delivery_attempts() {
             LiveSubscribeInput {
                 connection_id: "client".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -262,6 +268,7 @@ fn live_matcher_keeps_unmarked_ibex_queries_conservative() {
             LiveSubscribeInput {
                 connection_id: "ada_client".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -300,6 +307,7 @@ fn live_matcher_uses_captured_equality_predicates_beyond_auth_scope() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -394,6 +402,7 @@ fn live_matcher_wakes_ibex_point_read_dependency() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({ "pinnedId": pinned_id }), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -442,6 +451,7 @@ fn live_matcher_uses_captured_in_predicates() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -501,6 +511,7 @@ fn live_matcher_uses_captured_range_predicates() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -577,6 +588,7 @@ fn live_matcher_uses_limited_order_boundaries() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -684,6 +696,7 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -695,6 +708,7 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
             LiveSubscribeInput {
                 connection_id: "client_b".to_owned(),
                 input: input(json!({}), "user_2"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -779,6 +793,7 @@ fn permission_epoch_scope_failure_rejects_before_any_write() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -866,6 +881,7 @@ fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -940,6 +956,7 @@ fn live_resume_retains_subscription_when_recorded_permission_epoch_is_current() 
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -1107,6 +1124,7 @@ fn cron_tick_runs_host_action_through_mutation_and_live_delivery() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "cron"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -1171,6 +1189,7 @@ fn cron_demand_gating_and_default_jitter_are_visible_in_inspect() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -1208,6 +1227,7 @@ fn l5_cron_activity_flag_tracks_arming() {
             LiveSubscribeInput {
                 connection_id: "watcher".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -1650,6 +1670,7 @@ fn rejected_reset_seed_preserves_database_generation_and_subscriptions() {
             LiveSubscribeInput {
                 connection_id: "client_atomic_reset".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -1707,6 +1728,7 @@ fn reset_signals_dropped_live_subscriptions() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -3027,6 +3049,7 @@ fn s2_subscription_ids_are_unguessable() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -3037,6 +3060,7 @@ fn s2_subscription_ids_are_unguessable() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -3062,6 +3086,7 @@ fn s2_resume_live_fails_closed_for_a_different_principal() {
             LiveSubscribeInput {
                 connection_id: "client_owner".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -3174,6 +3199,7 @@ fn s5_d11_recording_tick_runs_cron_without_error() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -3376,6 +3402,7 @@ fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
             LiveSubscribeInput {
                 connection_id: "healthy".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -3386,6 +3413,7 @@ fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
             LiveSubscribeInput {
                 connection_id: "exploding".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -4329,6 +4357,7 @@ fn l2_abandoned_connection_is_reaped_with_counters() {
             LiveSubscribeInput {
                 connection_id: "ghost".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -4455,6 +4484,7 @@ fn eng_23427_reap_under_open_registration_signals_resync() {
                 LiveSubscribeInput {
                     connection_id: connection_id.to_owned(),
                     input: input(json!({}), "user_1"),
+                    authorization_namespace: None,
                     supersedes: None,
                 },
             )
@@ -5447,6 +5477,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -5457,6 +5488,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -5488,6 +5520,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: Some(first.subscription_id.clone()),
             },
         )
@@ -5539,6 +5572,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: Some("sub_gone".to_owned()),
             },
         )
@@ -5653,6 +5687,7 @@ fn d2_unsubscribe_live_disposes_and_enforces_ownership() {
             LiveSubscribeInput {
                 connection_id: "client_a".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )
@@ -5799,6 +5834,7 @@ fn d2_disconnect_receipts_disposal_and_drops_the_connection_ring() {
             LiveSubscribeInput {
                 connection_id: "client_gone".to_owned(),
                 input: input(json!({}), "user_1"),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )

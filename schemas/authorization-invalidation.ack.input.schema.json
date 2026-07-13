@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/authorization-invalidation.ack.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "ackToken": {
+      "type": "string"
+    },
+    "connectionId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "connectionId",
+    "ackToken"
+  ],
+  "title": "AuthorizationInvalidationAckInput",
+  "type": "object"
+}

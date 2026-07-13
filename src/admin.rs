@@ -975,6 +975,7 @@ impl AppState {
         mut self,
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
     ) -> Self {
+        self.connections.install_invalidation_issuer(issuer.clone());
         self.auth_invalidation = Some(issuer);
         self
     }

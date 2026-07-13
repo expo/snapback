@@ -100,6 +100,28 @@
       },
       "type": "object"
     },
+    "QueryNamespace": {
+      "additionalProperties": false,
+      "properties": {
+        "clientStoreId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "queryKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientStoreId",
+        "queryKey",
+        "queryInstanceId"
+      ],
+      "type": "object"
+    },
     "ReadDependency": {
       "properties": {
         "id": {
@@ -125,6 +147,18 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "authorizationNamespace": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QueryNamespace"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Store-owned identity for an auth-scoped live materialization. It is\nignored for explicitly authority-independent functions and required in\nsessions mode for every other live function."
+    },
     "connection_id": {
       "type": "string"
     },

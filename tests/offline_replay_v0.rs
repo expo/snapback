@@ -119,6 +119,7 @@ fn epoch(snapback: &mut LocalSnapback, connection: &str) -> u64 {
             LiveSubscribeInput {
                 connection_id: connection.to_owned(),
                 input: input_for(USER, json!({})),
+                authorization_namespace: None,
                 supersedes: None,
             },
         )

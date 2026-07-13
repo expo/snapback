@@ -943,12 +943,14 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(ConnectionGrant {
             connection_id: "conn_1".to_owned(),
             connection_token: "tok_1".to_owned(),
+            authorization_invalidation: None,
         })
         .unwrap(),
     );
     let open_request = serde_json::to_value(OpenConnectionRequest {
         connection_id: Some("conn_1".to_owned()),
         previous_token: Some("sct_prior_bearer".to_owned()),
+        auth_invalidation_protocol: None,
     })
     .unwrap();
     assert_validates("connection.open.input.schema.json", &open_request);
@@ -1027,6 +1029,8 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             snapshot: snapshot.clone(),
             permission_epochs: std::collections::BTreeMap::new(),
             receipt: Some(json!({ "kind": "subscription" })),
+            authorization_scope: None,
+            authorization_invalidation: None,
         })
         .unwrap(),
     );
@@ -1069,6 +1073,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(LiveSubscribeInput {
             connection_id: "conn_1".to_owned(),
             input: input.clone(),
+            authorization_namespace: None,
             supersedes: None,
         })
         .unwrap(),
@@ -1081,6 +1086,8 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             reason: None,
             snapshot: Some(snapshot),
             permission_epochs: std::collections::BTreeMap::new(),
+            authorization_scope: None,
+            authorization_invalidation: None,
         })
         .unwrap(),
     );

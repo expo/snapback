@@ -402,6 +402,7 @@ fn sub_input(connection: &str, user: &str) -> LiveSubscribeInput {
     LiveSubscribeInput {
         connection_id: connection.to_owned(),
         input: input(json!({ "userId": user }), user),
+        authorization_namespace: None,
         supersedes: None,
     }
 }

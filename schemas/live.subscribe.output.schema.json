@@ -1,5 +1,140 @@
 {
   "$defs": {
+    "AuthorizationInvalidationProjection": {
+      "additionalProperties": false,
+      "description": "One level-triggered live projection. Delivery is only a hint; the exact\nobligation remains authoritative until the optional resolution ticket is\nacknowledged after the client commits its local transition.",
+      "properties": {
+        "obligation": {
+          "$ref": "#/$defs/ResyncObligation"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResolutionTicket"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "obligation"
+      ],
+      "type": "object"
+    },
+    "AuthorizationVersion": {
+      "description": "The one durable authorization-stream witness. The incarnation closes reset\nand restore ABA; the JS-safe epoch advances for ordinary authorization\nevents within that stream.\n\n@ref LLP 0053#the-authorization-version — v1 has one global durable pair.",
+      "properties": {
+        "epoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incarnation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "incarnation",
+        "epoch"
+      ],
+      "type": "object"
+    },
+    "CompositeWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "authorization"
+      ],
+      "type": "object"
+    },
+    "DataWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "minCommitVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "versionStream",
+        "minCommitVersion"
+      ],
+      "type": "object"
+    },
+    "InvalidationDisposition": {
+      "enum": [
+        "retain",
+        "quarantine",
+        "delete"
+      ],
+      "type": "string"
+    },
+    "IssuerId": {
+      "additionalProperties": false,
+      "description": "A boot identity is never reused, even when process-local counters restart.",
+      "properties": {
+        "authorizationIncarnation": {
+          "type": "string"
+        },
+        "bootNonce": {
+          "type": "string"
+        },
+        "bootSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizationIncarnation",
+        "bootSequence",
+        "bootNonce"
+      ],
+      "type": "object"
+    },
+    "QueryNamespace": {
+      "additionalProperties": false,
+      "properties": {
+        "clientStoreId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "queryKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientStoreId",
+        "queryKey",
+        "queryInstanceId"
+      ],
+      "type": "object"
+    },
     "QueryOutput": {
       "properties": {
         "rows": {
@@ -17,11 +152,197 @@
         "rows"
       ],
       "type": "object"
+    },
+    "ResolutionKind": {
+      "enum": [
+        "snapshot",
+        "terminalDelete"
+      ],
+      "type": "string"
+    },
+    "ResolutionTicket": {
+      "additionalProperties": false,
+      "properties": {
+        "ackToken": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResolutionKind"
+        },
+        "maxDisposition": {
+          "$ref": "#/$defs/InvalidationDisposition"
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scopeId": {
+          "$ref": "#/$defs/ScopeId"
+        },
+        "witness": {
+          "$ref": "#/$defs/CompositeWitness"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "kind",
+        "scopeId",
+        "revision",
+        "witness",
+        "maxDisposition",
+        "ackToken"
+      ],
+      "type": "object"
+    },
+    "ResyncObligation": {
+      "additionalProperties": false,
+      "properties": {
+        "maxDisposition": {
+          "$ref": "#/$defs/InvalidationDisposition"
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "retryEpisodeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scopeId": {
+          "$ref": "#/$defs/ScopeId"
+        },
+        "witness": {
+          "$ref": "#/$defs/CompositeWitness"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "scopeId",
+        "revision",
+        "maxDisposition",
+        "witness"
+      ],
+      "type": "object"
+    },
+    "ScopeId": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "connection_generation": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "issuer_id": {
+              "$ref": "#/$defs/IssuerId"
+            },
+            "kind": {
+              "const": "subscription",
+              "type": "string"
+            },
+            "namespace": {
+              "$ref": "#/$defs/QueryNamespace"
+            },
+            "scope_sequence": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "subscription_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "issuer_id",
+            "namespace",
+            "scope_sequence",
+            "connection_generation",
+            "subscription_id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "connection_generation": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "issuer_id": {
+              "$ref": "#/$defs/IssuerId"
+            },
+            "kind": {
+              "const": "connection",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "issuer_id",
+            "connection_generation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "clientQuery",
+              "type": "string"
+            },
+            "namespace": {
+              "$ref": "#/$defs/QueryNamespace"
+            }
+          },
+          "required": [
+            "kind",
+            "namespace"
+          ],
+          "type": "object"
+        }
+      ]
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.output.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "authorizationInvalidation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorizationInvalidationProjection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "authorizationScope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScopeId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "permission_epochs": {
       "additionalProperties": {
         "format": "uint64",

@@ -2,7 +2,10 @@ use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{AdmissionController, ModeCommitFailure, ModeTransitionGuard};
 use crate::auth::invalidation::{
-    LiveInvalidationIssuer, ObligationExpectation, ObligationRegistry,
+    AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
+    DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
+    ObligationRegistry, QueryNamespace, ResolutionKind, RetryEpisodeKey, RetryReservation,
+    RetryReservationKind, ScopeId,
 };
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
@@ -29,8 +32,8 @@ use crate::live_matcher::{
     query_dependencies_from_plan,
 };
 use crate::live_wire::{
-    LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope, LiveSocketServerFrame, MutationReceiptOutcome,
-    Receipt, SubscriptionReceiptEvent,
+    AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
+    LiveSocketServerFrame, MutationReceiptOutcome, Receipt, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, CTX_ANSWER_LEDGER_MAX_IDS,
@@ -560,6 +563,15 @@ pub struct LiveSubscribeInput {
     pub connection_id: String,
     #[serde(default)]
     pub input: HandlerInput,
+    /// Store-owned identity for an auth-scoped live materialization. It is
+    /// ignored for explicitly authority-independent functions and required in
+    /// sessions mode for every other live function.
+    #[serde(
+        default,
+        rename = "authorizationNamespace",
+        alias = "authorization_namespace"
+    )]
+    pub authorization_namespace: Option<QueryNamespace>,
     /// Explicit supersession (ENG-22478 review fix A): the kit names the
     /// subscription its OWN resubscribe replaces; the server disposes exactly
     /// that id. Plain duplicate subscribes (two components sharing a query)
@@ -577,6 +589,18 @@ pub struct LiveSubscribeOutput {
     /// Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<Value>,
+    #[serde(
+        default,
+        rename = "authorizationScope",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_scope: Option<ScopeId>,
+    #[serde(
+        default,
+        rename = "authorizationInvalidation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_invalidation: Option<AuthorizationInvalidationProjection>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -603,6 +627,18 @@ pub struct LiveResumeOutput {
     pub snapshot: Option<QueryOutput>,
     #[serde(default)]
     pub permission_epochs: BTreeMap<String, u64>,
+    #[serde(
+        default,
+        rename = "authorizationScope",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_scope: Option<ScopeId>,
+    #[serde(
+        default,
+        rename = "authorizationInvalidation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_invalidation: Option<AuthorizationInvalidationProjection>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -619,6 +655,19 @@ pub struct LiveUnsubscribeOutput {
     pub disposed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationAckInput {
+    pub connection_id: String,
+    pub ack_token: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationAckOutput {
+    pub outcome: String,
 }
 
 /// The legacy v0-dev compatibility form of the single idempotent
@@ -1292,6 +1341,10 @@ pub struct EphemeralApi {
 }
 
 impl EphemeralApi {
+    pub fn collection_requires_room_permission(&self, name: &str) -> bool {
+        self.store.collection_requires_room_permission(name)
+    }
+
     // Touch-after-success (MEDIUM finding 2): the activity touch happens
     // *after* the store op registers/enqueues, so a registration that
     // survives a racing write-lane `disconnect` (which removes activity
@@ -1614,6 +1667,34 @@ struct LocalInvalidationState {
     issuer: LiveInvalidationIssuer,
     obligations: ObligationRegistry,
     version_stream: String,
+    next_cause_sequence: u64,
+}
+
+impl LocalInvalidationState {
+    fn reserve_cause_sequence(&mut self) -> SnapbackResult<u64> {
+        let current = self.next_cause_sequence;
+        self.next_cause_sequence = current
+            .checked_add(1)
+            .filter(|value| *value <= crate::auth::invalidation::MAX_PROTOCOL_COUNTER)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED",
+                    "auth",
+                    "authorization invalidation cause sequence exhausted",
+                )
+            })?;
+        Ok(current)
+    }
+
+    fn witness(&self, min_commit_version: u64) -> CompositeWitness {
+        CompositeWitness {
+            authorization: self.obligations.expectation().authorization.clone(),
+            data: Some(DataWitness {
+                version_stream: self.version_stream.clone(),
+                min_commit_version,
+            }),
+        }
+    }
 }
 
 /// Durable half of a coordinator-owned destructive reset. These process-local
@@ -1635,11 +1716,33 @@ struct LiveSubscription {
     authority: RetainedLiveAuthority,
     input: HandlerInput,
     read_dependencies: Vec<CapturedReadDependency>,
+    authorization: Option<LiveSubscriptionAuthorization>,
+}
+
+#[derive(Clone, Debug)]
+struct LiveSubscriptionAuthorization {
+    scope_id: ScopeId,
+    namespace: QueryNamespace,
+    authority_subject: String,
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct LiveInvalidationAdmission {
+    pub(crate) connection: Option<AuthorizationInvalidationConnection>,
+    #[cfg(test)]
+    pub(crate) session_mode: bool,
+    #[cfg(test)]
+    pub(crate) authority_subject: Option<String>,
 }
 
 pub(crate) struct QueryInvocation {
     pub(crate) output: QueryOutput,
     pub(crate) read_dependencies: Vec<CapturedReadDependency>,
+}
+
+struct AuthorizationResolutionFailure {
+    error: SnapbackError,
+    retry_episode_id: Option<String>,
 }
 
 /// Outcome of the DK-3 op-log delta fast path for one subscription.
@@ -1843,14 +1946,9 @@ impl LocalSnapback {
             issuer,
             obligations,
             version_stream,
+            next_cause_sequence: 1,
         });
         Ok(())
-    }
-
-    pub(crate) fn auth_invalidation_issuer(&self) -> Option<LiveInvalidationIssuer> {
-        self.auth_invalidation
-            .as_ref()
-            .map(|state| state.issuer.clone())
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
@@ -2105,6 +2203,11 @@ impl LocalSnapback {
         let dropped_subscriptions: Vec<LiveSubscription> =
             self.subscriptions.values().cloned().collect();
         self.subscriptions.clear();
+        // The authenticated issuer names the pre-reset authorization
+        // incarnation. Reset terminates those scopes; this process refuses new
+        // auth-scoped live admission until startup reserves/authenticates a
+        // fresh issuer for the new incarnation.
+        self.auth_invalidation = None;
         self.permission_epochs.clear();
         self.refresh_read_epochs();
         self.ephemeral.reset_runtime_state();
@@ -3123,10 +3226,24 @@ impl LocalSnapback {
             }
             changes
         };
-        if !permission_changes.is_empty() || !commit.changes.is_empty() {
+        let authorization_event = commit
+            .authorization
+            .as_ref()
+            .filter(|authorization| authorization.event && self.auth_invalidation.is_some());
+        if !permission_changes.is_empty()
+            || !commit.changes.is_empty()
+            || authorization_event.is_some()
+        {
             self.begin_live_delivery_frame(self.subscriptions.len());
-            let resynced =
+            let mut resynced =
                 self.notify_permission_resyncs_in_frame(&permission_changes, admission)?;
+            if let Some(authorization) = authorization_event {
+                resynced.extend(self.notify_authorization_event_in_frame(
+                    authorization,
+                    commit.output.version,
+                    admission,
+                )?);
+            }
             if !commit.changes.is_empty() {
                 self.notify_live_subscriptions_in_frame(&commit.changes, &resynced, admission)?;
             }
@@ -3358,7 +3475,12 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.input.auth),
         )?;
-        self.subscribe_live_prepared(name, input, authority)
+        self.subscribe_live_prepared_with_invalidation(
+            name,
+            input,
+            authority,
+            LiveInvalidationAdmission::default(),
+        )
     }
 
     pub(crate) fn subscribe_live_prepared(
@@ -3366,6 +3488,52 @@ impl LocalSnapback {
         name: &str,
         input: LiveSubscribeInput,
         authority: PreparedAuthority,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.subscribe_live_prepared_with_invalidation(
+            name,
+            input,
+            authority,
+            LiveInvalidationAdmission::default(),
+        )
+    }
+
+    /// Compatibility scaffold for protocol unit tests. Production composition
+    /// always supplies a server-prepared authority through the method below.
+    #[cfg(test)]
+    fn subscribe_live_with_invalidation(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        invalidation: LiveInvalidationAdmission,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        let active_mode = if invalidation.session_mode {
+            AuthMode::Sessions
+        } else {
+            AuthMode::Dev
+        };
+        let resolved = if active_mode == AuthMode::Sessions {
+            ResolvedAppAuthority::Anonymous
+        } else {
+            ResolvedAppAuthority::dev_from_auth(&input.input.auth)
+        };
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::LiveInitialQuery,
+            active_mode,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            resolved,
+        )?;
+        self.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)
+    }
+
+    pub(crate) fn subscribe_live_prepared_with_invalidation(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
     ) -> SnapbackResult<LiveSubscribeOutput> {
         if authority.source() != InvocationSource::LiveInitialQuery {
             return Err(SnapbackError::error(
@@ -3375,8 +3543,13 @@ impl LocalSnapback {
             ));
         }
         authority.validate_admission("live subscribe preparation")?;
+        let authority_subject = authority.resolved().invalidation_subject();
         let retained_authority = authority.retain_live_owner()?;
         let publication_authority = authority.clone();
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — an
+        // auth-scoped live subscription is admitted only when its connection
+        // negotiated the exact protocol and supplied a stable query namespace.
+        self.touch_connection(&input.connection_id, now_millis());
         let function = self.function(name)?;
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
@@ -3385,6 +3558,55 @@ impl LocalSnapback {
                 format!("{name} is not a live query"),
             ));
         }
+        let auth_scoped =
+            authority.active_mode() == AuthMode::Sessions && !function.authority_independent;
+        if auth_scoped && self.auth_invalidation.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "session-mode auth-scoped live queries require the installed invalidation protocol",
+            ));
+        }
+        let authorization_admission = if auth_scoped {
+            let connection = invalidation.connection.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                    "auth",
+                    "auth-scoped live queries require authInvalidationProtocol: 1",
+                )
+            })?;
+            if connection.protocol_version
+                != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                    "auth",
+                    "auth-scoped live queries require authInvalidationProtocol: 1",
+                ));
+            }
+            let namespace = input.authorization_namespace.clone().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
+                    "auth",
+                    "auth-scoped live queries require authorizationNamespace",
+                )
+            })?;
+            namespace.validate()?;
+            let state = self
+                .auth_invalidation
+                .as_ref()
+                .expect("auth-scoped admission checked installed state");
+            if connection.issuer_id != state.issuer.authenticated().issuer_id {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                    "auth",
+                    "connection invalidation expectation is not current",
+                ));
+            }
+            Some((connection, namespace))
+        } else {
+            None
+        };
 
         let subscription_input = retained_authority.canonicalize_input(input.input);
 
@@ -3447,6 +3669,52 @@ impl LocalSnapback {
         let subscription_id = format!("sub_{}", Uuid::now_v7().simple());
         let _publication = publication_authority.effect_guard("live subscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
+        let mut authorization_scope = None;
+        let mut authorization_invalidation = None;
+        let subscription_authorization = if let Some((connection, namespace)) =
+            authorization_admission
+        {
+            let state = self
+                .auth_invalidation
+                .as_mut()
+                .expect("auth-scoped admission checked installed state");
+            let scope_id = ScopeId::Subscription {
+                issuer_id: connection.issuer_id.clone(),
+                namespace: namespace.clone(),
+                scope_sequence: state.issuer.reserve_scope_sequence()?,
+                connection_generation: connection.connection_generation,
+                subscription_id: subscription_id.clone(),
+            };
+            let connection_scope = ScopeId::Connection {
+                issuer_id: connection.issuer_id,
+                connection_generation: connection.connection_generation,
+            };
+            if state
+                .obligations
+                .register_connection_child(&connection_scope, scope_id.clone())?
+                .is_some()
+            {
+                let witness = CompositeWitness {
+                    authorization: state.obligations.expectation().authorization.clone(),
+                    data: Some(DataWitness {
+                        version_stream: state.version_stream.clone(),
+                        min_commit_version: query.output.version,
+                    }),
+                };
+                state
+                    .obligations
+                    .issue_resolution(&scope_id, ResolutionKind::Snapshot, witness)?;
+                authorization_invalidation = state.obligations.projection(&scope_id);
+            }
+            authorization_scope = Some(scope_id.clone());
+            Some(LiveSubscriptionAuthorization {
+                scope_id,
+                namespace,
+                authority_subject,
+            })
+        } else {
+            None
+        };
 
         // Superseded-subscription GC, EXPLICIT protocol (LLP 0034 §10.1
         // residual; ENG-22478 review fix A): the kit names the subscription
@@ -3456,7 +3724,16 @@ impl LocalSnapback {
         // connection) coexist. An unknown id is a quiet no-op: reconnects
         // race disconnect teardown, which may have dropped it already.
         if let Some(old_id) = superseded_subscription_id {
-            self.subscriptions.remove(&old_id);
+            let retired_scope = self
+                .subscriptions
+                .remove(&old_id)
+                .and_then(|subscription| subscription.authorization)
+                .map(|authorization| authorization.scope_id);
+            if let (Some(state), Some(scope)) =
+                (self.auth_invalidation.as_mut(), retired_scope.as_ref())
+            {
+                state.obligations.retire_scope(scope);
+            }
             let receipt = Receipt::Subscription {
                 event: SubscriptionReceiptEvent::Disposed,
                 reason: Some("superseded".to_owned()),
@@ -3484,6 +3761,7 @@ impl LocalSnapback {
                 authority: retained_authority,
                 input: subscription_input.clone(),
                 read_dependencies: query.read_dependencies,
+                authorization: subscription_authorization,
             },
         );
         // A new subscription can arm a demand-gated cron job (L5).
@@ -3520,6 +3798,8 @@ impl LocalSnapback {
             snapshot: query.output,
             permission_epochs,
             receipt: Some(receipt),
+            authorization_scope,
+            authorization_invalidation,
         })
     }
 
@@ -3592,6 +3872,12 @@ impl LocalSnapback {
         let _publication = authority.effect_guard("live unsubscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
+        if let (Some(state), Some(authorization)) = (
+            self.auth_invalidation.as_mut(),
+            subscription.authorization.as_ref(),
+        ) {
+            state.obligations.retire_scope(&authorization.scope_id);
+        }
         // Losing the last watcher of a demand-gated live query disarms cron.
         self.refresh_cron_active();
         let receipt = Receipt::Subscription {
@@ -3618,7 +3904,54 @@ impl LocalSnapback {
         })
     }
 
+    /// The request itself is the client's assertion that its serialized
+    /// disposition/snapshot transition committed. There is deliberately no
+    /// caller-controlled `applied` boolean: only an exact token bound to this
+    /// negotiated connection can compare-and-discharge the current revision.
+    pub(crate) fn acknowledge_authorization_invalidation(
+        &mut self,
+        input: AuthorizationInvalidationAckInput,
+        connection: AuthorizationInvalidationConnection,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<AuthorizationInvalidationAckOutput> {
+        let _publication = admission.effect_guard("authorization invalidation acknowledgement")?;
+        self.touch_connection(&input.connection_id, now_millis());
+        let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "authorization invalidation is not installed",
+            )
+        })?;
+        if connection.protocol_version
+            != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
+            || connection.issuer_id != state.issuer.authenticated().issuer_id
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                "auth",
+                "connection invalidation expectation is not current",
+            ));
+        }
+        let outcome = state.obligations.acknowledge_subscription(
+            &connection.issuer_id,
+            connection.connection_generation,
+            &input.ack_token,
+        )?;
+        Ok(AuthorizationInvalidationAckOutput {
+            outcome: match outcome {
+                crate::auth::invalidation::AcknowledgeOutcome::Discharged => "discharged",
+                crate::auth::invalidation::AcknowledgeOutcome::Duplicate => "duplicate",
+                crate::auth::invalidation::AcknowledgeOutcome::Stale => "stale",
+            }
+            .to_owned(),
+        })
+    }
+
     /// @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs — retained resume compares client-recorded permission epochs before trusting retained rows.
+    /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — an
+    /// auth-scoped reconnect gets a fresh connection-bound scope and snapshot;
+    /// any pending obligation transfers instead of disappearing with the socket.
     pub fn resume_live(
         &mut self,
         name: &str,
@@ -3633,7 +3966,12 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
         )?;
-        self.resume_live_prepared(name, input, authority)
+        self.resume_live_prepared_with_invalidation(
+            name,
+            input,
+            authority,
+            LiveInvalidationAdmission::default(),
+        )
     }
 
     pub(crate) fn resume_live_prepared(
@@ -3641,6 +3979,21 @@ impl LocalSnapback {
         name: &str,
         input: LiveResumeInput,
         authority: PreparedAuthority,
+    ) -> SnapbackResult<LiveResumeOutput> {
+        self.resume_live_prepared_with_invalidation(
+            name,
+            input,
+            authority,
+            LiveInvalidationAdmission::default(),
+        )
+    }
+
+    pub(crate) fn resume_live_prepared_with_invalidation(
+        &mut self,
+        name: &str,
+        input: LiveResumeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
     ) -> SnapbackResult<LiveResumeOutput> {
         if authority.source() != InvocationSource::LiveResume {
             return Err(SnapbackError::error(
@@ -3650,7 +4003,8 @@ impl LocalSnapback {
             ));
         }
         authority.validate_admission("live resume preparation")?;
-        let subscription = self
+        self.touch_connection(&input.connection_id, now_millis());
+        let mut subscription = self
             .subscriptions
             .get(&input.subscription_id)
             .cloned()
@@ -3670,6 +4024,170 @@ impl LocalSnapback {
                     subscription.id, subscription.function
                 ),
             ));
+        }
+
+        if !subscription.authority.matches(&authority) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+                "realtime",
+                format!(
+                    "subscription {} is owned by a different principal",
+                    subscription.id
+                ),
+            ));
+        }
+
+        if let Some(mut authorization) = subscription.authorization.take() {
+            if authority.active_mode() != AuthMode::Sessions {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "an auth-scoped subscription cannot resume outside its session authority",
+                ));
+            }
+            let connection = invalidation.connection.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                    "auth",
+                    "auth-scoped live resume requires authInvalidationProtocol: 1",
+                )
+            })?;
+            let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "authorization invalidation is not installed",
+                )
+            })?;
+            if connection.protocol_version
+                != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
+                || connection.issuer_id != state.issuer.authenticated().issuer_id
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                    "auth",
+                    "connection invalidation expectation is not current",
+                ));
+            }
+
+            let connection_changed = !matches!(
+                &authorization.scope_id,
+                ScopeId::Subscription {
+                    issuer_id,
+                    connection_generation,
+                    ..
+                } if issuer_id == &connection.issuer_id
+                    && *connection_generation == connection.connection_generation
+            );
+            if connection_changed {
+                let previous = state.obligations.pending(&authorization.scope_id).cloned();
+                state.obligations.retire_scope(&authorization.scope_id);
+                let replacement = ScopeId::Subscription {
+                    issuer_id: connection.issuer_id.clone(),
+                    namespace: authorization.namespace.clone(),
+                    scope_sequence: state.issuer.reserve_scope_sequence()?,
+                    connection_generation: connection.connection_generation,
+                    subscription_id: subscription.id.clone(),
+                };
+                let connection_scope = ScopeId::Connection {
+                    issuer_id: connection.issuer_id,
+                    connection_generation: connection.connection_generation,
+                };
+                state
+                    .obligations
+                    .register_connection_child(&connection_scope, replacement.clone())?;
+                if let Some(previous) = previous {
+                    let cause = state.reserve_cause_sequence()?;
+                    state.obligations.raise(
+                        replacement.clone(),
+                        cause,
+                        format!("resume:transfer:{cause}"),
+                        previous.max_disposition,
+                        previous.witness,
+                        previous.retry_episode_id,
+                    )?;
+                }
+                authorization.scope_id = replacement;
+            }
+
+            // A session-mode resume never trusts retained rows merely because
+            // epochs compare equal. Install an exact obligation before the
+            // fresh query so a failed invocation leaves the old view hidden.
+            let floor = self.db.current_version()?;
+            let cause = state.reserve_cause_sequence()?;
+            let witness = state.witness(floor);
+            let retry_floor = witness.clone();
+            state.obligations.raise(
+                authorization.scope_id.clone(),
+                cause,
+                format!("resume:fresh:{cause}"),
+                InvalidationDisposition::Quarantine,
+                witness,
+                None,
+            )?;
+            if let Some(projection) = state.obligations.projection(&authorization.scope_id)
+                && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
+                    obligation: projection.obligation,
+                    resolution: projection.resolution,
+                    snapshot: None,
+                })
+            {
+                self.ephemeral
+                    .enqueue_durable(input.connection_id.clone(), payload);
+            }
+
+            subscription.authorization = Some(authorization.clone());
+            let query = match self.invoke_authorization_resolution(
+                &subscription,
+                retry_floor,
+                authority.admission_lease(),
+            ) {
+                Ok(query) => query,
+                Err(failure) => {
+                    let error = failure.error.clone();
+                    self.fail_subscription_fanout_with_retry(
+                        &subscription,
+                        "authorization_resume_failed",
+                        failure.error,
+                        failure.retry_episode_id,
+                        authority.admission_lease(),
+                    )?;
+                    return Err(error);
+                }
+            };
+            let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
+            let resolution_witness = self
+                .auth_invalidation
+                .as_ref()
+                .expect("state remains installed")
+                .witness(query.output.version);
+            let authorization_invalidation = {
+                let state = self
+                    .auth_invalidation
+                    .as_mut()
+                    .expect("state remains installed");
+                state.obligations.issue_resolution(
+                    &authorization.scope_id,
+                    ResolutionKind::Snapshot,
+                    resolution_witness.clone(),
+                )?;
+                state.obligations.projection(&authorization.scope_id)
+            };
+            self.resolve_authorization_retry_episode(&subscription, &resolution_witness)?;
+            if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+                stored.connection_id = input.connection_id;
+                stored.read_dependencies = query.read_dependencies;
+                stored.authorization = Some(authorization.clone());
+            }
+            return Ok(LiveResumeOutput {
+                subscription_id: subscription.id,
+                mode: "resnapshot".to_owned(),
+                reason: Some("authorization_revalidation".to_owned()),
+                snapshot: Some(query.output),
+                permission_epochs,
+                authorization_scope: Some(authorization.scope_id.clone()),
+                authorization_invalidation,
+            });
         }
 
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
@@ -3709,6 +4227,8 @@ impl LocalSnapback {
                 reason: Some("permission_epoch_changed".to_owned()),
                 snapshot: Some(query.output),
                 permission_epochs,
+                authorization_scope: None,
+                authorization_invalidation: None,
             });
         }
 
@@ -3727,6 +4247,8 @@ impl LocalSnapback {
             reason: None,
             snapshot: None,
             permission_epochs,
+            authorization_scope: None,
+            authorization_invalidation: None,
         })
     }
 
@@ -4860,6 +5382,17 @@ impl LocalSnapback {
         // path (an async worker; the L7 exec guard forbids rusqlite there),
         // and a version-at-death fact is cosmetic — null is the honest value.
         let mut dropped_subscriptions = 0_usize;
+        let retired_authorization_scopes = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+            .filter_map(|subscription| {
+                subscription
+                    .authorization
+                    .as_ref()
+                    .map(|authorization| authorization.scope_id.clone())
+            })
+            .collect::<Vec<_>>();
         for subscription in self
             .subscriptions
             .values()
@@ -4886,6 +5419,11 @@ impl LocalSnapback {
         }
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
+        if let Some(state) = self.auth_invalidation.as_mut() {
+            for scope in retired_authorization_scopes {
+                state.obligations.retire_scope(&scope);
+            }
+        }
         self.receipts.drop_connection(connection_id);
         // ENG-23427: an unconditional disconnect (the L2 reaper, or the admin
         // route) that destroyed durable subscriptions while the connection
@@ -5548,6 +6086,684 @@ impl LocalSnapback {
         self.live_delivery.last_failed = 0;
     }
 
+    fn authorization_retry_key(subscription: &LiveSubscription) -> Option<RetryEpisodeKey> {
+        let authorization = subscription.authorization.as_ref()?;
+        Some(RetryEpisodeKey {
+            authority_subject: authorization.authority_subject.clone(),
+            client_store_id: authorization.namespace.client_store_id.clone(),
+            query_key: authorization.namespace.query_key.clone(),
+        })
+    }
+
+    fn invoke_authorization_resolution(
+        &mut self,
+        subscription: &LiveSubscription,
+        witness_floor: CompositeWitness,
+        admission: &AdmissionLease,
+    ) -> Result<QueryInvocation, AuthorizationResolutionFailure> {
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — retry
+        // episodes are durable, bounded obligations; an untrusted application
+        // error can quarantine but cannot manufacture terminal deletion proof.
+        let key = Self::authorization_retry_key(subscription).expect("auth-scoped subscription");
+        let now = now_millis();
+        let initial = self.db.with_invalidation_retry_registry(|registry| {
+            registry.reserve(
+                key.clone(),
+                witness_floor.clone(),
+                now,
+                RetryReservationKind::Initial,
+            )
+        });
+        let mut episode = match initial {
+            Ok(RetryReservation::Reserved(episode)) => episode,
+            Ok(RetryReservation::Attached(_)) => {
+                match self.db.with_invalidation_retry_registry(|registry| {
+                    registry.reserve(
+                        key.clone(),
+                        witness_floor.clone(),
+                        now_millis(),
+                        RetryReservationKind::Automatic,
+                    )
+                }) {
+                    Ok(RetryReservation::Reserved(episode)) => episode,
+                    Ok(RetryReservation::Attached(episode))
+                    | Ok(RetryReservation::Exhausted(episode)) => {
+                        return Err(AuthorizationResolutionFailure {
+                            error: SnapbackError::error(
+                                "SNAPBACK_AUTH_RETRY_EXHAUSTED",
+                                "auth",
+                                "authorization revalidation retry budget is exhausted",
+                            ),
+                            retry_episode_id: Some(episode.episode_id),
+                        });
+                    }
+                    Err(error) => {
+                        return Err(AuthorizationResolutionFailure {
+                            error,
+                            retry_episode_id: None,
+                        });
+                    }
+                }
+            }
+            Ok(RetryReservation::Exhausted(episode)) => {
+                return Err(AuthorizationResolutionFailure {
+                    error: SnapbackError::error(
+                        "SNAPBACK_AUTH_RETRY_EXHAUSTED",
+                        "auth",
+                        "authorization revalidation retry budget is exhausted",
+                    ),
+                    retry_episode_id: Some(episode.episode_id),
+                });
+            }
+            Err(error) => {
+                return Err(AuthorizationResolutionFailure {
+                    error,
+                    retry_episode_id: None,
+                });
+            }
+        };
+
+        loop {
+            match subscription
+                .authority
+                .prepare_rerun(admission.clone())
+                .and_then(|authority| {
+                    self.invoke_query_with_dependencies_prepared(
+                        &subscription.function,
+                        subscription.input.clone(),
+                        authority,
+                    )
+                }) {
+                Ok(query) => return Ok(query),
+                Err(error) => {
+                    // Only the host-owned, non-serializable denial brand may
+                    // produce a terminal delete. Application diagnostics with
+                    // the same public code remain ordinary retryable errors.
+                    if error.is_trusted_permission_denial() {
+                        return Err(AuthorizationResolutionFailure {
+                            error,
+                            retry_episode_id: Some(episode.episode_id),
+                        });
+                    }
+                    let failure = self.db.with_invalidation_retry_registry(|registry| {
+                        registry.record_failure(&key, now_millis())
+                    });
+                    if let Err(clock_error) = failure {
+                        return Err(AuthorizationResolutionFailure {
+                            error: clock_error,
+                            retry_episode_id: Some(episode.episode_id),
+                        });
+                    }
+                    let reservation = self.db.with_invalidation_retry_registry(|registry| {
+                        registry.reserve(
+                            key.clone(),
+                            witness_floor.clone(),
+                            now_millis(),
+                            RetryReservationKind::Automatic,
+                        )
+                    });
+                    match reservation {
+                        Ok(RetryReservation::Reserved(next)) => episode = next,
+                        Ok(RetryReservation::Attached(current))
+                        | Ok(RetryReservation::Exhausted(current)) => {
+                            return Err(AuthorizationResolutionFailure {
+                                error,
+                                retry_episode_id: Some(current.episode_id),
+                            });
+                        }
+                        Err(reservation_error) => {
+                            return Err(AuthorizationResolutionFailure {
+                                error: reservation_error,
+                                retry_episode_id: Some(episode.episode_id),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn resolve_authorization_retry_episode(
+        &mut self,
+        subscription: &LiveSubscription,
+        proof: &CompositeWitness,
+    ) -> SnapbackResult<()> {
+        let Some(key) = Self::authorization_retry_key(subscription) else {
+            return Ok(());
+        };
+        self.db.with_invalidation_retry_registry(|registry| {
+            registry.resolve(&key, proof);
+            Ok(())
+        })
+    }
+
+    fn deliver_authorization_snapshot(
+        &mut self,
+        subscription: &LiveSubscription,
+        query: QueryInvocation,
+        cause_label: &str,
+        raise_cause: bool,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
+        let _publication = admission.effect_guard("authorization snapshot publication")?;
+        let authorization = subscription.authorization.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
+                "auth",
+                "authorization snapshot requires an auth-scoped subscription",
+            )
+        })?;
+        let snapshot_version = query.output.version;
+        let (projection, proof) = {
+            let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "authorization invalidation is not installed",
+                )
+            })?;
+            let witness = state.witness(snapshot_version);
+            if raise_cause {
+                let cause = state.reserve_cause_sequence()?;
+                state.obligations.raise(
+                    authorization.scope_id.clone(),
+                    cause,
+                    format!("{cause_label}:{cause}"),
+                    InvalidationDisposition::Quarantine,
+                    witness.clone(),
+                    None,
+                )?;
+            }
+            state.obligations.issue_resolution(
+                &authorization.scope_id,
+                ResolutionKind::Snapshot,
+                witness.clone(),
+            )?;
+            (
+                state
+                    .obligations
+                    .projection(&authorization.scope_id)
+                    .expect("a just-raised obligation has a projection"),
+                witness,
+            )
+        };
+        // The durable episode closes only after its proof has transferred to
+        // the still-live obligation and exact ACK ticket above.
+        self.resolve_authorization_retry_episode(subscription, &proof)?;
+        let payload = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
+            obligation: projection.obligation,
+            resolution: projection.resolution,
+            snapshot: Some(AuthorizationInvalidationSnapshot {
+                subscription_id: subscription.id.clone(),
+                function: subscription.function.clone(),
+                version: snapshot_version,
+                rows: query.output.rows,
+            }),
+        })
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
+                "realtime",
+                "authorization invalidation snapshot could not be serialized",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?;
+        if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+            stored.read_dependencies = query.read_dependencies;
+        }
+        let enqueue = self
+            .ephemeral
+            .enqueue_durable(subscription.connection_id.clone(), payload);
+        if enqueue.overflowed_now {
+            self.raise_connection_overflow(&subscription.connection_id, snapshot_version)?;
+        }
+        Ok(())
+    }
+
+    fn raise_connection_overflow(
+        &mut self,
+        connection_id: &str,
+        min_commit_version: u64,
+    ) -> SnapbackResult<()> {
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — overflow
+        // is projected as a connection root with one exact child per current
+        // auth-scoped query; one child's ACK cannot discharge its siblings.
+        let subscriptions = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+            .filter_map(|subscription| {
+                subscription
+                    .authorization
+                    .as_ref()
+                    .map(|authorization| authorization.scope_id.clone())
+            })
+            .collect::<Vec<_>>();
+        if subscriptions.is_empty() {
+            return Ok(());
+        }
+        let groups = subscriptions.iter().fold(
+            BTreeMap::<(crate::auth::invalidation::IssuerId, u64), Vec<ScopeId>>::new(),
+            |mut groups, scope| {
+                if let ScopeId::Subscription {
+                    issuer_id,
+                    connection_generation,
+                    ..
+                } = scope
+                {
+                    groups
+                        .entry((issuer_id.clone(), *connection_generation))
+                        .or_default()
+                        .push(scope.clone());
+                }
+                groups
+            },
+        );
+        let mut projections = Vec::new();
+        let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "authorization invalidation is not installed",
+            )
+        })?;
+        for ((issuer_id, connection_generation), children) in groups {
+            let root = ScopeId::Connection {
+                issuer_id,
+                connection_generation,
+            };
+            let cause = state.reserve_cause_sequence()?;
+            let witness = state.witness(min_commit_version);
+            state.obligations.raise(
+                root.clone(),
+                cause,
+                format!("overflow:{cause}"),
+                InvalidationDisposition::Quarantine,
+                witness,
+                None,
+            )?;
+            for child in children {
+                state
+                    .obligations
+                    .register_connection_child(&root, child.clone())?;
+                if let Some(projection) = state.obligations.projection(&child) {
+                    projections.push(projection);
+                }
+            }
+        }
+        for projection in projections {
+            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
+                obligation: projection.obligation,
+                resolution: projection.resolution,
+                snapshot: None,
+            }) {
+                self.ephemeral
+                    .enqueue_durable(connection_id.to_owned(), payload);
+            }
+        }
+        Ok(())
+    }
+
+    /// Reproject truth before every connected delivery boundary. Returns true
+    /// when at least one hint was parked behind a sticky overflow sentinel, so
+    /// the caller can drain the sentinel and immediately project once more.
+    ///
+    /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — delivery is
+    /// a wakeup hint; pending obligations are the persistent source of truth.
+    pub(crate) fn reproject_authorization_invalidations(
+        &mut self,
+        connection_id: &str,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<bool> {
+        let _publication = admission.effect_guard("authorization invalidation hint publication")?;
+        let scopes = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+            .filter_map(|subscription| {
+                subscription
+                    .authorization
+                    .as_ref()
+                    .map(|authorization| authorization.scope_id.clone())
+            })
+            .collect::<Vec<_>>();
+        let projections = self
+            .auth_invalidation
+            .as_ref()
+            .map(|state| {
+                scopes
+                    .iter()
+                    .filter_map(|scope| state.obligations.projection(scope))
+                    .map(|mut projection| {
+                        // A snapshot ticket is useful only in the atomic frame
+                        // that also carries the rows it proves. Wakeup hints
+                        // re-project the obligation alone; the drain boundary
+                        // below performs a fresh rerun and emits the complete
+                        // snapshot + exact ticket. Terminal-delete tickets are
+                        // already complete without row payload and remain
+                        // level-triggered here.
+                        if projection
+                            .resolution
+                            .as_ref()
+                            .is_some_and(|ticket| ticket.kind == ResolutionKind::Snapshot)
+                        {
+                            projection.resolution = None;
+                        }
+                        projection
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let mut parked = false;
+        for projection in projections {
+            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
+                obligation: projection.obligation,
+                resolution: projection.resolution,
+                snapshot: None,
+            }) {
+                parked |= self
+                    .ephemeral
+                    .enqueue_durable(connection_id.to_owned(), payload)
+                    .parked_behind_overflow;
+            }
+        }
+        Ok(parked)
+    }
+
+    pub(crate) fn authorization_invalidation_frames(
+        &mut self,
+        connection_id: &str,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<Vec<String>> {
+        let _publication =
+            admission.effect_guard("authorization invalidation drain publication")?;
+        let subscriptions = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+            .filter(|subscription| subscription.authorization.is_some())
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut frames = Vec::new();
+        for subscription in subscriptions {
+            let scope = &subscription
+                .authorization
+                .as_ref()
+                .expect("filtered auth-scoped subscription")
+                .scope_id;
+            let Some(pending) = self
+                .auth_invalidation
+                .as_ref()
+                .and_then(|state| state.obligations.pending(scope))
+                .cloned()
+            else {
+                continue;
+            };
+            // A trusted terminal denial already carries its complete delete
+            // proof. Re-fire that level-triggered truth verbatim; never turn
+            // it back into an application re-query or a snapshot ticket.
+            if let Some(projection) =
+                self.auth_invalidation
+                    .as_ref()
+                    .and_then(|state| state.obligations.projection(scope))
+                    .filter(|projection| {
+                        projection.resolution.as_ref().is_some_and(|resolution| {
+                            resolution.kind == ResolutionKind::TerminalDelete
+                        })
+                    })
+            {
+                if let Ok(frame) = serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
+                    obligation: projection.obligation,
+                    resolution: projection.resolution,
+                    snapshot: None,
+                }) {
+                    frames.push(frame);
+                }
+                continue;
+            }
+            match self.invoke_authorization_resolution(
+                &subscription,
+                pending.witness.clone(),
+                admission,
+            ) {
+                Ok(query) => {
+                    let snapshot_version = query.output.version;
+                    let proof = self
+                        .auth_invalidation
+                        .as_ref()
+                        .expect("pending obligation has installed state")
+                        .witness(snapshot_version);
+                    let projection = {
+                        let state = self
+                            .auth_invalidation
+                            .as_mut()
+                            .expect("pending obligation has installed state");
+                        if state
+                            .obligations
+                            .issue_resolution(scope, ResolutionKind::Snapshot, proof.clone())
+                            .is_err()
+                        {
+                            continue;
+                        }
+                        state.obligations.projection(scope)
+                    };
+                    if self
+                        .resolve_authorization_retry_episode(&subscription, &proof)
+                        .is_err()
+                    {
+                        continue;
+                    }
+                    if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+                        stored.read_dependencies = query.read_dependencies;
+                    }
+                    if let Some(projection) = projection
+                        && let Ok(frame) =
+                            serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
+                                obligation: projection.obligation,
+                                resolution: projection.resolution,
+                                snapshot: Some(AuthorizationInvalidationSnapshot {
+                                    subscription_id: subscription.id.clone(),
+                                    function: subscription.function.clone(),
+                                    version: snapshot_version,
+                                    rows: query.output.rows,
+                                }),
+                            })
+                    {
+                        frames.push(frame);
+                    }
+                }
+                Err(failure) => {
+                    if failure.error.is_trusted_permission_denial() {
+                        self.fail_subscription_fanout_with_retry(
+                            &subscription,
+                            "authorization_terminal_denial",
+                            failure.error,
+                            failure.retry_episode_id,
+                            admission,
+                        )?;
+                        if let Some(projection) = self
+                            .auth_invalidation
+                            .as_ref()
+                            .and_then(|state| state.obligations.projection(scope))
+                            && let Ok(frame) =
+                                serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
+                                    obligation: projection.obligation,
+                                    resolution: projection.resolution,
+                                    snapshot: None,
+                                })
+                        {
+                            frames.push(frame);
+                        }
+                        continue;
+                    }
+                    let projection = self.auth_invalidation.as_mut().and_then(|state| {
+                        let current = state.obligations.pending(scope)?;
+                        if current.retry_episode_id == failure.retry_episode_id {
+                            return state.obligations.projection(scope);
+                        }
+                        let cause = state.reserve_cause_sequence().ok()?;
+                        state
+                            .obligations
+                            .raise(
+                                scope.clone(),
+                                cause,
+                                format!("retry:error:{cause}"),
+                                InvalidationDisposition::Quarantine,
+                                pending.witness,
+                                failure.retry_episode_id,
+                            )
+                            .ok()?;
+                        state.obligations.projection(scope)
+                    });
+                    if let Some(projection) = projection
+                        && let Ok(frame) =
+                            serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
+                                obligation: projection.obligation,
+                                resolution: projection.resolution,
+                                snapshot: None,
+                            })
+                    {
+                        frames.push(frame);
+                    }
+                }
+            }
+        }
+        Ok(frames)
+    }
+
+    fn notify_authorization_event_in_frame(
+        &mut self,
+        authorization: &crate::storage::AuthorizationCommitWitness,
+        min_commit_version: u64,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<BTreeSet<String>> {
+        // The authenticated expectation is process state, not a projection of
+        // the current subscriber set. Advance it even with zero live queries
+        // so a later subscription cannot start under a pre-event epoch.
+        self.auth_invalidation
+            .as_mut()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "authorization event cannot advance without invalidation state",
+                )
+            })
+            .and_then(|state| {
+                state
+                    .obligations
+                    .advance_authenticated_authorization(authorization.version.clone())
+            })?;
+        let subscriptions = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.authorization.is_some())
+            .cloned()
+            .collect::<Vec<_>>();
+        if subscriptions.is_empty() {
+            return Ok(BTreeSet::new());
+        }
+
+        let preprojected =
+            (|| -> SnapbackResult<Vec<(String, AuthorizationInvalidationProjection)>> {
+                let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                        "auth",
+                        "authorization event cannot project without invalidation state",
+                    )
+                })?;
+                let mut projections = Vec::with_capacity(subscriptions.len());
+                for subscription in &subscriptions {
+                    let scope = &subscription
+                        .authorization
+                        .as_ref()
+                        .expect("filtered auth-scoped subscription")
+                        .scope_id;
+                    let cause = state.reserve_cause_sequence()?;
+                    let witness = state.witness(min_commit_version);
+                    state.obligations.raise(
+                        scope.clone(),
+                        cause,
+                        format!("authorization:{cause}"),
+                        InvalidationDisposition::Quarantine,
+                        witness,
+                        None,
+                    )?;
+                    projections.push((
+                        subscription.connection_id.clone(),
+                        state
+                            .obligations
+                            .projection(scope)
+                            .expect("a just-raised obligation has a projection"),
+                    ));
+                }
+                Ok(projections)
+            })();
+        let preprojected = match preprojected {
+            Ok(projections) => projections,
+            Err(error) => {
+                self.record_diagnostics(vec![error.diagnostic]);
+                return Ok(subscriptions
+                    .into_iter()
+                    .map(|subscription| subscription.id)
+                    .collect());
+            }
+        };
+        for (connection_id, projection) in preprojected {
+            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
+                obligation: projection.obligation,
+                resolution: projection.resolution,
+                snapshot: None,
+            }) {
+                let enqueue = self
+                    .ephemeral
+                    .enqueue_durable(connection_id.clone(), payload);
+                if enqueue.overflowed_now {
+                    let _ = self.raise_connection_overflow(&connection_id, min_commit_version);
+                }
+            }
+        }
+
+        let mut handled = BTreeSet::new();
+        for subscription in subscriptions {
+            handled.insert(subscription.id.clone());
+            let floor = self
+                .auth_invalidation
+                .as_ref()
+                .map(|state| state.witness(min_commit_version))
+                .expect("authorization event requires installed state");
+            match self.invoke_authorization_resolution(&subscription, floor, admission) {
+                Ok(query) => match self.deliver_authorization_snapshot(
+                    &subscription,
+                    query,
+                    "authorization",
+                    false,
+                    admission,
+                ) {
+                    Ok(()) => {
+                        self.live_delivery.total_deliveries += 1;
+                        self.live_delivery.last_deliveries += 1;
+                    }
+                    Err(error) => self.fail_subscription_fanout(
+                        &subscription,
+                        "authorization_invalidation_failed",
+                        error,
+                        admission,
+                    )?,
+                },
+                Err(failure) => self.fail_subscription_fanout_with_retry(
+                    &subscription,
+                    "authorization_refresh_failed",
+                    failure.error,
+                    failure.retry_episode_id,
+                    admission,
+                )?,
+            }
+        }
+        Ok(handled)
+    }
+
     fn notify_live_subscriptions_in_frame(
         &mut self,
         changes: &[ChangedRow],
@@ -5638,27 +6854,69 @@ impl LocalSnapback {
                 }
             }
 
-            let query = match subscription
-                .authority
-                .prepare_rerun(admission.clone())
-                .and_then(|authority| {
-                    self.invoke_query_with_dependencies_prepared(
-                        &subscription.function,
-                        subscription.input.clone(),
-                        authority,
-                    )
-                }) {
-                Ok(query) => query,
-                Err(error) => {
-                    self.fail_subscription_fanout(
-                        &subscription,
-                        "live_refresh_failed",
-                        error,
-                        admission,
-                    )?;
-                    continue;
+            let query = if subscription.authorization.is_some() {
+                let floor = self
+                    .auth_invalidation
+                    .as_ref()
+                    .map(|state| state.witness(self.db.current_version().unwrap_or(0)))
+                    .expect("auth-scoped subscription requires installed state");
+                match self.invoke_authorization_resolution(&subscription, floor, admission) {
+                    Ok(query) => query,
+                    Err(failure) => {
+                        self.fail_subscription_fanout_with_retry(
+                            &subscription,
+                            "live_refresh_failed",
+                            failure.error,
+                            failure.retry_episode_id,
+                            admission,
+                        )?;
+                        continue;
+                    }
+                }
+            } else {
+                match subscription
+                    .authority
+                    .prepare_rerun(admission.clone())
+                    .and_then(|authority| {
+                        self.invoke_query_with_dependencies_prepared(
+                            &subscription.function,
+                            subscription.input.clone(),
+                            authority,
+                        )
+                    }) {
+                    Ok(query) => query,
+                    Err(error) => {
+                        self.fail_subscription_fanout(
+                            &subscription,
+                            "live_refresh_failed",
+                            error,
+                            admission,
+                        )?;
+                        continue;
+                    }
                 }
             };
+            if subscription.authorization.is_some() {
+                match self.deliver_authorization_snapshot(
+                    &subscription,
+                    query,
+                    "replace",
+                    true,
+                    admission,
+                ) {
+                    Ok(()) => {
+                        self.live_delivery.total_deliveries += 1;
+                        self.live_delivery.last_deliveries += 1;
+                    }
+                    Err(error) => self.fail_subscription_fanout(
+                        &subscription,
+                        "authorization_invalidation_failed",
+                        error,
+                        admission,
+                    )?,
+                }
+                continue;
+            }
             let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
@@ -5681,13 +6939,25 @@ impl LocalSnapback {
                     continue;
                 }
             };
-            {
+            let enqueue = {
                 let _publication = admission.effect_guard("live replacement publication")?;
                 if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                     stored.read_dependencies = query.read_dependencies;
                 }
                 self.ephemeral
-                    .enqueue_durable(subscription.connection_id, payload);
+                    .enqueue_durable(subscription.connection_id.clone(), payload)
+            };
+            if enqueue.overflowed_now
+                && let Err(error) = self
+                    .raise_connection_overflow(&subscription.connection_id, query.output.version)
+            {
+                self.fail_subscription_fanout(
+                    &subscription,
+                    "authorization_overflow_projection_failed",
+                    error,
+                    admission,
+                )?;
+                continue;
             }
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
@@ -5743,6 +7013,14 @@ impl LocalSnapback {
             // to deliver — no re-query needed either.
             return Ok(Some(DeltaFanout::NoChange));
         }
+        // @ref LLP 0053#negative-deltas-are-obligations-positive-deltas-are-best-effort — a removal on an auth-scoped result takes the full obligation-backed snapshot path.
+        if subscription.authorization.is_some()
+            && ops
+                .iter()
+                .any(|operation| operation.kind == LiveDeltaKind::Remove)
+        {
+            return Ok(None);
+        }
 
         // The commit version: read once on the write lane (this runs under the
         // global mutex right after commit, so it is exactly the commit's
@@ -5788,7 +7066,7 @@ impl LocalSnapback {
         // captured Query dependency — no re-query. Add/remove change the id
         // set; update leaves membership unchanged. Refresh the dependency's
         // table-change version so the matcher's next affected-check is accurate.
-        {
+        let enqueue = {
             let _publication = admission.effect_guard("live delta publication")?;
             let fresh_table_version = self.db.table_change_version(&plan.table).ok();
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
@@ -5823,8 +7101,8 @@ impl LocalSnapback {
                 }
             }
             self.ephemeral
-                .enqueue_durable(subscription.connection_id.clone(), payload);
-        }
+                .enqueue_durable(subscription.connection_id.clone(), payload)
+        };
 
         // Convergence gate (debug/test only): the delta-maintained member set
         // must equal what a fresh re-query would produce. Free in release; any
@@ -5833,6 +7111,11 @@ impl LocalSnapback {
         #[cfg(debug_assertions)]
         self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
 
+        if enqueue.overflowed_now
+            && let Err(error) = self.raise_connection_overflow(&subscription.connection_id, version)
+        {
+            return Ok(Some(DeltaFanout::Failed(error)));
+        }
         Ok(Some(DeltaFanout::Delivered))
     }
 
@@ -5891,9 +7174,21 @@ impl LocalSnapback {
         error: SnapbackError,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
+        self.fail_subscription_fanout_with_retry(subscription, reason, error, None, admission)
+    }
+
+    fn fail_subscription_fanout_with_retry(
+        &mut self,
+        subscription: &LiveSubscription,
+        reason: &str,
+        error: SnapbackError,
+        retry_episode_id: Option<String>,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
         let _publication = admission.effect_guard("live failure/resync publication")?;
         self.live_delivery.total_failed += 1;
         self.live_delivery.last_failed += 1;
+        let terminal_denial = error.is_trusted_permission_denial();
         let mut diagnostic = error.diagnostic;
         diagnostic.details = json!({
             "subscriptionId": subscription.id,
@@ -5902,15 +7197,84 @@ impl LocalSnapback {
             "error": diagnostic.details,
         });
         self.record_diagnostics(vec![diagnostic]);
-        if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
-            reason: reason.to_owned(),
-            subscription_id: Some(subscription.id.clone()),
-            scope: Some(String::new()),
-            epoch: Some(0),
-            clear_retained: true,
-        }) {
-            self.ephemeral
+        if let Some(authorization) = subscription.authorization.as_ref() {
+            let min_commit_version = self.db.current_version().unwrap_or(0);
+            let projected = self.auth_invalidation.as_mut().and_then(|state| {
+                let cause = state.reserve_cause_sequence().ok()?;
+                let witness = state.witness(min_commit_version);
+                state
+                    .obligations
+                    .raise(
+                        authorization.scope_id.clone(),
+                        cause,
+                        format!("error:{cause}"),
+                        if terminal_denial {
+                            InvalidationDisposition::Delete
+                        } else {
+                            InvalidationDisposition::Quarantine
+                        },
+                        witness.clone(),
+                        retry_episode_id,
+                    )
+                    .ok()?;
+                if terminal_denial {
+                    state
+                        .obligations
+                        .issue_resolution(
+                            &authorization.scope_id,
+                            ResolutionKind::TerminalDelete,
+                            witness.clone(),
+                        )
+                        .ok()?;
+                }
+                Some((
+                    state.obligations.projection(&authorization.scope_id)?,
+                    witness,
+                ))
+            });
+            if let Some((projection, witness)) = projected {
+                // A terminal denial closes the durable retry episode only
+                // after the delete proof has transferred to an exact-ACK
+                // ticket. Sending remains level-triggered and best effort.
+                if terminal_denial
+                    && let Err(error) =
+                        self.resolve_authorization_retry_episode(subscription, &witness)
+                {
+                    self.record_diagnostics(vec![error.diagnostic]);
+                }
+                if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
+                    obligation: projection.obligation,
+                    resolution: projection.resolution,
+                    snapshot: None,
+                }) {
+                    let enqueue = self
+                        .ephemeral
+                        .enqueue_durable(subscription.connection_id.clone(), payload);
+                    if enqueue.overflowed_now {
+                        let _ = self.raise_connection_overflow(
+                            &subscription.connection_id,
+                            min_commit_version,
+                        );
+                    }
+                }
+            }
+        }
+        if subscription.authorization.is_none()
+            && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                reason: reason.to_owned(),
+                subscription_id: Some(subscription.id.clone()),
+                scope: Some(String::new()),
+                epoch: Some(0),
+                clear_retained: true,
+            })
+        {
+            let enqueue = self
+                .ephemeral
                 .enqueue_durable(subscription.connection_id.clone(), payload);
+            if enqueue.overflowed_now {
+                let floor = self.db.current_version().unwrap_or(0);
+                let _ = self.raise_connection_overflow(&subscription.connection_id, floor);
+            }
         }
         Ok(())
     }
@@ -5954,6 +7318,9 @@ impl LocalSnapback {
         // whose captured permission epochs the commit actually outran.
         let mut stale: Vec<(LiveSubscription, String, u64)> = Vec::new();
         for subscription in self.subscriptions.values() {
+            if subscription.authorization.is_some() {
+                continue;
+            }
             let Some((scope, epoch)) = subscription_stale_permission_change(subscription, changes)
             else {
                 continue;
@@ -5985,10 +7352,14 @@ impl LocalSnapback {
                     continue;
                 }
             };
-            {
+            let enqueue = {
                 let _publication = admission.effect_guard("permission resync publication")?;
                 self.ephemeral
-                    .enqueue_durable(subscription.connection_id, payload);
+                    .enqueue_durable(subscription.connection_id.clone(), payload)
+            };
+            if enqueue.overflowed_now {
+                let floor = self.db.current_version().unwrap_or(0);
+                let _ = self.raise_connection_overflow(&subscription.connection_id, floor);
             }
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
@@ -6738,15 +8109,22 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
-        BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
-        DetachedMutationRead, EnsureAppMode, LiveSubscribeInput, LiveUnsubscribeInput,
+        AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
+        BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
+        BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
+        EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LiveUnsubscribeInput,
         LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
-        StagedNestedMutation, next_secret_read_reset_generation, reserve_unique_generation,
+        SnapbackError, StagedNestedMutation, next_secret_read_reset_generation,
+        reserve_unique_generation,
     };
     use crate::admin::ServerProfile;
+    use crate::auth::invalidation::{
+        AuthorizationInvalidationConnection, InvalidationDisposition, LiveInvalidationIssuer,
+        QueryNamespace, ResolutionKind, ScopeId,
+    };
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
+        ResolvedAppAuthority, WireAuthorityFields,
     };
     use crate::auth::mode::{
         AuthModeStateRecord, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
@@ -6762,7 +8140,7 @@ mod tests {
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
-    use serde_json::json;
+    use serde_json::{Value, json};
     use std::collections::BTreeMap;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -7444,9 +8822,34 @@ globalThis.__snapbackHandlers = {
                 indexed_by: Some("by_value".to_owned()),
             })),
         );
+        let mut insert_values = BTreeMap::new();
+        insert_values.insert("value".to_owned(), ValueExpr::Arg("value".to_owned()));
+        let insert = FunctionDefinition::new(
+            "insertItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: insert_values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        let delete = FunctionDefinition::new(
+            "deleteItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "items".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
         let diagnostics = snapback.load_functions(FunctionManifest {
             bundle_hash: Some("live-limits-functions".to_owned()),
-            functions: vec![list, requires_arg],
+            functions: vec![list, requires_arg, insert, delete],
             ..FunctionManifest::default()
         });
         assert!(
@@ -7465,8 +8868,695 @@ globalThis.__snapbackHandlers = {
                 args,
                 ..HandlerInput::default()
             },
+            authorization_namespace: None,
             supersedes: None,
         }
+    }
+
+    fn install_test_invalidation(
+        snapback: &mut LocalSnapback,
+    ) -> AuthorizationInvalidationConnection {
+        let (authorization, version_stream, boot_sequence) = snapback
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()
+            .expect("reserve test issuer");
+        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+            authorization.incarnation.clone(),
+            boot_sequence,
+        )
+        .expect("test issuer id");
+        let authenticated =
+            crate::auth::invalidation::IssuerAuthenticator::new("test-protocol-key", [0x5a; 32])
+                .expect("test authenticator")
+                .authenticate(issuer_id, "test-target", "test-app")
+                .expect("authenticate test issuer");
+        let issuer = LiveInvalidationIssuer::new(authenticated).expect("live test issuer");
+        let descriptor = AuthorizationInvalidationConnection {
+            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+            issuer_id: issuer.authenticated().issuer_id.clone(),
+            connection_generation: issuer
+                .reserve_connection_generation()
+                .expect("test connection generation"),
+        };
+        snapback
+            .install_auth_invalidation(issuer, authorization, version_stream)
+            .expect("install test invalidation");
+        descriptor
+    }
+
+    fn test_authorization_namespace(instance: u64) -> QueryNamespace {
+        QueryNamespace {
+            client_store_id: "store_test".to_owned(),
+            query_key: "listItems:{}".to_owned(),
+            query_instance_id: instance,
+        }
+    }
+
+    fn test_session_authority(source: InvocationSource) -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare exact test session authority")
+    }
+
+    fn test_session_admission() -> crate::auth::admission::AdmissionLease {
+        test_session_authority(InvocationSource::LiveInitialQuery)
+            .admission_lease()
+            .clone()
+    }
+
+    fn invoke_test_session_mutation(
+        snapback: &mut LocalSnapback,
+        name: &str,
+        input: HandlerInput,
+    ) -> crate::diagnostic::SnapbackResult<crate::manifest::MutationOutput> {
+        snapback.invoke_mutation_with_authority(
+            name,
+            input,
+            test_session_authority(InvocationSource::HttpMutation),
+        )
+    }
+
+    #[test]
+    fn session_live_requires_installed_and_negotiated_invalidation() {
+        let mut snapback = live_limit_snapback();
+        let input = LiveSubscribeInput {
+            connection_id: "session-capability".to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: Some(test_authorization_namespace(1)),
+            supersedes: None,
+        };
+        let unavailable = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                input.clone(),
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    ..LiveInvalidationAdmission::default()
+                },
+            )
+            .expect_err("missing server invalidation is unavailable");
+        assert_eq!(
+            unavailable.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+        );
+
+        let connection = install_test_invalidation(&mut snapback);
+        let unsupported = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                input.clone(),
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    ..LiveInvalidationAdmission::default()
+                },
+            )
+            .expect_err("legacy session client is refused");
+        assert_eq!(
+            unsupported.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+        );
+
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                input,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    authority_subject: Some("sha256:test-subject".to_owned()),
+                },
+            )
+            .expect("negotiated session subscription");
+        assert!(matches!(
+            subscribed.authorization_scope,
+            Some(ScopeId::Subscription { .. })
+        ));
+    }
+
+    #[test]
+    fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
+        let mut snapback = live_limit_snapback();
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "visible" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert visible row");
+        let row_id = snapback
+            .invoke_query("listItems", HandlerInput::default())
+            .expect("query inserted row")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("row id")
+            .to_owned();
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = test_session_admission();
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "session-remove".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(2)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    authority_subject: Some("sha256:test-subject".to_owned()),
+                },
+            )
+            .expect("auth-scoped subscription");
+        assert!(snapback.drain_live_stream("session-remove").is_empty());
+
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteItem",
+            HandlerInput {
+                args: json!({ "id": row_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("delete visible row");
+        let messages = snapback.drain_live_stream("session-remove");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed removal frame");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["resolution"]["kind"], "snapshot");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains("\"kind\":\"live_delta\"")),
+            "negative auth delta must not escape as best-effort live_delta"
+        );
+        let ack_token = frame["resolution"]["ackToken"]
+            .as_str()
+            .expect("ack token")
+            .to_owned();
+        snapback
+            .reproject_authorization_invalidations("session-remove", &admission)
+            .expect("reproject pending truth");
+        let hint = snapback
+            .drain_live_stream("session-remove")
+            .into_iter()
+            .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("level-triggered obligation hint");
+        assert!(
+            hint.get("resolution").is_none() && hint.get("snapshot").is_none(),
+            "a snapshot resolution must never be projected without its atomic rows"
+        );
+        let ack = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "session-remove".to_owned(),
+                    ack_token: ack_token.clone(),
+                },
+                connection.clone(),
+                &admission,
+            )
+            .expect("exact ack");
+        assert_eq!(ack.outcome, "discharged");
+        let duplicate = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "session-remove".to_owned(),
+                    ack_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("duplicate ack");
+        assert_eq!(duplicate.outcome, "duplicate");
+        assert!(
+            snapback
+                .authorization_invalidation_frames("session-remove", &admission)
+                .expect("drain invalidation frames")
+                .is_empty(),
+            "successful exact ACK discharges the level-triggered projection"
+        );
+        assert_eq!(
+            subscribed
+                .authorization_scope
+                .expect("subscription scope")
+                .validate(),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn overflow_root_waits_for_every_auth_scoped_child() {
+        let mut snapback = live_limit_snapback();
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "visible" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert visible row");
+        let row_id = snapback
+            .invoke_query("listItems", HandlerInput::default())
+            .expect("query row")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("row id")
+            .to_owned();
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = test_session_admission();
+        for instance in [10, 11] {
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    LiveSubscribeInput {
+                        connection_id: "session-overflow".to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(test_authorization_namespace(instance)),
+                        supersedes: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(connection.clone()),
+                        authority_subject: Some("sha256:overflow-subject".to_owned()),
+                    },
+                )
+                .expect("auth-scoped subscription");
+        }
+        for _ in 0..1_024 {
+            snapback
+                .ephemeral
+                .enqueue_durable("session-overflow", b"{}".to_vec());
+        }
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteItem",
+            HandlerInput {
+                args: json!({ "id": row_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("delete triggers overflow");
+        let overflow = snapback.drain_live_stream("session-overflow");
+        assert!(
+            overflow
+                .iter()
+                .any(|frame| frame.contains("outbox_overflow")),
+            "bounded queue must expose its overflow sentinel"
+        );
+
+        let frames = snapback
+            .authorization_invalidation_frames("session-overflow", &admission)
+            .expect("drain overflow invalidations");
+        assert_eq!(frames.len(), 2, "one exact child per auth-scoped query");
+        let tokens = frames
+            .iter()
+            .map(|frame| serde_json::from_str::<Value>(frame).expect("frame JSON"))
+            .map(|frame| {
+                frame["resolution"]["ackToken"]
+                    .as_str()
+                    .expect("resolution token")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "session-overflow".to_owned(),
+                    ack_token: tokens[0].clone(),
+                },
+                connection.clone(),
+                &admission,
+            )
+            .expect("first child ack");
+        assert_eq!(
+            snapback
+                .authorization_invalidation_frames("session-overflow", &admission)
+                .expect("drain remaining invalidation")
+                .len(),
+            1,
+            "one query ACK cannot clear its sibling or the projection root"
+        );
+        snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "session-overflow".to_owned(),
+                    ack_token: tokens[1].clone(),
+                },
+                connection,
+                &admission,
+            )
+            .expect("second child ack");
+        assert!(
+            snapback
+                .authorization_invalidation_frames("session-overflow", &admission)
+                .expect("drain discharged invalidations")
+                .is_empty(),
+            "root clears only after every current child discharges"
+        );
+    }
+
+    #[test]
+    fn permission_backing_event_quarantines_even_a_positive_delta() {
+        let mut snapback = live_limit_snapback();
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("permission-backing-live-schema".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: vec![IndexManifest {
+                        name: "by_value".to_owned(),
+                        fields: vec!["value".to_owned()],
+                    }],
+                    syncable: true,
+                    permission_backing: true,
+                    permission_fields: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("mark permission-backing table");
+        let connection = install_test_invalidation(&mut snapback);
+        let initial_epoch = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .expectation()
+            .authorization
+            .epoch;
+        snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "session-permission-event".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(20)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    authority_subject: Some("sha256:permission-subject".to_owned()),
+                },
+            )
+            .expect("auth-scoped subscription");
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "newly-visible" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("permission-backing insert");
+        let messages = snapback.drain_live_stream("session-permission-event");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("coarse authorization obligation");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(
+            frame["obligation"]["witness"]["authorization"]["epoch"],
+            initial_epoch + 1
+        );
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains("\"kind\":\"live_delta\"")),
+            "coarse authorization events override positive-delta best effort"
+        );
+    }
+
+    #[test]
+    fn authorization_expectation_advances_without_live_subscribers() {
+        let mut snapback = live_limit_snapback();
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("permission-backing-no-live-schema".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: vec![IndexManifest {
+                        name: "by_value".to_owned(),
+                        fields: vec!["value".to_owned()],
+                    }],
+                    syncable: true,
+                    permission_backing: true,
+                    permission_fields: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("mark permission-backing table");
+        install_test_invalidation(&mut snapback);
+        let before = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .expectation()
+            .authorization
+            .clone();
+        assert!(snapback.subscriptions.is_empty());
+
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "authorization-event" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("permission-backing insert");
+
+        let expected = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .expect("durable authorization version");
+        let actual = &snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .expectation()
+            .authorization;
+        assert_eq!(actual, &expected);
+        assert_eq!(actual.epoch, before.epoch + 1);
+    }
+
+    #[test]
+    fn auth_requery_error_uses_one_durable_three_attempt_episode() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItemsByValue",
+                LiveSubscribeInput {
+                    connection_id: "session-retry".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "value": "target" }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "store_retry".to_owned(),
+                        query_key: "listItemsByValue:{target}".to_owned(),
+                        query_instance_id: 30,
+                    }),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    authority_subject: Some("sha256:retry-subject".to_owned()),
+                },
+            )
+            .expect("initial snapshot succeeds");
+        snapback
+            .subscriptions
+            .get_mut(&subscribed.subscription_id)
+            .expect("stored subscription")
+            .input
+            .args = json!({});
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "target" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("commit survives fanout failure");
+        let scope = subscribed.authorization_scope.expect("auth scope");
+        let pending = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("state")
+            .obligations
+            .pending(&scope)
+            .expect("quarantine obligation")
+            .clone();
+        assert_eq!(pending.max_disposition, InvalidationDisposition::Quarantine);
+        let retry_id = pending
+            .retry_episode_id
+            .clone()
+            .expect("durable retry episode id");
+        let episode = snapback
+            .auth_database_mut()
+            .with_invalidation_retry_registry(|registry| {
+                Ok(registry
+                    .episodes()
+                    .values()
+                    .next()
+                    .cloned()
+                    .expect("stored retry episode"))
+            })
+            .expect("read retry registry");
+        assert_eq!(episode.episode_id, retry_id);
+        assert_eq!(
+            episode.attempts_reserved,
+            crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL
+        );
+        let revision = pending.revision;
+        let admission = test_session_admission();
+        let frames = snapback
+            .authorization_invalidation_frames("session-retry", &admission)
+            .expect("drain retry invalidation");
+        assert_eq!(frames.len(), 1);
+        let still_pending = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("state")
+            .obligations
+            .pending(&scope)
+            .expect("still quarantined");
+        assert_eq!(still_pending.revision, revision);
+        assert_eq!(
+            still_pending.retry_episode_id.as_deref(),
+            Some(retry_id.as_str())
+        );
+    }
+
+    #[test]
+    fn only_host_branded_permission_denial_issues_terminal_delete() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = test_session_admission();
+        let subscribe = |snapback: &mut LocalSnapback, instance, connection_id: &str| {
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(test_authorization_namespace(instance)),
+                        supersedes: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(connection.clone()),
+                        authority_subject: Some("sha256:terminal-subject".to_owned()),
+                    },
+                )
+                .expect("auth-scoped subscription")
+        };
+
+        let terminal = subscribe(&mut snapback, 31, "session-terminal");
+        let terminal_subscription = snapback
+            .subscriptions
+            .get(&terminal.subscription_id)
+            .expect("stored terminal subscription")
+            .clone();
+        snapback
+            .fail_subscription_fanout_with_retry(
+                &terminal_subscription,
+                "test_terminal_denial",
+                SnapbackError::trusted_permission_denied("trusted policy denied"),
+                None,
+                &admission,
+            )
+            .expect("publish trusted terminal denial");
+        let terminal_scope = terminal.authorization_scope.expect("terminal scope");
+        let projection = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .projection(&terminal_scope)
+            .expect("terminal projection");
+        assert_eq!(
+            projection.obligation.max_disposition,
+            InvalidationDisposition::Delete
+        );
+        assert_eq!(
+            projection
+                .resolution
+                .as_ref()
+                .expect("terminal delete ticket")
+                .kind,
+            ResolutionKind::TerminalDelete
+        );
+        let first = snapback
+            .authorization_invalidation_frames("session-terminal", &admission)
+            .expect("first terminal re-fire");
+        let second = snapback
+            .authorization_invalidation_frames("session-terminal", &admission)
+            .expect("second terminal re-fire");
+        assert_eq!(first, second, "terminal truth re-fires without re-querying");
+
+        let forged = subscribe(&mut snapback, 32, "session-forged");
+        let forged_subscription = snapback
+            .subscriptions
+            .get(&forged.subscription_id)
+            .expect("stored forged subscription")
+            .clone();
+        snapback
+            .fail_subscription_fanout_with_retry(
+                &forged_subscription,
+                "test_forged_denial",
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PERMISSION_DENIED",
+                    "auth",
+                    "application supplied the public code",
+                ),
+                None,
+                &admission,
+            )
+            .expect("publish forged-code quarantine");
+        let forged_projection = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .projection(&forged.authorization_scope.expect("forged scope"))
+            .expect("forged projection");
+        assert_eq!(
+            forged_projection.obligation.max_disposition,
+            InvalidationDisposition::Quarantine
+        );
+        assert!(forged_projection.resolution.is_none());
     }
 
     #[test]
@@ -7642,6 +9732,7 @@ globalThis.__snapbackHandlers = {
                 LiveSubscribeInput {
                     connection_id: "reset-failure-client".to_owned(),
                     input: HandlerInput::default(),
+                    authorization_namespace: None,
                     supersedes: None,
                 },
             )

@@ -30,9 +30,9 @@ use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
 use crate::local::{
-    EnsureAppRequest, EnsureAppResponse, InspectState, LiveResumeInput, LiveResumeOutput,
-    LiveSubscribeInput, LiveSubscribeOutput, LiveUnsubscribeInput, LiveUnsubscribeOutput,
-    PublicInspect,
+    AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput, EnsureAppRequest,
+    EnsureAppResponse, InspectState, LiveResumeInput, LiveResumeOutput, LiveSubscribeInput,
+    LiveSubscribeOutput, LiveUnsubscribeInput, LiveUnsubscribeOutput, PublicInspect,
 };
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
@@ -223,6 +223,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "live.unsubscribe.input.schema.json",
             schemars::schema_for!(LiveUnsubscribeInput),
+        ),
+        finish(
+            "authorization-invalidation.ack.input.schema.json",
+            schemars::schema_for!(AuthorizationInvalidationAckInput),
+        ),
+        finish(
+            "authorization-invalidation.ack.output.schema.json",
+            schemars::schema_for!(AuthorizationInvalidationAckOutput),
         ),
         finish(
             "query.input.schema.json",

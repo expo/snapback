@@ -311,6 +311,29 @@ impl ResolvedAppAuthority {
         matches!(self, Self::Session { .. } | Self::DevImpersonation { .. })
     }
 
+    /// Stable, bearer-free identity for durable invalidation retry ownership.
+    /// Length prefixes make the representation injective without depending on
+    /// a caller-controlled JSON/debug rendering.
+    pub(crate) fn invalidation_subject(&self) -> String {
+        match self {
+            Self::Anonymous => "anonymous".to_owned(),
+            Self::Session {
+                authority_instance_id,
+                generation,
+                ..
+            } => format!(
+                "session:{}:{}:{generation}",
+                authority_instance_id.len(),
+                authority_instance_id
+            ),
+            Self::DevImpersonation { user_id, .. } => {
+                format!("dev:{}:{user_id}", user_id.len())
+            }
+            Self::AdminBypass { .. } => "admin-bypass".to_owned(),
+            Self::System => "system".to_owned(),
+        }
+    }
+
     pub fn key(&self) -> AuthorityKey {
         match self {
             Self::Anonymous => AuthorityKey::Anonymous,

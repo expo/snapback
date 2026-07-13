@@ -1107,6 +1107,15 @@ struct QueuePush {
     overflowed: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DurableEnqueueOutcome {
+    /// This enqueue crossed the bounded queue into sticky overflow.
+    pub(crate) overflowed_now: bool,
+    /// The payload is represented only by the sticky overflow sentinel (the
+    /// queue was already overflowed or became overflowed on this enqueue).
+    pub(crate) parked_behind_overflow: bool,
+}
+
 impl OutboundQueue {
     fn new() -> Self {
         Self {
@@ -1551,6 +1560,18 @@ impl Default for LocalEphemeralBackend {
 }
 
 impl LocalEphemeralBackend {
+    pub fn collection_requires_room_permission(&self, name: &str) -> bool {
+        self.collection_if_loaded(name).is_some_and(|collection| {
+            matches!(
+                collection.publish,
+                AccessPolicy::RequireRoomPermission { .. }
+            ) || matches!(
+                collection.subscribe,
+                AccessPolicy::RequireRoomPermission { .. }
+            )
+        })
+    }
+
     pub fn new() -> Self {
         Self::with_limits(EphemeralStoreLimits::default())
     }
@@ -2472,10 +2493,17 @@ impl LocalEphemeralBackend {
         }
     }
 
-    pub fn enqueue_durable(&self, connection_id: impl Into<String>, payload: Vec<u8>) {
+    pub fn enqueue_durable(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+    ) -> DurableEnqueueOutcome {
         let connection_id = connection_id.into();
         let outbox = self.ensure_outbox(&connection_id);
-        let overflow = lock(&outbox).push_durable(DurableMessage { payload });
+        let mut queue = lock(&outbox);
+        let overflow = queue.push_durable(DurableMessage { payload });
+        let parked_behind_overflow = queue.overflowed;
+        drop(queue);
         if overflow.overflowed {
             self.shared
                 .counters
@@ -2493,6 +2521,10 @@ impl LocalEphemeralBackend {
         // interaction note — enqueues are no longer serialized by the global
         // mutex).
         self.shared.delivery.wake(&connection_id);
+        DurableEnqueueOutcome {
+            overflowed_now: overflow.overflowed,
+            parked_behind_overflow,
+        }
     }
 
     pub fn drain_outbox(&self, connection_id: &str) -> Vec<RealtimeEnvelope> {

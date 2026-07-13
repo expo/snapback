@@ -25,6 +25,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::auth::invalidation::{ResolutionTicket, ResyncObligation};
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::{DeleteRequest, EphemeralMessage, PublishRequest, SubscribeRequest};
 
@@ -55,6 +56,17 @@ pub enum LiveEnvelope {
         version: u64,
         ops: Vec<LiveDeltaWireOp>,
     },
+    /// Level-triggered authorization invalidation for one auth-scoped live
+    /// query. The optional snapshot and resolution are one atomic wire frame;
+    /// their presence never discharges the server obligation. Only the exact
+    /// post-commit ACK token does that.
+    AuthorizationInvalidation {
+        obligation: ResyncObligation,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resolution: Option<ResolutionTicket>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        snapshot: Option<AuthorizationInvalidationSnapshot>,
+    },
     /// The subscription (or the whole connection, when `subscription_id` is
     /// absent — outbox overflow) must re-snapshot. Known reasons today:
     /// `reset`, `outbox_overflow`, `permission_epoch_changed`,
@@ -72,6 +84,15 @@ pub enum LiveEnvelope {
         epoch: Option<u64>,
         clear_retained: bool,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationSnapshot {
+    pub subscription_id: String,
+    pub function: String,
+    pub version: u64,
+    pub rows: Vec<Value>,
 }
 
 /// One `live_delta` op: the row is present for add/update and absent for

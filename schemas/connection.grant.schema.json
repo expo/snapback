@@ -1,8 +1,68 @@
 {
+  "$defs": {
+    "AuthorizationInvalidationConnection": {
+      "additionalProperties": false,
+      "description": "The connection-visible negotiated expectation. The authenticated\ndescriptor remains server-held; once startup has verified it, the client\nreceives the exact issuer id over the authenticated connection bootstrap.",
+      "properties": {
+        "connectionGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "issuerId": {
+          "$ref": "#/$defs/IssuerId"
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "issuerId",
+        "connectionGeneration"
+      ],
+      "type": "object"
+    },
+    "IssuerId": {
+      "additionalProperties": false,
+      "description": "A boot identity is never reused, even when process-local counters restart.",
+      "properties": {
+        "authorizationIncarnation": {
+          "type": "string"
+        },
+        "bootNonce": {
+          "type": "string"
+        },
+        "bootSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizationIncarnation",
+        "bootSequence",
+        "bootNonce"
+      ],
+      "type": "object"
+    }
+  },
   "$id": "https://schemas.snapback.dev/snapback.v0/connection.grant.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "The `POST /connection/open` response: the (possibly adopted) connection id\nand the bearer the caller must present on every connection-scoped call.",
   "properties": {
+    "authorizationInvalidation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorizationInvalidationConnection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "connectionId": {
       "type": "string"
     },

@@ -4,6 +4,16 @@
   "additionalProperties": false,
   "description": "The `POST /connection/open` request. `previousToken` is a bearer secret\nused only to prove ownership of an existing grant; it is request-only and\nmust never enter diagnostics, receipts, retained client state, or logs.\n\n@ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —\n  the complete non-JS client HTTP surface is Rust-owned and generated.",
   "properties": {
+    "authInvalidationProtocol": {
+      "default": null,
+      "description": "Exact must-understand offer. Missing or any value other than v1 opens a\nlegacy connection that cannot admit session-mode auth-scoped live work.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
     "connectionId": {
       "default": null,
       "type": [

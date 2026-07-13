@@ -123,11 +123,19 @@ impl Diagnostic {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SnapbackError {
     pub diagnostic: Diagnostic,
+    /// Host-owned brand for the narrow terminal authorization-denial
+    /// producer. It never crosses serialization boundaries, so an application
+    /// string/object with the same diagnostic code cannot forge proof.
+    #[serde(default, skip)]
+    trusted_permission_denial: bool,
 }
 
 impl SnapbackError {
     pub fn new(diagnostic: Diagnostic) -> Self {
-        Self { diagnostic }
+        Self {
+            diagnostic,
+            trusted_permission_denial: false,
+        }
     }
 
     pub fn error(
@@ -141,6 +149,20 @@ impl SnapbackError {
     pub fn with_details(mut self, details: Value) -> Self {
         self.diagnostic.details = details;
         self
+    }
+
+    // The shared invocation gate is the production caller once its branch is
+    // composed with this protocol layer; tests exercise the boundary here.
+    #[allow(dead_code)]
+    pub(crate) fn trusted_permission_denied(message: impl Into<String>) -> Self {
+        Self {
+            diagnostic: Diagnostic::error("SNAPBACK_AUTH_PERMISSION_DENIED", "auth", message),
+            trusted_permission_denial: true,
+        }
+    }
+
+    pub(crate) fn is_trusted_permission_denial(&self) -> bool {
+        self.trusted_permission_denial
     }
 
     pub fn sqlite(error: rusqlite::Error) -> Self {
@@ -174,3 +196,28 @@ impl From<rusqlite::Error> for SnapbackError {
 }
 
 pub type SnapbackResult<T> = Result<T, SnapbackError>;
+
+#[cfg(test)]
+mod tests {
+    use super::SnapbackError;
+
+    #[test]
+    fn terminal_permission_denial_brand_cannot_cross_or_be_forged_by_json() {
+        let branded = SnapbackError::trusted_permission_denied("policy denied the query");
+        assert!(branded.is_trusted_permission_denial());
+        assert!(branded.clone().is_trusted_permission_denial());
+
+        let encoded = serde_json::to_string(&branded).expect("serialize denial diagnostic");
+        assert!(!encoded.contains("trusted_permission_denial"));
+        let decoded: SnapbackError =
+            serde_json::from_str(&encoded).expect("deserialize denial diagnostic");
+        assert!(!decoded.is_trusted_permission_denial());
+
+        let forged = SnapbackError::error(
+            "SNAPBACK_AUTH_PERMISSION_DENIED",
+            "auth",
+            "application supplied the public code",
+        );
+        assert!(!forged.is_trusted_permission_denial());
+    }
+}

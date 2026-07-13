@@ -143,6 +143,17 @@ pub struct AuthenticatedBootIssuer {
     pub mac: String,
 }
 
+/// The connection-visible negotiated expectation. The authenticated
+/// descriptor remains server-held; once startup has verified it, the client
+/// receives the exact issuer id over the authenticated connection bootstrap.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationConnection {
+    pub protocol_version: u32,
+    pub issuer_id: IssuerId,
+    pub connection_generation: u64,
+}
+
 /// One process's authenticated live-scope identity and non-wrapping local
 /// reservations. The durable boot sequence makes restarting these atomics at
 /// one safe; every published full ScopeId still differs across boots.
@@ -513,6 +524,16 @@ pub struct ResolutionTicket {
     pub ack_token: String,
 }
 
+/// One level-triggered live projection. Delivery is only a hint; the exact
+/// obligation remains authoritative until the optional resolution ticket is
+/// acknowledged after the client commits its local transition.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationProjection {
+    pub obligation: ResyncObligation,
+    pub resolution: Option<ResolutionTicket>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AcknowledgeOutcome {
     Discharged,
@@ -546,6 +567,34 @@ impl ObligationRegistry {
 
     pub fn expectation(&self) -> &ObligationExpectation {
         &self.expectation
+    }
+
+    /// Move the trusted expectation forward within the current durable
+    /// incarnation. Existing live scopes are retained; their next cause must
+    /// replace old-pair proof with this newly authenticated pair.
+    pub fn advance_authenticated_authorization(
+        &mut self,
+        authorization: AuthorizationVersion,
+    ) -> SnapbackResult<()> {
+        validate_uuid_v7(
+            &authorization.incarnation,
+            "expectation.authorization.incarnation",
+        )?;
+        validate_counter(
+            authorization.epoch,
+            "expectation.authorization.epoch",
+            false,
+        )?;
+        if authorization.incarnation != self.expectation.authorization.incarnation
+            || authorization.epoch < self.expectation.authorization.epoch
+        {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "authorization expectation must advance monotonically within one incarnation",
+            ));
+        }
+        self.expectation.authorization = authorization;
+        Ok(())
     }
 
     /// Moving to a new authenticated expectation terminates old live scopes;
@@ -624,7 +673,17 @@ impl ObligationRegistry {
             .map(|entry| {
                 Ok::<_, SnapbackError>((
                     entry.obligation.max_disposition.max(max_disposition),
-                    merge_witness(&entry.obligation.witness, &witness)?,
+                    if entry.obligation.witness.authorization == witness.authorization {
+                        merge_witness(&entry.obligation.witness, &witness)?
+                    } else {
+                        CompositeWitness {
+                            authorization: witness.authorization.clone(),
+                            data: merge_data_witness(
+                                entry.obligation.witness.data.as_ref(),
+                                witness.data.as_ref(),
+                            )?,
+                        }
+                    },
                 ))
             })
             .transpose()?
@@ -661,6 +720,13 @@ impl ObligationRegistry {
             .values()
             .map(|entry| entry.obligation.clone())
             .collect()
+    }
+
+    pub fn projection(&self, scope_id: &ScopeId) -> Option<AuthorizationInvalidationProjection> {
+        Some(AuthorizationInvalidationProjection {
+            obligation: self.pending(scope_id)?.clone(),
+            resolution: self.resolution_by_scope.get(scope_id).cloned(),
+        })
     }
 
     pub fn register_connection_child(
@@ -779,10 +845,79 @@ impl ObligationRegistry {
         Ok(AcknowledgeOutcome::Discharged)
     }
 
+    pub fn acknowledge_subscription(
+        &mut self,
+        issuer_id: &IssuerId,
+        connection_generation: u64,
+        ack_token: &str,
+    ) -> SnapbackResult<AcknowledgeOutcome> {
+        validate_opaque(ack_token, "ackToken")?;
+        let belongs = self
+            .resolution_by_scope
+            .iter()
+            .find(|(_, ticket)| ticket.ack_token == ack_token)
+            .map(|(scope, _)| scope)
+            .or_else(|| {
+                self.last_discharged
+                    .iter()
+                    .find(|(_, (_, token))| token == ack_token)
+                    .map(|(scope, _)| scope)
+            })
+            .is_some_and(|scope| {
+                matches!(
+                    scope,
+                    ScopeId::Subscription {
+                        issuer_id: scope_issuer,
+                        connection_generation: scope_generation,
+                        ..
+                    } if scope_issuer == issuer_id && *scope_generation == connection_generation
+                )
+            });
+        if !belongs {
+            return Ok(AcknowledgeOutcome::Stale);
+        }
+        self.acknowledge(ack_token, true)
+    }
+
     pub fn retire_scope(&mut self, scope_id: &ScopeId) {
         self.obligations.remove(scope_id);
         self.resolution_by_scope.remove(scope_id);
+        // Live ScopeIds are never reused within an issuer, so continuity loss
+        // may fold their high-water into the allocator itself and discard the
+        // per-scope history without an ABA opening.
+        self.revision_high_water.remove(scope_id);
+        self.last_discharged.remove(scope_id);
         self.discharge_connection_child(scope_id);
+    }
+
+    pub fn retire_connection(&mut self, issuer_id: &IssuerId, connection_generation: u64) {
+        let connection = ScopeId::Connection {
+            issuer_id: issuer_id.clone(),
+            connection_generation,
+        };
+        let scopes = self
+            .obligations
+            .keys()
+            .filter(|scope| match scope {
+                ScopeId::Connection {
+                    issuer_id: scope_issuer,
+                    connection_generation: scope_generation,
+                }
+                | ScopeId::Subscription {
+                    issuer_id: scope_issuer,
+                    connection_generation: scope_generation,
+                    ..
+                } => scope_issuer == issuer_id && *scope_generation == connection_generation,
+                ScopeId::ClientQuery { .. } => false,
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for scope in scopes {
+            self.retire_scope(&scope);
+        }
+        self.connection_children.remove(&connection);
+        self.obligations.remove(&connection);
+        self.resolution_by_scope.remove(&connection);
     }
 
     fn discharge_connection_child(&mut self, child: &ScopeId) {
@@ -797,6 +932,8 @@ impl ObligationRegistry {
             self.connection_children.remove(&root);
             self.obligations.remove(&root);
             self.resolution_by_scope.remove(&root);
+            self.revision_high_water.remove(&root);
+            self.last_discharged.remove(&root);
         }
     }
 
@@ -841,26 +978,33 @@ fn merge_witness(
             "one live scope cannot merge obligations from different authorization pairs",
         ));
     }
-    let data = match (&current.data, &incoming.data) {
+    let data = merge_data_witness(current.data.as_ref(), incoming.data.as_ref())?;
+    Ok(CompositeWitness {
+        authorization: incoming.authorization.clone(),
+        data,
+    })
+}
+
+fn merge_data_witness(
+    current: Option<&DataWitness>,
+    incoming: Option<&DataWitness>,
+) -> SnapbackResult<Option<DataWitness>> {
+    match (current, incoming) {
         (Some(current), Some(incoming)) => {
             if current.version_stream != incoming.version_stream {
                 return Err(corrupt(
                     "one live scope cannot merge obligations from different version streams",
                 ));
             }
-            Some(DataWitness {
+            Ok(Some(DataWitness {
                 version_stream: current.version_stream.clone(),
                 min_commit_version: current.min_commit_version.max(incoming.min_commit_version),
-            })
+            }))
         }
-        (Some(current), None) => Some(current.clone()),
-        (None, Some(incoming)) => Some(incoming.clone()),
-        (None, None) => None,
-    };
-    Ok(CompositeWitness {
-        authorization: incoming.authorization.clone(),
-        data,
-    })
+        (Some(current), None) => Ok(Some(current.clone())),
+        (None, Some(incoming)) => Ok(Some(incoming.clone())),
+        (None, None) => Ok(None),
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
@@ -975,7 +1119,27 @@ impl RetryEpisodeRegistry {
         self.clock_high_water_ms = now_ms;
 
         if let Some(existing) = self.episodes.get_mut(&key) {
-            existing.witness_floor = merge_witness(&existing.witness_floor, &witness_floor)?;
+            existing.witness_floor = if existing.witness_floor.authorization
+                == witness_floor.authorization
+            {
+                merge_witness(&existing.witness_floor, &witness_floor)?
+            } else if existing.witness_floor.authorization.incarnation
+                == witness_floor.authorization.incarnation
+                && existing.witness_floor.authorization.epoch < witness_floor.authorization.epoch
+            {
+                CompositeWitness {
+                    authorization: witness_floor.authorization.clone(),
+                    data: merge_data_witness(
+                        existing.witness_floor.data.as_ref(),
+                        witness_floor.data.as_ref(),
+                    )?,
+                }
+            } else {
+                return Err(invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                    "retry witness cannot move backward or cross an unauthenticated incarnation",
+                ));
+            };
             if kind == RetryReservationKind::Initial {
                 return Ok(RetryReservation::Attached(existing.clone()));
             }
