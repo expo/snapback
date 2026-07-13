@@ -6,6 +6,8 @@ use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+
 /// Recover from lock poisoning the way the rest of the codebase does: room and
 /// queue state is small and self-consistent per critical section, so a
 /// panicked holder should not wedge the whole ephemeral subsystem.
@@ -36,10 +38,18 @@ fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
 /// itself (ENG-23426): teardown unregisters under the global write mutex,
 /// and the ephemeral wipe re-checks for a re-registration under each
 /// room/outbox lock, so a reconnect landing mid-teardown keeps its state.
-#[derive(Default)]
 struct DeliveryNotifierState {
-    next_generation: u64,
+    next_generation: Option<u64>,
     waiters: HashMap<String, (u64, Arc<Notify>)>,
+}
+
+impl Default for DeliveryNotifierState {
+    fn default() -> Self {
+        Self {
+            next_generation: Some(1),
+            waiters: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -51,15 +61,21 @@ impl DeliveryNotifier {
     /// Register interest in a connection's deliveries. Returns this
     /// registration's generation and the waker; a later `register` for the
     /// same connection replaces the waker and supersedes the generation.
-    pub fn register(&self, connection_id: &str) -> (u64, Arc<Notify>) {
+    pub fn register(&self, connection_id: &str) -> SnapbackResult<(u64, Arc<Notify>)> {
         let mut state = lock(&self.state);
-        state.next_generation += 1;
-        let generation = state.next_generation;
+        let generation = state.next_generation.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
+                "ephemeral",
+                "delivery registration generation exhausted",
+            )
+        })?;
+        state.next_generation = generation.checked_add(1);
         let notify = Arc::new(Notify::new());
         state
             .waiters
             .insert(connection_id.to_owned(), (generation, notify.clone()));
-        (generation, notify)
+        Ok((generation, notify))
     }
 
     /// Unregister only if `generation` still owns the connection's waker.
@@ -3689,7 +3705,7 @@ mod tests {
     async fn l8_enqueue_wakes_the_registered_delivery_waiter() {
         let backend = LocalEphemeralBackend::new();
         let notifier = backend.delivery_notifier();
-        let (generation, waker) = notifier.register("conn");
+        let (generation, waker) = notifier.register("conn").unwrap();
 
         // Enqueue before anyone awaits: the permit is stored.
         backend.enqueue_durable("conn", b"{}".to_vec());
@@ -3712,9 +3728,9 @@ mod tests {
         let backend = LocalEphemeralBackend::new();
         let notifier = backend.delivery_notifier();
 
-        let (old_generation, _old_waker) = notifier.register("conn");
+        let (old_generation, _old_waker) = notifier.register("conn").unwrap();
         // The reconnect: a new socket registers on the same connection id.
-        let (new_generation, new_waker) = notifier.register("conn");
+        let (new_generation, new_waker) = notifier.register("conn").unwrap();
 
         // The old task dies late: its unregister must be a no-op without
         // ownership (the caller gates disconnect on this).
@@ -3739,12 +3755,12 @@ mod tests {
     fn is_current_tracks_supersession_and_unregister() {
         let notifier = DeliveryNotifier::default();
 
-        let (old_generation, _old_waker) = notifier.register("conn");
+        let (old_generation, _old_waker) = notifier.register("conn").unwrap();
         assert!(notifier.is_current("conn", old_generation));
 
         // The reconnect supersedes the old registration: only the new
         // generation may keep draining the connection's outbox.
-        let (new_generation, _new_waker) = notifier.register("conn");
+        let (new_generation, _new_waker) = notifier.register("conn").unwrap();
         assert!(!notifier.is_current("conn", old_generation));
         assert!(notifier.is_current("conn", new_generation));
 
@@ -3755,15 +3771,33 @@ mod tests {
     }
 
     #[test]
+    fn delivery_generation_exhaustion_never_reuses_socket_ownership() {
+        let notifier = DeliveryNotifier::default();
+        lock(&notifier.state).next_generation = Some(u64::MAX);
+
+        let (last_generation, _waker) = notifier.register("last").unwrap();
+        assert_eq!(last_generation, u64::MAX);
+        assert!(notifier.is_current("last", u64::MAX));
+        for connection in ["next", "again"] {
+            assert_eq!(
+                notifier.register(connection).unwrap_err().diagnostic.code,
+                "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
+            );
+            assert!(!notifier.is_current(connection, 1));
+            assert!(notifier.is_current("last", u64::MAX));
+        }
+    }
+
+    #[test]
     fn generation_bound_drain_cannot_steal_replacement_messages() {
         let backend = LocalEphemeralBackend::new();
         let notifier = backend.delivery_notifier();
-        let (old_generation, _old_waker) = notifier.register("conn");
+        let (old_generation, _old_waker) = notifier.register("conn").unwrap();
         assert!(notifier.is_current("conn", old_generation));
 
         // This replacement lands at the exact pause that used to exist
         // between `is_current` and the destructive drain.
-        let (new_generation, _new_waker) = notifier.register("conn");
+        let (new_generation, _new_waker) = notifier.register("conn").unwrap();
         backend.enqueue_durable("conn", b"new-owner".to_vec());
 
         assert!(
@@ -3785,7 +3819,7 @@ mod tests {
 
         let backend = Arc::new(LocalEphemeralBackend::new());
         let notifier = backend.delivery_notifier();
-        let (generation, _waker) = notifier.register("conn");
+        let (generation, _waker) = notifier.register("conn").unwrap();
         backend.enqueue_durable("conn", b"queued".to_vec());
 
         let (entered_tx, entered_rx) = mpsc::channel();
@@ -3804,7 +3838,7 @@ mod tests {
         let (registered_tx, registered_rx) = mpsc::channel();
         let register_notifier = notifier.clone();
         let replacement = std::thread::spawn(move || {
-            let registered = register_notifier.register("conn");
+            let registered = register_notifier.register("conn").unwrap();
             registered_tx.send(registered.0).unwrap();
         });
         assert!(
@@ -4764,7 +4798,7 @@ mod tests {
         // The reconnected socket's fresh state: registration first (the WS
         // task registers at upgrade, before any subscribe), then a room
         // subscription and a published presence entry.
-        let (_generation, _waker) = notifier.register("a");
+        let (_generation, _waker) = notifier.register("a").unwrap();
         backend
             .publish(publish_request("a", b"cursor"), 1_000)
             .unwrap();
@@ -6231,7 +6265,7 @@ mod tests {
 
         let backend = LocalEphemeralBackend::new();
         let notifier = backend.delivery_notifier();
-        let (_generation, waker) = notifier.register("conn");
+        let (_generation, waker) = notifier.register("conn").unwrap();
 
         let (ack_tx, mut ack_rx) = mpsc::channel::<()>(1);
         let consumer_backend = backend.clone();

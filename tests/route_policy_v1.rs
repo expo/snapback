@@ -9,9 +9,14 @@ use axum::http::{Request, StatusCode, header};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
+use snapback::auth::mode::{
+    AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
+    AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+    SCHEMA_V1_PREFIX,
+};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
-    FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
+    AuthMode, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
 };
 use snapback::server::{
     CredentialResolution, EffectPolicy, InvocationAuthority, LegacyBodyPolicy, OperationTransport,
@@ -78,6 +83,50 @@ fn runner_fixture() -> LocalSnapback {
     snapback
 }
 
+fn sessions_runtime(state: AppState) -> AppState {
+    let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+    let deployment = DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "route-policy-sessions".to_owned(),
+        schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+        bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+        inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+    };
+    state
+        .with_auth_runtime_facts(
+            AuthModeStateRecord {
+                format_version: AUTH_MODE_FORMAT_VERSION,
+                transition_generation: 1,
+                active: AuthMode::Sessions,
+                desired: AuthMode::Sessions,
+                mode_state: AuthModeStatus::Settled,
+                app_data_availability: AppDataAvailability::Available,
+                sessions_ever_activated: true,
+                active_deployment: Some(deployment),
+                requested_deployment: None,
+                quarantine: None,
+            },
+            AuthProgramReadiness {
+                route_registry_enforced: true,
+                existing_surface_closure: true,
+                admin_secret_read_enforced: true,
+                secret_read_process_prerequisites: true,
+                provider_core: true,
+                shared_invocation_gate: true,
+                staged_mode: true,
+                connection_binding: true,
+                two_phase_revocation: true,
+                auth_coordinator: true,
+                authorization_invalidation: false,
+                authority_descriptor: false,
+                authorized_lease: false,
+                session_activation_ready: true,
+            },
+        )
+        .expect("install exact future sessions runtime facts")
+}
+
 fn exposed_context(token: &str) -> ServerContext {
     ServerContext {
         host: "0.0.0.0".to_owned(),
@@ -141,6 +190,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/"),
         ("GET", "/health"),
         ("GET", "/inspect"),
+        ("GET", "/auth/session"),
         ("POST", "/auth/request-code"),
         ("POST", "/auth/exchange"),
         ("POST", "/auth/refresh"),
@@ -240,9 +290,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
     }
 }
 
-/// @ref LLP 0054#routes-operations-and-dtos — the five provider paths have closed
-/// independent carrier/response classifications, and active dev mode refuses
-/// them before inspecting bearer or body shape.
+/// @ref LLP 0054#routes-operations-and-dtos — the five provider paths have
+/// closed independent carrier/response classifications. LLP 0055 adds the
+/// rootless bootstrap handshake; active dev refuses only the provider paths
+/// before inspecting bearer or body shape.
 #[tokio::test]
 async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store() {
     let registry = route_registry();
@@ -251,7 +302,16 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 5);
+    assert_eq!(provider.len(), 6);
+
+    let handshake = provider["/auth/session"];
+    assert_eq!(handshake.method, "GET");
+    assert_eq!(handshake.path_policy, RoutePolicy::Public);
+    assert_eq!(handshake.credential_resolution, CredentialResolution::None);
+    assert_eq!(
+        handshake.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
 
     let request_code = provider["/auth/request-code"];
     assert_eq!(request_code.path_policy, RoutePolicy::Public);
@@ -320,13 +380,17 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     let router = app(AppState::detached(
         LocalSnapback::memory().expect("in-memory auth route fixture"),
     ));
-    for path in provider.keys() {
+    for path in provider
+        .keys()
+        .copied()
+        .filter(|path| *path != "/auth/session")
+    {
         let response = router
             .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(*path)
+                    .uri(path)
                     .header("content-type", "application/json")
                     .header(header::AUTHORIZATION, "Bearer planted-dev-oracle")
                     .body(Body::from(r#"{"auth":{"userId":"planted"}}"#))
@@ -753,7 +817,7 @@ async fn impersonation_effect_is_selected_exactly_and_non_substitutable() {
     // auth.mintSession is intentionally item-3 fenced in Dev and exposes its
     // independent impersonation effect only through the Sessions overlay.
     let (state, bearer) = impersonation_state(ServerProfile::Dev);
-    let router = app(state.with_policy_auth_mode(PolicyAuthMode::Sessions));
+    let router = app(sessions_runtime(state));
     let mint = || json!({"operation": "auth.mintSession", "args": {}});
 
     let missing_admin = impersonation_host_request(&router, mint(), None, &[bearer.as_str()]).await;
@@ -794,8 +858,12 @@ async fn impersonation_effect_is_selected_exactly_and_non_substitutable() {
         impersonation_host_request(&router, mint(), Some("sekrit"), &[bearer.as_str()]).await;
     assert_eq!(
         admitted.status(),
-        StatusCode::OK,
-        "both independent authorities must reach the structurally gated handler"
+        StatusCode::SERVICE_UNAVAILABLE,
+        "both independent authorities must reach the item-4 provider fence"
+    );
+    assert_eq!(
+        diagnostic_code(admitted).await,
+        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
     );
 
     // Keep the ordinary Dev operation assertions on the active Dev policy;
@@ -1375,10 +1443,9 @@ async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
 /// resolver is not installed.
 #[tokio::test]
 async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
-    let router = app(AppState::detached(
+    let router = app(sessions_runtime(AppState::detached(
         LocalSnapback::memory().expect("in-memory optional-bearer policy instance"),
-    )
-    .with_policy_auth_mode(PolicyAuthMode::Sessions));
+    )));
     for (uri, body) in [
         ("/query/missing_function", json!({ "args": {} })),
         ("/connection/open", json!({})),

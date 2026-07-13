@@ -2,7 +2,7 @@ use crate::admin::{AppState, ServerContext, ServerProfile};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
-use crate::auth::admission::{AdmissionLease, AuthAdmissionController};
+use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommitFailure};
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
@@ -6496,7 +6496,7 @@ async fn ensure_app(
                         let (outcome, committed, _published) =
                             with_snapback(&runtime.snapback, move |snapback| {
                                 transition.commit_and_publish_mode_state(|| {
-                                    snapback.commit_auth_provision(prepared, &profile)
+                                    snapback.commit_auth_provision_classified(prepared, &profile)
                                 })
                             })
                             .await?;
@@ -6504,15 +6504,35 @@ async fn ensure_app(
                     } else {
                         // Same-mode hot apply is serialized by the write lane
                         // but does not suspend unrelated app-data roots.
-                        with_snapback(&runtime.snapback, move |snapback| {
-                            snapback.commit_auth_provision(prepared, &profile)
+                        match with_snapback(&runtime.snapback, move |snapback| {
+                            snapback.commit_auth_provision_classified(prepared, &profile)
                         })
-                        .await?
+                        .await
+                        {
+                            Ok(committed) => committed,
+                            Err(ModeCommitFailure::RolledBack(error)) => {
+                                return Err(ApiError::from(error));
+                            }
+                            Err(ModeCommitFailure::Uncertain(error)) => {
+                                runtime
+                                    .auth_admission_controller()
+                                    .fail_closed_after_uncertain_commit()?;
+                                return Err(ApiError::from(error));
+                            }
+                        }
                     };
                     // The controller already published cross-mode state at the
                     // durable cut. Swap the clone-shared request projection
                     // only afterward; same-mode synchronization is idempotent.
-                    runtime.publish_auth_mode_state(committed)?;
+                    if let Err(error) = runtime.publish_auth_mode_state(committed) {
+                        // A durable write already succeeded. If the exact
+                        // record cannot be installed in the request projection,
+                        // serving the predecessor would be authority drift.
+                        runtime
+                            .auth_admission_controller()
+                            .fail_closed_after_uncertain_commit()?;
+                        return Err(ApiError::from(error));
+                    }
                     Ok(Json(EnsureAppResponse::Provision(outcome)))
                 }
             }
@@ -6760,7 +6780,11 @@ async fn live_stream(
     // lock traffic while idle). The long interval is a safety net only, in case
     // a wake is ever missed; register before draining so no push is lost.
     let notify = ephemeral.delivery_notifier();
-    let (generation, waker) = notify.register(&connection_id);
+    let Ok((generation, waker)) = notify.register(&connection_id) else {
+        // Generation reuse could transfer drain/teardown ownership to a stale
+        // socket. Exhaustion is process-terminal for new live streams.
+        return;
+    };
     let (writer, writes) = mpsc::channel(1);
     let writer_task = tokio::spawn(live_socket_writer(
         sender,
@@ -7587,6 +7611,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -7762,6 +7787,9 @@ mod tests {
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
     use crate::auth::crypto::{OsRandom, SessionBearer};
+    use crate::auth::invocation::{
+        InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
+    };
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::lifecycle::activate_catalog;
     use crate::auth::mode::{
@@ -7773,12 +7801,13 @@ mod tests {
     use crate::cron::CronRunOutcome;
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
-        AuthMode, CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
-        CronRetryMode, CronRetryPolicy, CronSchedule, FunctionDefinition, FunctionKind,
-        FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan,
-        SchemaManifest,
+        AuthInput, AuthMode, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
+        CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FunctionDefinition,
+        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        MutationAcknowledgementRequest, MutationPlan, ReturnValue, SchemaManifest,
     };
     use crate::runtime::IbexActionHost;
+    use crate::storage::ClientMutationIdentity;
     use axum::Json;
     use axum::body::{Body, Bytes, to_bytes};
     use axum::extract::{Extension, State};
@@ -7963,6 +7992,83 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let retained_auth = AuthInput {
+            principal: None,
+            session_id: None,
+            user_id: Some("settlement-owner".to_owned()),
+        };
+        let retained_input = HandlerInput {
+            auth: retained_auth.clone(),
+            ..HandlerInput::default()
+        };
+        let identity = ClientMutationIdentity::new(
+            "cm_prepared_authority_ack",
+            "settlement-test",
+            &retained_input,
+        );
+        let retained_id = identity.id.clone();
+        super::with_snapback(&state.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .execute_mutation_idempotent(
+                    &MutationPlan {
+                        steps: Vec::new(),
+                        return_value: Some(ReturnValue::ChangedCount),
+                    },
+                    &retained_input,
+                    &identity,
+                )
+                .expect("retain settlement for authority A");
+        })
+        .await;
+
+        let prepared = |user_id: &str| {
+            InvocationGate::prepare_admitted_authority(
+                InvocationSource::StandaloneAcknowledgement,
+                AuthMode::Dev,
+                ServerProfile::Test,
+                state.auth_admission_controller().admit_dev().unwrap(),
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::DevImpersonation {
+                    user_id: user_id.to_owned(),
+                    roles: Vec::new(),
+                    local_dev_only: true,
+                },
+            )
+            .unwrap()
+        };
+        let Json(wrong) = super::acknowledge_mutations(
+            State(state.snapback.clone()),
+            Extension(prepared("different-owner")),
+            Ok(Json(MutationAcknowledgementRequest {
+                auth: retained_auth.clone(),
+                client_mutation_ids: vec![retained_id.clone()],
+            })),
+        )
+        .await
+        .unwrap();
+        assert_eq!(wrong.acknowledged, 0);
+
+        let Json(owner) = super::acknowledge_mutations(
+            State(state.snapback.clone()),
+            Extension(prepared("settlement-owner")),
+            Ok(Json(MutationAcknowledgementRequest {
+                auth: AuthInput {
+                    principal: None,
+                    session_id: None,
+                    user_id: Some("different-owner".to_owned()),
+                },
+                client_mutation_ids: vec![retained_id],
+            })),
+        )
+        .await
+        .unwrap();
+        assert_eq!(owner.acknowledged, 1);
+    }
+
+    #[tokio::test]
     async fn auth_session_dev_is_closed_no_store_and_rejects_credentials() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
         let state = state
@@ -8034,6 +8140,96 @@ mod tests {
                 "SNAPBACK_AUTH_REQUEST_INVALID"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn handshake_holds_one_root_through_body_and_pending_is_snapshot_only() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let controller = state.auth_admission_controller();
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(controller.snapshot().in_flight, 1);
+        let authority = response
+            .extensions()
+            .get::<PreparedAuthority>()
+            .expect("stable handshake carries exact authority");
+        assert_eq!(
+            authority.source(),
+            crate::auth::invocation::InvocationSource::BootstrapHandshake
+        );
+        assert_eq!(
+            response
+                .extensions()
+                .get::<AdmissionLease>()
+                .expect("stable handshake carries its counted root")
+                .admission_epoch(),
+            authority.admission_epoch()
+        );
+        let _ = response_json(response).await;
+        assert_eq!(controller.snapshot().in_flight, 0);
+
+        let (pending, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        pending
+            .publish_auth_mode_state(pending_sessions_state(false))
+            .unwrap();
+        let pending_controller = pending.auth_admission_controller();
+        let response = app(pending)
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.extensions().get::<PreparedAuthority>().is_none());
+        assert!(response.extensions().get::<AdmissionLease>().is_none());
+        assert_eq!(pending_controller.snapshot().in_flight, 0);
+        assert_eq!(response_json(response).await["modeState"], "pendingRestart");
+        assert_eq!(pending_controller.snapshot().in_flight, 0);
+    }
+
+    #[tokio::test]
+    async fn retired_handshake_body_emits_no_frame_after_transition_cut() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let controller = state.auth_admission_controller();
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let lease = response
+            .extensions()
+            .get::<AdmissionLease>()
+            .expect("stable handshake root")
+            .clone();
+        assert_eq!(controller.snapshot().in_flight, 1);
+        let transition = {
+            let controller = controller.clone();
+            tokio::task::spawn_blocking(move || {
+                controller.begin_transition_for_test(Duration::from_millis(10))
+            })
+        };
+        let error = transition.await.unwrap().unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+        assert!(lease.is_cancelled());
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert!(bytes.is_empty(), "retired response body must be suppressed");
+        assert!(controller.snapshot().accepting);
     }
 
     #[tokio::test]
@@ -8189,6 +8385,68 @@ mod tests {
         let body = response_json(handshake).await;
         assert_eq!(body["transitionGeneration"], 8);
         assert_eq!(body["desiredMode"], "sessions");
+    }
+
+    #[tokio::test]
+    async fn same_mode_post_commit_publication_failure_cancels_and_closes_admission() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let controller = state.auth_admission_controller();
+        let predecessor = controller.admit().expect("predecessor root");
+        let shared = state.snapback.clone();
+        state.inject_auth_mode_publication_failure();
+        let router = app(state);
+        let schema = SchemaManifest {
+            schema_version: "snapback.v0".to_owned(),
+            app_id: "auth-http-fixture".to_owned(),
+            schema_hash: Some("sha256:publication-schema".to_owned()),
+            inputs_hash: Some("sha256:publication-inputs".to_owned()),
+            ..SchemaManifest::default()
+        };
+        let functions = FunctionManifest {
+            schema_version: "snapback.v0".to_owned(),
+            app_id: "auth-http-fixture".to_owned(),
+            bundle_hash: Some("sha256:publication-functions".to_owned()),
+            inputs_hash: Some("sha256:publication-inputs".to_owned()),
+            ..FunctionManifest::default()
+        };
+        let response = router
+            .oneshot(auth_http_request(
+                "POST",
+                "/app/ensure",
+                serde_json::to_vec(&json!({
+                    "intent": "provision",
+                    "requestedMode": "dev",
+                    "schema": schema,
+                    "functions": functions,
+                }))
+                .unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "TEST_AUTH_MODE_PUBLICATION_FAILURE"
+        );
+
+        let durable = super::with_snapback(&shared, |snapback| {
+            snapback
+                .auth_database_mut()
+                .auth_mode_snapshot()
+                .expect("durable committed deployment")
+        })
+        .await;
+        assert!(durable.state.active_deployment.is_some());
+        assert!(predecessor.is_cancelled());
+        let closed = controller.snapshot();
+        assert!(!closed.accepting);
+        assert_eq!(
+            controller.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
     }
 
     #[tokio::test]
@@ -10077,6 +10335,7 @@ mod tests {
         "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
         "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
+        "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",

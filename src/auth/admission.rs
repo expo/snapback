@@ -30,6 +30,7 @@ type CancellationHook = Arc<dyn Fn() + Send + Sync + 'static>;
 struct CancellationState {
     cancelled: bool,
     next_hook: u64,
+    hook_ids_exhausted: bool,
     hooks: BTreeMap<u64, CancellationHook>,
 }
 
@@ -59,8 +60,25 @@ impl CancellationSignal {
             hook();
             return CancellationRegistration::inactive();
         }
+        if state.hook_ids_exhausted {
+            // Reusing a hook id could let an older registration remove a new
+            // cancellation hook. Exhaustion therefore cancels the whole
+            // signal permanently and invokes every callback fail-closed.
+            state.cancelled = true;
+            let hooks = std::mem::take(&mut state.hooks);
+            drop(state);
+            self.changed.notify_waiters();
+            for registered in hooks.into_values() {
+                registered();
+            }
+            hook();
+            return CancellationRegistration::inactive();
+        }
         let id = state.next_hook;
-        state.next_hook = state.next_hook.wrapping_add(1);
+        match state.next_hook.checked_add(1) {
+            Some(next) => state.next_hook = next,
+            None => state.hook_ids_exhausted = true,
+        }
         state.hooks.insert(id, hook);
         CancellationRegistration {
             signal: Some(self.clone()),
@@ -140,6 +158,20 @@ pub struct AdmissionController {
 
 /// Public semantic name used by server composition.
 pub type AuthAdmissionController = AdmissionController;
+
+#[derive(Debug)]
+pub(crate) enum ModeCommitFailure {
+    RolledBack(SnapbackError),
+    Uncertain(SnapbackError),
+}
+
+impl ModeCommitFailure {
+    pub(crate) fn into_error(self) -> SnapbackError {
+        match self {
+            Self::RolledBack(error) | Self::Uncertain(error) => error,
+        }
+    }
+}
 
 impl fmt::Debug for AdmissionController {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -317,6 +349,53 @@ impl AdmissionController {
         self.admit_locked(&mut state, Some(mode))
     }
 
+    /// Retire/cancel the current accepting epoch after an ambiguous same-mode
+    /// durable commit. The process must restart and re-read durable state; it
+    /// must never keep serving from an in-memory predecessor it can no longer
+    /// prove matches storage.
+    pub(crate) fn fail_closed_after_uncertain_commit(&self) -> SnapbackResult<AdmissionSnapshot> {
+        // Exhausting the process-wide epoch allocator must itself fail closed:
+        // retire the current epoch even when no fresh diagnostic epoch can be
+        // named. Restart is already required in this posture.
+        let new_epoch = next_admission_epoch().ok();
+        let cancellation = {
+            let mut state = lock(&self.inner.state);
+            let old_epoch = state.current_epoch;
+            let old = state
+                .epochs
+                .get_mut(&old_epoch)
+                .expect("current admission epoch exists");
+            if old.retired || old.transition_owned {
+                return Err(admission_closed());
+            }
+            let generation = old.transition_generation;
+            let active_mode = old.active_mode;
+            old.retired = true;
+            old.accepting = false;
+            let cancellation = old.cancellation.clone();
+            if let Some(new_epoch) = new_epoch {
+                state.epochs.insert(
+                    new_epoch,
+                    EpochState {
+                        transition_generation: generation,
+                        active_mode,
+                        accepting: false,
+                        retired: false,
+                        transition_owned: false,
+                        in_flight: 0,
+                        cancellation: Arc::new(CancellationSignal::default()),
+                    },
+                );
+                state.current_epoch = new_epoch;
+            }
+            self.inner.drained.notify_all();
+            self.inner.changed.notify_waiters();
+            cancellation
+        };
+        cancellation.cancel();
+        Ok(self.snapshot())
+    }
+
     fn admit_locked(
         &self,
         state: &mut AdmissionState,
@@ -436,6 +515,14 @@ impl AdmissionController {
             || Ok(()),
             Duration::from_millis(AUTH_MODE_QUIESCENCE_TIMEOUT_MS),
         )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn begin_transition_for_test(
+        &self,
+        timeout: Duration,
+    ) -> SnapbackResult<ModeTransitionGuard> {
+        self.begin_transition_with_suspend_and_timeout(|| Ok(()), timeout)
     }
 
     /// Async server entry: close admission, synchronously suspend existing
@@ -810,16 +897,23 @@ impl ModeTransitionGuard {
     }
 
     /// Execute the exact durable commit and publish the returned mode record
-    /// without yielding back to caller code between those two cuts. An `Err`
-    /// from `commit` means no durable commit occurred and Drop may reopen the
-    /// predecessor. Once `commit` returns `Ok`, any impossible publication
-    /// failure leaves admission closed instead of reopening stale authority.
+    /// without yielding back to caller code between those two cuts. Only an
+    /// explicit `RolledBack` result lets Drop reopen the predecessor;
+    /// `Uncertain` and every failure after `Committed` leave admission closed
+    /// instead of guessing at stale authority.
     pub(crate) fn commit_and_publish_mode_state<T>(
         mut self,
-        commit: impl FnOnce() -> SnapbackResult<(T, AuthModeStateRecord)>,
+        commit: impl FnOnce() -> Result<(T, AuthModeStateRecord), ModeCommitFailure>,
     ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
         self.validate_closed()?;
-        let (output, mode) = commit()?;
+        let (output, mode) = match commit() {
+            Ok(committed) => committed,
+            Err(ModeCommitFailure::RolledBack(error)) => return Err(error),
+            Err(ModeCommitFailure::Uncertain(error)) => {
+                self.reopen_on_abort = false;
+                return Err(error);
+            }
+        };
 
         // The durable cut is now known. From here on Drop must fail closed.
         self.reopen_on_abort = false;
@@ -970,15 +1064,21 @@ fn snapshot(state: &AdmissionState) -> AdmissionSnapshot {
 }
 
 fn next_admission_epoch() -> SnapbackResult<u64> {
-    let epoch = NEXT_ADMISSION_EPOCH.fetch_add(1, Ordering::SeqCst);
-    if epoch == 0 || epoch == u64::MAX {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
-            "auth",
-            "process admission epoch overflowed",
-        ));
-    }
-    Ok(epoch)
+    allocate_admission_epoch(&NEXT_ADMISSION_EPOCH)
+}
+
+fn allocate_admission_epoch(counter: &AtomicU64) -> SnapbackResult<u64> {
+    counter
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |epoch| {
+            (epoch != 0).then(|| epoch.checked_add(1)).flatten()
+        })
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                "auth",
+                "process admission epoch overflowed",
+            )
+        })
 }
 
 fn admission_closed() -> SnapbackError {
@@ -1148,6 +1248,54 @@ mod tests {
     }
 
     #[test]
+    fn admission_epoch_exhaustion_is_permanent_and_never_reuses_an_id() {
+        let counter = AtomicU64::new(u64::MAX - 1);
+        assert_eq!(allocate_admission_epoch(&counter).unwrap(), u64::MAX - 1);
+        assert_eq!(counter.load(Ordering::SeqCst), u64::MAX);
+        for _ in 0..2 {
+            assert_eq!(
+                allocate_admission_epoch(&counter)
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+            );
+            assert_eq!(counter.load(Ordering::SeqCst), u64::MAX);
+        }
+    }
+
+    #[test]
+    fn cancellation_hook_exhaustion_cancels_instead_of_reusing_an_id() {
+        let signal = Arc::new(CancellationSignal {
+            state: Mutex::new(CancellationState {
+                cancelled: false,
+                next_hook: u64::MAX,
+                hook_ids_exhausted: false,
+                hooks: BTreeMap::new(),
+            }),
+            changed: tokio::sync::Notify::new(),
+        });
+        let first_called = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let first_observed = first_called.clone();
+        let first = signal.register(Arc::new(move || {
+            first_observed.store(true, Ordering::SeqCst);
+        }));
+        assert!(!signal.is_cancelled());
+        assert_eq!(lock(&signal.state).hooks.len(), 1);
+
+        let second_called = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let second_observed = second_called.clone();
+        let second = signal.register(Arc::new(move || {
+            second_observed.store(true, Ordering::SeqCst);
+        }));
+        assert!(signal.is_cancelled());
+        assert!(first_called.load(Ordering::SeqCst));
+        assert!(second_called.load(Ordering::SeqCst));
+        assert!(lock(&signal.state).hooks.is_empty());
+        drop((first, second));
+    }
+
+    #[test]
     fn effect_guard_linearizes_publication_before_retirement() {
         let controller = AdmissionController::new(1, true).unwrap();
         let lease = controller.admit().unwrap();
@@ -1214,6 +1362,86 @@ mod tests {
         let reopened = controller.snapshot();
         assert_eq!(reopened.transition_generation, 9);
         assert!(reopened.accepting);
+    }
+
+    #[test]
+    fn commit_certainty_is_the_only_authority_reopen_boundary() {
+        let rolled_back = AdmissionController::new(31, true).unwrap();
+        let before = rolled_back.snapshot();
+        let error = rolled_back
+            .begin_transition()
+            .unwrap()
+            .commit_and_publish_mode_state::<()>(|| {
+                Err(ModeCommitFailure::RolledBack(SnapbackError::error(
+                    "TEST_ROLLED_BACK",
+                    "test",
+                    "transaction rolled back",
+                )))
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_ROLLED_BACK");
+        let reopened = rolled_back.snapshot();
+        assert_eq!(reopened.transition_generation, before.transition_generation);
+        assert_eq!(reopened.active_mode, before.active_mode);
+        assert_ne!(reopened.admission_epoch, before.admission_epoch);
+        assert!(reopened.accepting);
+
+        let uncertain = AdmissionController::new(41, true).unwrap();
+        let before = uncertain.snapshot();
+        let error = uncertain
+            .begin_transition()
+            .unwrap()
+            .commit_and_publish_mode_state::<()>(|| {
+                Err(ModeCommitFailure::Uncertain(SnapbackError::error(
+                    "TEST_COMMIT_UNCERTAIN",
+                    "test",
+                    "commit acknowledgement was lost",
+                )))
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_COMMIT_UNCERTAIN");
+        let closed = uncertain.snapshot();
+        assert_eq!(closed.transition_generation, before.transition_generation);
+        assert_eq!(closed.active_mode, before.active_mode);
+        assert_ne!(closed.admission_epoch, before.admission_epoch);
+        assert!(!closed.accepting);
+        assert_eq!(
+            uncertain.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+
+        let committed = AdmissionController::new(51, true).unwrap();
+        let pending = pending_sessions(52);
+        let (_, returned, published) = committed
+            .begin_transition()
+            .unwrap()
+            .commit_and_publish_mode_state(|| Ok(((), pending.clone())))
+            .unwrap();
+        assert_eq!(returned, pending);
+        assert_eq!(published.transition_generation, 52);
+        assert_eq!(published.active_mode, AuthMode::Dev);
+        assert!(!published.accepting);
+    }
+
+    #[test]
+    fn ambiguous_same_mode_commit_cancels_predecessor_and_stays_closed() {
+        let controller = AdmissionController::new(61, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let before = controller.snapshot();
+        let closed = controller.fail_closed_after_uncertain_commit().unwrap();
+        assert!(lease.is_cancelled());
+        assert_ne!(closed.admission_epoch, before.admission_epoch);
+        assert_eq!(closed.transition_generation, before.transition_generation);
+        assert_eq!(closed.active_mode, before.active_mode);
+        assert!(!closed.accepting);
+        assert_eq!(
+            lease
+                .effect_guard("post-commit publication")
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
     }
 
     #[test]

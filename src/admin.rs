@@ -656,6 +656,10 @@ pub struct AppState {
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
+    /// One-shot test seam for a failure after durable mode commit but before
+    /// the clone-shared request projection is installed.
+    #[cfg(test)]
+    fail_auth_mode_publication: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl AppState {
@@ -704,6 +708,8 @@ impl AppState {
                 impersonation_capabilities: None,
                 auth_provider: None,
                 auth_catalog_ready: false,
+                #[cfg(test)]
+                fail_auth_mode_publication: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             },
             operator,
         )
@@ -795,6 +801,17 @@ impl AppState {
         &self,
         mode_state: AuthModeStateRecord,
     ) -> Result<(), SnapbackError> {
+        #[cfg(test)]
+        if self
+            .fail_auth_mode_publication
+            .swap(false, std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(SnapbackError::error(
+                "TEST_AUTH_MODE_PUBLICATION_FAILURE",
+                "auth",
+                "injected post-commit auth-mode publication failure",
+            ));
+        }
         mode_state.validate_shape()?;
         // The controller publishes/reconciles first. Requests can briefly see
         // a new closed epoch with the old durable projection (and fail
@@ -811,6 +828,16 @@ impl AppState {
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = snapshot;
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_auth_mode_publication_failure(&self) {
+        assert!(
+            !self
+                .fail_auth_mode_publication
+                .swap(true, std::sync::atomic::Ordering::SeqCst),
+            "auth-mode publication failure hook must be one-shot"
+        );
     }
 
     pub fn active_policy_auth_mode(&self) -> PolicyAuthMode {

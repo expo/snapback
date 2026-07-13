@@ -1027,6 +1027,11 @@ fn function_kind_matches(constraint: FunctionKindConstraint, kind: &FunctionKind
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::admission::AdmissionController;
+    use crate::auth::mode::{
+        AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
+        DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+    };
     use crate::manifest::{FunctionRuntime, HandlerPlan, QueryPlan};
     use serde_json::json;
 
@@ -1385,5 +1390,79 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(raw.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+    }
+
+    #[test]
+    fn retained_sessions_owner_is_bearer_free_canonical_and_uses_one_fresh_root() {
+        let digest =
+            |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "live-auth-test".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+        };
+        let mode = AuthModeStateRecord {
+            format_version: AUTH_MODE_FORMAT_VERSION,
+            transition_generation: 7,
+            active: AuthMode::Sessions,
+            desired: AuthMode::Sessions,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: true,
+            active_deployment: Some(deployment),
+            requested_deployment: None,
+            quarantine: None,
+        };
+        let controller = AdmissionController::from_mode_state(&mode).unwrap();
+        let resolved = ResolvedAppAuthority::Session {
+            user_id: "canonical-user".to_owned(),
+            session_id: "canonical-session".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 4,
+            authority_instance_id: "authority-instance".to_owned(),
+        };
+        let initial = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            controller.admit_for_mode(AuthMode::Sessions).unwrap(),
+            &WireAuthorityFields::default(),
+            resolved.clone(),
+        )
+        .unwrap();
+        assert_eq!(controller.snapshot().in_flight, 1);
+        let retained = initial.retain_live_owner().unwrap();
+        let canonical = retained.canonicalize_input(HandlerInput {
+            auth: AuthInput {
+                principal: Some("wire-principal".to_owned()),
+                session_id: Some("wire-session".to_owned()),
+                user_id: Some("wire-user".to_owned()),
+            },
+            ..HandlerInput::default()
+        });
+        assert_eq!(canonical.auth.principal, None);
+        assert_eq!(canonical.auth.user_id.as_deref(), Some("canonical-user"));
+        assert_eq!(
+            canonical.auth.session_id.as_deref(),
+            Some("canonical-session")
+        );
+
+        drop(initial);
+        assert_eq!(
+            controller.snapshot().in_flight,
+            0,
+            "retained owner must not retain the initial admission root"
+        );
+        let rerun = retained
+            .prepare_rerun(controller.admit_for_mode(AuthMode::Sessions).unwrap())
+            .unwrap();
+        assert_eq!(controller.snapshot().in_flight, 1);
+        assert_eq!(rerun.source(), InvocationSource::LiveRerun);
+        assert_eq!(rerun.resolved(), &resolved);
+        drop(rerun);
+        assert_eq!(controller.snapshot().in_flight, 0);
     }
 }

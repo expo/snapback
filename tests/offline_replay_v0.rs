@@ -79,6 +79,13 @@ fn create_input(user: &str) -> HandlerInput {
     input_for(user, json!({ "title": "offline todo", "priority": "high" }))
 }
 
+fn canonical_dev_auth(user: &str) -> AuthInput {
+    AuthInput {
+        user_id: Some(user.to_owned()),
+        ..AuthInput::default()
+    }
+}
+
 fn post_json(path: &str, value: Value) -> Request<Body> {
     Request::builder()
         .method("POST")
@@ -458,7 +465,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
         .clone()
         .oneshot(post_json(
             "/_snapback/api/client-mutations/purge",
-            json!({ "auth": create_input(USER).auth }),
+            json!({ "auth": canonical_dev_auth(USER) }),
         ))
         .await
         .unwrap();
@@ -483,7 +490,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
         .clone()
         .oneshot(post_json_admin(
             "/_snapback/api/client-mutations/purge",
-            json!({ "auth": create_input(USER).auth }),
+            json!({ "auth": canonical_dev_auth(USER) }),
             TOKEN,
         ))
         .await

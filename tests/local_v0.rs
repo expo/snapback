@@ -2260,16 +2260,15 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(schema.schema_version, "snapback.v0");
     assert_eq!(
         schema.schema_hash.as_deref(),
-        // Re-pinned after the ENG-24373 validator/index hardening and
-        // ENG-24351's strict isolated JSON evaluation and unambiguous
-        // length-framed graph identity; the regen-and-diff gate proves this
-        // is reproducible from committed source.
-        Some("sha256:cd52155ebe40ed35")
+        // Re-pinned after paired auth artifact manifests joined the schema
+        // graph; the regen-and-diff gate proves this is reproducible from
+        // committed source.
+        Some("sha256:ce0ea39976a45ab8")
     );
     assert!(schema.inputs_hash.is_some());
     let schema_value = serde_json::to_value(&schema).expect("schema roundtrip");
     assert_eq!(schema_value["artifactKind"], "schemaManifest");
-    assert_eq!(schema_value["schemaHash"], "sha256:cd52155ebe40ed35");
+    assert_eq!(schema_value["schemaHash"], "sha256:ce0ea39976a45ab8");
 
     let functions: FunctionManifest = serde_json::from_str(include_str!(
         "../demos/todo/snapback/generated/functions.manifest.json"
@@ -2281,13 +2280,9 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
         functions.bundle_hash.as_deref(),
         // Path-independent since the LLP 0034 review fix 4 (handler sources
         // hash by manifest-relative path): reproducible from any checkout.
-        // Re-pinned for ENG-24351's complete, freshly-loaded, strict-JSON,
-        // length-framed local graph and the LLP 0051 D2 mutation-IR v1 extension
-        // (ENG-23893; the hash covers codegen inputs); previously when the
-        // todo demo handler rejected empty titles, for the LLP 0032 P3
-        // declared listTodos result validator, the P1 define.mjs move, and
-        // the LLP 0036 `uses`/`config` additions.
-        Some("sha256:7335368f8477b9df")
+        // Re-pinned with the paired auth artifact graph above; handler sources
+        // remain manifest-relative, so this stays checkout-path independent.
+        Some("sha256:b4f9dbde1d0c35fc")
     );
 
     let list = functions
@@ -4477,7 +4472,7 @@ fn eng_23427_reap_under_open_registration_signals_resync() {
     // "frozen" has an open, registered socket: its pump task registered and
     // is now (conceptually) parked in a blocked `sender.send`.
     let notify = snapback.delivery_notifier();
-    let (_generation, waker) = notify.register("frozen");
+    let (_generation, waker) = notify.register("frozen").unwrap();
 
     // Both idle past the TTL → both reaped, all subscriptions destroyed.
     assert_eq!(
@@ -5220,11 +5215,17 @@ fn schema_reapply_repairs_legacy_required_but_nullable_column() {
     }
     {
         let conn = rusqlite::Connection::open(&path).expect("open raw legacy db");
-        conn.execute(
-            "UPDATE _snapback_meta SET value = ?1 WHERE key = 'schema_manifest'",
-            [serde_json::to_string(&required).unwrap()],
-        )
-        .expect("simulate pre-fix logical required manifest");
+        let updated = conn
+            .execute(
+                "UPDATE _snapback_meta SET value = ?1
+             WHERE key IN ('schema_manifest', 'schema_manifest_capability_aware')",
+                [serde_json::to_string(&required).unwrap()],
+            )
+            .expect("simulate pre-fix logical required manifest");
+        assert_eq!(
+            updated, 2,
+            "both pre-sessions manifest mirrors move together"
+        );
     }
     assert!(!physical_column_not_null(&path, "todos", "rank"));
     let mut reopened = LocalDatabase::open(&path).expect("reopen legacy db");

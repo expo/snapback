@@ -10,10 +10,15 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
+use snapback::auth::mode::{
+    AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
+    AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+    SCHEMA_V1_PREFIX,
+};
 use snapback::ephemeral::{AuthContext, EphemeralCollection, KeyMode, Scope};
 use snapback::local::{LiveSubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION};
 use snapback::manifest::{
-    AppIdentity, AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
+    AppIdentity, AuthInput, AuthMode, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
     MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData,
     TableManifest, ValueExpr,
@@ -1321,15 +1326,24 @@ async fn optional_json_routes_reject_nonempty_untyped_or_invalid_bodies_without_
     ];
     for (connection_id, request) in rejected_opens {
         let response = app.clone().oneshot(request).await.unwrap();
+        let bounded_by_policy_gate = connection_id == "open-oversized";
         assert_eq!(
             response.status(),
-            StatusCode::BAD_REQUEST,
+            if bounded_by_policy_gate {
+                StatusCode::PAYLOAD_TOO_LARGE
+            } else {
+                StatusCode::BAD_REQUEST
+            },
             "{connection_id} body must be rejected"
         );
         assert_eq!(
             json(response).await["diagnostic"]["code"],
-            "SNAPBACK_REQUEST_JSON_INVALID",
-            "{connection_id} must use the stable optional-JSON diagnostic"
+            if bounded_by_policy_gate {
+                "SNAPBACK_VALUE_TOO_LARGE"
+            } else {
+                "SNAPBACK_REQUEST_JSON_INVALID"
+            },
+            "{connection_id} must use the stable bounded-body diagnostic"
         );
 
         // Rejection must happen before the grant operation. The intended id
@@ -1592,18 +1606,29 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     assert!(second_id.starts_with("conn_"), "minted id: {second_id}");
 
     // Prod never adopts caller-selected ids.
-    let prod = app_with_context(
+    let prod_state = AppState::from_snapback(
         seeded_snapback(),
         ServerContext {
             profile: snapback::admin::ServerProfile::Prod,
             ..loopback_context(None)
         },
     );
+    // Production refuses ordinary app data while durable auth is still dev.
+    // Install exact future item-5 readiness so this assertion continues to
+    // isolate the profile's caller-selected-id behavior.
+    let prod = snapback::server::app(sessions_runtime(prod_state));
     let minted = json(
-        prod.oneshot(post(
-            "/connection/open",
-            json!({ "connectionId": "attacker_chosen" }),
-        ))
+        prod.oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/connection/open")
+                .header("content-type", "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(
+                    json!({ "connectionId": "attacker_chosen" }).to_string(),
+                ))
+                .unwrap(),
+        )
         .await
         .unwrap(),
     )
@@ -2129,6 +2154,50 @@ fn loopback_app(snapback: LocalSnapback) -> axum::Router {
 
 fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
     snapback::server::app(AppState::from_snapback(snapback, ctx))
+}
+
+fn sessions_runtime(state: AppState) -> AppState {
+    let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+    let deployment = DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "admin-v0-sessions".to_owned(),
+        schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+        bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+        inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+    };
+    state
+        .with_auth_runtime_facts(
+            AuthModeStateRecord {
+                format_version: AUTH_MODE_FORMAT_VERSION,
+                transition_generation: 1,
+                active: AuthMode::Sessions,
+                desired: AuthMode::Sessions,
+                mode_state: AuthModeStatus::Settled,
+                app_data_availability: AppDataAvailability::Available,
+                sessions_ever_activated: true,
+                active_deployment: Some(deployment),
+                requested_deployment: None,
+                quarantine: None,
+            },
+            AuthProgramReadiness {
+                route_registry_enforced: true,
+                existing_surface_closure: true,
+                admin_secret_read_enforced: true,
+                secret_read_process_prerequisites: true,
+                provider_core: true,
+                shared_invocation_gate: true,
+                staged_mode: true,
+                connection_binding: true,
+                two_phase_revocation: true,
+                auth_coordinator: true,
+                authorization_invalidation: false,
+                authority_descriptor: false,
+                authorized_lease: false,
+                session_activation_ready: true,
+            },
+        )
+        .expect("install exact future sessions runtime facts")
 }
 
 fn loopback_context(token: Option<&str>) -> ServerContext {

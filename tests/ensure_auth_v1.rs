@@ -5,9 +5,11 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
-use snapback::auth::mode::{FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX};
+use snapback::auth::mode::{
+    AuthModeStatus, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+};
 use snapback::local::{EnsureAppInput, EnsureAppRequest, LocalSnapback};
-use snapback::manifest::{FunctionManifest, SchemaManifest};
+use snapback::manifest::{AuthManifest, AuthMode, FunctionManifest, SchemaManifest};
 use snapback::server::{
     CredentialResolution, InvocationAuthority, OperationTransport, PolicyAuthMode, RoutePolicy,
     app, operation_registry,
@@ -55,6 +57,36 @@ fn provision_body() -> Value {
     json!({
         "intent": "provision",
         "requestedMode": "dev",
+        "schema": schema,
+        "functions": functions,
+    })
+}
+
+fn sessions_provision_body() -> Value {
+    let schema_hash = format!("{SCHEMA_V1_PREFIX}{}", "4".repeat(64));
+    let bundle_hash = format!("{FUNCTION_V1_PREFIX}{}", "5".repeat(64));
+    let inputs_hash = format!("{INPUTS_V1_PREFIX}{}", "6".repeat(64));
+    let schema = SchemaManifest {
+        schema_version: "snapback.v1".to_owned(),
+        app_id: "ensure-app".to_owned(),
+        auth: Some(AuthManifest {
+            mode: AuthMode::Sessions,
+        }),
+        required_capabilities: vec!["auth.sessions.v1".to_owned()],
+        schema_hash: Some(schema_hash),
+        inputs_hash: Some(inputs_hash.clone()),
+        ..SchemaManifest::default()
+    };
+    let functions = FunctionManifest {
+        schema_version: "snapback.v1".to_owned(),
+        app_id: "ensure-app".to_owned(),
+        bundle_hash: Some(bundle_hash),
+        inputs_hash: Some(inputs_hash),
+        ..FunctionManifest::default()
+    };
+    json!({
+        "intent": "provision",
+        "requestedMode": "sessions",
         "schema": schema,
         "functions": functions,
     })
@@ -212,6 +244,9 @@ async fn explicit_provision_requires_admin_before_equal_hashes_or_effects() {
         LocalSnapback::memory().expect("ensure instance"),
         context(ServerProfile::Dev),
     );
+    let controller = state.auth_admission_controller();
+    let root = controller.admit().expect("unrelated same-mode root");
+    let before_admission = controller.snapshot();
     let shared = state.snapback.clone();
     let router = app(state);
 
@@ -222,6 +257,13 @@ async fn explicit_provision_requires_admin_before_equal_hashes_or_effects() {
         .expect("authorized provision");
     assert_eq!(provisioned.status(), StatusCode::OK);
     assert_eq!(response_json(provisioned).await["intent"], "provision");
+    let after_admission = controller.snapshot();
+    assert_eq!(
+        after_admission.admission_epoch,
+        before_admission.admission_epoch
+    );
+    assert!(after_admission.accepting);
+    assert!(!root.is_cancelled());
     let before = fingerprint(&shared).await;
 
     // The candidate now has exactly the loaded hashes. Authorization must win
@@ -236,6 +278,53 @@ async fn explicit_provision_requires_admin_before_equal_hashes_or_effects() {
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
     );
     assert_eq!(fingerprint(&shared).await, before);
+}
+
+#[tokio::test]
+async fn cross_mode_provision_commits_pending_state_and_closes_admission_before_success() {
+    let state = AppState::from_snapback(
+        LocalSnapback::memory().expect("cross-mode ensure instance"),
+        context(ServerProfile::Dev),
+    );
+    let controller = state.auth_admission_controller();
+    let initial = controller.snapshot();
+    let runtime = state.clone();
+    let router = app(state);
+    let provisioned = router
+        .clone()
+        .oneshot(post(sessions_provision_body(), Some(ADMIN_TOKEN)))
+        .await
+        .expect("stage sessions provision");
+    assert_eq!(provisioned.status(), StatusCode::OK);
+    assert_eq!(response_json(provisioned).await["intent"], "provision");
+
+    let published = controller.snapshot();
+    assert_ne!(published.admission_epoch, initial.admission_epoch);
+    assert_eq!(published.transition_generation, 1);
+    assert!(!published.accepting);
+    assert_eq!(
+        controller.admit().unwrap_err().diagnostic.code,
+        "SNAPBACK_AUTH_MODE_PENDING"
+    );
+    let published_mode = runtime.auth_mode_state();
+    assert_eq!(published_mode.active, AuthMode::Dev);
+    assert_eq!(published_mode.desired, AuthMode::Sessions);
+    assert_eq!(published_mode.mode_state, AuthModeStatus::PendingRestart);
+
+    let refused = router
+        .oneshot(
+            Request::builder()
+                .uri("/inspect")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response_json(refused).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_MODE_PENDING"
+    );
 }
 
 #[tokio::test]

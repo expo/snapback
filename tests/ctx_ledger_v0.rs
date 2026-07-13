@@ -344,7 +344,14 @@ fn replay_under_changed_authority_is_refused() {
         .invoke_mutation("ledgeredIds", recorded_input)
         .expect("record-mode mutation");
     let mut ledger = recorded.ctx_ledger.expect("ledger");
-    ledger.auth_fingerprint = Some(auth_fingerprint(&auth));
+    // The retained fingerprint belongs to the server-resolved authority, not
+    // the legacy wire/body object. In dev mode only the asserted user survives
+    // canonicalization; principal and session_id are not independent authority.
+    let canonical_auth = AuthInput {
+        user_id: auth.user_id.clone(),
+        ..AuthInput::default()
+    };
+    ledger.auth_fingerprint = Some(auth_fingerprint(&canonical_auth));
 
     // Same authority: fingerprint matches, replay proceeds.
     let mut same = configured();

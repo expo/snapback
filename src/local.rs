@@ -1,6 +1,6 @@
 use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionLease;
-use crate::auth::admission::{AdmissionController, ModeTransitionGuard};
+use crate::auth::admission::{AdmissionController, ModeCommitFailure, ModeTransitionGuard};
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
     RetainedLiveAuthority, WireAuthorityFields,
@@ -41,6 +41,7 @@ use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
     IbexSubmoduleCapability, RuntimeCapabilities, RuntimeManager,
 };
+use crate::storage::auth_mode::DurableModeCommit;
 use crate::storage::{
     BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
     ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
@@ -2118,13 +2119,29 @@ impl LocalSnapback {
         prepared: PreparedAuthProvision,
         profile: &str,
     ) -> SnapbackResult<(EnsureAppProvisionOutcome, AuthModeStateRecord)> {
-        let before = self.db.auth_mode_snapshot()?;
-        Self::require_provision_posture(&before.state, prepared.requested_mode)?;
-        let observed =
-            self.preflight_auth_artifacts(&prepared.artifacts, prepared.requested_mode)?;
+        self.commit_auth_provision_classified(prepared, profile)
+            .map_err(ModeCommitFailure::into_error)
+    }
+
+    pub(crate) fn commit_auth_provision_classified(
+        &mut self,
+        prepared: PreparedAuthProvision,
+        profile: &str,
+    ) -> Result<(EnsureAppProvisionOutcome, AuthModeStateRecord), ModeCommitFailure> {
+        let before = self
+            .db
+            .auth_mode_snapshot()
+            .map_err(ModeCommitFailure::RolledBack)?;
+        Self::require_provision_posture(&before.state, prepared.requested_mode)
+            .map_err(ModeCommitFailure::RolledBack)?;
+        let observed = self
+            .preflight_auth_artifacts(&prepared.artifacts, prepared.requested_mode)
+            .map_err(ModeCommitFailure::RolledBack)?;
         if observed != prepared.deployment {
-            return Err(crate::auth::mode::mode_corrupt(
-                "prepared provisioning identity changed between preflight passes",
+            return Err(ModeCommitFailure::RolledBack(
+                crate::auth::mode::mode_corrupt(
+                    "prepared provisioning identity changed between preflight passes",
+                ),
             ));
         }
 
@@ -2139,20 +2156,38 @@ impl LocalSnapback {
             .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
 
         let (seed_outcome, state) = if prepared.requested_mode == before.state.active {
-            let (seed_outcome, state) = self.db.apply_same_mode_network_deployment(
+            let committed = self.db.apply_same_mode_network_deployment_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
                 prepared.artifacts.seed,
-            )?;
+            );
+            let (seed_outcome, state) = match committed {
+                DurableModeCommit::Committed(committed) => committed,
+                DurableModeCommit::RolledBack(error) => {
+                    return Err(ModeCommitFailure::RolledBack(error));
+                }
+                DurableModeCommit::Uncertain(error) => {
+                    return Err(ModeCommitFailure::Uncertain(error));
+                }
+            };
             self.publish_preflighted_functions(prepared.artifacts.functions);
             (seed_outcome.as_str(), state)
         } else {
             let seeded = prepared.artifacts.seed.is_some();
-            let state = self.db.stage_auth_mode(
+            let committed = self.db.stage_auth_mode_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
                 prepared.artifacts.seed,
-            )?;
+            );
+            let state = match committed {
+                DurableModeCommit::Committed(committed) => committed,
+                DurableModeCommit::RolledBack(error) => {
+                    return Err(ModeCommitFailure::RolledBack(error));
+                }
+                DurableModeCommit::Uncertain(error) => {
+                    return Err(ModeCommitFailure::Uncertain(error));
+                }
+            };
             (if seeded { "seeded" } else { "skipped-absent" }, state)
         };
         Ok((

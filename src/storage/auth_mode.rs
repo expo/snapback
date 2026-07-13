@@ -57,6 +57,25 @@ impl NetworkSeedOutcome {
     }
 }
 
+/// Explicit SQLite commit certainty for mode-authority writes. Callers may
+/// preserve or reopen a predecessor only for `RolledBack`; `Uncertain` means
+/// the process must fail closed and recover by reopening durable storage.
+#[derive(Debug)]
+pub(crate) enum DurableModeCommit<T> {
+    Committed(T),
+    RolledBack(SnapbackError),
+    Uncertain(SnapbackError),
+}
+
+impl<T> DurableModeCommit<T> {
+    fn into_result(self) -> SnapbackResult<T> {
+        match self {
+            Self::Committed(value) => Ok(value),
+            Self::RolledBack(error) | Self::Uncertain(error) => Err(error),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(super) enum OpenAuthModeInspection {
     Fresh,
@@ -83,12 +102,53 @@ thread_local! {
         const { std::cell::Cell::new(None) };
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AuthModeCommitBoundary {
+    BeforeCommit,
+    AfterCommit,
+}
+
+#[cfg(test)]
+thread_local! {
+    static FAIL_AUTH_MODE_COMMIT_BOUNDARY: std::cell::Cell<Option<AuthModeCommitBoundary>> =
+        const { std::cell::Cell::new(None) };
+}
+
 #[cfg(test)]
 fn inject_auth_mode_failure_after_step(step: usize) {
     FAIL_AUTH_MODE_TRANSACTION_AFTER_STEP.with(|slot| {
         assert!(slot.get().is_none(), "auth-mode hook must be one-shot");
         slot.set(Some(step));
     });
+}
+
+#[cfg(test)]
+fn inject_auth_mode_commit_boundary_failure(boundary: AuthModeCommitBoundary) {
+    FAIL_AUTH_MODE_COMMIT_BOUNDARY.with(|slot| {
+        assert!(
+            slot.get().is_none(),
+            "auth-mode commit hook must be one-shot"
+        );
+        slot.set(Some(boundary));
+    });
+}
+
+fn commit_boundary_completed(boundary: AuthModeCommitBoundary) -> SnapbackResult<()> {
+    #[cfg(not(test))]
+    let _ = boundary;
+    #[cfg(test)]
+    FAIL_AUTH_MODE_COMMIT_BOUNDARY.with(|slot| {
+        if slot.get() == Some(boundary) {
+            slot.set(None);
+            return Err(SnapbackError::error(
+                "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE",
+                "auth",
+                format!("injected auth-mode {boundary:?} failure"),
+            ));
+        }
+        Ok(())
+    })?;
+    Ok(())
 }
 
 fn transaction_step_completed(step: usize) -> SnapbackResult<()> {
@@ -107,6 +167,74 @@ fn transaction_step_completed(step: usize) -> SnapbackResult<()> {
         Ok(())
     })?;
     Ok(())
+}
+
+/// Execute one mode-authority transaction and classify its durable result by
+/// exact reread whenever SQLite does not give the caller a clean boundary.
+/// Transaction-body failures count as rolled back only after an explicit
+/// rollback succeeds (or an exact predecessor reread proves it).
+fn commit_mode_transaction<T>(
+    conn: &mut Connection,
+    predecessor: &AuthModeSnapshot,
+    transaction_body: impl FnOnce(&Transaction<'_>) -> SnapbackResult<(T, AuthModeSnapshot)>,
+) -> DurableModeCommit<T> {
+    let tx = match conn.transaction_with_behavior(TransactionBehavior::Immediate) {
+        Ok(tx) => tx,
+        Err(error) => return DurableModeCommit::RolledBack(error.into()),
+    };
+    let (output, successor) = match transaction_body(&tx) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            return match tx.rollback() {
+                Ok(()) => DurableModeCommit::RolledBack(error),
+                Err(_) if managed_snapshot_matches(conn, predecessor) => {
+                    DurableModeCommit::RolledBack(error)
+                }
+                Err(_) => DurableModeCommit::Uncertain(error),
+            };
+        }
+    };
+    if let Err(error) = commit_boundary_completed(AuthModeCommitBoundary::BeforeCommit) {
+        return match tx.rollback() {
+            Ok(()) => DurableModeCommit::RolledBack(error),
+            Err(_) if managed_snapshot_matches(conn, predecessor) => {
+                DurableModeCommit::RolledBack(error)
+            }
+            Err(_) => DurableModeCommit::Uncertain(error),
+        };
+    }
+    if let Err(error) = tx.commit() {
+        return reconcile_mode_commit(conn, predecessor, &successor, output, error.into());
+    }
+    if let Err(error) = commit_boundary_completed(AuthModeCommitBoundary::AfterCommit) {
+        return reconcile_mode_commit(conn, predecessor, &successor, output, error);
+    }
+    DurableModeCommit::Committed(output)
+}
+
+fn reconcile_mode_commit<T>(
+    conn: &Connection,
+    predecessor: &AuthModeSnapshot,
+    successor: &AuthModeSnapshot,
+    output: T,
+    error: SnapbackError,
+) -> DurableModeCommit<T> {
+    match inspect_for_open(conn) {
+        Ok(OpenAuthModeInspection::Managed(observed)) if observed == *successor => {
+            DurableModeCommit::Committed(output)
+        }
+        Ok(OpenAuthModeInspection::Managed(observed)) if observed == *predecessor => {
+            DurableModeCommit::RolledBack(error)
+        }
+        _ => DurableModeCommit::Uncertain(error),
+    }
+}
+
+fn managed_snapshot_matches(conn: &Connection, expected: &AuthModeSnapshot) -> bool {
+    matches!(
+        inspect_for_open(conn),
+        Ok(OpenAuthModeInspection::Managed(observed)) if observed == *expected
+    )
 }
 
 impl LocalDatabase {
@@ -128,75 +256,103 @@ impl LocalDatabase {
         schema_manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> SnapbackResult<AuthModeStateRecord> {
-        requested_deployment.validate()?;
-        requested_deployment.validate_schema_half(&schema_manifest)?;
-        validate_schema(&schema_manifest)?;
-        reject_field_retypes(&self.schema, &schema_manifest)?;
-        reject_unsafe_required_field_changes(&self.conn, &self.schema, &schema_manifest)?;
+        self.stage_auth_mode_classified(requested_deployment, schema_manifest, seed)
+            .into_result()
+    }
 
-        let current = self.auth_mode_snapshot()?;
-        require_transition_source(&current.state, requested_deployment.auth_mode)?;
-        if seed.is_some() {
-            require_fresh_seed_target(&self.conn, &current.state)?;
-        }
+    pub(crate) fn stage_auth_mode_classified(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> DurableModeCommit<AuthModeStateRecord> {
+        let predecessor = match (|| -> SnapbackResult<_> {
+            requested_deployment.validate()?;
+            requested_deployment.validate_schema_half(&schema_manifest)?;
+            validate_schema(&schema_manifest)?;
+            reject_field_retypes(&self.schema, &schema_manifest)?;
+            reject_unsafe_required_field_changes(&self.conn, &self.schema, &schema_manifest)?;
 
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = require_managed_snapshot(&tx)?;
-        require_transition_source(&current.state, requested_deployment.auth_mode)?;
-        if seed.is_some() {
-            require_fresh_seed_target(&tx, &current.state)?;
-        }
-
-        // DDL precedes seed, and both precede mode metadata in this transaction.
-        for table in &schema_manifest.tables {
-            create_or_update_table(&tx, table)?;
-            for index in &table.indexes {
-                create_index(&tx, table, index.name.as_str(), &index.fields)?;
+            let current = self.auth_mode_snapshot()?;
+            require_transition_source(&current.state, requested_deployment.auth_mode)?;
+            if seed.is_some() {
+                require_fresh_seed_target(&self.conn, &current.state)?;
             }
-        }
-        transaction_step_completed(0)?;
-
-        if let Some(seed) = seed {
-            let next_version = current_version_on(&tx)?
-                .checked_add(1)
-                .ok_or_else(|| mode_corrupt("app version overflowed while staging auth mode"))?;
-            let changed = seed_into_transaction(&tx, &schema_manifest, seed, next_version)?;
-            if changed > 0 {
-                set_version(&tx, next_version)?;
+            Ok(current)
+        })() {
+            Ok(predecessor) => predecessor,
+            Err(error) => return DurableModeCommit::RolledBack(error),
+        };
+        commit_mode_transaction(&mut self.conn, &predecessor, |tx| {
+            let current = require_managed_snapshot(&tx)?;
+            if current != predecessor {
+                return Err(mode_corrupt(
+                    "auth-mode snapshot changed before the staging transaction",
+                ));
             }
-        }
-        transaction_step_completed(1)?;
+            require_transition_source(&current.state, requested_deployment.auth_mode)?;
+            if seed.is_some() {
+                require_fresh_seed_target(&tx, &current.state)?;
+            }
 
-        let generation = current.state.next_generation()?;
-        let staged = StagedAuthModeRecord {
-            format_version: AUTH_MODE_FORMAT_VERSION,
-            transition_generation: generation,
-            requested_deployment: requested_deployment.clone(),
-            schema_manifest,
-        };
-        let next = AuthModeStateRecord {
-            format_version: AUTH_MODE_FORMAT_VERSION,
-            transition_generation: generation,
-            active: current.state.active,
-            desired: requested_deployment.auth_mode,
-            mode_state: AuthModeStatus::PendingRestart,
-            app_data_availability: AppDataAvailability::RefusedPending,
-            sessions_ever_activated: current.state.sessions_ever_activated,
-            active_deployment: current.state.active_deployment,
-            requested_deployment: Some(requested_deployment),
-            quarantine: None,
-        };
-        next.validate_shape()?;
-        staged.validate_against(&next)?;
-        save_json_meta(&tx, META_STAGED_AUTH_MODE_MANIFEST, &staged)?;
-        transaction_step_completed(2)?;
-        save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
-        transaction_step_completed(3)?;
-        require_managed_snapshot(&tx)?;
-        tx.commit()?;
-        Ok(next)
+            // DDL precedes seed, and both precede mode metadata in this transaction.
+            for table in &schema_manifest.tables {
+                create_or_update_table(&tx, table)?;
+                for index in &table.indexes {
+                    create_index(&tx, table, index.name.as_str(), &index.fields)?;
+                }
+            }
+            transaction_step_completed(0)?;
+
+            if let Some(seed) = seed {
+                let next_version = current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
+                    mode_corrupt("app version overflowed while staging auth mode")
+                })?;
+                let changed = seed_into_transaction(&tx, &schema_manifest, seed, next_version)?;
+                if changed > 0 {
+                    set_version(&tx, next_version)?;
+                }
+            }
+            transaction_step_completed(1)?;
+
+            let generation = current.state.next_generation()?;
+            let staged = StagedAuthModeRecord {
+                format_version: AUTH_MODE_FORMAT_VERSION,
+                transition_generation: generation,
+                requested_deployment: requested_deployment.clone(),
+                schema_manifest,
+            };
+            let next = AuthModeStateRecord {
+                format_version: AUTH_MODE_FORMAT_VERSION,
+                transition_generation: generation,
+                active: current.state.active,
+                desired: requested_deployment.auth_mode,
+                mode_state: AuthModeStatus::PendingRestart,
+                app_data_availability: AppDataAvailability::RefusedPending,
+                sessions_ever_activated: current.state.sessions_ever_activated,
+                active_deployment: current.state.active_deployment,
+                requested_deployment: Some(requested_deployment),
+                quarantine: None,
+            };
+            next.validate_shape()?;
+            staged.validate_against(&next)?;
+            save_json_meta(&tx, META_STAGED_AUTH_MODE_MANIFEST, &staged)?;
+            transaction_step_completed(2)?;
+            save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
+            transaction_step_completed(3)?;
+            let observed = require_managed_snapshot(&tx)?;
+            let successor = AuthModeSnapshot {
+                state: next.clone(),
+                staged: Some(staged),
+                active_manifest: predecessor.active_manifest.clone(),
+            };
+            if observed != successor {
+                return Err(mode_corrupt(
+                    "staged auth-mode transaction did not produce its exact successor",
+                ));
+            }
+            Ok((next, successor))
+        })
     }
 
     pub fn quarantine_auth_mode(&mut self, code: &str) -> SnapbackResult<AuthModeStateRecord> {
@@ -475,71 +631,111 @@ impl LocalDatabase {
         manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> SnapbackResult<(NetworkSeedOutcome, AuthModeStateRecord)> {
-        deployment.validate()?;
-        deployment.validate_schema_half(&manifest)?;
-        validate_schema(&manifest)?;
-        reject_field_retypes(&self.schema, &manifest)?;
-        reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
+        self.apply_same_mode_network_deployment_classified(deployment, manifest, seed)
+            .into_result()
+    }
 
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = require_managed_snapshot(&tx)?;
-        require_settled_available(&current.state)?;
-        if deployment.auth_mode != current.state.active {
-            return Err(mode_corrupt(
-                "same-mode network deployment differs from active auth mode",
-            ));
-        }
-
-        apply_schema_ddl(&tx, &manifest)?;
-        let seed_outcome = match seed {
-            None => NetworkSeedOutcome::SkippedAbsent,
-            Some(seed) => {
-                let mut all_empty = true;
-                for table in seed.tables.keys() {
-                    // `schema_table` validates the logical target before the
-                    // quoted physical lookup. Any invalid seed rolls this
-                    // transaction back, including additive DDL.
-                    schema_table(&manifest, table)?;
-                    let count: i64 = tx.query_row(
-                        &format!("SELECT COUNT(*) FROM {}", super::quote_ident(table)?),
-                        [],
-                        |row| row.get(0),
-                    )?;
-                    if count != 0 {
-                        all_empty = false;
-                        break;
-                    }
-                }
-                if all_empty {
-                    let next_version =
-                        current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
-                            mode_corrupt("app version overflowed while provisioning deployment")
-                        })?;
-                    let changed = seed_into_transaction(&tx, &manifest, seed, next_version)?;
-                    if changed > 0 {
-                        set_version(&tx, next_version)?;
-                    }
-                    NetworkSeedOutcome::Seeded
-                } else {
-                    NetworkSeedOutcome::SkippedNonempty
-                }
+    pub(crate) fn apply_same_mode_network_deployment_classified(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> DurableModeCommit<(NetworkSeedOutcome, AuthModeStateRecord)> {
+        let predecessor = match (|| -> SnapbackResult<_> {
+            deployment.validate()?;
+            deployment.validate_schema_half(&manifest)?;
+            validate_schema(&manifest)?;
+            reject_field_retypes(&self.schema, &manifest)?;
+            reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
+            let current = self.auth_mode_snapshot()?;
+            require_settled_available(&current.state)?;
+            if deployment.auth_mode != current.state.active {
+                return Err(mode_corrupt(
+                    "same-mode network deployment differs from active auth mode",
+                ));
             }
+            Ok(current)
+        })() {
+            Ok(predecessor) => predecessor,
+            Err(error) => return DurableModeCommit::RolledBack(error),
         };
+        let committed = commit_mode_transaction(&mut self.conn, &predecessor, |tx| {
+            let current = require_managed_snapshot(&tx)?;
+            if current != predecessor {
+                return Err(mode_corrupt(
+                    "auth-mode snapshot changed before the same-mode transaction",
+                ));
+            }
+            require_settled_available(&current.state)?;
+            if deployment.auth_mode != current.state.active {
+                return Err(mode_corrupt(
+                    "same-mode network deployment differs from active auth mode",
+                ));
+            }
 
-        let raw = serialize_json(&manifest)?;
-        save_active_manifest_in(&tx, &current.state, &raw)?;
-        let next = AuthModeStateRecord {
-            active_deployment: Some(deployment),
-            ..current.state
-        };
-        next.validate_shape()?;
-        save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
-        require_managed_snapshot(&tx)?;
-        tx.commit()?;
-        self.schema = manifest;
-        Ok((seed_outcome, next))
+            apply_schema_ddl(&tx, &manifest)?;
+            let seed_outcome = match seed {
+                None => NetworkSeedOutcome::SkippedAbsent,
+                Some(seed) => {
+                    let mut all_empty = true;
+                    for table in seed.tables.keys() {
+                        // `schema_table` validates the logical target before the
+                        // quoted physical lookup. Any invalid seed rolls this
+                        // transaction back, including additive DDL.
+                        schema_table(&manifest, table)?;
+                        let count: i64 = tx.query_row(
+                            &format!("SELECT COUNT(*) FROM {}", super::quote_ident(table)?),
+                            [],
+                            |row| row.get(0),
+                        )?;
+                        if count != 0 {
+                            all_empty = false;
+                            break;
+                        }
+                    }
+                    if all_empty {
+                        let next_version =
+                            current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
+                                mode_corrupt("app version overflowed while provisioning deployment")
+                            })?;
+                        let changed = seed_into_transaction(&tx, &manifest, seed, next_version)?;
+                        if changed > 0 {
+                            set_version(&tx, next_version)?;
+                        }
+                        NetworkSeedOutcome::Seeded
+                    } else {
+                        NetworkSeedOutcome::SkippedNonempty
+                    }
+                }
+            };
+
+            let raw = serialize_json(&manifest)?;
+            save_active_manifest_in(&tx, &current.state, &raw)?;
+            let next = AuthModeStateRecord {
+                active_deployment: Some(deployment),
+                ..current.state
+            };
+            next.validate_shape()?;
+            save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
+            let observed = require_managed_snapshot(&tx)?;
+            let successor = AuthModeSnapshot {
+                state: next.clone(),
+                staged: predecessor.staged.clone(),
+                active_manifest: Some(manifest.clone()),
+            };
+            if observed != successor {
+                return Err(mode_corrupt(
+                    "same-mode transaction did not produce its exact successor",
+                ));
+            }
+            Ok(((seed_outcome, next), successor))
+        });
+        if matches!(committed, DurableModeCommit::Committed(_)) {
+            // This also covers a lost commit acknowledgement reconciled to the
+            // exact successor above.
+            self.schema = manifest;
+        }
+        committed
     }
 
     pub(super) fn apply_schema_mode_aware(
@@ -1071,6 +1267,49 @@ mod tests {
     }
 
     #[test]
+    fn staged_commit_boundary_reconciles_exact_predecessor_and_successor() {
+        let mut rolled_back = LocalDatabase::memory().unwrap();
+        let (identity, manifest) = sessions_pair(Some("before_commit_items"));
+        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::BeforeCommit);
+        let error = match rolled_back.stage_auth_mode_classified(
+            identity.clone(),
+            manifest.clone(),
+            None,
+        ) {
+            DurableModeCommit::RolledBack(error) => error,
+            other => panic!("expected confirmed rollback, got {other:?}"),
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE"
+        );
+        assert_eq!(
+            rolled_back.auth_mode_snapshot().unwrap().state,
+            AuthModeStateRecord::initial_dev(None)
+        );
+        let physical: i64 = rolled_back
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name='before_commit_items'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(physical, 0);
+
+        let mut committed = LocalDatabase::memory().unwrap();
+        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterCommit);
+        let returned = match committed.stage_auth_mode_classified(identity, manifest, None) {
+            DurableModeCommit::Committed(state) => state,
+            other => panic!("expected exact committed successor, got {other:?}"),
+        };
+        let reread = committed.auth_mode_snapshot().unwrap();
+        assert_eq!(reread.state, returned);
+        assert_eq!(returned.mode_state, AuthModeStatus::PendingRestart);
+        assert!(reread.staged.is_some());
+    }
+
+    #[test]
     fn same_mode_network_deployment_commits_identity_and_seed_if_empty_once() {
         let mut database = LocalDatabase::memory().unwrap();
         let (identity, manifest) = dev_pair(Some("network_items"));
@@ -1121,6 +1360,46 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM network_items", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn same_mode_commit_boundary_reconciles_and_installs_exact_schema() {
+        let mut rolled_back = LocalDatabase::memory().unwrap();
+        let (identity, manifest) = dev_pair(Some("same_before_items"));
+        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::BeforeCommit);
+        match rolled_back.apply_same_mode_network_deployment_classified(
+            identity.clone(),
+            manifest.clone(),
+            None,
+        ) {
+            DurableModeCommit::RolledBack(error) => assert_eq!(
+                error.diagnostic.code,
+                "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE"
+            ),
+            other => panic!("expected confirmed rollback, got {other:?}"),
+        }
+        assert_eq!(rolled_back.schema(), &SchemaManifest::default());
+        assert_eq!(
+            rolled_back
+                .auth_mode_snapshot()
+                .unwrap()
+                .state
+                .active_deployment,
+            None
+        );
+
+        let mut committed = LocalDatabase::memory().unwrap();
+        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterCommit);
+        let returned = match committed.apply_same_mode_network_deployment_classified(
+            identity,
+            manifest.clone(),
+            None,
+        ) {
+            DurableModeCommit::Committed((_, state)) => state,
+            other => panic!("expected exact committed successor, got {other:?}"),
+        };
+        assert_eq!(committed.schema(), &manifest);
+        assert_eq!(committed.auth_mode_snapshot().unwrap().state, returned);
     }
 
     #[test]

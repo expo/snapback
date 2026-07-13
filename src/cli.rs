@@ -1561,17 +1561,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
         .map_err(anyhow::Error::new)?
         .with_auth_runtime(&auth_runtime);
-    // Background roots start only after the exact durable mode/controller
-    // composition above is complete.
-    let cron_scheduler = (auth_mode_state.app_data_availability
-        == crate::auth::mode::AppDataAvailability::Available)
-        .then(|| server::spawn_cron_scheduler(state.clone()));
-    let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral);
-    let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
-        state,
-        auth_runtime.clone(),
-        auth_gc_initial_delay,
-    );
     let app_state = match secret_read_proof_root {
         Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
             secret_read_operator,
@@ -1714,6 +1703,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         );
     }
 
+    // No background source may mint an invocation root until every fallible
+    // startup publication (operator sidecars, ready descriptor, and console
+    // handoff) has succeeded. From this point the only ordinary exit is server
+    // shutdown, where all three handles are aborted below.
+    let cron_scheduler = (auth_mode_state.app_data_availability
+        == crate::auth::mode::AppDataAvailability::Available)
+        .then(|| server::spawn_cron_scheduler(state.clone()));
+    let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral);
+    let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
+        state,
+        auth_runtime.clone(),
+        auth_gc_initial_delay,
+    );
     let server_result = axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await;
@@ -3382,6 +3384,29 @@ mod tests {
         assert_eq!(args.port, None);
         assert_eq!(args.db, PathBuf::from(".snapback/dev.sqlite3"));
         assert!(!args.memory);
+    }
+
+    #[test]
+    fn background_roots_start_only_after_all_fallible_publications() {
+        let source = include_str!("cli.rs");
+        let sidecar = source
+            .find("operator\n                .publish_with")
+            .expect("impersonation sidecar publication remains explicit");
+        let ready = source
+            .find("target\n            .write_atomic_protected")
+            .expect("ready descriptor publication remains explicit");
+        let cron = source
+            .find("server::spawn_cron_scheduler(state.clone())")
+            .expect("cron scheduler spawn remains explicit");
+        let maintenance = source
+            .find("server::spawn_maintenance_worker(state.clone(), ephemeral)")
+            .expect("maintenance spawn remains explicit");
+        let auth_gc = source
+            .find("crate::auth::runtime::spawn_auth_gc_worker")
+            .expect("auth GC spawn remains explicit");
+        assert!(sidecar < cron && ready < cron);
+        assert!(sidecar < maintenance && ready < maintenance);
+        assert!(sidecar < auth_gc && ready < auth_gc);
     }
 
     #[test]
