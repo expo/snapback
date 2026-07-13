@@ -613,6 +613,14 @@ impl LocalDatabase {
             })));
         }
         if retained_auth != identity.auth_fingerprint {
+            if retained_auth.starts_with("fnv1a:") {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
+                    "auth",
+                    "client mutation uses a legacy auth fingerprint that cannot be rebound safely; acknowledge the consumed result or use the admin purge recovery path",
+                )
+                .with_details(json!({ "clientMutationId": identity.id })));
+            }
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_STALE_RESULT",
                 "auth",
@@ -4751,7 +4759,7 @@ mod guarded_commit_tests {
         assert_eq!(retained.records, 1);
         assert!(retained.bytes > 0);
         assert_eq!(
-            db.acknowledge_client_mutations("another-auth", &[identity.id.clone()])
+            db.acknowledge_client_mutations("another-auth", std::slice::from_ref(&identity.id))
                 .unwrap(),
             0,
             "another authority cannot reclaim the result"
@@ -4768,6 +4776,58 @@ mod guarded_commit_tests {
         let reclaimed = db.client_mutation_retention_info().unwrap();
         assert_eq!(reclaimed.records, 0);
         assert_eq!(reclaimed.gc_total, 1);
+    }
+
+    #[test]
+    fn legacy_auth_fingerprint_is_quarantined_from_replay_but_remains_acknowledgeable() {
+        let mut db = database();
+        let input = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                principal: Some("legacy-user".to_owned()),
+                session_id: Some("legacy-session".to_owned()),
+                user_id: Some("legacy-user".to_owned()),
+            },
+            ..HandlerInput::default()
+        };
+        let current = ClientMutationIdentity::new("cm_legacy_auth", "hostPlan", &input);
+        let legacy_fingerprint = crate::manifest::legacy_auth_fingerprint(&input.auth);
+        let mut legacy = current.clone();
+        legacy.auth_fingerprint = legacy_fingerprint.clone();
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input,
+            true,
+            Some(&legacy),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("legacy settlement");
+        let before = db.client_mutation_retention_info().unwrap();
+        let error = db
+            .client_mutation_result(&current)
+            .expect_err("a 64-bit legacy alias cannot be rebound safely");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
+        );
+        let after = db.client_mutation_retention_info().unwrap();
+        assert_eq!(
+            after, before,
+            "quarantine does not rewrite rows or counters"
+        );
+        assert_eq!(
+            client_mutation_auth_retention_counters(&db.conn, &legacy_fingerprint).unwrap(),
+            (1, before.bytes)
+        );
+        assert_eq!(
+            db.acknowledge_client_mutations(
+                &legacy_fingerprint,
+                std::slice::from_ref(&current.id),
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(db.client_mutation_retention_info().unwrap().records, 0);
     }
 
     #[test]

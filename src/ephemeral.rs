@@ -1643,15 +1643,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
-        self.validate_request_metadata(
-            &request.collection,
-            &request.scope,
-            &request.connection_id,
-            &request.auth,
-            request.session_id.as_deref(),
-            request.user_id.as_deref(),
-            request.custom_key.as_deref(),
-        )?;
+        self.validate_request_metadata(RequestMetadata {
+            collection: &request.collection,
+            scope: &request.scope,
+            connection_id: &request.connection_id,
+            auth: &request.auth,
+            session_id: request.session_id.as_deref(),
+            user_id: request.user_id.as_deref(),
+            custom_key: request.custom_key.as_deref(),
+        })?;
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         let ttl_ms = request.ttl_ms.unwrap_or(collection.default_ttl_ms);
@@ -1842,15 +1842,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
-        self.validate_request_metadata(
-            &request.collection,
-            &request.scope,
-            &request.connection_id,
-            &request.auth,
-            request.session_id.as_deref(),
-            request.user_id.as_deref(),
-            request.custom_key.as_deref(),
-        )?;
+        self.validate_request_metadata(RequestMetadata {
+            collection: &request.collection,
+            scope: &request.scope,
+            connection_id: &request.connection_id,
+            auth: &request.auth,
+            session_id: request.session_id.as_deref(),
+            user_id: request.user_id.as_deref(),
+            custom_key: request.custom_key.as_deref(),
+        })?;
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
@@ -1902,15 +1902,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
-        self.validate_request_metadata(
-            &request.collection,
-            &request.scope,
-            &request.connection_id,
-            &request.auth,
-            None,
-            None,
-            None,
-        )?;
+        self.validate_request_metadata(RequestMetadata {
+            collection: &request.collection,
+            scope: &request.scope,
+            connection_id: &request.connection_id,
+            auth: &request.auth,
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+        })?;
         let Some(collection) = self.collection_if_loaded(&request.collection) else {
             return Ok(false);
         };
@@ -1960,15 +1960,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
-        self.validate_request_metadata(
-            &request.collection,
-            &request.scope,
-            &request.connection_id,
-            &request.auth,
-            None,
-            None,
-            None,
-        )?;
+        self.validate_request_metadata(RequestMetadata {
+            collection: &request.collection,
+            scope: &request.scope,
+            connection_id: &request.connection_id,
+            auth: &request.auth,
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+        })?;
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.subscribe, &request.scope, &request.auth)?;
@@ -2635,23 +2635,9 @@ impl LocalEphemeralBackend {
 
     fn validate_request_metadata(
         &self,
-        collection: &str,
-        scope: &Scope,
-        connection_id: &str,
-        auth: &AuthContext,
-        session_id: Option<&str>,
-        user_id: Option<&str>,
-        custom_key: Option<&str>,
+        metadata: RequestMetadata<'_>,
     ) -> Result<(), EphemeralError> {
-        let result = validate_request_metadata_bounds(
-            collection,
-            scope,
-            connection_id,
-            auth,
-            session_id,
-            user_id,
-            custom_key,
-        );
+        let result = validate_request_metadata_bounds(&metadata);
         if matches!(
             &result,
             Err(error) if error.code == EphemeralErrorCode::MetadataTooLarge
@@ -3018,29 +3004,25 @@ fn remove_entry_locked(
         .entries
         .values()
         .any(|remaining| remaining.owner == record.owner)
+        && let Some(connections) = room.owner_connections.remove(&record.owner)
     {
-        if let Some(connections) = room.owner_connections.remove(&record.owner) {
-            room.owner_connection_count = room
-                .owner_connection_count
-                .saturating_sub(connections.len());
-            let connection_bytes = connections.iter().fold(0_usize, |total, connection_id| {
-                total
-                    .saturating_add(retained_string_bytes(connection_id))
-                    .saturating_add(MAP_ENTRY_OVERHEAD)
-            });
-            room.retained_bytes = room
-                .retained_bytes
-                .saturating_sub(retained_owner_bytes(&record.owner) + MAP_ENTRY_OVERHEAD)
-                .saturating_sub(connection_bytes);
-            for connection_id in &connections {
-                if !room.uses_connection(connection_id) {
-                    room.retained_bytes =
-                        room.retained_bytes
-                            .saturating_sub(retained_connection_room_edge_bytes(
-                                connection_id,
-                                room_id,
-                            ));
-                }
+        room.owner_connection_count = room
+            .owner_connection_count
+            .saturating_sub(connections.len());
+        let connection_bytes = connections.iter().fold(0_usize, |total, connection_id| {
+            total
+                .saturating_add(retained_string_bytes(connection_id))
+                .saturating_add(MAP_ENTRY_OVERHEAD)
+        });
+        room.retained_bytes = room
+            .retained_bytes
+            .saturating_sub(retained_owner_bytes(&record.owner) + MAP_ENTRY_OVERHEAD)
+            .saturating_sub(connection_bytes);
+        for connection_id in &connections {
+            if !room.uses_connection(connection_id) {
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(retained_connection_room_edge_bytes(connection_id, room_id));
             }
         }
     }
@@ -3303,38 +3285,44 @@ fn validate_auth_bounds(auth: &AuthContext) -> Result<(), EphemeralError> {
     Ok(())
 }
 
-fn validate_request_metadata_bounds(
-    collection: &str,
-    scope: &Scope,
-    connection_id: &str,
-    auth: &AuthContext,
-    session_id: Option<&str>,
-    user_id: Option<&str>,
-    custom_key: Option<&str>,
-) -> Result<(), EphemeralError> {
+struct RequestMetadata<'a> {
+    collection: &'a str,
+    scope: &'a Scope,
+    connection_id: &'a str,
+    auth: &'a AuthContext,
+    session_id: Option<&'a str>,
+    user_id: Option<&'a str>,
+    custom_key: Option<&'a str>,
+}
+
+fn validate_request_metadata_bounds(metadata: &RequestMetadata<'_>) -> Result<(), EphemeralError> {
     validate_bounded_optional(
         "collection name",
-        Some(collection),
+        Some(metadata.collection),
         MAX_EPHEMERAL_COLLECTION_NAME_BYTES,
     )?;
-    validate_scope_bounds(scope)?;
+    validate_scope_bounds(metadata.scope)?;
     validate_bounded_optional(
         "connection identity",
-        Some(connection_id),
+        Some(metadata.connection_id),
         MAX_EPHEMERAL_CONNECTION_ID_BYTES,
     )?;
     validate_bounded_optional(
         "claimed session identity",
-        session_id,
+        metadata.session_id,
         MAX_EPHEMERAL_IDENTITY_BYTES,
     )?;
     validate_bounded_optional(
         "claimed user identity",
-        user_id,
+        metadata.user_id,
         MAX_EPHEMERAL_IDENTITY_BYTES,
     )?;
-    validate_bounded_optional("custom key", custom_key, MAX_EPHEMERAL_CUSTOM_KEY_BYTES)?;
-    validate_auth_bounds(auth)
+    validate_bounded_optional(
+        "custom key",
+        metadata.custom_key,
+        MAX_EPHEMERAL_CUSTOM_KEY_BYTES,
+    )?;
+    validate_auth_bounds(metadata.auth)
 }
 
 fn room_id_for(collection: &EphemeralCollection, scope: &Scope) -> Result<RoomId, EphemeralError> {
@@ -3535,13 +3523,12 @@ impl ClientEphemeralOverlay {
                     self.rooms.remove(room);
                     return OverlayApply::NeedsResync;
                 }
-                if let Some(current) = self.rooms.get(room) {
-                    if *scope_epoch < current.scope_epoch
+                if let Some(current) = self.rooms.get(room)
+                    && (*scope_epoch < current.scope_epoch
                         || (*scope_epoch == current.scope_epoch
-                            && *high_water_version < current.high_water_version)
-                    {
-                        return OverlayApply::IgnoredStale;
-                    }
+                            && *high_water_version < current.high_water_version))
+                {
+                    return OverlayApply::IgnoredStale;
                 }
                 self.rooms.insert(
                     room.clone(),

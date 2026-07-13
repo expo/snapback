@@ -35,8 +35,9 @@ use snapback::local::{
     PublicInspect,
 };
 use snapback::manifest::{
-    AuthInput, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, ConfigEntryDefinition,
-    CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput, MutationPlan, MutationRequest,
+    AuthInput, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest,
+    ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan, MutationRequest,
     REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
     SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
@@ -104,11 +105,25 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
     let schema = committed("mutation.input.schema.json");
     let profile = DataTierProfile::current();
     let client_id = &schema["properties"]["clientMutationId"];
+    let acknowledged_ids = &schema["properties"]["acknowledgedClientMutationIds"];
     let ledger_ids = &schema["$defs"]["CtxAnswerLedger"]["properties"]["ids"];
 
     assert_eq!(client_id["minLength"], json!(1));
     assert_eq!(client_id["maxLength"], json!(REPLAY_OPAQUE_ID_MAX_BYTES));
     assert_eq!(client_id["pattern"], json!(REPLAY_OPAQUE_ID_PATTERN));
+    assert_eq!(
+        acknowledged_ids["maxItems"],
+        json!(CLIENT_MUTATION_ACK_MAX_IDS)
+    );
+    assert_eq!(acknowledged_ids["items"]["minLength"], json!(1));
+    assert_eq!(
+        acknowledged_ids["items"]["maxLength"],
+        json!(REPLAY_OPAQUE_ID_MAX_BYTES)
+    );
+    assert_eq!(
+        acknowledged_ids["items"]["pattern"],
+        json!(REPLAY_OPAQUE_ID_PATTERN)
+    );
     assert_eq!(ledger_ids["maxItems"], json!(profile.bounds.max_ledger_ids));
     assert_eq!(
         ledger_ids["items"]["maxLength"],
@@ -130,6 +145,17 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
         let mut request = base.clone();
         request["clientMutationId"] = json!(invalid);
         assert_rejects("mutation.input.schema.json", &request);
+    }
+    for invalid in [String::new(), "bad/id".to_owned(), "x".repeat(257)] {
+        let mut request = base.clone();
+        request["acknowledgedClientMutationIds"] = json!([invalid.clone()]);
+        assert_rejects("mutation.input.schema.json", &request);
+
+        let standalone = json!({
+            "auth": {},
+            "clientMutationIds": [invalid],
+        });
+        assert_rejects("client-mutation.ack.input.schema.json", &standalone);
     }
 
     let mut too_many = base.clone();
@@ -303,6 +329,7 @@ fn representative_inspect() -> InspectState {
                 entries: 1,
                 subscribers: 1,
                 value_bytes: 12,
+                retained_bytes: 256,
             }],
             ..EphemeralDiagnostics::default()
         },
@@ -874,6 +901,18 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             acknowledged_client_mutation_ids: vec!["cm_acknowledged".to_owned()],
         })
         .unwrap(),
+    );
+    assert_validates(
+        "client-mutation.ack.input.schema.json",
+        &serde_json::to_value(MutationAcknowledgementRequest {
+            auth: input.auth.clone(),
+            client_mutation_ids: vec!["cm_acknowledged".to_owned()],
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "client-mutation.ack.output.schema.json",
+        &serde_json::to_value(MutationAcknowledgementResponse { acknowledged: 1 }).unwrap(),
     );
     assert_validates(
         "live.subscribe.input.schema.json",

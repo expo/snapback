@@ -48,7 +48,7 @@
     },
     {
       "name": "maximum_subscription_count",
-      "status": "Advisory"
+      "status": "Enforced"
     },
     {
       "name": "ephemeral_value_size",

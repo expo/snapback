@@ -9,9 +9,28 @@ import {
   createSnapbackContractSurface,
   snapbackAuthFingerprint,
 } from './index.mjs';
+import {
+  SNAPBACK_CLIENT_STORE_VERSION,
+  legacySnapbackAuthFingerprint,
+} from './client-store.mjs';
 
 const USER = 'user_offline';
-assert.equal(snapbackAuthFingerprint(USER), 'fnv1a:2b4ee138e8fc12c8');
+assert.equal(
+  snapbackAuthFingerprint(USER),
+  'sha256:86461827557b6998a5a62a63791d835495afd03cb573055d83bd5be048cc082a',
+);
+assert.equal(
+  snapbackAuthFingerprint({ principal: 'é', session_id: '会话', user_id: '👩🏽‍💻' }),
+  'sha256:d858de49d9f97b29fb3066058e41b05b98918c82255b1a19e97331dc61e34e3d',
+);
+assert.notEqual(
+  snapbackAuthFingerprint({}),
+  snapbackAuthFingerprint({ principal: '', session_id: null, user_id: '' }),
+);
+assert.equal(
+  snapbackAuthFingerprint({ principal: 'a'.repeat(131_072), session_id: null, user_id: null }),
+  'sha256:a7b4c457a7a1c988d351e99d3c48213a82145129cf9e3132c1981ca01f420ef0',
+);
 
 const manifest = {
   artifactKind: 'contractDataManifest',
@@ -129,9 +148,12 @@ function makeClient() {
     rows: [],
     version: 0,
     settlements: new Map(),
+    acknowledged: [],
     applied: [],
     deliveries: [],
     loseAfterCommit: null,
+    failBeforeOrigin: null,
+    rejectWithReceipt: null,
   };
   const snapshot = () => ({
     version: state.version,
@@ -160,6 +182,30 @@ function makeClient() {
     },
     async mutate(name, request) {
       if (!state.online) offline();
+      if (state.failBeforeOrigin === name) {
+        state.failBeforeOrigin = null;
+        const error = new Error('proxy returned 502 before origin');
+        error.status = 502;
+        error.diagnostic = {
+          code: 'SNAPBACK_UPSTREAM_UNAVAILABLE',
+          message: error.message,
+        };
+        throw error;
+      }
+      for (const acknowledged of request.acknowledgedClientMutationIds ?? []) {
+        if (state.settlements.delete(acknowledged)) state.acknowledged.push(acknowledged);
+      }
+      if (state.rejectWithReceipt === name) {
+        state.rejectWithReceipt = null;
+        const error = new Error('origin rejected mutation');
+        error.status = 400;
+        error.diagnostic = {
+          code: 'SNAPBACK_TEST_REJECTED',
+          message: error.message,
+        };
+        error.receipt = { kind: 'mutation', outcome: 'REJECTED' };
+        throw error;
+      }
       const id = request.clientMutationId;
       assert.ok(id, 'replayed mutation must carry clientMutationId');
       assert.ok(request.ctxLedger, 'replayed mutation must carry ctxLedger');
@@ -196,6 +242,17 @@ function makeClient() {
         offline();
       }
       return output;
+    },
+    async acknowledgeMutations({ clientMutationIds }) {
+      if (!state.online) offline();
+      let acknowledged = 0;
+      for (const id of clientMutationIds) {
+        if (state.settlements.delete(id)) {
+          acknowledged += 1;
+          state.acknowledged.push(id);
+        }
+      }
+      return { acknowledged };
     },
   };
 }
@@ -266,8 +323,156 @@ assert.deepEqual(client.state.rows, []);
 assert.equal(second.pendingCount(), 0);
 assert.equal((await secondStore.pendingMutations()).length, 0);
 assert.equal(client.state.deliveries.filter((entry) => entry.name === 'createTodo').length, 2);
-assert.equal(client.state.settlements.size, 3);
+assert.equal(client.state.settlements.size, 0, 'final results are ACKed without a later mutation');
+assert.equal(client.state.acknowledged.length, 3);
 second.dispose();
+
+// A receipt-less proxy 502 is not proof that the origin saw either the
+// piggyback ACKs or the current mutation. Keep both durable records, then let
+// the next reconnect deliver them. (Snapback-origin rejections carry a
+// mutation receipt and take the separate terminal-failure path.)
+const ambiguousClient = makeClient();
+const ambiguousStore = createMemorySnapbackClientStore();
+const ambiguousSurface = await createSnapbackContractSurface({
+  runtime,
+  client: ambiguousClient,
+  clientStore: ambiguousStore,
+  userId: USER,
+  manifest,
+  queryName: 'listTodos',
+  boundaryKey: 'todos',
+  ...retainedSurfaceIdentity,
+});
+const ambiguousAuth = snapbackAuthFingerprint(USER);
+const consumedBefore502 = await ambiguousStore.enqueueMutation({
+  id: 'consumed-before-502',
+  function: 'createTodo',
+  args: { title: 'already consumed' },
+  readSet: [],
+  ctxLedger: { version: 1, ids: ['consumed-row'], now: 1, authFingerprint: ambiguousAuth },
+  authFingerprint: ambiguousAuth,
+  schemaHash: manifest.schemaHash,
+  inputsHash: manifest.inputsHash,
+  targetProfileId: 'local-dev-sqlite-ibex',
+  appId: retainedSurfaceIdentity.artifactIndex.appId,
+  databaseId: retainedSurfaceIdentity.retainedIdentity.databaseId,
+  versionStreamId: retainedSurfaceIdentity.retainedIdentity.versionStreamId,
+  cursor: { stream: retainedSurfaceIdentity.retainedIdentity.versionStreamId, version: 0 },
+  baseVersion: 0,
+});
+await ambiguousStore.settleMutation(consumedBefore502.id, {
+  status: 'confirmed',
+  output: { version: 0, changed_count: 0, result: null },
+});
+ambiguousClient.state.settlements.set(consumedBefore502.id, {
+  version: 0,
+  changed_count: 0,
+  result: null,
+});
+ambiguousClient.state.failBeforeOrigin = 'createTodo';
+const ambiguousDelivery = await ambiguousSurface.links.createTodo({ title: 'ambiguous delivery' });
+assert.equal(ambiguousDelivery.queued, true);
+assert.deepEqual(
+  await ambiguousStore.pendingMutationAcknowledgements(10, ambiguousAuth),
+  [consumedBefore502.id],
+  'receipt-less 502 must retain the only server-GC proof',
+);
+assert.equal((await ambiguousStore.pendingMutations()).length, 1);
+assert.equal(ambiguousClient.state.settlements.has(consumedBefore502.id), true);
+assert.deepEqual(await ambiguousSurface.reconnect(), { replayed: 1, failed: 0 });
+assert.equal(ambiguousClient.state.acknowledged.includes(consumedBefore502.id), true);
+assert.equal((await ambiguousStore.pendingMutations()).length, 0);
+assert.deepEqual(await ambiguousStore.pendingMutationAcknowledgements(10, ambiguousAuth), []);
+ambiguousSurface.dispose();
+
+// The ordinary online delivery path has the same receipt-proof contract as
+// reconnect replay. Even when the current mutation is rejected, its origin
+// receipt proves that piggyback ACKs were processed and may be removed from
+// the durable client store before the current mutation becomes failed.
+const onlineRejectedClient = makeClient();
+const onlineRejectedStore = createMemorySnapbackClientStore();
+const onlineRejectedSurface = await createSnapbackContractSurface({
+  runtime,
+  client: onlineRejectedClient,
+  clientStore: onlineRejectedStore,
+  userId: USER,
+  manifest,
+  queryName: 'listTodos',
+  boundaryKey: 'todos',
+  ...retainedSurfaceIdentity,
+});
+const consumedBeforeOnlineRejection = await onlineRejectedStore.enqueueMutation({
+  ...consumedBefore502,
+  id: 'consumed-before-online-rejection',
+  sequence: undefined,
+});
+await onlineRejectedStore.settleMutation(consumedBeforeOnlineRejection.id, {
+  status: 'confirmed',
+  output: { version: 0, changed_count: 0, result: null },
+});
+onlineRejectedClient.state.settlements.set(consumedBeforeOnlineRejection.id, {
+  version: 0,
+  changed_count: 0,
+  result: null,
+});
+onlineRejectedClient.state.rejectWithReceipt = 'createTodo';
+await assert.rejects(
+  onlineRejectedSurface.links.createTodo({ title: 'ordinary origin rejection' }),
+  (error) => error?.receipt?.outcome === 'REJECTED',
+);
+assert.deepEqual(
+  await onlineRejectedStore.pendingMutationAcknowledgements(10, ambiguousAuth),
+  [],
+  'an online origin rejection receipt confirms its preceding piggyback ACK stage',
+);
+assert.equal(
+  onlineRejectedClient.state.acknowledged.includes(consumedBeforeOnlineRejection.id),
+  true,
+);
+assert.equal((await onlineRejectedStore.pendingMutations()).length, 0);
+assert.equal((await onlineRejectedStore.failedMutations()).length, 1);
+onlineRejectedSurface.dispose();
+
+const rejectedClient = makeClient();
+const rejectedStore = createMemorySnapbackClientStore();
+const rejectedSurface = await createSnapbackContractSurface({
+  runtime,
+  client: rejectedClient,
+  clientStore: rejectedStore,
+  userId: USER,
+  manifest,
+  queryName: 'listTodos',
+  boundaryKey: 'todos',
+  ...retainedSurfaceIdentity,
+});
+const consumedBeforeRejection = await rejectedStore.enqueueMutation({
+  ...consumedBefore502,
+  id: 'consumed-before-rejection',
+  sequence: undefined,
+});
+await rejectedStore.settleMutation(consumedBeforeRejection.id, {
+  status: 'confirmed',
+  output: { version: 0, changed_count: 0, result: null },
+});
+rejectedClient.state.settlements.set(consumedBeforeRejection.id, {
+  version: 0,
+  changed_count: 0,
+  result: null,
+});
+rejectedClient.state.online = false;
+await rejectedSurface.links.createTodo({ title: 'origin rejection' });
+rejectedClient.state.online = true;
+rejectedClient.state.rejectWithReceipt = 'createTodo';
+assert.deepEqual(await rejectedSurface.reconnect(), { replayed: 0, failed: 1 });
+assert.deepEqual(
+  await rejectedStore.pendingMutationAcknowledgements(10, ambiguousAuth),
+  [],
+  'an origin receipt proves its preceding piggyback ACK stage ran',
+);
+assert.equal(rejectedClient.state.acknowledged.includes(consumedBeforeRejection.id), true);
+assert.equal((await rejectedStore.pendingMutations()).length, 0);
+assert.equal((await rejectedStore.failedMutations()).length, 1);
+rejectedSurface.dispose();
 
 // User switches wipe retained rows and queued writes before the new authority
 // can observe them (LLP 0043/0039).
@@ -279,6 +484,24 @@ await authStore.enqueueMutation({ function: 'x', authFingerprint: 'auth:a' });
 await authStore.scopeToAuth('auth:b');
 assert.equal(await authStore.getRetainedQuery('q', { authFingerprint: 'auth:b' }), null);
 assert.deepEqual(await authStore.pendingMutations(), []);
+
+// Consumed settlement ids carry their own auth scope. A user/artifact switch
+// neither exposes them to the new user nor discards the only server-GC proof;
+// returning to the original authority can finish the standalone ACK.
+const ackStore = createMemorySnapbackClientStore();
+await ackStore.scopeToAuth('auth:a');
+const consumed = await ackStore.enqueueMutation({ function: 'x', authFingerprint: 'auth:a' });
+await ackStore.settleMutation(consumed.id, { status: 'confirmed', output: {} });
+await ackStore.scopeToArtifacts({ schemaHash: 'schema:a' });
+assert.deepEqual(await ackStore.pendingMutationAcknowledgements(), [consumed.id]);
+await ackStore.scopeToAuth('auth:b');
+assert.deepEqual(await ackStore.pendingMutationAcknowledgements(), []);
+await ackStore.scopeToAuth('auth:a');
+assert.deepEqual(await ackStore.pendingMutationAcknowledgements(), [consumed.id]);
+await ackStore.scopeToArtifacts({ schemaHash: 'schema:b' });
+assert.deepEqual(await ackStore.pendingMutationAcknowledgements(), [consumed.id]);
+await ackStore.confirmMutationAcknowledgements([consumed.id], 'auth:a');
+assert.deepEqual(await ackStore.pendingMutationAcknowledgements(), []);
 
 // The first known auth/artifact scope cannot retroactively claim unscoped v1
 // bytes. Clear every privacy-bearing collection, including failed-only legacy
@@ -426,6 +649,63 @@ const additiveStore = createLocalStorageSnapbackClientStore({
   lockManager: createTestLockManager(),
 });
 assert.equal((await additiveStore.snapshot()).generation, 0, 'missing additive generation migrates');
+assert.equal((await additiveStore.snapshot()).version, SNAPBACK_CLIENT_STORE_VERSION);
+
+// A v1/FNV store cannot prove which canonical auth tuple created it. Even a
+// caller that supplies the exact legacy alias may be a 64-bit collision, so
+// v2 validates then quarantines every privacy/integrity-bearing collection
+// instead of rebinding rows, queued writes, ledgers, failures, or ACKs.
+const legacyFingerprint = legacySnapbackAuthFingerprint(USER);
+const collisionClaimFingerprint = snapbackAuthFingerprint('collision-claim');
+const legacyFingerprintStore = createMemorySnapbackClientStore({
+  state: {
+    version: 1,
+    origin: 'legacy-fingerprint',
+    generation: 0,
+    authFingerprint: legacyFingerprint,
+    artifactScope: null,
+    nextSequence: 3,
+    retained: {
+      secret: {
+        rows: [{ secret: 'legacy-retained' }],
+        authFingerprint: legacyFingerprint,
+      },
+    },
+    pending: [{
+      id: 'legacy-pending',
+      function: 'createTodo',
+      sequence: 1,
+      status: 'pending',
+      authFingerprint: legacyFingerprint,
+      ctxLedger: {
+        version: 1,
+        ids: ['legacy-row-id'],
+        now: 1,
+        authFingerprint: legacyFingerprint,
+      },
+    }],
+    failed: [{
+      id: 'legacy-failed',
+      function: 'createTodo',
+      sequence: 2,
+      status: 'failed',
+      authFingerprint: legacyFingerprint,
+      args: { secret: 'legacy-failed' },
+    }],
+    acknowledged: ['legacy-ack'],
+  },
+});
+await legacyFingerprintStore.scopeToAuth(collisionClaimFingerprint, {
+  // Deliberately ignored: alias membership is not identity proof.
+  legacyAuthFingerprints: [legacyFingerprint],
+});
+const migratedFingerprintState = await legacyFingerprintStore.snapshot();
+assert.equal(migratedFingerprintState.version, SNAPBACK_CLIENT_STORE_VERSION);
+assert.equal(migratedFingerprintState.authFingerprint, collisionClaimFingerprint);
+assert.deepEqual(migratedFingerprintState.retained, {});
+assert.deepEqual(migratedFingerprintState.pending, []);
+assert.deepEqual(migratedFingerprintState.failed, []);
+assert.deepEqual(migratedFingerprintState.acknowledged, []);
 
 // Existing but uninterpretable bytes are never normalized into an empty
 // healthy queue. Every ordinary operation fails with a stable diagnostic and
@@ -636,7 +916,11 @@ for (const invalid of [
   assert.equal(bytes.get('invalid'), invalid.raw, `${invalid.label}: preserve exact original bytes`);
   await store.clear();
   const recovered = await store.snapshot();
-  assert.equal(recovered.version, 1, `${invalid.label}: explicit reset recovers`);
+  assert.equal(
+    recovered.version,
+    SNAPBACK_CLIENT_STORE_VERSION,
+    `${invalid.label}: explicit reset recovers`,
+  );
   assert.deepEqual(recovered.pending, [], `${invalid.label}: reset is visibly empty`);
 }
 
@@ -645,6 +929,7 @@ for (const invalid of [
 // probes past an occupied ID instead of returning an unrelated old mutation.
 const opaqueIdState = {
   ...additiveV1,
+  version: SNAPBACK_CLIENT_STORE_VERSION,
   origin: 'origin',
   nextSequence: 2,
   pending: [{
@@ -659,6 +944,7 @@ assert.equal((await createMemorySnapbackClientStore({ state: opaqueIdState }).sn
 
 const generatedCollisionState = {
   ...additiveV1,
+  version: SNAPBACK_CLIENT_STORE_VERSION,
   origin: 'origin',
   nextSequence: 2,
   pending: [{

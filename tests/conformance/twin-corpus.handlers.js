@@ -20,6 +20,19 @@ globalThis.__snapbackHandlers = {
       .take(10)
       .collect();
   },
+  async queryLimitValidation(ctx) {
+    var invalid = [NaN, Infinity, 1.5, -1, 1025];
+    var codes = [];
+    for (var i = 0; i < invalid.length; i++) {
+      try {
+        ctx.db.query('items').take(invalid[i]);
+        codes.push('accepted');
+      } catch (error) {
+        codes.push(error && error.__snapbackCode || 'uncoded');
+      }
+    }
+    return [{ codes: codes }];
+  },
   async firstItem(ctx) {
     var row = await ctx.db.query('items').order('rank', 'asc').first();
     return row ? [row] : [];

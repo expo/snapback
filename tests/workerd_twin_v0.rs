@@ -198,6 +198,7 @@ fn functions() -> FunctionManifest {
         functions: vec![
             define("addItem", FunctionKind::Mutation),
             define("listItems", FunctionKind::Query),
+            define("queryLimitValidation", FunctionKind::Query),
             define("firstItem", FunctionKind::Query),
             define("readYourWrites", FunctionKind::Mutation),
             define("patchAndDelete", FunctionKind::Mutation),
@@ -369,6 +370,28 @@ fn v8_and_ibex_agree_on_query_and_read_your_writes() {
             "{label}"
         );
         assert_eq!(patch.result.get("removed"), Some(&json!(true)), "{label}");
+    }
+}
+
+#[test]
+fn query_limit_edge_values_fail_with_the_portable_diagnostic_on_both_engines() {
+    require_workerd!();
+    let expected = vec![json!({
+        "codes": [
+            "SNAPBACK_QUERY_LIMIT_INVALID",
+            "SNAPBACK_QUERY_LIMIT_INVALID",
+            "SNAPBACK_QUERY_LIMIT_INVALID",
+            "SNAPBACK_QUERY_LIMIT_INVALID",
+            "SNAPBACK_QUERY_LIMIT_INVALID"
+        ]
+    })];
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let snapback = configured();
+        let output = with_forced_backend(backend, || {
+            snapback.invoke_query("queryLimitValidation", input(json!({})))
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} query-limit validation failed: {error}"));
+        assert_eq!(output.rows, expected, "{backend:?}");
     }
 }
 

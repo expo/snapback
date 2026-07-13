@@ -2,6 +2,7 @@ use crate::diagnostic::{Diagnostic, PublicDiagnostic, SnapbackError, SnapbackRes
 use crate::ephemeral::EphemeralCollection;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
@@ -1400,8 +1401,37 @@ pub struct MutationRequest {
         alias = "acknowledged_client_mutation_ids",
         skip_serializing_if = "Vec::is_empty"
     )]
-    #[schemars(length(max = CLIENT_MUTATION_ACK_MAX_IDS))]
+    #[schemars(
+        length(max = CLIENT_MUTATION_ACK_MAX_IDS),
+        inner(
+            length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+            pattern(REPLAY_OPAQUE_ID_PATTERN)
+        )
+    )]
     pub acknowledged_client_mutation_ids: Vec<String>,
+}
+
+/// Standalone authenticated settlement acknowledgement. It lives outside the
+/// `/mutation/{name}` namespace so an application may still declare a
+/// mutation named `acknowledge` (or `ack`) without a route collision.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MutationAcknowledgementRequest {
+    pub auth: AuthInput,
+    #[schemars(
+        length(max = CLIENT_MUTATION_ACK_MAX_IDS),
+        inner(
+            length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+            pattern(REPLAY_OPAQUE_ID_PATTERN)
+        )
+    )]
+    pub client_mutation_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MutationAcknowledgementResponse {
+    pub acknowledged: u64,
 }
 
 /// The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic
@@ -1559,12 +1589,34 @@ pub fn replay_opaque_id_is_valid(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
 }
 
-/// Stable fingerprint of the resolved auth context (LLP 0043 §Auth posture):
-/// FNV-1a over the canonical field tuple. A staleness guard, not a
-/// cryptographic commitment — it prevents silent replay under changed
-/// authority, and the server re-evaluates authorization at commit regardless
-/// (LLP 0051 D1).
+/// Stable cross-language fingerprint of the resolved auth context (LLP 0043
+/// §Auth posture). Each optional field is tagged, and each present UTF-8 value
+/// is length-delimited before SHA-256, so absent/empty values and adjacent
+/// fields cannot collide. This is still a staleness/ownership guard rather
+/// than authorization: the server re-evaluates authorization at commit
+/// regardless (LLP 0051 D1).
 pub fn auth_fingerprint(auth: &AuthInput) -> String {
+    let mut hash = Sha256::new();
+    hash.update(b"snapback-auth-fingerprint-v1\0");
+    for field in [&auth.principal, &auth.session_id, &auth.user_id] {
+        match field {
+            Some(value) => {
+                hash.update([1]);
+                hash.update((value.len() as u64).to_be_bytes());
+                hash.update(value.as_bytes());
+            }
+            None => hash.update([0]),
+        }
+    }
+    format!("sha256:{:x}", hash.finalize())
+}
+
+/// Fingerprint emitted before the SHA-256 transition. Kept only as a deletion
+/// alias: a current client may ACK or an administrator may purge its legacy
+/// settlement, but replay never rebinds a 64-bit alias to a new SHA identity
+/// because the old row lacks enough canonical auth material to disambiguate a
+/// collision safely.
+pub fn legacy_auth_fingerprint(auth: &AuthInput) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     let mut eat = |bytes: &[u8]| {
         for byte in bytes {
@@ -1838,7 +1890,9 @@ impl CapabilityManifest {
                 },
                 ResourceLimit {
                     name: "maximum_subscription_count".to_owned(),
-                    status: ResourceLimitStatus::Advisory,
+                    // The local registry enforces the same 2,048-global /
+                    // 64-per-connection ceilings as the hosted coordinator.
+                    status: ResourceLimitStatus::Enforced,
                 },
                 ResourceLimit {
                     name: "ephemeral_value_size".to_owned(),

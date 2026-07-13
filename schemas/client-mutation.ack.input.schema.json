@@ -1,0 +1,52 @@
+{
+  "$defs": {
+    "AuthInput": {
+      "properties": {
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/client-mutation.ack.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Standalone authenticated settlement acknowledgement. It lives outside the\n`/mutation/{name}` namespace so an application may still declare a\nmutation named `acknowledge` (or `ack`) without a route collision.",
+  "properties": {
+    "auth": {
+      "$ref": "#/$defs/AuthInput"
+    },
+    "clientMutationIds": {
+      "items": {
+        "maxLength": 256,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+        "type": "string"
+      },
+      "maxItems": 1024,
+      "type": "array"
+    }
+  },
+  "required": [
+    "auth",
+    "clientMutationIds"
+  ],
+  "title": "MutationAcknowledgementRequest",
+  "type": "object"
+}

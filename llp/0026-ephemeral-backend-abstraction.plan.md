@@ -5,7 +5,7 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: lifecycle replacement/reset now excludes old-generation operations, snapshots expose a room high-water version, coalesced drains are sorted, and whole-definition/exact-scope validation is atomic); 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
+**Revised:** 2026-07-12 (ENG-24574: the historical room-byte budget now covers every conservatively estimated retained room allocation, request metadata has explicit byte/cardinality limits, and WebSocket frames are capped at 64 KiB); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: lifecycle replacement/reset now excludes old-generation operations, snapshots expose a room high-water version, coalesced drains are sorted, and whole-definition/exact-scope validation is atomic); 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
 clears only the ephemeral outbox lanes — queued durable live-query payloads
 answer subscriptions that survive the boundary and are preserved; the
 runtime reset still clears whole outboxes because it retires the durable
@@ -302,10 +302,16 @@ correctness, and sharded locks match the codebase's existing style
   `connection_room_index_covers_publish_only_rooms`.
 - **Limits (first hard defaults, answering the open question).** Store-level
   capability facts, constructor-overridable: max active rooms 4096, max
-  entries per room 1024, max subscribers per room 1024, max aggregate value
-  bytes per room 1 MiB. Enforced as structured `RoomLimitExceeded`
-  rejections counted in a `limit_rejections` diagnostic. Never silent
-  eviction of live entries.
+  entries per room 1024, max subscribers per room 1024, max aggregate retained
+  bytes per room 1 MiB. Retained-byte admission conservatively includes the
+  room/scope identity, entry key/owner/value records, owner-connection edges,
+  and subscriber identities; `valueBytes` remains the payload-only diagnostic
+  and `retainedBytes` exposes the admission quantity. Collection and scope
+  fields, identities, custom keys, authorization metadata, and permission
+  cardinality also have fixed parser-boundary limits; the HTTP WebSocket
+  boundary rejects frames over 64 KiB. Enforced as structured
+  `RoomLimitExceeded` or `MetadataTooLarge` rejections counted in diagnostics.
+  Never silent eviction of live entries.
 - **L6/L7 interaction.** The durable fan-out
   (`notify_live_subscriptions`) runs under the global write mutex on a
   `spawn_blocking` thread (LLP 0032 L7) and enqueues into these outboxes
@@ -388,7 +394,8 @@ constants:
 - max active rooms per process/adapter partition;
 - max entries per room;
 - max value bytes per entry;
-- max aggregate value bytes per room;
+- max aggregate retained bytes per room, including room metadata, keys,
+  ownership edges, and subscribers;
 - max subscribers per room;
 - max pending ephemeral keys per connection;
 - sustained and burst publish rates per connection and collection;
@@ -401,8 +408,8 @@ pretending the stream is current.
 
 Inspection should show the active backend, collection budgets, rooms, entries,
 subscriber counts, pending queue sizes, coalesced update counts, resync counts,
-rate-limit counts, expired/disconnected removes, memory estimates, and last
-epoch/resync reason.
+rate-limit counts, expired/disconnected removes, payload and retained byte
+estimates, and last epoch/resync reason.
 
 ### Value validation
 
@@ -560,8 +567,10 @@ Acceptance:
 - What are the first hard defaults for active rooms, entries per room, room bytes,
   and subscribers per room? **Answered 2026-07-02 (Phase 2 as-built):** 4096
   active rooms, 1024 entries/room, 1024 subscribers/room, 1 MiB aggregate
-  value bytes/room — store-level, constructor-overridable, to be revised once
-  the LLP 0035 benchmarks exercise them.
+  retained bytes/room — store-level, constructor-overridable, to be revised
+  once the LLP 0035 benchmarks exercise them. The public field retains its
+  historical `maxRoomValueBytes` name for compatibility, but admission applies
+  it to the full conservative retained footprint.
 - Should `dispatchMs` become a real scheduler control in Phase 2, or stay only a
   manifest capability until hosted adapters exist?
 - Where should generated value validators live so Rust, JavaScript tests, and

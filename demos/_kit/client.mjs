@@ -376,6 +376,13 @@ export class SnapbackClient {
     return this.#req('POST', `/action/${encodeURIComponent(name)}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
   }
 
+  acknowledgeMutations({ userId, clientMutationIds = [] } = {}) {
+    return this.#req('POST', '/client-mutations/acknowledge', {
+      auth: SnapbackClient.auth(userId),
+      clientMutationIds,
+    });
+  }
+
   async mutate(ref, {
     args = {},
     userId,

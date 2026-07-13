@@ -4,6 +4,7 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
+use snapback::admin::{AppState, ServerContext};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, CtxAnswerLedger, FunctionManifest, HandlerInput, MutationRequest,
@@ -87,6 +88,16 @@ fn post_json(path: &str, value: Value) -> Request<Body> {
         .expect("request")
 }
 
+fn post_json_admin(path: &str, value: Value, token: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("content-type", "application/json")
+        .header("x-snapback-admin-token", token)
+        .body(Body::from(value.to_string()))
+        .expect("admin request")
+}
+
 async fn response_json(response: axum::response::Response) -> Value {
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -121,7 +132,31 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
             session_id: None,
             user_id: Some(USER.to_owned()),
         }),
-        "fnv1a:2b4ee138e8fc12c8"
+        "sha256:86461827557b6998a5a62a63791d835495afd03cb573055d83bd5be048cc082a"
+    );
+    assert_eq!(
+        auth_fingerprint(&AuthInput {
+            principal: Some("é".to_owned()),
+            session_id: Some("会话".to_owned()),
+            user_id: Some("👩🏽‍💻".to_owned()),
+        }),
+        "sha256:d858de49d9f97b29fb3066058e41b05b98918c82255b1a19e97331dc61e34e3d"
+    );
+    assert_ne!(
+        auth_fingerprint(&AuthInput::default()),
+        auth_fingerprint(&AuthInput {
+            principal: Some(String::new()),
+            session_id: None,
+            user_id: Some(String::new()),
+        })
+    );
+    assert_eq!(
+        auth_fingerprint(&AuthInput {
+            principal: Some("a".repeat(131_072)),
+            session_id: None,
+            user_id: None,
+        }),
+        "sha256:a7b4c457a7a1c988d351e99d3c48213a82145129cf9e3132c1981ca01f420ef0"
     );
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("offline.db");
@@ -302,6 +337,193 @@ async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
         first["result"],
         "overlap rejection must leave the retained settlement intact"
     );
+}
+
+#[tokio::test]
+async fn standalone_ack_reclaims_a_final_result_and_is_auth_bound() {
+    let app = snapback::server::router(memory());
+    let mutation_id = "cm_standalone_ack_1".to_owned();
+    let request = MutationRequest {
+        input: create_input(USER),
+        client_mutation_id: Some(mutation_id.clone()),
+        acknowledged_client_mutation_ids: Vec::new(),
+    };
+    let first = app
+        .clone()
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(&request).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let first = response_json(first).await;
+
+    let wrong_auth = app
+        .clone()
+        .oneshot(post_json(
+            "/client-mutations/acknowledge",
+            json!({
+                "auth": create_input("another_user").auth,
+                "clientMutationIds": [mutation_id],
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(wrong_auth.status(), StatusCode::OK);
+    assert_eq!(response_json(wrong_auth).await["acknowledged"], json!(0));
+
+    let still_replayed = app
+        .clone()
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(&request).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        response_json(still_replayed).await["result"],
+        first["result"]
+    );
+
+    let correct_auth = app
+        .clone()
+        .oneshot(post_json(
+            "/client-mutations/acknowledge",
+            json!({
+                "auth": create_input(USER).auth,
+                "clientMutationIds": [mutation_id],
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(correct_auth.status(), StatusCode::OK);
+    assert_eq!(response_json(correct_auth).await["acknowledged"], json!(1));
+
+    let after_reclaim = app
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(request).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(after_reclaim.status(), StatusCode::OK);
+    assert_ne!(
+        response_json(after_reclaim).await["result"],
+        first["result"],
+        "once ACKed, the opaque id is available for a fresh settlement"
+    );
+}
+
+#[tokio::test]
+async fn admin_purge_is_gated_explicit_and_auth_selective() {
+    const TOKEN: &str = "offline-purge-secret";
+    let mut context = ServerContext::detached();
+    context.admin_token = Some(TOKEN.to_owned());
+    let app = snapback::server::app(AppState::from_snapback(memory(), context));
+    let user_id = "cm_admin_purge_user".to_owned();
+    let other_id = "cm_admin_purge_other".to_owned();
+    let user_request = MutationRequest {
+        input: create_input(USER),
+        client_mutation_id: Some(user_id.clone()),
+        acknowledged_client_mutation_ids: Vec::new(),
+    };
+    let other_request = MutationRequest {
+        input: create_input("another_user"),
+        client_mutation_id: Some(other_id),
+        acknowledged_client_mutation_ids: Vec::new(),
+    };
+    let first_user = response_json(
+        app.clone()
+            .oneshot(post_json(
+                "/mutation/createTodo",
+                serde_json::to_value(&user_request).unwrap(),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let first_other = response_json(
+        app.clone()
+            .oneshot(post_json(
+                "/mutation/createTodo",
+                serde_json::to_value(&other_request).unwrap(),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+
+    let denied = app
+        .clone()
+        .oneshot(post_json(
+            "/_snapback/api/client-mutations/purge",
+            json!({ "auth": create_input(USER).auth }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+
+    let missing_selector = app
+        .clone()
+        .oneshot(post_json_admin(
+            "/_snapback/api/client-mutations/purge",
+            json!({}),
+            TOKEN,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(missing_selector.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(missing_selector).await["diagnostic"]["code"],
+        "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID"
+    );
+
+    let targeted = app
+        .clone()
+        .oneshot(post_json_admin(
+            "/_snapback/api/client-mutations/purge",
+            json!({ "auth": create_input(USER).auth }),
+            TOKEN,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(targeted.status(), StatusCode::OK);
+    assert_eq!(response_json(targeted).await["purged"], json!(1));
+
+    let new_user = response_json(
+        app.clone()
+            .oneshot(post_json(
+                "/mutation/createTodo",
+                serde_json::to_value(&user_request).unwrap(),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_ne!(new_user["result"], first_user["result"]);
+    let replayed_other = response_json(
+        app.clone()
+            .oneshot(post_json(
+                "/mutation/createTodo",
+                serde_json::to_value(&other_request).unwrap(),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(replayed_other["result"], first_other["result"]);
+
+    let global = app
+        .oneshot(post_json_admin(
+            "/_snapback/api/client-mutations/purge",
+            json!({ "all": true }),
+            TOKEN,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(global.status(), StatusCode::OK);
+    assert_eq!(response_json(global).await["purged"], json!(2));
 }
 
 #[test]

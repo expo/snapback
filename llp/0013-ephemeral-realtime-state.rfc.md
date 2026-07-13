@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Revised:** 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026
 
 ## Summary
@@ -351,15 +351,18 @@ Room operations should follow this contract:
   hibernation recovery with uncertain memory, epoch change, or auth dependency
   changes that cannot be represented as precise removes.
 
-Memory pressure should be explicit. The store may reject publishes, report a
-capability error, or force resnapshot when room limits are exceeded; it must not
-silently evict non-expired live entries while pretending subscribers still have a
-current stream. The v1 defaults should include diagnostic counters for rooms,
-entries, value bytes, subscriber counts, queue depth, dropped intermediate
-updates, resnapshot count, and last epoch-change reason. Exact hard caps for
-entries-per-room and bytes-per-room should be set after the first local
-benchmark, but the implementation should be structured as if those caps already
-exist.
+Memory pressure is explicit. The store rejects operations rather than silently
+evicting non-expired live entries while pretending subscribers still have a
+current stream. The v1 local defaults cap active rooms at 4096, entries and
+subscribers at 1024 per room, and the complete conservatively estimated retained
+room footprint at 1 MiB. That footprint includes room/scope identity, entry
+keys, owners, values, owner-to-connection edges, and subscriber identities;
+payload-only `valueBytes` remains available beside `retainedBytes` for
+diagnostics. Collection/scope/identity/custom-key/auth metadata has independent
+byte and cardinality bounds, and WebSocket frames are capped at 64 KiB before
+JSON parsing. These admission limits make the dominant retained state bounded
+by the active-room and per-room budgets rather than by attacker-selected string
+sizes.
 
 ### Client overlay store
 
@@ -744,8 +747,9 @@ visible:
 - fan-out scope cardinality and subscription count;
 - publish rate per connection and per scope;
 - coalesced update counts and forced resnapshot counts;
-- active room entries, estimated value bytes, expiry-index depth, subscriber
-  count, pending queue depth, and last epoch-change reason;
+- active room entries, payload value bytes, conservative retained bytes,
+  expiry-index depth, subscriber count, pending queue depth, and last
+  epoch-change reason;
 - durable-lane delay caused by ephemeral pressure, which should be zero under the
   intended scheduler;
 - entries nearing payload/TTL/rate limits;

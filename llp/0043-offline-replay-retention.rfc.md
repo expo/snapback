@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (retention admission uses transactionally maintained global and per-auth record/byte counters, one-time legacy backfill, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -135,11 +135,21 @@ not a generic error — and the client rolls back or rebases the local
 optimistic overlay.
 
 The server retains a settled `clientMutationId` until that same auth identity
-returns it in a later request's `acknowledgedClientMutationIds` list. The client
-persists confirmed ids until a server response proves the acknowledgement was
-received; auth/artifact scope changes clear the client list. A request may not
-acknowledge its own current id. Acknowledgement and GC are idempotent and
-auth-bound, so one principal cannot delete another's replay result.
+returns it either in a later mutation's `acknowledgedClientMutationIds` list or
+through `POST /client-mutations/acknowledge`. The standalone path ensures a
+one-shot client's final result is reclaimable without waiting for another app
+write. The client persists confirmed ids as auth-tagged records. Auth/artifact
+scope changes retain those opaque GC proofs but expose and send only records
+matching the current authority, so returning to the prior user can finish GC
+without sending their ids under another user.
+
+The client removes a local ACK proof only after a successful standalone ACK or
+a mutation response proves that the origin ran the piggyback ACK stage. A
+successful mutation and a rejected mutation carrying the provider-core receipt
+are such proof; a receipt-less proxy/HTTP failure is ambiguous and retains both
+the ACKs and the current queued mutation. A request may not acknowledge its own
+current id. Acknowledgement and GC are idempotent and auth-bound, so one
+principal cannot delete another's replay result.
 
 Exactly-once wins over opportunistic eviction. A retained result is capped at
 65,536 serialized bytes; the ledger is capped at 10,000 records and 67,108,864
@@ -156,10 +166,12 @@ transaction; an existing pre-counter database performs one grouped backfill on
 open. Gated storage inspection reports current global record/byte gauges, the
 caps, and cumulative acknowledged-GC count; the public inspection projection
 omits these operational retention facts. An explicitly admin-gated recovery
-operation may purge all settlements or one auth fingerprint when the original
-client can no longer acknowledge them. That operator action intentionally gives
-up exactly-once replay for the purged identities and is not counted as client
-acknowledgement GC.
+operation at `POST /_snapback/api/client-mutations/purge` may purge all
+settlements (`all: true`) or the fingerprint derived server-side from one
+supplied `AuthInput` when the original client can no longer acknowledge them.
+The explicit selector prevents an empty request from accidentally purging the
+whole ledger. That operator action intentionally gives up exactly-once replay
+for the purged identities and is not counted as client acknowledgement GC.
 
 ### Conflict posture
 
@@ -174,7 +186,24 @@ wipes or quarantines prior retained data — including the pending-mutation
 queue — before the new user sees the app (0039/0011's wipe rule). Queued
 mutations must not replay under a different user silently; the auth context
 fingerprint is checked before replay and a mismatch surfaces
-`SNAPBACK_AUTH_STALE_RESULT`-class diagnostics rather than replaying.
+`SNAPBACK_AUTH_STALE_RESULT`-class diagnostics rather than replaying. Client
+store format v2 fingerprints the tagged, length-delimited
+`(principal, session_id, user_id)` tuple with SHA-256. A v1 client store retains
+only the old 64-bit FNV alias, not the canonical tuple, so even an apparent
+alias match cannot prove which authority owns it. Upgrade validates the old
+shape and then clears retained rows, pending/failed mutations, ctx ledgers, and
+ACKs before establishing the v2 scope; it never rebinds them to a caller's SHA
+identity. Server-retained FNV settlements are likewise never rebound. Replay
+therefore fails closed with
+`SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED`. A current client may still
+delete a legacy settlement through standalone or piggyback ACK only if it has a
+separately trusted opaque id; the server checks both the current SHA fingerprint
+and its computed deletion-only legacy alias. The built-in v1 store upgrade does
+not treat its ambiguous ACKs as that proof. An administrator may instead use
+the explicit purge recovery route, knowingly giving up exactly-once replay for
+those ids. Old ctx ledgers do not acquire new authority from a legacy alias. An
+older bundle sees store version 2 and fails closed instead of interpreting the
+new auth-tagged ACK records as bare ids.
 
 ## Non-goals
 

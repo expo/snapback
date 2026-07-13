@@ -238,6 +238,26 @@ function executeProductionRowQuery(db, plan) {
     order: [],
     limit: null,
   };
+
+  for (const limit of [Number.NaN, Number.POSITIVE_INFINITY, 1.5, -1, 1025]) {
+    const invalidLimitPlan = {
+      table: table.name,
+      filters: [],
+      order: [],
+      limit,
+    };
+    for (const evaluate of [
+      () => applyPlan(rows, invalidLimitPlan),
+      () => captureProductionRowQuery(invalidLimitPlan),
+    ]) {
+      assert.throws(
+        evaluate,
+        (error) => error?.snapbackCode === 'SNAPBACK_QUERY_LIMIT_INVALID',
+        `invalid query limit ${String(limit)} must fail with the portable diagnostic`,
+      );
+    }
+  }
+
   assert.equal(captureProductionRowQuery(atBindCap).params.length, 501, '500 filter binds plus LIMIT');
 
   const overBindCap = {

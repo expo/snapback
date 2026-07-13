@@ -103,7 +103,8 @@ honestly reported as **not** syncable
 (`SNAPBACK_FUNCTION_NOT_LIVE`), admin-runner display of captured handler
 read/write facts, a read-set mutation conflict (`SNAPBACK_MUTATION_CONFLICT`),
 deterministic reset/seed, and machine-readable diagnostics for an invalid schema
-(`SNAPBACK_SCHEMA_SYSTEM_FIELD`), an invalid query (`SNAPBACK_UNKNOWN_FIELD`),
+(`SNAPBACK_SCHEMA_SYSTEM_FIELD`), an invalid query artifact
+(`SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID`),
 stale generated artifacts (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`), handler capability denial
 (`SNAPBACK_HANDLER_CAPABILITY_DENIED`), handler throw normalization
 (`SNAPBACK_HANDLER_FAILED`), and codegen failing closed (`QUERY_UNKNOWN_FIELD`).

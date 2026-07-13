@@ -11,7 +11,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
 use snapback::ephemeral::{AuthContext, EphemeralCollection, KeyMode, Scope};
-use snapback::local::{LiveSubscribeInput, LocalSnapback};
+use snapback::local::{LiveSubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION};
 use snapback::manifest::{
     AppIdentity, AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
@@ -406,7 +406,8 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
     // ENG-23442: the stream upgrade demands the connection grant.
     let grant = state
         .connections
-        .open(Some("client_ws".to_owned()), None, true);
+        .open(Some("client_ws".to_owned()), None, true)
+        .expect("connection grant");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
@@ -1611,7 +1612,8 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
     let state = AppState::detached(snapback);
     let grant = state
         .connections
-        .open(Some("conn-b".to_owned()), None, true);
+        .open(Some("conn-b".to_owned()), None, true)
+        .expect("connection grant");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -1796,6 +1798,94 @@ async fn outbox_drain_and_live_subscribe_demand_the_connection_token() {
     );
 }
 
+/// Local connection grants cannot retain an unbounded set of durable live
+/// subscriptions. The public route returns the same typed 429 diagnostic as
+/// the hosted coordinator, and an authenticated unsubscribe immediately
+/// releases capacity for the same grant.
+#[tokio::test]
+async fn live_subscribe_route_enforces_and_releases_per_connection_capacity() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+    let token = open_connection(app.clone(), "bounded-live").await;
+    let mut first_subscription_id = None;
+
+    for index in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+        let response = app
+            .clone()
+            .oneshot(post_with_connection_token(
+                "/live/listTodos/subscribe",
+                json!({
+                    "connection_id": "bounded-live",
+                    "input": { "args": {}, "auth": { "user_id": "user_1" } }
+                }),
+                &token,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "subscription {index}");
+        if index == 0 {
+            let body = json(response).await;
+            first_subscription_id = Some(
+                body["subscription_id"]
+                    .as_str()
+                    .expect("subscription_id")
+                    .to_owned(),
+            );
+        }
+    }
+
+    let refused = app
+        .clone()
+        .oneshot(post_with_connection_token(
+            "/live/listTodos/subscribe",
+            json!({
+                "connection_id": "bounded-live",
+                "input": { "args": {}, "auth": { "user_id": "user_1" } }
+            }),
+            &token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::TOO_MANY_REQUESTS);
+    let refused: ErrorResponse = serde_json::from_value(json(refused).await)
+        .expect("subscription limit response matches typed error envelope");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
+    );
+    assert_eq!(
+        refused.diagnostic.details["limit"],
+        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+    );
+
+    let unsubscribed = app
+        .clone()
+        .oneshot(post_with_connection_token(
+            "/live/listTodos/unsubscribe",
+            json!({
+                "subscription_id": first_subscription_id.expect("first subscription id"),
+                "connection_id": "bounded-live",
+                "auth": { "user_id": "user_1" }
+            }),
+            &token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unsubscribed.status(), StatusCode::OK);
+
+    let admitted = app
+        .oneshot(post_with_connection_token(
+            "/live/listTodos/subscribe",
+            json!({
+                "connection_id": "bounded-live",
+                "input": { "args": {}, "auth": { "user_id": "user_1" } }
+            }),
+            &token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(admitted.status(), StatusCode::OK);
+}
+
 /// ENG-23442 — the live-stream upgrade is token-gated before the socket
 /// exists, and the browser-compatible `snapback.connection-token.<token>`
 /// subprotocol transport authenticates (with `snapback.v1` echoed).
@@ -1806,7 +1896,8 @@ async fn stream_upgrade_requires_the_connection_token() {
     let state = AppState::detached(seeded_snapback());
     let grant = state
         .connections
-        .open(Some("gated_ws".to_owned()), None, true);
+        .open(Some("gated_ws".to_owned()), None, true)
+        .expect("connection grant");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
@@ -2135,7 +2226,8 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
     let state = AppState::detached(seeded_snapback());
     let grant = state
         .connections
-        .open(Some("client_ws_a".to_owned()), None, true);
+        .open(Some("client_ws_a".to_owned()), None, true)
+        .expect("connection grant");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
@@ -2230,7 +2322,8 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     let state = AppState::detached(snapback);
     let grant = state
         .connections
-        .open(Some("owner_ws".to_owned()), None, true);
+        .open(Some("owner_ws".to_owned()), None, true)
+        .expect("connection grant");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);

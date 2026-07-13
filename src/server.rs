@@ -13,7 +13,8 @@ use crate::local::{
     StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
 };
 use crate::manifest::{
-    CtxAnswerLedger, FunctionManifest, FunctionRuntime, HandlerInput, MutationOutput,
+    AuthInput, CtxAnswerLedger, FunctionManifest, FunctionRuntime, HandlerInput,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
     MutationRequest, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
@@ -846,16 +847,97 @@ pub(crate) async fn execute_cron_claim_detached(
 /// client's queued live results. Connections are now opened through
 /// `POST /connection/open`, which returns the connection id paired with a
 /// server-minted `connectionToken`; every connection-scoped operation must
-/// present that token. Grants are process-lifetime by design: a socket close
-/// triggers a server-side `disconnect` that clears delivery state, but the
-/// grant survives so the kit's reconnect path can re-subscribe under the same
-/// connection identity without re-opening.
+/// present that token. A grant normally survives socket close so the kit can
+/// reconnect. The registry itself is fixed-cap: unopened/unused grants are
+/// evicted first; used grants become evictable only after an idle lease. If
+/// every grant is both used and current, admission refuses transiently rather
+/// than displacing live authority. Once a used id is retired under pressure,
+/// caller-suggested ids stay disabled for this process so stale room/outbox
+/// state can never be adopted by a new bearer; the client receives a fresh
+/// minted id instead.
 ///
 /// @ref LLP 0031#connection-capability-grants — server-issued grants; the
 /// ConnectionAuth policy class marks every route this gate covers.
 #[derive(Clone, Default)]
 pub struct ConnectionRegistry {
-    grants: Arc<std::sync::Mutex<std::collections::HashMap<String, String>>>,
+    grants: Arc<std::sync::Mutex<ConnectionRegistryState>>,
+}
+
+#[derive(Default)]
+struct ConnectionRegistryState {
+    grants: std::collections::HashMap<String, ConnectionGrantRecord>,
+    unused: std::collections::BTreeSet<(u64, String)>,
+    used: std::collections::BTreeSet<(u64, String)>,
+    pressure_mint_only: bool,
+}
+
+struct ConnectionGrantRecord {
+    token: String,
+    last_use_ms: u64,
+    used: bool,
+}
+
+impl ConnectionRegistryState {
+    fn touch(&mut self, connection_id: &str, now_ms: u64) {
+        let Some((previous, was_used)) = self
+            .grants
+            .get(connection_id)
+            .map(|record| (record.last_use_ms, record.used))
+        else {
+            return;
+        };
+        let index = if was_used {
+            &mut self.used
+        } else {
+            &mut self.unused
+        };
+        index.remove(&(previous, connection_id.to_owned()));
+        if let Some(record) = self.grants.get_mut(connection_id) {
+            record.last_use_ms = now_ms;
+            record.used = true;
+        }
+        self.used.insert((now_ms, connection_id.to_owned()));
+    }
+
+    fn admit_slot(&mut self, now_ms: u64) -> SnapbackResult<()> {
+        if self.grants.len() < MAX_CONNECTION_GRANTS {
+            return Ok(());
+        }
+        if let Some((_last_use, connection_id)) = self.unused.pop_first() {
+            self.grants.remove(&connection_id);
+            return Ok(());
+        }
+        let expired_before = now_ms.saturating_sub(CONNECTION_GRANT_IDLE_TTL_MS);
+        if self
+            .used
+            .first()
+            .is_some_and(|(last_use, _)| *last_use <= expired_before)
+            && let Some((_last_use, connection_id)) = self.used.pop_first()
+        {
+            self.grants.remove(&connection_id);
+            self.pressure_mint_only = true;
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
+            "realtime",
+            format!(
+                "connection grant limit ({MAX_CONNECTION_GRANTS}) is occupied by active leases; retry after an idle lease expires"
+            ),
+        ))
+    }
+
+    fn insert(&mut self, connection_id: String, token: String, now_ms: u64) {
+        self.unused.insert((now_ms, connection_id.clone()));
+        self.grants.insert(
+            connection_id,
+            ConnectionGrantRecord {
+                token,
+                last_use_ms: now_ms,
+                used: false,
+            },
+        );
+    }
 }
 
 /// The `POST /connection/open` response: the (possibly adopted) connection id
@@ -904,32 +986,43 @@ impl ConnectionRegistry {
         suggested: Option<String>,
         previous_token: Option<&str>,
         allow_suggested: bool,
-    ) -> ConnectionGrant {
+    ) -> SnapbackResult<ConnectionGrant> {
         let mut grants = self.lock();
+        let now_ms = now_millis();
         if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
-            && let Some(existing) = grants.get(id)
-            && constant_time_str_eq(existing, previous)
+            && let Some(existing) = grants.grants.get(id)
+            && constant_time_str_eq(&existing.token, previous)
         {
-            return ConnectionGrant {
+            let connection_token = existing.token.clone();
+            grants.touch(id, now_ms);
+            return Ok(ConnectionGrant {
                 connection_id: id.clone(),
-                connection_token: existing.clone(),
-            };
+                connection_token,
+            });
         }
+        grants.admit_slot(now_ms)?;
         let connection_id = match suggested {
-            Some(id) if allow_suggested && !id.is_empty() && !grants.contains_key(&id) => id,
+            Some(id)
+                if allow_suggested
+                    && !grants.pressure_mint_only
+                    && valid_suggested_connection_id(&id)
+                    && !grants.grants.contains_key(&id) =>
+            {
+                id
+            }
             _ => loop {
                 let minted = format!("conn_{}", Uuid::new_v4().simple());
-                if !grants.contains_key(&minted) {
+                if !grants.grants.contains_key(&minted) {
                     break minted;
                 }
             },
         };
         let connection_token = format!("sct_{}", Uuid::new_v4().simple());
-        grants.insert(connection_id.clone(), connection_token.clone());
-        ConnectionGrant {
+        grants.insert(connection_id.clone(), connection_token.clone(), now_ms);
+        Ok(ConnectionGrant {
             connection_id,
             connection_token,
-        }
+        })
     }
 
     /// Verify a presented token for one connection-scoped operation. Unknown
@@ -943,18 +1036,36 @@ impl ConnectionRegistry {
                 connection_id,
             ));
         };
-        let grants = self.lock();
-        match grants.get(connection_id) {
-            Some(expected) if constant_time_str_eq(expected, presented) => Ok(()),
-            _ => Err(connection_auth_error(
+        let mut grants = self.lock();
+        let valid = grants
+            .grants
+            .get(connection_id)
+            .is_some_and(|expected| constant_time_str_eq(&expected.token, presented));
+        if valid {
+            grants.touch(connection_id, now_millis());
+            Ok(())
+        } else {
+            Err(connection_auth_error(
                 "SNAPBACK_CONNECTION_TOKEN_INVALID",
                 "connection is not open on this server or the token does not match",
                 connection_id,
-            )),
+            ))
         }
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, String>> {
+    /// Renew an already-authenticated WebSocket lease on frame traffic. The
+    /// upgrade verified the bearer once; subsequent frames do not carry it,
+    /// but they are still proof that this exact authorized socket is active.
+    fn touch_verified_socket(&self, connection_id: &str) -> bool {
+        let mut grants = self.lock();
+        if !grants.grants.contains_key(connection_id) {
+            return false;
+        }
+        grants.touch(connection_id, now_millis());
+        true
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, ConnectionRegistryState> {
         self.grants
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -990,6 +1101,19 @@ const CONNECTION_TOKEN_SUBPROTOCOL_PREFIX: &str = "snapback.connection-token.";
 /// fails the connection when it offered subprotocols and the server selected
 /// none).
 const LIVE_STREAM_SUBPROTOCOL: &str = "snapback.v1";
+const MAX_LIVE_SOCKET_FRAME_BYTES: usize = 64 * 1_024;
+const MAX_CONNECTION_GRANTS: usize = 16_384;
+const CONNECTION_GRANT_IDLE_TTL_MS: u64 = CONNECTION_IDLE_TTL_MS;
+
+fn valid_suggested_connection_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= crate::ephemeral::MAX_EPHEMERAL_CONNECTION_ID_BYTES
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
+}
 
 fn header_connection_token(headers: &HeaderMap) -> Option<String> {
     headers
@@ -1034,7 +1158,7 @@ async fn open_connection(
         suggested,
         previous_token.as_deref(),
         allow_suggested,
-    )))
+    )?))
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1116,6 +1240,7 @@ fn core_routes() -> Router<AppState> {
         .route("/health", get(health))
         .route("/inspect", get(inspect))
         .route("/query/{name}", post(invoke_query))
+        .route("/client-mutations/acknowledge", post(acknowledge_mutations))
         .route("/mutation/{name}", post(invoke_mutation))
         .route("/action/{name}", post(invoke_action))
         .route("/app/ensure", post(ensure_app))
@@ -1145,6 +1270,10 @@ fn system_routes() -> Router<AppState> {
         .route("/_snapback/api/schema/load", post(apply_schema))
         .route("/_snapback/api/functions/load", post(load_functions))
         .route("/_snapback/api/app/reset", post(app_reset))
+        .route(
+            "/_snapback/api/client-mutations/purge",
+            post(purge_client_mutation_settlements),
+        )
         // @ref LLP 0024#result-envelope — the host-ops first slice (LLP 0032
         // P6): one operation endpoint, one hostOpsResult envelope per call;
         // the legacy per-noun routes above stay as documented aliases.
@@ -1239,6 +1368,7 @@ pub fn route_registry() -> Vec<RouteSpec> {
         spec("GET", "/health", AppData, Public),
         spec("GET", "/inspect", AppData, Public),
         spec("POST", "/query/{name}", AppData, AppAuth),
+        spec("POST", "/client-mutations/acknowledge", AppData, AppAuth),
         spec("POST", "/mutation/{name}", AppData, AppAuth),
         spec("POST", "/action/{name}", AppData, AppAuth),
         spec("POST", "/app/ensure", AppData, Public),
@@ -1268,6 +1398,12 @@ pub fn route_registry() -> Vec<RouteSpec> {
             AdminWrite,
         ),
         spec("POST", "/_snapback/api/app/reset", SystemApi, AdminWrite),
+        spec(
+            "POST",
+            "/_snapback/api/client-mutations/purge",
+            SystemApi,
+            AdminWrite,
+        ),
         spec("POST", "/_snapback/api/host-ops", SystemApi, AdminWrite),
         spec(
             "POST",
@@ -2529,6 +2665,51 @@ struct AppResetResponse {
     seeded: Option<crate::manifest::MutationOutput>,
 }
 
+/// Deliberately explicit selector for destructive exactly-once-ledger
+/// recovery. An empty object is rejected: an operator must name one resolved
+/// auth context or affirm that every retained settlement should be removed.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ClientMutationPurgeBody {
+    #[serde(default)]
+    auth: Option<AuthInput>,
+    #[serde(default)]
+    all: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClientMutationPurgeResponse {
+    purged: u64,
+}
+
+async fn purge_client_mutation_settlements(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    input: Result<Json<ClientMutationPurgeBody>, JsonRejection>,
+) -> Result<Json<ClientMutationPurgeResponse>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, true)?;
+    let Json(body) = input.map_err(ApiError::from_json_rejection)?;
+    let auth = match (body.auth, body.all) {
+        (Some(auth), false) => Some(auth),
+        (None, true) => None,
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID",
+                "sync",
+                "choose exactly one purge selector: auth or all=true",
+            )
+            .into());
+        }
+    };
+    let purged = with_snapback(&state, move |snapback| {
+        snapback.purge_client_mutation_settlements(auth.as_ref())
+    })
+    .await?;
+    Ok(Json(ClientMutationPurgeResponse { purged }))
+}
+
 fn parse_optional_json<T: serde::de::DeserializeOwned>(
     headers: &HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -2582,6 +2763,22 @@ async fn invoke_query(
         with_snapback(&state, move |snapback| snapback.invoke_query(&name, input)).await?
     };
     Ok(Json(output))
+}
+
+/// Standalone authenticated settlement acknowledgement. A consumed replay
+/// result must be reclaimable even when it was the client's final mutation;
+/// requiring a later write to piggyback the ACK otherwise strands every
+/// one-shot client's durable result indefinitely.
+async fn acknowledge_mutations(
+    State(state): State<SharedSnapback>,
+    input: Result<Json<MutationAcknowledgementRequest>, JsonRejection>,
+) -> Result<Json<MutationAcknowledgementResponse>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let acknowledged = with_snapback(&state, move |snapback| {
+        snapback.acknowledge_client_mutations(&request.auth, &request.client_mutation_ids)
+    })
+    .await?;
+    Ok(Json(MutationAcknowledgementResponse { acknowledged }))
 }
 
 /// Mutations respond with the MutationOutput fields plus the provider-core
@@ -2759,14 +2956,17 @@ async fn stream_live(
     }
     // Select the negotiated subprotocol when offered (a browser fails the
     // connection if it offered subprotocols and the server echoed none).
-    ws.protocols([LIVE_STREAM_SUBPROTOCOL])
-        .on_upgrade(move |socket| live_stream(socket, state, ephemeral, connection_id))
+    ws.max_message_size(MAX_LIVE_SOCKET_FRAME_BYTES)
+        .max_frame_size(MAX_LIVE_SOCKET_FRAME_BYTES)
+        .protocols([LIVE_STREAM_SUBPROTOCOL])
+        .on_upgrade(move |socket| live_stream(socket, state, ephemeral, connections, connection_id))
 }
 
 async fn live_stream(
     socket: WebSocket,
     state: SharedSnapback,
     ephemeral: EphemeralApi,
+    connections: ConnectionRegistry,
     connection_id: String,
 ) {
     let (mut sender, mut receiver) = socket.split();
@@ -2788,7 +2988,8 @@ async fn live_stream(
     // plus this register-before-first-drain: a push the drain below misses
     // happened after the drain took the outbox lock, and its wake then finds
     // the already-registered waker and stores a permit.
-    if !notify.is_current(&connection_id, generation)
+    if !connections.touch_verified_socket(&connection_id)
+        || !notify.is_current(&connection_id, generation)
         || drain_and_send(&ephemeral, &connection_id, &mut sender)
             .await
             .is_break()
@@ -2804,6 +3005,9 @@ async fn live_stream(
                 match incoming {
                     Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
                     Some(Ok(Message::Text(text))) => {
+                        if !connections.touch_verified_socket(&connection_id) {
+                            break 'stream;
+                        }
                         let response = handle_live_socket_text(&ephemeral, &connection_id, &text);
                         if sender.send(Message::Text(response.into())).await.is_err() {
                             break 'stream;
@@ -2818,13 +3022,26 @@ async fn live_stream(
                     // activity through their EphemeralApi calls; `live_ping`
                     // stays deliberately stateless.)
                     Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {
+                        if !connections.touch_verified_socket(&connection_id) {
+                            break 'stream;
+                        }
                         ephemeral.touch_connection(&connection_id);
                         false
                     }
-                    Some(Ok(Message::Binary(_))) => false,
+                    Some(Ok(Message::Binary(_))) => {
+                        if !connections.touch_verified_socket(&connection_id) {
+                            break 'stream;
+                        }
+                        false
+                    },
                 }
             }
-            _ = waker.notified() => true,
+            _ = waker.notified() => {
+                if !connections.touch_verified_socket(&connection_id) {
+                    break 'stream;
+                }
+                true
+            },
             _ = safety_net.tick() => {
                 // ENG-23424: probe the peer, don't just drain. A peer that
                 // vanished without FIN/RST (suspend, cable pull) never errors
@@ -2833,7 +3050,9 @@ async fn live_stream(
                 // I/O every 30s: a dead peer surfaces a send error within the
                 // TCP retransmission timeout, and a live one answers with a
                 // Pong that refreshes its activity above.
-                if sender.send(Message::Ping(Vec::new().into())).await.is_err() {
+                if !connections.touch_verified_socket(&connection_id)
+                    || sender.send(Message::Ping(Vec::new().into())).await.is_err()
+                {
                     break 'stream;
                 }
                 true
@@ -2944,6 +3163,21 @@ fn live_socket_operation_name(message: &LiveSocketClientMessage) -> &'static str
 /// authority directly — a busy mutation holding the global write mutex cannot
 /// delay a cursor publish on this socket (LLP 0032 L9).
 fn handle_live_socket_text(ephemeral: &EphemeralApi, connection_id: &str, text: &str) -> String {
+    if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
+        return socket_error(
+            None,
+            "decode",
+            Diagnostic::error(
+                "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE",
+                "realtime",
+                "WebSocket message exceeded the ephemeral control-frame limit",
+            )
+            .with_details(json!({
+                "bytes": text.len(),
+                "maxBytes": MAX_LIVE_SOCKET_FRAME_BYTES,
+            })),
+        );
+    }
     let message = match serde_json::from_str::<LiveSocketClientMessage>(text) {
         Ok(message) => message,
         Err(error) => {
@@ -3301,6 +3535,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -3312,11 +3547,16 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ADMIN_TOKEN_REQUIRED" | "SNAPBACK_CONNECTION_TOKEN_REQUIRED" => {
             StatusCode::UNAUTHORIZED
         }
-        "SNAPBACK_EPHEMERAL_RATE_LIMITED" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
+        | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
+        | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
+        | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_VALUE_TOO_LARGE"
+        | "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
-        | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
+        | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
+        | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
@@ -3341,6 +3581,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
+        | "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_USER_MISSING"
         | "SNAPBACK_BINDING_MISSING"
@@ -3504,6 +3745,7 @@ mod tests {
     use crate::runtime::IbexActionHost;
     use axum::body::Bytes;
     use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+    use futures_util::StreamExt as _;
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -3511,6 +3753,7 @@ mod tests {
     use std::sync::{Arc, Condvar, Mutex as StdMutex};
     use std::time::{Duration, Instant};
     use syn::visit::Visit;
+    use tokio::net::TcpListener;
     use tokio::sync::{Mutex, Semaphore};
 
     #[test]
@@ -3809,6 +4052,7 @@ mod tests {
         "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
         "SNAPBACK_CLIENT_MUTATION_ID_INVALID",
+        "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID",
         "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED",
         "SNAPBACK_CONFIG_ENTRY_INVALID",
         "SNAPBACK_CONFIG_MISSING",
@@ -3944,6 +4188,7 @@ mod tests {
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+        "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
         "SNAPBACK_MUTATION_CONFLICT",
@@ -3952,12 +4197,19 @@ mod tests {
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
+        "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
         "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE",
         "SNAPBACK_VALUE_TOO_LARGE",
+        "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE",
     ];
 
-    const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &["SNAPBACK_EPHEMERAL_RATE_LIMITED"];
+    const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
+        "SNAPBACK_EPHEMERAL_RATE_LIMITED",
+        "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
+        "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT",
+    ];
 
     const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_TIMEOUT",
@@ -3995,6 +4247,7 @@ mod tests {
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
+        "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
         "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
         "SNAPBACK_CONFIG_ENV_IMPORTED",
         "SNAPBACK_CONFIG_GENERATION_EXHAUSTED",
@@ -4671,8 +4924,8 @@ globalThis.__snapbackHandlers = {
     }
 
     use super::{
-        ConnectionRegistry, LiveSocketClientMessage, RouteClass, RoutePolicy,
-        live_socket_operation_name, live_socket_operations, route_registry,
+        ConnectionRegistry, LiveSocketClientMessage, MAX_CONNECTION_GRANTS, RouteClass,
+        RoutePolicy, live_socket_operation_name, live_socket_operations, route_registry,
     };
     use crate::ephemeral::{DeleteRequest, PublishRequest, Scope, SubscribeRequest};
 
@@ -4682,12 +4935,16 @@ globalThis.__snapbackHandlers = {
     fn connection_registry_grants_and_verifies() {
         let registry = ConnectionRegistry::default();
 
-        let adopted = registry.open(Some("readable".to_owned()), None, true);
+        let adopted = registry
+            .open(Some("readable".to_owned()), None, true)
+            .expect("adopt grant");
         assert_eq!(adopted.connection_id, "readable");
         assert!(adopted.connection_token.starts_with("sct_"));
 
         // A colliding suggestion mints instead of rotating the live grant.
-        let collided = registry.open(Some("readable".to_owned()), None, true);
+        let collided = registry
+            .open(Some("readable".to_owned()), None, true)
+            .expect("mint collision grant");
         assert_ne!(collided.connection_id, "readable");
         assert!(collided.connection_id.starts_with("conn_"));
         assert!(
@@ -4699,18 +4956,24 @@ globalThis.__snapbackHandlers = {
 
         // Idempotent re-open: presenting the current token returns the same
         // grant (any profile) — a wrong previous token mints instead.
-        let reopened = registry.open(
-            Some("readable".to_owned()),
-            Some(&adopted.connection_token),
-            false,
-        );
+        let reopened = registry
+            .open(
+                Some("readable".to_owned()),
+                Some(&adopted.connection_token),
+                false,
+            )
+            .expect("reopen grant");
         assert_eq!(reopened.connection_id, "readable");
         assert_eq!(reopened.connection_token, adopted.connection_token);
-        let stolen = registry.open(Some("readable".to_owned()), Some("sct_wrong"), true);
+        let stolen = registry
+            .open(Some("readable".to_owned()), Some("sct_wrong"), true)
+            .expect("wrong bearer mints");
         assert_ne!(stolen.connection_id, "readable");
 
         // Prod never adopts caller-selected ids.
-        let minted = registry.open(Some("chosen".to_owned()), None, false);
+        let minted = registry
+            .open(Some("chosen".to_owned()), None, false)
+            .expect("prod mint");
         assert!(minted.connection_id.starts_with("conn_"));
 
         // Verification: missing token, unknown connection, mismatched token.
@@ -4726,6 +4989,199 @@ globalThis.__snapbackHandlers = {
                 .verify(&collided.connection_id, Some(&collided.connection_token))
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn connection_registry_pressure_evicts_lru_instead_of_permanently_wedging() {
+        let registry = ConnectionRegistry::default();
+        let first = registry
+            .open(Some("first".to_owned()), None, true)
+            .expect("first grant");
+        let mut second = None;
+        for index in 0..(MAX_CONNECTION_GRANTS - 1) {
+            let grant = registry
+                .open(Some(format!("bulk_{index}")), None, true)
+                .expect("bounded grant admission");
+            if index == 0 {
+                second = Some(grant);
+            }
+        }
+        registry
+            .verify(&first.connection_id, Some(&first.connection_token))
+            .expect("touch first grant");
+        let after_pressure = registry
+            .open(Some("after_pressure".to_owned()), None, true)
+            .expect("the cap must not wedge future opens");
+        assert_eq!(after_pressure.connection_id, "after_pressure");
+        assert!(
+            registry
+                .verify(&first.connection_id, Some(&first.connection_token))
+                .is_ok(),
+            "recently used grants survive pressure"
+        );
+        let second = second.expect("second grant");
+        assert!(
+            registry
+                .verify(&second.connection_id, Some(&second.connection_token))
+                .is_err(),
+            "the least recently used grant is the bounded eviction victim"
+        );
+
+        // Mark every remaining grant used and current: admission must refuse
+        // instead of revoking live authority.
+        {
+            let mut state = registry.lock();
+            let now = super::now_millis();
+            let ids = state.grants.keys().cloned().collect::<Vec<_>>();
+            state.unused.clear();
+            state.used.clear();
+            for id in ids {
+                let record = state.grants.get_mut(&id).expect("grant record");
+                record.used = true;
+                record.last_use_ms = now;
+                state.used.insert((now, id));
+            }
+        }
+        let full = registry
+            .open(Some("must_wait".to_owned()), None, true)
+            .expect_err("current used leases cannot be displaced");
+        assert_eq!(
+            full.diagnostic.code,
+            "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
+        );
+
+        // Once those leases are idle-expired, pressure can retire one. The
+        // retired readable id is never re-adopted by the new bearer: pressure
+        // permanently switches this process to minted ids.
+        {
+            let mut state = registry.lock();
+            let ids = state.grants.keys().cloned().collect::<Vec<_>>();
+            state.used.clear();
+            for id in ids {
+                let record = state.grants.get_mut(&id).expect("grant record");
+                record.last_use_ms = 0;
+                state.used.insert((0, id));
+            }
+        }
+        assert!(registry.touch_verified_socket(&first.connection_id));
+        let retired_id = registry
+            .lock()
+            .used
+            .first()
+            .expect("oldest used grant")
+            .1
+            .clone();
+        assert_ne!(retired_id, first.connection_id);
+        let replacement = registry
+            .open(Some(retired_id.clone()), None, true)
+            .expect("expired lease makes bounded room");
+        assert_ne!(replacement.connection_id, retired_id);
+        assert!(replacement.connection_id.starts_with("conn_"));
+        assert!(
+            !registry.touch_verified_socket(&retired_id),
+            "a pressure-retired socket must fail renewal before its next frame is processed"
+        );
+        assert!(
+            registry
+                .verify(&first.connection_id, Some(&first.connection_token))
+                .is_ok(),
+            "authenticated socket traffic renews the active grant past the idle cutoff"
+        );
+    }
+
+    #[tokio::test]
+    async fn pressure_evicted_socket_cannot_receive_notifier_delivery() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory socket test state"),
+        );
+        let registry = state.connections.clone();
+        let ephemeral = state.ephemeral.clone();
+        let grant = registry
+            .open(Some("retired_socket".to_owned()), None, true)
+            .expect("socket grant");
+
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind test server");
+        let address = listener.local_addr().expect("test server address");
+        let server = tokio::spawn(async move {
+            axum::serve(listener, super::app(state))
+                .await
+                .expect("serve socket test");
+        });
+
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+        let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
+            .into_client_request()
+            .expect("websocket request");
+        request.headers_mut().insert(
+            "x-snapback-connection-token",
+            grant
+                .connection_token
+                .parse()
+                .expect("connection token header"),
+        );
+        let (mut socket, _) = tokio_tungstenite::connect_async(request)
+            .await
+            .expect("connect authorized socket");
+
+        let notifier = ephemeral.delivery_notifier();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !notifier.is_registered(&grant.connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("live stream registered its notifier");
+
+        for index in 0..(MAX_CONNECTION_GRANTS - 1) {
+            registry
+                .open(Some(format!("pressure_{index}")), None, true)
+                .expect("fill bounded registry");
+        }
+        {
+            let mut grants = registry.lock();
+            let ids = grants.grants.keys().cloned().collect::<Vec<_>>();
+            grants.unused.clear();
+            grants.used.clear();
+            for id in ids {
+                let last_use_ms = u64::from(id != grant.connection_id);
+                let record = grants.grants.get_mut(&id).expect("grant record");
+                record.used = true;
+                record.last_use_ms = last_use_ms;
+                grants.used.insert((last_use_ms, id));
+            }
+        }
+        registry
+            .open(Some("after_retirement".to_owned()), None, true)
+            .expect("expired socket grant makes bounded room");
+        assert!(
+            registry
+                .verify(&grant.connection_id, Some(&grant.connection_token))
+                .is_err(),
+            "the connected socket grant was the pressure victim"
+        );
+
+        ephemeral.enqueue_durable_for_test(
+            &grant.connection_id,
+            br#"{"kind":"private-after-retirement"}"#.to_vec(),
+        );
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match socket.next().await {
+                    Some(Ok(tokio_tungstenite::tungstenite::Message::Text(text))) => {
+                        panic!("retired socket received queued data: {text}");
+                    }
+                    Some(Ok(tokio_tungstenite::tungstenite::Message::Close(_)))
+                    | Some(Err(_))
+                    | None => break,
+                    Some(Ok(_)) => {}
+                }
+            }
+        })
+        .await
+        .expect("retired socket must terminate instead of draining");
+        server.abort();
     }
 
     const RESERVED_PREFIX: &str = "/_snapback/";
@@ -4888,6 +5344,20 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             sample_names, declared_names,
             "every LiveSocketClientMessage variant must be a declared app-data operation"
+        );
+    }
+
+    #[test]
+    fn live_socket_rejects_oversized_control_frames_before_json_decode() {
+        let snapback = LocalSnapback::memory().expect("memory instance");
+        let ephemeral = snapback.ephemeral_api();
+        let frame = "x".repeat(super::MAX_LIVE_SOCKET_FRAME_BYTES + 1);
+        let response: serde_json::Value =
+            serde_json::from_str(&super::handle_live_socket_text(&ephemeral, "conn", &frame))
+                .expect("typed socket error");
+        assert_eq!(
+            response["diagnostic"]["code"],
+            "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE"
         );
     }
 }

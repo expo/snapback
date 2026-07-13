@@ -47,6 +47,7 @@ export {
 import { canonicalizeJsonValue, deriveOptimisticReducers } from './derived-overlay.mjs';
 import {
   createClientMutationId,
+  MAX_OFFLINE_LEDGER_IDS,
   retainedQueryKey,
   snapbackAuthFingerprint,
 } from './client-store.mjs';
@@ -616,7 +617,7 @@ export async function createSnapbackContractSurface({
     const confirmSentAcknowledgements = async (ids) => {
       if (ids.length === 0) return;
       try {
-        await clientStore.confirmMutationAcknowledgements(ids);
+        await clientStore.confirmMutationAcknowledgements(ids, storeAuthFingerprint);
       } catch (error) {
         // The server response proves these acknowledgements were received.
         // A local persistence failure must not turn that successful mutation
@@ -629,6 +630,38 @@ export async function createSnapbackContractSurface({
         );
       }
     };
+
+    // A confirmed mutation may be the last write this browser ever sends.
+    // Flush consumed settlement ids over their own authenticated app-data
+    // route instead of relying on a future mutation to piggyback them. Failed
+    // delivery is harmless and durable: the auth-tagged ids remain in the
+    // store and are retried when this authority next constructs/reconnects.
+    const flushPendingAcknowledgements = async () => {
+      if (!offlineReplayEnabled || typeof client.acknowledgeMutations !== 'function') {
+        return false;
+      }
+      const ids = await clientStore.pendingMutationAcknowledgements(
+        MAX_OFFLINE_LEDGER_IDS,
+        storeAuthFingerprint,
+      );
+      if (ids.length === 0) return true;
+      try {
+        await client.acknowledgeMutations({ userId, clientMutationIds: ids });
+        await confirmSentAcknowledgements(ids);
+        return true;
+      } catch (error) {
+        publishDiagnostic(
+          'SNAPBACK_CLIENT_MUTATION_ACK_DEFERRED',
+          error instanceof Error ? error.message : String(error),
+          { count: ids.length },
+        );
+        return false;
+      }
+    };
+
+    // Covers reloads and artifact transitions where the previous session
+    // consumed a result but closed before its standalone ACK completed.
+    await flushPendingAcknowledgements();
 
     const persistMutation = async (name, args, optimisticOp = null) => {
       let queued = null;
@@ -661,7 +694,10 @@ export async function createSnapbackContractSurface({
           durablePendingCount += 1;
         }
         if (offlineReplayEnabled) {
-          sentAcknowledgements = await clientStore.pendingMutationAcknowledgements();
+          sentAcknowledgements = await clientStore.pendingMutationAcknowledgements(
+            MAX_OFFLINE_LEDGER_IDS,
+            storeAuthFingerprint,
+          );
         }
         mutationDeliveryStarted = true;
         // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
@@ -680,6 +716,7 @@ export async function createSnapbackContractSurface({
         if (queued) {
           await clientStore.settleMutation(queued.id, { status: 'confirmed', output });
           durablePendingCount = Math.max(0, durablePendingCount - 1);
+          await flushPendingAcknowledgements();
         }
         // The commit landed: drop the optimistic op BEFORE reconciling so the
         // authoritative row is not doubled by its own overlay.
@@ -717,16 +754,22 @@ export async function createSnapbackContractSurface({
           writeServerRows(lastServerRows, lastServerVersion);
           return mutationOutput;
         }
-        if (queued && isConnectivityFailure(error)) {
+        if (queued && (isConnectivityFailure(error) || !error?.receipt)) {
           retainedOffline = true;
           publishDiagnostic(
             'SNAPBACK_OFFLINE_MUTATION_QUEUED',
-            'Mutation retained for ordered replay after reconnect.',
+            'Mutation delivery is unproven; retained for ordered replay after reconnect.',
             { mutation: name, clientMutationId: queued.id, sequence: queued.sequence },
           );
           return { queued: true, clientMutationId: queued.id };
         }
         if (queued) {
+          // A provider-core receipt proves the origin ran its piggyback ACK
+          // stage even when it rejected this mutation. Persist that proof
+          // before settling the current record: if the failed-settlement
+          // write itself errors, retrying already-consumed ACK ids is safe,
+          // but retaining them as the only server-GC proof is unnecessary.
+          await confirmSentAcknowledgements(sentAcknowledgements);
           await clientStore.settleMutation(queued.id, {
             status: 'failed',
             diagnostic: error?.diagnostic ?? { message: error instanceof Error ? error.message : String(error) },
@@ -979,7 +1022,10 @@ export async function createSnapbackContractSurface({
       let replayed = 0;
       let failed = 0;
       for (const record of queued) {
-        const sentAcknowledgements = await clientStore.pendingMutationAcknowledgements();
+        const sentAcknowledgements = await clientStore.pendingMutationAcknowledgements(
+          MAX_OFFLINE_LEDGER_IDS,
+          storeAuthFingerprint,
+        );
         try {
           const output = await client.mutate(record.function, {
             args: record.args,
@@ -993,9 +1039,15 @@ export async function createSnapbackContractSurface({
           await confirmSentAcknowledgements(sentAcknowledgements);
           await clientStore.settleMutation(record.id, { status: 'confirmed', output });
           durablePendingCount = Math.max(0, durablePendingCount - 1);
+          await flushPendingAcknowledgements();
           replayed += 1;
         } catch (error) {
-          if (isConnectivityFailure(error)) {
+          // Only a provider-core mutation receipt proves the request crossed
+          // the origin handler's ACK stage. A proxy/load-balancer 4xx/5xx may
+          // carry status + diagnostic while never reaching Snapback; deleting
+          // local ACK proofs or marking the current mutation failed would then
+          // strand settlements and lose an ambiguously delivered write.
+          if (isConnectivityFailure(error) || !error?.receipt) {
             retainedOffline = true;
             throw error;
           }
@@ -1020,6 +1072,7 @@ export async function createSnapbackContractSurface({
         const handle = await openLive();
         writeServerRows(handle.rows, handle.version);
       }
+      await flushPendingAcknowledgements();
       return { replayed, failed };
     };
 

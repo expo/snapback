@@ -28,8 +28,8 @@ use crate::local::{
     LiveUnsubscribeInput, LiveUnsubscribeOutput, PublicInspect,
 };
 use crate::manifest::{
-    CapabilityManifest, FunctionManifest, HandlerInput, MutationRequest, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest,
+    CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
+    MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
 use crate::server::{ConnectionGrant, ErrorResponse, MutationResponse, OpenConnectionRequest};
 use crate::storage::StorageInfo;
@@ -172,6 +172,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "mutation.input.schema.json",
             schemars::schema_for!(MutationRequest),
+        ),
+        finish(
+            "client-mutation.ack.input.schema.json",
+            schemars::schema_for!(MutationAcknowledgementRequest),
+        ),
+        finish(
+            "client-mutation.ack.output.schema.json",
+            schemars::schema_for!(MutationAcknowledgementResponse),
         ),
     ]
 }

@@ -25,7 +25,7 @@ use crate::manifest::{
     FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
     PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
     SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
-    ctx_ledger_version,
+    ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -49,6 +49,17 @@ use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
+
+/// Hard retained durable-live ceilings for the canonical local server. These
+/// match the hosted coordinator so changing targets cannot silently multiply
+/// one connection's authority or the process-wide matcher/fan-out workload.
+/// Admission happens before the initial snapshot query and never evicts an
+/// existing subscription.
+///
+/// @ref LLP 0031#connection-capability-grants — durable subscriptions are
+/// bounded globally and per granted connection.
+pub const MAX_LIVE_SUBSCRIPTIONS: usize = 2_048;
+pub const MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION: usize = 64;
 
 #[cfg(test)]
 thread_local! {
@@ -322,6 +333,8 @@ pub struct PublicEphemeralDiagnostics {
     pub entry_count: usize,
     pub subscriber_count: usize,
     pub value_bytes: usize,
+    pub retained_bytes: usize,
+    pub outbox_retained_bytes: usize,
     pub pending_ephemeral_keys: usize,
     pub pending_durable_messages: usize,
     pub pending_resync_messages: usize,
@@ -329,6 +342,7 @@ pub struct PublicEphemeralDiagnostics {
     pub rate_limited_publishes: u64,
     pub oversized_publishes: u64,
     pub unauthorized_requests: u64,
+    pub metadata_rejections: u64,
     pub expired_entries: u64,
     pub disconnected_entries: u64,
     pub coalesced_updates: u64,
@@ -346,6 +360,8 @@ impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
             entry_count,
             subscriber_count,
             value_bytes,
+            retained_bytes,
+            outbox_retained_bytes,
             active_rooms: _,
             pending_ephemeral_keys,
             pending_durable_messages,
@@ -354,6 +370,7 @@ impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
             rate_limited_publishes,
             oversized_publishes,
             unauthorized_requests,
+            metadata_rejections,
             expired_entries,
             disconnected_entries,
             coalesced_updates,
@@ -366,6 +383,8 @@ impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
             entry_count,
             subscriber_count,
             value_bytes,
+            retained_bytes,
+            outbox_retained_bytes,
             pending_ephemeral_keys,
             pending_durable_messages,
             pending_resync_messages,
@@ -373,6 +392,7 @@ impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
             rate_limited_publishes,
             oversized_publishes,
             unauthorized_requests,
+            metadata_rejections,
             expired_entries,
             disconnected_entries,
             coalesced_updates,
@@ -952,6 +972,12 @@ impl EphemeralApi {
     pub fn delivery_notifier(&self) -> Arc<DeliveryNotifier> {
         self.store.delivery_notifier()
     }
+
+    #[cfg(test)]
+    pub(crate) fn enqueue_durable_for_test(&self, connection_id: &str, payload: Vec<u8>) {
+        self.store
+            .enqueue_durable(connection_id.to_owned(), payload);
+    }
 }
 
 /// One entry's LLP 0036 status: names and states only — never values.
@@ -1453,8 +1479,45 @@ impl LocalSnapback {
         auth: &AuthInput,
         ids: &[String],
     ) -> SnapbackResult<u64> {
-        self.db
-            .acknowledge_client_mutations(&auth_fingerprint(auth), ids)
+        let current = self
+            .db
+            .acknowledge_client_mutations(&auth_fingerprint(auth), ids)?;
+        let legacy = self
+            .db
+            .acknowledge_client_mutations(&legacy_auth_fingerprint(auth), ids)?;
+        current.checked_add(legacy).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
+                "storage",
+                "acknowledged settlement count overflowed across auth aliases",
+            )
+        })
+    }
+
+    /// Administrative recovery for settlements whose original client can no
+    /// longer deliver an acknowledgement. The HTTP boundary supplies an
+    /// `AuthInput`, never a caller-chosen raw fingerprint, so targeted purge
+    /// uses exactly the same canonical identity as commit and ACK.
+    pub fn purge_client_mutation_settlements(
+        &mut self,
+        auth: Option<&AuthInput>,
+    ) -> SnapbackResult<u64> {
+        let Some(auth) = auth else {
+            return self.db.purge_client_mutation_settlements(None);
+        };
+        let current = self
+            .db
+            .purge_client_mutation_settlements(Some(&auth_fingerprint(auth)))?;
+        let legacy = self
+            .db
+            .purge_client_mutation_settlements(Some(&legacy_auth_fingerprint(auth)))?;
+        current.checked_add(legacy).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
+                "storage",
+                "purged settlement count overflowed across auth aliases",
+            )
+        })
     }
 
     pub fn function_definition(&self, name: &str) -> Option<&FunctionDefinition> {
@@ -1992,6 +2055,56 @@ impl LocalSnapback {
         }
 
         let subscription_input = input.input;
+
+        // A valid explicit supersession is a net-zero replacement. Identify
+        // it before admission, but do not remove it until the new snapshot
+        // succeeds: a query failure must leave the old live authority intact.
+        // Unknown or foreign ids remain the protocol's documented quiet
+        // no-op and therefore do not release capacity.
+        let superseded_subscription_id = input.supersedes.as_ref().and_then(|old_id| {
+            self.subscriptions.get(old_id).and_then(|existing| {
+                let owner = &existing.input.auth;
+                let same_connection = existing.connection_id == input.connection_id;
+                let same_owner = owner.principal == subscription_input.auth.principal
+                    && owner.user_id == subscription_input.auth.user_id;
+                (same_connection && same_owner).then(|| old_id.clone())
+            })
+        });
+        let release = usize::from(superseded_subscription_id.is_some());
+
+        // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — retained
+        // resource tables must have hard refusal limits. Check before running
+        // the initial query so a caller at capacity cannot spend handler/DB
+        // work on a snapshot the server is forbidden to retain.
+        if self.subscriptions.len().saturating_sub(release) >= MAX_LIVE_SUBSCRIPTIONS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT",
+                "realtime",
+                format!(
+                    "the durable subscription registry is limited to {MAX_LIVE_SUBSCRIPTIONS} rows"
+                ),
+            )
+            .with_details(json!({ "limit": MAX_LIVE_SUBSCRIPTIONS })));
+        }
+        let connection_subscriptions = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == input.connection_id)
+            .count()
+            .saturating_sub(release);
+        if connection_subscriptions >= MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
+                "realtime",
+                format!(
+                    "one connection is limited to {MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION} durable subscriptions"
+                ),
+            )
+            .with_details(json!({
+                "limit": MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
+            })));
+        }
+
         let query = self.invoke_query_with_dependencies(name, subscription_input.clone())?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
@@ -2006,32 +2119,24 @@ impl LocalSnapback {
         // identical subscribers (two components sharing a query on one
         // connection) coexist. An unknown id is a quiet no-op: reconnects
         // race disconnect teardown, which may have dropped it already.
-        if let Some(old_id) = &input.supersedes
-            && let Some(existing) = self.subscriptions.get(old_id)
-        {
-            let owner = &existing.input.auth;
-            let same_connection = existing.connection_id == input.connection_id;
-            let same_owner = owner.principal == subscription_input.auth.principal
-                && owner.user_id == subscription_input.auth.user_id;
-            if same_connection && same_owner {
-                self.subscriptions.remove(old_id);
-                let receipt = Receipt::Subscription {
-                    event: SubscriptionReceiptEvent::Disposed,
-                    reason: Some("superseded".to_owned()),
-                    subscription_id: Some(old_id.clone()),
-                    superseded_by: Some(subscription_id.clone()),
-                    lane: None,
-                    binding_id: None,
-                    collection: None,
-                    removed: None,
-                    scope: subscription_input.args.clone(),
-                    snapshot_version: Some(query.output.version),
-                    correlation: None,
-                    received_at_ms: now_millis(),
-                }
-                .into_value();
-                self.receipts.push_connection(&input.connection_id, receipt);
+        if let Some(old_id) = superseded_subscription_id {
+            self.subscriptions.remove(&old_id);
+            let receipt = Receipt::Subscription {
+                event: SubscriptionReceiptEvent::Disposed,
+                reason: Some("superseded".to_owned()),
+                subscription_id: Some(old_id),
+                superseded_by: Some(subscription_id.clone()),
+                lane: None,
+                binding_id: None,
+                collection: None,
+                removed: None,
+                scope: subscription_input.args.clone(),
+                snapshot_version: Some(query.output.version),
+                correlation: None,
+                received_at_ms: now_millis(),
             }
+            .into_value();
+            self.receipts.push_connection(&input.connection_id, receipt);
         }
 
         self.subscriptions.insert(
@@ -4826,13 +4931,14 @@ fn now_millis() -> u64 {
 mod tests {
     use super::{
         BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead,
-        LiveSubscribeInput, LocalSnapback, StagedNestedMutation,
+        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, StagedNestedMutation,
     };
     use crate::manifest::{
-        CtxAnswerLedger, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
-        FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan,
-        MutationStep, QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
-        ctx_ledger_version,
+        CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
+        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        IndexManifest, MutationPlan, MutationStep, QueryPlan, ReturnValue, SchemaManifest,
+        TableManifest, ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
@@ -4939,6 +5045,223 @@ globalThis.__snapbackHandlers = {
             .expect("apply guarded schema");
         snapback.load_functions(guarded_functions());
         snapback
+    }
+
+    fn live_limit_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("live-limits-schema".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: vec![IndexManifest {
+                        name: "by_value".to_owned(),
+                        fields: vec!["value".to_owned()],
+                    }],
+                    syncable: true,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply live limit schema");
+        let list = FunctionDefinition::new(
+            "listItems",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        let requires_arg = FunctionDefinition::new(
+            "listItemsByValue",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "value".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("value".to_owned()),
+                }],
+                order: Vec::new(),
+                limit: None,
+                indexed_by: Some("by_value".to_owned()),
+            })),
+        );
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            bundle_hash: Some("live-limits-functions".to_owned()),
+            functions: vec![list, requires_arg],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| { diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE" }),
+            "unexpected function diagnostics: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    fn live_limit_input(connection_id: &str, args: serde_json::Value) -> LiveSubscribeInput {
+        LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput {
+                args,
+                ..HandlerInput::default()
+            },
+            supersedes: None,
+        }
+    }
+
+    #[test]
+    fn live_subscription_connection_limit_releases_on_failure_unsubscribe_and_disconnect() {
+        let mut snapback = live_limit_snapback();
+
+        // A failed initial query never reserves or retains capacity.
+        let failed = snapback
+            .subscribe_live("listItemsByValue", live_limit_input("bounded", json!({})))
+            .expect_err("missing query arg");
+        assert_eq!(failed.diagnostic.code, "SNAPBACK_ARG_MISSING");
+        assert!(snapback.subscriptions.is_empty());
+
+        let mut ids = Vec::new();
+        for _ in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+            ids.push(
+                snapback
+                    .subscribe_live("listItems", live_limit_input("bounded", json!({})))
+                    .expect("admit subscription below the per-connection limit")
+                    .subscription_id,
+            );
+        }
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        // Admission precedes initial query execution: although this input is
+        // missing a required query arg, capacity is the stable refusal.
+        let refused = snapback
+            .subscribe_live("listItemsByValue", live_limit_input("bounded", json!({})))
+            .expect_err("per-connection limit");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
+        );
+        assert_eq!(
+            refused.diagnostic.details["limit"],
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        // A net-zero replacement is admitted before the query, but failure
+        // must not destroy the old subscription or consume another slot.
+        let superseded = ids.remove(0);
+        let mut failed_replacement = live_limit_input("bounded", json!({}));
+        failed_replacement.supersedes = Some(superseded.clone());
+        let failed = snapback
+            .subscribe_live("listItemsByValue", failed_replacement)
+            .expect_err("replacement snapshot failure");
+        assert_eq!(failed.diagnostic.code, "SNAPBACK_ARG_MISSING");
+        assert!(snapback.subscriptions.contains_key(&superseded));
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        // Explicit same-owner supersession is net-zero and therefore remains
+        // available at the ceiling.
+        let mut replacement = live_limit_input("bounded", json!({}));
+        replacement.supersedes = Some(superseded.clone());
+        let replacement = snapback
+            .subscribe_live("listItems", replacement)
+            .expect("net-zero replacement at the limit");
+        assert!(!snapback.subscriptions.contains_key(&superseded));
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&replacement.subscription_id)
+        );
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        snapback
+            .unsubscribe_live(
+                "listItems",
+                LiveUnsubscribeInput {
+                    subscription_id: replacement.subscription_id,
+                    connection_id: "bounded".to_owned(),
+                    auth: Default::default(),
+                },
+            )
+            .expect("unsubscribe releases one slot");
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION - 1
+        );
+        snapback
+            .subscribe_live("listItems", live_limit_input("bounded", json!({})))
+            .expect("reuse unsubscribed slot");
+
+        snapback.disconnect("bounded", 1);
+        assert!(snapback.subscriptions.is_empty());
+        snapback
+            .subscribe_live("listItems", live_limit_input("bounded", json!({})))
+            .expect("reuse capacity released by disconnect");
+    }
+
+    #[test]
+    fn live_subscription_global_limit_releases_on_disconnect() {
+        let mut snapback = live_limit_snapback();
+        assert_eq!(
+            MAX_LIVE_SUBSCRIPTIONS % MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
+            0,
+            "test expects the global cap to divide into full connections"
+        );
+        let connection_count = MAX_LIVE_SUBSCRIPTIONS / MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION;
+        for connection in 0..connection_count {
+            let connection_id = format!("global-{connection}");
+            for _ in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+                snapback
+                    .subscribe_live("listItems", live_limit_input(&connection_id, json!({})))
+                    .expect("admit subscription below the global limit");
+            }
+        }
+        assert_eq!(snapback.subscriptions.len(), MAX_LIVE_SUBSCRIPTIONS);
+
+        // The full registry refuses before evaluating the intentionally
+        // invalid initial query, proving the expensive snapshot is not run.
+        let refused = snapback
+            .subscribe_live(
+                "listItemsByValue",
+                live_limit_input("global-overflow", json!({})),
+            )
+            .expect_err("global limit");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT"
+        );
+        assert_eq!(refused.diagnostic.details["limit"], MAX_LIVE_SUBSCRIPTIONS);
+        assert_eq!(snapback.subscriptions.len(), MAX_LIVE_SUBSCRIPTIONS);
+
+        snapback.disconnect("global-0", 1);
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS - MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+        snapback
+            .subscribe_live("listItems", live_limit_input("global-overflow", json!({})))
+            .expect("reuse capacity released by disconnect");
     }
 
     #[test]

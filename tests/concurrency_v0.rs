@@ -370,7 +370,8 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
     let state = AppState::detached(snapback);
     let sweep_grant = state
         .connections
-        .open(Some("conn_sweep".to_owned()), None, true);
+        .open(Some("conn_sweep".to_owned()), None, true)
+        .expect("connection grant");
     let app = snapback::server::app(state);
 
     let get = |uri: &str| {
@@ -505,11 +506,16 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let write_lane = state.snapback.clone();
     let observer_grant = state
         .connections
-        .open(Some("l9-observer".to_owned()), None, true);
+        .open(Some("l9-observer".to_owned()), None, true)
+        .expect("observer grant");
     let publisher_grant = state
         .connections
-        .open(Some("l9-publisher".to_owned()), None, true);
-    let ws_grant = state.connections.open(Some("l9-ws".to_owned()), None, true);
+        .open(Some("l9-publisher".to_owned()), None, true)
+        .expect("publisher grant");
+    let ws_grant = state
+        .connections
+        .open(Some("l9-ws".to_owned()), None, true)
+        .expect("websocket grant");
     let app = snapback::server::app(state);
 
     // Serve the same app on a real listener for the WebSocket leg.

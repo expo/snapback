@@ -91,6 +91,16 @@ fn corpus() -> Vec<Case> {
             seed: None,
         },
         Case {
+            name: "query-limit-edge-validation",
+            handler: "queryLimitValidation",
+            kind: FunctionKind::Query,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
+        Case {
             name: "query-first",
             handler: "firstItem",
             kind: FunctionKind::Query,

@@ -48,6 +48,9 @@ const HEADER = generatedByHeader();
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const MAX_EPHEMERAL_COLLECTION_NAME_BYTES = 64;
+const MAX_EPHEMERAL_SCOPE_FIELDS = 16;
+const MAX_EPHEMERAL_SCOPE_KEY_BYTES = 64;
 // ECMAScript reserved words (generated modules are always strict-mode code, so
 // the strict-only set applies too). Function export names are interpolated
 // into emitted declarations (`export function ${name}(`), where a reserved
@@ -1081,7 +1084,7 @@ function buildEphemeralCollections(ephemeralDef, err) {
   // and unsupported targets must be generated diagnostics, not silent drops.
   const collections = [];
   for (const [name, def] of Object.entries(ephemeralDef.collections ?? {})) {
-    if (!IDENT.test(name)) {
+    if (!IDENT.test(name) || Buffer.byteLength(name) > MAX_EPHEMERAL_COLLECTION_NAME_BYTES) {
       err('EPHEMERAL_INVALID_IDENTIFIER', 'ephemeral', `invalid ephemeral collection identifier ${name}`, { collection: name });
       continue;
     }
@@ -1094,8 +1097,15 @@ function buildEphemeralCollections(ephemeralDef, err) {
     if (scopeFields.length === 0) {
       err('EPHEMERAL_EMPTY_SCOPE', 'ephemeral', `${name} needs at least one scope field`, { collection: name });
     }
+    if (scopeFields.length > MAX_EPHEMERAL_SCOPE_FIELDS) {
+      err('EPHEMERAL_SCOPE_TOO_WIDE', 'ephemeral', `${name} has too many scope fields`, {
+        collection: name,
+        fields: scopeFields.length,
+        maximum: MAX_EPHEMERAL_SCOPE_FIELDS,
+      });
+    }
     for (const field of scopeFields) {
-      if (!IDENT.test(field)) {
+      if (!IDENT.test(field) || Buffer.byteLength(field) > MAX_EPHEMERAL_SCOPE_KEY_BYTES) {
         err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} has invalid scope field ${field}`, { collection: name, field });
         continue;
       }
@@ -1169,7 +1179,13 @@ function buildEphemeralCollections(ephemeralDef, err) {
       err('EPHEMERAL_MISSING_AUTH', 'ephemeral', `${name} needs explicit publish and subscribe auth policies`, { collection: name });
     } else {
       for (const [operation, policy] of [['publish', def.publish], ['subscribe', def.subscribe]]) {
-        if (policy.kind === 'RequireRoomPermission' && !IDENT.test(policy.prefix ?? '')) {
+        if (
+          policy.kind === 'RequireRoomPermission'
+          && (
+            !IDENT.test(policy.prefix ?? '')
+            || Buffer.byteLength(policy.prefix ?? '') > MAX_EPHEMERAL_SCOPE_KEY_BYTES
+          )
+        ) {
           err('EPHEMERAL_INVALID_AUTH', 'ephemeral', `${name} ${operation} room-permission prefix must be a portable identifier`, {
             collection: name,
             operation,

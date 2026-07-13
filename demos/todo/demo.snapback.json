@@ -89,7 +89,7 @@
       "handler ambient capability diagnostic (SNAPBACK_HANDLER_CAPABILITY_DENIED)",
       "handler throw diagnostic (SNAPBACK_HANDLER_FAILED)",
       "invalid schema diagnostic (SNAPBACK_SCHEMA_SYSTEM_FIELD)",
-      "invalid query diagnostic (SNAPBACK_UNKNOWN_FIELD)",
+      "invalid query diagnostic (SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID)",
       "codegen fails closed (QUERY_UNKNOWN_FIELD)"
     ],
     "contract": [

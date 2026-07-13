@@ -92,6 +92,9 @@
     "acknowledgedClientMutationIds": {
       "description": "Results the client has durably consumed and removed from its replay\nqueue. The server may reclaim these settlement payloads only after this\nexplicit acknowledgement; age alone is not proof that an offline\nclient cannot redeliver the id.",
       "items": {
+        "maxLength": 256,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
         "type": "string"
       },
       "maxItems": 1024,

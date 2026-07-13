@@ -788,8 +788,18 @@
           "minimum": 0,
           "type": "integer"
         },
+        "metadataRejections": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "outboxOverflows": {
           "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "outboxRetainedBytes": {
+          "format": "uint",
           "minimum": 0,
           "type": "integer"
         },
@@ -828,6 +838,11 @@
           "minimum": 0,
           "type": "integer"
         },
+        "retainedBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
         "roomCount": {
           "format": "uint",
           "minimum": 0,
@@ -854,6 +869,8 @@
         "entryCount",
         "subscriberCount",
         "valueBytes",
+        "retainedBytes",
+        "outboxRetainedBytes",
         "pendingEphemeralKeys",
         "pendingDurableMessages",
         "pendingResyncMessages",
@@ -861,6 +878,7 @@
         "rateLimitedPublishes",
         "oversizedPublishes",
         "unauthorizedRequests",
+        "metadataRejections",
         "expiredEntries",
         "disconnectedEntries",
         "coalescedUpdates",

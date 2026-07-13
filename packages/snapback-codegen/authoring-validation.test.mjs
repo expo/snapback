@@ -112,6 +112,65 @@ export default defineSchema({}, { ephemeral: defineEphemeral({ cursors }) });
   const diagnostics = await invalidCase({
     schema: `
 import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+const collection = ephemeral.collection({
+  scope: Object.fromEntries(Array.from({ length: 17 }, (_, index) => [\`field_\${index}\`, v.string()])),
+  value: v.object({ x: v.number() }),
+  ttlMs: 1000,
+  publish: allow.all(),
+  subscribe: allow.all(),
+});
+export default defineSchema({}, { ephemeral: defineEphemeral({ cursors: collection }) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_SCOPE_TOO_WIDE'
+    && d.fields === 17
+    && d.maximum === 16
+  )));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+const collection = ephemeral.collection({
+  scope: { ${'s'.repeat(65)}: v.string() },
+  value: v.object({ x: v.number() }),
+  ttlMs: 1000,
+  publish: allow.all(),
+  subscribe: allow.all(),
+});
+export default defineSchema({}, { ephemeral: defineEphemeral({ ${'c'.repeat(65)}: collection }) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'EPHEMERAL_INVALID_IDENTIFIER'));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+export default defineSchema({}, { ephemeral: defineEphemeral({
+  cursors: ephemeral.collection({
+    scope: { ${'s'.repeat(65)}: v.string() },
+    value: v.object({ x: v.number() }),
+    ttlMs: 1000,
+    publish: allow.all(),
+    subscribe: allow.all(),
+  }),
+}) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'EPHEMERAL_INVALID_SCOPE_FIELD'));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
 export default defineSchema({}, { ephemeral: defineEphemeral({
   cursors: ephemeral.collection({
     scope: { roomId: v.string() },
