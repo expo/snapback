@@ -171,10 +171,55 @@ struct CronJobRuntimeState {
     next_nominal_at_ms: Option<u64>,
     next_due_at_ms: Option<u64>,
     in_flight_run_id: Option<String>,
+    /// All runs currently owned by this scheduler state. The singular field
+    /// above remains the stable inspect/persist compatibility projection; this
+    /// set is the authority needed by `overlap: allow` and ownership-safe
+    /// completion.
+    #[serde(default)]
+    in_flight_run_ids: BTreeSet<String>,
     last_run_at_ms: Option<u64>,
     last_outcome: Option<CronRunOutcome>,
     last_error: Option<Diagnostic>,
     consecutive_failures: u64,
+}
+
+impl CronJobRuntimeState {
+    fn normalize_in_flight(&mut self) {
+        if let Some(run_id) = self.in_flight_run_id.clone() {
+            self.in_flight_run_ids.insert(run_id);
+        }
+        self.sync_in_flight_projection();
+    }
+
+    fn sync_in_flight_projection(&mut self) {
+        self.in_flight_run_id = self.in_flight_run_ids.iter().next().cloned();
+    }
+
+    fn has_in_flight(&self) -> bool {
+        !self.in_flight_run_ids.is_empty() || self.in_flight_run_id.is_some()
+    }
+
+    fn claim_run(&mut self, run_id: String) {
+        self.normalize_in_flight();
+        self.in_flight_run_ids.insert(run_id);
+        self.sync_in_flight_projection();
+    }
+
+    fn finish_owned_run(&mut self, run_id: &str) -> bool {
+        self.normalize_in_flight();
+        let owned = self.in_flight_run_ids.remove(run_id);
+        self.sync_in_flight_projection();
+        owned
+    }
+
+    fn take_in_flight_runs(&mut self) -> Vec<String> {
+        self.normalize_in_flight();
+        let run_ids = std::mem::take(&mut self.in_flight_run_ids)
+            .into_iter()
+            .collect();
+        self.in_flight_run_id = None;
+        run_ids
+    }
 }
 
 impl LocalCronRuntime {
@@ -201,6 +246,29 @@ impl LocalCronRuntime {
                 "supportedVersion": CRON_RUNTIME_FORMAT_VERSION,
             })));
         }
+        // Persisted in-flight ownership cannot survive a process restart: no
+        // worker from the old process can finish it. Recover that state once,
+        // at load time. Live manifest reconciliation must preserve ownership
+        // because the detached worker is still running in this process.
+        //
+        // @ref LLP 0028#scheduler-state-and-run-ledger — restart recovery is
+        // distinct from source-manifest reconciliation.
+        let mut recovered = Vec::new();
+        for (job_name, state) in &mut runtime.states {
+            for run_id in state.take_in_flight_runs() {
+                recovered.push(
+                    Diagnostic::warning(
+                        "SNAPBACK_CRON_STALE_IN_FLIGHT_CLEARED",
+                        "cron",
+                        format!(
+                            "cron job {job_name} had stale in-flight run state and was recovered"
+                        ),
+                    )
+                    .with_details(json!({ "jobName": job_name, "runId": run_id })),
+                );
+            }
+        }
+        runtime.record_diagnostics(recovered);
         runtime.strip_result_payloads();
         Ok(runtime)
     }
@@ -236,7 +304,6 @@ impl LocalCronRuntime {
 
     pub fn reconcile(&mut self, manifest: &FunctionManifest) -> Vec<Diagnostic> {
         let diagnostics = validate_cron_manifest(manifest);
-        let mut recovery_diagnostics = Vec::new();
         let rejected_names = error_job_names(&diagnostics);
         let job_names = manifest
             .cron_jobs
@@ -274,19 +341,10 @@ impl LocalCronRuntime {
                 Some(state) if state.schedule_hash == schedule_hash => {
                     state.jitter_seed = jitter_seed;
                     state.jitter_offset_ms = jitter_offset_ms;
-                    if let Some(run_id) = state.in_flight_run_id.take() {
-                        recovery_diagnostics.push(
-                            Diagnostic::warning(
-                                "SNAPBACK_CRON_STALE_IN_FLIGHT_CLEARED",
-                                "cron",
-                                format!(
-                                    "cron job {} had stale in-flight run state and was recovered",
-                                    job.name
-                                ),
-                            )
-                            .with_details(json!({ "jobName": job.name, "runId": run_id })),
-                        );
-                    }
+                    // A same-schedule hot reload happens while detached workers
+                    // are still alive. Preserve their ownership; startup-only
+                    // stale recovery occurs in `from_persisted` above.
+                    state.normalize_in_flight();
                     if let Some(nominal) = state.next_nominal_at_ms {
                         state.next_due_at_ms = Some(nominal.saturating_add(jitter_offset_ms));
                     }
@@ -301,6 +359,7 @@ impl LocalCronRuntime {
                             next_nominal_at_ms: None,
                             next_due_at_ms: None,
                             in_flight_run_id: None,
+                            in_flight_run_ids: BTreeSet::new(),
                             last_run_at_ms: None,
                             last_outcome: None,
                             last_error: None,
@@ -310,10 +369,8 @@ impl LocalCronRuntime {
                 }
             }
         }
-        let mut all_diagnostics = diagnostics.clone();
-        all_diagnostics.extend(recovery_diagnostics);
-        self.record_diagnostics(all_diagnostics.clone());
-        all_diagnostics
+        self.record_diagnostics(diagnostics.clone());
+        diagnostics
     }
 
     pub fn reset_runtime_state(&mut self, manifest: &FunctionManifest) {
@@ -342,6 +399,7 @@ impl LocalCronRuntime {
                     next_nominal_at_ms: None,
                     next_due_at_ms: None,
                     in_flight_run_id: None,
+                    in_flight_run_ids: BTreeSet::new(),
                     last_run_at_ms: None,
                     last_outcome: None,
                     last_error: None,
@@ -420,9 +478,7 @@ impl LocalCronRuntime {
                 continue;
             }
             let scheduled_at_ms = state.next_nominal_at_ms;
-            if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap)
-                && state.in_flight_run_id.is_some()
-            {
+            if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight() {
                 if let Some(next_nominal) = next_nominal_after(job, scheduled_at_ms, now_ms) {
                     state.next_nominal_at_ms = Some(next_nominal);
                     state.next_due_at_ms =
@@ -432,6 +488,12 @@ impl LocalCronRuntime {
                 self.record_run(record);
                 continue;
             }
+            // Consume the nominal before dispatch. A duplicate ticker now sees
+            // the next slot, never this same `(job, scheduledAt)` identity.
+            if let Some(next_nominal) = next_nominal_after(job, scheduled_at_ms, now_ms) {
+                state.next_nominal_at_ms = Some(next_nominal);
+                state.next_due_at_ms = Some(next_nominal.saturating_add(state.jitter_offset_ms));
+            }
             self.next_run_seq += 1;
             let run_id = format!(
                 "cron:{}:scheduled:{}:{}",
@@ -439,7 +501,7 @@ impl LocalCronRuntime {
                 scheduled_at_ms.unwrap_or(now_ms),
                 self.next_run_seq
             );
-            state.in_flight_run_id = Some(run_id.clone());
+            state.claim_run(run_id.clone());
             let slot_key = format!(
                 "cron:{}:scheduled:{}",
                 job.name,
@@ -522,15 +584,14 @@ impl LocalCronRuntime {
                 next_nominal_at_ms: None,
                 next_due_at_ms: None,
                 in_flight_run_id: None,
+                in_flight_run_ids: BTreeSet::new(),
                 last_run_at_ms: None,
                 last_outcome: None,
                 last_error: None,
                 consecutive_failures: 0,
             }
         });
-        if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap)
-            && state.in_flight_run_id.is_some()
-        {
+        if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight() {
             return Err(SnapbackError::error(
                 "SNAPBACK_CRON_JOB_IN_FLIGHT",
                 "cron",
@@ -539,7 +600,7 @@ impl LocalCronRuntime {
         }
         self.next_run_seq += 1;
         let run_id = format!("cron:{}:manual:{}:{}", job.name, now_ms, self.next_run_seq);
-        state.in_flight_run_id = Some(run_id.clone());
+        state.claim_run(run_id.clone());
         let slot_key = format!("cron:{}:manual:{}", job.name, now_ms);
         Ok(CronRunClaim {
             job: job.clone(),
@@ -585,8 +646,10 @@ impl LocalCronRuntime {
             result: result_value,
         };
 
-        if let Some(state) = self.states.get_mut(&claim.job.name) {
-            state.in_flight_run_id = None;
+        if let Some(state) = self.states.get_mut(&claim.job.name)
+            && state.schedule_hash == schedule_hash(&claim.job)
+            && state.finish_owned_run(&claim.metadata.run_id)
+        {
             state.last_run_at_ms = Some(finished_at_ms);
             state.last_outcome = Some(outcome.clone());
             state.last_error = diagnostic.clone();
@@ -594,13 +657,6 @@ impl LocalCronRuntime {
                 state.consecutive_failures += 1;
             } else {
                 state.consecutive_failures = 0;
-            }
-            if claim.metadata.trigger == CronRunTrigger::Scheduled
-                && let Some(next_nominal) =
-                    next_nominal_after(&claim.job, claim.metadata.scheduled_at_ms, finished_at_ms)
-            {
-                state.next_nominal_at_ms = Some(next_nominal);
-                state.next_due_at_ms = Some(next_nominal.saturating_add(state.jitter_offset_ms));
             }
         }
         self.record_run(ledger_record(&record));
@@ -1769,6 +1825,96 @@ mod tests {
                 .is_empty(),
             "stale-hash state must not produce claims"
         );
+    }
+
+    #[test]
+    fn scheduled_claim_consumes_slot_and_allow_tracks_each_active_run() {
+        let mut job = interval_job("poll", 60_000);
+        job.overlap_policy = CronOverlapPolicy::Allow;
+        job.jitter_policy.enabled = false;
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+
+        let first = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("first due slot");
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+                .is_empty(),
+            "a duplicate tick must not claim the same nominal twice"
+        );
+
+        let second = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 120_000)
+            .pop()
+            .expect("next due slot may overlap");
+        let state = runtime.states.get("poll").expect("poll state");
+        assert_eq!(state.in_flight_run_ids.len(), 2);
+        assert_ne!(first.metadata.slot_key, second.metadata.slot_key);
+
+        runtime.finish_run(first.clone(), 121_000, Ok(Value::Null));
+        let state = runtime.states.get("poll").expect("poll state");
+        assert_eq!(state.in_flight_run_ids.len(), 1);
+        assert!(state.in_flight_run_ids.contains(&second.metadata.run_id));
+        runtime.finish_run(second, 122_000, Ok(Value::Null));
+        assert!(!runtime.states["poll"].has_in_flight());
+    }
+
+    #[test]
+    fn hot_reload_preserves_run_ownership_and_stale_finish_cannot_clear_replacement() {
+        let original = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&original);
+        let old_claim = runtime
+            .claim_due_runs(&original, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("old claim");
+
+        assert!(runtime.reconcile(&original).is_empty());
+        assert!(runtime.states["poll"].has_in_flight());
+        let error = runtime
+            .claim_manual_run(&original, "poll", 61_000)
+            .expect_err("same-schedule reload must preserve no-overlap ownership");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_JOB_IN_FLIGHT");
+
+        let replacement = manifest_with_jobs(vec![interval_job("poll", 30_000)]);
+        runtime.reconcile(&replacement);
+        let replacement_claim = runtime
+            .claim_due_runs(&replacement, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("replacement claim");
+        runtime.finish_run(old_claim, 62_000, Ok(Value::Null));
+        assert!(
+            runtime.states["poll"]
+                .in_flight_run_ids
+                .contains(&replacement_claim.metadata.run_id),
+            "an old generation must not clear its replacement"
+        );
+        runtime.finish_run(replacement_claim, 63_000, Ok(Value::Null));
+        assert!(!runtime.states["poll"].has_in_flight());
+    }
+
+    #[test]
+    fn persisted_in_flight_runs_are_recovered_only_on_process_load() {
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let claim = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("claim");
+        let persisted = runtime.persisted_value().expect("persist cron state");
+
+        let reloaded = LocalCronRuntime::from_persisted(Some(persisted)).expect("reload state");
+        assert!(!reloaded.states["poll"].has_in_flight());
+        assert!(reloaded.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_CRON_STALE_IN_FLIGHT_CLEARED"
+                && diagnostic.details.get("runId").and_then(Value::as_str)
+                    == Some(claim.metadata.run_id.as_str())
+        }));
     }
 
     #[test]

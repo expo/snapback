@@ -33,9 +33,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
 use uuid::Uuid;
@@ -43,6 +44,17 @@ use uuid::Uuid;
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
 
 static DETACHED_ACTION_WORKERS: AtomicUsize = AtomicUsize::new(0);
+static DETACHED_ACTION_REJECTIONS: AtomicU64 = AtomicU64::new(0);
+static DETACHED_ACTION_LIMITER: OnceLock<DetachedActionLimiter> = OnceLock::new();
+
+const ACTION_WORKER_LIMIT_DEFAULT: usize = 32;
+const ACTION_WORKER_LIMIT_MAX: usize = 1_024;
+const CRON_DISPATCH_CONCURRENCY: usize = 8;
+
+struct DetachedActionLimiter {
+    semaphore: Arc<Semaphore>,
+    limit: usize,
+}
 
 /// Diagnostic/test visibility for the bounded-action worker invariant. A
 /// timed-out action must interrupt its VM and return this count to baseline;
@@ -50,6 +62,62 @@ static DETACHED_ACTION_WORKERS: AtomicUsize = AtomicUsize::new(0);
 #[doc(hidden)]
 pub fn detached_action_worker_count() -> usize {
     DETACHED_ACTION_WORKERS.load(Ordering::SeqCst)
+}
+
+/// Process-wide ceiling for detached native action workers. This is an
+/// admission boundary, not merely a metric: once every permit is held, new
+/// detached actions fail with a stable overload diagnostic instead of
+/// allocating another OS thread.
+#[doc(hidden)]
+pub fn detached_action_worker_limit() -> usize {
+    detached_action_limiter().limit
+}
+
+#[doc(hidden)]
+pub fn detached_action_rejection_count() -> u64 {
+    DETACHED_ACTION_REJECTIONS.load(Ordering::SeqCst)
+}
+
+fn configured_action_worker_limit(raw: Option<&str>) -> usize {
+    raw.and_then(|value| value.parse::<usize>().ok())
+        .filter(|limit| *limit > 0)
+        .map(|limit| limit.min(ACTION_WORKER_LIMIT_MAX))
+        .unwrap_or(ACTION_WORKER_LIMIT_DEFAULT)
+}
+
+fn detached_action_limiter() -> &'static DetachedActionLimiter {
+    DETACHED_ACTION_LIMITER
+        .get_or_init(|| {
+            let limit = configured_action_worker_limit(
+                std::env::var("SNAPBACK_ACTION_MAX_CONCURRENCY")
+                    .ok()
+                    .as_deref(),
+            );
+            DetachedActionLimiter {
+                semaphore: Arc::new(Semaphore::new(limit)),
+                limit,
+            }
+        })
+}
+
+fn reserve_detached_action_worker(
+    limiter: Arc<Semaphore>,
+    limit: usize,
+) -> SnapbackResult<OwnedSemaphorePermit> {
+    limiter.try_acquire_owned().map_err(|_| {
+        DETACHED_ACTION_REJECTIONS.fetch_add(1, Ordering::SeqCst);
+        SnapbackError::error(
+            "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+            "runtime",
+            format!(
+                "all {limit} detached action worker slots are busy; retry after an action finishes"
+            ),
+        )
+        .with_details(json!({
+            "activeWorkers": detached_action_worker_count(),
+            "workerLimit": limit,
+        }))
+    })
 }
 
 struct DetachedActionWorkerGuard;
@@ -337,6 +405,13 @@ async fn run_detached_ibex_action(
     input: HandlerInput,
     metadata: CronRunMetadata,
 ) -> SnapbackResult<Value> {
+    // @ref LLP 0028#execution-the-action-class — detached native work has a
+    // hard process-wide admission ceiling. A timed-out native call may retain
+    // its permit until it actually exits, but it can never cause unbounded
+    // thread growth.
+    let limiter = detached_action_limiter();
+    let worker_permit =
+        reserve_detached_action_worker(limiter.semaphore.clone(), limiter.limit)?;
     let timeout_ms = action_watchdog_timeout_ms();
     let started = Instant::now();
     let deadline = started
@@ -366,6 +441,7 @@ async fn run_detached_ibex_action(
             let abandoned = abandoned.clone();
             let commit_gate = commit_gate.clone();
             move || {
+                let _worker_permit = worker_permit;
                 let result = {
                     let _worker = DetachedActionWorkerGuard::enter();
                     let crate::local::DetachedIbexAction {
@@ -523,9 +599,22 @@ pub(crate) async fn cron_tick_detached(
     now_ms: u64,
 ) -> SnapbackResult<Vec<CronRunRecord>> {
     let claims = with_snapback(state, move |snapback| snapback.claim_due_cron_runs(now_ms)).await?;
-    let mut records = Vec::with_capacity(claims.len());
-    for claim in claims {
-        records.push(execute_cron_claim_detached(state, claim).await?);
+    // Independent jobs must not head-of-line block one another, but dispatch
+    // remains bounded separately from the process-wide worker admission cap.
+    // Preserve claim order in the returned test/admin envelope even though
+    // execution finishes out of order.
+    let mut completed =
+        futures_util::stream::iter(claims.into_iter().enumerate().map(|(index, claim)| {
+            let state = state.clone();
+            async move { (index, execute_cron_claim_detached(&state, claim).await) }
+        }))
+        .buffer_unordered(CRON_DISPATCH_CONCURRENCY)
+        .collect::<Vec<_>>()
+        .await;
+    completed.sort_by_key(|(index, _)| *index);
+    let mut records = Vec::with_capacity(completed.len());
+    for (_, result) in completed {
+        records.push(result?);
     }
     Ok(records)
 }
@@ -3009,7 +3098,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
-        "SNAPBACK_OVERLOADED"
+        "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
+        | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_READ_LANE_UNAVAILABLE"
         | "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING"
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE"
@@ -3155,9 +3245,10 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, DetachedActionHost,
-        OpenConnectionRequest, SharedSnapback, parse_action_watchdog_timeout, parse_optional_json,
-        status_for_diagnostic_code,
+        ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
+        ACTION_WORKER_LIMIT_MAX, DetachedActionHost, OpenConnectionRequest, SharedSnapback,
+        configured_action_worker_limit, parse_action_watchdog_timeout, parse_optional_json,
+        reserve_detached_action_worker, status_for_diagnostic_code,
     };
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
@@ -3174,7 +3265,7 @@ mod tests {
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::{Duration, Instant};
     use syn::visit::Visit;
-    use tokio::sync::Mutex;
+    use tokio::sync::{Mutex, Semaphore};
 
     #[test]
     fn optional_json_rejects_non_objects_and_duplicate_struct_fields() {
@@ -3343,6 +3434,10 @@ mod tests {
     // inventory is intentionally broad enough to catch literals passed through
     // helper constructors, embedded runtime source, and macros.
     const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
+        (
+            "SNAPBACK_ACTION_MAX_CONCURRENCY",
+            "environment variable configuring detached action worker admission",
+        ),
         (
             "SNAPBACK_ACTION_SECRETS",
             "legacy environment variable containing action secrets",
@@ -3591,6 +3686,7 @@ mod tests {
     ];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
@@ -3838,6 +3934,40 @@ mod tests {
             parse_action_watchdog_timeout(Some(&u64::MAX.to_string())),
             ACTION_WATCHDOG_MAX_MS
         );
+
+        assert_eq!(
+            configured_action_worker_limit(None),
+            ACTION_WORKER_LIMIT_DEFAULT
+        );
+        assert_eq!(
+            configured_action_worker_limit(Some("not-a-number")),
+            ACTION_WORKER_LIMIT_DEFAULT
+        );
+        assert_eq!(
+            configured_action_worker_limit(Some("0")),
+            ACTION_WORKER_LIMIT_DEFAULT
+        );
+        assert_eq!(configured_action_worker_limit(Some("1")), 1);
+        assert_eq!(
+            configured_action_worker_limit(Some(&usize::MAX.to_string())),
+            ACTION_WORKER_LIMIT_MAX
+        );
+    }
+
+    #[test]
+    fn detached_action_admission_rejects_at_capacity_and_recovers() {
+        let limiter = Arc::new(Semaphore::new(1));
+        let permit = reserve_detached_action_worker(limiter.clone(), 1).expect("first worker");
+        let error = reserve_detached_action_worker(limiter.clone(), 1)
+            .expect_err("second worker must be rejected");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_CAPACITY_EXCEEDED");
+        assert_eq!(
+            status_for_diagnostic_code(&error.diagnostic.code),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+
+        drop(permit);
+        assert!(reserve_detached_action_worker(limiter, 1).is_ok());
     }
 
     fn generation_test_manifest() -> FunctionManifest {
