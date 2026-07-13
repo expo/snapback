@@ -38,6 +38,9 @@ pub(crate) mod auth_rescue;
 #[path = "storage/auth_mode.rs"]
 pub(crate) mod auth_mode;
 
+#[path = "storage/authorization.rs"]
+pub(crate) mod authorization;
+
 #[allow(dead_code)] // Called by the ENG-24603 pre-bind/coordinator integration lane.
 #[path = "storage/auth_stream.rs"]
 pub(crate) mod auth_stream;
@@ -180,6 +183,34 @@ pub struct ChangedRow {
     pub changed_fields: Vec<String>,
 }
 
+/// The one durable authorization-stream witness. The incarnation closes reset
+/// and restore ABA; the JS-safe epoch advances for ordinary authorization
+/// events within that stream.
+///
+/// @ref LLP 0053#the-authorization-version — v1 has one global durable pair.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationVersion {
+    pub incarnation: String,
+    #[schemars(range(max = MAX_AUTHORIZATION_EPOCH))]
+    pub epoch: u64,
+}
+
+/// JavaScript's largest exactly representable integer. The durable epoch
+/// refuses at this boundary rather than wrapping or losing wire precision.
+pub const MAX_AUTHORIZATION_EPOCH: u64 = 9_007_199_254_740_991;
+
+/// Exact authorization state produced inside a caller-owned commit. `event`
+/// is false for an ordinary/disjoint app commit, while `incarnation_rotated`
+/// distinguishes destructive boundaries from epoch advances.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationCommitWitness {
+    pub version: AuthorizationVersion,
+    pub event: bool,
+    pub incarnation_rotated: bool,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MutationCommit {
     pub output: MutationOutput,
@@ -188,6 +219,23 @@ pub struct MutationCommit {
     pub read_dependencies: Vec<CapturedReadDependency>,
     #[serde(default)]
     pub write_dependencies: Vec<CapturedWriteDependency>,
+    /// `None` means no commit occurred (dry-run or exact replay). Every fresh
+    /// committed app writer returns the pair observed/written in its SQLite
+    /// transaction, including ordinary commits that did not advance it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authorization: Option<AuthorizationCommitWitness>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct SeedCommit {
+    pub output: MutationOutput,
+    pub authorization: AuthorizationCommitWitness,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ResetCommit {
+    pub seeded: Option<MutationOutput>,
+    pub authorization: AuthorizationCommitWitness,
 }
 
 /// Durable identity for one queued client mutation. The server stores this in
@@ -374,7 +422,8 @@ fn reset_and_seed_transaction(
     match seed {
         None => Ok(None),
         Some(seed) => {
-            let changed_count = seed_into_transaction(tx, schema, seed, 1)?;
+            let changes = seed_into_transaction(tx, schema, seed, 1)?;
+            let changed_count = changes.len();
             if changed_count > 0 {
                 set_version(tx, 1)?;
             }
@@ -975,6 +1024,24 @@ impl LocalDatabase {
         }
     }
 
+    /// Authorization-aware compatibility seam for direct storage callers.
+    /// Item 5's coordinated reset chooses and durably publishes the successor
+    /// stream; the exact version read after that successful cut is its proof.
+    pub fn reset_and_seed_with_authorization(
+        &mut self,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<ResetCommit> {
+        let seeded = self.reset_and_seed(seed)?;
+        Ok(ResetCommit {
+            seeded,
+            authorization: AuthorizationCommitWitness {
+                version: self.authorization_version()?,
+                event: true,
+                incarnation_rotated: true,
+            },
+        })
+    }
+
     pub fn load_cron_state(&self) -> SnapbackResult<Option<Value>> {
         let value: Option<String> = self
             .conn
@@ -1017,25 +1084,41 @@ impl LocalDatabase {
     }
 
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
+        self.seed_with_authorization(seed)
+            .map(|commit| commit.output)
+    }
+
+    pub fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
         let next_version = self.current_version()? + 1;
         let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
-        let changed_count = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        let changed_count = changes.len();
 
         if changed_count > 0 {
             set_version(&tx, next_version)?;
         }
+        let authorization = authorization::authorization_commit_hook_in(
+            &tx,
+            authorization::AuthorizationCommitCause::AppWrites {
+                schema: &schema,
+                changes: &changes,
+            },
+        )?;
         tx.commit()?;
 
-        Ok(MutationOutput {
-            version: if changed_count > 0 {
-                next_version
-            } else {
-                self.current_version()?
+        Ok(SeedCommit {
+            output: MutationOutput {
+                version: if changed_count > 0 {
+                    next_version
+                } else {
+                    self.current_version()?
+                },
+                changed_count,
+                result: Value::Null,
+                ctx_ledger: None,
             },
-            changed_count,
-            result: Value::Null,
-            ctx_ledger: None,
+            authorization,
         })
     }
 
@@ -1593,6 +1676,17 @@ impl LocalDatabase {
             result,
             ctx_ledger: Some(output_ledger),
         };
+        let authorization = if apply {
+            Some(authorization::authorization_commit_hook_in(
+                &tx,
+                authorization::AuthorizationCommitCause::AppWrites {
+                    schema: &schema,
+                    changes: &changes,
+                },
+            )?)
+        } else {
+            None
+        };
         if apply {
             check_live()?;
             // The returned guard deliberately lives through tx.commit(). The
@@ -1616,6 +1710,7 @@ impl LocalDatabase {
                 write_dependencies: captured_writes_from_changes(&changes),
                 changes,
                 read_dependencies,
+                authorization,
             },
             generated_ids,
             now_ms,
@@ -1881,6 +1976,17 @@ impl LocalDatabase {
             result,
             ctx_ledger: options.ctx_ledger,
         };
+        let authorization = if options.apply {
+            Some(authorization::authorization_commit_hook_in(
+                &tx,
+                authorization::AuthorizationCommitCause::AppWrites {
+                    schema: &schema,
+                    changes: &changes,
+                },
+            )?)
+        } else {
+            None
+        };
         if options.apply {
             check_live()?;
             // No handler/plan work runs under this guard; it linearizes only
@@ -1902,6 +2008,7 @@ impl LocalDatabase {
             write_dependencies: captured_writes_from_changes(&changes),
             changes,
             read_dependencies,
+            authorization,
         })
     }
 
@@ -3582,8 +3689,8 @@ fn seed_into_transaction(
     schema: &SchemaManifest,
     seed: SeedData,
     version: u64,
-) -> SnapbackResult<usize> {
-    let mut changed_count = 0usize;
+) -> SnapbackResult<Vec<ChangedRow>> {
+    let mut changes = Vec::new();
     let now_ms = now_millis();
     for (table_name, rows) in seed.tables {
         let table = schema_table(schema, &table_name)?;
@@ -3603,6 +3710,7 @@ fn seed_into_transaction(
                     ));
                 }
             };
+            let changed_fields = changed_field_names(&row);
             let document = insert_document(tx, table, &id, &row, version, now_ms)?;
             record_change(
                 tx,
@@ -3613,10 +3721,16 @@ fn seed_into_transaction(
                 Some(&document),
                 now_ms,
             )?;
-            changed_count += 1;
+            changes.push(ChangedRow {
+                table: table.name.clone(),
+                id,
+                op: ChangeOp::Insert,
+                row: Some(document),
+                changed_fields,
+            });
         }
     }
-    Ok(changed_count)
+    Ok(changes)
 }
 
 fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
@@ -4489,6 +4603,22 @@ mod guarded_commit_tests {
         db
     }
 
+    fn permission_schema(permission_fields: Option<Vec<&str>>) -> SchemaManifest {
+        let mut schema = schema();
+        let table = &mut schema.tables[0];
+        table.permission_backing = true;
+        table.permission_fields =
+            permission_fields.map(|fields| fields.into_iter().map(str::to_owned).collect());
+        schema
+    }
+
+    fn permission_database(permission_fields: Option<Vec<&str>>) -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(permission_schema(permission_fields))
+            .expect("apply permission schema");
+        db
+    }
+
     fn file_database() -> (tempfile::TempDir, PathBuf, LocalDatabase) {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("guarded.sqlite3");
@@ -4603,12 +4733,258 @@ mod guarded_commit_tests {
     }
 
     #[test]
+    fn activation_and_ordinary_writes_preserve_the_closed_event_universe() {
+        let mut db = LocalDatabase::memory().expect("database");
+        db.apply_schema(schema()).expect("initial activation");
+        let activated = db.authorization_version().expect("activation version");
+        assert_eq!(activated.epoch, 1);
+
+        db.apply_schema(schema())
+            .expect("idempotent schema application");
+        assert_eq!(db.authorization_version().unwrap(), activated);
+
+        let commit = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect("ordinary host-plan commit");
+        let removed_id = commit.changes[0].id.clone();
+        let witness = commit.authorization.expect("postcommit witness");
+        assert!(!witness.event);
+        assert!(!witness.incarnation_rotated);
+        assert_eq!(witness.version, activated);
+
+        let removal = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Delete {
+                    table: "items".to_owned(),
+                    id: removed_id,
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("ordinary result-removing commit");
+        let removal_witness = removal.authorization.unwrap();
+        assert!(!removal_witness.event);
+        assert_eq!(removal_witness.version, activated);
+    }
+
+    #[test]
+    fn permission_field_declarations_are_closed_and_schema_checked() {
+        let mut db = LocalDatabase::memory().expect("database");
+
+        let mut without_backing = schema();
+        without_backing.tables[0].permission_fields = Some(vec!["rank".to_owned()]);
+        let error = db
+            .apply_schema(without_backing)
+            .expect_err("permissionFields requires permissionBacking");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING"
+        );
+
+        let mut unknown = permission_schema(Some(vec!["missing"]));
+        let error = db
+            .apply_schema(unknown.clone())
+            .expect_err("unknown permission field");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN"
+        );
+
+        unknown.tables[0].permission_fields = Some(vec!["rank".to_owned(), "rank".to_owned()]);
+        let error = db
+            .apply_schema(unknown)
+            .expect_err("duplicate permission field");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE"
+        );
+    }
+
+    #[test]
+    fn host_plan_permission_write_advances_once_and_dry_run_rolls_back() {
+        let mut db = permission_database(Some(vec!["rank"]));
+        let baseline = db.authorization_version().unwrap();
+
+        let dry_run = db
+            .dry_run_mutation(&insert_plan(), &HandlerInput::default())
+            .expect("host-plan dry run");
+        assert_eq!(dry_run.commit.authorization, None);
+        assert_eq!(db.authorization_version().unwrap(), baseline);
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 0);
+
+        let commit = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect("host-plan commit");
+        let witness = commit.authorization.expect("postcommit witness");
+        assert!(witness.event);
+        assert_eq!(witness.version.epoch, baseline.epoch + 1);
+        assert_eq!(witness.version, db.authorization_version().unwrap());
+    }
+
+    #[test]
+    fn buffered_ibex_writes_use_permission_field_narrowing() {
+        let mut db = permission_database(Some(vec!["rank"]));
+        let baseline = db.authorization_version().unwrap();
+        let input = HandlerInput::default();
+
+        let inserted = db
+            .commit_buffered_writes(
+                &input,
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "item".to_owned(),
+                    values: Map::from_iter([
+                        ("title".to_owned(), json!("before")),
+                        ("rank".to_owned(), json!(1)),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("buffered insert");
+        let inserted_witness = inserted.authorization.unwrap();
+        assert!(inserted_witness.event);
+        assert_eq!(inserted_witness.version.epoch, baseline.epoch + 1);
+
+        let disjoint = db
+            .commit_buffered_writes(
+                &input,
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "item".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("after"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("known disjoint patch");
+        let disjoint_witness = disjoint.authorization.unwrap();
+        assert!(!disjoint_witness.event);
+        assert_eq!(disjoint_witness.version, inserted_witness.version);
+
+        let permission = db
+            .commit_buffered_writes(
+                &input,
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "item".to_owned(),
+                    values: Map::from_iter([("rank".to_owned(), json!(2))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("permission patch");
+        let permission_witness = permission.authorization.unwrap();
+        assert!(permission_witness.event);
+        assert_eq!(
+            permission_witness.version.epoch,
+            inserted_witness.version.epoch + 1
+        );
+
+        let deleted = db
+            .commit_buffered_writes(
+                &input,
+                vec![BufferedWrite::Delete {
+                    table: "items".to_owned(),
+                    id: "item".to_owned(),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("permission delete");
+        assert!(deleted.authorization.unwrap().event);
+    }
+
+    #[test]
+    fn seed_and_reset_return_exact_transaction_witnesses() {
+        let mut db = permission_database(Some(vec!["rank"]));
+        let baseline = db.authorization_version().unwrap();
+        let seed = db
+            .seed_with_authorization(seed_data("old", "old data"))
+            .expect("permission seed");
+        assert!(seed.authorization.event);
+        assert_eq!(seed.authorization.version.epoch, baseline.epoch + 1);
+        assert_eq!(
+            seed.authorization.version,
+            db.authorization_version().unwrap()
+        );
+
+        let reset = db
+            .reset_and_seed_with_authorization(Some(seed_data("new", "new data")))
+            .expect("reset with seed");
+        assert!(reset.authorization.event);
+        assert!(reset.authorization.incarnation_rotated);
+        assert_eq!(reset.authorization.version.epoch, 0);
+        assert_ne!(
+            reset.authorization.version.incarnation,
+            seed.authorization.version.incarnation
+        );
+        assert_eq!(
+            reset.authorization.version,
+            db.authorization_version().unwrap()
+        );
+
+        let post_reset = db
+            .seed_with_authorization(seed_data("again", "again"))
+            .expect("post-reset permission seed");
+        assert_eq!(post_reset.authorization.version.epoch, baseline.epoch);
+        assert_ne!(
+            post_reset.authorization.version.incarnation, baseline.incarnation,
+            "equal epochs across reset cannot create an ABA witness"
+        );
+    }
+
+    #[test]
+    fn authorization_version_persists_across_ordinary_restart() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("authorization-version.sqlite3");
+        let committed = {
+            let mut db = LocalDatabase::open(&path).expect("database");
+            db.apply_schema(permission_schema(None))
+                .expect("permission schema");
+            db.execute_mutation(&insert_plan(), &HandlerInput::default())
+                .expect("permission commit");
+            db.authorization_version().unwrap()
+        };
+        let reopened = LocalDatabase::open(&path).expect("reopen database");
+        assert_eq!(reopened.authorization_version().unwrap(), committed);
+    }
+
+    #[test]
+    fn epoch_exhaustion_refuses_and_rolls_back_permission_commit() {
+        let mut db = permission_database(None);
+        db.conn
+            .execute(
+                "UPDATE _snapback_meta SET value = ?1 WHERE key = ?2",
+                params![
+                    MAX_AUTHORIZATION_EPOCH.to_string(),
+                    auth_stream::AUTHORIZATION_EPOCH_META_KEY
+                ],
+            )
+            .expect("set maximum epoch");
+        let error = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect_err("nonwrapping epoch must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED"
+        );
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(
+            db.authorization_version().unwrap().epoch,
+            MAX_AUTHORIZATION_EPOCH
+        );
+    }
+
+    #[test]
     fn reset_seed_rolls_back_insert_and_precommit_failures() {
         let mut db = database();
         db.seed(seed_data("old", "old data")).expect("initial seed");
         let predecessor_incarnation = db
             .ensure_authorization_stream_incarnation()
             .expect("initialize authorization stream");
+        let predecessor_version = db.authorization_version().unwrap();
 
         let duplicate_seed = SeedData {
             tables: BTreeMap::from([(
@@ -4637,6 +5013,7 @@ mod guarded_commit_tests {
             db.authorization_stream_incarnation().unwrap(),
             predecessor_incarnation
         );
+        assert_eq!(db.authorization_version().unwrap(), predecessor_version);
 
         BEFORE_RESET_COMMIT_HOOK.with(|slot| {
             *slot.borrow_mut() = Some(Box::new(|| {
@@ -4659,6 +5036,7 @@ mod guarded_commit_tests {
             db.authorization_stream_incarnation().unwrap(),
             predecessor_incarnation
         );
+        assert_eq!(db.authorization_version().unwrap(), predecessor_version);
 
         db.reset_and_seed(Some(seed_data("new", "new data")))
             .expect("successful reset");
@@ -4666,6 +5044,7 @@ mod guarded_commit_tests {
             db.authorization_stream_incarnation().unwrap(),
             predecessor_incarnation
         );
+        assert_eq!(db.authorization_version().unwrap().epoch, 0);
     }
 
     #[test]
@@ -5169,7 +5548,8 @@ mod guarded_commit_tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
         assert_empty(&during_iteration);
 
-        let mut before_commit = database();
+        let mut before_commit = permission_database(None);
+        let authorization_before = before_commit.authorization_version().unwrap();
         let identity = ClientMutationIdentity::new("cm_host_guard", "hostPlan", &input);
         let error = match before_commit.execute_mutation_plan_with_lifecycle(
             &plan,
@@ -5184,6 +5564,10 @@ mod guarded_commit_tests {
         };
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
         assert_empty(&before_commit);
+        assert_eq!(
+            before_commit.authorization_version().unwrap(),
+            authorization_before
+        );
         assert_eq!(
             before_commit
                 .client_mutation_result(&identity)
@@ -5218,7 +5602,8 @@ mod guarded_commit_tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
         assert_empty(&during_iteration);
 
-        let mut before_commit = database();
+        let mut before_commit = permission_database(None);
+        let authorization_before = before_commit.authorization_version().unwrap();
         let identity = ClientMutationIdentity::new("cm_buffer_guard", "ibex", &input);
         let error = before_commit
             .commit_buffered_writes_idempotent_guarded(
@@ -5231,6 +5616,10 @@ mod guarded_commit_tests {
             .expect_err("buffered precommit cancellation must roll back");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
         assert_empty(&before_commit);
+        assert_eq!(
+            before_commit.authorization_version().unwrap(),
+            authorization_before
+        );
         assert_eq!(
             before_commit
                 .client_mutation_result(&identity)

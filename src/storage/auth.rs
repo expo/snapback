@@ -389,6 +389,10 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         activate_auth_catalog_v1_in(&tx)?;
+        super::authorization::authorization_commit_hook_in(
+            &tx,
+            super::authorization::AuthorizationCommitCause::Activation,
+        )?;
         tx.commit()?;
         require_ready_on(&self.conn)
     }
@@ -1511,6 +1515,7 @@ mod tests {
                 Ok(())
             })
             .expect("seed restore rows");
+            let predecessor_version = db.authorization_version().unwrap();
 
             inject_auth_restore_failure_after_step(step);
             let declaration_id = Uuid::now_v7().to_string();
@@ -1541,16 +1546,7 @@ mod tests {
                 .optional()
                 .expect("restore marker query");
             assert_eq!(marker, None);
-            let stream: Option<String> = db
-                .conn
-                .query_row(
-                    "SELECT value FROM _snapback_meta WHERE key = ?1",
-                    params![crate::auth::session_projection::AUTHORIZATION_STREAM_META_KEY],
-                    |row| row.get(0),
-                )
-                .optional()
-                .expect("authorization-stream query");
-            assert_eq!(stream, None);
+            assert_eq!(db.authorization_version().unwrap(), predecessor_version);
         }
     }
 

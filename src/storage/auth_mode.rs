@@ -308,10 +308,17 @@ impl LocalDatabase {
                 let next_version = current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
                     mode_corrupt("app version overflowed while staging auth mode")
                 })?;
-                let changed = seed_into_transaction(&tx, &schema_manifest, seed, next_version)?;
-                if changed > 0 {
+                let changes = seed_into_transaction(&tx, &schema_manifest, seed, next_version)?;
+                if !changes.is_empty() {
                     set_version(&tx, next_version)?;
                 }
+                super::authorization::authorization_commit_hook_in(
+                    &tx,
+                    super::authorization::AuthorizationCommitCause::AppWrites {
+                        schema: &schema_manifest,
+                        changes: &changes,
+                    },
+                )?;
             }
             transaction_step_completed(1)?;
 
@@ -484,6 +491,10 @@ impl LocalDatabase {
         next.validate_shape()?;
         save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
         transaction_step_completed(3)?;
+        super::authorization::authorization_commit_hook_in(
+            &tx,
+            super::authorization::AuthorizationCommitCause::Activation,
+        )?;
         require_managed_snapshot(&tx)?;
         tx.commit()?;
         self.schema = staged.schema_manifest;
@@ -544,6 +555,10 @@ impl LocalDatabase {
         next.validate_shape()?;
         save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
         transaction_step_completed(1)?;
+        super::authorization::authorization_commit_hook_in(
+            &tx,
+            super::authorization::AuthorizationCommitCause::Activation,
+        )?;
         require_managed_snapshot(&tx)?;
         tx.commit()?;
         self.schema = staged.schema_manifest;
@@ -594,6 +609,8 @@ impl LocalDatabase {
                 "same-mode deployment differs from active auth mode",
             ));
         }
+        let activation_changed = current.active_manifest.as_ref() != Some(&manifest)
+            || current.state.active_deployment.as_ref() != Some(&deployment);
         apply_schema_ddl(&tx, &manifest)?;
         if let Some(seed) = seed {
             require_fresh_seed_target(&tx, &current.state)?;
@@ -601,7 +618,7 @@ impl LocalDatabase {
                 .checked_add(1)
                 .ok_or_else(|| mode_corrupt("app version overflowed while seeding deployment"))?;
             let changed = seed_into_transaction(&tx, &manifest, seed, next_version)?;
-            if changed > 0 {
+            if !changed.is_empty() {
                 set_version(&tx, next_version)?;
             }
         }
@@ -613,6 +630,12 @@ impl LocalDatabase {
         };
         next.validate_shape()?;
         save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
+        if activation_changed {
+            super::authorization::authorization_commit_hook_in(
+                &tx,
+                super::authorization::AuthorizationCommitCause::Activation,
+            )?;
+        }
         require_managed_snapshot(&tx)?;
         tx.commit()?;
         self.schema = manifest;
@@ -699,7 +722,7 @@ impl LocalDatabase {
                                 mode_corrupt("app version overflowed while provisioning deployment")
                             })?;
                         let changed = seed_into_transaction(&tx, &manifest, seed, next_version)?;
-                        if changed > 0 {
+                        if !changed.is_empty() {
                             set_version(&tx, next_version)?;
                         }
                         NetworkSeedOutcome::Seeded
@@ -760,9 +783,16 @@ impl LocalDatabase {
         if let Some(identity) = &current.state.active_deployment {
             identity.validate_schema_half(&manifest)?;
         }
+        let activation_changed = current.active_manifest.as_ref() != Some(&manifest);
         apply_schema_ddl(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
+        if activation_changed {
+            super::authorization::authorization_commit_hook_in(
+                &tx,
+                super::authorization::AuthorizationCommitCause::Activation,
+            )?;
+        }
         require_managed_snapshot(&tx)?;
         tx.commit()?;
         self.schema = manifest;

@@ -61,6 +61,31 @@ export default defineSchema({ todos: defineTable({ title: v.string() }).index('b
   assert(diagnostics.some((d) => d.code === 'SCHEMA_INVALID_IDENTIFIER' && d.index === 'bad-name'));
 }
 
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ todos: defineTable({ title: v.string() }).permissionBacking(['missing', 'missing']) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'SCHEMA_PERMISSION_FIELD_UNKNOWN' && d.field === 'missing'));
+  assert(diagnostics.some((d) => d.code === 'SCHEMA_PERMISSION_FIELD_DUPLICATE' && d.field === 'missing'));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+const todos = defineTable({ title: v.string() });
+todos.permissionFields = ['title'];
+export default defineSchema({ todos });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING'));
+}
+
 // LLP 0054 reservation is ASCII-case-insensitive at both codegen scopes.
 for (const table of ['_auth', '_auth_users', '_AUTH_USERS', '_AuTh_Users']) {
   const diagnostics = await invalidCase({

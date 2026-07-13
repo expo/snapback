@@ -2973,9 +2973,13 @@ impl LocalSnapback {
                 changes: Vec::new(),
                 read_dependencies: Vec::new(),
                 write_dependencies: Vec::new(),
+                authorization: None,
             });
         }
-        // Permission-epoch scopes are evaluated BEFORE the mutation executes
+        // Legacy function-declared permission-epoch scopes are evaluated
+        // BEFORE the mutation executes. This compatibility resync map is not
+        // LLP 0053's durable global AuthorizationVersion, which advances in
+        // the storage transaction hook.
         // (ENG-23329): scope evaluation can fail (missing auth user, missing
         // arg, empty scope), and an error raised after `tx.commit()` would
         // report a durably-committed mutation as rejected and skip the live

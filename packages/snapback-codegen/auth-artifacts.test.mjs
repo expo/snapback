@@ -26,7 +26,7 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-const tables = `todos: defineTable({ title: v.string() }).index('by_title', ['title']).sync()`;
+const tables = `todos: defineTable({ title: v.string() }).index('by_title', ['title']).sync().permissionBacking(['title'])`;
 const devSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ ${tables} });
@@ -113,6 +113,8 @@ assert.throws(
 
   assert.equal(schema.schemaVersion, 'snapback.v1');
   assert.deepEqual(schema.auth, { mode: 'sessions' });
+  assert.equal(schema.tables[0].permissionBacking, true);
+  assert.deepEqual(schema.tables[0].permissionFields, ['title']);
   assert(schema.requiredCapabilities.includes('auth.sessions.v1'));
   assert.equal(functions.schemaVersion, 'snapback.v1');
   assert.equal(schema.inputsHash, functions.inputsHash);

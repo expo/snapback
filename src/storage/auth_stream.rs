@@ -5,8 +5,8 @@
 //! startup calls the migration before bind, then sessions startup obtains one
 //! complete read transaction through `session_projection_source`.
 
-use super::LocalDatabase;
 use super::auth::{AuthCatalogState, inspect_auth_catalog_on};
+use super::{AuthorizationVersion, LocalDatabase};
 use crate::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamIncarnation, AuthorizationStreamRecord,
     ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
@@ -14,6 +14,8 @@ use crate::auth::session_projection::{
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+
+pub(crate) const AUTHORIZATION_EPOCH_META_KEY: &str = "authorization_epoch_v1";
 
 impl LocalDatabase {
     /// Create a missing format-1 record in one explicit migration transaction,
@@ -28,16 +30,9 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let incarnation = match read_authorization_stream_record_on(&tx)? {
-            Some(record) => record.incarnation(),
-            None => {
-                let incarnation = AuthorizationStreamIncarnation::fresh();
-                write_authorization_stream_incarnation_in(&tx, &incarnation)?;
-                incarnation
-            }
-        };
+        let version = ensure_authorization_version_in(&tx)?;
         tx.commit()?;
-        Ok(incarnation)
+        AuthorizationStreamIncarnation::parse(&version.incarnation)
     }
 
     pub(crate) fn authorization_stream_incarnation(
@@ -46,6 +41,17 @@ impl LocalDatabase {
         read_authorization_stream_record_on(&self.conn)?
             .map(|record| record.incarnation())
             .ok_or_else(|| stream_corrupt("authorization-stream metadata is missing"))
+    }
+
+    /// Read the complete durable authorization witness. Missing or partial
+    /// state is never interpreted as continuity.
+    pub fn authorization_version(&self) -> SnapbackResult<AuthorizationVersion> {
+        let tx = self.conn.unchecked_transaction()?;
+        let version = read_authorization_version_on(&tx)?.ok_or_else(|| {
+            authorization_version_corrupt("authorization-version metadata is missing")
+        })?;
+        tx.commit()?;
+        Ok(version)
     }
 
     /// Copy all projection inputs under one deferred read transaction. The
@@ -171,8 +177,54 @@ impl LocalDatabase {
     }
 }
 
-/// Rotate inside the caller's destructive transaction. The caller decides
-/// publication only after its commit is known successful.
+/// Create or migrate the exact pair inside a caller-owned transaction.
+pub(super) fn ensure_authorization_version_in(
+    tx: &Transaction<'_>,
+) -> SnapbackResult<AuthorizationVersion> {
+    let stream = read_authorization_stream_record_on(tx)?;
+    let epoch = read_authorization_epoch_on(tx)?;
+    match (stream, epoch) {
+        (Some(stream), Some(epoch)) => Ok(AuthorizationVersion {
+            incarnation: stream.incarnation().as_str().to_owned(),
+            epoch,
+        }),
+        (Some(stream), None) => {
+            write_authorization_epoch_in(tx, 0)?;
+            Ok(AuthorizationVersion {
+                incarnation: stream.incarnation().as_str().to_owned(),
+                epoch: 0,
+            })
+        }
+        (None, None) => {
+            let incarnation = AuthorizationStreamIncarnation::fresh();
+            write_authorization_stream_incarnation_in(tx, &incarnation)?;
+            write_authorization_epoch_in(tx, 0)?;
+            Ok(AuthorizationVersion {
+                incarnation: incarnation.as_str().to_owned(),
+                epoch: 0,
+            })
+        }
+        (None, Some(_)) => Err(authorization_version_corrupt(
+            "authorization epoch exists without its stream incarnation",
+        )),
+    }
+}
+
+pub(super) fn advance_authorization_epoch_in(
+    tx: &Transaction<'_>,
+) -> SnapbackResult<AuthorizationVersion> {
+    let mut version = ensure_authorization_version_in(tx)?;
+    version.epoch = version
+        .epoch
+        .checked_add(1)
+        .filter(|epoch| *epoch <= super::MAX_AUTHORIZATION_EPOCH)
+        .ok_or_else(super::authorization::epoch_exhausted)?;
+    write_authorization_epoch_in(tx, version.epoch)?;
+    Ok(version)
+}
+
+/// Rotate inside the caller's destructive transaction and reset the epoch.
+/// The caller decides publication only after its commit is known successful.
 ///
 /// @ref LLP 0056#reset-restore-and-stream-publication — reset/restore writes
 /// the successor incarnation in the same transaction as destructive state.
@@ -181,7 +233,19 @@ pub(super) fn rotate_authorization_stream_incarnation_in(
     incarnation: &AuthorizationStreamIncarnation,
 ) -> SnapbackResult<AuthorizationStreamIncarnation> {
     write_authorization_stream_incarnation_in(tx, incarnation)?;
+    write_authorization_epoch_in(tx, 0)?;
     Ok(incarnation.clone())
+}
+
+pub(super) fn rotate_authorization_version_in(
+    tx: &Transaction<'_>,
+) -> SnapbackResult<AuthorizationVersion> {
+    let incarnation = AuthorizationStreamIncarnation::fresh();
+    rotate_authorization_stream_incarnation_in(tx, &incarnation)?;
+    Ok(AuthorizationVersion {
+        incarnation: incarnation.as_str().to_owned(),
+        epoch: 0,
+    })
 }
 
 pub(super) fn write_authorization_stream_incarnation_in(
@@ -209,6 +273,58 @@ fn read_authorization_stream_record_on(
     .transpose()
 }
 
+fn read_authorization_version_on(
+    conn: &Connection,
+) -> SnapbackResult<Option<AuthorizationVersion>> {
+    let stream = read_authorization_stream_record_on(conn)?;
+    let epoch = read_authorization_epoch_on(conn)?;
+    match (stream, epoch) {
+        (None, None) => Ok(None),
+        (Some(stream), Some(epoch)) => Ok(Some(AuthorizationVersion {
+            incarnation: stream.incarnation().as_str().to_owned(),
+            epoch,
+        })),
+        _ => Err(authorization_version_corrupt(
+            "authorization-version metadata is partial",
+        )),
+    }
+}
+
+fn read_authorization_epoch_on(conn: &Connection) -> SnapbackResult<Option<u64>> {
+    let Some(bytes) = raw_text_meta_on(
+        conn,
+        AUTHORIZATION_EPOCH_META_KEY,
+        "authorization epoch metadata",
+    )?
+    else {
+        return Ok(None);
+    };
+    let raw = std::str::from_utf8(&bytes).map_err(|_| {
+        authorization_version_corrupt("authorization epoch is not UTF-8 decimal text")
+    })?;
+    let epoch = raw.parse::<u64>().map_err(|_| {
+        authorization_version_corrupt("authorization epoch is not canonical decimal text")
+    })?;
+    if epoch.to_string() != raw || epoch > super::MAX_AUTHORIZATION_EPOCH {
+        return Err(authorization_version_corrupt(
+            "authorization epoch is outside canonical JavaScript-safe decimal form",
+        ));
+    }
+    Ok(Some(epoch))
+}
+
+fn write_authorization_epoch_in(tx: &Transaction<'_>, epoch: u64) -> SnapbackResult<()> {
+    if epoch > super::MAX_AUTHORIZATION_EPOCH {
+        return Err(super::authorization::epoch_exhausted());
+    }
+    tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![AUTHORIZATION_EPOCH_META_KEY, epoch.to_string()],
+    )?;
+    Ok(())
+}
+
 fn raw_text_meta_on(conn: &Connection, key: &str, label: &str) -> SnapbackResult<Option<Vec<u8>>> {
     let value: Option<(String, Vec<u8>)> = conn
         .query_row(
@@ -222,6 +338,8 @@ fn raw_text_meta_on(conn: &Connection, key: &str, label: &str) -> SnapbackResult
         Some((storage_class, bytes)) if storage_class == "text" => Ok(Some(bytes)),
         Some(_) => Err(if key == AUTHORIZATION_STREAM_META_KEY {
             stream_corrupt(&format!("{label} is not stored as SQLite text"))
+        } else if key == AUTHORIZATION_EPOCH_META_KEY {
+            authorization_version_corrupt(&format!("{label} is not stored as SQLite text"))
         } else {
             projection_corrupt(&format!("{label} is not stored as SQLite text"))
         }),
@@ -231,6 +349,10 @@ fn raw_text_meta_on(conn: &Connection, key: &str, label: &str) -> SnapbackResult
 
 fn stream_corrupt(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT", "auth", message)
+}
+
+fn authorization_version_corrupt(message: &str) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTHORIZATION_VERSION_CORRUPT", "auth", message)
 }
 
 fn projection_corrupt(message: &str) -> SnapbackError {
@@ -270,11 +392,91 @@ mod tests {
                 incarnation.as_str()
             )
         );
+        let epoch: String = database
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![AUTHORIZATION_EPOCH_META_KEY],
+                |row| row.get(0),
+            )
+            .expect("stored epoch");
+        assert_eq!(epoch, "0");
+        assert_eq!(
+            database.authorization_version().unwrap(),
+            AuthorizationVersion {
+                incarnation: incarnation.as_str().to_owned(),
+                epoch: 0,
+            }
+        );
         assert_eq!(
             database
                 .ensure_authorization_stream_incarnation()
                 .expect("idempotent migration"),
             incarnation
+        );
+    }
+
+    #[test]
+    fn migration_adds_epoch_to_an_existing_item5_stream_without_rotating() {
+        let mut database = LocalDatabase::memory().expect("database");
+        let incarnation = AuthorizationStreamIncarnation::fresh();
+        let tx = database.conn.transaction().unwrap();
+        write_authorization_stream_incarnation_in(&tx, &incarnation).unwrap();
+        tx.commit().unwrap();
+
+        assert_eq!(
+            database
+                .ensure_authorization_stream_incarnation()
+                .expect("migrate stream-only record"),
+            incarnation
+        );
+        assert_eq!(
+            database.authorization_version().unwrap(),
+            AuthorizationVersion {
+                incarnation: incarnation.as_str().to_owned(),
+                epoch: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn epoch_is_canonical_js_safe_text_and_partial_state_fails_closed() {
+        for malformed in ["00", "+1", "9007199254740992", "-1", "1.0"] {
+            let mut database = LocalDatabase::memory().expect("database");
+            let incarnation = AuthorizationStreamIncarnation::fresh();
+            // Use one explicit transaction so the stream and malformed epoch
+            // are both durably visible to the reader.
+            let tx = database.conn.transaction().unwrap();
+            write_authorization_stream_incarnation_in(&tx, &incarnation).unwrap();
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+                params![AUTHORIZATION_EPOCH_META_KEY, malformed],
+            )
+            .unwrap();
+            tx.commit().unwrap();
+            let error = database
+                .authorization_version()
+                .expect_err("malformed epoch must fail closed");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT"
+            );
+        }
+
+        let mut database = LocalDatabase::memory().expect("database");
+        database
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, '1')",
+                params![AUTHORIZATION_EPOCH_META_KEY],
+            )
+            .unwrap();
+        let error = database
+            .ensure_authorization_stream_incarnation()
+            .expect_err("epoch without incarnation must fail closed");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT"
         );
     }
 
