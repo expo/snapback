@@ -183,6 +183,73 @@ fn encode_component(value: &str) -> String {
     format!("{}:{value}", value.len())
 }
 
+fn retained_string_bytes(value: &str) -> usize {
+    STRING_ALLOCATION_OVERHEAD.saturating_add(value.len())
+}
+
+fn retained_scope_bytes(scope: &Scope) -> usize {
+    scope
+        .0
+        .iter()
+        .fold(MAP_ENTRY_OVERHEAD, |total, (key, value)| {
+            total
+                .saturating_add(MAP_ENTRY_OVERHEAD)
+                .saturating_add(retained_string_bytes(key))
+                .saturating_add(retained_string_bytes(value))
+        })
+}
+
+fn retained_owner_bytes(owner: &EntryOwner) -> usize {
+    let value = match owner {
+        EntryOwner::Connection(value)
+        | EntryOwner::Session(value)
+        | EntryOwner::User(value)
+        | EntryOwner::Custom(value) => value,
+    };
+    retained_string_bytes(value).saturating_add(std::mem::size_of::<EntryOwner>())
+}
+
+fn retained_room_identity_bytes(room: &RoomId) -> usize {
+    ROOM_STATE_OVERHEAD.saturating_add(retained_room_id_bytes(room))
+}
+
+fn retained_room_id_bytes(room: &RoomId) -> usize {
+    std::mem::size_of::<RoomId>()
+        .saturating_add(retained_string_bytes(&room.collection))
+        .saturating_add(retained_scope_bytes(&room.scope))
+        .saturating_add(retained_string_bytes(&room.routing_key))
+}
+
+fn retained_entry_bytes(key: &EntryKey, owner: &EntryOwner, value_bytes: usize) -> usize {
+    ENTRY_RECORD_OVERHEAD
+        .saturating_add(MAP_ENTRY_OVERHEAD)
+        .saturating_add(retained_string_bytes(&key.0))
+        .saturating_add(retained_owner_bytes(owner))
+        .saturating_add(value_bytes)
+}
+
+fn retained_subscriber_bytes(connection_id: &str) -> usize {
+    SUBSCRIBER_RECORD_OVERHEAD
+        .saturating_add(MAP_ENTRY_OVERHEAD)
+        .saturating_add(retained_string_bytes(connection_id))
+}
+
+fn retained_connection_room_edge_bytes(connection_id: &str, room: &RoomId) -> usize {
+    // Charge the outer connection-map key and set allocation to every edge.
+    // That deliberately overcounts connections spanning several rooms, while
+    // ensuring the per-room budget covers the complete cloned reverse edge.
+    2_usize
+        .saturating_mul(MAP_ENTRY_OVERHEAD)
+        .saturating_add(retained_string_bytes(connection_id))
+        .saturating_add(retained_room_id_bytes(room))
+}
+
+fn retained_expiry_index_entry_bytes(room: &RoomId) -> usize {
+    MAP_ENTRY_OVERHEAD
+        .saturating_add(std::mem::size_of::<Millis>())
+        .saturating_add(retained_room_id_bytes(room))
+}
+
 #[derive(
     Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, schemars::JsonSchema,
 )]
@@ -322,6 +389,19 @@ fn default_max_pending_ephemeral_keys() -> usize {
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
 const MAX_OUTBOX_BACKLOG: usize = 1_024;
 
+/// A sticky overflow may need one room-scoped resync for every room whose
+/// latest-state lane was discarded. Keep that recovery ledger independently
+/// bounded: it may be larger than an ordinary lane, but never grows with
+/// lifetime room churn while a peer refuses to drain.
+const MAX_OUTBOX_OVERFLOW_RESYNCS: usize = 4_096;
+
+/// Hard retained-allocation ceiling for one connection outbox. This covers
+/// durable payload buffers, resync messages, coalescing-map keys, and the
+/// ephemeral message allocations themselves. The byte ceiling is shared by
+/// all lanes, so three individually item-bounded lanes cannot combine into an
+/// unbounded queue.
+const MAX_OUTBOX_RETAINED_BYTES: usize = 64 * 1_024 * 1_024;
+
 /// Client overlays retain at most one delete version per possible live room
 /// entry. Together with the authoritative snapshot high-water this is enough
 /// to reject a delayed pre-delete upsert without turning ephemeral state into
@@ -331,6 +411,32 @@ const MAX_OVERLAY_TOMBSTONES: usize = 1_024;
 /// The local adapter's paved-path TTL ceiling from LLP 0013. Definition
 /// validation enforces it before replacing live collection state.
 const LOCAL_HARD_MAX_TTL_MS: Millis = 30_000;
+
+// Retained ephemeral metadata is bounded independently of value payloads.
+// Otherwise a 1-byte cursor with a multi-megabyte scope/key/identity can
+// bypass every value-byte and entry-count budget while being copied into room
+// ids, maps, owners, reverse indexes, and fan-out envelopes.
+pub const MAX_EPHEMERAL_SCOPE_FIELDS: usize = 16;
+pub const MAX_EPHEMERAL_COLLECTION_NAME_BYTES: usize = 64;
+pub const MAX_EPHEMERAL_SCOPE_KEY_BYTES: usize = 64;
+pub const MAX_EPHEMERAL_SCOPE_VALUE_BYTES: usize = 512;
+pub const MAX_EPHEMERAL_SCOPE_BYTES: usize = 4 * 1_024;
+pub const MAX_EPHEMERAL_IDENTITY_BYTES: usize = 256;
+pub const MAX_EPHEMERAL_CONNECTION_ID_BYTES: usize = 256;
+pub const MAX_EPHEMERAL_CUSTOM_KEY_BYTES: usize = 256;
+pub const MAX_EPHEMERAL_PERMISSIONS: usize = 128;
+pub const MAX_EPHEMERAL_PERMISSION_BYTES: usize = 1_024;
+pub const MAX_EPHEMERAL_AUTH_BYTES: usize = 16 * 1_024;
+
+const STRING_ALLOCATION_OVERHEAD: usize = 24;
+const MAP_ENTRY_OVERHEAD: usize = 48;
+const ROOM_STATE_OVERHEAD: usize = 256;
+const ENTRY_RECORD_OVERHEAD: usize = 128;
+const SUBSCRIBER_RECORD_OVERHEAD: usize = 64;
+// Covers VecDeque spare slots / BTree node layout in addition to each item's
+// direct allocation. The deques shrink at destructive boundaries so an empty
+// queue never hides a formerly-large backing allocation from the byte ledger.
+const QUEUE_ITEM_OVERHEAD: usize = 128;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct PublishRequest {
@@ -382,6 +488,7 @@ pub enum EphemeralErrorCode {
     MissingOwner,
     InvalidTtl,
     ValueTooLarge,
+    MetadataTooLarge,
     RateLimited,
     IncompatibleCollectionDefinition,
     /// A hard room/store limit (active rooms, entries per room, subscribers
@@ -403,6 +510,7 @@ impl EphemeralErrorCode {
             Self::MissingOwner => "SNAPBACK_EPHEMERAL_MISSING_OWNER",
             Self::InvalidTtl => "SNAPBACK_EPHEMERAL_INVALID_TTL",
             Self::ValueTooLarge => "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
+            Self::MetadataTooLarge => "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
             Self::RateLimited => "SNAPBACK_EPHEMERAL_RATE_LIMITED",
             Self::IncompatibleCollectionDefinition => {
                 "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
@@ -554,6 +662,56 @@ pub struct DurableMessage {
     pub payload: Vec<u8>,
 }
 
+fn retained_ephemeral_entry_message_bytes(entry: &EphemeralEntry) -> usize {
+    std::mem::size_of::<EphemeralEntry>()
+        .saturating_add(retained_string_bytes(&entry.key.0))
+        .saturating_add(entry.value.capacity())
+}
+
+fn retained_ephemeral_message_bytes(message: &EphemeralMessage) -> usize {
+    let body = match message {
+        EphemeralMessage::Snapshot { room, entries, .. } => entries.iter().fold(
+            retained_room_id_bytes(room).saturating_add(
+                std::mem::size_of::<EphemeralEntry>().saturating_mul(entries.capacity()),
+            ),
+            |total, entry| total.saturating_add(retained_ephemeral_entry_message_bytes(entry)),
+        ),
+        EphemeralMessage::Upsert { room, entry } => retained_room_id_bytes(room)
+            .saturating_add(retained_ephemeral_entry_message_bytes(entry)),
+        EphemeralMessage::Remove { room, key, .. } => {
+            retained_room_id_bytes(room).saturating_add(retained_string_bytes(&key.0))
+        }
+        EphemeralMessage::ResyncRequired { room, .. } => retained_room_id_bytes(room),
+        EphemeralMessage::Error { room, error } => room
+            .as_ref()
+            .map_or(0, retained_room_id_bytes)
+            .saturating_add(retained_string_bytes(&error.message)),
+    };
+    std::mem::size_of::<EphemeralMessage>()
+        .saturating_add(std::mem::size_of::<Arc<EphemeralMessage>>())
+        .saturating_add(body)
+}
+
+fn retained_durable_queue_item_bytes(message: &DurableMessage) -> usize {
+    QUEUE_ITEM_OVERHEAD
+        .saturating_add(std::mem::size_of::<DurableMessage>())
+        .saturating_add(message.payload.capacity())
+}
+
+fn retained_resync_queue_item_bytes(message: &EphemeralMessage) -> usize {
+    QUEUE_ITEM_OVERHEAD.saturating_add(retained_ephemeral_message_bytes(message))
+}
+
+fn retained_ephemeral_queue_item_bytes(
+    key: &(RoomId, EntryKey),
+    message: &EphemeralMessage,
+) -> usize {
+    MAP_ENTRY_OVERHEAD
+        .saturating_add(retained_room_id_bytes(&key.0))
+        .saturating_add(retained_string_bytes(&key.1.0))
+        .saturating_add(retained_ephemeral_message_bytes(message))
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CollectionEnsureOutcome {
     pub collection_count: usize,
@@ -589,6 +747,10 @@ pub struct EphemeralDiagnostics {
     pub entry_count: usize,
     pub subscriber_count: usize,
     pub value_bytes: usize,
+    /// All retained room/index allocations plus queued delivery allocations.
+    pub retained_bytes: usize,
+    /// The queued-delivery portion of `retained_bytes`.
+    pub outbox_retained_bytes: usize,
     pub active_rooms: Vec<EphemeralRoomDiagnostics>,
     pub pending_ephemeral_keys: usize,
     pub pending_durable_messages: usize,
@@ -597,6 +759,9 @@ pub struct EphemeralDiagnostics {
     pub rate_limited_publishes: u64,
     pub oversized_publishes: u64,
     pub unauthorized_requests: u64,
+    /// Publish/delete/subscribe/unsubscribe requests rejected by the common
+    /// metadata byte/cardinality bounds before they could allocate room state.
+    pub metadata_rejections: u64,
     pub expired_entries: u64,
     pub disconnected_entries: u64,
     pub coalesced_updates: u64,
@@ -622,6 +787,7 @@ pub struct EphemeralRoomDiagnostics {
     pub entries: usize,
     pub subscribers: usize,
     pub value_bytes: usize,
+    pub retained_bytes: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -632,7 +798,7 @@ struct EntryRecord {
     expires_at_ms: Millis,
     scope_epoch: u64,
     entry_version: u64,
-    serialized_bytes: usize,
+    retained_bytes: usize,
 }
 
 impl EntryRecord {
@@ -660,13 +826,18 @@ struct RoomState {
     entries: BTreeMap<EntryKey, EntryRecord>,
     owner_connections: BTreeMap<EntryOwner, BTreeSet<ConnectionId>>,
     subscribers: BTreeMap<ConnectionId, SubscriberState>,
+    owner_connection_count: usize,
     /// Exact per-room expiry counts. `indexed_deadline` is allowed to be a
     /// stale lower bound so the global cleanup index can wake early; this map
     /// is the room-local truth used to skip no-op hot-path sweeps.
     expiry_counts: BTreeMap<Millis, usize>,
-    /// Running aggregate of stored value bytes, for the room byte limit and
-    /// diagnostics; maintained on every insert/replace/remove.
+    /// Running payload-only bytes for diagnostics.
     value_bytes: usize,
+    /// Conservative accounting for every retained room allocation: room/scope
+    /// identity, entry key/owner/value records, owner-connection edges, and
+    /// subscriber identities. `max_room_value_bytes` historically named this
+    /// limit; admission now applies it to the complete retained footprint.
+    retained_bytes: usize,
     /// This room's entry in the store's expiry index — a lower bound on the
     /// room's earliest entry expiry, or `None` when the room is unindexed.
     ///
@@ -685,15 +856,17 @@ impl RoomState {
     /// stale-compared against entries from an earlier incarnation.
     ///
     /// @ref LLP 0013#stored-entry-shape — epoch change signals lost sequencing continuity.
-    fn new(scope_epoch: u64) -> Self {
+    fn new(scope_epoch: u64, retained_bytes: usize) -> Self {
         Self {
             scope_epoch,
             next_entry_version: 1,
             entries: BTreeMap::new(),
             owner_connections: BTreeMap::new(),
             subscribers: BTreeMap::new(),
+            owner_connection_count: 0,
             expiry_counts: BTreeMap::new(),
             value_bytes: 0,
+            retained_bytes,
             indexed_deadline: None,
             retired: false,
         }
@@ -705,11 +878,35 @@ impl RoomState {
         version
     }
 
+    fn owner_connection_additional_bytes(&self, owner: &EntryOwner, connection_id: &str) -> usize {
+        match self.owner_connections.get(owner) {
+            Some(connections) if connections.contains(connection_id) => 0,
+            Some(_) => retained_string_bytes(connection_id) + MAP_ENTRY_OVERHEAD,
+            None => {
+                retained_owner_bytes(owner)
+                    + retained_string_bytes(connection_id)
+                    + 2 * MAP_ENTRY_OVERHEAD
+            }
+        }
+    }
+
+    fn uses_connection(&self, connection_id: &str) -> bool {
+        self.subscribers.contains_key(connection_id)
+            || self
+                .owner_connections
+                .values()
+                .any(|connections| connections.contains(connection_id))
+    }
+
     fn remember_owner_connection(&mut self, owner: &EntryOwner, connection_id: &str) {
-        self.owner_connections
+        if self
+            .owner_connections
             .entry(owner.clone())
             .or_default()
-            .insert(connection_id.to_owned());
+            .insert(connection_id.to_owned())
+        {
+            self.owner_connection_count += 1;
+        }
     }
 }
 
@@ -748,6 +945,9 @@ struct OutboundQueue {
     durable: VecDeque<DurableMessage>,
     resync: VecDeque<Arc<EphemeralMessage>>,
     ephemeral: BTreeMap<(RoomId, EntryKey), Arc<EphemeralMessage>>,
+    durable_bytes: usize,
+    resync_bytes: usize,
+    ephemeral_bytes: usize,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1: the durable
     // and resync lanes are bounded like the ephemeral map. A subscriber that
     // never drains cannot accumulate unbounded query-result payloads; a lane at
@@ -775,8 +975,24 @@ impl OutboundQueue {
             durable: VecDeque::new(),
             resync: VecDeque::new(),
             ephemeral: BTreeMap::new(),
+            durable_bytes: 0,
+            resync_bytes: 0,
+            ephemeral_bytes: 0,
             overflowed: false,
         }
+    }
+
+    fn retained_bytes(&self) -> usize {
+        self.durable_bytes
+            .saturating_add(self.resync_bytes)
+            .saturating_add(self.ephemeral_bytes)
+    }
+
+    fn fits_bytes(&self, removed: usize, added: usize) -> bool {
+        self.retained_bytes()
+            .saturating_sub(removed)
+            .saturating_add(added)
+            <= MAX_OUTBOX_RETAINED_BYTES
     }
 
     /// Convert the queue to a single durable resync signal: the connection is
@@ -797,12 +1013,17 @@ impl OutboundQueue {
             resync_epochs.insert(room, scope_epoch);
         }
         self.durable.clear();
+        self.durable.shrink_to_fit();
         self.resync.clear();
+        self.resync.shrink_to_fit();
         self.ephemeral.clear();
+        self.durable_bytes = 0;
+        self.resync_bytes = 0;
+        self.ephemeral_bytes = 0;
         // Typed since ENG-23891 (LLP 0051 D4). Wire note: the pre-typed frame
         // spelled this field `clearRetained`; the typed envelope unified it to
         // the durable lane's `clear_retained` (no shipped client read it).
-        self.durable.push_back(DurableMessage {
+        let sentinel = DurableMessage {
             payload: serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
                 reason: "outbox_overflow".to_owned(),
                 subscription_id: None,
@@ -811,16 +1032,13 @@ impl OutboundQueue {
                 clear_retained: true,
             })
             .unwrap_or_default(),
-        });
+        };
+        self.durable_bytes = retained_durable_queue_item_bytes(&sentinel);
+        self.durable.push_back(sentinel);
         self.overflowed = true;
-        let resync_count = resync_epochs.len();
+        let mut resync_count = 0;
         for (room, scope_epoch) in resync_epochs {
-            self.resync
-                .push_back(Arc::new(EphemeralMessage::ResyncRequired {
-                    room,
-                    scope_epoch,
-                    reason: ResyncReason::QueueOverflow,
-                }));
+            resync_count += self.record_overflow_resync_for_room(room, scope_epoch);
         }
         QueueOverflow {
             overflowed: true,
@@ -837,7 +1055,8 @@ impl OutboundQueue {
                 ..QueuePush::default()
             };
         }
-        if self.resync.len() >= MAX_OUTBOX_BACKLOG {
+        let retained_bytes = retained_resync_queue_item_bytes(message.as_ref());
+        if self.resync.len() >= MAX_OUTBOX_BACKLOG || !self.fits_bytes(0, retained_bytes) {
             let overflow = self.overflow(Some(message.as_ref()));
             return QueuePush {
                 resync_count: overflow.resync_count,
@@ -845,8 +1064,12 @@ impl OutboundQueue {
                 ..QueuePush::default()
             };
         }
+        self.resync_bytes = self.resync_bytes.saturating_add(retained_bytes);
         self.resync.push_back(message);
-        QueuePush::default()
+        QueuePush {
+            resync_count: 1,
+            ..QueuePush::default()
+        }
     }
 
     fn push_ephemeral(
@@ -883,24 +1106,46 @@ impl OutboundQueue {
                 .collect::<BTreeMap<_, _>>();
             resync_epochs.insert(key.0.clone(), message.scope_epoch().unwrap_or_default());
             self.ephemeral.clear();
+            self.ephemeral_bytes = 0;
 
-            let resync_count = resync_epochs.len();
+            let mut resync_count: usize = 0;
+            let mut overflowed = false;
             for (room, scope_epoch) in resync_epochs {
-                self.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
+                let result = self.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
                     room,
                     scope_epoch,
                     reason: ResyncReason::QueueOverflow,
                 }));
+                resync_count = resync_count.saturating_add(result.resync_count);
+                overflowed |= result.overflowed;
             }
             return QueuePush {
                 coalesced: false,
                 resync_count,
-                overflowed: self.overflowed,
+                overflowed,
             };
         }
 
+        let retained_bytes = retained_ephemeral_queue_item_bytes(&key, message.as_ref());
+        let replaced_bytes = self.ephemeral.get(&key).map_or(0, |previous| {
+            retained_ephemeral_queue_item_bytes(&key, previous)
+        });
+        if !self.fits_bytes(replaced_bytes, retained_bytes) {
+            let overflow = self.overflow(Some(message.as_ref()));
+            return QueuePush {
+                resync_count: overflow.resync_count,
+                overflowed: overflow.overflowed,
+                ..QueuePush::default()
+            };
+        }
+
+        let coalesced = self.ephemeral.insert(key, message).is_some();
+        self.ephemeral_bytes = self
+            .ephemeral_bytes
+            .saturating_sub(replaced_bytes)
+            .saturating_add(retained_bytes);
         QueuePush {
-            coalesced: self.ephemeral.insert(key, message).is_some(),
+            coalesced,
             resync_count: 0,
             overflowed: false,
         }
@@ -914,9 +1159,11 @@ impl OutboundQueue {
         if self.overflowed {
             return QueueOverflow::default();
         }
-        if self.durable.len() >= MAX_OUTBOX_BACKLOG {
+        let retained_bytes = retained_durable_queue_item_bytes(&message);
+        if self.durable.len() >= MAX_OUTBOX_BACKLOG || !self.fits_bytes(0, retained_bytes) {
             return self.overflow(None);
         }
+        self.durable_bytes = self.durable_bytes.saturating_add(retained_bytes);
         self.durable.push_back(message);
         QueueOverflow::default()
     }
@@ -933,7 +1180,10 @@ impl OutboundQueue {
     /// @ref LLP 0008#realtime-delivery — never a silent drop.
     fn clear_ephemeral_lanes(&mut self) {
         self.resync.clear();
+        self.resync.shrink_to_fit();
         self.ephemeral.clear();
+        self.resync_bytes = 0;
+        self.ephemeral_bytes = 0;
     }
 
     fn drain(&mut self) -> Vec<RealtimeEnvelope> {
@@ -959,6 +1209,11 @@ impl OutboundQueue {
         for message in ephemeral {
             messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
         }
+        self.durable.shrink_to_fit();
+        self.resync.shrink_to_fit();
+        self.durable_bytes = 0;
+        self.resync_bytes = 0;
+        self.ephemeral_bytes = 0;
         // Drained: the queue can accept fresh state again.
         self.overflowed = false;
         messages
@@ -976,6 +1231,10 @@ impl OutboundQueue {
         let Some((room, scope_epoch)) = message.resync_room_epoch() else {
             return 0;
         };
+        self.record_overflow_resync_for_room(room, scope_epoch)
+    }
+
+    fn record_overflow_resync_for_room(&mut self, room: RoomId, scope_epoch: u64) -> usize {
         let already_queued = self.resync.iter().any(|pending| {
             matches!(
                 pending.as_ref(),
@@ -988,12 +1247,17 @@ impl OutboundQueue {
         if already_queued {
             return 0;
         }
-        self.resync
-            .push_back(Arc::new(EphemeralMessage::ResyncRequired {
-                room,
-                scope_epoch,
-                reason: ResyncReason::QueueOverflow,
-            }));
+        let message = Arc::new(EphemeralMessage::ResyncRequired {
+            room,
+            scope_epoch,
+            reason: ResyncReason::QueueOverflow,
+        });
+        let retained_bytes = retained_resync_queue_item_bytes(message.as_ref());
+        if self.resync.len() >= MAX_OUTBOX_OVERFLOW_RESYNCS || !self.fits_bytes(0, retained_bytes) {
+            return 0;
+        }
+        self.resync_bytes = self.resync_bytes.saturating_add(retained_bytes);
+        self.resync.push_back(message);
         1
     }
 }
@@ -1011,7 +1275,7 @@ pub struct EphemeralStoreLimits {
     pub max_entries_per_room: usize,
     /// Maximum registered subscribers per room.
     pub max_subscribers_per_room: usize,
-    /// Maximum aggregate stored value bytes per room.
+    /// Maximum conservatively accounted retained allocations per room.
     pub max_room_value_bytes: usize,
 }
 
@@ -1035,6 +1299,7 @@ struct EventCounters {
     rate_limited_publishes: AtomicU64,
     oversized_publishes: AtomicU64,
     unauthorized_requests: AtomicU64,
+    metadata_rejections: AtomicU64,
     expired_entries: AtomicU64,
     disconnected_entries: AtomicU64,
     coalesced_updates: AtomicU64,
@@ -1050,6 +1315,7 @@ impl EventCounters {
             &self.rate_limited_publishes,
             &self.oversized_publishes,
             &self.unauthorized_requests,
+            &self.metadata_rejections,
             &self.expired_entries,
             &self.disconnected_entries,
             &self.coalesced_updates,
@@ -1377,6 +1643,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
+        self.validate_request_metadata(
+            &request.collection,
+            &request.scope,
+            &request.connection_id,
+            &request.auth,
+            request.session_id.as_deref(),
+            request.user_id.as_deref(),
+            request.custom_key.as_deref(),
+        )?;
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         let ttl_ms = request.ttl_ms.unwrap_or(collection.default_ttl_ms);
@@ -1396,6 +1671,7 @@ impl LocalEphemeralBackend {
         let connection_id = request.connection_id;
         let value = request.value;
         let value_len = value.len();
+        let value_capacity = value.capacity();
 
         // Index the connection→room edge BEFORE the entry becomes visible: a
         // disconnect that runs after this publish's room mutation must find
@@ -1422,8 +1698,9 @@ impl LocalEphemeralBackend {
                 ));
             }
 
-            let replaced_bytes = room.entries.get(&key).map(|record| record.serialized_bytes);
-            if replaced_bytes.is_none()
+            let replaced_retained_bytes =
+                room.entries.get(&key).map(|record| record.retained_bytes);
+            if replaced_retained_bytes.is_none()
                 && room.entries.len() >= self.shared.limits.max_entries_per_room
             {
                 self.shared
@@ -1438,9 +1715,21 @@ impl LocalEphemeralBackend {
                     ),
                 ));
             }
-            let projected_bytes =
-                room.value_bytes.saturating_sub(replaced_bytes.unwrap_or(0)) + value_len;
-            if projected_bytes > self.shared.limits.max_room_value_bytes {
+            let owner_connection_bytes =
+                room.owner_connection_additional_bytes(&owner, &connection_id);
+            let connection_room_bytes = if room.uses_connection(&connection_id) {
+                0
+            } else {
+                retained_connection_room_edge_bytes(&connection_id, &room_id)
+            };
+            let expiry_index_bytes = if room.indexed_deadline.is_none() {
+                retained_expiry_index_entry_bytes(&room_id)
+            } else {
+                0
+            };
+            if owner_connection_bytes > 0
+                && room.owner_connection_count >= self.shared.limits.max_subscribers_per_room
+            {
                 self.shared
                     .counters
                     .limit_rejections
@@ -1448,7 +1737,28 @@ impl LocalEphemeralBackend {
                 return Err(EphemeralError::new(
                     EphemeralErrorCode::RoomLimitExceeded,
                     format!(
-                        "room value-byte limit ({}) reached for {}",
+                        "room owner-connection limit ({}) reached for {}",
+                        self.shared.limits.max_subscribers_per_room, room_id.collection
+                    ),
+                ));
+            }
+            let entry_retained_bytes = retained_entry_bytes(&key, &owner, value_capacity);
+            let projected_retained_bytes = room
+                .retained_bytes
+                .saturating_sub(replaced_retained_bytes.unwrap_or(0))
+                .saturating_add(entry_retained_bytes)
+                .saturating_add(owner_connection_bytes)
+                .saturating_add(connection_room_bytes)
+                .saturating_add(expiry_index_bytes);
+            if projected_retained_bytes > self.shared.limits.max_room_value_bytes {
+                self.shared
+                    .counters
+                    .limit_rejections
+                    .fetch_add(1, Ordering::Relaxed);
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::RoomLimitExceeded,
+                    format!(
+                        "room retained-byte limit ({}) reached for {}",
                         self.shared.limits.max_room_value_bytes, room_id.collection
                     ),
                 ));
@@ -1464,15 +1774,21 @@ impl LocalEphemeralBackend {
                 expires_at_ms,
                 scope_epoch,
                 entry_version,
-                serialized_bytes: value_len,
+                retained_bytes: entry_retained_bytes,
             };
             let entry = record.to_entry(&key);
             if let Some(previous) = room.entries.insert(key.clone(), record) {
-                room.value_bytes = room.value_bytes.saturating_sub(previous.serialized_bytes);
+                room.value_bytes = room.value_bytes.saturating_sub(previous.value.len());
+                room.retained_bytes = room.retained_bytes.saturating_sub(previous.retained_bytes);
                 forget_expiry_locked(room, previous.expires_at_ms);
             }
             remember_expiry_locked(room, expires_at_ms);
             room.value_bytes += value_len;
+            room.retained_bytes = room
+                .retained_bytes
+                .saturating_add(entry_retained_bytes)
+                .saturating_add(owner_connection_bytes)
+                .saturating_add(connection_room_bytes);
             // Re-assert the edge after state becomes visible. The provisional
             // edge above makes disconnect find an in-flight operation; this
             // post-write edge closes the inverse race where a disconnect
@@ -1526,6 +1842,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
+        self.validate_request_metadata(
+            &request.collection,
+            &request.scope,
+            &request.connection_id,
+            &request.auth,
+            request.session_id.as_deref(),
+            request.user_id.as_deref(),
+            request.custom_key.as_deref(),
+        )?;
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
@@ -1577,6 +1902,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
+        self.validate_request_metadata(
+            &request.collection,
+            &request.scope,
+            &request.connection_id,
+            &request.auth,
+            None,
+            None,
+            None,
+        )?;
         let Some(collection) = self.collection_if_loaded(&request.collection) else {
             return Ok(false);
         };
@@ -1595,7 +1929,18 @@ impl LocalEphemeralBackend {
             if room.retired {
                 false
             } else {
-                room.subscribers.remove(&request.connection_id).is_some()
+                let removed = room.subscribers.remove(&request.connection_id).is_some();
+                if removed {
+                    room.retained_bytes = room
+                        .retained_bytes
+                        .saturating_sub(retained_subscriber_bytes(&request.connection_id));
+                    if !room.uses_connection(&request.connection_id) {
+                        room.retained_bytes = room.retained_bytes.saturating_sub(
+                            retained_connection_room_edge_bytes(&request.connection_id, &room_id),
+                        );
+                    }
+                }
+                removed
             }
         };
         if removed {
@@ -1615,6 +1960,15 @@ impl LocalEphemeralBackend {
             .lifecycle
             .read()
             .unwrap_or_else(PoisonError::into_inner);
+        self.validate_request_metadata(
+            &request.collection,
+            &request.scope,
+            &request.connection_id,
+            &request.auth,
+            None,
+            None,
+            None,
+        )?;
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.subscribe, &request.scope, &request.auth)?;
@@ -1627,7 +1981,8 @@ impl LocalEphemeralBackend {
         // @ref LLP 0013#room-store-model -- snapshot and subscriber registration must be one room operation.
         let outcome = match self.with_room_create(&room_id, |room| {
             self.sweep_room_locked(room, &room_id, Some(&collection), now_ms);
-            if !room.subscribers.contains_key(&request.connection_id)
+            let new_subscriber = !room.subscribers.contains_key(&request.connection_id);
+            if new_subscriber
                 && room.subscribers.len() >= self.shared.limits.max_subscribers_per_room
             {
                 self.shared
@@ -1639,6 +1994,34 @@ impl LocalEphemeralBackend {
                     format!(
                         "room subscriber limit ({}) reached for {}",
                         self.shared.limits.max_subscribers_per_room, room_id.collection
+                    ),
+                ));
+            }
+            let subscriber_bytes = if new_subscriber {
+                retained_subscriber_bytes(&request.connection_id)
+            } else {
+                0
+            };
+            let connection_room_bytes = if room.uses_connection(&request.connection_id) {
+                0
+            } else {
+                retained_connection_room_edge_bytes(&request.connection_id, &room_id)
+            };
+            if room
+                .retained_bytes
+                .saturating_add(subscriber_bytes)
+                .saturating_add(connection_room_bytes)
+                > self.shared.limits.max_room_value_bytes
+            {
+                self.shared
+                    .counters
+                    .limit_rejections
+                    .fetch_add(1, Ordering::Relaxed);
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::RoomLimitExceeded,
+                    format!(
+                        "room retained-byte limit ({}) reached for {}",
+                        self.shared.limits.max_room_value_bytes, room_id.collection
                     ),
                 ));
             }
@@ -1654,6 +2037,10 @@ impl LocalEphemeralBackend {
                 .collect();
             room.subscribers
                 .insert(request.connection_id.clone(), SubscriberState { outbox });
+            room.retained_bytes = room
+                .retained_bytes
+                .saturating_add(subscriber_bytes)
+                .saturating_add(connection_room_bytes);
             self.index_connection_room(&request.connection_id, &room_id);
             Ok(EphemeralMessage::Snapshot {
                 room: room_id.clone(),
@@ -1744,18 +2131,35 @@ impl LocalEphemeralBackend {
                 continue;
             }
             self.sweep_room_locked(&mut room, room_id, collection.as_ref(), now_ms);
+            let had_connection_room_edge = room.uses_connection(connection_id);
             if room.subscribers.remove(connection_id).is_some() {
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(retained_subscriber_bytes(connection_id));
                 subscribed_rooms.push((room_id.clone(), room.scope_epoch));
             }
             let mut owners_to_remove = Vec::new();
+            let mut removed_owner_connections = 0_usize;
             for (owner, connections) in room.owner_connections.iter_mut() {
-                connections.remove(connection_id);
+                if connections.remove(connection_id) {
+                    removed_owner_connections += 1;
+                }
                 if connections.is_empty() {
                     owners_to_remove.push(owner.clone());
                 }
             }
+            room.owner_connection_count = room
+                .owner_connection_count
+                .saturating_sub(removed_owner_connections);
+            room.retained_bytes = room.retained_bytes.saturating_sub(
+                removed_owner_connections
+                    .saturating_mul(retained_string_bytes(connection_id) + MAP_ENTRY_OVERHEAD),
+            );
             for owner in owners_to_remove {
                 room.owner_connections.remove(&owner);
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(retained_owner_bytes(&owner) + MAP_ENTRY_OVERHEAD);
                 let keys = room
                     .entries
                     .iter()
@@ -1774,6 +2178,11 @@ impl LocalEphemeralBackend {
                         }
                     }
                 }
+            }
+            if had_connection_room_edge && !room.uses_connection(connection_id) {
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(retained_connection_room_edge_bytes(connection_id, room_id));
             }
             if room.entries.is_empty() && room.subscribers.is_empty() {
                 maybe_empty.push(room_id);
@@ -1889,6 +2298,9 @@ impl LocalEphemeralBackend {
                         .is_some_and(|deadline| deadline <= now_ms)
                     {
                         room.indexed_deadline = None;
+                        room.retained_bytes = room
+                            .retained_bytes
+                            .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
                     }
                     self.sweep_room_locked(room, &room_id, collection.as_ref(), now_ms);
                     if let Some(earliest) = next_expiry_deadline(room) {
@@ -1942,6 +2354,7 @@ impl LocalEphemeralBackend {
             rate_limited_publishes: counters.rate_limited_publishes.load(Ordering::Relaxed),
             oversized_publishes: counters.oversized_publishes.load(Ordering::Relaxed),
             unauthorized_requests: counters.unauthorized_requests.load(Ordering::Relaxed),
+            metadata_rejections: counters.metadata_rejections.load(Ordering::Relaxed),
             expired_entries: counters.expired_entries.load(Ordering::Relaxed),
             disconnected_entries: counters.disconnected_entries.load(Ordering::Relaxed),
             coalesced_updates: counters.coalesced_updates.load(Ordering::Relaxed),
@@ -1964,6 +2377,7 @@ impl LocalEphemeralBackend {
             diagnostics.entry_count += room.entries.len();
             diagnostics.subscriber_count += room.subscribers.len();
             diagnostics.value_bytes += room.value_bytes;
+            diagnostics.retained_bytes += room.retained_bytes;
             diagnostics.active_rooms.push(EphemeralRoomDiagnostics {
                 collection: room_id.collection.clone(),
                 routing_key: room_id.routing_key.clone(),
@@ -1972,6 +2386,7 @@ impl LocalEphemeralBackend {
                 entries: room.entries.len(),
                 subscribers: room.subscribers.len(),
                 value_bytes: room.value_bytes,
+                retained_bytes: room.retained_bytes,
             });
         }
 
@@ -1981,7 +2396,13 @@ impl LocalEphemeralBackend {
             diagnostics.pending_ephemeral_keys += outbox.ephemeral.len();
             diagnostics.pending_durable_messages += outbox.durable.len();
             diagnostics.pending_resync_messages += outbox.resync.len();
+            diagnostics.outbox_retained_bytes = diagnostics
+                .outbox_retained_bytes
+                .saturating_add(outbox.retained_bytes());
         }
+        diagnostics.retained_bytes = diagnostics
+            .retained_bytes
+            .saturating_add(diagnostics.outbox_retained_bytes);
         diagnostics
     }
 
@@ -2034,7 +2455,21 @@ impl LocalEphemeralBackend {
                         ));
                     }
                     let epoch = self.shared.next_scope_epoch.fetch_add(1, Ordering::Relaxed);
-                    let created = Arc::new(StdMutex::new(RoomState::new(epoch)));
+                    let retained_bytes = retained_room_identity_bytes(room_id);
+                    if retained_bytes > self.shared.limits.max_room_value_bytes {
+                        self.shared
+                            .counters
+                            .limit_rejections
+                            .fetch_add(1, Ordering::Relaxed);
+                        return Err(EphemeralError::new(
+                            EphemeralErrorCode::RoomLimitExceeded,
+                            format!(
+                                "room identity requires {retained_bytes} retained bytes; room limit is {}",
+                                self.shared.limits.max_room_value_bytes
+                            ),
+                        ));
+                    }
+                    let created = Arc::new(StdMutex::new(RoomState::new(epoch, retained_bytes)));
                     rooms.insert(room_id.clone(), created.clone());
                     created
                 }
@@ -2093,6 +2528,9 @@ impl LocalEphemeralBackend {
         rooms.remove(room_id);
         if let Some(deadline) = room.indexed_deadline.take() {
             lock(&self.shared.expiry_index).remove(&(deadline, room_id.clone()));
+            room.retained_bytes = room
+                .retained_bytes
+                .saturating_sub(retained_expiry_index_entry_bytes(room_id));
         }
     }
 
@@ -2143,6 +2581,9 @@ impl LocalEphemeralBackend {
             // leaving any concurrently-created surviving room's entry intact.
             if let Some(deadline) = room.indexed_deadline.take() {
                 lock(&self.shared.expiry_index).remove(&(deadline, room_id.clone()));
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
             }
             for connection_id in room.subscribers.keys() {
                 resyncs.push((
@@ -2190,6 +2631,37 @@ impl LocalEphemeralBackend {
             }
             self.shared.delivery.wake(&connection_id);
         }
+    }
+
+    fn validate_request_metadata(
+        &self,
+        collection: &str,
+        scope: &Scope,
+        connection_id: &str,
+        auth: &AuthContext,
+        session_id: Option<&str>,
+        user_id: Option<&str>,
+        custom_key: Option<&str>,
+    ) -> Result<(), EphemeralError> {
+        let result = validate_request_metadata_bounds(
+            collection,
+            scope,
+            connection_id,
+            auth,
+            session_id,
+            user_id,
+            custom_key,
+        );
+        if matches!(
+            &result,
+            Err(error) if error.code == EphemeralErrorCode::MetadataTooLarge
+        ) {
+            self.shared
+                .counters
+                .metadata_rejections
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        result
     }
 
     fn validate_ttl(
@@ -2407,11 +2879,7 @@ impl LocalEphemeralBackend {
         connection_id: &str,
         room_id: &RoomId,
     ) {
-        let used = room.subscribers.contains_key(connection_id)
-            || room
-                .owner_connections
-                .values()
-                .any(|connections| connections.contains(connection_id));
+        let used = room.uses_connection(connection_id);
         let mut index = lock(&self.shared.connection_rooms);
         if used {
             index
@@ -2518,11 +2986,17 @@ impl LocalEphemeralBackend {
             return;
         }
         let mut index = lock(&self.shared.expiry_index);
+        let newly_indexed = room.indexed_deadline.is_none();
         if let Some(previous) = room.indexed_deadline.take() {
             index.remove(&(previous, room_id.clone()));
         }
         index.insert((deadline, room_id.clone()), ());
         room.indexed_deadline = Some(deadline);
+        if newly_indexed {
+            room.retained_bytes = room
+                .retained_bytes
+                .saturating_add(retained_expiry_index_entry_bytes(room_id));
+        }
     }
 }
 
@@ -2533,7 +3007,8 @@ fn remove_entry_locked(
     reason: RemoveReason,
 ) -> Option<EphemeralMessage> {
     let record = room.entries.remove(key)?;
-    room.value_bytes = room.value_bytes.saturating_sub(record.serialized_bytes);
+    room.value_bytes = room.value_bytes.saturating_sub(record.value.len());
+    room.retained_bytes = room.retained_bytes.saturating_sub(record.retained_bytes);
     forget_expiry_locked(room, record.expires_at_ms);
     // Custom-key collections can hold several entries owned by the same
     // connection. Keep the owner membership until its final key leaves the
@@ -2544,7 +3019,30 @@ fn remove_entry_locked(
         .values()
         .any(|remaining| remaining.owner == record.owner)
     {
-        room.owner_connections.remove(&record.owner);
+        if let Some(connections) = room.owner_connections.remove(&record.owner) {
+            room.owner_connection_count = room
+                .owner_connection_count
+                .saturating_sub(connections.len());
+            let connection_bytes = connections.iter().fold(0_usize, |total, connection_id| {
+                total
+                    .saturating_add(retained_string_bytes(connection_id))
+                    .saturating_add(MAP_ENTRY_OVERHEAD)
+            });
+            room.retained_bytes = room
+                .retained_bytes
+                .saturating_sub(retained_owner_bytes(&record.owner) + MAP_ENTRY_OVERHEAD)
+                .saturating_sub(connection_bytes);
+            for connection_id in &connections {
+                if !room.uses_connection(connection_id) {
+                    room.retained_bytes =
+                        room.retained_bytes
+                            .saturating_sub(retained_connection_room_edge_bytes(
+                                connection_id,
+                                room_id,
+                            ));
+                }
+            }
+        }
     }
     let entry_version = room.allocate_version();
     Some(EphemeralMessage::Remove {
@@ -2594,7 +3092,9 @@ pub fn validate_collection_definitions(
 ) -> Result<(), EphemeralError> {
     let mut names = BTreeSet::new();
     for collection in collections {
-        if !valid_manifest_identifier(&collection.name) {
+        if !valid_manifest_identifier(&collection.name)
+            || collection.name.len() > MAX_EPHEMERAL_COLLECTION_NAME_BYTES
+        {
             return Err(EphemeralError::new(
                 EphemeralErrorCode::IncompatibleCollectionDefinition,
                 format!(
@@ -2619,8 +3119,11 @@ pub fn validate_collection_definitions(
             .cloned()
             .collect::<BTreeSet<_>>();
         if scope.is_empty()
+            || scope.len() > MAX_EPHEMERAL_SCOPE_FIELDS
             || scope.len() != collection.scope_fields.len()
-            || scope.iter().any(|field| !valid_manifest_identifier(field))
+            || scope.iter().any(|field| {
+                !valid_manifest_identifier(field) || field.len() > MAX_EPHEMERAL_SCOPE_KEY_BYTES
+            })
         {
             return Err(EphemeralError::new(
                 EphemeralErrorCode::IncompatibleCollectionDefinition,
@@ -2688,7 +3191,8 @@ pub fn validate_collection_definitions(
             ));
         }
         for policy in [&collection.publish, &collection.subscribe] {
-            if matches!(policy, AccessPolicy::RequireRoomPermission { prefix } if !valid_manifest_identifier(prefix))
+            if matches!(policy, AccessPolicy::RequireRoomPermission { prefix } if
+                !valid_manifest_identifier(prefix) || prefix.len() > MAX_EPHEMERAL_SCOPE_KEY_BYTES)
             {
                 return Err(EphemeralError::new(
                     EphemeralErrorCode::IncompatibleCollectionDefinition,
@@ -2703,7 +3207,138 @@ pub fn validate_collection_definitions(
     Ok(())
 }
 
+fn metadata_too_large(message: impl Into<String>) -> EphemeralError {
+    EphemeralError::new(EphemeralErrorCode::MetadataTooLarge, message)
+}
+
+fn validate_bounded_optional(
+    label: &str,
+    value: Option<&str>,
+    max_bytes: usize,
+) -> Result<(), EphemeralError> {
+    if let Some(value) = value
+        && value.len() > max_bytes
+    {
+        return Err(metadata_too_large(format!(
+            "ephemeral {label} has {} bytes; max is {max_bytes}",
+            value.len()
+        )));
+    }
+    Ok(())
+}
+
+fn validate_scope_bounds(scope: &Scope) -> Result<(), EphemeralError> {
+    if scope.0.len() > MAX_EPHEMERAL_SCOPE_FIELDS {
+        return Err(metadata_too_large(format!(
+            "ephemeral scope has {} fields; max is {MAX_EPHEMERAL_SCOPE_FIELDS}",
+            scope.0.len()
+        )));
+    }
+    let mut total = 0_usize;
+    for (key, value) in &scope.0 {
+        if key.len() > MAX_EPHEMERAL_SCOPE_KEY_BYTES {
+            return Err(metadata_too_large(format!(
+                "ephemeral scope key has {} bytes; max is {MAX_EPHEMERAL_SCOPE_KEY_BYTES}",
+                key.len()
+            )));
+        }
+        if value.len() > MAX_EPHEMERAL_SCOPE_VALUE_BYTES {
+            return Err(metadata_too_large(format!(
+                "ephemeral scope value for {key} has {} bytes; max is {MAX_EPHEMERAL_SCOPE_VALUE_BYTES}",
+                value.len()
+            )));
+        }
+        total = total.saturating_add(key.len()).saturating_add(value.len());
+    }
+    if total > MAX_EPHEMERAL_SCOPE_BYTES {
+        return Err(metadata_too_large(format!(
+            "ephemeral scope has {total} bytes; max is {MAX_EPHEMERAL_SCOPE_BYTES}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_auth_bounds(auth: &AuthContext) -> Result<(), EphemeralError> {
+    validate_bounded_optional(
+        "principal",
+        auth.principal.as_deref(),
+        MAX_EPHEMERAL_IDENTITY_BYTES,
+    )?;
+    validate_bounded_optional(
+        "session identity",
+        auth.session_id.as_deref(),
+        MAX_EPHEMERAL_IDENTITY_BYTES,
+    )?;
+    validate_bounded_optional(
+        "user identity",
+        auth.user_id.as_deref(),
+        MAX_EPHEMERAL_IDENTITY_BYTES,
+    )?;
+    if auth.permissions.len() > MAX_EPHEMERAL_PERMISSIONS {
+        return Err(metadata_too_large(format!(
+            "ephemeral auth has {} permissions; max is {MAX_EPHEMERAL_PERMISSIONS}",
+            auth.permissions.len()
+        )));
+    }
+    let mut total = auth
+        .principal
+        .as_ref()
+        .map_or(0, String::len)
+        .saturating_add(auth.session_id.as_ref().map_or(0, String::len))
+        .saturating_add(auth.user_id.as_ref().map_or(0, String::len));
+    for permission in &auth.permissions {
+        if permission.len() > MAX_EPHEMERAL_PERMISSION_BYTES {
+            return Err(metadata_too_large(format!(
+                "ephemeral permission has {} bytes; max is {MAX_EPHEMERAL_PERMISSION_BYTES}",
+                permission.len()
+            )));
+        }
+        total = total.saturating_add(permission.len());
+    }
+    if total > MAX_EPHEMERAL_AUTH_BYTES {
+        return Err(metadata_too_large(format!(
+            "ephemeral auth metadata has {total} bytes; max is {MAX_EPHEMERAL_AUTH_BYTES}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_request_metadata_bounds(
+    collection: &str,
+    scope: &Scope,
+    connection_id: &str,
+    auth: &AuthContext,
+    session_id: Option<&str>,
+    user_id: Option<&str>,
+    custom_key: Option<&str>,
+) -> Result<(), EphemeralError> {
+    validate_bounded_optional(
+        "collection name",
+        Some(collection),
+        MAX_EPHEMERAL_COLLECTION_NAME_BYTES,
+    )?;
+    validate_scope_bounds(scope)?;
+    validate_bounded_optional(
+        "connection identity",
+        Some(connection_id),
+        MAX_EPHEMERAL_CONNECTION_ID_BYTES,
+    )?;
+    validate_bounded_optional(
+        "claimed session identity",
+        session_id,
+        MAX_EPHEMERAL_IDENTITY_BYTES,
+    )?;
+    validate_bounded_optional(
+        "claimed user identity",
+        user_id,
+        MAX_EPHEMERAL_IDENTITY_BYTES,
+    )?;
+    validate_bounded_optional("custom key", custom_key, MAX_EPHEMERAL_CUSTOM_KEY_BYTES)?;
+    validate_auth_bounds(auth)
+}
+
 fn room_id_for(collection: &EphemeralCollection, scope: &Scope) -> Result<RoomId, EphemeralError> {
+    validate_scope_bounds(scope)?;
     let expected = collection.scope_fields.iter().collect::<BTreeSet<_>>();
     let actual = scope.0.keys().collect::<BTreeSet<_>>();
     if actual != expected {
@@ -3126,6 +3761,375 @@ mod tests {
             scope,
             connection_id: connection_id.to_owned(),
         }
+    }
+
+    fn recompute_room_retained_bytes(room_id: &RoomId, room: &RoomState) -> usize {
+        let mut retained = retained_room_identity_bytes(room_id);
+        for (key, record) in &room.entries {
+            let entry_bytes = retained_entry_bytes(key, &record.owner, record.value.capacity());
+            assert_eq!(
+                record.retained_bytes, entry_bytes,
+                "entry-local retained accounting drifted for {key:?}"
+            );
+            retained = retained.saturating_add(entry_bytes);
+        }
+        for (owner, connections) in &room.owner_connections {
+            retained = retained
+                .saturating_add(retained_owner_bytes(owner))
+                .saturating_add(MAP_ENTRY_OVERHEAD);
+            for connection_id in connections {
+                retained = retained
+                    .saturating_add(retained_string_bytes(connection_id))
+                    .saturating_add(MAP_ENTRY_OVERHEAD);
+            }
+        }
+        for connection_id in room.subscribers.keys() {
+            retained = retained.saturating_add(retained_subscriber_bytes(connection_id));
+        }
+        let mut indexed_connections = room.subscribers.keys().cloned().collect::<BTreeSet<_>>();
+        for connections in room.owner_connections.values() {
+            indexed_connections.extend(connections.iter().cloned());
+        }
+        for connection_id in indexed_connections {
+            retained = retained
+                .saturating_add(retained_connection_room_edge_bytes(&connection_id, room_id));
+        }
+        if room.indexed_deadline.is_some() {
+            retained = retained.saturating_add(retained_expiry_index_entry_bytes(room_id));
+        }
+        retained
+    }
+
+    fn recompute_queue_retained_bytes(queue: &OutboundQueue) -> usize {
+        let durable = queue
+            .durable
+            .iter()
+            .map(retained_durable_queue_item_bytes)
+            .sum::<usize>();
+        let resync = queue
+            .resync
+            .iter()
+            .map(|message| retained_resync_queue_item_bytes(message.as_ref()))
+            .sum::<usize>();
+        let ephemeral = queue
+            .ephemeral
+            .iter()
+            .map(|(key, message)| retained_ephemeral_queue_item_bytes(key, message.as_ref()))
+            .sum::<usize>();
+        assert_eq!(queue.durable_bytes, durable, "durable byte ledger drifted");
+        assert_eq!(queue.resync_bytes, resync, "resync byte ledger drifted");
+        assert_eq!(
+            queue.ephemeral_bytes, ephemeral,
+            "ephemeral byte ledger drifted"
+        );
+        durable.saturating_add(resync).saturating_add(ephemeral)
+    }
+
+    fn assert_retained_accounting(backend: &LocalEphemeralBackend) {
+        let rooms = lock(&backend.shared.rooms);
+        let mut expected_connection_rooms = BTreeMap::<ConnectionId, BTreeSet<RoomId>>::new();
+        let mut expected_expiry_index = BTreeMap::<(Millis, RoomId), ()>::new();
+        let mut room_bytes = 0_usize;
+        for (room_id, room_arc) in rooms.iter() {
+            let room = lock(room_arc);
+            assert!(!room.retired, "routing map retained a retired room");
+            let expected = recompute_room_retained_bytes(room_id, &room);
+            assert_eq!(
+                room.retained_bytes, expected,
+                "room retained-byte ledger drifted for {room_id:?}"
+            );
+            assert!(
+                expected <= backend.shared.limits.max_room_value_bytes,
+                "room exceeded its admitted retained-byte budget"
+            );
+            room_bytes = room_bytes.saturating_add(expected);
+            for connection_id in room.subscribers.keys() {
+                expected_connection_rooms
+                    .entry(connection_id.clone())
+                    .or_default()
+                    .insert(room_id.clone());
+            }
+            for connections in room.owner_connections.values() {
+                for connection_id in connections {
+                    expected_connection_rooms
+                        .entry(connection_id.clone())
+                        .or_default()
+                        .insert(room_id.clone());
+                }
+            }
+            if let Some(deadline) = room.indexed_deadline {
+                expected_expiry_index.insert((deadline, room_id.clone()), ());
+            }
+        }
+        assert_eq!(
+            *lock(&backend.shared.connection_rooms),
+            expected_connection_rooms,
+            "connection→room reverse index drifted"
+        );
+        assert_eq!(
+            *lock(&backend.shared.expiry_index),
+            expected_expiry_index,
+            "expiry index drifted"
+        );
+
+        let outboxes = lock(&backend.shared.outboxes);
+        let mut outbox_bytes = 0_usize;
+        for queue in outboxes.values() {
+            let queue = lock(queue);
+            let expected = recompute_queue_retained_bytes(&queue);
+            assert_eq!(queue.retained_bytes(), expected);
+            assert!(expected <= MAX_OUTBOX_RETAINED_BYTES);
+            assert!(queue.durable.len() <= MAX_OUTBOX_BACKLOG);
+            assert!(queue.ephemeral.len() <= MAX_OUTBOX_BACKLOG);
+            assert!(queue.resync.len() <= MAX_OUTBOX_OVERFLOW_RESYNCS);
+            outbox_bytes = outbox_bytes.saturating_add(expected);
+        }
+        drop(outboxes);
+        drop(rooms);
+
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.outbox_retained_bytes, outbox_bytes);
+        assert_eq!(
+            diagnostics.retained_bytes,
+            room_bytes.saturating_add(outbox_bytes)
+        );
+    }
+
+    #[test]
+    fn retained_accounting_tracks_replacement_and_delete_last_owner() {
+        let backend = LocalEphemeralBackend::new();
+        let mut custom = collection();
+        custom.key_mode = KeyMode::Custom;
+        backend.register_collection(custom).unwrap();
+
+        let mut first_value = Vec::with_capacity(2_048);
+        first_value.extend_from_slice(b"large-capacity-value");
+        let mut first = publish_request("publisher", b"");
+        first.custom_key = Some("first".to_owned());
+        first.value = first_value;
+        backend.publish(first, 1_000).unwrap();
+        assert_retained_accounting(&backend);
+        let before_replace = backend.diagnostics().retained_bytes;
+
+        let mut replacement = publish_request("publisher", b"x");
+        replacement.custom_key = Some("first".to_owned());
+        backend.publish(replacement, 1_001).unwrap();
+        assert_retained_accounting(&backend);
+        assert!(
+            backend.diagnostics().retained_bytes < before_replace,
+            "replacement must release the old value allocation"
+        );
+
+        let mut second = publish_request("publisher", b"second");
+        second.custom_key = Some("second".to_owned());
+        backend.publish(second, 1_002).unwrap();
+        assert_retained_accounting(&backend);
+
+        let delete = |key: &str| DeleteRequest {
+            collection: "boardCursors".to_owned(),
+            scope: scope(),
+            connection_id: "publisher".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: Some(key.to_owned()),
+            auth: auth_for(&scope()),
+        };
+        backend.delete(delete("first"), 1_003).unwrap();
+        assert_retained_accounting(&backend);
+        assert!(
+            lock(&backend.shared.connection_rooms).contains_key("publisher"),
+            "the shared owner/reverse edge survives until its final key"
+        );
+
+        backend.delete(delete("second"), 1_004).unwrap();
+        assert_retained_accounting(&backend);
+        assert_eq!(backend.diagnostics().room_count, 0);
+        assert!(!lock(&backend.shared.connection_rooms).contains_key("publisher"));
+    }
+
+    #[test]
+    fn retained_accounting_tracks_expiry_and_unsubscribe() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("publisher", b"cursor"), 1_001)
+            .unwrap();
+        assert_retained_accounting(&backend);
+
+        backend.cleanup_expired(6_001);
+        assert_retained_accounting(&backend);
+        let room_id = room();
+        let room_arc = lock(&backend.shared.rooms).get(&room_id).cloned().unwrap();
+        let room_state = lock(&room_arc);
+        assert!(room_state.entries.is_empty());
+        assert!(room_state.indexed_deadline.is_none());
+        drop(room_state);
+        assert_eq!(
+            lock(&backend.shared.connection_rooms)
+                .get("observer")
+                .map(BTreeSet::len),
+            Some(1)
+        );
+        assert!(!lock(&backend.shared.connection_rooms).contains_key("publisher"));
+
+        assert!(backend.unsubscribe(subscribe_request("observer")).unwrap());
+        assert_retained_accounting(&backend);
+        assert_eq!(backend.diagnostics().room_count, 0);
+
+        backend.drain_outbox("observer");
+        assert_retained_accounting(&backend);
+        assert_eq!(backend.diagnostics().outbox_retained_bytes, 0);
+    }
+
+    #[test]
+    fn retained_accounting_tracks_shared_owner_disconnects() {
+        let backend = LocalEphemeralBackend::new();
+        let mut users = collection();
+        users.key_mode = KeyMode::User;
+        backend.register_collection(users).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+
+        let publish_as_user = |connection_id: &str, value: &[u8]| {
+            let mut request = publish_request(connection_id, value);
+            request.user_id = Some("user-1".to_owned());
+            request.auth.user_id = Some("user-1".to_owned());
+            request
+        };
+        backend
+            .publish(publish_as_user("tab-a", b"a"), 1_001)
+            .unwrap();
+        backend
+            .publish(publish_as_user("tab-b", b"b"), 1_002)
+            .unwrap();
+        assert_retained_accounting(&backend);
+
+        backend.disconnect("tab-a", 1_003);
+        assert_retained_accounting(&backend);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+        assert!(!lock(&backend.shared.connection_rooms).contains_key("tab-a"));
+        assert!(lock(&backend.shared.connection_rooms).contains_key("tab-b"));
+
+        backend.disconnect("tab-b", 1_004);
+        assert_retained_accounting(&backend);
+        assert_eq!(backend.diagnostics().entry_count, 0);
+        assert!(!lock(&backend.shared.connection_rooms).contains_key("tab-b"));
+    }
+
+    #[test]
+    fn outbound_queue_byte_and_overflow_ledgers_stay_hard_bounded() {
+        let mut queue = OutboundQueue::new();
+        let room = room();
+        let key = EntryKey("publisher".to_owned());
+        let message = Arc::new(EphemeralMessage::Upsert {
+            room: room.clone(),
+            entry: EphemeralEntry {
+                key: key.clone(),
+                value: vec![7; 4_096],
+                received_at_ms: 1,
+                expires_at_ms: 30_001,
+                scope_epoch: 1,
+                entry_version: 1,
+            },
+        });
+        queue.push_ephemeral(message, MAX_OUTBOX_BACKLOG);
+        assert!(
+            queue.ephemeral_bytes > 4_096,
+            "cloned room/key metadata is charged"
+        );
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+
+        // The byte ceiling, not only the item ceiling, must collapse a large
+        // durable backlog into the sticky resync representation.
+        while !queue.overflowed {
+            queue.push_durable(DurableMessage {
+                payload: vec![9; 128 * 1_024],
+            });
+        }
+        assert!(queue.durable.len() < MAX_OUTBOX_BACKLOG);
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+        assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
+
+        // An attacker can continue naming rooms while the queue is sticky.
+        // The recovery ledger remains capped in both dimensions.
+        for index in 0..(MAX_OUTBOX_OVERFLOW_RESYNCS + 128) {
+            let scope = Scope::from_pairs([("boardId", format!("board-{index}"))]);
+            let room = RoomId {
+                collection: "boardCursors".to_owned(),
+                routing_key: scope
+                    .routed_key(&["boardId".to_owned()])
+                    .expect("test scope is routable"),
+                scope,
+            };
+            queue.record_overflow_resync_for_room(room, 1);
+        }
+        assert_eq!(queue.resync.len(), MAX_OUTBOX_OVERFLOW_RESYNCS);
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+        assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
+
+        queue.drain();
+        assert_eq!(queue.retained_bytes(), 0);
+        assert_eq!(recompute_queue_retained_bytes(&queue), 0);
+    }
+
+    #[test]
+    fn metadata_rejections_count_every_request_operation() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let oversized_connection = "x".repeat(MAX_EPHEMERAL_CONNECTION_ID_BYTES + 1);
+
+        let mut publish = publish_request(&oversized_connection, b"cursor");
+        assert_eq!(
+            backend.publish(publish.clone(), 1_000).unwrap_err().code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+        let delete = DeleteRequest {
+            collection: publish.collection.clone(),
+            scope: publish.scope.clone(),
+            connection_id: oversized_connection.clone(),
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+            auth: publish.auth.clone(),
+        };
+        assert_eq!(
+            backend.delete(delete, 1_000).unwrap_err().code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+        let subscribe = SubscribeRequest {
+            collection: publish.collection.clone(),
+            scope: publish.scope.clone(),
+            connection_id: oversized_connection,
+            auth: publish.auth.clone(),
+        };
+        assert_eq!(
+            backend
+                .subscribe(subscribe.clone(), 1_000)
+                .unwrap_err()
+                .code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+        assert_eq!(
+            backend.unsubscribe(subscribe).unwrap_err().code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+        assert_eq!(backend.diagnostics().metadata_rejections, 4);
+        assert_eq!(backend.diagnostics().room_count, 0);
+        publish.connection_id = "valid".to_owned();
+        backend.publish(publish, 1_001).unwrap();
     }
 
     #[test]
@@ -4075,6 +5079,40 @@ mod tests {
     }
 
     #[test]
+    fn retained_metadata_has_independent_byte_and_cardinality_bounds() {
+        let backend = LocalEphemeralBackend::new();
+        let mut custom = collection();
+        custom.key_mode = KeyMode::Custom;
+        backend.register_collection(custom).unwrap();
+
+        let mut huge_scope = publish_request("publisher", b"x");
+        huge_scope.scope =
+            Scope::from_pairs([("boardId", "s".repeat(MAX_EPHEMERAL_SCOPE_VALUE_BYTES + 1))]);
+        assert_eq!(
+            backend.publish(huge_scope, 1_000).unwrap_err().code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+
+        let mut huge_key = publish_request("publisher", b"x");
+        huge_key.custom_key = Some("k".repeat(MAX_EPHEMERAL_CUSTOM_KEY_BYTES + 1));
+        assert_eq!(
+            backend.publish(huge_key, 1_000).unwrap_err().code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+
+        let mut huge_auth = subscribe_request("observer");
+        huge_auth.auth.permissions = (0..=MAX_EPHEMERAL_PERMISSIONS)
+            .map(|index| format!("permission:{index}"))
+            .collect();
+        assert_eq!(
+            backend.subscribe(huge_auth, 1_000).unwrap_err().code,
+            EphemeralErrorCode::MetadataTooLarge
+        );
+
+        assert_eq!(backend.diagnostics().room_count, 0);
+    }
+
+    #[test]
     fn overlay_prunes_expired_entries_in_memory() {
         let room = room();
         let mut overlay = ClientEphemeralOverlay::default();
@@ -4438,11 +5476,30 @@ mod tests {
     /// active-room capacity again.
     #[test]
     fn l9_room_limits_reject_never_silently_evict() {
+        let scope = Scope::from_pairs([("boardId", "board-1")]);
+        let room_id = RoomId {
+            collection: "boardCursors".to_owned(),
+            routing_key: scope
+                .routed_key(&["boardId".to_owned()])
+                .expect("routing key"),
+            scope,
+        };
+        let owner = EntryOwner::Connection("pub".to_owned());
+        let room_budget = retained_room_identity_bytes(&room_id)
+            + retained_owner_bytes(&owner)
+            + retained_string_bytes("pub")
+            + 2 * MAP_ENTRY_OVERHEAD
+            + retained_entry_bytes(&EntryKey("k1".to_owned()), &owner, 3)
+            + retained_entry_bytes(&EntryKey("k2".to_owned()), &owner, 3)
+            + retained_connection_room_edge_bytes("pub", &room_id)
+            + retained_expiry_index_entry_bytes(&room_id)
+            + retained_subscriber_bytes("obs-1")
+            + retained_connection_room_edge_bytes("obs-1", &room_id);
         let backend = LocalEphemeralBackend::with_limits(EphemeralStoreLimits {
             max_active_rooms: 1,
             max_entries_per_room: 2,
             max_subscribers_per_room: 1,
-            max_room_value_bytes: 8,
+            max_room_value_bytes: room_budget,
         });
         let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
         collection.key_mode = KeyMode::Custom;
@@ -4473,12 +5530,6 @@ mod tests {
             .unwrap_err();
         assert_eq!(entry_cap.code, EphemeralErrorCode::RoomLimitExceeded);
 
-        // Byte cap: replacing k1 with a larger value would exceed 8 bytes.
-        let byte_cap = backend
-            .publish(publish("k1", b"seven!!", "board-1"), 1_001)
-            .unwrap_err();
-        assert_eq!(byte_cap.code, EphemeralErrorCode::RoomLimitExceeded);
-
         // Subscriber cap: one subscriber fits, the second is rejected, and a
         // re-subscribe by the existing subscriber stays allowed.
         let subscribe = |connection: &str| SubscribeRequest {
@@ -4490,6 +5541,15 @@ mod tests {
         backend.subscribe(subscribe("obs-1"), 1_002).unwrap();
         let subscriber_cap = backend.subscribe(subscribe("obs-2"), 1_002).unwrap_err();
         assert_eq!(subscriber_cap.code, EphemeralErrorCode::RoomLimitExceeded);
+        backend.subscribe(subscribe("obs-1"), 1_002).unwrap();
+
+        // The byte cap covers retained key/owner/scope/subscriber metadata as
+        // well as values. With the exact current footprint admitted, growing
+        // one value by even four bytes is rejected without eviction.
+        let byte_cap = backend
+            .publish(publish("k1", b"seven!!", "board-1"), 1_002)
+            .unwrap_err();
+        assert_eq!(byte_cap.code, EphemeralErrorCode::RoomLimitExceeded);
 
         // Active-room cap: a second room cannot be created.
         let room_cap = backend
