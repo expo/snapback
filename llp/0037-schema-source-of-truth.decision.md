@@ -5,8 +5,8 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
-**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032
+**Revised:** 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
+**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0054
 
 ## Summary
 
@@ -137,13 +137,20 @@ one generator, two callers, so the committed files cannot diverge from the
 checker. A representative value of each artifact round-trips through serde and
 validates against its committed schema
 (`dk7_representative_values_validate_against_committed_schemas`), confirming the
-generated schema matches the actual serde representation with **no
-`#[schemars(...)]` overrides needed** (schemars 1.x honors the serde
-`rename`/`rename_all`/`default`/`transparent`/externally-tagged-enum attributes
-directly). Committed artifacts: schema manifest, function manifest, capability
-manifest, diagnostic, inspect state (full and public projection), and storage
-info; the host-ops result envelope is deferred until
-[LLP 0024](./0024-agent-operating-surface.spec.md)'s first slice adds the type.
+generated schema matches the actual serde representation. Most types need only
+serde-compatible derives. Narrow Rust-owned `#[schemars(...)]` projections are
+permitted when the runtime type is intentionally non-serializable—for example,
+ENG-24596's zeroizing bearer/code wrappers project as JSON strings while manual
+`Serialize` controls the only release seam. Raw serde tests reject duplicate
+and unknown inbound fields, and schema fixtures validate the projected wire
+shape, so the override does not become a second authority.
+
+Committed artifacts now include schema/function/capability manifests,
+diagnostics, inspect state (full and public projection), storage info, the
+`hostOpsResult` and host-ready descriptors, and the closed auth request,
+mailbox, credential, alarm, mint-session, and rescue DTOs listed in LLP 0054.
+The host-ops envelope is no longer deferred: LLP 0024's first slice and
+ENG-24596's auth operations both use the generated schema.
 Each committed schema carries the Snapback schema version on its `$id`.
 `demos/_kit/codegen.mjs` validates every Snapback-owned artifact it emits against
 the committed schemas before writing, failing closed with a structured

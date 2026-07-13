@@ -5,8 +5,8 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051
+**Revised:** 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053
 
 ## Summary
 
@@ -15,6 +15,11 @@ This Spec makes landing item 3 of
 SQLite protocol for Snapback's protected auth catalog, passwordless email-code
 provider, session token family, capture mailbox, operator impersonation carrier,
 collision rescue, and database-plus-keyring backup.
+
+[LLP 0045](./0045-notifications-outbox.rfc.md) retains ownership of the
+auth-code delivery handoff and its durable/non-durable boundary. This Spec is
+its item-3 implementing delegate: it owns the exact bounded process-local
+mailbox protocol, but may not move plaintext into a durable notification intent.
 
 LLP 0039 remains **Draft / FROZEN**. This document does not amend or reinterpret
 it. Where 0039 pins an outcome, 0039 wins; this document chooses the exact wire,
@@ -836,9 +841,12 @@ rather than making an item-3 credential response an accidental descriptor.
 ```
 
 `auth.mintSession` returns the same credential data inside the normal host-ops
-envelope. `auth.rescueCollidingTable` returns only source, target, copied row
-count, copied explicit-index count, manifest-updated boolean, and
-`catalogCollisionCleared`; it never returns rows.
+envelope. The ordinary live-server `auth.rescueCollidingTable` projection
+returns only source, target, copied row count, copied explicit-index count,
+manifest-updated boolean, and `catalogCollisionCleared`; it never returns rows.
+The startup recovery carrier returns those same six metadata fields plus the
+posture fact `restartRequired: true`, because that listener cannot transition
+into application service in-process.
 
 ### Registry rows
 
@@ -852,6 +860,10 @@ count, copied explicit-index count, manifest-updated boolean, and
 | `GET /_snapback/api/auth/mailbox` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
 | host-op `auth.mintSession` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
 | host-op `auth.rescueCollidingTable` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | operator metadata |
+
+Mailbox access and session minting are available in dev/test/demo (with mint
+still activation-fenced until item 4). Collision rescue is deliberately
+dev/test-only on both the ordinary and recovery-server projections.
 
 `public typed, no-store` is a distinct response-sensitivity classification.
 It is neither a cacheable `PublicProjection` nor mislabeled operator metadata;
@@ -904,6 +916,8 @@ the stored manifest, and a stored manifest that itself names the colliding
 table. A normally valid dev manifest with only a dormant physical collision may
 open and serve in dev mode; item 4's stage-time check refuses the transition and
 the registered rescue host-op remains reachable through the ordinary server.
+That ordinary projection is available only in `dev` and `test`; `demo` and
+`prod` both refuse it before the rescue core can run.
 The second case cannot enter the ordinary application open path after the
 reservation lands, so startup has a closed **collision-recovery posture**.
 
@@ -1141,8 +1155,9 @@ authority.
 
 - Codegen rejects lower-, upper-, and mixed-case auth-reserved tables and
   indexes. Storage rejects auth-reserved tables, fields, and indexes on apply
-  and stored-manifest reopen. `ctx.db`, sync, live, export, and admin edit have
-  negative tests.
+  and stored-manifest reopen, and a runtime table-resolution negative proves
+  the central storage boundary. This item does not claim a separate wrapper
+  test for every future sync/live/export/admin-edit projection.
 - `Uninitialized`, unmarked table collision, exact-v1 global-name collision,
   exact v1, unknown marker, corrupt marked catalog, and extra catalog-object
   states each produce the pinned result.
@@ -1155,15 +1170,17 @@ authority.
 
 ### Keyring and crypto
 
-- Fixed vectors pin NFC/lowercase output, LP framing, HMAC bytes, base64url,
-  CRC32, bearer length, and SHA-256 input bytes in Rust and JS fixtures.
+- Fixed vectors pin NFC/full-string default lowercase output (including Greek
+  final sigma), LP framing, HMAC bytes, base64url, CRC32, bearer length, and
+  SHA-256 input bytes in Rust and JS fixtures.
 - RNG failure, missing-after-catalog, corrupt JSON, unknown fields/version,
   wrong owner/mode, symlink/hardlink substitution, oversize file, duplicate key,
   missing active key, and interrupted atomic replacement all fail closed without
   overwriting prior bytes.
 - First activation auto-mints mode `0600`; memory mode persists nothing.
-  Rotation publishes before first use, old challenges exchange through the old
-  key, and pruning cannot remove a referenced key.
+  Rotation publishes before first use; keyring tests retrieve retired keys and
+  prove pruning cannot remove a referenced key, while provider exchange selects
+  the challenge row's stored `key_id` rather than the current active key.
 - A marked catalog with a missing/corrupt keyring binds with the redacted health
   diagnostic, keeps session-digest resolution available, and makes every
   provider operation fail closed without replacement minting.
@@ -1175,44 +1192,47 @@ authority.
 - Known and unknown addresses get the same accepted request shape/status and
   both create a challenge. Per-address, global, and mailbox budgets hit exact
   boundaries and recover after their windows.
-- Request races on one address leave exactly one active challenge and one
-  mailbox entry. A late older publish is impossible. Consume, supersede, reset,
-  expiry, and process death clear plaintext capture; a mailbox GET raced at each
-  commit boundary never returns a consumed, superseded, or reset entry.
+- Serialized admission/interleaving tests on one address leave exactly one
+  active challenge and one mailbox entry; the stripe plus transaction is the
+  linearization proof, and a late older publish is impossible. Consume,
+  supersede, reset, expiry, and process death clear plaintext capture; mailbox
+  commit-boundary tests never return a consumed, superseded, or reset entry.
 - Wrong attempts 1–4 commit and return `CODE_INVALID`; wrong attempt 5 commits
   and returns `CODE_LOCKED`; correct attempt 5 succeeds; later attempts lock.
   Unknown, expired, consumed, and superseded are uniform invalid outcomes.
-- Concurrent correct exchanges create one session; concurrent first logins for
-  one canonical address create one user and identity. The 21st live session
-  revokes the deterministic oldest and never yields 21 live rows.
+- Competing correct-exchange admissions serialize to one consumed challenge
+  and one session; first-login transaction constraints converge one canonical
+  address on one user and identity. The 21st live session revokes the
+  deterministic oldest and never yields 21 live rows.
 
 ### Session generated interleavings
 
-The suite runs an exhaustive small-state model and randomized/property traces.
-At minimum it covers:
+The item-3 suite runs deterministic generated and table-driven small-state
+traces over the provider/storage state machine. It covers:
 
 1. current N refreshes to N+1; N ordinary use inside/outside grace;
 2. N refresh inside grace (`REFRESH_SUPERSEDED`, no revoke) and outside grace
    (revoke);
 3. N-2 and N-3 ordinary/refresh reuse while tombstones remain;
 4. two refreshes racing from N;
-5. a sleeping tab whose scheduled refresh wakes before custody reload;
-6. a woken tab on the ordinary path that reloads/retries without clearing;
-7. refresh commit with a lost response and no retained successor;
-8. thief rotates first, victim cannot reconcile, family alarm delivered,
-   duplicated, delayed, response-lost, or permanently offline;
-9. logout racing refresh and session-cap eviction; and
-10. sliding use at just-before/at/after three days, sliding expiry, absolute
+5. refresh commit with a lost response and no retained successor;
+6. thief rotates first, victim cannot reconcile, and the family alarm is
+   delivered, duplicated, delayed, or response-lost;
+7. logout racing refresh and session-cap eviction; and
+8. sliding use at just-before/at/after three days, sliding expiry, absolute
     expiry, restart, and GC.
 
-Every trace asserts the exact matrix outcome, at most one current token, all
+Every provider trace asserts the exact matrix outcome, at most one current token, all
 predecessors attributable until absolute expiry, monotone generation only for
 revocation-class events, stable session/authority-instance ids across rotation,
 and no revival after expiry/revocation.
 
-Family-alarm cases also assert the identical query plan/transaction count,
-fixed-minimum response gate, one opaque status/body/header shape, and that only
-an attributable tombstone can change a session.
+Sleeping/woken client custody reload and a permanently offline alarm are
+item-4/5 client-coordinator acceptance, not claims about the item-3 provider.
+Family-alarm cases assert the fixed-minimum response gate, one opaque
+status/body/header shape, and that only an attributable tombstone can change a
+session. The SQL is one fixed implementation path; this version does not claim
+instrumented query-plan or transaction-count equivalence.
 
 ### Credential non-substitution
 
@@ -1234,6 +1254,9 @@ browser-client attempts all refuse before the effect. The admin client never
 persists or attaches `sbrl_` to mutation/action calls and never accepts/attaches
 `sbic_` at all.
 
+The profile matrix separately proves that `demo` may use mailbox/mint but may
+not invoke collision rescue; rescue succeeds only in `dev` or `test`.
+
 ### Rescue, backup, restore, and hygiene
 
 - Rescue is exercised for dormant and stored-manifest collisions, mixed-case
@@ -1252,15 +1275,19 @@ persists or attaches `sbrl_` to mutation/action calls and never accepts/attaches
 - Backup runs with writes and key rotation attempting to race it. The restored
   database opens without WAL, every challenge's `key_id` exists in the captured
   keyring, hashes match, and no half-published output directory is accepted.
-  Raw live-directory copy is a negative control.
+  A raw directory lacking the closed backup manifest is rejected as a restore
+  source; byte-copy race behavior is deliberately not represented as backup.
 - Declared restore revokes sessions and purges challenges; repeat of the same
   durable declaration id is idempotent even after new sessions exist; ordinary
   restart preserves both. Item 5's acceptance extends the non-idempotent branch
   of the same transaction with incarnation regeneration.
-- Planted code, token, digest, key, address, query-argument, receipt, and carrier
-  sentinels prove the exact redaction and projection boundaries. Every DTO has
-  positive schema instances and negative unknown/duplicate-field instances;
-  the Rust schema-generation drift gate and JS consumer fixtures agree.
+- Planted code/token/carrier and caller-controlled selector sentinels cover the
+  credential-bearing request, result, debug, diagnostic, and keyring seams;
+  existing config/receipt tests continue to own their separate redaction
+  classes. Every inbound auth DTO has negative unknown/duplicate-field
+  coverage, and representative output DTOs have positive schema instances;
+  Rust schema-generation/serialized-fixture drift gates agree. The independent
+  JS fixture pins the cross-language crypto bytes, not every DTO schema.
 
 ## Implementation hand-off
 
