@@ -1,0 +1,303 @@
+{
+  "$defs": {
+    "AppDataAvailability": {
+      "enum": [
+        "available",
+        "refusedPending"
+      ],
+      "type": "string"
+    },
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "AuthModeStatus": {
+      "enum": [
+        "settled",
+        "pendingRestart",
+        "quarantined"
+      ],
+      "type": "string"
+    },
+    "AuthScopedLiveAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "minimumAuthInvalidationProtocol": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "type": "object"
+    },
+    "AuthSessionAuthority": {
+      "additionalProperties": false,
+      "properties": {
+        "isAuthenticated": {
+          "type": "boolean"
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "userId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "isAuthenticated"
+      ],
+      "type": "object"
+    },
+    "AuthSessionAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "authScopedLive": {
+          "$ref": "#/$defs/AuthScopedLiveAvailability"
+        },
+        "onlineRequestResponse": {
+          "$ref": "#/$defs/OnlineAvailability"
+        },
+        "queuedReplay": {
+          "$ref": "#/$defs/QueuedReplayAvailability"
+        },
+        "retainedReads": {
+          "$ref": "#/$defs/RetainedReadAvailability"
+        }
+      },
+      "required": [
+        "onlineRequestResponse",
+        "authScopedLive",
+        "retainedReads",
+        "queuedReplay"
+      ],
+      "type": "object"
+    },
+    "AuthSessionProvider": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "available"
+      ],
+      "type": "object"
+    },
+    "ClientProtocols": {
+      "additionalProperties": false,
+      "properties": {
+        "authClient": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "authInvalidation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "authorityDescriptor": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "authorizedLease": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "OnlineAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "type": "object"
+    },
+    "QueuedReplayAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "minimumAuthorityDescriptorProtocol": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "type": "object"
+    },
+    "RetainedReadAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "minimumAuthInvalidationProtocol": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minimumAuthorizedLeaseProtocol": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.session.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activeMode": {
+      "$ref": "#/$defs/AuthMode"
+    },
+    "appDataAvailability": {
+      "$ref": "#/$defs/AppDataAvailability"
+    },
+    "authority": {
+      "$ref": "#/$defs/AuthSessionAuthority"
+    },
+    "availability": {
+      "$ref": "#/$defs/AuthSessionAvailability"
+    },
+    "clientProtocols": {
+      "$ref": "#/$defs/ClientProtocols"
+    },
+    "desiredMode": {
+      "$ref": "#/$defs/AuthMode"
+    },
+    "modeState": {
+      "$ref": "#/$defs/AuthModeStatus"
+    },
+    "protocolVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "provider": {
+      "$ref": "#/$defs/AuthSessionProvider"
+    },
+    "quarantineCode": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "serverStartupNonce": {
+      "type": "string"
+    },
+    "transitionGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "transports": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "serverStartupNonce",
+    "transitionGeneration",
+    "activeMode",
+    "desiredMode",
+    "modeState",
+    "appDataAvailability",
+    "clientProtocols",
+    "availability",
+    "provider",
+    "transports",
+    "authority"
+  ],
+  "title": "AuthSessionResponse",
+  "type": "object"
+}

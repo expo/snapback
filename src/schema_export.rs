@@ -18,6 +18,7 @@
 use serde_json::Value;
 
 use crate::admin::AdminInspect;
+use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -142,6 +143,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.request-code.input.schema.json",
             schemars::schema_for!(RequestCodeRequest),
+        ),
+        finish(
+            "auth.session.output.schema.json",
+            schemars::schema_for!(AuthSessionResponse),
         ),
         finish(
             "auth.request-code.output.schema.json",

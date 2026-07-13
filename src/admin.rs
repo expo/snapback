@@ -14,6 +14,7 @@ use crate::admin_secret_read::{
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
 };
+use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
 use crate::diagnostic::SnapbackError;
@@ -37,7 +38,8 @@ use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::fmt;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::{
@@ -603,6 +605,13 @@ fn default_admin_dist() -> Option<PathBuf> {
 /// `SharedSnapback` unchanged while other handlers reach the `ReadLane`,
 /// `EphemeralApi`, or `ServerContext`.
 #[derive(Clone)]
+struct AuthModeRuntimeSnapshot {
+    state: Arc<AuthModeStateRecord>,
+    active_policy: PolicyAuthMode,
+    desired_policy: PolicyAuthMode,
+}
+
+#[derive(Clone)]
 pub struct AppState {
     pub snapback: SharedSnapback,
     pub read: ReadLane,
@@ -611,16 +620,24 @@ pub struct AppState {
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
-    /// The policy evaluator input. Item 1 keeps production construction at
-    /// `Dev`; item 4 replaces that default with the persisted staged-mode
-    /// resolver. Keeping the value in runtime state now lets the registry's
-    /// sessions overlay be exercised through the real centralized gate rather
-    /// than through a metadata-only test double.
-    pub policy_auth_mode: PolicyAuthMode,
-    /// Desired auth-policy mode. It equals `policy_auth_mode` in production
-    /// until item 4 installs persisted staged-mode resolution; the separate
-    /// field lets pre-effect gates prove the pending posture now.
-    pub desired_policy_auth_mode: PolicyAuthMode,
+    /// Clone-shared mode authority. A network stage/re-stage publishes the
+    /// committed durable record and its derived active/desired policy inputs
+    /// as one write before returning success.
+    auth_mode_runtime: Arc<StdRwLock<AuthModeRuntimeSnapshot>>,
+    /// Positive build/process facts used by both activation and the bootstrap
+    /// availability matrix. The derived activation bit is validated at install.
+    pub(crate) auth_program_readiness: Arc<AuthProgramReadiness>,
+    /// Process-local admission generation captured by every prepared
+    /// authority. The staging barrier may retire an epoch without mutating the
+    /// durable transition generation.
+    pub(crate) auth_admission_epoch: Arc<AtomicU64>,
+    /// Public process identity bound to ready-file/operator sidecars and echoed
+    /// by the bootstrap handshake. It is captured once so one response cannot
+    /// accidentally combine facts from different startup identities.
+    pub(crate) server_startup_nonce: Arc<str>,
+    /// CLI-only, process-local opt-in for exposing dev body authority on a
+    /// non-loopback bind. Production profiles never honor this bit.
+    pub(crate) allow_insecure_dev_auth: bool,
     /// Digest-only registry for reset-bounded administrative data leases.
     pub secret_reads: SecretReadLeaseRegistry,
     /// Present only for a serve process with a validated ready-file sibling.
@@ -670,8 +687,19 @@ impl AppState {
                 ephemeral,
                 server: Arc::new(server),
                 connections: ConnectionRegistry::default(),
-                policy_auth_mode: PolicyAuthMode::Dev,
-                desired_policy_auth_mode: PolicyAuthMode::Dev,
+                auth_mode_runtime: Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
+                    state: Arc::new(AuthModeStateRecord::initial_dev(None)),
+                    active_policy: PolicyAuthMode::Dev,
+                    desired_policy: PolicyAuthMode::Dev,
+                })),
+                auth_program_readiness: Arc::new(AuthProgramReadiness::item4(false)),
+                auth_admission_epoch: Arc::new(AtomicU64::new(0)),
+                server_startup_nonce: Arc::from(
+                    crate::identity::binary_identity()
+                        .startup_nonce
+                        .into_boxed_str(),
+                ),
+                allow_insecure_dev_auth: false,
                 secret_reads,
                 secret_read_mint: None,
                 impersonation_capabilities: None,
@@ -705,6 +733,133 @@ impl AppState {
         self
     }
 
+    /// Install the validated pre-bind mode authority and readiness facts.
+    ///
+    /// @ref LLP 0055#activation-readiness-and-later-item-fences — readiness is
+    /// server-owned and the activation bit is derived, never caller asserted.
+    pub fn with_auth_runtime_facts(
+        mut self,
+        mode_state: AuthModeStateRecord,
+        readiness: AuthProgramReadiness,
+    ) -> Result<Self, SnapbackError> {
+        mode_state.validate_shape()?;
+        readiness.validate()?;
+        let active_policy = mode_state.active.into();
+        let desired_policy = mode_state.desired.into();
+        self.auth_mode_runtime = Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
+            state: Arc::new(mode_state),
+            active_policy,
+            desired_policy,
+        }));
+        self.auth_program_readiness = Arc::new(readiness);
+        Ok(self)
+    }
+
+    /// Test/embedding seam for a process identity supplied by a trusted
+    /// launcher. Production serve paths use the binary identity default.
+    pub fn with_server_startup_nonce(
+        mut self,
+        startup_nonce: impl Into<String>,
+    ) -> Result<Self, SnapbackError> {
+        let startup_nonce = startup_nonce.into();
+        if startup_nonce.is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "server startup nonce must be non-empty",
+            ));
+        }
+        self.server_startup_nonce = Arc::from(startup_nonce.into_boxed_str());
+        Ok(self)
+    }
+
+    /// Install the explicit CLI-only dangerous override. Middleware still
+    /// ignores it under the production profile.
+    pub fn with_insecure_dev_auth_override(mut self, allowed: bool) -> Self {
+        self.allow_insecure_dev_auth = allowed;
+        self
+    }
+
+    pub fn auth_mode_state(&self) -> Arc<AuthModeStateRecord> {
+        self.auth_mode_runtime
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .state
+            .clone()
+    }
+
+    /// Publish a record that was already committed by the durable mode store.
+    /// Validation happens before the one clone-shared swap; no request can
+    /// observe the new record with the old active/desired policy inputs.
+    pub fn publish_auth_mode_state(
+        &self,
+        mode_state: AuthModeStateRecord,
+    ) -> Result<(), SnapbackError> {
+        mode_state.validate_shape()?;
+        let snapshot = AuthModeRuntimeSnapshot {
+            active_policy: mode_state.active.into(),
+            desired_policy: mode_state.desired.into(),
+            state: Arc::new(mode_state),
+        };
+        *self
+            .auth_mode_runtime
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = snapshot;
+        Ok(())
+    }
+
+    pub fn active_policy_auth_mode(&self) -> PolicyAuthMode {
+        self.auth_mode_runtime
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .active_policy
+    }
+
+    pub fn desired_policy_auth_mode(&self) -> PolicyAuthMode {
+        self.auth_mode_runtime
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .desired_policy
+    }
+
+    pub fn auth_program_readiness(&self) -> &AuthProgramReadiness {
+        self.auth_program_readiness.as_ref()
+    }
+
+    pub fn auth_admission_epoch(&self) -> u64 {
+        self.auth_admission_epoch.load(Ordering::SeqCst)
+    }
+
+    /// Trusted composition seam for a pre-existing process admission epoch.
+    /// The quiescence controller owns subsequent retirement.
+    pub fn with_auth_admission_epoch(self, admission_epoch: u64) -> Self {
+        self.auth_admission_epoch
+            .store(admission_epoch, Ordering::SeqCst);
+        self
+    }
+
+    pub fn server_startup_nonce(&self) -> &str {
+        self.server_startup_nonce.as_ref()
+    }
+
+    /// Pre-bind transport validation used by the CLI composition lane. The
+    /// request middleware repeats the same policy as defense in depth.
+    pub fn validate_auth_transport(&self) -> Result<(), SnapbackError> {
+        let override_allowed =
+            self.allow_insecure_dev_auth && !matches!(self.server.profile, ServerProfile::Prod);
+        if !self.server.loopback
+            && (matches!(self.active_policy_auth_mode(), PolicyAuthMode::Sessions)
+                || !override_allowed)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+                "auth",
+                "the active auth mode cannot serve app data on a plaintext non-loopback bind",
+            ));
+        }
+        Ok(())
+    }
+
     /// Install the exact provider instance and readiness posture assembled
     /// before listener bind. Catalog activation is intentionally not part of
     /// this builder.
@@ -736,28 +891,40 @@ impl AppState {
     /// keep the `Dev` constructor default until the staged resolver lands;
     /// registry acceptance uses this seam to execute the closed sessions
     /// overlay against the actual router.
-    pub fn with_policy_auth_mode(mut self, mode: PolicyAuthMode) -> Self {
-        self.policy_auth_mode = mode;
-        self.desired_policy_auth_mode = mode;
+    pub fn with_policy_auth_mode(self, mode: PolicyAuthMode) -> Self {
+        {
+            let mut snapshot = self
+                .auth_mode_runtime
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            snapshot.active_policy = mode;
+            snapshot.desired_policy = mode;
+        }
         self
     }
 
     /// Install an explicit active/desired posture for embedded acceptance.
     /// Item 4 owns replacing this injection seam with persisted startup state.
-    pub fn with_policy_auth_posture(
-        mut self,
-        active: PolicyAuthMode,
-        desired: PolicyAuthMode,
-    ) -> Self {
-        self.policy_auth_mode = active;
-        self.desired_policy_auth_mode = desired;
+    pub fn with_policy_auth_posture(self, active: PolicyAuthMode, desired: PolicyAuthMode) -> Self {
+        {
+            let mut snapshot = self
+                .auth_mode_runtime
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            snapshot.active_policy = active;
+            snapshot.desired_policy = desired;
+        }
         self
     }
 
     pub fn policy_auth_posture(&self) -> PolicyAuthPosture {
+        let snapshot = self
+            .auth_mode_runtime
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         PolicyAuthPosture {
-            active: self.policy_auth_mode,
-            desired: self.desired_policy_auth_mode,
+            active: snapshot.active_policy,
+            desired: snapshot.desired_policy,
         }
     }
 
@@ -816,7 +983,7 @@ impl FromRef<AppState> for ConnectionRegistry {
 
 impl FromRef<AppState> for PolicyAuthMode {
     fn from_ref(state: &AppState) -> Self {
-        state.policy_auth_mode
+        state.active_policy_auth_mode()
     }
 }
 
@@ -1698,6 +1865,7 @@ async fn mint_secret_read_lease(
 }
 
 async fn admin_inspect(
+    State(runtime): State<AppState>,
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
@@ -1718,7 +1886,9 @@ async fn admin_inspect(
             BTreeSet::from([SecretReadScope::AdminInspect]),
         )?;
     }
-    let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
+    let mut inspect =
+        crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
+    crate::server::project_auth_runtime_facts(&mut inspect, &runtime);
     let response = AdminInspect::assemble(inspect, &ctx);
     if policy_mode == PolicyAuthMode::Sessions {
         reserve_secret_read_json(

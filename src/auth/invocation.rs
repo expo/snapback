@@ -131,27 +131,13 @@ impl WireAuthorityFields {
         let Some(object) = value.as_object() else {
             return fields;
         };
-        let auth = object.get("auth");
-        fields.record(
+        fields.record_auth_object(
+            object.get("auth"),
             WireAuthorityLocation::HandlerAuth,
-            WireFieldPresence::from_value(auth),
+            WireAuthorityLocation::HandlerAuthPrincipal,
+            WireAuthorityLocation::HandlerAuthSessionId,
+            WireAuthorityLocation::HandlerAuthUserId,
         );
-        if let Some(auth) = auth.and_then(Value::as_object) {
-            fields.record(
-                WireAuthorityLocation::HandlerAuthPrincipal,
-                WireFieldPresence::from_value(auth.get("principal")),
-            );
-            fields.record(
-                WireAuthorityLocation::HandlerAuthSessionId,
-                WireFieldPresence::from_value(
-                    auth.get("session_id").or_else(|| auth.get("sessionId")),
-                ),
-            );
-            fields.record(
-                WireAuthorityLocation::HandlerAuthUserId,
-                WireFieldPresence::from_value(auth.get("user_id").or_else(|| auth.get("userId"))),
-            );
-        }
         fields.record(
             WireAuthorityLocation::CtxLedgerAuthFingerprint,
             WireFieldPresence::from_value(
@@ -167,6 +153,109 @@ impl WireAuthorityFields {
             ),
         );
         fields
+    }
+
+    /// Inspect the owner fields on a durable live operation. Initial
+    /// subscribe passes its nested `input` object; resume/unsubscribe pass the
+    /// operation root. Ordinary query arguments are never traversed.
+    pub fn inspect_live_owner(value: &Value) -> Self {
+        let mut fields = Self::default();
+        let Some(object) = value.as_object() else {
+            return fields;
+        };
+        fields.record_auth_object(
+            object.get("auth"),
+            WireAuthorityLocation::LiveOwnerAuth,
+            WireAuthorityLocation::LiveOwnerPrincipal,
+            WireAuthorityLocation::LiveOwnerSessionId,
+            WireAuthorityLocation::LiveOwnerUserId,
+        );
+        fields.record(
+            WireAuthorityLocation::CtxLedgerAuthFingerprint,
+            WireFieldPresence::from_value(
+                object
+                    .get("ctx_ledger")
+                    .or_else(|| object.get("ctxLedger"))
+                    .and_then(Value::as_object)
+                    .and_then(|ledger| {
+                        ledger
+                            .get("auth_fingerprint")
+                            .or_else(|| ledger.get("authFingerprint"))
+                    }),
+            ),
+        );
+        fields
+    }
+
+    /// Inspect every legacy authority sibling accepted by the dev ephemeral
+    /// DTO family. Presence, including explicit null, is forbidden in
+    /// sessions before typed deserialization can erase or ignore it.
+    pub fn inspect_ephemeral(value: &Value) -> Self {
+        let mut fields = Self::default();
+        let Some(object) = value.as_object() else {
+            return fields;
+        };
+        fields.record_auth_object(
+            object.get("auth"),
+            WireAuthorityLocation::EphemeralAuth,
+            WireAuthorityLocation::EphemeralPrincipal,
+            WireAuthorityLocation::EphemeralSessionId,
+            WireAuthorityLocation::EphemeralUserId,
+        );
+        fields.record_if_present(
+            WireAuthorityLocation::EphemeralPrincipal,
+            WireFieldPresence::from_value(object.get("principal")),
+        );
+        fields.record_if_present(
+            WireAuthorityLocation::EphemeralSessionId,
+            WireFieldPresence::from_value(
+                object.get("session_id").or_else(|| object.get("sessionId")),
+            ),
+        );
+        fields.record_if_present(
+            WireAuthorityLocation::EphemeralUserId,
+            WireFieldPresence::from_value(object.get("user_id").or_else(|| object.get("userId"))),
+        );
+        fields.record_if_present(
+            WireAuthorityLocation::EphemeralCustomKey,
+            WireFieldPresence::from_value(
+                object.get("custom_key").or_else(|| object.get("customKey")),
+            ),
+        );
+        fields
+    }
+
+    fn record_if_present(&mut self, location: WireAuthorityLocation, presence: WireFieldPresence) {
+        if presence.is_present() {
+            self.record(location, presence);
+        }
+    }
+
+    fn record_auth_object(
+        &mut self,
+        auth: Option<&Value>,
+        root: WireAuthorityLocation,
+        principal: WireAuthorityLocation,
+        session_id: WireAuthorityLocation,
+        user_id: WireAuthorityLocation,
+    ) {
+        self.record(root, WireFieldPresence::from_value(auth));
+        if let Some(auth) = auth.and_then(Value::as_object) {
+            self.record(
+                principal,
+                WireFieldPresence::from_value(auth.get("principal")),
+            );
+            self.record(
+                session_id,
+                WireFieldPresence::from_value(
+                    auth.get("session_id").or_else(|| auth.get("sessionId")),
+                ),
+            );
+            self.record(
+                user_id,
+                WireFieldPresence::from_value(auth.get("user_id").or_else(|| auth.get("userId"))),
+            );
+        }
     }
 }
 
@@ -330,6 +419,10 @@ impl HandlerAuthProjection {
         self.user_id.as_deref()
     }
 
+    pub fn session_id(&self) -> Option<&str> {
+        self.session_id.as_deref()
+    }
+
     pub fn is_authenticated(&self) -> bool {
         self.is_authenticated
     }
@@ -339,6 +432,7 @@ impl HandlerAuthProjection {
 /// exhaustive match: there is no nullable function id or catch-all source.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InvocationSource {
+    BootstrapHandshake,
     HttpQuery,
     HttpMutation,
     HttpAction,
@@ -363,6 +457,8 @@ pub enum InvocationSource {
     LiveResume,
     LiveUnsubscribe,
     LiveSupersede,
+    LiveStream,
+    OutboxDrain,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -380,7 +476,8 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 27] = [
+        Self::BootstrapHandshake,
         Self::HttpQuery,
         Self::HttpMutation,
         Self::HttpAction,
@@ -405,6 +502,8 @@ impl InvocationSource {
         Self::LiveResume,
         Self::LiveUnsubscribe,
         Self::LiveSupersede,
+        Self::LiveStream,
+        Self::OutboxDrain,
     ];
 
     pub const fn target(self) -> InvocationTarget {
@@ -422,7 +521,8 @@ impl InvocationSource {
             Self::DirectAdminRunner | Self::HostOperationFunctionRun => {
                 InvocationTarget::Function(FunctionKindConstraint::Any)
             }
-            Self::StandaloneAcknowledgement
+            Self::BootstrapHandshake
+            | Self::StandaloneAcknowledgement
             | Self::ConnectionOpen
             | Self::ConnectionClose
             | Self::EphemeralRegister
@@ -432,7 +532,9 @@ impl InvocationSource {
             | Self::EphemeralUnsubscribe
             | Self::LiveResume
             | Self::LiveUnsubscribe
-            | Self::LiveSupersede => InvocationTarget::AuthorityOnly,
+            | Self::LiveSupersede
+            | Self::LiveStream
+            | Self::OutboxDrain => InvocationTarget::AuthorityOnly,
         }
     }
 }
@@ -769,6 +871,35 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED");
+    }
+
+    #[test]
+    fn live_and_ephemeral_inspectors_cover_nested_and_sibling_authority() {
+        let live = WireAuthorityFields::inspect_live_owner(&json!({
+            "auth": { "user_id": "legacy" }
+        }));
+        assert_eq!(
+            live.first_present(),
+            Some(WireAuthorityLocation::LiveOwnerAuth)
+        );
+
+        let ephemeral = WireAuthorityFields::inspect_ephemeral(&json!({
+            "auth": {},
+            "session_id": null,
+            "customKey": "legacy"
+        }));
+        assert_eq!(
+            ephemeral.presence(WireAuthorityLocation::EphemeralAuth),
+            WireFieldPresence::PresentValue
+        );
+        assert_eq!(
+            ephemeral.presence(WireAuthorityLocation::EphemeralSessionId),
+            WireFieldPresence::PresentNull
+        );
+        assert_eq!(
+            ephemeral.presence(WireAuthorityLocation::EphemeralCustomKey),
+            WireFieldPresence::PresentValue
+        );
     }
 
     #[test]

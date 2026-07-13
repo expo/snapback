@@ -202,6 +202,8 @@ fn dk7_committed_public_instances_match_rust_types() {
 /// @ref LLP 0054#routes-operations-and-dtos — provider and operator objects are closed wire contracts. Keep a
 /// consumer-side fixture for every schema, not only the Rust schemars drift
 /// check, so camelCase or `additionalProperties` drift is caught here too.
+/// @ref LLP 0055#exact-response-dto — bootstrap discovery is an independently
+/// closed, generated response rather than an ad hoc server object.
 #[test]
 fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
     let cases = [
@@ -212,6 +214,51 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         (
             "auth.request-code.output.schema.json",
             json!({ "challengeId": "sbc_AAAAAAAAAAAAAAAAAAAAAA", "expiresAt": 10 }),
+        ),
+        (
+            "auth.session.output.schema.json",
+            json!({
+                "protocolVersion": 1,
+                "serverStartupNonce": "startup-1",
+                "transitionGeneration": 0,
+                "activeMode": "dev",
+                "desiredMode": "dev",
+                "modeState": "settled",
+                "appDataAvailability": "available",
+                "quarantineCode": null,
+                "clientProtocols": {
+                    "authClient": 1,
+                    "authInvalidation": null,
+                    "authorityDescriptor": null,
+                    "authorizedLease": null
+                },
+                "availability": {
+                    "onlineRequestResponse": { "available": true, "reason": null },
+                    "authScopedLive": {
+                        "available": true,
+                        "minimumAuthInvalidationProtocol": null,
+                        "reason": null
+                    },
+                    "retainedReads": {
+                        "available": true,
+                        "minimumAuthInvalidationProtocol": null,
+                        "minimumAuthorizedLeaseProtocol": null,
+                        "reason": null
+                    },
+                    "queuedReplay": {
+                        "available": true,
+                        "minimumAuthorityDescriptorProtocol": null,
+                        "reason": null
+                    }
+                },
+                "provider": { "key": "email-code", "available": false },
+                "transports": ["bearer"],
+                "authority": {
+                    "userId": null,
+                    "sessionId": null,
+                    "isAuthenticated": false
+                }
+            }),
         ),
         (
             "auth.exchange.input.schema.json",

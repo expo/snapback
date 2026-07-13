@@ -2,8 +2,14 @@ use crate::admin::{AppState, ServerContext, ServerProfile};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
-use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthority};
-use crate::auth::provider::{AuthProvider, ProviderError};
+use crate::auth::handshake::{
+    AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
+    AuthSessionResponse,
+};
+use crate::auth::invocation::{
+    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+};
+use crate::auth::provider::{AuthProvider, AuthProviderReadiness, ProviderError};
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -31,7 +37,7 @@ use crate::manifest::{
 use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, OriginalUri, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -1282,6 +1288,7 @@ impl std::fmt::Debug for ConnectionTokenQuery {
 async fn open_connection(
     State(connections): State<ConnectionRegistry>,
     State(ctx): State<Arc<ServerContext>>,
+    Extension(_authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
@@ -1492,6 +1499,15 @@ impl From<EnsureAppMode> for PolicyAuthMode {
         match mode {
             EnsureAppMode::Dev => Self::Dev,
             EnsureAppMode::Sessions => Self::Sessions,
+        }
+    }
+}
+
+impl From<crate::manifest::AuthMode> for PolicyAuthMode {
+    fn from(mode: crate::manifest::AuthMode) -> Self {
+        match mode {
+            crate::manifest::AuthMode::Dev => Self::Dev,
+            crate::manifest::AuthMode::Sessions => Self::Sessions,
         }
     }
 }
@@ -2072,6 +2088,29 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             public_route("GET", "/health", ResponseSensitivity::PublicProjection),
             get(health),
         ),
+        // @ref LLP 0055#bootstrap-handshake — discovery is the sole auth path
+        // available in every mode and while a transition is pending.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/auth/session",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::None,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            )
+            .with_session_overlay(SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+                invocation_authority: Some(InvocationAuthority::ResolvedCaller),
+                legacy_body_policy: None,
+                effect_policy: None,
+                response_sensitivity: None,
+            }),
+            get(auth_session).layer(DefaultBodyLimit::max(0)),
+        ),
         RegisteredRoute::new(
             public_route("GET", "/inspect", ResponseSensitivity::PublicProjection),
             get(inspect),
@@ -2622,6 +2661,249 @@ async fn select_http_operation(
     }
 }
 
+fn auth_transition_pending(runtime: &AppState) -> bool {
+    let state = runtime.auth_mode_state();
+    let posture = runtime.policy_auth_posture();
+    state.active != state.desired
+        || state.mode_state != crate::auth::mode::AuthModeStatus::Settled
+        || state.app_data_availability != crate::auth::mode::AppDataAvailability::Available
+        || posture.active != posture.desired
+}
+
+fn auth_diagnostic_app_route(path: &str) -> bool {
+    matches!(path, "/" | "/health" | "/auth/session")
+}
+
+/// Central app-data availability fence. System/operator routes retain their
+/// own registered policies; the one pending recovery branch is selected and
+/// authorized later by the `/app/ensure` operation gate.
+fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<SnapbackError> {
+    if spec.class != RouteClass::AppData || auth_diagnostic_app_route(spec.path) {
+        return None;
+    }
+    if auth_transition_pending(runtime) && spec.path != "/app/ensure" {
+        return Some(SnapbackError::error(
+            "SNAPBACK_AUTH_MODE_PENDING",
+            "auth",
+            "ordinary app data is unavailable while the auth-mode transition is pending",
+        ));
+    }
+    let policy_mode = runtime.active_policy_auth_mode();
+    if policy_mode == PolicyAuthMode::Dev && matches!(runtime.server.profile, ServerProfile::Prod) {
+        return Some(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "production profile refuses app data while auth mode is dev",
+        ));
+    }
+    if !runtime.server.loopback {
+        let insecure_dev_override = runtime.allow_insecure_dev_auth
+            && !matches!(runtime.server.profile, ServerProfile::Prod);
+        if policy_mode == PolicyAuthMode::Sessions || !insecure_dev_override {
+            return Some(SnapbackError::error(
+                "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+                "auth",
+                "the active auth mode cannot serve app data on a plaintext non-loopback bind",
+            ));
+        }
+    }
+    None
+}
+
+fn session_online_protocol_refusal(
+    spec: RouteSpec,
+    runtime: &AppState,
+    headers: &HeaderMap,
+) -> Option<SnapbackError> {
+    if spec.class != RouteClass::AppData
+        || auth_diagnostic_app_route(spec.path)
+        || spec.path == "/app/ensure"
+        || runtime.auth_mode_state().active != crate::manifest::AuthMode::Sessions
+    {
+        return None;
+    }
+    if !runtime.auth_program_readiness().session_activation_ready {
+        return Some(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "session-mode online request/response is not enabled by this process",
+            )
+            .with_details(json!({ "capability": "onlineRequestResponse" })),
+        );
+    }
+    if AuthClientProtocolOffers::from_headers(headers).auth_client != Some(AUTH_PROTOCOL_V1) {
+        return Some(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the request does not offer the exact supported auth-client protocol",
+            )
+            .with_details(json!({
+                "capability": "onlineRequestResponse",
+                "minimumAuthClientProtocol": AUTH_PROTOCOL_V1,
+            })),
+        );
+    }
+    None
+}
+
+fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
+    match spec.path {
+        "/auth/session" => Some(InvocationSource::BootstrapHandshake),
+        "/query/{name}" => Some(InvocationSource::HttpQuery),
+        "/mutation/{name}" => Some(InvocationSource::HttpMutation),
+        "/action/{name}" => Some(InvocationSource::HttpAction),
+        "/client-mutations/acknowledge" => Some(InvocationSource::StandaloneAcknowledgement),
+        "/connection/open" => Some(InvocationSource::ConnectionOpen),
+        "/live/{name}/subscribe" => Some(InvocationSource::LiveInitialQuery),
+        "/live/{name}/resume" => Some(InvocationSource::LiveResume),
+        "/live/{name}/unsubscribe" => Some(InvocationSource::LiveUnsubscribe),
+        "/live/{connection_id}/stream" => Some(InvocationSource::LiveStream),
+        "/outbox/{connection_id}" => Some(InvocationSource::OutboxDrain),
+        "/ephemeral/collections/ensure" => Some(InvocationSource::EphemeralRegister),
+        "/ephemeral/publish" => Some(InvocationSource::EphemeralPublish),
+        "/ephemeral/subscribe" => Some(InvocationSource::EphemeralSubscribe),
+        "/ephemeral/delete" => Some(InvocationSource::EphemeralDelete),
+        _ => None,
+    }
+}
+
+fn invocation_authority_value(source: InvocationSource, body: Option<&Value>) -> Option<&Value> {
+    // `MutationRequest` flattens `HandlerInput`; query/action inputs and all
+    // authority-only DTOs are rooted at the request object. Durable live
+    // subscribe is the one wrapper whose handler authority lives in `input`.
+    let body = body?;
+    if source == InvocationSource::LiveInitialQuery {
+        body.as_object()?.get("input")
+    } else {
+        Some(body)
+    }
+}
+
+fn invocation_wire_authority(
+    source: InvocationSource,
+    authority_value: Option<&Value>,
+) -> WireAuthorityFields {
+    let Some(value) = authority_value else {
+        return WireAuthorityFields::default();
+    };
+    match source {
+        InvocationSource::LiveInitialQuery
+        | InvocationSource::LiveResume
+        | InvocationSource::LiveUnsubscribe => WireAuthorityFields::inspect_live_owner(value),
+        InvocationSource::EphemeralRegister
+        | InvocationSource::EphemeralPublish
+        | InvocationSource::EphemeralSubscribe
+        | InvocationSource::EphemeralDelete => WireAuthorityFields::inspect_ephemeral(value),
+        _ => WireAuthorityFields::inspect_handler(value),
+    }
+}
+
+fn dev_body_authority(value: Option<&Value>) -> ResolvedAppAuthority {
+    let auth = value
+        .and_then(Value::as_object)
+        .and_then(|object| object.get("auth"))
+        .cloned()
+        .and_then(|auth| serde_json::from_value::<AuthInput>(auth).ok())
+        .unwrap_or_default();
+    ResolvedAppAuthority::dev_from_auth(&auth)
+}
+
+fn queued_replay_requested(source: InvocationSource, body: Option<&Value>) -> bool {
+    match source {
+        InvocationSource::StandaloneAcknowledgement => true,
+        InvocationSource::HttpMutation => body.and_then(Value::as_object).is_some_and(|object| {
+            object.contains_key("clientMutationId")
+                || object.contains_key("client_mutation_id")
+                || object.contains_key("acknowledgedClientMutationIds")
+                || object.contains_key("acknowledged_client_mutation_ids")
+        }),
+        _ => false,
+    }
+}
+
+async fn prepare_registered_route_authority(
+    spec: RouteSpec,
+    effective: EffectiveRoutePolicy,
+    runtime: &AppState,
+    headers: &HeaderMap,
+    body: Option<&Value>,
+) -> Result<Option<PreparedAuthority>, ApiError> {
+    let Some(source) = registered_invocation_source(spec) else {
+        return Ok(None);
+    };
+    let handler_value = invocation_authority_value(source, body);
+    let wire = invocation_wire_authority(source, handler_value);
+    let mode_state = runtime.auth_mode_state();
+    let active_mode = mode_state.active;
+    if active_mode == crate::manifest::AuthMode::Sessions && queued_replay_requested(source, body) {
+        let offered = AuthClientProtocolOffers::from_headers(headers).authority_descriptor;
+        if !runtime.auth_program_readiness().authority_descriptor
+            || offered != Some(AUTH_PROTOCOL_V1)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "queued replay is not available for this request",
+            )
+            .with_details(json!({ "capability": "queuedReplay" }))
+            .into());
+        }
+    }
+    let resolved = match active_mode {
+        crate::manifest::AuthMode::Dev => {
+            if source == InvocationSource::BootstrapHandshake
+                && headers.contains_key(header::AUTHORIZATION)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_REQUIRED",
+                    "auth",
+                    "session credentials are unavailable while auth mode is dev",
+                )
+                .into());
+            }
+            if effective.invocation_authority == InvocationAuthority::ClientAsserted {
+                dev_body_authority(handler_value)
+            } else {
+                ResolvedAppAuthority::Anonymous
+            }
+        }
+        crate::manifest::AuthMode::Sessions => {
+            if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
+                && headers.contains_key(header::AUTHORIZATION)
+            {
+                // Invalid and duplicate Authorization values remain
+                // presented-invalid credentials; they never fall through to
+                // anonymous authority.
+                let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
+                let provider = installed_auth_provider(runtime)?;
+                let admission = provider.admit().await;
+                let now_ms = provider.now_ms();
+                let session = with_snapback(&runtime.snapback, move |snapback| {
+                    admission.resolve_session(snapback.auth_database_mut(), bearer.as_str(), now_ms)
+                })
+                .await
+                .map_err(map_provider_error)?;
+                ResolvedAppAuthority::from_session(session)
+            } else {
+                ResolvedAppAuthority::Anonymous
+            }
+        }
+    };
+    InvocationGate::prepare_authority(
+        source,
+        active_mode,
+        runtime.server.profile,
+        mode_state.transition_generation,
+        runtime.auth_admission_epoch(),
+        &wire,
+        resolved,
+    )
+    .map(Some)
+    .map_err(ApiError::from)
+}
+
 fn deferred_secret_read_scope(
     spec: RouteSpec,
     request_path: &str,
@@ -2652,17 +2934,30 @@ async fn enforce_registered_route_policy(
     mut request: Request<Body>,
     next: Next,
 ) -> Response {
-    let effective = spec.effective_for(runtime.policy_auth_mode);
+    let policy_mode = runtime.active_policy_auth_mode();
+    let effective = spec.effective_for(policy_mode);
     if request.method() == Method::OPTIONS {
         request.extensions_mut().insert(spec);
         request.extensions_mut().insert(effective);
         return apply_registered_response_controls(effective, next.run(request).await);
     }
+    if let Some(error) = auth_app_data_refusal(spec, &runtime) {
+        return apply_registered_response_controls(
+            effective,
+            ApiError::from(error).into_response(),
+        );
+    }
+    if let Some(error) = session_online_protocol_refusal(spec, &runtime, request.headers()) {
+        return apply_registered_response_controls(
+            effective,
+            ApiError::from(error).into_response(),
+        );
+    }
     // Provider paths are intentionally absent in active dev mode. Perform
     // this refusal before credential or body handling so a disabled provider
     // cannot become an oracle for bearer/body shape. `/auth/session`, added by
     // item 4, is the sole bootstrap-handshake exception.
-    if runtime.policy_auth_mode == PolicyAuthMode::Dev
+    if policy_mode == PolicyAuthMode::Dev
         && spec.path.starts_with("/auth/")
         && spec.path != "/auth/session"
     {
@@ -2676,20 +2971,6 @@ async fn enforce_registered_route_policy(
             .into_response(),
         );
     }
-    if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
-        && request.headers().contains_key(header::AUTHORIZATION)
-    {
-        return apply_registered_response_controls(
-            effective,
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "a presented session bearer cannot be accepted before the session resolver is installed",
-            ))
-            .into_response(),
-        );
-    }
-
     // @ref LLP 0031#enforcement — authenticate every connection carrier
     // before bounded JSON inspection. Body-carried connection ids get a
     // second exact id↔bearer check after decoding; an attacker-controlled
@@ -2726,7 +3007,7 @@ async fn enforce_registered_route_policy(
             "/_snapback/api/functions/{name}/run" | "/_snapback/api/host-ops"
         )
     {
-        let coarse_authorization = match runtime.policy_auth_mode {
+        let coarse_authorization = match policy_mode {
             PolicyAuthMode::Dev => crate::admin::authorize_for_mode(
                 &runtime.server,
                 request.headers(),
@@ -2761,6 +3042,7 @@ async fn enforce_registered_route_policy(
     let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         || connection_id_in_body
         || operation_deferred
+        || registered_invocation_source(spec).is_some()
         || effective.effect_policy == EffectPolicy::SecretReadMintProof;
     let mut policy_body = None;
     if inspect_body {
@@ -2787,14 +3069,9 @@ async fn enforce_registered_route_policy(
     // indistinguishable to an under-scoped lease while preserving the normal
     // AdminWrite path for mutation/action callers.
     if operation_deferred
-        && runtime.policy_auth_mode == PolicyAuthMode::Sessions
-        && crate::admin::authorize_for_mode(
-            &runtime.server,
-            request.headers(),
-            true,
-            runtime.policy_auth_mode,
-        )
-        .is_err()
+        && policy_mode == PolicyAuthMode::Sessions
+        && crate::admin::authorize_for_mode(&runtime.server, request.headers(), true, policy_mode)
+            .is_err()
         && let Some(scope) =
             deferred_secret_read_scope(spec, request.uri().path(), policy_body.as_ref())
         && let Err(error) = crate::admin::preflight_secret_read(
@@ -2812,7 +3089,7 @@ async fn enforce_registered_route_policy(
             .await
         {
             HttpOperationSelection::Selected(operation) => {
-                let operation_policy = operation.effective_for(runtime.policy_auth_mode);
+                let operation_policy = operation.effective_for(policy_mode);
                 selected_operation = Some((operation, operation_policy));
                 if operation_policy.legacy_body_policy == LegacyBodyPolicy::Rejected
                     && let Some(field) = policy_body.as_ref().and_then(legacy_body_auth_field)
@@ -2829,7 +3106,7 @@ async fn enforce_registered_route_policy(
                             &runtime.server,
                             request.headers(),
                             operation,
-                            runtime.policy_auth_mode,
+                            policy_mode,
                         )
                     })
                 } else {
@@ -2837,7 +3114,7 @@ async fn enforce_registered_route_policy(
                         &runtime.server,
                         request.headers(),
                         operation,
-                        runtime.policy_auth_mode,
+                        policy_mode,
                         &runtime.secret_reads,
                     )
                 }
@@ -2847,7 +3124,7 @@ async fn enforce_registered_route_policy(
                     &runtime.server,
                     request.headers(),
                     true,
-                    runtime.policy_auth_mode,
+                    policy_mode,
                 ) {
                     Ok(()) => Err(SnapbackError::error(
                         "SNAPBACK_HOST_OP_UNKNOWN",
@@ -2866,7 +3143,7 @@ async fn enforce_registered_route_policy(
                 &runtime.server,
                 request.headers(),
                 true,
-                runtime.policy_auth_mode,
+                policy_mode,
             ),
         }
     } else {
@@ -2902,13 +3179,13 @@ async fn enforce_registered_route_policy(
                 &runtime.server,
                 request.headers(),
                 false,
-                runtime.policy_auth_mode,
+                policy_mode,
             ),
             RoutePolicy::AdminWrite => crate::admin::authorize_for_mode(
                 &runtime.server,
                 request.headers(),
                 true,
-                runtime.policy_auth_mode,
+                policy_mode,
             ),
             RoutePolicy::AdminSecretRead => {
                 authorize_secret_read(&runtime.secret_reads, request.headers())
@@ -3007,6 +3284,23 @@ async fn enforce_registered_route_policy(
             return apply_registered_response_controls(response_policy, error.into_response());
         }
     }
+    let prepared_authority = match prepare_registered_route_authority(
+        spec,
+        effective,
+        &runtime,
+        request.headers(),
+        policy_body.as_ref(),
+    )
+    .await
+    {
+        Ok(authority) => authority,
+        Err(error) => {
+            return apply_registered_response_controls(response_policy, error.into_response());
+        }
+    };
+    if let Some(authority) = prepared_authority {
+        request.extensions_mut().insert(authority);
+    }
     request.extensions_mut().insert(spec);
     if let Some((operation, operation_policy)) = selected_operation {
         request.extensions_mut().insert(operation);
@@ -3049,6 +3343,57 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
         .auth_provider
         .clone()
         .ok_or_else(auth_provider_unavailable)
+}
+
+/// Public bootstrap discovery. It accepts no body or query and echoes only
+/// exact supported protocol offers; every presented session credential is
+/// still validated on this request.
+///
+/// @ref LLP 0055#exact-response-dto — this handler publishes the closed v1
+/// response authority and never includes bearer or provider internals.
+async fn auth_session(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AuthSessionResponse>, ApiError> {
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let offers = AuthClientProtocolOffers::from_headers(&headers);
+    let projection = authority.projection();
+    let state = runtime.auth_mode_state();
+    let provider_ready = runtime.auth_catalog_ready
+        && runtime
+            .auth_provider
+            .as_ref()
+            .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
+    let response = AuthSessionResponse::from_facts(
+        AuthSessionFacts {
+            server_startup_nonce: runtime.server_startup_nonce().to_owned(),
+            transition_generation: state.transition_generation,
+            active_mode: state.active,
+            desired_mode: state.desired,
+            mode_state: state.mode_state,
+            app_data_availability: state.app_data_availability,
+            quarantine_code: state
+                .quarantine
+                .as_ref()
+                .map(|quarantine| quarantine.code.clone()),
+            readiness: runtime.auth_program_readiness().clone(),
+            provider_key: "email-code".to_owned(),
+            provider_ready,
+            authority: AuthSessionAuthority {
+                user_id: projection.user_id().map(str::to_owned),
+                session_id: projection.session_id().map(str::to_owned),
+                is_authenticated: projection.is_authenticated(),
+            },
+        },
+        offers,
+    );
+    Ok(Json(response))
 }
 
 /// The provider protocol accepts exactly one `Authorization: Bearer …`
@@ -4788,7 +5133,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
         HeaderValue::from_static(
-            "content-type, authorization, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-secret-read-lease",
+            "content-type, authorization, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol",
         ),
     );
     response
@@ -4844,10 +5189,34 @@ async fn health(
 ///
 /// @ref LLP 0031#resolved-decisions — D3: the public payload is a typed projection of `InspectState`.
 async fn inspect(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
 ) -> Result<Json<crate::local::PublicInspect>, ApiError> {
-    let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
+    let mut inspect = with_snapback(&runtime.snapback, |snapback| snapback.inspect()).await?;
+    project_auth_runtime_facts(&mut inspect, &runtime);
     Ok(Json(inspect.into()))
+}
+
+/// Add process-composed auth facts to the capability authority without
+/// placing socket/ready-file state inside `LocalSnapback`.
+///
+/// @ref LLP 0055#activation-readiness-and-later-item-fences — the exact
+/// `authProgramReadiness` object is a server-owned runtime fact.
+pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &AppState) {
+    let facts = inspect
+        .capability_manifest
+        .runtime_facts
+        .get_or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !facts.is_object() {
+        *facts = Value::Object(serde_json::Map::new());
+    }
+    facts
+        .as_object_mut()
+        .expect("runtime facts were normalized to an object")
+        .insert(
+            "authProgramReadiness".to_owned(),
+            serde_json::to_value(runtime.auth_program_readiness())
+                .expect("AuthProgramReadiness is infallibly serializable"),
+        );
 }
 
 /// The v0 admin aliases perform system writes, so they share the
@@ -5142,11 +5511,35 @@ async fn execute_auth_host_operation(
         &request.operation,
         None,
         false,
-        runtime.policy_auth_mode,
+        runtime.active_policy_auth_mode(),
         &runtime.secret_reads,
         impersonation,
     )?;
     crate::admin::require_operation_profile(&runtime.server, &request.operation, false)?;
+
+    if request.operation == "auth.mintSession" {
+        let mode = runtime.auth_mode_state();
+        if mode.active != crate::manifest::AuthMode::Sessions
+            || mode.desired != crate::manifest::AuthMode::Sessions
+            || mode.mode_state != crate::auth::mode::AuthModeStatus::Settled
+            || mode.app_data_availability != crate::auth::mode::AppDataAvailability::Available
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "auth.mintSession requires settled and available sessions mode",
+            )
+            .into());
+        }
+        if !runtime.auth_catalog_ready
+            || runtime
+                .auth_provider
+                .as_ref()
+                .is_none_or(|provider| provider.readiness() != AuthProviderReadiness::Available)
+        {
+            return Err(auth_provider_unavailable());
+        }
+    }
 
     match request.operation.as_str() {
         "auth.mintSession" => {
@@ -5244,7 +5637,7 @@ async fn host_ops_handler(
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
     let state = runtime.snapback.clone();
     let ctx = runtime.server.clone();
-    let policy_mode = runtime.policy_auth_mode;
+    let policy_mode = runtime.active_policy_auth_mode();
     let secret_reads = runtime.secret_reads.clone();
     let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
     let profile = ctx.profile;
@@ -5565,23 +5958,20 @@ fn parse_optional_json<T: serde::de::DeserializeOwned>(
 async fn invoke_query(
     State(state): State<SharedSnapback>,
     State(read): State<crate::local::ReadLane>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<HandlerInput>, JsonRejection>,
 ) -> Result<Json<crate::manifest::QueryOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let output = if read.available() {
         with_read_lane(&read, move |lane| {
-            lane.invoke_query_from_source(&name, input, InvocationSource::HttpQuery)
+            lane.invoke_query_prepared(&name, input, authority)
         })
         .await?
     } else {
         with_snapback(&state, move |snapback| {
             snapback
-                .invoke_query_with_dependencies_from_source(
-                    &name,
-                    input,
-                    InvocationSource::HttpQuery,
-                )
+                .invoke_query_with_dependencies_prepared(&name, input, authority)
                 .map(|invocation| invocation.output)
         })
         .await?
@@ -5595,6 +5985,7 @@ async fn invoke_query(
 /// one-shot client's durable result indefinitely.
 async fn acknowledge_mutations(
     State(state): State<SharedSnapback>,
+    Extension(_authority): Extension<PreparedAuthority>,
     input: Result<Json<MutationAcknowledgementRequest>, JsonRejection>,
 ) -> Result<Json<MutationAcknowledgementResponse>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
@@ -5610,6 +6001,7 @@ async fn acknowledge_mutations(
 /// produces a receipt; it rides the error envelope.
 async fn invoke_mutation(
     State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Result<Json<MutationResponse>, ApiError> {
@@ -5640,12 +6032,12 @@ async fn invoke_mutation(
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
     let (result, receipt) = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation_recording_with_id_from_source(
+        snapback.invoke_mutation_recording_with_authority(
             &name,
             request.input,
             request.client_mutation_id,
             "http",
-            InvocationSource::HttpMutation,
+            authority,
         )
     })
     .await;
@@ -5668,15 +6060,11 @@ async fn invoke_mutation(
 /// @ref LLP 0028#execution-the-action-class — ENG-23324 detached execution.
 async fn invoke_action(
     State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<HandlerInput>, JsonRejection>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    let authority = InvocationGate::prepare_dev_input(
-        InvocationSource::HttpAction,
-        ServerProfile::Dev,
-        &input,
-    )?;
     let staged = {
         let name = name.clone();
         with_snapback(&state, move |snapback| {
@@ -5760,6 +6148,7 @@ async fn ensure_app(
 async fn subscribe_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     headers: HeaderMap,
     input: Result<Json<LiveSubscribeInput>, JsonRejection>,
@@ -5779,6 +6168,7 @@ async fn subscribe_live(
 async fn resume_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     headers: HeaderMap,
     input: Result<Json<LiveResumeInput>, JsonRejection>,
@@ -5795,6 +6185,7 @@ async fn resume_live(
 async fn unsubscribe_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     headers: HeaderMap,
     input: Result<Json<LiveUnsubscribeInput>, JsonRejection>,
@@ -5818,6 +6209,7 @@ async fn stream_live(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     State(policy_mode): State<PolicyAuthMode>,
+    Extension(_authority): Extension<PreparedAuthority>,
     Path(connection_id): Path<String>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
@@ -6313,6 +6705,7 @@ fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnos
 async fn drain_outbox(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     Path(connection_id): Path<String>,
     Query(query): Query<ConnectionTokenQuery>,
     headers: HeaderMap,
@@ -6351,6 +6744,7 @@ impl EnsureEphemeralCollectionsInput {
 /// L7 exec guard's blocking classes do not apply).
 async fn ensure_ephemeral_collections(
     State(ephemeral): State<EphemeralApi>,
+    Extension(_authority): Extension<PreparedAuthority>,
     input: Result<Json<EnsureEphemeralCollectionsInput>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::CollectionEnsureOutcome>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
@@ -6363,6 +6757,7 @@ async fn ensure_ephemeral_collections(
 async fn publish_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     request: Result<Json<PublishRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
@@ -6380,6 +6775,7 @@ async fn publish_ephemeral(
 async fn subscribe_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     request: Result<Json<SubscribeRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
@@ -6397,6 +6793,7 @@ async fn subscribe_ephemeral(
 async fn delete_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
+    Extension(_authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     request: Result<Json<DeleteRequest>, JsonRejection>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
@@ -6551,9 +6948,12 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CAPABILITY_WORKERD_MISSING"
         | "SNAPBACK_AUTH_CATALOG_CORRUPT"
         | "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED"
+        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+        | "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
         | "SNAPBACK_AUTH_MODE_PENDING"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -6561,6 +6961,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // its producer deliberately chooses a client class.
         "SNAPBACK_ARG_MISSING"
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
+        | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
@@ -6716,10 +7117,10 @@ mod tests {
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
         ACTION_WORKER_LIMIT_MAX, CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX,
         ConnectionGrant, ConnectionTokenQuery, DetachedActionHost, DetachedActionWorkerCounters,
-        OpenConnectionRequest, PolicyAuthMode, SharedSnapback, app, configured_action_worker_limit,
-        configured_cron_dispatch_concurrency, dispatch_cron_tick_background,
-        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
-        reserve_detached_action_worker_with_counters,
+        OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, SharedSnapback, app,
+        configured_action_worker_limit, configured_cron_dispatch_concurrency,
+        dispatch_cron_tick_background, parse_action_watchdog_timeout, parse_optional_json,
+        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
         status_for_diagnostic_code,
     };
@@ -6730,20 +7131,27 @@ mod tests {
     use crate::auth::crypto::{OsRandom, SessionBearer};
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::lifecycle::activate_catalog;
+    use crate::auth::mode::{
+        AppDataAvailability, AuthModeQuarantine, AuthModeStateRecord, AuthModeStatus,
+        AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+        SCHEMA_V1_PREFIX,
+    };
     use crate::auth::provider::{AuthProvider, AuthProviderProfile};
     use crate::cron::CronRunOutcome;
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
-        CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
+        AuthMode, CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
         CronRetryMode, CronRetryPolicy, CronSchedule, FunctionDefinition, FunctionKind,
         FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan,
         SchemaManifest,
     };
     use crate::runtime::IbexActionHost;
+    use axum::Json;
     use axum::body::{Body, Bytes, to_bytes};
-    use axum::extract::State;
+    use axum::extract::{Extension, State};
     use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
     use futures_util::StreamExt as _;
+    use serde_json::{Value, json};
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -6804,6 +7212,55 @@ mod tests {
         (app(state), capability)
     }
 
+    fn sessions_deployment() -> DeploymentIdentity {
+        DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "auth-http-fixture".to_owned(),
+            schema_hash: format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64)),
+            bundle_hash: format!("{FUNCTION_V1_PREFIX}{}", "2".repeat(64)),
+            inputs_hash: format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64)),
+        }
+    }
+
+    fn settled_sessions_state() -> AuthModeStateRecord {
+        AuthModeStateRecord {
+            format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
+            transition_generation: 7,
+            active: AuthMode::Sessions,
+            desired: AuthMode::Sessions,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: true,
+            active_deployment: Some(sessions_deployment()),
+            requested_deployment: None,
+            quarantine: None,
+        }
+    }
+
+    fn pending_sessions_state(quarantined: bool) -> AuthModeStateRecord {
+        let generation = 8;
+        AuthModeStateRecord {
+            format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
+            transition_generation: generation,
+            active: AuthMode::Dev,
+            desired: AuthMode::Sessions,
+            mode_state: if quarantined {
+                AuthModeStatus::Quarantined
+            } else {
+                AuthModeStatus::PendingRestart
+            },
+            app_data_availability: AppDataAvailability::RefusedPending,
+            sessions_ever_activated: false,
+            active_deployment: None,
+            requested_deployment: Some(sessions_deployment()),
+            quarantine: quarantined.then(|| AuthModeQuarantine {
+                transition_generation: generation,
+                code: "SNAPBACK_AUTH_POLICY_UNAVAILABLE".to_owned(),
+            }),
+        }
+    }
+
     async fn mint_test_credential(state: &AppState, email: &str) -> serde_json::Value {
         let provider = state
             .auth_provider
@@ -6861,6 +7318,524 @@ mod tests {
             .await
             .expect("read auth HTTP response");
         serde_json::from_slice(&bytes).expect("auth HTTP JSON response")
+    }
+
+    #[tokio::test]
+    async fn auth_session_dev_is_closed_no_store_and_rejects_credentials() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let state = state
+            .with_server_startup_nonce("handshake-dev")
+            .expect("install startup nonce");
+        let router = app(state);
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            HeaderValue::from_static("no-store, private")
+        );
+        let body = response_json(response).await;
+        assert_eq!(body["protocolVersion"], 1);
+        assert_eq!(body["serverStartupNonce"], "handshake-dev");
+        assert_eq!(body["activeMode"], "dev");
+        assert_eq!(body["desiredMode"], "dev");
+        assert_eq!(body["clientProtocols"]["authClient"], 1);
+        assert_eq!(
+            body["provider"],
+            json!({"key": "email-code", "available": false})
+        );
+        assert_eq!(
+            body["authority"],
+            json!({"userId": null, "sessionId": null, "isAuthenticated": false})
+        );
+
+        let credential = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .header(header::AUTHORIZATION, "Bearer not-a-session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(credential.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(credential).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUIRED"
+        );
+
+        for request in [
+            Request::builder()
+                .uri("/auth/session?smuggled=true")
+                .body(Body::empty())
+                .unwrap(),
+            Request::builder()
+                .uri("/auth/session")
+                .body(Body::from("{}"))
+                .unwrap(),
+        ] {
+            let rejected = router.clone().oneshot(request).await.unwrap();
+            assert_eq!(rejected.status(), StatusCode::BAD_REQUEST);
+            assert_eq!(
+                response_json(rejected).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUEST_INVALID"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn auth_session_sessions_resolves_presented_bearer_through_shared_authority() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = state
+            .with_auth_runtime_facts(settled_sessions_state(), AuthProgramReadiness::item4(true))
+            .expect("install sessions mode")
+            .with_server_startup_nonce("handshake-sessions")
+            .expect("install startup nonce");
+        let credential = mint_test_credential(&state, "handshake@example.com").await;
+        let token = credential["token"].as_str().unwrap().to_owned();
+        let router = app(state);
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-auth-invalidation-protocol", "99")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["activeMode"], "sessions");
+        assert_eq!(body["transitionGeneration"], 7);
+        assert_eq!(body["clientProtocols"]["authClient"], 1);
+        assert_eq!(body["clientProtocols"]["authInvalidation"], Value::Null);
+        assert_eq!(body["provider"]["available"], true);
+        assert_eq!(body["authority"]["userId"], credential["session"]["userId"]);
+        assert_eq!(body["authority"]["sessionId"], credential["session"]["id"]);
+        assert_eq!(body["authority"]["isAuthenticated"], true);
+        assert_eq!(
+            body["availability"]["onlineRequestResponse"]["reason"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+
+        let malformed = router
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .header(header::AUTHORIZATION, "Bearer malformed")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(malformed.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(malformed).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUIRED"
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_and_quarantined_modes_refuse_ordinary_app_data_but_serve_handshake() {
+        for quarantined in [false, true] {
+            let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+            let state = state
+                .with_auth_runtime_facts(
+                    pending_sessions_state(quarantined),
+                    AuthProgramReadiness::item4(false),
+                )
+                .expect("install pending mode");
+            let router = app(state);
+            let inspect = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/inspect")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(inspect.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(
+                response_json(inspect).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_MODE_PENDING"
+            );
+
+            let handshake = router
+                .oneshot(
+                    Request::builder()
+                        .uri("/auth/session")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(handshake.status(), StatusCode::OK);
+            let body = response_json(handshake).await;
+            assert_eq!(
+                body["modeState"],
+                if quarantined {
+                    "quarantined"
+                } else {
+                    "pendingRestart"
+                }
+            );
+            assert_eq!(
+                body["quarantineCode"],
+                if quarantined {
+                    json!("SNAPBACK_AUTH_POLICY_UNAVAILABLE")
+                } else {
+                    Value::Null
+                }
+            );
+            assert_eq!(
+                body["availability"]["onlineRequestResponse"]["reason"],
+                "SNAPBACK_AUTH_MODE_PENDING"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn published_mode_state_is_visible_to_router_clones_before_stage_response() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let router = app(state.clone());
+        state
+            .publish_auth_mode_state(pending_sessions_state(false))
+            .expect("publish committed pending state");
+
+        let inspect = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(inspect.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(inspect).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+
+        let handshake = router
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let body = response_json(handshake).await;
+        assert_eq!(body["transitionGeneration"], 8);
+        assert_eq!(body["desiredMode"], "sessions");
+    }
+
+    #[tokio::test]
+    async fn sessions_online_and_live_are_fenced_until_item5_then_require_protocol_v1() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = state
+            .with_auth_runtime_facts(settled_sessions_state(), AuthProgramReadiness::item4(true))
+            .expect("install pre-item-5 sessions fixture");
+        let router = app(state);
+        for uri in ["/inspect", "/live/guessed/subscribe"] {
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(if uri.starts_with("/live/") {
+                            "POST"
+                        } else {
+                            "GET"
+                        })
+                        .uri(uri)
+                        .header("x-snapback-auth-client-protocol", "1")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+            );
+        }
+
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let item5 = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let state = state
+            .with_auth_runtime_facts(settled_sessions_state(), item5)
+            .expect("install item-5 sessions fixture");
+        let router = app(state);
+        let missing = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let supported = router
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(supported.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn pre_item7_queued_replay_is_refused_before_mutation_lookup() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let item5 = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let state = state
+            .with_auth_runtime_facts(settled_sessions_state(), item5)
+            .expect("install item-5 sessions fixture");
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/mutation/does-not-exist")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .body(Body::from(r#"{"args":{},"clientMutationId":"queued-1"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = response_json(response).await;
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(body["diagnostic"]["details"]["capability"], "queuedReplay");
+    }
+
+    #[tokio::test]
+    async fn dev_transport_and_prod_profile_fail_closed_but_keep_health_available() {
+        let (mut non_loopback, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        Arc::make_mut(&mut non_loopback.server).loopback = false;
+        let router = app(non_loopback.clone());
+        let refused = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response_json(refused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        let health = router
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(health.status(), StatusCode::OK);
+
+        let allowed = non_loopback.with_insecure_dev_auth_override(true);
+        let inspect = app(allowed)
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(inspect.status(), StatusCode::OK);
+
+        let (mut prod, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        Arc::make_mut(&mut prod.server).profile = ServerProfile::Prod;
+        let refused = app(prod)
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(refused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+    }
+
+    #[tokio::test]
+    async fn public_and_admin_inspect_project_exact_auth_program_readiness() {
+        let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
+        let expected = serde_json::to_value(&readiness).unwrap();
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let state = state
+            .with_auth_runtime_facts(AuthModeStateRecord::initial_dev(None), readiness)
+            .expect("install readiness");
+        let router = app(state);
+        for (uri, admin) in [
+            ("/inspect", None),
+            ("/_snapback/api/inspect", Some("auth-http-admin")),
+        ] {
+            let mut request = Request::builder().uri(uri);
+            if let Some(admin) = admin {
+                request = request.header("x-snapback-admin-token", admin);
+            }
+            let response = router
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{uri}");
+            let body = response_json(response).await;
+            assert_eq!(
+                body["capabilityManifest"]["runtimeFacts"]["authProgramReadiness"], expected,
+                "{uri}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn route_middleware_installs_generation_and_epoch_bound_prepared_authority() {
+        async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+            Json(json!({
+                "transitionGeneration": authority.transition_generation(),
+                "admissionEpoch": authority.admission_epoch(),
+                "userId": authority.projection().user_id(),
+                "authenticated": authority.projection().is_authenticated(),
+            }))
+        }
+
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let mut mode = AuthModeStateRecord::initial_dev(None);
+        mode.transition_generation = 4;
+        let state = state
+            .with_auth_runtime_facts(mode, AuthProgramReadiness::item4(false))
+            .expect("install durable mode")
+            .with_auth_admission_epoch(11);
+        let router = super::router_from_registrations(
+            vec![
+                super::RegisteredRoute::new(
+                    super::app_auth_route("POST", "/query/{name}"),
+                    axum::routing::post(echo_authority),
+                ),
+                super::RegisteredRoute::new(
+                    super::app_auth_route("POST", "/mutation/{name}"),
+                    axum::routing::post(echo_authority),
+                ),
+            ],
+            state.clone(),
+        )
+        .with_state(state);
+        for uri in ["/query/authority", "/mutation/authority"] {
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(uri)
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(r#"{"args":{},"auth":{"user_id":"user-1"}}"#))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{uri}");
+            assert_eq!(
+                response_json(response).await,
+                json!({
+                    "transitionGeneration": 4,
+                    "admissionEpoch": 11,
+                    "userId": "user-1",
+                    "authenticated": true,
+                }),
+                "{uri}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn session_bearer_is_resolved_for_each_online_invocation_request() {
+        async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+            Json(json!({
+                "userId": authority.projection().user_id(),
+                "sessionId": authority.projection().session_id(),
+                "authenticated": authority.projection().is_authenticated(),
+            }))
+        }
+
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let item5 = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let state = state
+            .with_auth_runtime_facts(settled_sessions_state(), item5)
+            .expect("install item-5 sessions fixture");
+        let credential = mint_test_credential(&state, "query@example.com").await;
+        let token = credential["token"].as_str().unwrap();
+        let router = super::router_from_registrations(
+            vec![super::RegisteredRoute::new(
+                super::app_auth_route("POST", "/query/{name}"),
+                axum::routing::post(echo_authority),
+            )],
+            state.clone(),
+        )
+        .with_state(state);
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/authority")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .body(Body::from(r#"{"args":{}}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response_json(response).await,
+            json!({
+                "userId": credential["session"]["userId"],
+                "sessionId": credential["session"]["id"],
+                "authenticated": true,
+            })
+        );
     }
 
     async fn request_captured_challenge(router: &axum::Router, email: &str) -> String {
@@ -7639,7 +8614,11 @@ mod tests {
         }))
         .unwrap();
 
-        let (sessions, impersonation) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let (sessions, impersonation) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let sessions = sessions
+            .with_auth_runtime_facts(settled_sessions_state(), AuthProgramReadiness::item4(true))
+            .expect("install settled sessions mint posture");
+        let sessions = app(sessions);
         let response = sessions
             .clone()
             .oneshot(auth_http_request(
@@ -7717,6 +8696,25 @@ mod tests {
                 "SNAPBACK_AUTH_REQUEST_INVALID"
             );
         }
+
+        let (injected_sessions_policy, injected_impersonation) =
+            auth_http_fixture(PolicyAuthMode::Sessions);
+        let unavailable = injected_sessions_policy
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                body.clone(),
+                true,
+                Some("auth-http-admin"),
+                Some(&injected_impersonation),
+            ))
+            .await
+            .expect("policy injection cannot replace durable sessions state");
+        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(unavailable).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
 
         let (dev, dev_impersonation) = auth_http_fixture(PolicyAuthMode::Dev);
         let unavailable = dev
@@ -8065,6 +9063,10 @@ mod tests {
     // helper constructors, embedded runtime source, and macros.
     const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         (
+            "SNAPBACK_",
+            "diagnostic-code prefix validated by the durable auth-mode parser",
+        ),
+        (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
             "environment variable configuring detached action worker admission",
         ),
@@ -8173,6 +9175,14 @@ mod tests {
             "Rust constant name interpolated into schema-export text",
         ),
         (
+            "SNAPBACK_SESSIONS_MANIFEST_RELOCATED",
+            "embedded relocation poison marker, not an emitted diagnostic code",
+        ),
+        (
+            "SNAPBACK_SESSIONS_SCHEMA_VERSION",
+            "Rust constant name interpolated into schema-export text",
+        ),
+        (
             "SNAPBACK_SECRETS__",
             "suffix of the __SNAPBACK_SECRETS__ embedded-runtime placeholder",
         ),
@@ -8190,6 +9200,7 @@ mod tests {
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
+        "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
         "SNAPBACK_AUTH_REQUEST_INVALID",
         "SNAPBACK_AUTH_RESCUE_INVALID",
@@ -8394,9 +9405,12 @@ mod tests {
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_AUTH_CATALOG_CORRUPT",
         "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
         "SNAPBACK_AUTH_MODE_PENDING",
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
@@ -8429,6 +9443,11 @@ mod tests {
         // deliberately not a request-path 4xx; if it ever crosses ApiError,
         // the fail-safe HTTP projection remains 500.
         "SNAPBACK_AUTH_BACKUP_INVALID",
+        "SNAPBACK_AUTH_MODE_DOWNGRADE",
+        "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
+        "SNAPBACK_AUTH_TRANSPORT_INSECURE",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
@@ -8470,7 +9489,6 @@ mod tests {
         "SNAPBACK_READY_FILE_PATH_COLLISION",
         "SNAPBACK_RUNTIME_CREATE_FAILED",
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
-        "SNAPBACK_SCHEMA_SERIALIZE_FAILED",
         "SNAPBACK_SQLITE_ERROR",
         "SNAPBACK_V8_REJECTION_DETECTION_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
