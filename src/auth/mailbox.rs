@@ -128,7 +128,7 @@ impl CaptureMailbox {
         Self::new_with_clock(Arc::new(Instant::now))
     }
 
-    fn new_with_clock(clock: Arc<dyn Fn() -> Instant + Send + Sync>) -> Self {
+    pub(crate) fn new_with_clock(clock: Arc<dyn Fn() -> Instant + Send + Sync>) -> Self {
         Self {
             inner: Arc::new(CaptureMailboxInner {
                 state: Mutex::new(MailboxState {
