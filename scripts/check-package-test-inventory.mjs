@@ -18,6 +18,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'auth-artifacts.test.mjs',
       'auth-crypto-vectors.test.mjs',
       'authoring-validation.test.mjs',
       'contract-binding-reads.test.mjs',
@@ -33,7 +34,10 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'auth-coordinator-contract.test.mjs',
+      'auth-coordinator.test.mjs',
       'build-preset.test.mjs',
+      'client-store-authority.test.mjs',
       'derived-overlay-duplicate-reapply.test.mjs',
       'derived-overlay-reconcile-failure.test.mjs',
       'derived-overlay.test.mjs',
@@ -106,7 +110,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 29, 'reviewed package/admin test count changed');
+assert.equal(total, 33, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
