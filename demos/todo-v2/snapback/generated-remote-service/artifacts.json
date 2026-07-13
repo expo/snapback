@@ -1,0 +1,92 @@
+{
+  "appId": "todo-v2",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/createTodo.args.schema.json",
+    "operations/deleteTodo.args.schema.json",
+    "operations/editTitle.args.schema.json",
+    "operations/listTodos.args.schema.json",
+    "operations/listTodosOnce.args.schema.json",
+    "operations/setCompleted.args.schema.json",
+    "operations/setPriority.args.schema.json",
+    "remote-auth-capability.manifest.json",
+    "remote-data-capability.manifest.json",
+    "remote-service.profile.json",
+    "contract/runtime-links.ts",
+    "contract/todoPresence.ephemeral.ts",
+    "contract/todoPresence.ephemeral.contract-meta.ts",
+    "contract/todoPresence.publish.ts",
+    "contract/todoPresence.publish.contract-meta.ts",
+    "contract/createTodo.mutation.ts",
+    "contract/createTodo.mutation.contract-meta.ts",
+    "contract/deleteTodo.mutation.ts",
+    "contract/deleteTodo.mutation.contract-meta.ts",
+    "contract/editTitle.mutation.ts",
+    "contract/editTitle.mutation.contract-meta.ts",
+    "contract/listTodos.query.ts",
+    "contract/listTodos.query.contract-meta.ts",
+    "contract/listTodosOnce.query.ts",
+    "contract/listTodosOnce.query.contract-meta.ts",
+    "contract/setCompleted.mutation.ts",
+    "contract/setCompleted.mutation.contract-meta.ts",
+    "contract/setPriority.mutation.ts",
+    "contract/setPriority.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:05bd359f595b3ca2",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [
+    "todoPresence"
+  ],
+  "functions": [
+    {
+      "id": "todo-v2:createTodo",
+      "kind": "Mutation",
+      "name": "createTodo"
+    },
+    {
+      "id": "todo-v2:deleteTodo",
+      "kind": "Mutation",
+      "name": "deleteTodo"
+    },
+    {
+      "id": "todo-v2:editTitle",
+      "kind": "Mutation",
+      "name": "editTitle"
+    },
+    {
+      "id": "todo-v2:listTodos",
+      "kind": "LiveQuery",
+      "name": "listTodos"
+    },
+    {
+      "id": "todo-v2:listTodosOnce",
+      "kind": "Query",
+      "name": "listTodosOnce"
+    },
+    {
+      "id": "todo-v2:setCompleted",
+      "kind": "Mutation",
+      "name": "setCompleted"
+    },
+    {
+      "id": "todo-v2:setPriority",
+      "kind": "Mutation",
+      "name": "setPriority"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "1cce4f0ae0be80dd22c9c354fb2b1e1e74f69aac8a4075d463f957647916fcab",
+  "schemaHash": "sha256:2658f052fabdb75c",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "todos"
+  ]
+}

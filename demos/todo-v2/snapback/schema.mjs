@@ -37,6 +37,7 @@ export default defineSchema({
       }),
       publish: allow.all(),
       subscribe: allow.all(),
+      targets: ['local-dev-sqlite-ibex', 'remote-service-sqlite-ibex'],
     }),
   }),
 });

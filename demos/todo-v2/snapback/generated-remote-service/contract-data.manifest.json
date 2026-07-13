@@ -1,0 +1,410 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:05bd359f595b3ca2",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": true,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {
+    "todoPresence": {
+      "coalesce": true,
+      "defaultTtlMs": 20000,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 60000,
+      "name": "todoPresence",
+      "publishBudget": {
+        "burst": 40,
+        "maxValueBytes": 512,
+        "sustainedHz": 20
+      },
+      "routingFields": [
+        "listId"
+      ],
+      "scopeFields": [
+        "listId"
+      ]
+    }
+  },
+  "inputsHash": "1cce4f0ae0be80dd22c9c354fb2b1e1e74f69aac8a4075d463f957647916fcab",
+  "manifestVersion": 2,
+  "mutations": {
+    "createTodo": {
+      "argOrder": [
+        "title",
+        "priority"
+      ],
+      "args": {
+        "priority": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "createTodo",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "todoId"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "todoId",
+              "table": "todos",
+              "values": {
+                "completed": {
+                  "Literal": false
+                },
+                "priority": {
+                  "Arg": "priority"
+                },
+                "title": {
+                  "Arg": "title"
+                },
+                "userId": "AuthUserId"
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "deleteTodo": {
+      "argOrder": [
+        "id"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "deleteTodo",
+      "optimistic": true,
+      "plan": {
+        "return_value": "ChangedCount",
+        "steps": [
+          {
+            "Delete": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "todos"
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "editTitle": {
+      "argOrder": [
+        "id",
+        "title"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "editTitle",
+      "optimistic": true,
+      "plan": {
+        "return_value": "ChangedCount",
+        "steps": [
+          {
+            "Patch": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "todos",
+              "values": {
+                "title": {
+                  "Arg": "title"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "setCompleted": {
+      "argOrder": [
+        "id",
+        "completed"
+      ],
+      "args": {
+        "completed": {
+          "name": "boolean",
+          "shape": "primitive"
+        },
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "setCompleted",
+      "optimistic": true,
+      "plan": {
+        "return_value": "ChangedCount",
+        "steps": [
+          {
+            "Patch": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "todos",
+              "values": {
+                "completed": {
+                  "Arg": "completed"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    },
+    "setPriority": {
+      "argOrder": [
+        "id",
+        "priority"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "priority": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "todos"
+      ],
+      "name": "setPriority",
+      "optimistic": true,
+      "plan": {
+        "return_value": "ChangedCount",
+        "steps": [
+          {
+            "Patch": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "todos",
+              "values": {
+                "priority": {
+                  "Arg": "priority"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "todos"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listTodos": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listTodos",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "todos"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "priority": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "listTodosOnce": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "listTodosOnce",
+      "reads": [
+        "todos"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "priority": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    },
+    "todoPresence": {
+      "argOrder": [
+        "listId"
+      ],
+      "args": {
+        "listId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 20000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 60000,
+      "mode": "live",
+      "name": "todoPresence",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "listId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:2658f052fabdb75c",
+  "schemaVersion": "snapback.v0"
+}

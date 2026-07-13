@@ -31,6 +31,11 @@ todo/
       package.json                # -> package metadata for generated output
       artifacts.json              # inputsHash + index
       contract/                   # -> generated Contract modules + sidecars
+    generated-remote-service/ # commit-addressed remote target publication
+      remote-service.profile.json             # host-private HTTPS policy + corpus identity
+      remote-auth-capability.manifest.json     # credential authority/rotation policy, no value
+      remote-data-capability.manifest.json     # manifests, wire schemas, operation schemas
+      operations/*.args.schema.json            # generated from function validators
   surfaces/
     headless/run.mjs          # headless walkthrough (no UI framework)
     contract/todo.contract    # priority-aware Contract surface importing generated bindings
@@ -56,6 +61,12 @@ distinguishes the remaining prototype bridge from product code in
 ```sh
 # 1. Regenerate the manifests from source (deterministic; fails closed).
 node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
+
+# Publish the independently managed HTTPS service target. This contains no
+# endpoint or credential value; a consumer must pin the commit and resolve
+# both through host-private runtime authority.
+node packages/snapback-codegen/index.mjs demos/todo-v2/snapback \
+  --target-profile remote-service-sqlite-ibex
 
 # 2. Headless surface walkthrough (boots the Rust server itself).
 node demos/todo-v2/surfaces/headless/run.mjs

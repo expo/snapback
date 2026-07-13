@@ -65,7 +65,34 @@ const RESERVED_WORDS = new Set([
 ]);
 const GENERATED_API_RESERVED_EXPORTS = new Set(['api', 'ephemeral']);
 const SCHEMA_VERSION = 'snapback.v0';
-const TARGET_PROFILE = 'local-dev-sqlite-ibex';
+const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
+const TARGET_PROFILE_REMOTE = 'remote-service-sqlite-ibex';
+const TARGET_PROFILES = new Map([
+  [TARGET_PROFILE_LOCAL, {
+    capabilityManifest: 'capability.manifest.local-dev-sqlite-ibex.json',
+    outputDirectory: 'generated',
+  }],
+  [TARGET_PROFILE_REMOTE, {
+    capabilityManifest: 'capability.manifest.remote-service-sqlite-ibex.json',
+    outputDirectory: 'generated-remote-service',
+  }],
+]);
+const REMOTE_SERVICE_WIRE_SCHEMAS = Object.freeze({
+  queryInput: 'schemas/query.input.schema.json',
+  mutationInput: 'schemas/mutation.input.schema.json',
+  mutationOutput: 'schemas/mutation.output.schema.json',
+  liveEnvelope: 'schemas/live.envelope.schema.json',
+  liveSubscribeInput: 'schemas/live.subscribe.input.schema.json',
+  liveSubscribeOutput: 'schemas/live.subscribe.output.schema.json',
+  liveResumeInput: 'schemas/live.resume.input.schema.json',
+  liveResumeOutput: 'schemas/live.resume.output.schema.json',
+  liveUnsubscribeInput: 'schemas/live.unsubscribe.input.schema.json',
+  liveUnsubscribeOutput: 'schemas/live.unsubscribe.output.schema.json',
+  connectionGrant: 'schemas/connection.grant.schema.json',
+  connectionOpenInput: 'schemas/connection.open.input.schema.json',
+  receipt: 'schemas/receipt.schema.json',
+  errorResponse: 'schemas/error.response.schema.json',
+});
 
 // Contract data manifest v2 (LLP 0034 D3; Exact LLP 0284 §2.4).
 //
@@ -271,10 +298,10 @@ function validateArtifactAgainstSchema(schemaFile, instance, expected) {
 // Public API calls run generation in a fresh process. Native ESM caches every
 // transitive module by URL; changing a helper while keeping schema.mjs itself
 // unchanged otherwise reuses stale objects on the second generate() call.
-export async function generate(backendDir) {
+export async function generate(backendDir, options = {}) {
   const workerPath = fileURLToPath(new URL('./generate-worker.mjs', import.meta.url));
   return new Promise((resolveResult) => {
-    const child = fork(workerPath, [resolve(backendDir)], {
+    const child = fork(workerPath, [resolve(backendDir), JSON.stringify(options)], {
       // The cache-busting worker is a deterministic tool boundary. Caller
       // flags such as --eval/--input-type/--require/--inspect are not valid
       // worker arguments, and NODE_OPTIONS/preload credentials are not inputs.
@@ -326,13 +353,23 @@ function codegenWorkerEnvironment() {
   return environment;
 }
 
-export async function generateInProcess(backendDir) {
+export async function generateInProcess(backendDir, options = {}) {
   const diagnostics = [];
   // Non-blocking info diagnostics carried into the generated function
   // manifest (today: the MUTATION_OUTGREW_IR tier-ladder declarations).
   const infoDiagnostics = [];
   const err = (code, subsystem, message, extra = {}) =>
     diagnostics.push({ code, severity: 'error', subsystem, message, ...extra });
+
+  const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
+  const targetConfig = TARGET_PROFILES.get(targetProfile);
+  if (!targetConfig || Object.keys(options ?? {}).some((key) => key !== 'targetProfile')) {
+    err('CODEGEN_TARGET_PROFILE_UNSUPPORTED', 'codegen', `unsupported target profile ${String(targetProfile)}`, {
+      targetProfile,
+      supported: [...TARGET_PROFILES.keys()],
+    });
+    return { ok: false, diagnostics };
+  }
 
   let backendRoot;
   try {
@@ -432,7 +469,7 @@ export async function generateInProcess(backendDir) {
   }
 
   // --- Build + validate functions --------------------------------------------
-  const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, err);
+  const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, err, targetProfile);
   const functions = [];
   const contractQueries = dict();
   const contractMutations = dict();
@@ -799,12 +836,16 @@ export async function generateInProcess(backendDir) {
   } catch (error) {
     err(error.codegenCode ?? 'CODEGEN_CONTRACT_CAPABILITY_SOURCE_UNREADABLE', 'codegen', error.message, error.details ?? {});
   }
-  const canonicalCapability = loadCanonicalCapabilityManifest(err);
+  const canonicalCapability = loadCanonicalCapabilityManifest(err, targetProfile, targetConfig);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
   const appId = inferAppId(backendRoot);
   const demoMetadata = readDemoAppMetadata(backendRoot, appId, diagnostics);
+  const remoteServiceInputs = loadRemoteServiceInputs(backendRoot, appId, targetProfile, err);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   // Hash inputs use the MANIFEST-RELATIVE handler path (LLP 0034 review fix
   // 4): keying by absolute path baked the checkout location into inputsHash /
   // bundleHash, so committed artifacts only reproduced from the checkout that
@@ -834,6 +875,7 @@ export async function generateInProcess(backendDir) {
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     contractCapabilitiesSource,
     canonicalCapability.source,
+    ...(remoteServiceInputs?.identityInputs ?? []),
     ...handlerInputs,
   ];
   // @ref LLP 0010#generated-artifacts — every identity item is framed
@@ -868,7 +910,7 @@ export async function generateInProcess(backendDir) {
     schemaHash,
     inputsHash,
     generatedAt,
-    targetProfile: TARGET_PROFILE,
+    targetProfile,
     portabilityFlags: [],
     artifactDiagnostics: [],
     ephemeralCollections,
@@ -887,9 +929,9 @@ export async function generateInProcess(backendDir) {
     config: configEntries,
   };
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
-  // committed schemas/ file is generated from the Rust core's declaration
-  // (`CapabilityManifest::local_v0_declared`, drift-gated by
-  // tests/capability_v0.rs) and embedded verbatim.
+  // selected committed schemas/ instance is generated from the Rust core's
+  // target declaration, drift-gated by tests/capability_v0.rs, and embedded
+  // verbatim.
   const capabilityManifest = canonicalCapability.manifest;
   // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
   // can derive default optimistic overlays from the generated artifact alone
@@ -965,12 +1007,44 @@ export async function generateInProcess(backendDir) {
     return { ok: false, diagnostics };
   }
 
-  const outDir = join(backendRoot, 'generated');
+  const outDir = join(backendRoot, targetConfig.outputDirectory);
   const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
   const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
   validateContractModuleFilenames(contractModules, err);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const remoteServicePublication = remoteServiceInputs
+    ? buildRemoteServicePublication({
+        outDir,
+        appId,
+        targetProfile,
+        schemaManifest,
+        functionManifest,
+        capabilityManifest,
+        operationSchemas,
+        inputs: remoteServiceInputs,
+        err,
+      })
+    : null;
+  for (const artifact of remoteServicePublication?.artifacts ?? []) {
+    const { missing, problems } = validateArtifactAgainstSchema(
+      artifact.schemaFile,
+      artifact.value,
+      { artifactKind: artifact.value.artifactKind, schemaVersion: SCHEMA_VERSION },
+    );
+    if (missing) {
+      err('CODEGEN_ARTIFACT_SCHEMA_MISSING', 'codegen',
+        `cannot validate ${artifact.value.artifactKind} against committed schema: ${missing}`,
+        { artifact: artifact.value.artifactKind, schema: `schemas/${artifact.schemaFile}` });
+    } else if (problems.length > 0) {
+      err('CODEGEN_ARTIFACT_SCHEMA_INVALID', 'codegen',
+        `${artifact.value.artifactKind} does not match committed schemas/${artifact.schemaFile}: ${problems.join('; ')}`,
+        { artifact: artifact.value.artifactKind, schema: `schemas/${artifact.schemaFile}`, problems });
+    }
+  }
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -987,10 +1061,16 @@ export async function generateInProcess(backendDir) {
       './capabilities': './capability.manifest.json',
       './operations/*': './operations/*',
       './contract/*': './contract/*',
+      ...(remoteServicePublication ? {
+        './remote-service-profile': './remote-service.profile.json',
+        './remote-auth-capability': './remote-auth-capability.manifest.json',
+        './remote-data-capability': './remote-data-capability.manifest.json',
+      } : {}),
     },
   };
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
   const operationArtifactFiles = operationSchemas.map((schema) => `operations/${schema.file}`);
+  const remoteServiceArtifactFiles = remoteServicePublication?.artifacts.map((artifact) => artifact.file) ?? [];
   const artifactIndex = {
     artifactKind: 'artifactIndex',
     schemaVersion: SCHEMA_VERSION,
@@ -999,7 +1079,7 @@ export async function generateInProcess(backendDir) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -1018,6 +1098,7 @@ export async function generateInProcess(backendDir) {
       apiModule,
       apiTypes,
       operationSchemas,
+      remoteServicePublication,
       contractModules,
       packageJson,
       artifactIndex,
@@ -1077,7 +1158,7 @@ export async function generateInProcess(backendDir) {
   }
 }
 
-function buildEphemeralCollections(ephemeralDef, err) {
+function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
   if (!ephemeralDef) return [];
 
   // @ref LLP 0013#agent-and-developer-diagnostics — missing TTL/auth/routing
@@ -1163,9 +1244,12 @@ function buildEphemeralCollections(ephemeralDef, err) {
       err('EPHEMERAL_MISSING_AUTH', 'ephemeral', `${name} needs explicit publish and subscribe auth policies`, { collection: name });
     }
     for (const target of def.targets ?? []) {
-      if (target !== TARGET_PROFILE) {
+      if (!TARGET_PROFILES.has(target)) {
         err('EPHEMERAL_UNSUPPORTED_TARGET', 'ephemeral', `${name} declares unsupported ephemeral target ${target}`, { collection: name, target });
       }
+    }
+    if (!(def.targets ?? []).includes(targetProfile)) {
+      err('EPHEMERAL_TARGET_NOT_DECLARED', 'ephemeral', `${name} is not declared for selected target ${targetProfile}`, { collection: name, targetProfile });
     }
     if (def.delivery?.mode !== 'latest') {
       err('EPHEMERAL_UNSUPPORTED_DELIVERY_MODE', 'ephemeral', `${name} uses unsupported delivery mode ${def.delivery?.mode}`, { collection: name, mode: def.delivery?.mode });
@@ -1775,6 +1859,177 @@ function jsonSchemaForValidator(validator) {
     return { type: validator.fieldType === 'Integer' ? 'integer' : 'number' };
   }
   return {};
+}
+
+function buildRemoteServicePublication({
+  outDir,
+  appId,
+  targetProfile,
+  schemaManifest,
+  functionManifest,
+  capabilityManifest,
+  operationSchemas,
+  inputs,
+  err,
+}) {
+  if (targetProfile !== TARGET_PROFILE_REMOTE) return null;
+  if (capabilityManifest.localServerLifecycle !== false
+      || capabilityManifest.targetProfileId !== targetProfile) {
+    err('REMOTE_SERVICE_CAPABILITY_MISMATCH', 'publication', 'remote target requires the server-declared no-lifecycle capability manifest');
+    return null;
+  }
+
+  const dataTierProfile = inputs.dataTierProfile.value;
+  const corpusManifest = inputs.corpusManifest.value;
+  if (dataTierProfile.artifactKind !== 'dataTierProfile'
+      || corpusManifest.artifactKind !== 'dataTierCorpusManifest'
+      || dataTierProfile.corpus !== corpusManifest.corpus
+      || dataTierProfile.profileVersion !== corpusManifest.profileVersion
+      || dataTierProfile.corpusFormatVersion !== corpusManifest.corpusFormatVersion
+      || dataTierProfile.ledgerVersion !== corpusManifest.ledgerVersion
+      || !Array.isArray(corpusManifest.cases)) {
+    err('REMOTE_SERVICE_DATA_TIER_INVALID', 'publication', 'remote profile data-tier identity is internally inconsistent');
+    return null;
+  }
+
+  const schemaArtifact = generatedJsonArtifact(outDir, 'schema.manifest.json', schemaManifest, err);
+  const functionsArtifact = generatedJsonArtifact(outDir, 'functions.manifest.json', functionManifest, err);
+  const capabilityArtifact = generatedJsonArtifact(outDir, 'capability.manifest.json', capabilityManifest, err);
+  const operationSchemaByName = new Map(operationSchemas.map((schema) => [schema.file.replace(/\.args\.schema\.json$/, ''), schema]));
+  const functionByName = new Map(functionManifest.functions.map((fn) => [fn.name, fn]));
+  const operations = [];
+  for (const name of inputs.config.operations ?? []) {
+    const fn = functionByName.get(name);
+    const argsSchema = operationSchemaByName.get(name);
+    if (!fn || fn.kind !== 'Mutation' || !argsSchema || typeof fn.authRequirement !== 'string') {
+      err('REMOTE_SERVICE_OPERATION_INVALID', 'publication', `${name} is not a generated mutation with an auth requirement and argument schema`, { function: name });
+      continue;
+    }
+    const argumentsArtifact = generatedJsonArtifact(outDir, `operations/${argsSchema.file}`, argsSchema.value, err);
+    operations.push({
+      name,
+      functionId: fn.id,
+      kind: fn.kind,
+      authRequirement: fn.authRequirement,
+      argumentsSchema: argumentsArtifact?.reference,
+      requestSchema: inputs.wireSchemas.mutationInput.reference,
+      responseSchema: inputs.wireSchemas.mutationOutput.reference,
+      receiptSchema: inputs.wireSchemas.receipt.reference,
+      errorSchema: inputs.wireSchemas.errorResponse.reference,
+    });
+  }
+  if (operations.length !== inputs.config.operations?.length
+      || !schemaArtifact || !functionsArtifact || !capabilityArtifact) {
+    return null;
+  }
+
+  const authValue = {
+    artifactKind: 'remoteAuthCapabilityManifest',
+    schemaVersion: SCHEMA_VERSION,
+    manifestVersion: 1,
+    capabilityId: inputs.config.authCapabilityId,
+    appId,
+    targetProfileId: targetProfile,
+    credentialPolicy: {
+      presentation: 'authorization-bearer',
+      authority: 'host-private',
+      valueInArtifacts: false,
+      valueInArguments: false,
+      valueInEnvironment: false,
+      valueInInfoPlist: false,
+      supportsRotation: true,
+    },
+  };
+  const authArtifact = generatedJsonArtifact(outDir, 'remote-auth-capability.manifest.json', authValue, err);
+  const wireSchemas = dict();
+  for (const [name, artifact] of Object.entries(inputs.wireSchemas)) {
+    wireSchemas[name] = artifact.reference;
+  }
+  const dataValue = {
+    artifactKind: 'remoteDataCapabilityManifest',
+    schemaVersion: SCHEMA_VERSION,
+    manifestVersion: 1,
+    capabilityId: inputs.config.dataCapabilityId,
+    appId,
+    targetProfileId: targetProfile,
+    schemaManifest: schemaArtifact.reference,
+    functionManifest: functionsArtifact.reference,
+    capabilityManifest: capabilityArtifact.reference,
+    wireSchemas,
+    operations,
+  };
+  const dataArtifact = generatedJsonArtifact(outDir, 'remote-data-capability.manifest.json', dataValue, err);
+  if (!authArtifact || !dataArtifact) return null;
+
+  const profilePath = repositoryRelativePath(join(outDir, 'remote-service.profile.json'), err);
+  if (!profilePath) return null;
+  const profileValue = {
+    artifactKind: 'remoteServiceProfile',
+    schemaVersion: SCHEMA_VERSION,
+    profileVersion: 1,
+    profileId: inputs.config.profileId,
+    appId,
+    targetProfileId: targetProfile,
+    localServerLifecycle: false,
+    publication: {
+      kind: 'gitPinnedCheckout',
+      addressing: 'commitSha',
+      repository: dataTierProfile.publication.repository,
+      profilePath,
+    },
+    endpointPolicy: {
+      scheme: 'https',
+      authority: 'host-private',
+      valueInArtifacts: false,
+      valueInArguments: false,
+      valueInEnvironment: false,
+      valueInInfoPlist: false,
+      allowRedirects: false,
+      allowAmbientProxy: false,
+    },
+    serverCapabilityManifest: capabilityArtifact.reference,
+    authCapabilityManifest: authArtifact.reference,
+    dataCapabilityManifest: dataArtifact.reference,
+    dataTier: {
+      corpus: dataTierProfile.corpus,
+      profileVersion: dataTierProfile.profileVersion,
+      corpusFormatVersion: dataTierProfile.corpusFormatVersion,
+      ledgerVersion: dataTierProfile.ledgerVersion,
+      caseCount: corpusManifest.cases.length,
+      profile: inputs.dataTierProfile.reference,
+      corpusManifest: inputs.corpusManifest.reference,
+    },
+  };
+  const profileArtifact = generatedJsonArtifact(outDir, 'remote-service.profile.json', profileValue, err);
+  if (!profileArtifact) return null;
+  return {
+    artifacts: [
+      { ...authArtifact, schemaFile: 'remote-service.auth-capability.manifest.schema.json' },
+      { ...dataArtifact, schemaFile: 'remote-service.data-capability.manifest.schema.json' },
+      { ...profileArtifact, schemaFile: 'remote-service.profile.schema.json' },
+    ],
+  };
+}
+
+function generatedJsonArtifact(outDir, file, value, err) {
+  const path = repositoryRelativePath(join(outDir, file), err);
+  if (!path) return null;
+  const source = `${stableJson(value)}\n`;
+  return {
+    file,
+    path,
+    value,
+    reference: { path, sha256: `sha256:${sha256(source)}` },
+  };
+}
+
+function repositoryRelativePath(path, err) {
+  const repoRelative = relative(REPO_ROOT, path);
+  if (!isPathInside(repoRelative)) {
+    err('REMOTE_SERVICE_PUBLICATION_PATH_INVALID', 'publication', 'remote service publication output must live inside the repository', { path });
+    return null;
+  }
+  return repoRelative.split(sep).join('/');
 }
 
 // JS-handler query results are typed only when declared (LLP 0032 P3): a
@@ -3154,6 +3409,7 @@ function writeGeneratedOutput(outDir, {
   apiModule,
   apiTypes,
   operationSchemas,
+  remoteServicePublication,
   contractModules,
   packageJson,
   artifactIndex,
@@ -3171,6 +3427,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
   for (const schema of operationSchemas) {
     writeFileSync(join(operationsOutDir, schema.file), stableJson(schema.value) + '\n');
+  }
+  for (const artifact of remoteServicePublication?.artifacts ?? []) {
+    writeFileSync(join(outDir, artifact.file), stableJson(artifact.value) + '\n');
   }
   for (const module of contractModules) {
     writeFileSync(join(contractOutDir, module.file), module.source);
@@ -3195,20 +3454,113 @@ function replaceDirectory(tmpDir, outDir) {
   }
 }
 
+function loadRemoteServiceInputs(backendRoot, appId, targetProfile, err) {
+  if (targetProfile !== TARGET_PROFILE_REMOTE) return null;
+
+  const configPath = join(backendRoot, 'remote-service.publication.json');
+  let configSource;
+  let config;
+  try {
+    configSource = resolveFileReadCapability(configPath, {
+      allowedRoots: [backendRoot],
+      allowSymlink: false,
+      codePrefix: 'REMOTE_SERVICE_PUBLICATION_CONFIG',
+    }).read();
+    config = JSON.parse(decodeUtf8Source(configSource, configPath, 'REMOTE_SERVICE_PUBLICATION_CONFIG'));
+  } catch (error) {
+    err('REMOTE_SERVICE_PUBLICATION_CONFIG_INVALID', 'publication', `remote service publication config is unavailable or invalid: ${error.message}`, { path: configPath });
+    return null;
+  }
+
+  const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+  const expectedKeys = ['authCapabilityId', 'dataCapabilityId', 'operations', 'profileId', 'targetProfileId'];
+  const actualKeys = Object.keys(config).sort();
+  if (stableJson(actualKeys) !== stableJson(expectedKeys)) {
+    err('REMOTE_SERVICE_PUBLICATION_CONFIG_INVALID', 'publication', 'remote service publication config is not the closed record', { expectedKeys, actualKeys });
+  }
+  for (const key of ['profileId', 'targetProfileId', 'authCapabilityId', 'dataCapabilityId']) {
+    if (typeof config[key] !== 'string' || !idPattern.test(config[key])) {
+      err('REMOTE_SERVICE_PUBLICATION_CONFIG_INVALID', 'publication', `${key} must be a bounded opaque id`, { field: key });
+    }
+  }
+  if (config.profileId !== targetProfile || config.targetProfileId !== targetProfile) {
+    err('REMOTE_SERVICE_PUBLICATION_CONFIG_INVALID', 'publication', 'remote profile and target ids must match the selected target', {
+      profileId: config.profileId,
+      targetProfileId: config.targetProfileId,
+      selectedTarget: targetProfile,
+    });
+  }
+  if (!Array.isArray(config.operations) || config.operations.length === 0
+      || new Set(config.operations).size !== config.operations.length
+      || config.operations.some((name) => typeof name !== 'string' || !IDENT.test(name))) {
+    err('REMOTE_SERVICE_PUBLICATION_CONFIG_INVALID', 'publication', 'operations must be a non-empty unique list of function identifiers');
+  }
+
+  const dataTierProfile = loadRepositoryArtifact('schemas/data-tier.profile.json', err);
+  const corpusPath = dataTierProfile?.value?.publication?.corpusManifestPath;
+  const corpusManifest = typeof corpusPath === 'string'
+    ? loadRepositoryArtifact(corpusPath, err)
+    : null;
+  if (!corpusManifest) {
+    err('REMOTE_SERVICE_DATA_TIER_INVALID', 'publication', 'data-tier profile does not resolve a corpus manifest');
+  }
+  const wireSchemas = dict();
+  for (const [name, path] of Object.entries(REMOTE_SERVICE_WIRE_SCHEMAS)) {
+    wireSchemas[name] = loadRepositoryArtifact(path, err);
+  }
+  if (!dataTierProfile || !corpusManifest || Object.values(wireSchemas).some((entry) => !entry)) {
+    return null;
+  }
+  const identityEntries = [
+    ['remote-service.publication.json', configSource],
+    [dataTierProfile.path, dataTierProfile.source],
+    [corpusManifest.path, corpusManifest.source],
+    ...Object.values(wireSchemas).map((entry) => [entry.path, entry.source]),
+  ];
+  return {
+    appId,
+    config,
+    dataTierProfile,
+    corpusManifest,
+    wireSchemas,
+    identityInputs: identityEntries.flat(),
+  };
+}
+
+function loadRepositoryArtifact(path, err) {
+  const absolutePath = resolve(REPO_ROOT, path);
+  try {
+    const source = resolveFileReadCapability(absolutePath, {
+      allowedRoots: [REPO_ROOT],
+      allowSymlink: false,
+      codePrefix: 'REMOTE_SERVICE_PUBLICATION_INPUT',
+    }).read();
+    return {
+      path,
+      source,
+      value: JSON.parse(decodeUtf8Source(source, absolutePath, 'REMOTE_SERVICE_PUBLICATION_INPUT')),
+      reference: { path, sha256: `sha256:${sha256(source)}` },
+    };
+  } catch (error) {
+    err('REMOTE_SERVICE_PUBLICATION_INPUT_INVALID', 'publication', `published input ${path} is unavailable or invalid: ${error.message}`, { path });
+    return null;
+  }
+}
+
 function packageDir() {
   return dirname(fileURLToPath(import.meta.url));
 }
 
-// The server-declared capability manifest for the local target (LLP 0032 P2 /
-// LLP 0037): generated from the Rust core by tests/capability_v0.rs
+// The server-declared capability manifest for the selected target (LLP 0032
+// P2 / LLP 0037): generated from the Rust core by tests/capability_v0.rs
 // (SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_) and embedded — this
 // module asserts nothing about server capabilities on its own.
-function canonicalCapabilityManifestPath() {
-  return join(packageDir(), '..', '..', 'schemas', 'capability.manifest.local-dev-sqlite-ibex.json');
+function canonicalCapabilityManifestPath(targetConfig) {
+  return join(packageDir(), '..', '..', 'schemas', targetConfig.capabilityManifest);
 }
 
-function loadCanonicalCapabilityManifest(err) {
-  const path = canonicalCapabilityManifestPath();
+function loadCanonicalCapabilityManifest(err, targetProfile, targetConfig) {
+  const path = canonicalCapabilityManifestPath(targetConfig);
   let source;
   let sourceBytes;
   try {
@@ -3229,8 +3581,8 @@ function loadCanonicalCapabilityManifest(err) {
     err('CODEGEN_CAPABILITY_MANIFEST_INVALID', 'capability', `the server-declared capability manifest is not valid JSON`, { path, error: error.message });
     return { source: '', manifest: null };
   }
-  if (manifest?.artifactKind !== 'capabilityManifest' || manifest?.targetProfileId !== TARGET_PROFILE) {
-    err('CODEGEN_CAPABILITY_MANIFEST_MISMATCH', 'capability', `expected a capabilityManifest for ${TARGET_PROFILE}`, {
+  if (manifest?.artifactKind !== 'capabilityManifest' || manifest?.targetProfileId !== targetProfile) {
+    err('CODEGEN_CAPABILITY_MANIFEST_MISMATCH', 'capability', `expected a capabilityManifest for ${targetProfile}`, {
       path,
       artifactKind: manifest?.artifactKind ?? null,
       targetProfileId: manifest?.targetProfileId ?? null,
@@ -3245,13 +3597,20 @@ function loadCanonicalCapabilityManifest(err) {
 // Exported so the demos/_kit/codegen.mjs compatibility shim can delegate its
 // own `node demos/_kit/codegen.mjs <backendDir>` invocation here.
 export async function runCodegenCli(argv = process.argv) {
-  const backendDir = resolve(argv[2] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
-  const result = await generate(backendDir);
+  const args = argv.slice(2);
+  const targetFlag = args.indexOf('--target-profile');
+  let targetProfile = TARGET_PROFILE_LOCAL;
+  if (targetFlag !== -1) {
+    targetProfile = args[targetFlag + 1];
+    args.splice(targetFlag, 2);
+  }
+  const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
+  const result = await generate(backendDir, { targetProfile });
   for (const d of result.diagnostics) {
     console.error(`[${d.severity}] ${d.code} (${d.subsystem}) ${d.message}`);
   }
   if (result.ok) {
-    console.log(`codegen ok: ${backendDir}/generated  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);
+    console.log(`codegen ok: ${result.outDir}  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);
   } else {
     console.error('codegen failed: no artifacts written (no silent stale output).');
     process.exit(1);
