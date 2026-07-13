@@ -1512,6 +1512,17 @@ impl LocalSnapback {
         Ok(snapback)
     }
 
+    /// Internal provider/lifecycle lane for protected auth transactions.
+    /// Callers must acquire the auth-maintenance/address coordination guards
+    /// before taking the outer app-instance lock that lends this database.
+    /// The returned storage type exposes only exact-catalog auth operations;
+    /// it does not expose a raw SQLite connection to the server layer.
+    // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state bypasses app journals, receipts, versions, and live delivery.
+    // @ref LLP 0054#concurrency-locks-and-linearization — provider coordination precedes the outer app/database lock.
+    pub(crate) fn auth_database_mut(&mut self) -> &mut LocalDatabase {
+        &mut self.db
+    }
+
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
         validate_collection_definitions(&manifest.ephemeral_collections)
