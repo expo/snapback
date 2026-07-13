@@ -14,6 +14,18 @@ export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 
 export {
+  AuthCoordinator,
+  authAppIdHash,
+  canonicalAuthorityKey,
+  createMemoryAuthCustodyStorage,
+  normalizeClientAuthority,
+  SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+  validateAuthCustody,
+} from './auth-coordinator.mjs';
+
+export { createIndexedDbAuthCustodyStorage } from './auth-custody-indexeddb.mjs';
+
+export {
   CONTRACT_RECEIPT_CAPABILITY,
   contractReceiptCapability,
   SNAPBACK_CONTRACT_RECEIPT_CAPABILITY,
