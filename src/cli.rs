@@ -1119,14 +1119,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
     }
 
-    // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings are
-    // the already-reported unavailable provider posture: durable expiry still
-    // ran before the keyring failure, and the server must remain bindable.
-    if let Err(error) = auth_runtime.run_startup_gc(&mut snapback).await
-        && auth_runtime.health() != crate::auth::runtime::AuthProviderHealth::Unavailable
-    {
-        return Err(anyhow::Error::new(error.into_snapback_error()));
-    }
+    // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings stay
+    // in the provider health fact while the committed durable outcome carries
+    // its immediate-retry schedule into the worker.
+    let auth_gc_initial_delay = auth_runtime
+        .run_startup_gc(&mut snapback)
+        .await
+        .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?
+        .map(|pass| pass.next_delay())
+        .unwrap_or(crate::auth::lifecycle::AUTH_GC_INTERVAL);
 
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
@@ -1212,8 +1213,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let cron_scheduler = server::spawn_cron_scheduler(state.clone());
     let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral.clone());
-    let auth_maintenance_worker =
-        crate::auth::runtime::spawn_auth_gc_worker(state.clone(), auth_runtime.clone());
+    let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
+        state.clone(),
+        auth_runtime.clone(),
+        auth_gc_initial_delay,
+    );
     let (app_state, secret_read_operator) =
         AppState::new_with_secret_read_operator(state, read_lane, ephemeral, server_context);
     let app_state = app_state.with_auth_runtime(&auth_runtime);

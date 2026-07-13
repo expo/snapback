@@ -134,9 +134,9 @@ impl AuthRuntime {
         self.startup_diagnostic.iter().cloned().collect()
     }
 
-    /// Run the pre-bind pass against the still-locally-owned instance. The
-    /// missing/corrupt-keyring case may return unavailable after durable GC;
-    /// startup treats that as the already-reported provider readiness fact.
+    /// Run the pre-bind pass against the still-locally-owned instance. A
+    /// missing/corrupt keyring remains a provider readiness fact while this
+    /// returns the committed durable result, including its retry schedule.
     pub(crate) async fn run_startup_gc(
         &self,
         snapback: &mut LocalSnapback,
@@ -166,23 +166,25 @@ pub(crate) async fn run_periodic_gc_pass(
     .await
 }
 
-/// ReadyV1 only: wait 30 seconds after startup, then run forever. A full
-/// bounded batch retries immediately; any unavailable pass waits for the next
-/// normal interval so a missing keyring cannot create a busy loop.
+/// ReadyV1 only: honor the startup pass's next delay, then run forever. A full
+/// bounded batch retries immediately. Keyring unavailability is a successful
+/// pass outcome, so it cannot discard the durable batch's retry signal; only a
+/// true maintenance error waits for the next normal interval.
 pub(crate) fn spawn_auth_gc_worker(
     state: SharedSnapback,
     runtime: AuthRuntime,
+    initial_delay: Duration,
 ) -> Option<JoinHandle<()>> {
     if !runtime.catalog_ready {
         return None;
     }
     Some(tokio::spawn(async move {
-        let mut delay = AUTH_GC_INTERVAL;
+        let mut delay = initial_delay;
         loop {
             tokio::time::sleep(delay).await;
             delay = match run_periodic_gc_pass(&state, runtime.provider()).await {
-                Ok(pass) if pass.immediate_retry => Duration::ZERO,
-                Ok(_) | Err(_) => AUTH_GC_INTERVAL,
+                Ok(pass) => pass.next_delay(),
+                Err(_) => AUTH_GC_INTERVAL,
             };
         }
     }))
@@ -217,6 +219,7 @@ mod tests {
         RestoreDeclaration, activate_catalog, apply_declared_restore, restore_declaration_path,
     };
     use crate::local::LocalSnapback;
+    use crate::storage::auth::AUTH_GC_BATCH;
     use rusqlite::params;
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -235,6 +238,44 @@ mod tests {
         )
         .expect("activate auth fixture");
         (snapback, keyring)
+    }
+
+    fn insert_expired_challenges(snapback: &mut LocalSnapback, count: usize) {
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|transaction| {
+                let mut insert = transaction.prepare(
+                    "INSERT INTO _auth_verification_codes(
+                       challenge_id, canonical_address, code_digest, key_id,
+                       attempts, max_attempts, requested_at_ms, expires_at_ms,
+                       consumed_at_ms, superseded_by
+                     ) VALUES(?1, ?2, ?3, 'missing-key', 0, 5, 0, 1, NULL, NULL)",
+                )?;
+                let digest = [0_u8; 32];
+                for index in 0..count {
+                    insert.execute(params![
+                        format!("expired-challenge-{index}"),
+                        format!("expired-{index}@example.com"),
+                        digest.as_slice(),
+                    ])?;
+                }
+                Ok(())
+            })
+            .expect("insert expired auth challenges");
+    }
+
+    fn challenge_count(snapback: &mut LocalSnapback) -> usize {
+        snapback
+            .auth_database_mut()
+            .with_auth_read(|connection| {
+                connection
+                    .query_row("SELECT COUNT(*) FROM _auth_verification_codes", [], |row| {
+                        row.get::<_, i64>(0)
+                    })
+                    .map(|count| count as usize)
+                    .map_err(crate::diagnostic::SnapbackError::from)
+            })
+            .expect("count retained auth challenges")
     }
 
     #[tokio::test]
@@ -407,6 +448,66 @@ mod tests {
         );
         drop(admission);
         startup_gc.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn missing_keyring_preserves_startup_and_periodic_immediate_retry_scheduling() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let expired_count = AUTH_GC_BATCH * 2 + 1;
+        insert_expired_challenges(&mut snapback, expired_count);
+
+        let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+        std::fs::remove_file(&keyring_path).unwrap();
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        assert_eq!(runtime.health(), AuthProviderHealth::Unavailable);
+
+        let startup_pass = runtime
+            .run_startup_gc(&mut snapback)
+            .await
+            .expect("missing keyring does not mask committed durable GC")
+            .expect("ready catalog runs startup GC");
+        assert_eq!(startup_pass.challenges_deleted, AUTH_GC_BATCH);
+        assert!(startup_pass.immediate_retry);
+        assert_eq!(startup_pass.next_delay(), Duration::ZERO);
+        assert_eq!(challenge_count(&mut snapback), AUTH_GC_BATCH + 1);
+        assert_eq!(runtime.health(), AuthProviderHealth::Unavailable);
+        assert!(!keyring_path.exists());
+
+        // The startup result seeds an immediate worker pass. That pass also
+        // hits the 512-row bound, so the last row disappears only if periodic
+        // scheduling preserves a second immediate retry while the ring remains
+        // unavailable.
+        let state = Arc::new(Mutex::new(snapback));
+        let worker =
+            spawn_auth_gc_worker(state.clone(), runtime.clone(), startup_pass.next_delay())
+                .expect("ready catalog starts auth GC worker");
+        let drained = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let remaining = crate::server::with_snapback(&state, challenge_count).await;
+                if remaining == 0 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await;
+        worker.abort();
+        let _ = worker.await;
+        let remaining = crate::server::with_snapback(&state, challenge_count).await;
+        assert!(
+            drained.is_ok(),
+            "startup plus periodic immediate retries left {remaining} expired rows"
+        );
+        assert_eq!(remaining, 0);
+        assert_eq!(runtime.health(), AuthProviderHealth::Unavailable);
+        assert!(!keyring_path.exists());
     }
 
     #[tokio::test]

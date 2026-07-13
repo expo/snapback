@@ -28,7 +28,8 @@ use super::crypto::{
     AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, OsRandom, RandomSource,
     SessionBearer, TokenHash, VerificationCode,
 };
-use super::keyring::{AuthKeyringStore, KeyringError};
+use super::keyring::AuthKeyringStore;
+use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
@@ -76,6 +77,16 @@ pub struct AuthGcPass {
     pub mailbox_entries_pruned: usize,
     pub retired_keys_pruned: usize,
     pub immediate_retry: bool,
+}
+
+impl AuthGcPass {
+    pub(crate) fn next_delay(self) -> Duration {
+        if self.immediate_retry {
+            Duration::ZERO
+        } else {
+            super::lifecycle::AUTH_GC_INTERVAL
+        }
+    }
 }
 
 impl AuthProviderProfile {
@@ -1082,35 +1093,25 @@ impl AuthMaintenanceGuard {
         now_ms: u64,
     ) -> ProviderResult<AuthGcPass> {
         validate_now(now_ms)?;
-        let durable = database
-            .auth_gc(now_ms)
-            .map_err(|_| provider_unavailable())?;
-        let mailbox_entries_pruned = self.provider.mailbox.prune_expired();
-        let retired_keys_pruned = self
-            .provider
-            .keyring
-            .prune_retired(now_ms, self.provider.random.as_ref(), |key_id| {
-                database
-                    .with_auth_read(|connection| {
-                        connection
-                            .query_row(
-                                "SELECT EXISTS(
-                                       SELECT 1 FROM _auth_verification_codes WHERE key_id = ?1
-                                     )",
-                                params![key_id.as_str()],
-                                |row| row.get::<_, bool>(0),
-                            )
-                            .map_err(SnapbackError::from)
-                    })
-                    .map_err(|_| KeyringError::Unavailable)
-            })
-            .map_err(|_| provider_unavailable())?;
+        let lifecycle = super::lifecycle::run_gc_pass(
+            database,
+            &self.provider.keyring,
+            &self.provider.mailbox,
+            now_ms,
+            self.provider.random.as_ref(),
+        )?;
+        let retired_keys_pruned = match lifecycle.keyring {
+            KeyringGcResult::Available {
+                retired_keys_deleted,
+            } => retired_keys_deleted,
+            KeyringGcResult::Unavailable => 0,
+        };
         Ok(AuthGcPass {
-            challenges_deleted: durable.challenges_deleted,
-            sessions_deleted: durable.sessions_deleted,
-            mailbox_entries_pruned,
+            challenges_deleted: lifecycle.challenges_deleted,
+            sessions_deleted: lifecycle.sessions_deleted,
+            mailbox_entries_pruned: lifecycle.mailbox_entries_deleted,
             retired_keys_pruned,
-            immediate_retry: durable.immediate_retry,
+            immediate_retry: lifecycle.immediate_retry,
         })
     }
 }
