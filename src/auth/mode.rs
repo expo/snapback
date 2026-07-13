@@ -349,6 +349,53 @@ pub struct AuthProgramReadiness {
 }
 
 impl AuthProgramReadiness {
+    /// Item 4's positive build facts. Sessions deliberately remain impossible
+    /// because the three item-5 facts are false.
+    pub const fn item4(secret_read_process_prerequisites: bool) -> Self {
+        Self::new(
+            secret_read_process_prerequisites,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Compose later-item build facts without allowing a caller to assert the
+    /// derived activation bit independently.
+    pub const fn new(
+        secret_read_process_prerequisites: bool,
+        connection_binding: bool,
+        two_phase_revocation: bool,
+        auth_coordinator: bool,
+        authorization_invalidation: bool,
+        authority_descriptor: bool,
+        authorized_lease: bool,
+    ) -> Self {
+        let session_activation_ready = secret_read_process_prerequisites
+            && connection_binding
+            && two_phase_revocation
+            && auth_coordinator;
+        Self {
+            route_registry_enforced: true,
+            existing_surface_closure: true,
+            admin_secret_read_enforced: true,
+            secret_read_process_prerequisites,
+            provider_core: true,
+            shared_invocation_gate: true,
+            staged_mode: true,
+            connection_binding,
+            two_phase_revocation,
+            auth_coordinator,
+            authorization_invalidation,
+            authority_descriptor,
+            authorized_lease,
+            session_activation_ready,
+        }
+    }
+
     pub fn derive_session_activation_ready(&self) -> bool {
         self.route_registry_enforced
             && self.existing_surface_closure

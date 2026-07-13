@@ -9,6 +9,10 @@ use axum::http::HeaderMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use crate::auth::mode::{
+    AppDataAvailability as AppDataAvailabilityWire, AuthModeStatus as AuthModeStateWire,
+    AuthProgramReadiness,
+};
 use crate::manifest::AuthMode;
 
 pub const AUTH_CLIENT_PROTOCOL_HEADER: &str = "x-snapback-auth-client-protocol";
@@ -61,89 +65,6 @@ fn decimal_protocol_header(headers: &HeaderMap, name: &'static str) -> Option<u6
         return None;
     }
     std::str::from_utf8(value).ok()?.parse().ok()
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum AuthModeStateWire {
-    Settled,
-    PendingRestart,
-    Quarantined,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum AppDataAvailabilityWire {
-    Available,
-    RefusedPending,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AuthProgramReadiness {
-    pub route_registry_enforced: bool,
-    pub existing_surface_closure: bool,
-    pub admin_secret_read_enforced: bool,
-    pub secret_read_process_prerequisites: bool,
-    pub provider_core: bool,
-    pub shared_invocation_gate: bool,
-    pub staged_mode: bool,
-    pub connection_binding: bool,
-    pub two_phase_revocation: bool,
-    pub auth_coordinator: bool,
-    pub authorization_invalidation: bool,
-    pub authority_descriptor: bool,
-    pub authorized_lease: bool,
-    pub session_activation_ready: bool,
-}
-
-impl AuthProgramReadiness {
-    /// Item 4's positive build facts. Sessions deliberately remain impossible
-    /// because the three item-5 facts are false.
-    pub const fn item4(secret_read_process_prerequisites: bool) -> Self {
-        Self::new(
-            secret_read_process_prerequisites,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-        )
-    }
-
-    /// Compose later-item build facts without allowing a caller to assert the
-    /// derived activation bit independently.
-    pub const fn new(
-        secret_read_process_prerequisites: bool,
-        connection_binding: bool,
-        two_phase_revocation: bool,
-        auth_coordinator: bool,
-        authorization_invalidation: bool,
-        authority_descriptor: bool,
-        authorized_lease: bool,
-    ) -> Self {
-        let session_activation_ready = secret_read_process_prerequisites
-            && connection_binding
-            && two_phase_revocation
-            && auth_coordinator;
-        Self {
-            route_registry_enforced: true,
-            existing_surface_closure: true,
-            admin_secret_read_enforced: true,
-            secret_read_process_prerequisites,
-            provider_core: true,
-            shared_invocation_gate: true,
-            staged_mode: true,
-            connection_binding,
-            two_phase_revocation,
-            auth_coordinator,
-            authorization_invalidation,
-            authority_descriptor,
-            authorized_lease,
-            session_activation_ready,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
