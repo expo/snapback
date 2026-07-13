@@ -775,6 +775,9 @@ fn rescue_unsupported(message: &str) -> SnapbackError {
 mod tests {
     use super::*;
     use crate::manifest::{FieldManifest, FieldType, IndexManifest, TableManifest};
+    use crate::storage::auth_mode::{
+        META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
+    };
 
     fn source_fixture(database: &mut LocalDatabase, source: &str) {
         database
@@ -838,6 +841,20 @@ mod tests {
     }
 
     fn store_manifest(database: &LocalDatabase, manifest: &SchemaManifest) {
+        // These fixtures model databases created before staged auth-mode
+        // metadata existed. Retaining the managed-mode record would instead
+        // create an intentionally corrupt four-key combination.
+        database
+            .conn
+            .execute(
+                "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
+                params![
+                    META_AUTH_MODE_STATE,
+                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                    META_STAGED_AUTH_MODE_MANIFEST,
+                ],
+            )
+            .unwrap();
         database
             .conn
             .execute(

@@ -379,33 +379,7 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        match inspect_auth_catalog_on(&tx)? {
-            AuthCatalogState::ReadyV1 => {
-                tx.commit()?;
-                return Ok(());
-            }
-            AuthCatalogState::Uninitialized => {}
-        }
-
-        let mut activation_step = 0;
-        for table in AUTH_TABLES {
-            tx.execute_batch(table.sql)?;
-            activation_step_completed(activation_step)?;
-            activation_step += 1;
-        }
-        for index in AUTH_INDEXES {
-            tx.execute_batch(index.sql)?;
-            activation_step_completed(activation_step)?;
-            activation_step += 1;
-        }
-        // The marker is intentionally the final statement in the creation
-        // transaction. An unmarked partial catalog is never adopted.
-        tx.execute(
-            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
-            params![META_AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION],
-        )?;
-        activation_step_completed(activation_step)?;
-        require_ready_on(&tx)?;
+        activate_auth_catalog_v1_in(&tx)?;
         tx.commit()?;
         require_ready_on(&self.conn)
     }
@@ -624,6 +598,60 @@ impl LocalDatabase {
         require_ready_on(&conn)?;
         retained_key_ids_on(&conn)
     }
+}
+
+/// Install catalog v1 inside a caller-owned transaction. The caller has
+/// already established usable keyring state; this seam lets LLP 0055 commit
+/// catalog activation together with manifest relocation and mode settlement.
+pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    match inspect_auth_catalog_on(tx)? {
+        AuthCatalogState::ReadyV1 => return Ok(()),
+        AuthCatalogState::Uninitialized => {}
+    }
+
+    let mut activation_step = 0;
+    for table in AUTH_TABLES {
+        tx.execute_batch(table.sql)?;
+        activation_step_completed(activation_step)?;
+        activation_step += 1;
+    }
+    for index in AUTH_INDEXES {
+        tx.execute_batch(index.sql)?;
+        activation_step_completed(activation_step)?;
+        activation_step += 1;
+    }
+    // The marker remains the final catalog statement. The outer LLP 0055
+    // transaction may append mode metadata only after this exact-ready proof.
+    tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+        params![META_AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION],
+    )?;
+    activation_step_completed(activation_step)?;
+    require_ready_on(tx)
+}
+
+/// Revoke every still-live session inside a caller-owned downgrade
+/// transaction. This matches declared-restore generation semantics without
+/// creating a restore marker or deleting identity rows.
+pub(super) fn revoke_all_sessions_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<usize> {
+    require_ready_on(tx)?;
+    let exhausted: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _auth_sessions
+         WHERE revoked_at_ms IS NULL AND generation >= 9223372036854775807",
+        [],
+        |row| row.get(0),
+    )?;
+    if exhausted != 0 {
+        return Err(corrupt(
+            "auth catalog contains an unrevoked session with an exhausted generation",
+        ));
+    }
+    Ok(tx.execute(
+        "UPDATE _auth_sessions
+         SET revoked_at_ms = ?1, generation = generation + 1
+         WHERE revoked_at_ms IS NULL",
+        params![now_ms as i64],
+    )?)
 }
 
 fn retained_key_ids_on(conn: &Connection) -> SnapbackResult<Vec<String>> {
@@ -1071,6 +1099,9 @@ fn corrupt_with_object(message: &str, kind: &str, name: &str) -> SnapbackError {
 mod tests {
     use super::*;
     use crate::manifest::{FieldManifest, FieldType, IndexManifest, SchemaManifest, TableManifest};
+    use crate::storage::auth_mode::{
+        META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
+    };
     use serde_json::to_string;
     use std::fs;
 
@@ -1612,6 +1643,16 @@ mod tests {
             let directory = tempfile::tempdir().expect("tempdir");
             let path = directory.path().join(format!("reserved-{kind}.sqlite3"));
             let db = LocalDatabase::open(&path).expect("file database");
+            db.conn
+                .execute(
+                    "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
+                    params![
+                        META_AUTH_MODE_STATE,
+                        META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                        META_STAGED_AUTH_MODE_MANIFEST,
+                    ],
+                )
+                .expect("remove managed-mode metadata from legacy fixture");
             db.conn
                 .execute(
                     "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",

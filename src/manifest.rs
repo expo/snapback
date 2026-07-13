@@ -94,6 +94,13 @@ impl AuthMode {
             Self::Sessions => "sessions",
         }
     }
+
+    pub const fn artifact_version(self) -> &'static str {
+        match self {
+            Self::Dev => "snapback.v0",
+            Self::Sessions => "snapback.v1",
+        }
+    }
 }
 
 /// Closed schema-manifest auth declaration. Unknown members are rejected so a

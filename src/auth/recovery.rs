@@ -470,6 +470,9 @@ mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
+    use crate::storage::auth_mode::{
+        META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
+    };
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
     use rusqlite::{Connection, OptionalExtension, params};
@@ -556,6 +559,16 @@ mod tests {
                 .collect(),
             ..SchemaManifest::default()
         };
+        connection
+            .execute(
+                "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
+                params![
+                    META_AUTH_MODE_STATE,
+                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                    META_STAGED_AUTH_MODE_MANIFEST,
+                ],
+            )
+            .unwrap();
         connection
             .execute(
                 "INSERT INTO _snapback_meta(key, value) VALUES('schema_manifest', ?1)
@@ -1172,6 +1185,16 @@ mod tests {
             tables: vec![table_manifest("_auth_absent")],
             ..SchemaManifest::default()
         };
+        connection
+            .execute(
+                "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
+                params![
+                    META_AUTH_MODE_STATE,
+                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                    META_STAGED_AUTH_MODE_MANIFEST,
+                ],
+            )
+            .unwrap();
         connection
             .execute(
                 "INSERT INTO _snapback_meta(key, value) VALUES('schema_manifest', ?1)",

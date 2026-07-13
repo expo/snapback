@@ -32,6 +32,9 @@ pub(crate) mod auth;
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;
 
+#[path = "storage/auth_mode.rs"]
+pub(crate) mod auth_mode;
+
 #[cfg(test)]
 type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
 
@@ -330,6 +333,7 @@ pub struct LocalDatabase {
 impl LocalDatabase {
     pub fn memory() -> SnapbackResult<Self> {
         let conn = Connection::open_in_memory()?;
+        let mode_inspection = auth_mode::inspect_for_open(&conn)?;
         let mut db = Self {
             conn,
             path: None,
@@ -338,18 +342,22 @@ impl LocalDatabase {
         };
         db.configure(false)?;
         db.create_infra()?;
+        auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         Ok(db)
     }
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
         let path = path.as_ref().to_path_buf();
         let conn = Connection::open(&path)?;
+        // @ref LLP 0055#corrupt-state-boundary — inspect and cross-validate all
+        // four mode keys before WAL configuration or any additive infra write.
+        let mode_inspection = auth_mode::inspect_for_open(&conn)?;
         // @ref LLP 0054#reservation — a stored manifest is an admission
         // boundary on every reopen, not only when a new schema is applied.
         // Probe and validate it before WAL configuration or any additive infra
         // migration so a reserved-name database reaches the collision-recovery
         // caller without a request-attributable storage mutation.
-        let stored_schema = load_schema_manifest_from_connection(&conn)?;
+        let stored_schema = mode_inspection.active_manifest().cloned();
         if let Some(manifest) = &stored_schema {
             validate_schema(manifest)?;
         }
@@ -362,6 +370,7 @@ impl LocalDatabase {
         db.configure(true)?;
         db.create_infra()?;
         db.schema = stored_schema.unwrap_or_default();
+        auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
@@ -811,34 +820,7 @@ impl LocalDatabase {
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
-        validate_schema(&manifest)?;
-        reject_field_retypes(&self.schema, &manifest)?;
-        reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
-
-        let schema_json = serde_json::to_string(&manifest).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_SCHEMA_SERIALIZE_FAILED",
-                "schema",
-                "schema manifest could not be serialized",
-            )
-            .with_detail("error", error.to_string())
-        })?;
-
-        let tx = self.conn.transaction()?;
-        for table in &manifest.tables {
-            create_or_update_table(&tx, table)?;
-            for index in &table.indexes {
-                create_index(&tx, table, index.name.as_str(), &index.fields)?;
-            }
-        }
-        tx.execute(
-            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![META_SCHEMA_MANIFEST, schema_json],
-        )?;
-        tx.commit()?;
-
-        self.schema = manifest;
+        self.apply_schema_mode_aware(manifest)?;
         Ok(Vec::new())
     }
 

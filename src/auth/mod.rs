@@ -8,6 +8,7 @@ pub mod keyring;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod lifecycle;
 pub mod mailbox;
+pub mod mode;
 pub mod provider;
 pub(crate) mod recovery;
 #[allow(dead_code)] // Wired by the collision-recovery/operator composition lane.
