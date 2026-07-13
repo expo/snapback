@@ -13,6 +13,7 @@ pub mod invalidation;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.
 pub(crate) mod invocation;
 pub mod keyring;
+pub mod lease;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod lifecycle;
 pub mod mailbox;
