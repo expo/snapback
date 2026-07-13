@@ -9,6 +9,8 @@
 //! the wire authority, and every provider object is closed.
 
 use crate::auth::crypto::{SessionBearer, VerificationCode};
+use crate::auth::descriptor::AUTHORITY_DESCRIPTOR_VERSION;
+use crate::manifest::AuthorityDescriptor;
 use schemars::JsonSchema;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -99,6 +101,24 @@ pub struct SessionResponse {
     pub created_at: u64,
     pub expires_at: u64,
     pub absolute_expires_at: u64,
+    /// Server-only issuance facts used to construct the adjacent public
+    /// descriptor. They cannot accidentally enlarge the `session` wire shape.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) authority_instance_id: String,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) generation: u64,
+}
+
+impl SessionResponse {
+    pub(crate) fn authority_descriptor(&self) -> AuthorityDescriptor {
+        AuthorityDescriptor {
+            descriptor_version: AUTHORITY_DESCRIPTOR_VERSION,
+            authority_instance_id: self.authority_instance_id.clone(),
+            session_generation: self.generation,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, JsonSchema, PartialEq, Serialize)]
@@ -119,15 +139,18 @@ pub struct CredentialResponse {
     token_type: AuthTokenType,
     pub refresh_after: u64,
     pub session: SessionResponse,
+    pub authority_descriptor: AuthorityDescriptor,
 }
 
 impl CredentialResponse {
     pub(crate) fn new(token: SessionBearer, refresh_after: u64, session: SessionResponse) -> Self {
+        let authority_descriptor = session.authority_descriptor();
         Self {
             token,
             token_type: AuthTokenType::Bearer,
             refresh_after,
             session,
+            authority_descriptor,
         }
     }
 
@@ -145,6 +168,7 @@ impl fmt::Debug for CredentialResponse {
             .field("token", &"[REDACTED]")
             .field("refresh_after", &self.refresh_after)
             .field("session", &self.session)
+            .field("authority_descriptor", &self.authority_descriptor)
             .finish()
     }
 }
@@ -154,11 +178,12 @@ impl Serialize for CredentialResponse {
     where
         S: Serializer,
     {
-        let mut output = serializer.serialize_struct("AuthCredentialResponse", 4)?;
+        let mut output = serializer.serialize_struct("AuthCredentialResponse", 5)?;
         output.serialize_field("tokenType", &self.token_type)?;
         output.serialize_field("token", self.token.expose_secret())?;
         output.serialize_field("refreshAfter", &self.refresh_after)?;
         output.serialize_field("session", &self.session)?;
+        output.serialize_field("authorityDescriptor", &self.authority_descriptor)?;
         output.end()
     }
 }
@@ -318,6 +343,8 @@ mod tests {
                 created_at: 1,
                 expires_at: 2,
                 absolute_expires_at: 3,
+                authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
+                generation: 1,
             },
         );
         let value = serde_json::to_value(&response).unwrap();
@@ -325,6 +352,11 @@ mod tests {
         assert_eq!(value["token"], planted);
         assert_eq!(value["refreshAfter"], 7);
         assert_eq!(value["session"]["userId"], "user");
+        assert_eq!(value["authorityDescriptor"]["descriptorVersion"], 1);
+        assert_eq!(
+            value["authorityDescriptor"]["authorityInstanceId"],
+            "018f0d90-7b24-7a22-8c33-445566778899"
+        );
         assert!(!format!("{response:?}").contains(&planted));
     }
 }

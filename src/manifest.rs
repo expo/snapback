@@ -1770,6 +1770,21 @@ pub struct HandlerInput {
     pub ctx_ledger: Option<CtxAnswerLedger>,
 }
 
+/// Opaque server-issued consistency descriptor for one queued mutation.
+/// Possession grants no authority; the invocation gate first resolves a live
+/// credential and only then compares this value with its prepared authority.
+///
+/// @ref LLP 0039#replay-parity-and-the-authority-instance-id — this is a
+///   dedicated MutationRequest channel, never a ctx-answer-ledger member.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityDescriptor {
+    pub descriptor_version: u32,
+    #[schemars(length(min = 36, max = 36))]
+    pub authority_instance_id: String,
+    pub session_generation: u64,
+}
+
 /// Client-visible mutation request envelope. The idempotency key is mutation
 /// only: queries remain server-authoritative reads and are never queued or
 /// ledgered as writes (LLP 0043 M1/M2).
@@ -1790,6 +1805,17 @@ pub struct MutationRequest {
         pattern(REPLAY_OPAQUE_ID_PATTERN)
     )]
     pub client_mutation_id: Option<String>,
+    /// Required whenever `clientMutationId` is present after authority
+    /// descriptor protocol v1 is negotiated. It is intentionally outside the
+    /// flattened HandlerInput/ctx ledger so client-supplied replay answers can
+    /// never become execution authority.
+    #[serde(
+        default,
+        rename = "authorityDescriptor",
+        alias = "authority_descriptor",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authority_descriptor: Option<AuthorityDescriptor>,
     /// Results the client has durably consumed and removed from its replay
     /// queue. The server may reclaim these settlement payloads only after this
     /// explicit acknowledgement; age alone is not proof that an offline

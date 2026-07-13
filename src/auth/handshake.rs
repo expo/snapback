@@ -13,7 +13,7 @@ pub use crate::auth::mode::{
     AppDataAvailability as AppDataAvailabilityWire, AuthModeStatus as AuthModeStateWire,
     AuthProgramReadiness,
 };
-use crate::manifest::AuthMode;
+use crate::manifest::{AuthMode, AuthorityDescriptor};
 
 pub const AUTH_CLIENT_PROTOCOL_HEADER: &str = "x-snapback-auth-client-protocol";
 pub const AUTH_INVALIDATION_PROTOCOL_HEADER: &str = "x-snapback-auth-invalidation-protocol";
@@ -159,6 +159,8 @@ pub struct AuthSessionResponse {
     pub provider: AuthSessionProvider,
     pub transports: Vec<String>,
     pub authority: AuthSessionAuthority,
+    /// Consistency only: possession never authorizes an invocation.
+    pub authority_descriptor: AuthorityDescriptor,
 }
 
 #[derive(Clone, Debug)]
@@ -175,6 +177,7 @@ pub struct AuthSessionFacts {
     pub provider_key: String,
     pub provider_ready: bool,
     pub authority: AuthSessionAuthority,
+    pub authority_descriptor: AuthorityDescriptor,
 }
 
 impl AuthSessionResponse {
@@ -204,6 +207,7 @@ impl AuthSessionResponse {
             },
             transports: vec!["bearer".to_owned()],
             authority: facts.authority,
+            authority_descriptor: facts.authority_descriptor,
         }
     }
 }
@@ -349,6 +353,11 @@ mod tests {
             provider_key: "email-code".to_owned(),
             provider_ready: true,
             authority: AuthSessionAuthority::anonymous(),
+            authority_descriptor: AuthorityDescriptor {
+                descriptor_version: 1,
+                authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
+                session_generation: 0,
+            },
         }
     }
 

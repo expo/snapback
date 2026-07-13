@@ -83,7 +83,8 @@ const META_CLIENT_MUTATION_GC_TOTAL: &str = "client_mutation_gc_total";
 const META_CLIENT_MUTATION_RECORDS: &str = "client_mutation_records";
 const META_CLIENT_MUTATION_BYTES: &str = "client_mutation_bytes";
 const META_CLIENT_MUTATION_COUNTERS_VERSION: &str = "client_mutation_counters_version";
-const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 2;
+const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 3;
+const TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID: &str = "018f0d90-7b24-7a22-8c33-445566778899";
 /// A hard availability bound, deliberately equal to the existing journal
 /// version budget. We refuse a new durable identity instead of evicting an
 /// unacknowledged result and risking duplicate execution after response loss.
@@ -296,6 +297,7 @@ pub struct ClientMutationIdentity {
     pub id: String,
     pub function: String,
     pub auth_fingerprint: String,
+    pub authority_instance_id: String,
     pub input_fingerprint: String,
 }
 
@@ -320,10 +322,25 @@ struct BufferedEffects {
 
 impl ClientMutationIdentity {
     pub fn new(id: impl Into<String>, function: impl Into<String>, input: &HandlerInput) -> Self {
+        Self::for_authority(
+            id,
+            function,
+            input,
+            TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+        )
+    }
+
+    pub fn for_authority(
+        id: impl Into<String>,
+        function: impl Into<String>,
+        input: &HandlerInput,
+        authority_instance_id: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             function: function.into(),
             auth_fingerprint: auth_fingerprint(&input.auth),
+            authority_instance_id: authority_instance_id.into(),
             input_fingerprint: mutation_input_fingerprint(input),
         }
     }
@@ -658,6 +675,7 @@ impl LocalDatabase {
                        length(CAST(client_mutation_id AS BLOB)) +
                        length(CAST(function AS BLOB)) +
                        length(CAST(auth_fingerprint AS BLOB)) +
+                       COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
                        length(CAST(input_fingerprint AS BLOB)) +
                        length(CAST(output_json AS BLOB))
                      FROM _snapback_client_mutations
@@ -795,16 +813,26 @@ impl LocalDatabase {
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<Option<MutationOutput>> {
         validate_client_mutation_identity(identity)?;
-        let row: Option<(String, String, String, String)> = self
+        let row: Option<(String, String, Option<String>, String, String)> = self
             .conn
             .query_row(
-                "SELECT function, auth_fingerprint, input_fingerprint, output_json
+                "SELECT function, auth_fingerprint, authority_instance_id,
+                        input_fingerprint, output_json
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
                 params![identity.id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .optional()?;
-        let Some((function, retained_auth, retained_input, output_json)) = row else {
+        let Some((function, retained_auth, retained_authority, retained_input, output_json)) = row
+        else {
             return Ok(None);
         };
         if function != identity.function {
@@ -834,6 +862,27 @@ impl LocalDatabase {
                 "client mutation was recorded under another auth context",
             )
             .with_details(json!({ "clientMutationId": identity.id })));
+        }
+        let Some(retained_authority) = retained_authority else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
+                "auth",
+                "client mutation predates authority descriptors and cannot be rebound safely; acknowledge the consumed result or use the admin purge recovery path",
+            )
+            .with_details(json!({ "clientMutationId": identity.id })));
+        };
+        if retained_authority != identity.authority_instance_id {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_STALE_RESULT",
+                "auth",
+                "client mutation was settled under another authority instance; discard it or explicitly re-record it under the current authority",
+            )
+            .with_details(json!({
+                "clientMutationId": identity.id,
+                "reason": "authority_instance_mismatch",
+                "guidance": "discard_or_rerecord",
+                "automaticRetry": false,
+            })));
         }
         if retained_input != identity.input_fingerprint {
             return Err(SnapbackError::error(
@@ -2223,6 +2272,7 @@ impl LocalDatabase {
               client_mutation_id TEXT PRIMARY KEY,
               function TEXT NOT NULL,
               auth_fingerprint TEXT NOT NULL,
+              authority_instance_id TEXT,
               input_fingerprint TEXT NOT NULL,
               output_json TEXT NOT NULL,
               settled_at_ms INTEGER NOT NULL,
@@ -2268,6 +2318,13 @@ impl LocalDatabase {
                 [],
             )?;
         }
+        if !names.contains("authority_instance_id") {
+            self.conn.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN authority_instance_id TEXT",
+                [],
+            )?;
+        }
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_settlement
              ON _snapback_client_mutations(settled_version, settled_at_ms)",
@@ -2308,6 +2365,7 @@ impl LocalDatabase {
                    length(CAST(client_mutation_id AS BLOB)) +
                    length(CAST(function AS BLOB)) +
                    length(CAST(auth_fingerprint AS BLOB)) +
+                   COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
                    length(CAST(input_fingerprint AS BLOB)) +
                    length(CAST(output_json AS BLOB))
                  )
@@ -4484,6 +4542,18 @@ fn validate_client_mutation_identity(identity: &ClientMutationIdentity) -> Snapb
             "client mutation id must match the declared opaque replay-id bounds/alphabet",
         ));
     }
+    let parsed_authority = Uuid::parse_str(&identity.authority_instance_id).ok();
+    if parsed_authority.as_ref().map(Uuid::get_version_num) != Some(7)
+        || parsed_authority
+            .as_ref()
+            .is_some_and(|parsed| parsed.to_string() != identity.authority_instance_id)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID",
+            "auth",
+            "client mutation authority instance must be a canonical UUIDv7",
+        ));
+    }
     Ok(())
 }
 
@@ -4517,7 +4587,7 @@ fn canonical_json(value: Value) -> Value {
 }
 
 /// The logical retained-byte definition is stable and deliberately excludes
-/// SQLite row/index overhead. It is the sum of the five replay-identity/result
+/// SQLite row/index overhead. It is the sum of the six replay-identity/result
 /// payloads whose contents the server must keep for exactly-once replay.
 fn scan_client_mutation_retention_totals(conn: &Connection) -> SnapbackResult<(u64, u64)> {
     let (records, bytes): (u64, u64) = conn.query_row(
@@ -4525,6 +4595,7 @@ fn scan_client_mutation_retention_totals(conn: &Connection) -> SnapbackResult<(u
            length(CAST(client_mutation_id AS BLOB)) +
            length(CAST(function AS BLOB)) +
            length(CAST(auth_fingerprint AS BLOB)) +
+           COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
            length(CAST(input_fingerprint AS BLOB)) +
            length(CAST(output_json AS BLOB))
          ), 0) FROM _snapback_client_mutations",
@@ -4671,6 +4742,7 @@ fn record_client_mutation_result(
     let new_bytes = identity.id.len() as u64
         + identity.function.len() as u64
         + identity.auth_fingerprint.len() as u64
+        + identity.authority_instance_id.len() as u64
         + identity.input_fingerprint.len() as u64
         + output_bytes;
     let limits = client_mutation_retention_limits();
@@ -4708,13 +4780,14 @@ fn record_client_mutation_result(
     }
     tx.execute(
         "INSERT INTO _snapback_client_mutations(
-           client_mutation_id, function, auth_fingerprint, input_fingerprint,
-           output_json, settled_at_ms, settled_version
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+           client_mutation_id, function, auth_fingerprint, authority_instance_id,
+           input_fingerprint, output_json, settled_at_ms, settled_version
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             identity.id,
             identity.function,
             identity.auth_fingerprint,
+            identity.authority_instance_id,
             identity.input_fingerprint,
             output_json,
             timestamp_to_sql_millis(now_millis())?,

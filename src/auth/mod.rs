@@ -7,6 +7,7 @@ pub(crate) mod backup;
 #[allow(dead_code)] // Published by the ENG-24603 server integration lane.
 pub(crate) mod coordinator;
 pub mod crypto;
+pub mod descriptor;
 pub mod handshake;
 pub mod invalidation;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.

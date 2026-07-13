@@ -2010,6 +2010,8 @@ impl SessionRecord {
             created_at: self.session.created_at_ms,
             expires_at: self.session.expires_at_ms,
             absolute_expires_at: self.session.absolute_expires_at_ms,
+            authority_instance_id: self.session.authority_instance_id.clone(),
+            generation: self.session.generation,
         }
     }
 }
@@ -3137,6 +3139,8 @@ fn exchange_transaction(
             created_at: now_ms,
             expires_at: expires_at_ms,
             absolute_expires_at: absolute_expires_at_ms,
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
         },
         committed_revocation,
     })
@@ -3210,6 +3214,8 @@ fn mint_session_transaction(
             created_at: now_ms,
             expires_at: expires_at_ms,
             absolute_expires_at: absolute_expires_at_ms,
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
         },
         committed_revocation,
     ))

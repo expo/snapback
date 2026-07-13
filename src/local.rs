@@ -1,6 +1,7 @@
 use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{AdmissionController, ModeCommitFailure, ModeTransitionGuard};
+use crate::auth::descriptor::{descriptor_for_authority, require_current_descriptor};
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
@@ -37,12 +38,13 @@ use crate::live_wire::{
     LiveSocketServerFrame, MutationReceiptOutcome, Receipt, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, CTX_ANSWER_LEDGER_MAX_IDS,
-    CapabilityManifest, CtxAnswerLedger, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
-    PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
-    ctx_ledger_version, legacy_auth_fingerprint,
+    ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthorityDescriptor,
+    CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger, FunctionDefinition,
+    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
+    MutationStep, PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput,
+    QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
+    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
+    legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -3063,6 +3065,25 @@ impl LocalSnapback {
         transport: &str,
         source: InvocationSource,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        self.invoke_mutation_recording_with_id_and_descriptor_from_source(
+            name,
+            input,
+            client_mutation_id,
+            None,
+            transport,
+            source,
+        )
+    }
+
+    pub(crate) fn invoke_mutation_recording_with_id_and_descriptor_from_source(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        transport: &str,
+        source: InvocationSource,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let authority = self.admission.admit_dev().and_then(|admission| {
             InvocationGate::prepare_admitted_dev_input(
                 source,
@@ -3072,10 +3093,11 @@ impl LocalSnapback {
             )
         });
         match authority {
-            Ok(authority) => self.invoke_mutation_recording_with_authority(
+            Ok(authority) => self.invoke_mutation_recording_with_authority_descriptor(
                 name,
                 input,
                 client_mutation_id,
+                authority_descriptor,
                 transport,
                 authority,
             ),
@@ -3103,6 +3125,32 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        self.invoke_mutation_recording_with_authority_descriptor(
+            name,
+            input,
+            client_mutation_id,
+            None,
+            transport,
+            authority,
+        )
+    }
+
+    /// HTTP/Contract queued replay entry point. A live credential has already
+    /// become `authority`; only then do we compare the non-authorizing
+    /// descriptor. Session-mode queued work requires it, while dev-mode
+    /// callers that predate protocol v1 remain compatible until they opt in.
+    ///
+    /// @ref LLP 0039#replay-parity-and-the-authority-instance-id — first and
+    /// duplicate deliveries share one pre-effect descriptor check.
+    pub(crate) fn invoke_mutation_recording_with_authority_descriptor(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let admission = authority.admission_lease().clone();
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
@@ -3112,6 +3160,7 @@ impl LocalSnapback {
             name,
             input,
             client_mutation_id,
+            authority_descriptor,
             authority,
         );
         match admission.effect_guard("mutation receipt publication") {
@@ -3247,6 +3296,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
         authority: PreparedAuthority,
     ) -> SnapbackResult<MutationCommit> {
         // @ref LLP 0055#gate-algorithm — function lookup and requirement
@@ -3255,8 +3305,23 @@ impl LocalSnapback {
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
-        let identity =
-            client_mutation_id.map(|id| ClientMutationIdentity::new(id, name.to_owned(), &input));
+        let identity = if let Some(id) = client_mutation_id {
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+            if prepared.authority().active_mode() == AuthMode::Sessions
+                || authority_descriptor.is_some()
+            {
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+            }
+            Some(ClientMutationIdentity::for_authority(
+                id,
+                name.to_owned(),
+                &input,
+                expected.authority_instance_id,
+            ))
+        } else {
+            None
+        };
         if let Some(identity) = identity.as_ref()
             && let Some(output) = self.db.client_mutation_result(identity)?
         {
@@ -4697,6 +4762,7 @@ impl LocalSnapback {
             FunctionKind::Mutation => match self.invoke_mutation_commit_with_id_and_authority(
                 name,
                 input,
+                None,
                 None,
                 prepared.authority().clone(),
             ) {
@@ -8662,7 +8728,8 @@ mod tests {
     use crate::manifest::{
         ActionPlan, AuthManifest, AuthMode, ConfigEntryDefinition, CronActivationPolicy,
         CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
-        CronSchedule, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
+        CronSchedule, AuthorityDescriptor, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr,
+        FilterOp,
         FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
         HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
         SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
@@ -9300,6 +9367,89 @@ globalThis.__snapbackHandlers = {
             .expect("apply guarded schema");
         snapback.load_functions(guarded_functions());
         snapback
+    }
+
+    fn session_authority(authority_instance_id: &str) -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            InvocationSource::HttpMutation,
+            crate::manifest::AuthMode::Sessions,
+            ServerProfile::Test,
+            1,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Session {
+                user_id: "018f0d90-7b21-7a22-8c33-445566778899".to_owned(),
+                session_id: "018f0d90-7b22-7a22-8c33-445566778899".to_owned(),
+                provider: "email-code".to_owned(),
+                generation: 1,
+                authority_instance_id: authority_instance_id.to_owned(),
+            },
+        )
+        .expect("prepare session authority")
+    }
+
+    fn descriptor(authority_instance_id: &str) -> AuthorityDescriptor {
+        AuthorityDescriptor {
+            descriptor_version: 1,
+            authority_instance_id: authority_instance_id.to_owned(),
+            session_generation: 1,
+        }
+    }
+
+    #[test]
+    fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
+        const FIRST: &str = "018f0d90-7b24-7a22-8c33-445566778899";
+        const SECOND: &str = "018f0d90-7b25-7a22-8c33-445566778899";
+        let mut snapback = guarded_snapback();
+
+        for supplied in [None, Some(descriptor(SECOND))] {
+            let (result, _) = snapback.invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_first_delivery".to_owned()),
+                supplied,
+                "http",
+                session_authority(FIRST),
+            );
+            assert_eq!(
+                result.expect_err("stale first delivery").diagnostic.code,
+                "SNAPBACK_AUTH_STALE_RESULT"
+            );
+            assert_eq!(snapback.durable_version(), Some(0));
+            assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 0);
+        }
+
+        snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_first_delivery".to_owned()),
+                Some(descriptor(FIRST)),
+                "http",
+                session_authority(FIRST),
+            )
+            .0
+            .expect("matching first delivery");
+        assert_eq!(snapback.durable_version(), Some(1));
+
+        let duplicate = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_first_delivery".to_owned()),
+                Some(descriptor(SECOND)),
+                "http",
+                session_authority(SECOND),
+            )
+            .0
+            .expect_err("settlement belongs to the first authority instance");
+        assert_eq!(duplicate.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+        assert_eq!(
+            duplicate.diagnostic.details["reason"],
+            "authority_instance_mismatch"
+        );
+        assert_eq!(snapback.durable_version(), Some(1));
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
     }
 
     fn live_limit_snapback() -> LocalSnapback {
