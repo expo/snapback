@@ -26,6 +26,25 @@ export {
 export { createIndexedDbAuthCustodyStorage } from './auth-custody-indexeddb.mjs';
 
 export {
+  AUTH_INVALIDATION_REFIRE_MAX_MS,
+  effectiveDisposition,
+  mergeResyncObligation,
+  nextInvalidationGeneration,
+  nextQueryInstanceId,
+  resolutionSatisfies,
+  scopeKey,
+  SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
+  validateAuthorizationVersion,
+  validateCompositeWitness,
+  validateDataWitness,
+  validateIssuerId,
+  validateQueryNamespace,
+  validateResolutionTicket,
+  validateResyncObligation,
+  validateScopeId,
+} from './auth-invalidation.mjs';
+
+export {
   CONTRACT_RECEIPT_CAPABILITY,
   contractReceiptCapability,
   SNAPBACK_CONTRACT_RECEIPT_CAPABILITY,
