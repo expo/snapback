@@ -1553,6 +1553,11 @@ async fn ephemeral_identity_ownership_is_enforced_through_http_and_reconnect() {
     )
     .await;
     assert_eq!(peer_snapshot["Snapshot"]["entries"][0]["key"], "user-a");
+    assert_eq!(
+        peer_snapshot["Snapshot"]["high_water_version"],
+        peer_snapshot["Snapshot"]["entries"][0]["entry_version"],
+        "the real HTTP snapshot transport must carry the authoritative room high-water"
+    );
 
     let token_outsider = open_connection(app.clone(), "conn-outsider").await;
     let denied_read = app
