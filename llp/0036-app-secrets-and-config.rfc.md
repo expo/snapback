@@ -589,6 +589,13 @@ accidental `JSON.stringify(ctx.secrets.get(...))`, a thrown error carrying a
 header, a `console.log` of the handle — all must yield redaction, proven by
 tests rather than asserted.
 
+Detached actions snapshot a redactor from the same staging-time values used to
+build their grant. Every error is scrubbed at the invocation boundary before a
+public action envelope or cron/config retention sink can observe it. This is
+deliberately separate from scrubbing against the current store: config may be
+rotated or unset while native action work is in flight, and the old value must
+remain redactable without being retained in a diagnostic (ENG-24560).
+
 The Cloudflare host-fetch scrub treats reversible encoding as a language, not
 a short list of strings: each UTF-16 unit may be raw, a short JSON escape, or
 one-or-more JSON-wrapping backslashes followed by a case-insensitive `uXXXX`.

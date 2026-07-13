@@ -8,7 +8,9 @@
 // ECMAScript intrinsics, the compute-only allowlist, and the harness's own
 // internals. Everything else reachable on globalThis or its prototype chain
 // is shadowed with a denier. Constructors the harness itself needs are
-// captured into `kept` before the strip and never re-exposed to handlers.
+// captured before the strip. The trusted server consumes the capture exactly
+// once, before application-module evaluation; later imports by handler code
+// receive no reference to the capability bag.
 import allowlist from "./allowlist.mjs";
 
 function inheritedGetter(prototype, name) {
@@ -31,15 +33,20 @@ function inheritedMethod(prototype, name) {
   throw new Error("missing harness request method: " + name);
 }
 
-export const kept = {
+let capturedIntrinsics = {
   Response: globalThis.Response,
   Request: globalThis.Request,
   Headers: globalThis.Headers,
   URL: globalThis.URL,
   Error: globalThis.Error,
   Promise: globalThis.Promise,
+  promisePrototype: globalThis.Promise.prototype,
+  promiseSpecies: globalThis.Symbol.species,
+  promiseSpeciesGetter: globalThis.Object.getOwnPropertyDescriptor(
+    globalThis.Promise,
+    globalThis.Symbol.species
+  ).get,
   promiseResolve: globalThis.Promise.resolve,
-  promiseAllSettled: globalThis.Promise.allSettled,
   promiseThen: globalThis.Promise.prototype.then,
   Set: globalThis.Set,
   setAdd: globalThis.Set.prototype.add,
@@ -59,6 +66,7 @@ export const kept = {
   stringCharCodeAt: globalThis.String.prototype.charCodeAt,
   stringCharAt: globalThis.String.prototype.charAt,
   defineProperty: globalThis.Object.defineProperty,
+  getOwnPropertyDescriptor: globalThis.Object.getOwnPropertyDescriptor,
   objectCreate: globalThis.Object.create,
   objectKeys: globalThis.Object.keys,
   objectSetPrototypeOf: globalThis.Object.setPrototypeOf,
@@ -105,6 +113,17 @@ export const kept = {
       ? globalThis.clearTimeout.bind(globalThis)
       : null,
 };
+
+// ESM exports are not an access-control boundary by themselves: handler.mjs is
+// a sibling module and can name strip.mjs. Make the import topology carry a
+// one-shot capability instead. handler-server.mjs is the first dependency of
+// entry.mjs and consumes this before handler.mjs evaluates; every later import
+// receives null, never the captured timers, host objects, or control methods.
+export function consumeTrustedIntrinsics() {
+  const result = capturedIntrinsics;
+  capturedIntrinsics = null;
+  return result;
+}
 
 function snapbackError(code, message) {
   const error = new Error(code + ": " + message);

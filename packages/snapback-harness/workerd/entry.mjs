@@ -1,12 +1,11 @@
 // workerd entry module for the V8 handler harness (LLP 0048 §Architecture).
-// Import order is the security posture: the strip evaluates before anything
-// else, the V8 event-based rejection ledger before the bootstrap, the
-// allowlist installer before the handler module, and the handler module last,
-// into an already-stripped global scope. The fetch server is single-sourced
-// with the LLP 0040 deploy handler Worker (handler-server.mjs).
-import "./strip.mjs";
-import "./rejection-ledger.mjs";
+// Import order is the security posture: handler-server consumes the strip's
+// one-shot intrinsic capability and installs its closure-private rejection
+// ledger before anything application-controlled evaluates. The allowlist and
+// bootstrap then install before the handler module, which remains last. The
+// fetch server is single-sourced with LLP 0040's deployed handler Worker.
+import handlerServer from "./handler-server.mjs";
 import "./allowlist-install.js";
 import "./ctx-bootstrap.js";
 import "./handler.mjs";
-export { default } from "./handler-server.mjs";
+export default handlerServer;

@@ -117,12 +117,38 @@ fn detached_action_limiter() -> &'static DetachedActionLimiter {
     })
 }
 
+#[derive(Clone, Copy)]
+struct DetachedActionWorkerCounters {
+    active: &'static AtomicUsize,
+    rejections: &'static AtomicU64,
+}
+
+fn global_detached_action_worker_counters() -> DetachedActionWorkerCounters {
+    DetachedActionWorkerCounters {
+        active: &DETACHED_ACTION_WORKERS,
+        rejections: &DETACHED_ACTION_REJECTIONS,
+    }
+}
+
+#[cfg(test)]
 fn reserve_detached_action_worker(
     limiter: Arc<Semaphore>,
     limit: usize,
 ) -> SnapbackResult<OwnedSemaphorePermit> {
+    reserve_detached_action_worker_with_counters(
+        limiter,
+        limit,
+        global_detached_action_worker_counters(),
+    )
+}
+
+fn reserve_detached_action_worker_with_counters(
+    limiter: Arc<Semaphore>,
+    limit: usize,
+    counters: DetachedActionWorkerCounters,
+) -> SnapbackResult<OwnedSemaphorePermit> {
     limiter.try_acquire_owned().map_err(|_| {
-        DETACHED_ACTION_REJECTIONS.fetch_add(1, Ordering::SeqCst);
+        counters.rejections.fetch_add(1, Ordering::SeqCst);
         SnapbackError::error(
             "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
             "runtime",
@@ -131,25 +157,59 @@ fn reserve_detached_action_worker(
             ),
         )
         .with_details(json!({
-            "activeWorkers": detached_action_worker_count(),
+            "activeWorkers": counters.active.load(Ordering::SeqCst),
             "workerLimit": limit,
         }))
     })
 }
 
-struct DetachedActionWorkerGuard;
+struct DetachedActionWorkerGuard {
+    active: &'static AtomicUsize,
+}
 
 impl DetachedActionWorkerGuard {
-    fn enter() -> Self {
-        DETACHED_ACTION_WORKERS.fetch_add(1, Ordering::SeqCst);
-        Self
+    fn enter(counters: DetachedActionWorkerCounters) -> Self {
+        counters.active.fetch_add(1, Ordering::SeqCst);
+        Self {
+            active: counters.active,
+        }
     }
 }
 
 impl Drop for DetachedActionWorkerGuard {
     fn drop(&mut self) {
-        DETACHED_ACTION_WORKERS.fetch_sub(1, Ordering::SeqCst);
+        self.active.fetch_sub(1, Ordering::SeqCst);
     }
+}
+
+fn spawn_detached_action_worker<T, R, F, Complete>(
+    permit: OwnedSemaphorePermit,
+    counters: DetachedActionWorkerCounters,
+    task: F,
+    complete: Complete,
+) -> std::io::Result<std::thread::JoinHandle<R>>
+where
+    T: Send + 'static,
+    R: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+    Complete: FnOnce(T) -> R + Send + 'static,
+{
+    std::thread::Builder::new()
+        .name("snapback-action".to_owned())
+        .spawn(move || {
+            // Both guards live in the native thread. In particular, an outer
+            // watchdog returning cannot release admission for a native call
+            // that has not actually unwound yet.
+            let result = {
+                let _worker_permit = permit;
+                let _worker = DetachedActionWorkerGuard::enter(counters);
+                task()
+            };
+            // Publication runs only after actual native teardown and permit
+            // release. A completed response therefore never races a stale
+            // worker count or spuriously leaves capacity exhausted.
+            complete(result)
+        })
 }
 
 /// Run write-lane work against the instance without blocking a tokio worker.
@@ -422,12 +482,53 @@ async fn run_detached_ibex_action(
     input: HandlerInput,
     metadata: CronRunMetadata,
 ) -> SnapbackResult<Value> {
+    let limiter = detached_action_limiter();
+    run_detached_ibex_action_with_admission(
+        state,
+        action,
+        input,
+        metadata,
+        limiter.semaphore.clone(),
+        limiter.limit,
+    )
+    .await
+}
+
+async fn run_detached_ibex_action_with_admission(
+    state: &SharedSnapback,
+    action: Box<crate::local::DetachedIbexAction>,
+    input: HandlerInput,
+    metadata: CronRunMetadata,
+    admission: Arc<Semaphore>,
+    worker_limit: usize,
+) -> SnapbackResult<Value> {
+    run_detached_ibex_action_with_admission_and_counters(
+        state,
+        action,
+        input,
+        metadata,
+        admission,
+        worker_limit,
+        global_detached_action_worker_counters(),
+    )
+    .await
+}
+
+async fn run_detached_ibex_action_with_admission_and_counters(
+    state: &SharedSnapback,
+    action: Box<crate::local::DetachedIbexAction>,
+    input: HandlerInput,
+    metadata: CronRunMetadata,
+    admission: Arc<Semaphore>,
+    worker_limit: usize,
+    counters: DetachedActionWorkerCounters,
+) -> SnapbackResult<Value> {
     // @ref LLP 0028#execution-the-action-class — detached native work has a
     // hard process-wide admission ceiling. A timed-out native call may retain
     // its permit until it actually exits, but it can never cause unbounded
     // thread growth.
-    let limiter = detached_action_limiter();
-    let worker_permit = reserve_detached_action_worker(limiter.semaphore.clone(), limiter.limit)?;
+    let worker_permit =
+        reserve_detached_action_worker_with_counters(admission, worker_limit, counters)?;
     let timeout_ms = action_watchdog_timeout_ms();
     let started = Instant::now();
     let deadline = started
@@ -450,60 +551,66 @@ async fn run_detached_ibex_action(
     let abandoned = Arc::new(AtomicBool::new(false));
     let commit_gate = Arc::new(StdMutex::new(()));
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
-    let spawned = std::thread::Builder::new()
-        .name("snapback-action".to_owned())
-        .spawn({
+    let spawned = spawn_detached_action_worker(
+        worker_permit,
+        counters,
+        {
             let state = state.clone();
             let abandoned = abandoned.clone();
             let commit_gate = commit_gate.clone();
             move || {
-                let _worker_permit = worker_permit;
-                let result = {
-                    let _worker = DetachedActionWorkerGuard::enter();
-                    let crate::local::DetachedIbexAction {
-                        module,
-                        grants,
-                        runtime,
-                        app_generation,
-                        app_generation_fence,
-                    } = *action;
-                    let mut host = DetachedActionHost {
-                        state,
-                        abandoned,
-                        commit_gate,
-                        deadline: execution_deadline,
-                        app_generation,
-                        app_generation_fence,
-                    };
-                    let result = runtime.invoke_ibex_action(
-                        &module,
-                        input,
-                        metadata,
-                        &mut host,
-                        grants,
-                        Some(execution_deadline),
-                    );
-                    let result = match result {
-                        Err(_error) if Instant::now() >= execution_deadline => {
-                            Err(action_deadline_elapsed("action.execute"))
-                        }
-                        other => other,
-                    };
-                    // @ref LLP 0028#execution-the-action-class — an action may
-                    // await native fetch/timer work and return without making
-                    // another Snapback host call. Linearize successful
-                    // completion against the same staging generation so a
-                    // reload/reset during that await cannot escape as success.
-                    result.and_then(|value| {
+                let crate::local::DetachedIbexAction {
+                    module,
+                    grants,
+                    redactor,
+                    runtime,
+                    app_generation,
+                    app_generation_fence,
+                } = *action;
+                let mut host = DetachedActionHost {
+                    state,
+                    abandoned,
+                    commit_gate,
+                    deadline: execution_deadline,
+                    app_generation,
+                    app_generation_fence,
+                };
+                let result = runtime.invoke_ibex_action(
+                    &module,
+                    input,
+                    metadata,
+                    &mut host,
+                    grants,
+                    Some(execution_deadline),
+                );
+                let result = match result {
+                    Err(_error) if Instant::now() >= execution_deadline => {
+                        Err(action_deadline_elapsed("action.execute"))
+                    }
+                    other => other,
+                };
+                // @ref LLP 0028#execution-the-action-class — an action may
+                // await native fetch/timer work and return without making
+                // another Snapback host call. Linearize successful
+                // completion against the same staging generation so a
+                // reload/reset during that await cannot escape as success.
+                result
+                    .and_then(|value| {
                         host.validate_live("action.complete")?;
                         Ok(value)
                     })
-                };
-                // Runtime/host/worker guards are gone before publishing the
-                // result, so a returned timeout proves no CPU worker leaked.
-                let _ = sender.send(result);
+                    // This is the earliest common envelope boundary and
+                    // carries the staging-time values, so rotation cannot
+                    // make an old secret invisible to the scrubber.
+                    .map_err(|error| redactor.redact_error(error))
             }
-        });
+        },
+        move |result| {
+            // Runtime/host/worker guards are gone before publishing the
+            // result, so a returned timeout proves no CPU worker leaked.
+            let _ = sender.send(result);
+        },
+    );
     if let Err(error) = spawned {
         return Err(SnapbackError::error(
             "SNAPBACK_ACTION_THREAD_SPAWN_FAILED",
@@ -637,6 +744,64 @@ pub(crate) async fn cron_tick_detached(
         records.push(result?);
     }
     Ok(records)
+}
+
+/// Claim one scheduler tick and hand each run to the process-wide bounded
+/// cron dispatcher. This returns after dispatch, not after handler completion,
+/// so `overlap: allow` can claim a later due slot while an earlier run is
+/// still executing. Saturation becomes a recorded run outcome instead of an
+/// unbounded task queue.
+async fn dispatch_cron_tick_background(
+    state: &SharedSnapback,
+    dispatcher: &Arc<Semaphore>,
+    dispatcher_limit: usize,
+    now_ms: u64,
+) -> SnapbackResult<usize> {
+    let claims = with_snapback(state, move |snapback| snapback.claim_due_cron_runs(now_ms)).await?;
+    let mut dispatched = 0;
+    for claim in claims {
+        match dispatcher.clone().try_acquire_owned() {
+            Ok(permit) => {
+                dispatched += 1;
+                let state = state.clone();
+                tokio::spawn(async move {
+                    let _permit = permit;
+                    if let Err(error) = execute_cron_claim_detached(&state, claim).await {
+                        state.lock().await.record_cron_tick_error(error);
+                    }
+                });
+            }
+            Err(_) => {
+                let started_wall_ms = now_millis();
+                let job_name = claim.job.name.clone();
+                let finish = with_snapback(state, move |snapback| {
+                    snapback.finish_cron_claim(
+                        claim,
+                        started_wall_ms,
+                        Err(Diagnostic::error(
+                            "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
+                            "cron",
+                            format!(
+                                "cron job {job_name} could not start because every bounded dispatcher slot is busy"
+                            ),
+                        )
+                        .with_details(json!({
+                            "dispatcherLimit": dispatcher_limit,
+                            "availableSlots": 0,
+                        }))),
+                    )
+                })
+                .await;
+                // Every claim was already persisted as active. A failure to
+                // persist this capacity outcome must not abandon later claims
+                // in the batch; record it and continue draining ownership.
+                if let Err(error) = finish {
+                    state.lock().await.record_cron_tick_error(error);
+                }
+            }
+        }
+    }
+    Ok(dispatched)
 }
 
 /// Execute one claimed cron run without holding the global mutex across the
@@ -1112,7 +1277,10 @@ pub fn route_registry() -> Vec<RouteSpec> {
         ),
         // System API — existing admin surface.
         spec("GET", "/_snapback/api/health", SystemApi, AdminRead),
-        spec("GET", "/_snapback/api/inspect", SystemApi, AdminRead),
+        // Full inspect carries raw operational text/source/path facts; unlike
+        // health and the typed root projection it requires the configured
+        // admin bearer even though the HTTP method is GET.
+        spec("GET", "/_snapback/api/inspect", SystemApi, AdminWrite),
         spec("GET", "/_snapback/api/receipts", SystemApi, AdminRead),
         spec("GET", "/_snapback/api/data/{table}", SystemApi, AdminRead),
         // Function runner gates dynamically (read for queries, write for
@@ -1959,18 +2127,27 @@ pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
         //
         // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5.
         let cron_active = state.lock().await.cron_activity_flag();
+        let dispatch_limit = configured_cron_dispatch_concurrency(
+            std::env::var("SNAPBACK_CRON_DISPATCH_CONCURRENCY")
+                .ok()
+                .as_deref(),
+        );
+        let dispatcher = Arc::new(Semaphore::new(dispatch_limit));
         let mut ticks = interval(Duration::from_secs(1));
         loop {
             ticks.tick().await;
             if !cron_active.load(std::sync::atomic::Ordering::Relaxed) {
                 continue;
             }
-            // A due tick persists cron state and may run actions (Hermes) —
-            // off the async worker (L7). Claims and finishes take the lock;
-            // the action runs themselves execute detached from it, so a slow
-            // or hung cron action no longer wedges the instance (ENG-23324).
+            // Claim and dispatch, then resume polling without awaiting action
+            // completion. The shared semaphore bounds all automatic runs
+            // across ticks; the per-job active-run ceiling bounds Allow
+            // ownership, and the action limiter remains the final native
+            // thread admission gate.
             let now = now_millis();
-            if let Err(error) = cron_tick_detached(&state, now).await {
+            if let Err(error) =
+                dispatch_cron_tick_background(&state, &dispatcher, dispatch_limit, now).await
+            {
                 // Tick-machinery errors go to the diagnostics ring; the
                 // recording is memory-only, so an inline lock is fine (the
                 // same argument as disconnect's inline lock).
@@ -2075,7 +2252,7 @@ async fn apply_schema(
     headers: HeaderMap,
     Json(manifest): Json<SchemaManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::authorize_operation(&ctx, &headers, "schema.load", None)?;
     crate::admin::require_operation_profile(&ctx, "schema.load", false)?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.apply_schema(manifest)).await?;
@@ -2088,7 +2265,7 @@ async fn load_functions(
     headers: HeaderMap,
     Json(manifest): Json<FunctionManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::authorize_operation(&ctx, &headers, "functions.load", None)?;
     crate::admin::require_operation_profile(&ctx, "functions.load", false)?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.load_functions(manifest)).await;
@@ -2300,13 +2477,24 @@ async fn host_ops_handler(
     headers: HeaderMap,
     Json(request): Json<crate::host_ops::HostOpsRequest>,
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
     let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
     let profile = ctx.profile;
-    let result = with_snapback(&state, move |snapback| {
-        crate::host_ops::execute_host_op_with_profile(snapback, request, server_url, profile)
+    let result = with_snapback(&state, move |snapback| -> Result<_, ApiError> {
+        let function_kind = request
+            .function
+            .as_deref()
+            .and_then(|name| snapback.function_kind(name));
+        crate::admin::authorize_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            function_kind.as_ref(),
+        )?;
+        Ok(crate::host_ops::execute_host_op_with_profile(
+            snapback, request, server_url, profile,
+        ))
     })
-    .await;
+    .await?;
     Ok(Json(result))
 }
 
@@ -2322,7 +2510,7 @@ async fn app_reset(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AppResetResponse>, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::authorize_operation(&ctx, &headers, "app.reset", None)?;
     crate::admin::require_operation_profile(&ctx, "app.reset", false)?;
     let seed = parse_optional_json::<AppResetBody>(&headers, body)?.and_then(|body| body.seed);
     let seeded = with_snapback(&state, move |snapback| snapback.reset_with_seed(seed)).await?;
@@ -3109,6 +3297,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
             StatusCode::GATEWAY_TIMEOUT
         }
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
+        | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
+        | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_READ_LANE_UNAVAILABLE"
         | "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING"
@@ -3258,14 +3448,20 @@ mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
         ACTION_WORKER_LIMIT_MAX, CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX,
-        DetachedActionHost, OpenConnectionRequest, SharedSnapback, configured_action_worker_limit,
-        configured_cron_dispatch_concurrency, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, status_for_diagnostic_code,
+        DetachedActionHost, DetachedActionWorkerCounters, OpenConnectionRequest, SharedSnapback,
+        configured_action_worker_limit, configured_cron_dispatch_concurrency,
+        dispatch_cron_tick_background, parse_action_watchdog_timeout, parse_optional_json,
+        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+        status_for_diagnostic_code,
     };
+    use crate::cron::CronRunOutcome;
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
-        FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
-        HandlerPlan, IbexModule, MutationPlan, SchemaManifest,
+        CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
+        CronRetryMode, CronRetryPolicy, CronSchedule, FunctionDefinition, FunctionKind,
+        FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan,
+        SchemaManifest,
     };
     use crate::runtime::IbexActionHost;
     use axum::body::Bytes;
@@ -3273,8 +3469,8 @@ mod tests {
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::AtomicBool;
-    use std::sync::{Arc, Mutex as StdMutex};
+    use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+    use std::sync::{Arc, Condvar, Mutex as StdMutex};
     use std::time::{Duration, Instant};
     use syn::visit::Visit;
     use tokio::sync::{Mutex, Semaphore};
@@ -3515,6 +3711,14 @@ mod tests {
             "private workerd text binding carrying the local invocation capability",
         ),
         (
+            "SNAPBACK_HOST_TOKEN",
+            "private workerd text binding carrying the independent host-call capability",
+        ),
+        (
+            "SNAPBACK_RESPONSE_TOKEN",
+            "private workerd text binding authenticating readiness and invoke responses",
+        ),
+        (
             "SNAPBACK_IBEX",
             "environment variable overriding the Ibex executable",
         ),
@@ -3714,6 +3918,8 @@ mod tests {
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
         "SNAPBACK_CAPABILITY_MINIFLARE_MISSING",
         "SNAPBACK_CAPABILITY_WORKERD_MISSING",
+        "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
+        "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
@@ -4015,6 +4221,282 @@ mod tests {
 
         drop(permit);
         assert!(reserve_detached_action_worker(limiter, 1).is_ok());
+    }
+
+    fn isolated_worker_counters() -> DetachedActionWorkerCounters {
+        // Native worker closures require 'static counters. Leaking these two
+        // tiny atomics keeps each parallel test isolated from process-global
+        // admin metrics without introducing test-only synchronization into
+        // production paths.
+        DetachedActionWorkerCounters {
+            active: Box::leak(Box::new(AtomicUsize::new(0))),
+            rejections: Box::leak(Box::new(AtomicU64::new(0))),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn detached_action_execution_stays_bounded_under_repeated_saturation() {
+        let state = slow_cron_state(CronOverlapPolicy::Allow);
+        let counters = isolated_worker_counters();
+        let mut staged = Vec::new();
+        for _ in 0..10 {
+            let action = super::with_snapback(&state, |snapback| {
+                snapback.stage_action_invocation("slowCron")
+            })
+            .await
+            .expect("stage slow action");
+            let StagedAction::Detached(action) = action else {
+                panic!("Ibex action must detach");
+            };
+            staged.push(action);
+        }
+
+        let admission = Arc::new(Semaphore::new(2));
+        let first = staged.remove(0);
+        let second = staged.remove(0);
+        let first_run = {
+            let state = state.clone();
+            let admission = admission.clone();
+            tokio::spawn(async move {
+                run_detached_ibex_action_with_admission_and_counters(
+                    &state,
+                    first,
+                    HandlerInput::default(),
+                    crate::local::manual_action_metadata("test", "first"),
+                    admission,
+                    2,
+                    counters,
+                )
+                .await
+            })
+        };
+        let second_run = {
+            let state = state.clone();
+            let admission = admission.clone();
+            tokio::spawn(async move {
+                run_detached_ibex_action_with_admission_and_counters(
+                    &state,
+                    second,
+                    HandlerInput::default(),
+                    crate::local::manual_action_metadata("test", "second"),
+                    admission,
+                    2,
+                    counters,
+                )
+                .await
+            })
+        };
+        wait_for_dispatcher_permits(&admission, 0).await;
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while counters.active.load(Ordering::SeqCst) < 2 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .expect("both admitted actions enter their native VM workers");
+        assert_eq!(
+            counters.active.load(Ordering::SeqCst),
+            2,
+            "the injected N=2 ceiling must bound actual native workers"
+        );
+
+        for action in staged {
+            let error = run_detached_ibex_action_with_admission_and_counters(
+                &state,
+                action,
+                HandlerInput::default(),
+                crate::local::manual_action_metadata("test", "rejected"),
+                admission.clone(),
+                2,
+                counters,
+            )
+            .await
+            .expect_err("work beyond the configured ceiling must fail closed");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_CAPACITY_EXCEEDED");
+            assert_eq!(admission.available_permits(), 0);
+        }
+        assert!(
+            counters.rejections.load(Ordering::SeqCst) == 8,
+            "every rejected N+1 attempt must reach the exported overload metric"
+        );
+
+        first_run
+            .await
+            .expect("first task joins")
+            .expect("first action");
+        second_run
+            .await
+            .expect("second task joins")
+            .expect("second action");
+        assert_eq!(admission.available_permits(), 2);
+        assert_eq!(counters.active.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn stuck_native_workers_retain_capacity_until_they_actually_exit() {
+        let counters = isolated_worker_counters();
+        let admission = Arc::new(Semaphore::new(2));
+        let release = Arc::new((StdMutex::new(false), Condvar::new()));
+        let mut workers = Vec::new();
+        for _ in 0..2 {
+            let permit =
+                reserve_detached_action_worker_with_counters(admission.clone(), 2, counters)
+                    .expect("worker admitted below N");
+            let release = release.clone();
+            workers.push(
+                spawn_detached_action_worker(
+                    permit,
+                    counters,
+                    move || {
+                        let (released, wake) = &*release;
+                        let mut released = released.lock().expect("release lock");
+                        while !*released {
+                            released = wake.wait(released).expect("release wait");
+                        }
+                    },
+                    |()| (),
+                )
+                .expect("spawn blocking native worker"),
+            );
+        }
+        while counters.active.load(Ordering::SeqCst) != 2 {
+            std::thread::yield_now();
+        }
+
+        // Model the period after an outer watchdog has returned but a native
+        // call cannot yet unwind. Admission remains exhausted throughout;
+        // repeated callers fail rather than allocating additional OS threads.
+        std::thread::sleep(Duration::from_millis(25));
+        for _ in 0..8 {
+            let error =
+                reserve_detached_action_worker_with_counters(admission.clone(), 2, counters)
+                    .expect_err("N+1 stuck worker must be rejected");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_CAPACITY_EXCEEDED");
+        }
+        assert_eq!(admission.available_permits(), 0);
+        assert_eq!(counters.active.load(Ordering::SeqCst), 2);
+        assert_eq!(counters.rejections.load(Ordering::SeqCst), 8);
+
+        let (released, wake) = &*release;
+        *released.lock().expect("release lock") = true;
+        wake.notify_all();
+        for worker in workers {
+            worker.join().expect("native worker exits after release");
+        }
+        assert_eq!(admission.available_permits(), 2);
+        assert_eq!(counters.active.load(Ordering::SeqCst), 0);
+    }
+
+    fn slow_cron_state(overlap_policy: CronOverlapPolicy) -> SharedSnapback {
+        let source = r#"
+globalThis.__snapbackHandlers = {
+  async slowCron() {
+    const started = Date.now();
+    while (Date.now() - started < 500) {}
+    return { ok: true };
+  }
+};
+"#;
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "slowCron",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: source.to_owned(),
+                    export: "slowCron".to_owned(),
+                }),
+            )],
+            cron_jobs: vec![CronJobDefinition {
+                name: "slow".to_owned(),
+                schedule: CronSchedule {
+                    every_ms: Some(60_000),
+                    cron: None,
+                },
+                action: "slowCron".to_owned(),
+                enabled: true,
+                activation: CronActivationPolicy::default(),
+                jitter_policy: CronJitterPolicy {
+                    enabled: false,
+                    max_offset_ms: 0,
+                },
+                overlap_policy,
+                retry_policy: CronRetryPolicy {
+                    mode: CronRetryMode::NextTick,
+                },
+                required_capabilities: Vec::new(),
+                target_wakeup: None,
+                source_span: None,
+            }],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("cron test state");
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "slow cron manifest must install: {diagnostics:?}"
+        );
+        Arc::new(Mutex::new(snapback))
+    }
+
+    async fn wait_for_dispatcher_permits(dispatcher: &Semaphore, expected: usize) {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while dispatcher.available_permits() != expected {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .expect("detached cron action did not reach the expected dispatcher state");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn background_scheduler_allows_overlap_but_no_overlap_skips() {
+        let dispatcher = Arc::new(Semaphore::new(4));
+        let allow = slow_cron_state(CronOverlapPolicy::Allow);
+        assert_eq!(
+            dispatch_cron_tick_background(&allow, &dispatcher, 4, 60_000)
+                .await
+                .unwrap(),
+            1
+        );
+        wait_for_dispatcher_permits(&dispatcher, 3).await;
+        assert_eq!(
+            dispatch_cron_tick_background(&allow, &dispatcher, 4, 120_000)
+                .await
+                .unwrap(),
+            1,
+            "the next automatic Allow slot must dispatch before the prior run finishes"
+        );
+        wait_for_dispatcher_permits(&dispatcher, 2).await;
+        wait_for_dispatcher_permits(&dispatcher, 4).await;
+
+        let no_overlap = slow_cron_state(CronOverlapPolicy::NoOverlap);
+        assert_eq!(
+            dispatch_cron_tick_background(&no_overlap, &dispatcher, 4, 60_000)
+                .await
+                .unwrap(),
+            1
+        );
+        wait_for_dispatcher_permits(&dispatcher, 3).await;
+        assert_eq!(
+            dispatch_cron_tick_background(&no_overlap, &dispatcher, 4, 120_000)
+                .await
+                .unwrap(),
+            0,
+            "NoOverlap must skip while its prior automatic run is active"
+        );
+        let inspect = super::with_snapback(&no_overlap, |snapback| snapback.inspect())
+            .await
+            .unwrap();
+        assert!(inspect.cron.recent_runs.iter().any(|run| {
+            run.outcome == CronRunOutcome::Skipped
+                && run.diagnostic.as_ref().is_some_and(|diagnostic| {
+                    diagnostic.code == "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP"
+                })
+        }));
+        wait_for_dispatcher_permits(&dispatcher, 4).await;
     }
 
     fn generation_test_manifest() -> FunctionManifest {

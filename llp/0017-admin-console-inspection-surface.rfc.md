@@ -490,6 +490,13 @@ state, diagnostics, and eventually data and mutation controls.
 Local defaults:
 
 - serving the console on loopback is allowed by default;
+- the full `/_snapback/api/inspect` projection is a sensitive read because it
+  carries raw handler-controlled diagnostics/results, source, and local paths;
+  whenever an admin token is configured or auto-minted it requires that bearer.
+  Anonymous loopback clients use root `/inspect`, which is a typed redacted
+  projection. A fresh console renders a text-only token prompt on 401, stores
+  the submitted capability through the shared admin client, and retries boot
+  without ever placing server error text into HTML (ENG-24560/ENG-24568);
 - when the server binds a non-loopback host such as `0.0.0.0`, the admin console
   should either be disabled by default or require an explicit admin token;
 - write operations should require an admin token or equivalent local capability
@@ -582,13 +589,14 @@ Landed (steps 1–7 of the sketch):
   the normal invocation path and reports the declared read-set and write-set,
   timing, and inline diagnostics — the visible answer to the Valet
   silent-namespace failure;
-- the *Security Defaults* model as a pure, unit-tested policy: loopback reads
-  open, loopback writes token-gated once `SNAPBACK_ADMIN_TOKEN` is set, and a
+- the *Security Defaults* model as a pure, unit-tested policy: ordinary
+  loopback reads open, sensitive full inspect and loopback writes token-gated
+  once `SNAPBACK_ADMIN_TOKEN` is set, and a
   non-loopback bind disabled without a valid token; since ENG-23443 the serve
   path always resolves a token on loopback — auto-minting one
   (`resolve_serve_admin_token`, persisted 0600, surfaced via startup output,
   `adminTokenFile` in a trusted readiness descriptor, with `admin.tokenFile`
-  retained as inspect-only metadata) whenever `SNAPBACK_ADMIN_TOKEN` is unset
+  retained only in bearer-authenticated full inspect) whenever `SNAPBACK_ADMIN_TOKEN` is unset
   — so no HTTP-served
   instance accepts tokenless admin writes;
 - the one safe ephemeral control: token-gated cleanup of expired entries.
@@ -608,6 +616,15 @@ capability gaps, schema, functions with read/write sets, ephemeral counters, and
 diagnostics from `/_snapback/api/inspect`. It is now the only admin dashboard UI.
 The server still exposes the shared admin client module at
 `/_snapback/admin/client.mjs` for tooling.
+
+The admin dependency graph is part of the production security boundary
+(ENG-24575). `scripts/verify-local-proof` runs `bun audit --production` after
+the locked install/build/tests, so CI cannot silently drop the gate. The
+published Exact devtools chain currently declares Undici 5.x, whose maintained
+line remains vulnerable; the lock therefore overrides it to audited Undici
+6.27.0. The required dev-serve module-graph smoke starts the actual Exact/Vite
+server path and is the compatibility proof for that temporary out-of-range
+transitive override until the upstream chain moves to Connect 2.x.
 
 On 2026-06-27 the Contract console was **rebuilt from scratch** as an app-shell
 layout — a fixed sidebar (the Snapback toggle mark, navigation, light/dark

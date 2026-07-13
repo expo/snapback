@@ -71,6 +71,12 @@ assert.equal(actionCount, 14, 'the reviewed workflow action inventory changed; r
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+const localProofScript = readFileSync(join(ROOT, 'scripts', 'verify-local-proof'), 'utf8');
+assert.match(
+  localProofScript,
+  /admin-ui[^\n]*audit:production|audit:production/,
+  'canonical local/CI proof must run the admin production dependency audit',
+);
 
 const packageJson = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 assert.match(packageJson.packageManager ?? '', /^bun@\d+\.\d+\.\d+$/);

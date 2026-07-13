@@ -118,6 +118,35 @@ pub(crate) enum OperationProfileRequirement {
     NonProd,
 }
 
+/// Admin half of a host operation's authority tuple. Multiplexed host-ops and
+/// their dedicated route aliases resolve through this same table so transport
+/// choice cannot silently strengthen or weaken the caller's requirement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OperationAuthorityRequirement {
+    AdminRead,
+    AdminWrite,
+}
+
+pub(crate) fn operation_authority_requirement(
+    operation: &str,
+    function_kind: Option<&FunctionKind>,
+) -> OperationAuthorityRequirement {
+    match operation {
+        "function.explain" => OperationAuthorityRequirement::AdminRead,
+        "function.run"
+            if !matches!(
+                function_kind,
+                Some(FunctionKind::Mutation | FunctionKind::Action)
+            ) =>
+        {
+            OperationAuthorityRequirement::AdminRead
+        }
+        // Unknown/unbuilt operations fail closed at the stronger endpoint
+        // gate even though their eventual envelope contains only an error.
+        _ => OperationAuthorityRequirement::AdminWrite,
+    }
+}
+
 /// One operation policy table shared by dedicated routes and multiplexed
 /// host-ops. `has_dev_user` means the caller selected an app identity rather
 /// than presenting hosted app authentication.
@@ -310,6 +339,24 @@ pub fn resolve_serve_admin_token(
     env_token: Option<String>,
     token_file: Option<PathBuf>,
 ) -> anyhow::Result<ResolvedAdminToken> {
+    resolve_serve_admin_token_with_io(
+        env_token,
+        token_file,
+        crate::secure_file::read_owner_only,
+        crate::secure_file::write_owner_only,
+    )
+}
+
+pub(crate) fn resolve_serve_admin_token_with_io<ReadFile, WriteFile>(
+    env_token: Option<String>,
+    token_file: Option<PathBuf>,
+    read_file: ReadFile,
+    write_file: WriteFile,
+) -> anyhow::Result<ResolvedAdminToken>
+where
+    ReadFile: Fn(&std::path::Path) -> std::io::Result<Vec<u8>>,
+    WriteFile: Fn(&std::path::Path, &[u8]) -> std::io::Result<()>,
+{
     if let Some(token) = env_token.filter(|token| !token.is_empty()) {
         return Ok(ResolvedAdminToken {
             token,
@@ -326,7 +373,7 @@ pub fn resolve_serve_admin_token(
             file: None,
         });
     };
-    match crate::secure_file::read_owner_only(&path) {
+    match read_file(&path) {
         Ok(existing) => {
             let existing = String::from_utf8(existing).with_context(|| {
                 format!("admin token file {} is not valid UTF-8", path.display())
@@ -348,7 +395,7 @@ pub fn resolve_serve_admin_token(
         }
     }
     let token = mint_admin_token();
-    write_token_file(&path, &token)
+    write_file(&path, format!("{token}\n").as_bytes())
         .with_context(|| format!("failed to write admin token file {}", path.display()))?;
     Ok(ResolvedAdminToken {
         token,
@@ -356,12 +403,6 @@ pub fn resolve_serve_admin_token(
         fresh: true,
         file: Some(path),
     })
-}
-
-/// Persist a minted token owner-readable only: the file being 0600 is what
-/// scopes the capability to the current user on shared machines.
-fn write_token_file(path: &std::path::Path, token: &str) -> std::io::Result<()> {
-    crate::secure_file::write_owner_only(path, format!("{token}\n").as_bytes())
 }
 
 fn env_admin_dist() -> Option<PathBuf> {
@@ -656,6 +697,17 @@ pub(crate) fn require_operation_profile(
         None => Ok(()),
         Some(diagnostic) => Err(crate::diagnostic::SnapbackError::new(diagnostic).into()),
     }
+}
+
+pub(crate) fn authorize_operation(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    operation: &str,
+    function_kind: Option<&FunctionKind>,
+) -> Result<(), crate::server::ApiError> {
+    let write = operation_authority_requirement(operation, function_kind)
+        == OperationAuthorityRequirement::AdminWrite;
+    authorize(ctx, headers, write)
 }
 
 pub(crate) fn authorize(
@@ -998,7 +1050,12 @@ async fn admin_inspect(
     State(ctx): State<Arc<ServerContext>>,
     headers: HeaderMap,
 ) -> Result<Json<AdminInspect>, ApiError> {
-    authorize(&ctx, &headers, false)?;
+    // This projection carries raw cron/recent diagnostics, handler results,
+    // full function bodies, and the absolute minted-token path. It is a
+    // sensitive administrative read and therefore requires the write-grade
+    // bearer whenever one is configured; anonymous loopback callers use the
+    // typed root `/inspect` projection instead.
+    authorize(&ctx, &headers, true)?;
     let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
     Ok(Json(AdminInspect::assemble(inspect, &ctx)))
 }
@@ -1077,11 +1134,8 @@ async fn admin_run_function(
         let input = input.clone();
         crate::server::with_snapback(&snapback, move |snapback| -> Result<Routed, ApiError> {
             // A mutation is a write; a query (or unknown function) is a read.
-            let write = matches!(
-                snapback.function_kind(&name),
-                Some(FunctionKind::Mutation | FunctionKind::Action)
-            );
-            authorize(&ctx, &headers, write)?;
+            let function_kind = snapback.function_kind(&name);
+            authorize_operation(&ctx, &headers, "function.run", function_kind.as_ref())?;
             // A caller-supplied app user is the `devUser` authority mode, not
             // hosted authentication. Apply the same centralized profile rule
             // as the multiplexed host-ops alias before invoking app code.

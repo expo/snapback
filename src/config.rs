@@ -37,6 +37,52 @@ pub struct VerificationRecord {
     pub diagnostic: Option<String>,
 }
 
+/// Invocation-time snapshot of every configured secret value. Detached
+/// actions carry this across the lock boundary so a value rotated or unset
+/// while handler code is running can still be removed from its eventual error
+/// envelope and retention sinks.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct SecretRedactor {
+    secrets: Vec<String>,
+}
+
+impl SecretRedactor {
+    fn new(mut secrets: Vec<String>) -> Self {
+        secrets.retain(|secret| !secret.is_empty());
+        // Replace overlapping values longest-first so no recognizable suffix
+        // survives a shorter prefix replacement.
+        secrets.sort_unstable_by(|left, right| {
+            right.len().cmp(&left.len()).then_with(|| left.cmp(right))
+        });
+        secrets.dedup();
+        Self { secrets }
+    }
+
+    pub(crate) fn redact_text(&self, text: &str) -> String {
+        let mut redacted = text.to_owned();
+        for secret in &self.secrets {
+            if redacted.contains(secret) {
+                redacted = redacted.replace(secret, "[REDACTED]");
+            }
+        }
+        redacted
+    }
+
+    pub(crate) fn redact_diagnostic(
+        &self,
+        mut diagnostic: crate::diagnostic::Diagnostic,
+    ) -> crate::diagnostic::Diagnostic {
+        diagnostic.message = self.redact_text(&diagnostic.message);
+        redact_value_strings(self, &mut diagnostic.details);
+        diagnostic
+    }
+
+    pub(crate) fn redact_error(&self, mut error: SnapbackError) -> SnapbackError {
+        error.diagnostic = self.redact_diagnostic(error.diagnostic);
+        error
+    }
+}
+
 /// One stored entry: an ordered member pool (a single-valued entry is a
 /// one-member pool) plus names-and-status metadata. Values leave this struct
 /// only through [`ConfigStore::values`].
@@ -327,35 +373,34 @@ impl ConfigStore {
     /// carry messages, and gated diagnostic storage additionally replaces all
     /// currently configured values before retention.
     pub fn redact_text(&self, text: &str) -> String {
-        let mut redacted = text.to_owned();
-        let mut secrets = self
-            .state
-            .entries
-            .values()
-            .flat_map(|entry| entry.values.iter().map(String::as_str))
-            .filter(|secret| !secret.is_empty())
-            .collect::<Vec<_>>();
-        // If one configured value is a prefix of another, replacing the short
-        // value first would leave a recognizable suffix behind.
-        secrets.sort_unstable_by(|left, right| {
-            right.len().cmp(&left.len()).then_with(|| left.cmp(right))
-        });
-        secrets.dedup();
-        for secret in secrets {
-            if redacted.contains(secret) {
-                redacted = redacted.replace(secret, "[REDACTED]");
-            }
-        }
-        redacted
+        self.secret_redactor().redact_text(text)
+    }
+
+    pub(crate) fn secret_redactor(&self) -> SecretRedactor {
+        SecretRedactor::new(
+            self.state
+                .entries
+                .values()
+                .flat_map(|entry| entry.values.iter().cloned())
+                .collect(),
+        )
+    }
+
+    pub(crate) fn secret_redactor_for(&self, names: &[String]) -> SecretRedactor {
+        SecretRedactor::new(
+            names
+                .iter()
+                .filter_map(|name| self.state.entries.get(name))
+                .flat_map(|entry| entry.values.iter().cloned())
+                .collect(),
+        )
     }
 
     pub fn redact_diagnostic(
         &self,
-        mut diagnostic: crate::diagnostic::Diagnostic,
+        diagnostic: crate::diagnostic::Diagnostic,
     ) -> crate::diagnostic::Diagnostic {
-        diagnostic.message = self.redact_text(&diagnostic.message);
-        redact_value_strings(self, &mut diagnostic.details);
-        diagnostic
+        self.secret_redactor().redact_diagnostic(diagnostic)
     }
 
     /// One-time import from the deprecated `SNAPBACK_ACTION_SECRETS` blob:
@@ -496,17 +541,17 @@ fn next_generation(current: u64) -> SnapbackResult<u64> {
     })
 }
 
-fn redact_value_strings(store: &ConfigStore, value: &mut serde_json::Value) {
+fn redact_value_strings(redactor: &SecretRedactor, value: &mut serde_json::Value) {
     match value {
-        serde_json::Value::String(text) => *text = store.redact_text(text),
+        serde_json::Value::String(text) => *text = redactor.redact_text(text),
         serde_json::Value::Array(values) => {
             for value in values {
-                redact_value_strings(store, value);
+                redact_value_strings(redactor, value);
             }
         }
         serde_json::Value::Object(values) => {
             for value in values.values_mut() {
-                redact_value_strings(store, value);
+                redact_value_strings(redactor, value);
             }
         }
         _ => {}

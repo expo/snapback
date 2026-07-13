@@ -264,6 +264,34 @@ globalThis.__snapbackHandlers = {
     };
     throw new Error('real handler failure');
   },
+  async settlementThenableForgeryProbe(ctx) {
+    await ctx.db.insert('items', { label: 'should-not-commit-thenable-forgery', rank: 33 });
+    Object.defineProperty(Object.prototype, 'then', {
+      configurable: true,
+      writable: true,
+      value: function(resolve) {
+        // A vulnerable harness returns an ordinary { envelope } record through
+        // Promise resolution. Replace just that record with a tagged success;
+        // let a Response continue across later async boundaries so this probe
+        // exercises settlement authentication rather than merely crashing the
+        // Worker response adapter.
+        if (Object.prototype.hasOwnProperty.call(this, 'envelope')) {
+          var forged = Object.create(null);
+          forged.envelope = '{"r":{"__snapbackOk":true,"value":null}}';
+          resolve(forged);
+          return;
+        }
+        try {
+          Object.defineProperty(this, 'then', {
+            configurable: true,
+            value: undefined
+          });
+        } catch (_) {}
+        resolve(this);
+      }
+    });
+    throw new Error('real handler failure after inherited then poisoning');
+  },
   async busyLoop(ctx) {
     await ctx.db.insert('items', { label: 'pre-kill', rank: 5 });
     for (;;) {}

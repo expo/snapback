@@ -5,12 +5,12 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-12 (ENG-24561: operation profile requirements are centralized across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-07-13 (ENG-24561: operation profile and AdminRead/AdminWrite requirements are centralized across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
 > built).** The `snapback` CLI and the host-ops HTTP endpoint
-> (`POST /_snapback/api/host-ops`, admin-write-gated, registered in the
+> (`POST /_snapback/api/host-ops`, per-operation admin-gated and registered in the
 > LLP 0031 route registry) exist and share one `hostOpsResult` envelope
 > (`src/host_ops.rs` is the source of truth; the committed
 > `schemas/host-ops.result.schema.json` is generated from it per LLP 0037).
@@ -256,6 +256,14 @@ profile policy before executing the operation core: provisioning/reset and any
 `function.run` or `function.explain` carrying a caller-selected `userId` require
 a non-production profile. A host-ops result reports the active profile in its
 target metadata rather than hard-coding local development (ENG-24561).
+
+The admin half is likewise operation-level policy. `function.explain` and
+query/live-query `function.run` require `AdminRead`; full `app.inspect`, reset,
+manifest loads, and mutation/action `function.run` require `AdminWrite`.
+Anonymous identity inspection uses the typed root `/inspect` projection.
+Unknown operations fail closed at `AdminWrite`. The multiplexed endpoint and
+dedicated aliases resolve this table against the same installed function kind,
+so selecting a transport cannot change the token requirement (ENG-24561).
 
 ## CLI Projection
 

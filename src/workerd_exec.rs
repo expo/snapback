@@ -28,7 +28,7 @@ use std::env;
 use std::fs::File;
 #[cfg(unix)]
 use std::fs::{DirBuilder, OpenOptions};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -85,6 +85,11 @@ pub(crate) fn selected_backend() -> HandlerBackend {
 /// a handler (host calls included), small enough that a busy loop dies fast
 /// in CI. Overridable via `SNAPBACK_V8_WALL_CLOCK_TIMEOUT_MS`.
 const DEFAULT_WALL_CLOCK_TIMEOUT_MS: u64 = 10_000;
+const MAX_INVOKE_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
+const MAX_INVOKE_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
+const MAX_READINESS_RESPONSE_BODY_BYTES: usize = 16 * 1024;
+const MAX_STDERR_TAIL_BYTES: u64 = 64 * 1024;
+const RESPONSE_TOKEN_HEADER: &str = "x-snapback-response-token";
 
 thread_local! {
     static WALL_CLOCK_OVERRIDE_MS: Cell<Option<u64>> = const { Cell::new(None) };
@@ -97,6 +102,7 @@ thread_local! {
 pub enum InvokeAuthTestMode {
     Missing,
     Wrong,
+    OversizedBody,
 }
 
 #[doc(hidden)]
@@ -228,13 +234,16 @@ pub fn refuse_node_compat(config: &CompatConfig) -> SnapbackResult<()> {
 
 /// Render the per-invocation workerd config. The harness modules are the
 /// single-sourced files from packages/snapback-harness; the only generated
-/// parts are the two loopback addresses and the compat pins. There is no
+/// parts are the two loopback addresses, three independent capabilities, and
+/// the compat pins. There is no
 /// `internet` service: the HOST binding is the isolate's only egress.
 fn render_workerd_config(
     compat: &CompatConfig,
     host_port: u16,
     worker_port: u16,
     invoke_token: &str,
+    host_token: &str,
+    response_token: &str,
 ) -> String {
     let flags = compat
         .compatibility_flags
@@ -260,7 +269,6 @@ const mainWorker :Workerd.Worker = (
     (name = "entry.mjs", esModule = embed "entry.mjs"),
     (name = "handler-server.mjs", esModule = embed "handler-server.mjs"),
     (name = "strip.mjs", esModule = embed "strip.mjs"),
-    (name = "rejection-ledger.mjs", esModule = embed "rejection-ledger.mjs"),
     (name = "allowlist-install.js", esModule = embed "allowlist-install.js"),
     (name = "ctx-bootstrap.js", esModule = embed "ctx-bootstrap.js"),
     (name = "handler.mjs", esModule = embed "handler.mjs"),
@@ -271,6 +279,8 @@ const mainWorker :Workerd.Worker = (
   bindings = [
     (name = "HOST", service = "snapbackHost"),
     (name = "SNAPBACK_INVOKE_TOKEN", text = "{invoke_token}"),
+    (name = "SNAPBACK_HOST_TOKEN", text = "{host_token}"),
+    (name = "SNAPBACK_RESPONSE_TOKEN", text = "{response_token}"),
   ],
 );
 "#,
@@ -284,8 +294,6 @@ pub(crate) const HARNESS_SERVER_SOURCE: &str =
     include_str!("../packages/snapback-harness/workerd/handler-server.mjs");
 pub(crate) const HARNESS_STRIP_SOURCE: &str =
     include_str!("../packages/snapback-harness/workerd/strip.mjs");
-pub(crate) const HARNESS_REJECTION_LEDGER_SOURCE: &str =
-    include_str!("../packages/snapback-harness/workerd/rejection-ledger.mjs");
 pub(crate) const HARNESS_ALLOWLIST_INSTALL_SOURCE: &str =
     include_str!("../packages/snapback-harness/allowlist-install.js");
 pub(crate) const HARNESS_CTX_BOOTSTRAP_SOURCE: &str =
@@ -425,8 +433,13 @@ pub(crate) fn run_handler_workerd(
     let timeout_ms = wall_clock_timeout_ms();
     let deadline = Instant::now() + Duration::from_millis(timeout_ms);
 
-    // Private loopback transport: the host listener the isolate calls back
-    // into (via its HOST service binding), and a per-invocation bearer token.
+    // Private loopback transport: three independent capabilities prevent a
+    // process that wins the worker-port bind handoff from learning host-call
+    // authority or forging a response. The client proves invoke authority;
+    // workerd proves response authority before Rust reads a byte of its body;
+    // only the genuine worker receives the separate host-call capability.
+    // @ref LLP 0048#as-built-2026-07-07 — the private local transport is part
+    // of the one-invocation V8 executor, not an ambient/public protocol.
     let host_listener = TcpListener::bind("127.0.0.1:0").map_err(|error| {
         runner_error(
             "SNAPBACK_V8_RUNNER_START_FAILED",
@@ -461,7 +474,9 @@ pub(crate) fn run_handler_workerd(
             )
         })?
         .port();
-    let token = uuid::Uuid::new_v4().to_string();
+    let invoke_token = uuid::Uuid::new_v4().to_string();
+    let host_token = uuid::Uuid::new_v4().to_string();
+    let response_token = uuid::Uuid::new_v4().to_string();
 
     // Materialize the single-sourced harness plus this invocation's handler
     // module into a per-invocation directory; the config embeds them by path.
@@ -473,14 +488,20 @@ pub(crate) fn run_handler_workerd(
     write("entry.mjs", HARNESS_ENTRY_SOURCE)?;
     write("handler-server.mjs", HARNESS_SERVER_SOURCE)?;
     write("strip.mjs", HARNESS_STRIP_SOURCE)?;
-    write("rejection-ledger.mjs", HARNESS_REJECTION_LEDGER_SOURCE)?;
     write("allowlist-install.js", HARNESS_ALLOWLIST_INSTALL_SOURCE)?;
     write("ctx-bootstrap.js", HARNESS_CTX_BOOTSTRAP_SOURCE)?;
     write("allowlist.mjs", &allowlist_module_source())?;
     write("handler.mjs", &module.source)?;
     write(
         "config.capnp",
-        &render_workerd_config(&compat, host_port, worker_port, &token),
+        &render_workerd_config(
+            &compat,
+            host_port,
+            worker_port,
+            &invoke_token,
+            &host_token,
+            &response_token,
+        ),
     )?;
 
     let stderr_path = dir.join("workerd-stderr.log");
@@ -499,7 +520,10 @@ pub(crate) fn run_handler_workerd(
             runner_error(
                 "SNAPBACK_V8_RUNNER_START_FAILED",
                 "could not spawn workerd",
-                json!({ "error": error.to_string(), "workerd": workerd.display().to_string() }),
+                json!({
+                    "error": error.to_string(),
+                    "workerd": workerd.file_name().and_then(|name| name.to_str()).unwrap_or("workerd"),
+                }),
             )
         })?;
     let mut child = ChildGuard(child);
@@ -514,14 +538,33 @@ pub(crate) fn run_handler_workerd(
         .build();
     loop {
         if Instant::now() >= deadline {
-            return Err(startup_failure(&stderr_path, timeout_ms));
+            return Err(startup_failure(
+                &stderr_path,
+                timeout_ms,
+                &[&invoke_token, &host_token, &response_token],
+            ));
         }
         if let Ok(Some(_)) = child.0.try_wait() {
-            return Err(startup_failure(&stderr_path, timeout_ms));
+            return Err(startup_failure(
+                &stderr_path,
+                timeout_ms,
+                &[&invoke_token, &host_token, &response_token],
+            ));
         }
         match readiness_agent.get(&readiness_url).call() {
             Ok(response) => {
-                let body = response.into_string().unwrap_or_default();
+                let body = match read_authenticated_response(
+                    response,
+                    &response_token,
+                    MAX_READINESS_RESPONSE_BODY_BYTES,
+                    "readiness",
+                ) {
+                    Ok(body) => body,
+                    Err(_) => {
+                        std::thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                };
                 let parsed: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
                 let ok = parsed.get("ok").and_then(Value::as_bool) == Some(true);
                 let harness =
@@ -539,7 +582,7 @@ pub(crate) fn run_handler_workerd(
 
     // The blocking invoke request rides a helper thread; this thread serves
     // host calls until the response (or the deadline) arrives.
-    let invoke_body = json!({
+    let mut invoke_body = json!({
         "export": module.export,
         "argsJson": serde_json::to_string(&invocation.input().args).unwrap_or_else(|_| "{}".into()),
         "authJson": serde_json::to_string(&invocation.input().auth).unwrap_or_else(|_| "{}".into()),
@@ -553,15 +596,24 @@ pub(crate) fn run_handler_workerd(
     let invoke_url = format!("http://{worker_addr}/invoke");
     let request_timeout = Duration::from_millis(timeout_ms + 2_000);
     let (done_tx, done_rx) = mpsc::channel::<Result<String, String>>();
-    let invoke_token = token.clone();
+    let invoke_request_token = invoke_token.clone();
+    let expected_response_token = response_token.clone();
     let invoke_auth_test_mode = INVOKE_AUTH_TEST_MODE.with(|slot| slot.get());
+    if matches!(
+        invoke_auth_test_mode,
+        Some(InvokeAuthTestMode::OversizedBody)
+    ) {
+        invoke_body.extend(std::iter::repeat_n(' ', MAX_INVOKE_REQUEST_BODY_BYTES + 1));
+    }
     let invoke_thread = std::thread::spawn(move || {
         let agent = ureq::AgentBuilder::new().timeout(request_timeout).build();
         let mut request = agent
             .post(&invoke_url)
             .set("content-type", "application/json");
         match invoke_auth_test_mode {
-            None => request = request.set("x-snapback-invoke-token", &invoke_token),
+            None | Some(InvokeAuthTestMode::OversizedBody) => {
+                request = request.set("x-snapback-invoke-token", &invoke_request_token);
+            }
             Some(InvokeAuthTestMode::Wrong) => {
                 request = request.set("x-snapback-invoke-token", "wrong-test-token");
             }
@@ -569,13 +621,22 @@ pub(crate) fn run_handler_workerd(
         }
         let outcome = request.send_string(&invoke_body);
         let message = match outcome {
-            Ok(response) => match response.into_string() {
-                Ok(body) => Ok(body),
-                Err(error) => Err(format!("invoke response unreadable: {error}")),
-            },
+            Ok(response) => read_authenticated_response(
+                response,
+                &expected_response_token,
+                MAX_INVOKE_RESPONSE_BODY_BYTES,
+                "invoke",
+            ),
             Err(ureq::Error::Status(status, response)) => {
-                let body = response.into_string().unwrap_or_default();
-                Err(format!("invoke status {status}: {body}"))
+                match read_authenticated_response(
+                    response,
+                    &expected_response_token,
+                    MAX_INVOKE_RESPONSE_BODY_BYTES,
+                    "invoke error",
+                ) {
+                    Ok(body) => Err(format!("invoke status {status}: {body}")),
+                    Err(error) => Err(error),
+                }
             }
             Err(error) => Err(format!("invoke request failed: {error}")),
         };
@@ -595,7 +656,8 @@ pub(crate) fn run_handler_workerd(
             Ok(Ok(body)) => break body,
             Ok(Err(message)) => {
                 let _ = invoke_thread.join();
-                let stderr = stderr_tail(&stderr_path);
+                let stderr =
+                    stderr_tail(&stderr_path, &[&invoke_token, &host_token, &response_token]);
                 return Err(runner_error(
                     "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
                     format!("the workerd invocation transport failed: {message}; stderr: {stderr}"),
@@ -607,7 +669,12 @@ pub(crate) fn run_handler_workerd(
                 return Err(runner_error(
                     "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
                     "the workerd invocation thread disappeared",
-                    json!({ "stderr": stderr_tail(&stderr_path) }),
+                    json!({
+                        "stderr": stderr_tail(
+                            &stderr_path,
+                            &[&invoke_token, &host_token, &response_token],
+                        ),
+                    }),
                 ));
             }
         }
@@ -631,7 +698,7 @@ pub(crate) fn run_handler_workerd(
         }
         match host_listener.accept() {
             Ok((stream, _)) => {
-                serve_host_call_connection(stream, invocation, &token);
+                serve_host_call_connection(stream, invocation, &host_token);
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::sleep(Duration::from_millis(2));
@@ -648,7 +715,7 @@ pub(crate) fn run_handler_workerd(
         runner_error(
             "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
             "the workerd invocation response was not valid JSON",
-            json!({ "error": error.to_string(), "body": body }),
+            json!({ "error": error.to_string(), "bodyBytes": body.len() }),
         )
     })?;
     if let Some(fatal) = response.fatal {
@@ -689,24 +756,89 @@ pub(crate) fn run_handler_workerd(
     parse_handler_output(module, envelope)
 }
 
-fn startup_failure(stderr_path: &Path, timeout_ms: u64) -> SnapbackError {
+fn read_authenticated_response(
+    response: ureq::Response,
+    expected_token: &str,
+    max_body_bytes: usize,
+    role: &str,
+) -> Result<String, String> {
+    // Authenticate the peer from headers before parsing Content-Length or
+    // touching the response reader. A process that wins the bind handoff sees
+    // neither this response secret nor the independent host-call secret.
+    if response.header(RESPONSE_TOKEN_HEADER) != Some(expected_token) {
+        return Err(format!(
+            "{role} response authentication failed before body read"
+        ));
+    }
+    let declared = response
+        .header("content-length")
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .map_err(|_| format!("{role} response content-length was invalid"))
+        })
+        .transpose()?;
+    if declared.is_some_and(|length| length > max_body_bytes) {
+        return Err(format!("{role} response exceeded the transport limit"));
+    }
+
+    let initial_capacity = declared.unwrap_or(0).min(max_body_bytes);
+    let mut bytes = Vec::with_capacity(initial_capacity);
+    response
+        .into_reader()
+        .take((max_body_bytes + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("{role} response unreadable: {error}"))?;
+    if bytes.len() > max_body_bytes {
+        return Err(format!("{role} response exceeded the transport limit"));
+    }
+    String::from_utf8(bytes).map_err(|_| format!("{role} response was not valid UTF-8"))
+}
+
+fn startup_failure(stderr_path: &Path, timeout_ms: u64, secrets: &[&str]) -> SnapbackError {
     runner_error(
         "SNAPBACK_V8_RUNNER_START_FAILED",
         "workerd did not become ready",
         json!({
             "timeoutMs": timeout_ms,
-            "stderr": stderr_tail(stderr_path),
+            "stderr": stderr_tail(stderr_path, secrets),
         }),
     )
 }
 
-fn stderr_tail(path: &Path) -> String {
-    std::fs::read_to_string(path)
-        .map(|contents| {
-            let tail: Vec<&str> = contents.lines().rev().take(20).collect();
-            tail.into_iter().rev().collect::<Vec<_>>().join("\n")
-        })
-        .unwrap_or_default()
+fn stderr_tail(path: &Path, secrets: &[&str]) -> String {
+    let mut file = match File::open(path) {
+        Ok(file) => file,
+        Err(_) => return String::new(),
+    };
+    let length = file.metadata().map(|metadata| metadata.len()).unwrap_or(0);
+    let start = length.saturating_sub(MAX_STDERR_TAIL_BYTES);
+    if file.seek(SeekFrom::Start(start)).is_err() {
+        return String::new();
+    }
+    let mut bytes = Vec::with_capacity(MAX_STDERR_TAIL_BYTES as usize);
+    if file
+        .take(MAX_STDERR_TAIL_BYTES)
+        .read_to_end(&mut bytes)
+        .is_err()
+    {
+        return String::new();
+    }
+    if start > 0
+        && let Some(first_newline) = bytes.iter().position(|byte| *byte == b'\n')
+    {
+        bytes.drain(..=first_newline);
+    }
+    let contents = String::from_utf8_lossy(&bytes);
+    let tail: Vec<&str> = contents.lines().rev().take(20).collect();
+    let mut sanitized = tail.into_iter().rev().collect::<Vec<_>>().join("\n");
+    if let Some(parent) = path.parent().and_then(Path::to_str) {
+        sanitized = sanitized.replace(parent, "<snapback-workerd-dir>");
+    }
+    for secret in secrets.iter().copied().filter(|secret| !secret.is_empty()) {
+        sanitized = sanitized.replace(secret, "<redacted-capability>");
+    }
+    sanitized
 }
 
 // ---------------------------------------------------------------------------
@@ -992,10 +1124,61 @@ mod security_tests {
             },
             1234,
             5678,
-            "unguessable-test-token",
+            "invoke-only-test-token",
+            "host-only-test-token",
+            "response-only-test-token",
         );
         assert!(config.contains("SNAPBACK_INVOKE_TOKEN"));
-        assert!(config.contains("unguessable-test-token"));
+        assert!(config.contains("invoke-only-test-token"));
+        assert!(config.contains("SNAPBACK_HOST_TOKEN"));
+        assert!(config.contains("host-only-test-token"));
+        assert!(config.contains("SNAPBACK_RESPONSE_TOKEN"));
+        assert!(config.contains("response-only-test-token"));
+        assert!(!config.contains("rejection-ledger.mjs"));
+    }
+
+    fn response(token: &str, content_length: Option<&str>, body: &str) -> ureq::Response {
+        let length = content_length
+            .map(|value| format!("content-length: {value}\r\n"))
+            .unwrap_or_default();
+        format!("HTTP/1.1 200 OK\r\nx-snapback-response-token: {token}\r\n{length}\r\n{body}")
+            .parse()
+            .expect("test response")
+    }
+
+    #[test]
+    fn response_transport_authenticates_before_inspecting_the_body() {
+        let forged = response("wrong", Some(&usize::MAX.to_string()), "attacker body");
+        let error = read_authenticated_response(forged, "right", 4, "test")
+            .expect_err("a forged response must be refused");
+        assert_eq!(
+            error,
+            "test response authentication failed before body read"
+        );
+    }
+
+    #[test]
+    fn response_transport_bounds_declared_and_streamed_bodies() {
+        let declared = response("right", Some("5"), "");
+        assert_eq!(
+            read_authenticated_response(declared, "right", 4, "test").unwrap_err(),
+            "test response exceeded the transport limit"
+        );
+
+        let streamed = response("right", None, "12345");
+        assert_eq!(
+            read_authenticated_response(streamed, "right", 4, "test").unwrap_err(),
+            "test response exceeded the transport limit"
+        );
+    }
+
+    #[test]
+    fn response_transport_accepts_one_bounded_authenticated_body() {
+        let valid = response("right", Some("2"), "{}");
+        assert_eq!(
+            read_authenticated_response(valid, "right", 4, "test").unwrap(),
+            "{}"
+        );
     }
 
     #[cfg(unix)]
@@ -1035,5 +1218,51 @@ mod security_tests {
                 0o600
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workerd_file_materialization_refuses_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let dir = create_private_invocation_dir().expect("private invocation directory");
+        let _guard = TempDirGuard(dir.clone());
+        let outside = create_private_invocation_dir().expect("outside fixture directory");
+        let _outside_guard = TempDirGuard(outside.clone());
+        let target = outside.join("outside-target.mjs");
+        create_private_file(&target, "target", b"keep me").expect("target fixture");
+        let link = dir.join("handler.mjs");
+        symlink(&target, &link).expect("symlink fixture");
+
+        create_private_file(&link, "handler.mjs", b"overwrite")
+            .expect_err("exclusive materialization must refuse a symlink");
+        assert_eq!(std::fs::read(target).unwrap(), b"keep me");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stderr_diagnostic_is_bounded_tailed_and_sanitized() {
+        let dir = create_private_invocation_dir().expect("private invocation directory");
+        let _guard = TempDirGuard(dir.clone());
+        let path = dir.join("workerd-stderr.log");
+        let invoke_secret = "invoke-secret-value";
+        let host_secret = "host-secret-value";
+        let mut contents = vec![b'x'; MAX_STDERR_TAIL_BYTES as usize + 1_024];
+        contents.extend_from_slice(
+            format!(
+                "\nlast diagnostic {} {invoke_secret} {host_secret}\n",
+                dir.display()
+            )
+            .as_bytes(),
+        );
+        create_private_file(&path, "stderr fixture", &contents).expect("stderr fixture");
+
+        let tail = stderr_tail(&path, &[invoke_secret, host_secret]);
+        assert!(tail.contains("last diagnostic <snapback-workerd-dir>"));
+        assert!(!tail.contains(&dir.display().to_string()));
+        assert!(!tail.contains(invoke_secret));
+        assert!(!tail.contains(host_secret));
+        assert!(tail.contains("<redacted-capability>"));
+        assert!(tail.len() < MAX_STDERR_TAIL_BYTES as usize);
     }
 }

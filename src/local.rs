@@ -548,6 +548,7 @@ pub(crate) enum StagedAction {
 pub(crate) struct DetachedIbexAction {
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
+    pub redactor: crate::config::SecretRedactor,
     pub runtime: RuntimeManager,
     /// Generation of the code/schema/reset boundary that authorized this
     /// action. Every later host call and final successful completion must still
@@ -2320,6 +2321,10 @@ impl LocalSnapback {
                     // computed per invocation from the function's `uses`
                     // declaration, at staging time, under the lock.
                     grants: self.config_grants(definition),
+                    // Preserve the same staging-time secret identities for
+                    // diagnostic scrubbing even if config rotates/unsets while
+                    // this detached invocation is running.
+                    redactor: self.config.secret_redactor_for(&definition.uses),
                     runtime: self.runtime.clone(),
                     app_generation: self.app_generation,
                     app_generation_fence: self.app_generation_fence.clone(),
@@ -3459,7 +3464,8 @@ impl LocalSnapback {
         metadata: CronRunMetadata,
     ) -> SnapbackResult<Value> {
         let function = self.function(name)?.clone();
-        match (&function.kind, &function.runtime) {
+        let invocation_redactor = self.config.secret_redactor_for(&function.uses);
+        let result = match (&function.kind, &function.runtime) {
             (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
                 self.invoke_action_plan(plan, input, metadata)
             }
@@ -3485,7 +3491,13 @@ impl LocalSnapback {
                 "runtime",
                 format!("{name} is not an action"),
             )),
-        }
+        };
+        result.map_err(|error| {
+            // In-lock actions cannot race config rotation, but scrub at the
+            // creation boundary so no public envelope observes raw secret
+            // text before a later retention sink gets a chance to redact it.
+            invocation_redactor.redact_error(error)
+        })
     }
 
     fn invoke_action_plan(

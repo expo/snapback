@@ -11,6 +11,7 @@ import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { AdminClient } from '../packages/snapback-admin-client/index.mjs';
 import { createAdminSurface } from './admin-boundary.mjs';
+import { renderAdminTokenPrompt } from './auth-prompt.mjs';
 import { renderFatal } from './fatal.mjs';
 import app from './app.contract';
 import {
@@ -36,9 +37,7 @@ function showFatal(message: string): void {
   if (root) renderFatal(document, message);
 }
 
-async function boot(): Promise<void> {
-  installContractWebHost();
-  const client = new AdminClient(adminBaseUrl());
+async function boot(client: AdminClient): Promise<void> {
   const surface = await createAdminSurface({
     runtime: contractRuntime,
     client,
@@ -48,7 +47,34 @@ async function boot(): Promise<void> {
   mount(app);
 }
 
-boot().catch((error) => {
+async function start(): Promise<void> {
+  installContractWebHost();
+  const client = new AdminClient(adminBaseUrl());
+  try {
+    await boot(client);
+  } catch (error) {
+    console.error(error);
+    if (
+      typeof document !== 'undefined' &&
+      error &&
+      typeof error === 'object' &&
+      'status' in error &&
+      error.status === 401
+    ) {
+      renderAdminTokenPrompt(document, {
+        message: error instanceof Error ? error.message : String(error),
+        onSubmit: async (token: string) => {
+          client.setToken(token);
+          await boot(client);
+        },
+      });
+      return;
+    }
+    showFatal(error instanceof Error ? error.message : String(error));
+  }
+}
+
+start().catch((error) => {
   console.error(error);
   showFatal(error instanceof Error ? error.message : String(error));
 });

@@ -477,15 +477,38 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     } else {
         Some(prepare_database_path(&args.db)?)
     };
-    let ready_temp_path = args
+    // Reject lexical/canonical nesting before ReadyFileTarget creates a
+    // missing parent. Otherwise a ready path beneath `app.sqlite3-wal/` (or a
+    // lock/config/token sibling) could first occupy a managed file path with a
+    // directory and fail later with an unrelated SQLite/lock error.
+    let provisional_ready_temp = args
         .ready_file
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
-    let mut managed_paths = managed_startup_paths(
+    let mut provisional_paths = managed_startup_paths(
         prepared_database_path.as_deref(),
         args.ready_file.as_deref(),
     )?;
+    if let Some(path) = provisional_ready_temp {
+        provisional_paths.push(ManagedPath {
+            label: "ready-file temporary artifact",
+            path,
+        });
+    }
+    validate_path_disjointness(&provisional_paths)?;
+    // Pin the resolved ready-file parent before validating it against any
+    // managed database artifact. Publication and cleanup remain relative to
+    // this directory capability even if a symlink in the caller's pathname is
+    // swapped while the server is running.
+    let mut ready_target = args
+        .ready_file
+        .as_deref()
+        .map(ReadyFileTarget::open)
+        .transpose()?;
+    let ready_path = ready_target.as_ref().map(ReadyFileTarget::pinned_path);
+    let ready_temp_path = ready_path.map(ready_file_temp_path).transpose()?;
+    let mut managed_paths = managed_startup_paths(prepared_database_path.as_deref(), ready_path)?;
     if let Some(path) = &ready_temp_path {
         managed_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
@@ -531,9 +554,22 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if loopback && server_context.admin_token.is_none() {
         let token_file = database_path
             .as_deref()
-            .or(args.ready_file.as_deref())
+            .or(ready_path)
             .map(crate::admin::admin_token_sibling);
-        let resolved = crate::admin::resolve_serve_admin_token(None, token_file)?;
+        let resolved = if database_path.is_none() {
+            if let (Some(target), Some(token_file)) = (ready_target.as_ref(), token_file.as_ref()) {
+                crate::admin::resolve_serve_admin_token_with_io(
+                    None,
+                    Some(token_file.clone()),
+                    |path| target.read_owner_only_sibling(path),
+                    |path, bytes| target.write_owner_only_sibling(path, bytes),
+                )?
+            } else {
+                crate::admin::resolve_serve_admin_token(None, token_file)?
+            }
+        } else {
+            crate::admin::resolve_serve_admin_token(None, token_file)?
+        };
         server_context.install_minted_token(&resolved);
         minted_token = Some(resolved);
     }
@@ -543,6 +579,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     } else {
         None
     };
+    let ready_sibling_token_identity = ready_sibling_token_file
+        .as_deref()
+        .and_then(existing_file_identity);
     let admin_token_file_display = server_context
         .admin_token_file
         .as_ref()
@@ -557,7 +596,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // @ref LLP 0030#readiness-and-port-discovery — the readiness file is
     // the structured handshake: out-of-band so launcher stdout (cargo build
     // noise) cannot corrupt it; aligned with the LLP 0024 target shape.
-    if let Some(path) = args.ready_file.as_ref() {
+    if let Some(target) = ready_target.as_mut() {
+        let path = target.pinned_path().to_path_buf();
         let descriptor = crate::host_ops::HostReadyDescriptor {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             descriptor_kind: crate::host_ops::HOST_READY_DESCRIPTOR_KIND.to_owned(),
@@ -590,16 +630,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             admin_token_file: admin_token_file_display.clone(),
             diagnostics: Vec::new(),
         };
-        write_ready_file_atomic_protected(
-            path,
-            &format!("{}\n", serde_json::to_string_pretty(&descriptor)?),
-            &managed_paths,
-            ready_temp_path
-                .as_deref()
-                .context("ready-file temporary path was not allocated")?,
-        )
-        .with_context(|| format!("failed to write ready file {}", path.display()))?;
-        println!("ready file: {}", path.display());
+        target
+            .write_atomic_protected(
+                &format!("{}\n", serde_json::to_string_pretty(&descriptor)?),
+                &managed_paths,
+                ready_temp_path
+                    .as_deref()
+                    .context("ready-file temporary path was not allocated")?,
+            )
+            .with_context(|| format!("failed to write ready file {}", path.display()))?;
+        println!(
+            "ready file: {}",
+            args.ready_file.as_deref().unwrap_or(&path).display()
+        );
     }
 
     println!("snapback listening on http://{local_addr}");
@@ -649,14 +692,18 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     cron_scheduler.abort();
     maintenance_worker.abort();
     drop(database_lock);
-    if let Some(path) = args.ready_file.as_ref() {
-        let _ = std::fs::remove_file(path);
+    if let Some(target) = ready_target.as_ref() {
+        let _ = target.remove_published();
     }
     // An in-memory instance's minted token dies with the process; remove the
     // ready-file-sibling token file it was handed off through (ENG-23443).
     // File-backed instances keep their token file across restarts.
-    if let Some(path) = ready_sibling_token_file.as_ref() {
-        let _ = std::fs::remove_file(path);
+    if let (Some(target), Some(path), Some(identity)) = (
+        ready_target.as_ref(),
+        ready_sibling_token_file.as_deref(),
+        ready_sibling_token_identity,
+    ) {
+        let _ = target.remove_sibling_if_identity(path, identity);
     }
     server_result?;
     Ok(())
@@ -839,9 +886,11 @@ fn validate_path_disjointness(paths: &[ManagedPath]) -> anyhow::Result<()> {
             let (left_path, left_resolved, left_id) = &resolved[left];
             let (right_path, right_resolved, right_id) = &resolved[right];
             let same_inode = left_id.is_some() && left_id == right_id;
-            if left_resolved == right_resolved || same_inode {
+            let nested = left_resolved.starts_with(right_resolved)
+                || right_resolved.starts_with(left_resolved);
+            if nested || same_inode {
                 anyhow::bail!(
-                    "SNAPBACK_READY_FILE_PATH_COLLISION: {} ({}) aliases {} ({}); every managed startup artifact must have a distinct path and file identity",
+                    "SNAPBACK_READY_FILE_PATH_COLLISION: {} ({}) aliases or nests beneath {} ({}); every managed startup artifact must have a distinct, non-nested path and file identity",
                     left_path.label,
                     left_path.path.display(),
                     right_path.label,
@@ -851,6 +900,396 @@ fn validate_path_disjointness(paths: &[ManagedPath]) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+/// A ready-file pathname resolved once into a stable parent-directory
+/// capability. The original pathname is deliberately not reused for writes or
+/// removal: an attacker (or launcher cleanup) may replace one of its symlinked
+/// parents after startup validation.
+struct ReadyFileTarget {
+    pinned_path: PathBuf,
+    file_name: OsString,
+    published_identity: Option<(u64, u64)>,
+    parent_identity: Option<(u64, u64)>,
+    #[cfg(unix)]
+    parent: std::fs::File,
+}
+
+impl ReadyFileTarget {
+    fn open(path: &Path) -> anyhow::Result<Self> {
+        let file_name = path
+            .file_name()
+            .context("ready file path must include a file name")?
+            .to_os_string();
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty());
+        let parent = match parent {
+            Some(parent) if parent.is_absolute() => parent.to_path_buf(),
+            Some(parent) => std::env::current_dir()?.join(parent),
+            None => std::env::current_dir()?,
+        };
+        std::fs::create_dir_all(&parent).with_context(|| {
+            format!("failed to create ready-file directory {}", parent.display())
+        })?;
+        let canonical_parent = std::fs::canonicalize(&parent).with_context(|| {
+            format!(
+                "failed to resolve ready-file directory {}",
+                parent.display()
+            )
+        })?;
+
+        #[cfg(unix)]
+        let (parent, parent_identity) = {
+            use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
+            let parent = std::fs::OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC | libc::O_NOFOLLOW)
+                .open(&canonical_parent)
+                .with_context(|| {
+                    format!(
+                        "failed to pin ready-file directory {}",
+                        canonical_parent.display()
+                    )
+                })?;
+            let metadata = parent.metadata()?;
+            let identity = (metadata.dev(), metadata.ino());
+            (parent, Some(identity))
+        };
+        #[cfg(not(unix))]
+        let parent_identity = existing_file_identity(&canonical_parent);
+
+        Ok(Self {
+            pinned_path: canonical_parent.join(&file_name),
+            file_name,
+            published_identity: None,
+            parent_identity,
+            #[cfg(unix)]
+            parent,
+        })
+    }
+
+    fn pinned_path(&self) -> &Path {
+        &self.pinned_path
+    }
+
+    fn ensure_parent_path_identity(&self) -> std::io::Result<()> {
+        let parent = self.pinned_path.parent().ok_or_else(|| {
+            std::io::Error::new(ErrorKind::InvalidInput, "ready file has no parent")
+        })?;
+        if self.parent_identity.is_some() && existing_file_identity(parent) != self.parent_identity
+        {
+            return Err(std::io::Error::new(
+                ErrorKind::PermissionDenied,
+                "ready-file parent identity changed after startup validation",
+            ));
+        }
+        Ok(())
+    }
+
+    fn sibling_name<'a>(&self, path: &'a Path) -> std::io::Result<&'a std::ffi::OsStr> {
+        if path.parent() != self.pinned_path.parent() {
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "managed ready-file sibling is outside the pinned parent",
+            ));
+        }
+        path.file_name().ok_or_else(|| {
+            std::io::Error::new(ErrorKind::InvalidInput, "managed sibling has no file name")
+        })
+    }
+
+    #[cfg(unix)]
+    fn read_owner_only_sibling(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        use std::ffi::CString;
+        use std::io::Read as _;
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+
+        const MAX_TOKEN_FILE_BYTES: u64 = 4 * 1024;
+        self.ensure_parent_path_identity()?;
+        let name = CString::new(self.sibling_name(path)?.as_bytes())
+            .map_err(|_| std::io::Error::new(ErrorKind::InvalidInput, "sibling contains NUL"))?;
+        // SAFETY: name is one NUL-terminated component and parent is the live
+        // directory capability pinned at startup.
+        let fd = unsafe {
+            libc::openat(
+                self.parent.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // SAFETY: openat returned this owned descriptor exactly once.
+        let file = unsafe { std::fs::File::from_raw_fd(fd) };
+        crate::secure_file::validate_and_repair_owner_only(&file)?;
+        let mut bytes = Vec::new();
+        (&file)
+            .take(MAX_TOKEN_FILE_BYTES + 1)
+            .read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > MAX_TOKEN_FILE_BYTES {
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidData,
+                "admin token file exceeds the bounded capability-file limit",
+            ));
+        }
+        Ok(bytes)
+    }
+
+    #[cfg(unix)]
+    fn write_owner_only_sibling(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        use std::ffi::CString;
+        use std::io::{Seek as _, Write as _};
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+
+        self.ensure_parent_path_identity()?;
+        let name = CString::new(self.sibling_name(path)?.as_bytes())
+            .map_err(|_| std::io::Error::new(ErrorKind::InvalidInput, "sibling contains NUL"))?;
+        let parent_fd = self.parent.as_raw_fd();
+        let open_existing = || {
+            // SAFETY: name is one component relative to the pinned parent.
+            unsafe {
+                libc::openat(
+                    parent_fd,
+                    name.as_ptr(),
+                    libc::O_RDWR | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                )
+            }
+        };
+        let mut fd = open_existing();
+        if fd < 0 && std::io::Error::last_os_error().kind() == ErrorKind::NotFound {
+            // SAFETY: as above; O_EXCL refuses a racing/pre-created inode.
+            fd = unsafe {
+                libc::openat(
+                    parent_fd,
+                    name.as_ptr(),
+                    libc::O_RDWR
+                        | libc::O_CREAT
+                        | libc::O_EXCL
+                        | libc::O_NOFOLLOW
+                        | libc::O_CLOEXEC,
+                    0o600,
+                )
+            };
+            if fd < 0 && std::io::Error::last_os_error().kind() == ErrorKind::AlreadyExists {
+                fd = open_existing();
+            }
+        }
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // SAFETY: openat returned this owned descriptor exactly once.
+        let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
+        crate::secure_file::validate_and_repair_owner_only(&file)?;
+        file.set_len(0)?;
+        file.seek(std::io::SeekFrom::Start(0))?;
+        file.write_all(bytes)?;
+        file.sync_all()
+    }
+
+    #[cfg(not(unix))]
+    fn read_owner_only_sibling(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        self.ensure_parent_path_identity()?;
+        crate::secure_file::read_owner_only(path)
+    }
+
+    #[cfg(not(unix))]
+    fn write_owner_only_sibling(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        self.ensure_parent_path_identity()?;
+        crate::secure_file::write_owner_only(path, bytes)
+    }
+
+    fn write_atomic_protected(
+        &mut self,
+        content: &str,
+        protected_paths: &[ManagedPath],
+        tmp_path: &Path,
+    ) -> anyhow::Result<()> {
+        // Re-check after the parent capability is pinned. This is the path
+        // identity that publication will actually use, not a mutable symlink
+        // spelling supplied by the caller.
+        self.ensure_parent_path_identity()?;
+        validate_path_disjointness(protected_paths)?;
+
+        #[cfg(unix)]
+        {
+            self.write_atomic_unix(content, tmp_path)
+        }
+        #[cfg(not(unix))]
+        {
+            let write_result = (|| -> anyhow::Result<()> {
+                crate::secure_file::write_new_owner_only(tmp_path, content.as_bytes())?;
+                std::fs::rename(tmp_path, &self.pinned_path)?;
+                self.published_identity = existing_file_identity(&self.pinned_path);
+                Ok(())
+            })();
+            if write_result.is_err() {
+                let _ = std::fs::remove_file(tmp_path);
+            }
+            write_result
+        }
+    }
+
+    #[cfg(unix)]
+    fn write_atomic_unix(&mut self, content: &str, tmp_path: &Path) -> anyhow::Result<()> {
+        use std::ffi::CString;
+        use std::io::Write as _;
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+        let tmp_name = tmp_path
+            .file_name()
+            .context("ready-file temporary path must include a file name")?;
+        let tmp_name = CString::new(tmp_name.as_bytes())
+            .context("ready-file temporary name contains a NUL byte")?;
+        let final_name = CString::new(self.file_name.as_bytes())
+            .context("ready-file name contains a NUL byte")?;
+        let parent_fd = self.parent.as_raw_fd();
+        // SAFETY: both names are single NUL-terminated path components and
+        // parent_fd is a live O_DIRECTORY capability owned by this target.
+        let fd = unsafe {
+            libc::openat(
+                parent_fd,
+                tmp_name.as_ptr(),
+                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error()).with_context(|| {
+                format!(
+                    "failed to create owner-only temporary ready file {}",
+                    tmp_path.display()
+                )
+            });
+        }
+        // SAFETY: openat returned this owned descriptor and it is transferred
+        // exactly once into File.
+        let mut temporary = unsafe { std::fs::File::from_raw_fd(fd) };
+        // `openat`'s mode is filtered by the process umask. Repair the opened
+        // inode through its descriptor so both permissive and restrictive
+        // ambient masks result in the documented exact 0600 handoff.
+        temporary.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        let write_result = (|| -> anyhow::Result<(u64, u64)> {
+            temporary.write_all(content.as_bytes())?;
+            temporary.sync_all()?;
+            let metadata = temporary.metadata()?;
+            let identity = (metadata.dev(), metadata.ino());
+            // SAFETY: source and destination are components relative to the
+            // same still-live directory descriptor.
+            let renamed = unsafe {
+                libc::renameat(parent_fd, tmp_name.as_ptr(), parent_fd, final_name.as_ptr())
+            };
+            if renamed != 0 {
+                return Err(std::io::Error::last_os_error()).with_context(|| {
+                    format!(
+                        "failed to atomically publish ready file {}",
+                        self.pinned_path.display()
+                    )
+                });
+            }
+            let published = self.identity_at(&self.file_name)?.with_context(|| {
+                format!(
+                    "published ready file disappeared from {}",
+                    self.pinned_path.display()
+                )
+            })?;
+            anyhow::ensure!(
+                published == identity,
+                "published ready file identity changed during descriptor-relative publication"
+            );
+            Ok(identity)
+        })();
+        if write_result.is_err() {
+            // SAFETY: the name remains relative to the pinned parent. ENOENT
+            // is expected after a successful rename followed by a later check.
+            unsafe {
+                libc::unlinkat(parent_fd, tmp_name.as_ptr(), 0);
+            }
+        }
+        self.published_identity = Some(write_result?);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn identity_at(&self, name: &std::ffi::OsStr) -> std::io::Result<Option<(u64, u64)>> {
+        use std::ffi::CString;
+        use std::mem::MaybeUninit;
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::ffi::OsStrExt as _;
+
+        let name = CString::new(name.as_bytes())
+            .map_err(|_| std::io::Error::new(ErrorKind::InvalidInput, "name contains NUL"))?;
+        let mut stat = MaybeUninit::<libc::stat>::uninit();
+        // SAFETY: stat points to writable storage, name is NUL-terminated, and
+        // the parent descriptor remains live for this target's lifetime.
+        let result = unsafe {
+            libc::fstatat(
+                self.parent.as_raw_fd(),
+                name.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if result == 0 {
+            // SAFETY: fstatat initialized stat on success.
+            let stat = unsafe { stat.assume_init() };
+            return Ok(Some((stat.st_dev as u64, stat.st_ino)));
+        }
+        let error = std::io::Error::last_os_error();
+        if error.kind() == ErrorKind::NotFound {
+            Ok(None)
+        } else {
+            Err(error)
+        }
+    }
+
+    fn remove_published(&self) -> std::io::Result<()> {
+        let Some(identity) = self.published_identity else {
+            return Ok(());
+        };
+        self.remove_sibling_if_identity(&self.pinned_path, identity)
+    }
+
+    fn remove_sibling_if_identity(&self, path: &Path, identity: (u64, u64)) -> std::io::Result<()> {
+        let name = path.file_name().ok_or_else(|| {
+            std::io::Error::new(ErrorKind::InvalidInput, "managed sibling has no file name")
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::ffi::CString;
+            use std::os::fd::AsRawFd as _;
+            use std::os::unix::ffi::OsStrExt as _;
+            if self.identity_at(name)? != Some(identity) {
+                return Ok(());
+            }
+            let name = CString::new(name.as_bytes()).map_err(|_| {
+                std::io::Error::new(ErrorKind::InvalidInput, "managed sibling contains NUL")
+            })?;
+            // SAFETY: name is a single path component relative to the pinned
+            // parent capability. Identity was verified immediately above.
+            if unsafe { libc::unlinkat(self.parent.as_raw_fd(), name.as_ptr(), 0) } != 0 {
+                let error = std::io::Error::last_os_error();
+                if error.kind() != ErrorKind::NotFound {
+                    return Err(error);
+                }
+            }
+            Ok(())
+        }
+        #[cfg(not(unix))]
+        {
+            if existing_file_identity(path) == Some(identity) {
+                std::fs::remove_file(path)
+            } else {
+                Ok(())
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -882,44 +1321,15 @@ fn ready_file_temp_path(path: &Path) -> anyhow::Result<PathBuf> {
     Ok(path.with_file_name(tmp_name))
 }
 
+#[cfg(test)]
 fn write_ready_file_atomic_protected(
     path: &Path,
     content: &str,
     protected_paths: &[ManagedPath],
     tmp_path: &Path,
 ) -> anyhow::Result<()> {
-    if let Some(parent) = path.parent()
-        && !parent.as_os_str().is_empty()
-    {
-        std::fs::create_dir_all(parent).with_context(|| {
-            format!("failed to create ready-file directory {}", parent.display())
-        })?;
-    }
-    // Re-check immediately before publication to close the startup-to-ready
-    // window where a symlink or hardlink could otherwise be substituted.
-    validate_path_disjointness(protected_paths)?;
-    let write_result = (|| -> anyhow::Result<()> {
-        crate::secure_file::write_new_owner_only(tmp_path, content.as_bytes()).with_context(
-            || {
-                format!(
-                    "failed to write owner-only temporary ready file {}",
-                    tmp_path.display()
-                )
-            },
-        )?;
-        std::fs::rename(tmp_path, path).with_context(|| {
-            format!(
-                "failed to atomically publish ready file {} from {}",
-                path.display(),
-                tmp_path.display()
-            )
-        })?;
-        Ok(())
-    })();
-    if write_result.is_err() {
-        let _ = std::fs::remove_file(tmp_path);
-    }
-    write_result
+    let mut target = ReadyFileTarget::open(path)?;
+    target.write_atomic_protected(content, protected_paths, tmp_path)
 }
 
 fn prepare_database_path(path: &Path) -> anyhow::Result<PathBuf> {
@@ -1016,10 +1426,10 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, Cli, HostCommand, ManagedPath, TargetArgs, bind_first_available, bind_listener,
-        managed_startup_paths, parse_run_args, path_with_filename_suffix, prepare_database_path,
-        reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
-        write_ready_file_atomic, write_ready_file_atomic_protected,
+        Args, Cli, HostCommand, ManagedPath, ReadyFileTarget, TargetArgs, bind_first_available,
+        bind_listener, managed_startup_paths, parse_run_args, path_with_filename_suffix,
+        prepare_database_path, reject_misdirected_serve_flags, resolve_http_target,
+        validate_path_disjointness, write_ready_file_atomic, write_ready_file_atomic_protected,
     };
     use clap::Parser;
     use serde_json::json;
@@ -1212,6 +1622,39 @@ mod tests {
             .unwrap();
     }
 
+    #[test]
+    fn ready_file_cannot_create_a_parent_at_a_managed_sidecar_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("app.sqlite3");
+        let lock = crate::instance_lock::lock_path_for_database(&db).unwrap();
+        let nested_ready = lock.join("ready.json");
+        let error = validate_path_disjointness(
+            &managed_startup_paths(Some(&db), Some(&nested_ready)).unwrap(),
+        )
+        .expect_err("a ready parent cannot occupy the database lock path");
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_READY_FILE_PATH_COLLISION"),
+            "{error:#}"
+        );
+        assert!(
+            !lock.exists(),
+            "preflight must reject before creating the colliding parent"
+        );
+
+        let wal = super::path_with_filename_suffix(&db, "-wal").unwrap();
+        let dotdot_ready = wal.join("transient").join("..").join("ready.json");
+        assert!(
+            validate_path_disjointness(
+                &managed_startup_paths(Some(&db), Some(&dotdot_ready)).unwrap()
+            )
+            .is_err(),
+            "normalized .. spelling must not bypass the ancestor collision"
+        );
+        assert!(!wal.exists());
+    }
+
     #[cfg(unix)]
     #[test]
     fn ready_file_rejects_symlink_and_hardlink_aliases() {
@@ -1240,6 +1683,91 @@ mod tests {
                 .to_string()
                 .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ready_file_parent_swap_cannot_redirect_publish_or_cleanup() {
+        let dir = tempfile::tempdir().unwrap();
+        let database_parent = dir.path().join("database");
+        let ready_parent = dir.path().join("ready");
+        std::fs::create_dir_all(&database_parent).unwrap();
+        std::fs::create_dir_all(&ready_parent).unwrap();
+        let database = database_parent.join("app.sqlite3");
+        std::fs::write(&database, b"live database").unwrap();
+
+        let mutable_parent = dir.path().join("mutable-parent");
+        std::os::unix::fs::symlink(&ready_parent, &mutable_parent).unwrap();
+        let requested = mutable_parent.join("app.sqlite3");
+        let mut target = ReadyFileTarget::open(&requested).unwrap();
+        let temporary = super::ready_file_temp_path(target.pinned_path()).unwrap();
+        let protected = managed_startup_paths(Some(&database), Some(target.pinned_path())).unwrap();
+        let pinned_token = ready_parent.join("app.sqlite3.admin-token");
+        let database_token = database_parent.join("app.sqlite3.admin-token");
+        std::fs::write(&pinned_token, b"ephemeral token").unwrap();
+        std::fs::write(&database_token, b"database-side sentinel").unwrap();
+        let token_identity = super::existing_file_identity(&pinned_token).unwrap();
+
+        std::fs::remove_file(&mutable_parent).unwrap();
+        std::os::unix::fs::symlink(&database_parent, &mutable_parent).unwrap();
+        target
+            .write_atomic_protected("ready", &protected, &temporary)
+            .unwrap();
+
+        assert_eq!(std::fs::read(&database).unwrap(), b"live database");
+        assert_eq!(
+            std::fs::read(ready_parent.join("app.sqlite3")).unwrap(),
+            b"ready"
+        );
+        target.remove_published().unwrap();
+        target
+            .remove_sibling_if_identity(&pinned_token, token_identity)
+            .unwrap();
+        assert_eq!(std::fs::read(&database).unwrap(), b"live database");
+        assert_eq!(
+            std::fs::read(&database_token).unwrap(),
+            b"database-side sentinel"
+        );
+        assert!(!ready_parent.join("app.sqlite3").exists());
+        assert!(!pinned_token.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn replaced_canonical_ready_parent_cannot_split_the_token_handoff() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let ready_parent = dir.path().join("ready");
+        let moved_parent = dir.path().join("ready-moved");
+        std::fs::create_dir(&ready_parent).unwrap();
+        let target = ReadyFileTarget::open(&ready_parent.join("server.json")).unwrap();
+        let token_path = crate::admin::admin_token_sibling(target.pinned_path());
+
+        std::fs::rename(&ready_parent, &moved_parent).unwrap();
+        std::fs::create_dir(&ready_parent).unwrap();
+        let replacement_token = ready_parent.join("server.json.admin-token");
+        std::fs::write(&replacement_token, b"another-instance-token\n").unwrap();
+        std::fs::set_permissions(&replacement_token, std::fs::Permissions::from_mode(0o600))
+            .unwrap();
+
+        let error = crate::admin::resolve_serve_admin_token_with_io(
+            None,
+            Some(token_path),
+            |path| target.read_owner_only_sibling(path),
+            |path, bytes| target.write_owner_only_sibling(path, bytes),
+        )
+        .expect_err("a renamed/replaced advertised parent must fail closed");
+        assert!(
+            format!("{error:#}").contains("parent identity changed"),
+            "{error:#}"
+        );
+        assert_eq!(
+            std::fs::read(&replacement_token).unwrap(),
+            b"another-instance-token\n",
+            "the replacement directory's capability must never be adopted or rewritten"
+        );
+        assert!(!moved_parent.join("server.json.admin-token").exists());
     }
 
     #[cfg(unix)]
@@ -1311,6 +1839,52 @@ mod tests {
 
         result.expect("publish readiness descriptor under zero umask");
         assert_eq!(mode, Some(0o600));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ready_file_is_readable_owner_only_under_restrictive_umask() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        const CHILD_ENV: &str = "SNAPBACK_TEST_READY_FILE_RESTRICTIVE_UMASK_CHILD";
+        if std::env::var_os(CHILD_ENV).is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "cli::tests::ready_file_is_readable_owner_only_under_restrictive_umask",
+                    "--nocapture",
+                ])
+                .env(CHILD_ENV, "1")
+                .output()
+                .expect("run isolated restrictive-umask readiness test");
+            assert!(
+                output.status.success(),
+                "restrictive-umask readiness child failed\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("ready.json");
+        // SAFETY: this is the isolated child process described above. Create
+        // the parent first so the test isolates the ready file's exact mode,
+        // not tempfile's own directory creation policy.
+        let previous = unsafe { libc::umask(0o777) };
+        let result = write_ready_file_atomic(&path, "{\"ready\":true}\n");
+        let mode = result
+            .as_ref()
+            .ok()
+            .and_then(|()| std::fs::metadata(&path).ok())
+            .map(|metadata| metadata.permissions().mode() & 0o777);
+        let contents = std::fs::read_to_string(&path);
+        // SAFETY: restore the child's process-global mask before asserting.
+        unsafe { libc::umask(previous) };
+
+        result.expect("publish readiness under restrictive umask");
+        assert_eq!(mode, Some(0o600));
+        assert_eq!(contents.unwrap(), "{\"ready\":true}\n");
     }
 
     #[cfg(unix)]

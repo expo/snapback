@@ -359,8 +359,10 @@ Further field-level hardening (ENG-24560) treats handler-controlled operational
 text the same way: public cron inspection exposes only aggregate job,
 failed-job, and in-flight counts, while public recent diagnostics expose only
 code, severity, and subsystem. Raw cron runs/results and diagnostic
-messages/details stay on the gated twin. The root instance-status rendering
-also omits the absolute minted admin-token file path.
+messages/details stay on the gated twin. Because loopback `AdminRead` is open,
+that full twin is classified as a sensitive read and requires the configured or
+auto-minted admin bearer; a route prefix alone is not authentication. The root
+instance-status rendering also omits the absolute minted admin-token file path.
 
 **D4 — Split the collections routes: `ensure` is app-data, `register` is system.**
 These are different operations. `/ephemeral/collections/ensure` is *validate-only*

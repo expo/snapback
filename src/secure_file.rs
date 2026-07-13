@@ -57,6 +57,12 @@ fn repair_owner_only(file: &File) -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
+pub(crate) fn validate_and_repair_owner_only(file: &File) -> io::Result<()> {
+    validate_open_file(file)?;
+    repair_owner_only(file)
+}
+
 #[cfg(not(unix))]
 fn open_existing(_path: &Path, _writable: bool) -> io::Result<File> {
     Err(io::Error::new(
@@ -92,6 +98,7 @@ pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
 /// existing inode. Atomic-publication temporary files use this variant: an
 /// attacker who pre-creates or races a hardlink at the candidate path gets
 /// `AlreadyExists`, never a truncation of the linked target.
+#[cfg(any(test, not(unix)))]
 pub fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut file = create_new_owner_only(path)?;
     file.write_all(bytes)?;

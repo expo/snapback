@@ -111,6 +111,17 @@ globalThis.__snapbackHandlers = {
     return await ctx.runMutation('createTodo', { title: 'cron write' });
   },
 
+  async leakingAction(ctx) {
+    const secret = ctx.secrets.get('leakKey').expose();
+    throw new Error(`public action leaked ${secret}`);
+  },
+
+  async rotatingSecretCron(ctx) {
+    const secret = ctx.secrets.get('leakKey').expose();
+    await fetch(secret);
+    throw new Error(`rotated cron leaked ${secret}`);
+  },
+
   async quickProbe(ctx) {
     return { ok: true };
   },
@@ -176,6 +187,22 @@ fn config_entry(name: &str, probe: &str) -> ConfigEntryDefinition {
     }
 }
 
+fn secret_entry(name: &str) -> ConfigEntryDefinition {
+    ConfigEntryDefinition {
+        name: name.to_owned(),
+        description: Some("secret redaction test entry".to_owned()),
+        purpose: None,
+        secret: true,
+        required: false,
+        pool: false,
+        probe: None,
+        how_to_get: None,
+        acquisition: None,
+        default: None,
+        source_span: None,
+    }
+}
+
 fn watchdog_functions() -> FunctionManifest {
     let ibex = |export: &str, kind: FunctionKind| {
         FunctionDefinition::new(
@@ -187,6 +214,10 @@ fn watchdog_functions() -> FunctionManifest {
             }),
         )
     };
+    let mut leaking_action = ibex("leakingAction", FunctionKind::Action);
+    leaking_action.uses = vec!["leakKey".to_owned()];
+    let mut rotating_secret_cron = ibex("rotatingSecretCron", FunctionKind::Action);
+    rotating_secret_cron.uses = vec!["leakKey".to_owned()];
     let mut manifest = FunctionManifest {
         bundle_hash: Some("action-watchdog-functions-v0".to_owned()),
         functions: vec![
@@ -200,13 +231,17 @@ fn watchdog_functions() -> FunctionManifest {
             ibex("nestedHungAction", FunctionKind::Action),
             ibex("readAction", FunctionKind::Action),
             ibex("cronAction", FunctionKind::Action),
+            leaking_action,
+            rotating_secret_cron,
             ibex("quickProbe", FunctionKind::Action),
             ibex("heldProbe", FunctionKind::Action),
             ibex("hungProbe", FunctionKind::Action),
         ],
         config: vec![
+            secret_entry("leakKey"),
             config_entry("quickKey", "quickProbe"),
             config_entry("heldKey", "heldProbe"),
+            config_entry("heldRecreateKey", "heldProbe"),
             config_entry("hungKey", "hungProbe"),
         ],
         ..FunctionManifest::default()
@@ -339,6 +374,112 @@ fn start_paused_mutation_action(app: axum::Router, url: String) -> tokio::task::
             .expect("paused mutation action response");
         body_json(response).await
     })
+}
+
+/// ENG-24560 — diagnostics are scrubbed at the invocation boundary with the
+/// staging-time secret set. Public action errors cannot expose a configured
+/// value, and rotating that value while a detached cron action is in flight
+/// cannot make the old value escape into the run ledger or inspect rings.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn detached_action_secret_redaction_survives_config_rotation() {
+    let _serial = serial_action_test().await;
+    set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
+    let (secret_a, fetch_started, release_fetch, fetch_server) = held_http_response().await;
+
+    let mut manifest = watchdog_functions();
+    manifest.cron_jobs = vec![CronJobDefinition {
+        name: "rotatingSecret".to_owned(),
+        schedule: CronSchedule {
+            every_ms: Some(60_000),
+            cron: None,
+        },
+        action: "rotatingSecretCron".to_owned(),
+        enabled: true,
+        activation: CronActivationPolicy::default(),
+        jitter_policy: CronJitterPolicy {
+            enabled: false,
+            max_offset_ms: 0,
+        },
+        overlap_policy: CronOverlapPolicy::NoOverlap,
+        retry_policy: CronRetryPolicy {
+            mode: CronRetryMode::NextTick,
+        },
+        required_capabilities: Vec::new(),
+        target_wakeup: None,
+        source_span: None,
+    }];
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(watchdog_schema()).expect("schema");
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(diagnostics.iter().all(|diagnostic| {
+        diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+    }));
+    snapback
+        .set_config_entry("leakKey", vec![secret_a.clone()], false, "test")
+        .expect("set secret A");
+    let app_state = AppState::detached(snapback);
+    let state = app_state.snapback.clone();
+    let app = snapback::server::app(app_state);
+
+    let public_action = app
+        .clone()
+        .oneshot(post_json("/action/leakingAction", handler_body(json!({}))))
+        .await
+        .expect("public action response");
+    let public_action = serde_json::to_string(&body_json(public_action).await).unwrap();
+    assert!(!public_action.contains(&secret_a), "{public_action}");
+    assert!(public_action.contains("[REDACTED]"), "{public_action}");
+
+    let cron_app = app.clone();
+    let cron = tokio::spawn(async move {
+        let response = cron_app
+            .oneshot(post_json(
+                "/_snapback/api/cron/rotatingSecret/run",
+                json!({}),
+            ))
+            .await
+            .expect("manual cron response");
+        body_json(response).await
+    });
+    tokio::time::timeout(Duration::from_secs(2), fetch_started)
+        .await
+        .expect("cron reaches held fetch")
+        .expect("fetch-start signal");
+    state
+        .lock()
+        .await
+        .set_config_entry(
+            "leakKey",
+            vec!["replacement-secret-B".to_owned()],
+            false,
+            "test",
+        )
+        .expect("rotate secret to B");
+    release_fetch.send(()).expect("release held cron fetch");
+    let cron_body = serde_json::to_string(
+        &tokio::time::timeout(Duration::from_secs(3), cron)
+            .await
+            .expect("cron settles")
+            .expect("cron task"),
+    )
+    .unwrap();
+    fetch_server.await.expect("held fetch server");
+    assert!(!cron_body.contains(&secret_a), "{cron_body}");
+    assert!(cron_body.contains("[REDACTED]"), "{cron_body}");
+
+    let inspect = body_json(
+        app.oneshot(
+            Request::builder()
+                .uri("/_snapback/api/inspect")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("gated inspect"),
+    )
+    .await;
+    let inspect = serde_json::to_string(&inspect).unwrap();
+    assert!(!inspect.contains(&secret_a), "{inspect}");
 }
 
 /// A detached action can cross an app generation without another ctx host op:
@@ -806,10 +947,13 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
     set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
     let app = watchdog_app();
     let (held_url, held_started, release_held, held_server) = held_http_response().await;
+    let (recreate_url, recreate_started, release_recreate, recreate_server) =
+        held_http_response().await;
 
     for (entry, value) in [
         ("quickKey", "k1".to_owned()),
         ("heldKey", held_url),
+        ("heldRecreateKey", recreate_url),
         ("hungKey", "k1".to_owned()),
     ] {
         let set = app
@@ -881,6 +1025,15 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
         !held_verify.is_finished(),
         "the mutation must commit while the held probe is still active"
     );
+    let replacement = app
+        .clone()
+        .oneshot(post_json(
+            "/_snapback/api/config/set",
+            json!({ "entry": "heldKey", "value": "replacement-value" }),
+        ))
+        .await
+        .expect("replace held config response");
+    assert_eq!(replacement.status(), 200);
     release_held.send(()).expect("release held config probe");
     let held_body = tokio::time::timeout(Duration::from_secs(2), held_verify)
         .await
@@ -888,8 +1041,61 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
         .expect("held verify task");
     held_server.await.expect("held config-probe server");
     assert_eq!(
-        held_body["ok"], true,
-        "released held probe must verify successfully: {held_body}"
+        held_body["diagnostic"]["code"], "SNAPBACK_CONFIG_VERIFY_STALE",
+        "a probe for the replaced value must be discarded: {held_body}"
+    );
+
+    // Delete/recreate is a distinct entry identity even when it happens under
+    // the same name. A staged probe for the deleted identity cannot attest the
+    // replacement.
+    let recreate_verify = {
+        let app = app.clone();
+        tokio::spawn(async move {
+            let response = app
+                .oneshot(post_json(
+                    "/_snapback/api/config/verify",
+                    json!({ "entry": "heldRecreateKey" }),
+                ))
+                .await
+                .expect("recreated-entry verify response");
+            body_json(response).await
+        })
+    };
+    tokio::time::timeout(Duration::from_secs(2), recreate_started)
+        .await
+        .expect("recreated-entry probe reaches native fetch")
+        .expect("recreated-entry fetch-start signal");
+    let unset = app
+        .clone()
+        .oneshot(post_json(
+            "/_snapback/api/config/unset",
+            json!({ "entry": "heldRecreateKey" }),
+        ))
+        .await
+        .expect("unset held config response");
+    assert_eq!(unset.status(), 200);
+    let recreate = app
+        .clone()
+        .oneshot(post_json(
+            "/_snapback/api/config/set",
+            json!({ "entry": "heldRecreateKey", "value": "recreated-value" }),
+        ))
+        .await
+        .expect("recreate held config response");
+    assert_eq!(recreate.status(), 200);
+    release_recreate
+        .send(())
+        .expect("release delete/recreate probe");
+    let recreate_body = tokio::time::timeout(Duration::from_secs(2), recreate_verify)
+        .await
+        .expect("delete/recreate probe settles")
+        .expect("delete/recreate verify task");
+    recreate_server
+        .await
+        .expect("delete/recreate config-probe server");
+    assert_eq!(
+        recreate_body["diagnostic"]["code"], "SNAPBACK_CONFIG_VERIFY_STALE",
+        "a probe for a deleted identity must not attest its replacement: {recreate_body}"
     );
 
     // Independently prove the config route's watchdog outcome. The timeout is
@@ -945,7 +1151,12 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
             .map(|e| e["verified"]["ok"].clone())
     };
     assert_eq!(verified_ok("quickKey"), Some(json!(true)), "{status_body}");
-    assert_eq!(verified_ok("heldKey"), Some(json!(true)), "{status_body}");
+    assert_eq!(verified_ok("heldKey"), Some(Value::Null), "{status_body}");
+    assert_eq!(
+        verified_ok("heldRecreateKey"),
+        Some(Value::Null),
+        "{status_body}"
+    );
     assert_eq!(verified_ok("hungKey"), Some(json!(false)), "{status_body}");
 }
 

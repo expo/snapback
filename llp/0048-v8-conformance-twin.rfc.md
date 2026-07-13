@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
+**Revised:** 2026-07-13 (whole-codebase security follow-up: trusted strip state is one-shot and consumed before handler evaluation; the rejection ledger/drain is closure-private rather than importable; Promise-channel records, Response thenability, and Promise species resist inherited-then forgery; independent invoke/host/response capabilities close the worker-port bind race; readiness/invoke response bodies and sanitized stderr tails are bounded); 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
 forgiving-base64 padding validation, the complete UTF-8 label table with exact
 ASCII-whitespace/Web-IDL conversion, and streaming UTF-8 decoder state;
 ENG-24339: adversarial twin coverage pins sealed invoke/settle globals,
@@ -375,6 +375,13 @@ The twin is built and its minimum gate is green. What landed:
   create-new at 0600. The local `/invoke` socket requires a generated bearer
   before its bounded body is read; the callback listener bounds request lines,
   aggregate headers, and body size and authenticates before body allocation.
+  Caller→worker invoke, worker→host callback, and worker→caller response use
+  three independent per-invocation capabilities. Readiness and invoke clients
+  authenticate the response header before inspecting `Content-Length` or
+  reading a bounded body, so a process winning the reserved-port bind handoff
+  can neither learn callback authority nor forge a successful response. Public
+  diagnostics read a fixed tail window from stderr and redact capability values
+  and the private materialization path.
 - **Conformance runner + gate.** `src/bin/snapback-conformance-twin.rs` runs
   one corpus (`tests/conformance/twin-corpus.handlers.js`) on both engines,
   normalizes ids/timestamps and strips diagnostic-only `runtime.log`, then
@@ -425,12 +432,18 @@ all are fixed and gated by the twin suites and the conformance corpus:
   wrapper interception, and raw host-call attempts; Rust independently
   rejects action DB reads at the shared host-op boundary.
 - **Unforgeable settlement and rejection collection** (ENG-24559): the V8
-  rejection ledger is a lexical module export consumed only by the handler
-  server, not a handler-visible draining global. The shared settlement wrapper
-  captures trusted serialization primitives, and the server serializes a
-  prototype-free copy of internal response data. Adversarial twin cases replace
-  `JSON.stringify`, poison `Object.prototype.toJSON`, and attempt an early
-  rejection inspection; both engines still fail with nothing committed.
+  rejection ledger and its destructive drain live inside the handler-server
+  closure; there is no importable sibling ledger module. The strip exposes a
+  one-shot captured-intrinsics function consumed by the server before handler
+  evaluation, so a handler importing it later receives no capability bag. The
+  shared settlement wrapper captures trusted serialization primitives; the
+  server uses null-prototype records for every Promise-channel value, pins an
+  own non-then property on `Response.prototype`, and pins native Promise
+  constructor/species dispatch before the application runs. Adversarial twin
+  cases replace `JSON.stringify`, poison `Object.prototype.toJSON` and
+  `Object.prototype.then`, attempt early rejection inspection, and import both
+  former control-plane seams; both engines still fail closed with nothing
+  committed.
 - **Drain contract** (ENG-23584): the fixed 32-tick microtask drain is
   replaced by a quiescence contract — wait for this invocation's in-flight
   host calls, then yield real tasks (workerd defers `unhandledrejection`

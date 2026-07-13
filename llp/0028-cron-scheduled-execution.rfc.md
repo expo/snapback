@@ -451,7 +451,13 @@ independent claims concurrently
 up to a separate bound of eight by default (configurable with
 `SNAPBACK_CRON_DISPATCH_CONCURRENCY`, clamped to 1,024), preserving claim order
 in the returned envelope; the process-wide action ceiling remains the final
-admission gate.
+admission gate. The automatic scheduler hands admitted runs to a shared
+semaphore and resumes polling without awaiting handler completion, so
+`overlap: allow` can actually span due ticks. Dispatcher saturation is recorded
+as `SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED`, never queued without bound.
+Each Allow job additionally owns at most 32 active run ids across scheduled and
+manual claims; later slots are skipped with
+`SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED` until completion releases ownership.
 
 The local scheduler also consumes a nominal slot atomically when it creates a
 claim, rather than waiting for completion. `overlap: allow` owns a set of active

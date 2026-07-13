@@ -167,7 +167,7 @@
   // handler's detached chains succeeded; the ledger closes that gap.
   (function installRejectionLedger() {
     var OriginalPromise = g.__OriginalPromise;
-    // V8/workerd owns a lexical event-based ledger in rejection-ledger.mjs.
+    // V8/workerd owns a closure-private event ledger in handler-server.mjs.
     // This pinned then/promise hook mechanism is Hermes-only.
     if (!OriginalPromise) return;
     var ledger = OriginalPromise && typeof TrustedMap === "function" ? new TrustedMap() : null;

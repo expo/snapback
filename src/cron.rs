@@ -146,6 +146,11 @@ pub struct LocalCronRuntime {
 }
 
 const CRON_RUNTIME_FORMAT_VERSION: u32 = 1;
+/// `overlap: allow` is concurrency permission, not an unbounded queue. A
+/// single job may own at most this many live run ids across automatic and
+/// manual dispatch; process-wide dispatcher/action limits are additional
+/// ceilings.
+pub const CRON_MAX_ACTIVE_RUNS_PER_JOB: usize = 32;
 
 const fn current_cron_runtime_version() -> u32 {
     CRON_RUNTIME_FORMAT_VERSION
@@ -197,6 +202,11 @@ impl CronJobRuntimeState {
 
     fn has_in_flight(&self) -> bool {
         !self.in_flight_run_ids.is_empty() || self.in_flight_run_id.is_some()
+    }
+
+    fn active_run_count(&mut self) -> usize {
+        self.normalize_in_flight();
+        self.in_flight_run_ids.len()
     }
 
     fn claim_run(&mut self, run_id: String) {
@@ -478,13 +488,18 @@ impl LocalCronRuntime {
                 continue;
             }
             let scheduled_at_ms = state.next_nominal_at_ms;
-            if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight() {
+            let overlap_blocked =
+                matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight();
+            let capacity_blocked = matches!(job.overlap_policy, CronOverlapPolicy::Allow)
+                && state.active_run_count() >= CRON_MAX_ACTIVE_RUNS_PER_JOB;
+            if overlap_blocked || capacity_blocked {
                 if let Some(next_nominal) = next_nominal_after(job, scheduled_at_ms, now_ms) {
                     state.next_nominal_at_ms = Some(next_nominal);
                     state.next_due_at_ms =
                         Some(next_nominal.saturating_add(state.jitter_offset_ms));
                 }
-                let record = self.skipped_record(job, scheduled_at_ms, due_at_ms, now_ms);
+                let record =
+                    self.skipped_record(job, scheduled_at_ms, due_at_ms, now_ms, capacity_blocked);
                 self.record_run(record);
                 continue;
             }
@@ -598,6 +613,21 @@ impl LocalCronRuntime {
                 format!("cron job {name} already has a run in flight"),
             ));
         }
+        if matches!(job.overlap_policy, CronOverlapPolicy::Allow)
+            && state.active_run_count() >= CRON_MAX_ACTIVE_RUNS_PER_JOB
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
+                "cron",
+                format!(
+                    "cron job {name} already owns the maximum {CRON_MAX_ACTIVE_RUNS_PER_JOB} active runs"
+                ),
+            )
+            .with_details(json!({
+                "jobName": name,
+                "maxActiveRuns": CRON_MAX_ACTIVE_RUNS_PER_JOB,
+            })));
+        }
         self.next_run_seq += 1;
         let run_id = format!("cron:{}:manual:{}:{}", job.name, now_ms, self.next_run_seq);
         state.claim_run(run_id.clone());
@@ -669,6 +699,7 @@ impl LocalCronRuntime {
         scheduled_at_ms: Option<u64>,
         due_at_ms: u64,
         now_ms: u64,
+        capacity_blocked: bool,
     ) -> CronRunRecord {
         self.next_run_seq += 1;
         let slot_key = format!(
@@ -694,14 +725,29 @@ impl LocalCronRuntime {
             duration_ms: Some(0),
             idempotency_key: slot_key.clone(),
             slot_key,
-            diagnostic: Some(Diagnostic::warning(
-                "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP",
-                "cron",
-                format!(
-                    "cron job {} skipped because a prior run is still in flight",
-                    job.name
-                ),
-            )),
+            diagnostic: Some(if capacity_blocked {
+                Diagnostic::warning(
+                    "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
+                    "cron",
+                    format!(
+                        "cron job {} skipped because it already owns the maximum {CRON_MAX_ACTIVE_RUNS_PER_JOB} active runs",
+                        job.name
+                    ),
+                )
+                .with_details(json!({
+                    "jobName": job.name,
+                    "maxActiveRuns": CRON_MAX_ACTIVE_RUNS_PER_JOB,
+                }))
+            } else {
+                Diagnostic::warning(
+                    "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP",
+                    "cron",
+                    format!(
+                        "cron job {} skipped because a prior run is still in flight",
+                        job.name
+                    ),
+                )
+            }),
             result: None,
         }
     }
@@ -1861,6 +1907,69 @@ mod tests {
         assert!(state.in_flight_run_ids.contains(&second.metadata.run_id));
         runtime.finish_run(second, 122_000, Ok(Value::Null));
         assert!(!runtime.states["poll"].has_in_flight());
+    }
+
+    #[test]
+    fn allow_active_run_ownership_is_bounded_for_manual_and_scheduled_claims() {
+        let mut job = interval_job("poll", 60_000);
+        job.overlap_policy = CronOverlapPolicy::Allow;
+        job.jitter_policy.enabled = false;
+        let manifest = manifest_with_jobs(vec![job]);
+
+        let mut manual = LocalCronRuntime::default();
+        manual.reconcile(&manifest);
+        let mut claims = Vec::new();
+        for now in 0..CRON_MAX_ACTIVE_RUNS_PER_JOB {
+            claims.push(
+                manual
+                    .claim_manual_run(&manifest, "poll", now as u64)
+                    .expect("claim below the active-run ceiling"),
+            );
+        }
+        let error = manual
+            .claim_manual_run(&manifest, "poll", 1_000_000)
+            .expect_err("manual allow claims must fail at the active-run ceiling");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED");
+        assert_eq!(
+            manual.states["poll"].in_flight_run_ids.len(),
+            CRON_MAX_ACTIVE_RUNS_PER_JOB
+        );
+        manual.finish_run(claims.remove(0), 1_000_001, Ok(Value::Null));
+        assert!(
+            manual
+                .claim_manual_run(&manifest, "poll", 1_000_002)
+                .is_ok(),
+            "completion must release active-run capacity"
+        );
+
+        let mut scheduled = LocalCronRuntime::default();
+        scheduled.reconcile(&manifest);
+        for slot in 1..=CRON_MAX_ACTIVE_RUNS_PER_JOB {
+            let claims =
+                scheduled.claim_due_runs(&manifest, &BTreeSet::new(), slot as u64 * 60_000);
+            assert_eq!(claims.len(), 1, "slot {slot} should be claimable");
+        }
+        assert!(
+            scheduled
+                .claim_due_runs(
+                    &manifest,
+                    &BTreeSet::new(),
+                    (CRON_MAX_ACTIVE_RUNS_PER_JOB as u64 + 1) * 60_000,
+                )
+                .is_empty(),
+            "the first slot beyond the active-run ceiling must be skipped"
+        );
+        assert_eq!(
+            scheduled.recent_runs.front().and_then(|run| run
+                .diagnostic
+                .as_ref()
+                .map(|diagnostic| diagnostic.code.as_str())),
+            Some("SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED")
+        );
+        assert_eq!(
+            scheduled.states["poll"].in_flight_run_ids.len(),
+            CRON_MAX_ACTIVE_RUNS_PER_JOB
+        );
     }
 
     #[test]

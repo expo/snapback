@@ -700,9 +700,9 @@ async fn s1_gated_writes_require_token_when_configured_even_on_loopback() {
 /// the reflected localhost CORS can no longer be combined with a tokenless
 /// instance: a write from an arbitrary localhost origin without the minted
 /// token fails closed (even though the origin itself is reflected), and goes
-/// through only with the minted token in hand. The read-open inspect names
-/// the token file so same-user tooling can pick up the capability — a browser
-/// page cannot read files.
+/// through only with the minted token in hand. Full inspect is sensitive too:
+/// it names the token file and carries raw operational facts, so a browser
+/// page cannot read it merely because it runs on another loopback origin.
 #[tokio::test]
 async fn minted_token_blocks_writes_from_arbitrary_localhost_origins() {
     let dir = tempfile::tempdir().unwrap();
@@ -734,9 +734,22 @@ async fn minted_token_blocks_writes_from_arbitrary_localhost_origins() {
     let body = json(denied).await;
     assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_TOKEN_REQUIRED");
 
+    let inspect_denied = app
+        .clone()
+        .oneshot(get("/_snapback/api/inspect"))
+        .await
+        .unwrap();
+    assert_eq!(inspect_denied.status(), StatusCode::UNAUTHORIZED);
+
     let inspect = json(
         app.clone()
-            .oneshot(get("/_snapback/api/inspect"))
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/inspect")
+                    .header("x-snapback-admin-token", &resolved.token)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap(),
     )
@@ -873,6 +886,63 @@ async fn provisioning_writes_are_profile_forbidden_under_prod() {
     assert_eq!(dedicated_dev_user.status(), StatusCode::FORBIDDEN);
     let body = json(dedicated_dev_user).await;
     assert_eq!(body["diagnostic"]["code"], "SNAPBACK_PROFILE_FORBIDS");
+}
+
+/// ENG-24561 — the multiplexed host-ops transport and its dedicated aliases
+/// resolve the same per-operation AdminRead/AdminWrite requirement. A minted
+/// loopback token protects writes but must not accidentally close reads.
+#[tokio::test]
+async fn host_ops_and_dedicated_aliases_have_authority_parity() {
+    let app = app_with_context(seeded_snapback(), loopback_context(Some("sekrit")));
+
+    for request in [
+        json!({ "operation": "function.run", "function": "listTodos", "userId": "user_1" }),
+        json!({ "operation": "function.explain", "function": "createTodo", "kind": "mutationDryRun", "userId": "user_1" }),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(post("/_snapback/api/host-ops", request.clone()))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "read denied: {request}");
+        assert_eq!(json(response).await["ok"], true, "read failed: {request}");
+    }
+    let dedicated_query = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/functions/listTodos/run",
+            json!({ "args": {}, "auth": { "user_id": "user_1" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(dedicated_query.status(), StatusCode::OK);
+
+    for request in [
+        json!({ "operation": "app.inspect" }),
+        json!({ "operation": "app.reset" }),
+        json!({ "operation": "schema.load", "schema": todo_schema() }),
+        json!({ "operation": "functions.load", "functions": todo_functions() }),
+        json!({ "operation": "function.run", "function": "createTodo", "args": { "title": "blocked" }, "userId": "user_1" }),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(post("/_snapback/api/host-ops", request.clone()))
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "write bypassed token gate: {request}"
+        );
+    }
+    let dedicated_mutation = app
+        .oneshot(post(
+            "/_snapback/api/functions/createTodo/run",
+            json!({ "args": { "title": "blocked" }, "auth": { "user_id": "user_1" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(dedicated_mutation.status(), StatusCode::UNAUTHORIZED);
 }
 
 /// LLP 0032 S1 (was S0) — the open-loopback default is unchanged: no configured

@@ -99,6 +99,32 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+// Workerd-only module-boundary probes. The first names the strip module after
+// the trusted server has consumed its one-shot capture; the second attempts to
+// import the former rejection-ledger sibling outright. Neither source is fed
+// to Hermes because static ESM imports are intentionally a workerd concern.
+const STRIP_IMPORT_SOURCE: &str = r#"
+import { consumeTrustedIntrinsics } from './strip.mjs';
+var captured = consumeTrustedIntrinsics();
+globalThis.__snapbackHandlers = {
+  async importTrustedIntrinsicsProbe() {
+    return [{ captured: captured !== null }];
+  }
+};
+"#;
+
+const LEDGER_IMPORT_SOURCE: &str = r#"
+import { takeUnhandledRejections } from './rejection-ledger.mjs';
+globalThis.__snapbackHandlers = {
+  async importRejectionDrainProbe(ctx) {
+    Promise.resolve().then(function() { throw new Error('must remain visible'); });
+    takeUnhandledRejections();
+    await ctx.db.insert('items', { label: 'must-not-commit-import-drain', rank: 34 });
+    return {};
+  }
+};
+"#;
+
 fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("workerd-twin-v0".to_owned()),
@@ -146,6 +172,7 @@ fn functions() -> FunctionManifest {
             define("detachedRejection", FunctionKind::Mutation),
             define("rejectionDrainProbe", FunctionKind::Mutation),
             define("settlementForgeryProbe", FunctionKind::Mutation),
+            define("settlementThenableForgeryProbe", FunctionKind::Mutation),
             define("busyLoop", FunctionKind::Mutation),
             define("probeGlobalName", FunctionKind::Query),
             define("probeMember", FunctionKind::Query),
@@ -243,6 +270,31 @@ fn local_workerd_invoke_requires_its_generated_bearer() {
             "{mode:?}: an unauthenticated invoke must commit nothing"
         );
     }
+}
+
+#[test]
+fn local_workerd_invoke_rejects_oversized_bodies_before_handler_execution() {
+    require_workerd!();
+    let mut snapback = configured();
+    let error = with_invoke_auth_test_mode(InvokeAuthTestMode::OversizedBody, || {
+        on_v8(|| {
+            snapback.invoke_mutation("addItem", input(json!({"label": "oversized", "rank": 1})))
+        })
+    })
+    .expect_err("an oversized private invoke must be refused");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_V8_RUNNER_INVOKE_FAILED");
+    assert!(
+        error.to_string().contains("invoke status 413"),
+        "unexpected oversized transport diagnostic: {error}"
+    );
+    assert!(
+        snapback
+            .invoke_query("listItems", input(json!({})))
+            .expect("list items")
+            .rows
+            .is_empty(),
+        "an oversized invoke must execute no handler and commit nothing"
+    );
 }
 
 #[test]
@@ -369,6 +421,92 @@ fn settlement_serialization_cannot_be_forged_on_either_engine() {
             "{backend:?}: a forged settlement attempt must commit nothing"
         );
     }
+}
+
+#[test]
+fn settlement_thenable_assimilation_cannot_be_forged_on_either_engine() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut snapback = configured();
+        let error = with_forced_backend(backend, || {
+            snapback.invoke_mutation("settlementThenableForgeryProbe", input(json!({})))
+        })
+        .expect_err("an inherited then hook must not forge settlement success");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_HANDLER_FAILED",
+            "{backend:?}: unexpected thenable-forgery result: {error}"
+        );
+        assert!(
+            snapback
+                .invoke_query("listItems", input(json!({})))
+                .expect("list items")
+                .rows
+                .is_empty(),
+            "{backend:?}: a thenable-forgery attempt must commit nothing"
+        );
+    }
+}
+
+#[test]
+fn handler_import_cannot_recover_consumed_trusted_intrinsics() {
+    require_workerd!();
+    let mut snapback = LocalSnapback::memory().expect("snapback");
+    snapback.apply_schema(schema()).expect("schema");
+    snapback.load_functions(FunctionManifest {
+        functions: vec![FunctionDefinition::new(
+            "importTrustedIntrinsicsProbe",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: STRIP_IMPORT_SOURCE.to_owned(),
+                export: "importTrustedIntrinsicsProbe".to_owned(),
+            }),
+        )],
+        ..FunctionManifest::default()
+    });
+
+    let output = on_v8(|| snapback.invoke_query("importTrustedIntrinsicsProbe", input(json!({}))))
+        .expect("trusted intrinsic import probe");
+    assert_eq!(output.rows, vec![json!({ "captured": false })]);
+}
+
+#[test]
+fn handler_import_cannot_reach_or_drain_rejection_ledger() {
+    require_workerd!();
+    let mut snapback = LocalSnapback::memory().expect("snapback");
+    snapback.apply_schema(schema()).expect("schema");
+    snapback.load_functions(FunctionManifest {
+        functions: vec![
+            FunctionDefinition::new(
+                "importRejectionDrainProbe",
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: LEDGER_IMPORT_SOURCE.to_owned(),
+                    export: "importRejectionDrainProbe".to_owned(),
+                }),
+            ),
+            FunctionDefinition::new(
+                "listItems",
+                FunctionKind::Query,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: TWIN_MODULE_SOURCE.to_owned(),
+                    export: "listItems".to_owned(),
+                }),
+            ),
+        ],
+        ..FunctionManifest::default()
+    });
+
+    let error = on_v8(|| snapback.invoke_mutation("importRejectionDrainProbe", input(json!({}))))
+        .expect_err("the closure-private rejection ledger must not resolve as a module");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_V8_RUNNER_START_FAILED");
+    assert!(
+        snapback
+            .invoke_query("listItems", input(json!({})))
+            .expect("list items")
+            .rows
+            .is_empty(),
+        "the unresolvable handler module must execute no writes"
+    );
 }
 
 #[test]
