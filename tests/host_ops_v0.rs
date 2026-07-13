@@ -256,6 +256,7 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
         db: PathBuf::from(".snapback/unused.sqlite3"),
         memory: true,
         ready_file: Some(ready_path.clone()),
+        restored_from_backup: None,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 

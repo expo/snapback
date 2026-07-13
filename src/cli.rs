@@ -43,6 +43,12 @@ pub struct Args {
     /// bound — the out-of-band handshake managed/attach launchers read.
     #[arg(long)]
     pub ready_file: Option<PathBuf>,
+
+    /// Consume the exact declaration emitted by `snapback auth restore`.
+    /// Restore effects run before the listener binds and are idempotent for
+    /// one declaration id.
+    #[arg(long, conflicts_with = "memory")]
+    pub restored_from_backup: Option<String>,
 }
 
 impl Default for Args {
@@ -53,6 +59,7 @@ impl Default for Args {
             db: PathBuf::from(".snapback/dev.sqlite3"),
             memory: false,
             ready_file: None,
+            restored_from_backup: None,
         }
     }
 }
@@ -137,6 +144,29 @@ pub enum HostCommand {
         row_budget: u64,
         #[arg(long, default_value_t = 1_048_576)]
         byte_budget: u64,
+    },
+    /// Offline physical auth backup and declared restore operations.
+    Auth {
+        #[command(subcommand)]
+        command: AuthCommand,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum AuthCommand {
+    /// Create one quiesced SQLite + exact-keyring backup directory.
+    Backup {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Restore a backup into a new instance directory and emit its declaration.
+    Restore {
+        #[arg(long = "from")]
+        from: PathBuf,
+        #[arg(long)]
+        db: PathBuf,
     },
 }
 
@@ -280,7 +310,89 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
+        Some(HostCommand::Auth { command }) => match command {
+            AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
+            AuthCommand::Restore { from, db } => auth_restore(&from, &db),
+        },
     }
+}
+
+/// Run physical backup only after acquiring the same instance lock a server
+/// owns. The process-local maintenance gate is acquired before opening the
+/// database, so keyring validation and SQLite backup share one quiesced unit.
+// @ref LLP 0054#consistent-backup — the CLI refuses live ownership and publishes SQLite plus exact keyring bytes atomically.
+async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::Result<()> {
+    let database_path = resolve_database_path(database_path)?;
+    anyhow::ensure!(
+        database_path.is_file(),
+        "SNAPBACK_AUTH_BACKUP_INVALID: source database does not exist"
+    );
+    let _instance_lock = DatabaseInstanceLock::acquire(&database_path)?;
+    let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::file_for_database(
+        &database_path,
+    ));
+    let provider = Arc::new(
+        crate::auth::provider::AuthProvider::new(
+            crate::auth::provider::AuthProviderProfile::Test,
+            keyring,
+        )
+        .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,
+    );
+    let maintenance = provider.exclusive_maintenance().await;
+    let mut snapback = LocalSnapback::open(&database_path)?;
+    let created_at_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis().min(9_007_199_254_740_991) as u64)
+        .unwrap_or(0);
+    crate::auth::backup::create_backup(
+        snapback.auth_database_mut(),
+        maintenance.keyring(),
+        output_directory,
+        created_at_ms,
+        &crate::auth::crypto::OsRandom,
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "ok": true,
+            "operation": "auth.backup",
+            "output": output_directory,
+        }))?
+    );
+    Ok(())
+}
+
+/// Restore always targets a database inside a wholly absent instance
+/// directory. The returned UUIDv7 is deliberately non-secret and is the only
+/// value the next startup may consume as destructive restore authority.
+// @ref LLP 0054#restore — restore publishes one new directory and requires a matching pre-bind startup declaration.
+fn auth_restore(backup_directory: &Path, target_database: &Path) -> anyhow::Result<()> {
+    let backup_directory = std::fs::canonicalize(backup_directory).with_context(|| {
+        format!(
+            "SNAPBACK_AUTH_BACKUP_INVALID: failed to resolve backup directory {}",
+            backup_directory.display()
+        )
+    })?;
+    let target_database = resolve_restore_database_path(target_database)?;
+    let declaration = crate::auth::backup::restore_backup(
+        &backup_directory,
+        &target_database,
+        &crate::auth::crypto::OsRandom,
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "ok": true,
+            "operation": "auth.restore",
+            "database": target_database,
+            "declarationId": declaration.declaration_id(),
+            "next": {
+                "command": "snapback start",
+                "restoredFromBackup": declaration.declaration_id(),
+            },
+        }))?
+    );
+    Ok(())
 }
 
 fn reject_misdirected_serve_flags(cli: &Cli) -> anyhow::Result<()> {
@@ -823,6 +935,10 @@ fn verify_live_descriptor_identity(
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !(args.memory && args.restored_from_backup.is_some()),
+        "SNAPBACK_AUTH_BACKUP_INVALID: in-memory startup cannot consume a restore declaration"
+    );
     let prepared_database_path = if args.memory {
         None
     } else {
@@ -897,7 +1013,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     let mut database_lock = None;
     let database_path = prepared_database_path;
-    let snapback = match database_path.as_ref() {
+    let mut snapback = match database_path.as_ref() {
         None => LocalSnapback::memory()?,
         Some(db_path) => {
             // @ref LLP 0003#decision — one local server process owns the SQLite
@@ -908,6 +1024,47 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             snapback
         }
     };
+
+    // A restored directory is quarantined until the exact declaration emitted
+    // by `auth restore` is consumed. This runs under the instance lock and
+    // before listener bind, so no request can observe backed-up sessions.
+    // @ref LLP 0054#restore — declared restore is an idempotent pre-bind revocation/purge transaction; omission never silently serves the backup.
+    if let Some(db_path) = database_path.as_deref() {
+        let declaration_path = crate::auth::lifecycle::restore_declaration_path(db_path)?;
+        let declaration_present = match std::fs::symlink_metadata(&declaration_path) {
+            Ok(_) => true,
+            Err(error) if error.kind() == ErrorKind::NotFound => false,
+            Err(_) => {
+                return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_AUTH_BACKUP_INVALID",
+                    "auth-restore",
+                    "restore declaration could not be inspected",
+                )));
+            }
+        };
+        match args.restored_from_backup.as_deref() {
+            Some(declaration_id) => {
+                crate::auth::lifecycle::apply_declared_restore(
+                    snapback.auth_database_mut(),
+                    &crate::auth::mailbox::CaptureMailbox::new(),
+                    &declaration_path,
+                    declaration_id,
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map(|elapsed| elapsed.as_millis().min(9_007_199_254_740_991) as u64)
+                        .unwrap_or(0),
+                )?;
+            }
+            None if declaration_present => {
+                return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_AUTH_BACKUP_INVALID",
+                    "auth-restore",
+                    "a restored instance requires --restored-from-backup before it can bind",
+                )));
+            }
+            None => {}
+        }
+    }
 
     let read_lane = snapback.read_lane();
     let ephemeral = snapback.ephemeral_api();
@@ -2245,6 +2402,42 @@ fn resolve_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     Ok(parent.join(file_name))
 }
 
+/// Resolve a restore target without creating or canonicalizing the required-
+/// absent instance directory. Only its existing parent becomes authority for
+/// the later descriptor-relative no-replace publication.
+fn resolve_restore_database_path(path: &Path) -> anyhow::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let database_name = absolute
+        .file_name()
+        .filter(|name| *name != "." && *name != "..")
+        .context("restore database path must include a file name")?
+        .to_os_string();
+    let instance = absolute
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .context("restore database must be inside a new instance directory")?;
+    let instance_name = instance
+        .file_name()
+        .filter(|name| *name != "." && *name != "..")
+        .context("restore target instance directory must have a name")?
+        .to_os_string();
+    let existing_parent = instance
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let existing_parent = std::fs::canonicalize(existing_parent).with_context(|| {
+        format!(
+            "SNAPBACK_AUTH_BACKUP_INVALID: failed to resolve restore parent {}",
+            existing_parent.display()
+        )
+    })?;
+    Ok(existing_parent.join(instance_name).join(database_name))
+}
+
 async fn bind_listener(host: &str, port: Option<u16>) -> anyhow::Result<TcpListener> {
     if let Some(port) = port {
         return TcpListener::bind((host, port))
@@ -2302,11 +2495,11 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, Cli, HostCommand, ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs,
-        bind_first_available, bind_listener, managed_startup_paths, mint_secret_read_via_http,
-        parse_run_args, path_with_filename_suffix, prepare_database_path,
-        reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
-        validated_secret_read_root_path, write_ready_file_atomic,
+        Args, AuthCommand, Cli, HostCommand, ManagedPath, ReadyFileTarget, ResolvedHttpTarget,
+        TargetArgs, bind_first_available, bind_listener, managed_startup_paths,
+        mint_secret_read_via_http, parse_run_args, path_with_filename_suffix,
+        prepare_database_path, reject_misdirected_serve_flags, resolve_http_target,
+        validate_path_disjointness, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use clap::Parser;
@@ -2486,6 +2679,193 @@ mod tests {
             }
             other => panic!("expected start command, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn auth_backup_restore_and_declared_startup_have_closed_cli_spellings() {
+        let backup = Cli::parse_from([
+            "snapback",
+            "auth",
+            "backup",
+            "--db",
+            "app.sqlite3",
+            "--output",
+            "backup",
+        ]);
+        assert!(matches!(
+            backup.command,
+            Some(HostCommand::Auth {
+                command: AuthCommand::Backup { .. }
+            })
+        ));
+
+        let restore = Cli::parse_from([
+            "snapback",
+            "auth",
+            "restore",
+            "--from",
+            "backup",
+            "--db",
+            "restored/app.sqlite3",
+        ]);
+        assert!(matches!(
+            restore.command,
+            Some(HostCommand::Auth {
+                command: AuthCommand::Restore { .. }
+            })
+        ));
+
+        let start = Cli::parse_from([
+            "snapback",
+            "start",
+            "--db",
+            "restored/app.sqlite3",
+            "--restored-from-backup",
+            "019b0000-0000-7000-8000-000000000000",
+        ]);
+        assert!(matches!(
+            start.command,
+            Some(HostCommand::Start(Args {
+                restored_from_backup: Some(_),
+                ..
+            }))
+        ));
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "start",
+                "--memory",
+                "--restored-from-backup",
+                "019b0000-0000-7000-8000-000000000000",
+            ])
+            .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
+        use rusqlite::params;
+
+        let directory = tempfile::tempdir().unwrap();
+        let source_database = directory.path().join("source.sqlite3");
+        let mut database = crate::storage::LocalDatabase::open(&source_database).unwrap();
+        let keyring = crate::auth::keyring::AuthKeyringStore::file_for_database(&source_database);
+        crate::auth::lifecycle::activate_catalog(
+            &mut database,
+            &keyring,
+            1_700_000_000_000,
+            &crate::auth::crypto::OsRandom,
+        )
+        .unwrap();
+        let key_id = keyring
+            .with_active_key(
+                1_700_000_000_000,
+                &crate::auth::crypto::OsRandom,
+                |id, _| id.as_str().to_owned(),
+            )
+            .unwrap();
+        database
+            .with_auth_transaction(|transaction| {
+                transaction.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('user', 0)",
+                    [],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES('identity', 'user', 'email-code', 'person@example.com', 0)",
+                    [],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms, revoked_at_ms
+                     ) VALUES('session', 'user', 'identity', 'authority', ?1,
+                              1, 0, 0, 2000000000000, 2000000000000, NULL)",
+                    params![vec![1_u8; 32]],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_verification_codes(
+                       challenge_id, canonical_address, code_digest, key_id,
+                       attempts, max_attempts, requested_at_ms, expires_at_ms,
+                       consumed_at_ms, superseded_by
+                     ) VALUES('sbc_AAAAAAAAAAAAAAAAAAAAAA', 'person@example.com', ?1, ?2,
+                              0, 5, 0, 2000000000000, NULL, NULL)",
+                    params![vec![2_u8; 32], key_id],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        drop(database);
+
+        let backup = directory.path().join("backup");
+        super::auth_backup(&source_database, &backup).await.unwrap();
+        let restored_database = directory.path().join("restored").join("app.sqlite3");
+        super::auth_restore(&backup, &restored_database).unwrap();
+        let declaration_path = restored_database
+            .parent()
+            .unwrap()
+            .join(crate::auth::lifecycle::RESTORE_DECLARATION_FILE);
+        let declaration = crate::auth::lifecycle::RestoreDeclaration::parse(
+            &crate::secure_file::read_owner_only(&declaration_path).unwrap(),
+        )
+        .unwrap();
+
+        let ready = directory.path().join("restored.ready.json");
+        let missing = super::run(Args {
+            host: "127.0.0.1".to_owned(),
+            port: Some(0),
+            db: restored_database.clone(),
+            memory: false,
+            ready_file: Some(ready.clone()),
+            restored_from_backup: None,
+        })
+        .await
+        .expect_err("restored rows must not reach a listener without declaration authority");
+        assert!(missing.to_string().contains("--restored-from-backup"));
+        assert!(!ready.exists());
+
+        let declaration_id = declaration.declaration_id().to_owned();
+        let server = tokio::spawn(super::run(Args {
+            host: "127.0.0.1".to_owned(),
+            port: Some(0),
+            db: restored_database.clone(),
+            memory: false,
+            ready_file: Some(ready.clone()),
+            restored_from_backup: Some(declaration_id),
+        }));
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !ready.exists() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "declared restore never reached readiness"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        server.abort();
+        let _ = server.await;
+        assert!(!declaration_path.exists());
+
+        let restored = crate::storage::LocalDatabase::open(&restored_database).unwrap();
+        let facts = restored
+            .with_auth_read(|connection| {
+                Ok((
+                    connection.query_row(
+                        "SELECT generation, revoked_at_ms IS NOT NULL
+                         FROM _auth_sessions WHERE id = 'session'",
+                        [],
+                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, bool>(1)?)),
+                    )?,
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _auth_verification_codes",
+                        [],
+                        |row| row.get::<_, i64>(0),
+                    )?,
+                ))
+            })
+            .unwrap();
+        assert_eq!(facts, ((2, true), 0));
     }
 
     #[test]
