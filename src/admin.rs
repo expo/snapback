@@ -13,6 +13,7 @@ use crate::admin_secret_read::{
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController};
 use crate::auth::invocation::PreparedAuthority;
+use crate::auth::lease::AuthorizedLeaseConfig;
 use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
@@ -667,6 +668,10 @@ pub struct AppState {
     /// Authenticated boot identity installed before listener bind. Its absence
     /// keeps session-mode auth-scoped live admission fail-closed.
     pub(crate) auth_invalidation: Option<crate::auth::invalidation::LiveInvalidationIssuer>,
+    /// Validated per-app lease duration. Construction rejects zero or values
+    /// above the protocol hard maximum; the handshake projects this exact
+    /// value only when authorized-lease readiness is true.
+    pub(crate) authorized_lease_config: AuthorizedLeaseConfig,
     /// One-shot test seam for a failure after durable mode commit but before
     /// the clone-shared request projection is installed.
     #[cfg(test)]
@@ -724,6 +729,7 @@ impl AppState {
                 auth_coordinator: None,
                 auth_catalog_ready: false,
                 auth_invalidation: None,
+                authorized_lease_config: AuthorizedLeaseConfig::default(),
                 #[cfg(test)]
                 fail_auth_mode_publication: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             },
@@ -800,6 +806,17 @@ impl AppState {
         self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = catalog_ready;
         self
+    }
+
+    /// Configure a shorter per-app authorization lease duration. This trusted
+    /// startup/embedding seam returns a configuration error instead of
+    /// silently clamping a value above the frozen 24-hour maximum.
+    pub fn with_authorized_lease_duration_ms(
+        mut self,
+        configured_ms: u64,
+    ) -> Result<Self, SnapbackError> {
+        self.authorized_lease_config = AuthorizedLeaseConfig::new(configured_ms)?;
+        Ok(self)
     }
 
     /// Install the validated pre-bind mode authority and readiness facts.

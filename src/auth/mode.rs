@@ -417,6 +417,17 @@ impl AuthProgramReadiness {
                 "session activation readiness is not derived from the required facts",
             ));
         }
+        if self.authorized_lease
+            && (!self.session_activation_ready
+                || !self.authorization_invalidation
+                || !self.authority_descriptor)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "authorized-lease readiness requires items 5, 6, and 7",
+            ));
+        }
         Ok(())
     }
 }

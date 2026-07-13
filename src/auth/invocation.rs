@@ -273,6 +273,12 @@ pub enum ResolvedAppAuthority {
         provider: String,
         generation: u64,
         authority_instance_id: String,
+        /// Earliest durable session deadline captured by the trusted
+        /// projection. It is server-held and never enters `ctx.auth`.
+        session_not_after_ms: u64,
+        /// Optional provider-assertion deadline when it differs from the
+        /// session's own lifetime.
+        provider_not_after_ms: Option<u64>,
     },
     DevImpersonation {
         user_id: String,
@@ -293,6 +299,8 @@ impl ResolvedAppAuthority {
             provider: session.provider,
             generation: session.generation,
             authority_instance_id: session.authority_instance_id,
+            session_not_after_ms: session.expires_at_ms.min(session.absolute_expires_at_ms),
+            provider_not_after_ms: None,
         }
     }
 
@@ -1261,6 +1269,8 @@ mod tests {
                 provider: "email-code".to_owned(),
                 generation: 3,
                 authority_instance_id: "authority_1".to_owned(),
+                session_not_after_ms: 10_000,
+                provider_not_after_ms: None,
             },
         ))
         .unwrap();
@@ -1318,6 +1328,8 @@ mod tests {
                 provider: "email-code".to_owned(),
                 generation: 1,
                 authority_instance_id: "authority".to_owned(),
+                session_not_after_ms: 10_000,
+                provider_not_after_ms: None,
             },
             Kind::Dev => ResolvedAppAuthority::DevImpersonation {
                 user_id: "dev".to_owned(),
@@ -1428,6 +1440,8 @@ mod tests {
             provider: "email-code".to_owned(),
             generation: 1,
             authority_instance_id: "authority".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
         };
         let initial = InvocationGate::prepare_authority(
             InvocationSource::LiveInitialQuery,
@@ -1490,6 +1504,8 @@ mod tests {
             provider: "email-code".to_owned(),
             generation: 4,
             authority_instance_id: "authority-instance".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
         };
         let initial = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveInitialQuery,

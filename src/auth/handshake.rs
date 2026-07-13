@@ -9,6 +9,7 @@ use axum::http::HeaderMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::auth::lease::{AuthorizedLeaseConfig, AuthorizedLeaseFacts};
 pub use crate::auth::mode::{
     AppDataAvailability as AppDataAvailabilityWire, AuthModeStatus as AuthModeStateWire,
     AuthProgramReadiness,
@@ -161,6 +162,10 @@ pub struct AuthSessionResponse {
     pub authority: AuthSessionAuthority,
     /// Consistency only: possession never authorizes an invocation.
     pub authority_descriptor: AuthorityDescriptor,
+    /// Exact lease capability facts appear only when this binary's full
+    /// issuance/store/service implementation is ready. A client offer alone
+    /// can never manufacture support.
+    pub authorized_lease: Option<AuthorizedLeaseFacts>,
 }
 
 #[derive(Clone, Debug)]
@@ -178,6 +183,7 @@ pub struct AuthSessionFacts {
     pub provider_ready: bool,
     pub authority: AuthSessionAuthority,
     pub authority_descriptor: AuthorityDescriptor,
+    pub authorized_lease_config: AuthorizedLeaseConfig,
 }
 
 impl AuthSessionResponse {
@@ -208,6 +214,10 @@ impl AuthSessionResponse {
             transports: vec!["bearer".to_owned()],
             authority: facts.authority,
             authority_descriptor: facts.authority_descriptor,
+            authorized_lease: facts
+                .readiness
+                .authorized_lease
+                .then(|| AuthorizedLeaseFacts::from(facts.authorized_lease_config)),
         }
     }
 }
@@ -358,6 +368,7 @@ mod tests {
                 authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
                 session_generation: 0,
             },
+            authorized_lease_config: AuthorizedLeaseConfig::default(),
         }
     }
 

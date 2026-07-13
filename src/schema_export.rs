@@ -19,6 +19,7 @@ use serde_json::Value;
 
 use crate::admin::AdminInspect;
 use crate::auth::handshake::AuthSessionResponse;
+use crate::auth::lease::AuthorizedLease;
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -40,7 +41,10 @@ use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
-use crate::server::{ConnectionGrant, ErrorResponse, MutationResponse, OpenConnectionRequest};
+use crate::server::{
+    AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
+    MutationResponse, OpenConnectionRequest,
+};
 use crate::storage::StorageInfo;
 
 /// A generated schema artifact: the committed file name (relative to the
@@ -149,6 +153,18 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.session.output.schema.json",
             schemars::schema_for!(AuthSessionResponse),
+        ),
+        finish(
+            "authorized-lease.schema.json",
+            schemars::schema_for!(AuthorizedLease),
+        ),
+        finish(
+            "authorized-lease.query.input.schema.json",
+            schemars::schema_for!(AuthorizedLeaseQueryRequest),
+        ),
+        finish(
+            "authorized-lease.query.output.schema.json",
+            schemars::schema_for!(AuthorizedLeaseQueryResponse),
         ),
         finish(
             "auth.request-code.output.schema.json",

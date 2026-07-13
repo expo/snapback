@@ -12,6 +12,10 @@ use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
     RetainedLiveAuthority, WireAuthorityFields,
 };
+use crate::auth::lease::{
+    AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
+    AuthorizedLeaseRequestIdentity, authorized_lease_activation_hash,
+};
 use crate::auth::mode::{
     AuthModeStateRecord, DeploymentIdentity, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
 };
@@ -1876,6 +1880,17 @@ pub(crate) struct QueryInvocation {
     pub(crate) read_dependencies: Vec<CapturedReadDependency>,
 }
 
+/// First phase of an authorized retained snapshot. It crosses the app-lock
+/// release needed to preserve provider-before-app lock ordering, but remains
+/// bound to the original admission epoch and complete unsigned lease issue.
+pub(crate) struct AuthorizedLeaseCapture {
+    pub(crate) output: QueryOutput,
+    pub(crate) issue: AuthorizedLeaseIssue,
+    pub(crate) target_profile_id: String,
+    pub(crate) app_id: String,
+    admission: AdmissionLease,
+}
+
 struct AuthorizationResolutionFailure {
     error: SnapbackError,
     retry_episode_id: Option<String>,
@@ -2982,6 +2997,190 @@ impl LocalSnapback {
             &prepared,
             Some(&self.warm_vms),
         )
+    }
+
+    /// Execute the only full revalidation path permitted to mint an
+    /// AuthorizedLease. Query result, data head, authorization pair,
+    /// activation, issuer, and empty-obligation state are captured while the
+    /// app instance is one coherent read. Signing happens only after this
+    /// method releases the app lock; final reservation rechecks every fact.
+    ///
+    /// @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+    /// opaque/undeclared queries cannot retain, and a pending invalidation can
+    /// never ride a lease-bearing snapshot.
+    pub(crate) fn capture_authorized_lease_query(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        request: AuthorizedLeaseRequestIdentity,
+    ) -> SnapbackResult<AuthorizedLeaseCapture> {
+        request.validate()?;
+        authority.validate_admission("authorized lease full-query capture")?;
+        let function = self.function(name)?;
+        if !function.is_user_scoped_retainable_query() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE",
+                "auth",
+                "authorized leases require a declared userId-only retainable query",
+            ));
+        }
+        let (
+            principal_id,
+            session_id_at_issue,
+            provider_key,
+            session_not_after_ms,
+            provider_not_after_ms,
+            authority_instance_id,
+        ) = match authority.resolved() {
+            ResolvedAppAuthority::Session {
+                user_id,
+                session_id,
+                provider,
+                authority_instance_id,
+                session_not_after_ms,
+                provider_not_after_ms,
+                ..
+            } => (
+                user_id.clone(),
+                Some(session_id.clone()),
+                Some(provider.clone()),
+                Some(*session_not_after_ms),
+                *provider_not_after_ms,
+                Some(authority_instance_id.clone()),
+            ),
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
+                    "auth",
+                    "authorized retained queries require resolved session authority",
+                ));
+            }
+        };
+        let invalidation = self.auth_invalidation.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE",
+                "auth",
+                "authorization invalidation state is unavailable",
+            )
+        })?;
+        if !invalidation.obligations.pending_all().is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_PENDING",
+                "auth",
+                "an authorization/query/connection obligation is pending",
+            ));
+        }
+        let deployment = self
+            .db
+            .auth_mode_snapshot()?
+            .state
+            .active_deployment
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE",
+                    "auth",
+                    "active deployment identity is unavailable",
+                )
+            })?;
+        if deployment.auth_mode != AuthMode::Sessions {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
+                "auth",
+                "authorized leases are unavailable outside sessions mode",
+            ));
+        }
+        let target_profile_id = self
+            .db
+            .schema()
+            .target_profile
+            .clone()
+            .unwrap_or_else(|| TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned());
+        let issuer_id = invalidation.issuer.authenticated().issuer_id.clone();
+        let authorization = invalidation.obligations.expectation().authorization.clone();
+        let version_stream = invalidation.version_stream.clone();
+        let admission = authority.admission_lease().clone();
+        let output = self
+            .invoke_query_with_dependencies_prepared(name, input, authority)?
+            .output;
+        if output.version != self.db.current_version()? {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORIZED_LEASE_STALE",
+                "auth",
+                "full query did not finish at the current data head",
+            ));
+        }
+        // This guard covers the capture boundary. The cloned lease remains
+        // live across signing and is consumed again at final reservation.
+        let _capture = admission.effect_guard("authorized lease full-query capture")?;
+        Ok(AuthorizedLeaseCapture {
+            issue: AuthorizedLeaseIssue {
+                lease_id: format!("lease_{}", Uuid::now_v7().simple()),
+                lease_request_id: request.lease_request_id,
+                issuer_id,
+                client_store_id: request.client_store_id,
+                query_key: request.query_key,
+                query_instance_id: request.query_instance_id,
+                principal_id,
+                session_id_at_issue,
+                provider_key,
+                authorization,
+                data: AuthorizedLeaseData {
+                    version_stream,
+                    snapshot_commit_version: output.version,
+                },
+                activation_hash: authorized_lease_activation_hash(&deployment),
+                session_not_after_ms,
+                provider_not_after_ms,
+                authority_instance_id,
+            },
+            output,
+            target_profile_id,
+            app_id: deployment.app_id,
+            admission,
+        })
+    }
+
+    /// Reacquire the app lane after keyring signing and consume the one-shot
+    /// reservation only if the capture still exactly names the current head,
+    /// auth pair, activation, issuer, and empty obligation set.
+    pub(crate) fn reserve_captured_authorized_lease(
+        &mut self,
+        capture: AuthorizedLeaseCapture,
+        lease: &AuthorizedLease,
+        config: AuthorizedLeaseConfig,
+        issued_at_server_ms: u64,
+    ) -> SnapbackResult<QueryOutput> {
+        capture
+            .issue
+            .require_issued_lease(lease, issued_at_server_ms)?;
+        capture.admission.validate("authorized lease reservation")?;
+        let no_pending_obligation = self
+            .auth_invalidation
+            .as_ref()
+            .is_some_and(|state| state.obligations.pending_all().is_empty());
+        let current_issuer_id = self
+            .auth_invalidation
+            .as_ref()
+            .map(|state| state.issuer.authenticated().issuer_id.clone())
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE",
+                    "auth",
+                    "authorization invalidation state is unavailable",
+                )
+            })?;
+        let _reservation = capture
+            .admission
+            .effect_guard("authorized lease reservation transaction")?;
+        self.db.reserve_authorized_lease(
+            lease,
+            config,
+            issued_at_server_ms,
+            no_pending_obligation,
+            &current_issuer_id,
+        )?;
+        Ok(capture.output)
     }
 
     pub fn invoke_mutation(

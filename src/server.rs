@@ -17,6 +17,9 @@ use crate::auth::invocation::{
     HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority,
     ResolvedAppAuthority, WireAuthorityFields,
 };
+use crate::auth::lease::{
+    AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
+};
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
@@ -50,7 +53,7 @@ use crate::local::{
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
     HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
-    MutationRequest, SchemaManifest, SeedData,
+    MutationRequest, QueryOutput, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -2663,6 +2666,39 @@ pub struct MutationResponse {
     pub receipt: Receipt,
 }
 
+/// Closed request carrier for the sole full-query lease issuance path.
+/// `HandlerInput` remains flattened so route middleware sees body-carried dev
+/// authority exactly where ordinary query middleware sees it; sessions mode
+/// rejects that legacy authority and installs the resolved bearer instead.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct AuthorizedLeaseQueryRequest {
+    #[serde(flatten)]
+    pub input: HandlerInput,
+    #[serde(flatten)]
+    pub lease_request: AuthorizedLeaseRequestIdentity,
+}
+
+/// Query rows and their authorization proof are one response boundary. The
+/// client must commit both together or delete the attempted retained result.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizedLeaseQueryResponse {
+    pub version: u64,
+    pub rows: Vec<Value>,
+    pub authorized_lease: AuthorizedLease,
+}
+
+impl AuthorizedLeaseQueryResponse {
+    fn from_parts(output: QueryOutput, authorized_lease: AuthorizedLease) -> Self {
+        let QueryOutput { version, rows } = output;
+        Self {
+            version,
+            rows,
+            authorized_lease,
+        }
+    }
+}
+
 impl MutationResponse {
     fn from_output(output: MutationOutput, receipt: Receipt) -> Self {
         // Exhaustive destructuring makes an added MutationOutput field a
@@ -3493,6 +3529,10 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         ),
         RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
         RegisteredRoute::new(
+            app_auth_route("POST", "/query/{name}/authorized-lease"),
+            post(invoke_authorized_lease_query),
+        ),
+        RegisteredRoute::new(
             app_auth_route("POST", "/client-mutations/acknowledge"),
             post(acknowledge_mutations),
         ),
@@ -4161,6 +4201,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
     match spec.path {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
+        "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge"
@@ -5444,6 +5485,7 @@ async fn auth_session(
                 is_authenticated: projection.is_authenticated(),
             },
             authority_descriptor,
+            authorized_lease_config: runtime.authorized_lease_config,
         },
         offers,
     );
@@ -8689,6 +8731,76 @@ async fn invoke_query(
         .await?
     };
     Ok(Json(output))
+}
+
+/// Run a fresh full query, sign outside the app lock (preserving the global
+/// provider-before-app lock order), then reacquire the app lane for one exact
+/// head/auth/activation/no-pending reservation transaction.
+async fn invoke_authorized_lease_query(
+    State(runtime): State<AppState>,
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(name): Path<String>,
+    headers: HeaderMap,
+    request: Result<Json<AuthorizedLeaseQueryRequest>, JsonRejection>,
+) -> Result<Json<AuthorizedLeaseQueryResponse>, ApiError> {
+    if !runtime.auth_program_readiness().authorized_lease {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "authorized retained reads are unavailable in this process",
+        )
+        .into());
+    }
+    let offers = AuthClientProtocolOffers::from_headers(&headers);
+    if offers.authorized_lease != Some(u64::from(AUTHORIZED_LEASE_PROTOCOL_VERSION))
+        || offers.auth_invalidation != Some(AUTH_PROTOCOL_V1)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "authorized retained reads require exact lease and invalidation protocol offers",
+        )
+        .into());
+    }
+    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let AuthorizedLeaseQueryRequest {
+        input,
+        lease_request,
+    } = request;
+    let capture = with_snapback(&state, move |snapback| {
+        snapback.capture_authorized_lease_query(&name, input, authority, lease_request)
+    })
+    .await?;
+
+    // Never acquire the protocol keyring while the app instance lock is held.
+    let provider = installed_auth_provider(&runtime)?;
+    let issued_at_server_ms = provider.now_ms();
+    let config = runtime.authorized_lease_config;
+    let target_profile_id = capture.target_profile_id.clone();
+    let app_id = capture.app_id.clone();
+    let lease = provider
+        .issue_authorized_lease_at(
+            capture.issue.clone(),
+            config,
+            issued_at_server_ms,
+            &target_profile_id,
+            &app_id,
+        )
+        .map_err(ApiError::from)?;
+    let lease_for_reservation = lease.clone();
+    let output = with_snapback(&state, move |snapback| {
+        snapback.reserve_captured_authorized_lease(
+            capture,
+            &lease_for_reservation,
+            config,
+            issued_at_server_ms,
+        )
+    })
+    .await?;
+    Ok(Json(AuthorizedLeaseQueryResponse::from_parts(
+        output, lease,
+    )))
 }
 
 /// Standalone authenticated settlement acknowledgement. A consumed replay

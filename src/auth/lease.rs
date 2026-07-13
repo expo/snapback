@@ -15,6 +15,7 @@ use hmac::{Hmac, Mac as _};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
+use uuid::Uuid;
 
 use crate::auth::crypto::{AuthKeyId, AuthKeyMaterial};
 use crate::auth::invalidation::IssuerId;
@@ -28,6 +29,7 @@ pub const AUTHORIZED_LEASE_HARD_MAX_MS: u64 = 86_400_000;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 const LEASE_MAC_DOMAIN: &str = "snapback.authorized-lease.v1";
 const ACTIVATION_HASH_DOMAIN: &str = "snapback.authorized-lease.activation.v1";
+const ACTIVATION_HASH_PREFIX: &str = "snapback.authorized-lease.activation.v1:sha256:";
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -132,6 +134,27 @@ pub struct AuthorizedLeaseData {
     pub snapshot_commit_version: u64,
 }
 
+/// Client-selected one-shot identity for a fresh full revalidation.  The
+/// query arguments and resolved authority travel through the ordinary query
+/// gate; these four values name only the durable client-store reservation.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizedLeaseRequestIdentity {
+    pub lease_request_id: String,
+    pub client_store_id: String,
+    pub query_key: String,
+    pub query_instance_id: u64,
+}
+
+impl AuthorizedLeaseRequestIdentity {
+    pub fn validate(&self) -> SnapbackResult<()> {
+        validate_opaque_id(&self.lease_request_id, "leaseRequestId")?;
+        validate_opaque_id(&self.client_store_id, "clientStoreId")?;
+        validate_query_key(&self.query_key)?;
+        validate_counter(self.query_instance_id, "queryInstanceId", true)
+    }
+}
+
 /// Exact server-issued envelope.  `deny_unknown_fields` makes protocol v1
 /// closed in both directions; additive fields require a new version.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -232,6 +255,24 @@ pub struct AuthorizedLeaseAuthenticator {
     key: [u8; 32],
 }
 
+/// Non-forgeable crate-internal proof that the persistent protocol keyring
+/// accepted shape, MAC, time, configuration, and a complete expected binding
+/// before the app/database lane was acquired.
+pub(crate) struct VerifiedAuthorizedLease {
+    lease: AuthorizedLease,
+    verified_at_server_ms: u64,
+}
+
+impl VerifiedAuthorizedLease {
+    pub(crate) fn lease(&self) -> &AuthorizedLease {
+        &self.lease
+    }
+
+    pub(crate) fn verified_at_server_ms(&self) -> u64 {
+        self.verified_at_server_ms
+    }
+}
+
 impl Drop for AuthorizedLeaseAuthenticator {
     fn drop(&mut self) {
         use zeroize::Zeroize as _;
@@ -328,7 +369,7 @@ impl AuthorizedLeaseAuthenticator {
     /// Verify shape, MAC, time, configuration, and every caller-provided
     /// equality axis.  The durable server clock high-water must be checked by
     /// storage immediately before this method is used for service admission.
-    pub fn verify_for_service(
+    pub(crate) fn verify_for_service(
         &self,
         lease: &AuthorizedLease,
         expectation: &AuthorizedLeaseExpectation,
@@ -336,7 +377,7 @@ impl AuthorizedLeaseAuthenticator {
         now_ms: u64,
         target_profile_id: &str,
         app_id: &str,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<VerifiedAuthorizedLease> {
         lease.validate_shape(config)?;
         if lease.key_id != self.key_id.as_str() {
             return Err(invalid("authorized lease names another protocol key"));
@@ -360,7 +401,11 @@ impl AuthorizedLeaseAuthenticator {
                 "authorized lease is expired",
             ));
         }
-        lease.require_expectation(expectation)
+        lease.require_expectation(expectation)?;
+        Ok(VerifiedAuthorizedLease {
+            lease: lease.clone(),
+            verified_at_server_ms: now_ms,
+        })
     }
 
     fn mac(
@@ -379,8 +424,8 @@ impl AuthorizedLeaseAuthenticator {
         target_profile_id: &str,
         app_id: &str,
     ) -> SnapbackResult<HmacSha256> {
-        validate_identity(target_profile_id, "targetProfileId", 512)?;
-        validate_identity(app_id, "appId", 512)?;
+        validate_opaque_id(target_profile_id, "targetProfileId")?;
+        validate_opaque_id(app_id, "appId")?;
         let mut mac = HmacSha256::new_from_slice(&self.key)
             .map_err(|_| invalid("authorized lease protocol key has invalid length"))?;
         put_string(&mut mac, LEASE_MAC_DOMAIN);
@@ -419,27 +464,23 @@ impl AuthorizedLease {
             return Err(invalid("unsupported authorized lease protocol version"));
         }
         self.issuer_id.validate()?;
-        validate_identity(&self.lease_id, "leaseId", 256)?;
-        validate_identity(&self.lease_request_id, "leaseRequestId", 256)?;
-        validate_identity(&self.client_store_id, "clientStoreId", 256)?;
-        validate_identity(&self.query_key, "queryKey", 8_192)?;
+        validate_opaque_id(&self.lease_id, "leaseId")?;
+        validate_opaque_id(&self.lease_request_id, "leaseRequestId")?;
+        validate_opaque_id(&self.client_store_id, "clientStoreId")?;
+        validate_query_key(&self.query_key)?;
         validate_counter(self.query_instance_id, "queryInstanceId", true)?;
-        validate_identity(&self.principal_id, "principalId", 1_024)?;
-        validate_optional_identity(self.session_id_at_issue.as_deref(), "sessionIdAtIssue", 256)?;
-        validate_optional_identity(self.provider_key.as_deref(), "providerKey", 256)?;
-        validate_identity(
-            &self.authorization.incarnation,
-            "authorization.incarnation",
-            256,
-        )?;
+        validate_opaque_id(&self.principal_id, "principalId")?;
+        validate_optional_opaque_id(self.session_id_at_issue.as_deref(), "sessionIdAtIssue")?;
+        validate_optional_opaque_id(self.provider_key.as_deref(), "providerKey")?;
+        validate_opaque_id(&self.authorization.incarnation, "authorization.incarnation")?;
         validate_counter(self.authorization.epoch, "authorization.epoch", false)?;
-        validate_identity(&self.data.version_stream, "data.versionStream", 256)?;
+        validate_opaque_id(&self.data.version_stream, "data.versionStream")?;
         validate_counter(
             self.data.snapshot_commit_version,
             "data.snapshotCommitVersion",
             false,
         )?;
-        validate_identity(&self.activation_hash, "activationHash", 1_024)?;
+        validate_activation_hash(&self.activation_hash)?;
         validate_timestamp(self.issued_at_server_ms, "issuedAtServerMs")?;
         validate_timestamp(self.authorized_until_server_ms, "authorizedUntilServerMs")?;
         if self.authorized_until_server_ms <= self.issued_at_server_ms {
@@ -467,11 +508,13 @@ impl AuthorizedLease {
                 }
             }
         }
-        validate_optional_identity(
-            self.authority_instance_id.as_deref(),
-            "authorityInstanceId",
-            256,
-        )?;
+        if self.session_id_at_issue.is_some() && self.session_not_after_ms.is_none() {
+            return Err(invalid(
+                "sessionNotAfterMs is required when sessionIdAtIssue is present",
+            ));
+        }
+        validate_optional_uuid_v7(self.authority_instance_id.as_deref(), "authorityInstanceId")?;
+        validate_opaque_id(&self.key_id, "keyId")?;
         AuthKeyId::parse(&self.key_id)
             .map_err(|_| invalid("authorized lease keyId is not canonical"))?;
         let mac = URL_SAFE_NO_PAD
@@ -500,58 +543,125 @@ fn validate_issue(issue: &AuthorizedLeaseIssue) -> SnapbackResult<()> {
     // Reuse the exact envelope validator by constructing a temporary
     // well-shaped interval and canonical placeholder MAC/key.
     issue.issuer_id.validate()?;
-    validate_identity(&issue.lease_id, "leaseId", 256)?;
-    validate_identity(&issue.lease_request_id, "leaseRequestId", 256)?;
-    validate_identity(&issue.client_store_id, "clientStoreId", 256)?;
-    validate_identity(&issue.query_key, "queryKey", 8_192)?;
+    validate_opaque_id(&issue.lease_id, "leaseId")?;
+    validate_opaque_id(&issue.lease_request_id, "leaseRequestId")?;
+    validate_opaque_id(&issue.client_store_id, "clientStoreId")?;
+    validate_query_key(&issue.query_key)?;
     validate_counter(issue.query_instance_id, "queryInstanceId", true)?;
-    validate_identity(&issue.principal_id, "principalId", 1_024)?;
-    validate_optional_identity(
-        issue.session_id_at_issue.as_deref(),
-        "sessionIdAtIssue",
-        256,
-    )?;
-    validate_optional_identity(issue.provider_key.as_deref(), "providerKey", 256)?;
-    validate_identity(
+    validate_opaque_id(&issue.principal_id, "principalId")?;
+    validate_optional_opaque_id(issue.session_id_at_issue.as_deref(), "sessionIdAtIssue")?;
+    validate_optional_opaque_id(issue.provider_key.as_deref(), "providerKey")?;
+    validate_opaque_id(
         &issue.authorization.incarnation,
         "authorization.incarnation",
-        256,
     )?;
     validate_counter(issue.authorization.epoch, "authorization.epoch", false)?;
-    validate_identity(&issue.data.version_stream, "data.versionStream", 256)?;
+    validate_opaque_id(&issue.data.version_stream, "data.versionStream")?;
     validate_counter(
         issue.data.snapshot_commit_version,
         "data.snapshotCommitVersion",
         false,
     )?;
-    validate_identity(&issue.activation_hash, "activationHash", 1_024)?;
-    validate_optional_identity(
+    validate_activation_hash(&issue.activation_hash)?;
+    if issue.session_id_at_issue.is_some() && issue.session_not_after_ms.is_none() {
+        return Err(invalid(
+            "sessionNotAfterMs is required when sessionIdAtIssue is present",
+        ));
+    }
+    validate_optional_uuid_v7(
         issue.authority_instance_id.as_deref(),
         "authorityInstanceId",
-        256,
     )?;
     Ok(())
 }
 
-fn validate_optional_identity(
-    value: Option<&str>,
-    field: &str,
-    maximum: usize,
-) -> SnapbackResult<()> {
+impl AuthorizedLeaseIssue {
+    /// Exhaustive binding check used when the app lock is released for
+    /// provider-before-app keyring signing and later reacquired for the
+    /// atomic reservation. This prevents the second phase from accepting a
+    /// signed lease for any capture other than the one it is finalizing.
+    pub(crate) fn require_issued_lease(
+        &self,
+        lease: &AuthorizedLease,
+        issued_at_server_ms: u64,
+    ) -> SnapbackResult<()> {
+        let matches = lease.protocol_version == AUTHORIZED_LEASE_PROTOCOL_VERSION
+            && lease.lease_id == self.lease_id
+            && lease.lease_request_id == self.lease_request_id
+            && lease.issuer_id == self.issuer_id
+            && lease.client_store_id == self.client_store_id
+            && lease.query_key == self.query_key
+            && lease.query_instance_id == self.query_instance_id
+            && lease.principal_id == self.principal_id
+            && lease.session_id_at_issue == self.session_id_at_issue
+            && lease.provider_key == self.provider_key
+            && lease.authorization == self.authorization
+            && lease.data == self.data
+            && lease.activation_hash == self.activation_hash
+            && lease.issued_at_server_ms == issued_at_server_ms
+            && lease.session_not_after_ms == self.session_not_after_ms
+            && lease.provider_not_after_ms == self.provider_not_after_ms
+            && lease.authority_instance_id == self.authority_instance_id;
+        if !matches {
+            return Err(mismatch(
+                "signed authorized lease does not match its full-query capture",
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn validate_optional_opaque_id(value: Option<&str>, field: &str) -> SnapbackResult<()> {
     if let Some(value) = value {
-        validate_identity(value, field, maximum)?;
+        validate_opaque_id(value, field)?;
     }
     Ok(())
 }
 
-fn validate_identity(value: &str, field: &str, maximum: usize) -> SnapbackResult<()> {
-    if value.is_empty()
-        || value.len() > maximum
-        || value.chars().any(|character| character.is_control())
+fn validate_opaque_id(value: &str, field: &str) -> SnapbackResult<()> {
+    let bytes = value.as_bytes();
+    if bytes.is_empty()
+        || bytes.len() > 256
+        || !bytes[0].is_ascii_alphanumeric()
+        || !bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
     {
-        return Err(invalid(format!(
-            "{field} is not a bounded canonical identity"
-        )));
+        return Err(invalid(format!("{field} is not a canonical opaque id")));
+    }
+    Ok(())
+}
+
+fn validate_query_key(value: &str) -> SnapbackResult<()> {
+    if value.is_empty() || value.len() > 8_192 {
+        return Err(invalid("queryKey is not non-empty and bounded"));
+    }
+    Ok(())
+}
+
+fn validate_activation_hash(value: &str) -> SnapbackResult<()> {
+    let Some(digest) = value.strip_prefix(ACTIVATION_HASH_PREFIX) else {
+        return Err(invalid("activationHash is not canonical"));
+    };
+    if digest.len() != 64
+        || !digest
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err(invalid("activationHash is not canonical"));
+    }
+    Ok(())
+}
+
+fn validate_optional_uuid_v7(value: Option<&str>, field: &str) -> SnapbackResult<()> {
+    let Some(value) = value else {
+        return Ok(());
+    };
+    let parsed = Uuid::parse_str(value)
+        .map_err(|_| invalid(format!("{field} is not a canonical UUIDv7")))?;
+    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != value {
+        return Err(invalid(format!("{field} is not a canonical UUIDv7")));
     }
     Ok(())
 }
@@ -610,6 +720,7 @@ mod tests {
     const NOW: u64 = 1_800_000_000_000;
     const TARGET: &str = "local-dev-sqlite-ibex";
     const APP: &str = "app-test";
+    const AUTHORITY_INSTANCE: &str = "01890f3c-9d5b-7000-8000-000000000004";
 
     fn signer() -> AuthorizedLeaseAuthenticator {
         AuthorizedLeaseAuthenticator::from_test_key("sbak_AQEBAQEBAQEBAQEBAQEBAQ", [0x31; 32])
@@ -638,10 +749,10 @@ mod tests {
                 version_stream: "01890f3c-9d5b-7000-8000-000000000002".to_owned(),
                 snapshot_commit_version: 19,
             },
-            activation_hash: "snapback.v1:activation:sha256:abc".to_owned(),
+            activation_hash: format!("{ACTIVATION_HASH_PREFIX}{}", "a".repeat(64)),
             session_not_after_ms: Some(NOW + 70_000),
             provider_not_after_ms: Some(NOW + 60_000),
-            authority_instance_id: Some("authority_1".to_owned()),
+            authority_instance_id: Some(AUTHORITY_INSTANCE.to_owned()),
         }
     }
 
@@ -722,12 +833,18 @@ mod tests {
             ("principalId", serde_json::json!("user_2")),
             ("sessionIdAtIssue", serde_json::json!("session_2")),
             ("providerKey", serde_json::json!("other-provider")),
-            ("activationHash", serde_json::json!("other-activation")),
+            (
+                "activationHash",
+                serde_json::json!(format!("{ACTIVATION_HASH_PREFIX}{}", "b".repeat(64))),
+            ),
             ("issuedAtServerMs", serde_json::json!(NOW + 1)),
             ("authorizedUntilServerMs", serde_json::json!(NOW + 50_000)),
             ("sessionNotAfterMs", serde_json::json!(NOW + 71_000)),
             ("providerNotAfterMs", serde_json::json!(NOW + 61_000)),
-            ("authorityInstanceId", serde_json::json!("authority_2")),
+            (
+                "authorityInstanceId",
+                serde_json::json!("01890f3c-9d5b-7000-8000-000000000005"),
+            ),
             ("keyId", serde_json::json!("sbak_AgICAgICAgICAgICAgICAg")),
             (
                 "mac",
@@ -871,7 +988,7 @@ mod tests {
         ring.load_or_mint_initial(NOW, &random).unwrap();
         let issued_at = NOW + AUTH_KEY_ROTATION_AGE_MS - 1;
         let mut issue = issue();
-        issue.session_not_after_ms = None;
+        issue.session_not_after_ms = Some(issued_at + AUTHORIZED_LEASE_HARD_MAX_MS);
         issue.provider_not_after_ms = None;
         let lease = ring
             .with_active_key(issued_at, &random, |key_id, key| {

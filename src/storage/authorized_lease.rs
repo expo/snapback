@@ -13,8 +13,10 @@ use super::auth_invalidation::{
 use super::auth_mode::{OpenAuthModeInspection, inspect_for_open};
 use super::auth_stream::ensure_authorization_version_in;
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH, current_version_on};
+use crate::auth::invalidation::IssuerId;
 use crate::auth::lease::{
-    AuthorizedLease, AuthorizedLeaseConfig, authorized_lease_activation_hash,
+    AuthorizedLease, AuthorizedLeaseConfig, VerifiedAuthorizedLease,
+    authorized_lease_activation_hash,
 };
 use crate::auth::mode::{AppDataAvailability, AuthModeStatus};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -45,6 +47,7 @@ impl LocalDatabase {
         config: AuthorizedLeaseConfig,
         now_ms: u64,
         no_pending_obligation: bool,
+        current_issuer_id: &IssuerId,
     ) -> SnapbackResult<()> {
         lease.validate_shape(config)?;
         let tx = self
@@ -59,6 +62,10 @@ impl LocalDatabase {
         } else if !no_pending_obligation {
             Some(stale(
                 "an authorization/query/connection obligation is pending",
+            ))
+        } else if lease.issuer_id != *current_issuer_id {
+            Some(stale(
+                "authorized lease issuer is not the current process issuer",
             ))
         } else {
             lease_state_error(&tx, lease)?
@@ -133,27 +140,36 @@ impl LocalDatabase {
     }
 
     /// Gate every service that would otherwise trust a retained snapshot
-    /// without a fresh query. The verifier closure must compare the lease with
-    /// a server-resolved [`AuthorizedLeaseExpectation`], never one derived from
-    /// the presented envelope itself.
+    /// without a fresh query. Keyring verification happens before the app lock
+    /// and produces the non-forgeable token accepted here; this transaction
+    /// then checks current mutable state and advances the durable clock.
     pub(crate) fn authorize_revalidation_free_lease(
         &mut self,
-        lease: &AuthorizedLease,
+        verified: &VerifiedAuthorizedLease,
         config: AuthorizedLeaseConfig,
         now_ms: u64,
         no_pending_obligation: bool,
-        verify: impl FnOnce() -> SnapbackResult<()>,
     ) -> SnapbackResult<()> {
+        let lease = verified.lease();
         lease.validate_shape(config)?;
+        if now_ms < verified.verified_at_server_ms() {
+            return Err(lease_storage_error(
+                "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+                "service time is behind the verified lease sample",
+            ));
+        }
+        if now_ms >= lease.authorized_until_server_ms {
+            return Err(lease_storage_error(
+                "SNAPBACK_AUTHORIZED_LEASE_EXPIRED",
+                "authorized lease is expired",
+            ));
+        }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         advance_auth_clock_in(&tx, now_ms)?;
 
-        let verification = verify();
-        let semantic_error = if let Err(error) = verification {
-            Some(error)
-        } else if !no_pending_obligation {
+        let semantic_error = if !no_pending_obligation {
             Some(stale(
                 "a revalidation-free service cannot bypass a pending obligation",
             ))
@@ -377,9 +393,9 @@ mod tests {
                         snapshot_commit_version: db.current_version().unwrap(),
                     },
                     activation_hash: authorized_lease_activation_hash(&deployment),
-                    session_not_after_ms: None,
+                    session_not_after_ms: Some(now_ms + 86_400_000),
                     provider_not_after_ms: None,
-                    authority_instance_id: Some("authority_1".to_owned()),
+                    authority_instance_id: Some("01890f3c-9d5b-7000-8000-000000000004".to_owned()),
                 },
                 AuthorizedLeaseConfig::default(),
                 now_ms,
@@ -393,18 +409,33 @@ mod tests {
     fn reservation_is_one_atomic_exact_head_auth_activation_and_empty_obligation_proof() {
         let mut db = sessions_database(None);
         let valid = current_lease(&mut db, "request_valid", NOW);
-        db.reserve_authorized_lease(&valid, AuthorizedLeaseConfig::default(), NOW, true)
-            .unwrap();
+        db.reserve_authorized_lease(
+            &valid,
+            AuthorizedLeaseConfig::default(),
+            NOW,
+            true,
+            &valid.issuer_id,
+        )
+        .unwrap();
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 1);
 
         let pending = current_lease(&mut db, "request_pending", NOW + 1);
         let error = db
-            .reserve_authorized_lease(&pending, AuthorizedLeaseConfig::default(), NOW + 1, false)
+            .reserve_authorized_lease(
+                &pending,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                false,
+                &pending.issuer_id,
+            )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
 
         let mut wrong_activation = current_lease(&mut db, "request_activation", NOW + 2);
-        wrong_activation.activation_hash = "wrong-activation".to_owned();
+        wrong_activation.activation_hash = format!(
+            "snapback.authorized-lease.activation.v1:sha256:{}",
+            "f".repeat(64)
+        );
         wrong_activation = signer()
             .issue(
                 AuthorizedLeaseIssue {
@@ -419,8 +450,8 @@ mod tests {
                     provider_key: wrong_activation.provider_key,
                     authorization: wrong_activation.authorization,
                     data: wrong_activation.data,
-                    activation_hash: "wrong-activation".to_owned(),
-                    session_not_after_ms: None,
+                    activation_hash: wrong_activation.activation_hash,
+                    session_not_after_ms: Some(NOW + 2 + 86_400_000),
                     provider_not_after_ms: None,
                     authority_instance_id: wrong_activation.authority_instance_id,
                 },
@@ -436,6 +467,7 @@ mod tests {
                 AuthorizedLeaseConfig::default(),
                 NOW + 2,
                 true,
+                &wrong_activation.issuer_id,
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
@@ -456,7 +488,13 @@ mod tests {
         assert_eq!(db.authorization_version().unwrap(), epoch);
         assert_eq!(db.current_version().unwrap(), 1);
         let error = db
-            .reserve_authorized_lease(&captured, AuthorizedLeaseConfig::default(), NOW, true)
+            .reserve_authorized_lease(
+                &captured,
+                AuthorizedLeaseConfig::default(),
+                NOW,
+                true,
+                &captured.issuer_id,
+            )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
@@ -469,7 +507,13 @@ mod tests {
         let mut first = sessions_database(Some(&path));
         let lease = current_lease(&mut first, "request_once", NOW);
         first
-            .reserve_authorized_lease(&lease, AuthorizedLeaseConfig::default(), NOW, true)
+            .reserve_authorized_lease(
+                &lease,
+                AuthorizedLeaseConfig::default(),
+                NOW,
+                true,
+                &lease.issuer_id,
+            )
             .unwrap();
         let mut duplicate = current_lease(&mut first, "request_once", NOW + 1);
         duplicate.lease_id = "lease_different".to_owned();
@@ -501,7 +545,13 @@ mod tests {
             )
             .unwrap();
         let error = first
-            .reserve_authorized_lease(&duplicate, AuthorizedLeaseConfig::default(), NOW + 1, true)
+            .reserve_authorized_lease(
+                &duplicate,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                true,
+                &duplicate.issuer_id,
+            )
             .unwrap_err();
         assert_eq!(
             error.diagnostic.code,
@@ -511,32 +561,31 @@ mod tests {
 
         let mut reopened = LocalDatabase::open(&path).unwrap();
         let expectation = AuthorizedLeaseExpectation::from(&lease);
+        let verified = signer()
+            .verify_for_service(
+                &lease,
+                &expectation,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                "local-dev-sqlite-ibex",
+                "lease-test",
+            )
+            .unwrap();
         reopened
             .authorize_revalidation_free_lease(
-                &lease,
+                &verified,
                 AuthorizedLeaseConfig::default(),
                 NOW + 1,
                 true,
-                || {
-                    signer().verify_for_service(
-                        &lease,
-                        &expectation,
-                        AuthorizedLeaseConfig::default(),
-                        NOW + 1,
-                        "local-dev-sqlite-ibex",
-                        "lease-test",
-                    )
-                },
             )
             .unwrap();
         // Equality with the durable high-water remains valid after restart.
         let error = reopened
             .authorize_revalidation_free_lease(
-                &lease,
+                &verified,
                 AuthorizedLeaseConfig::default(),
                 NOW,
                 true,
-                || Ok(()),
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CLOCK_ROLLBACK");
@@ -546,24 +595,30 @@ mod tests {
     fn valid_service_requires_exact_current_state_and_does_not_renew_lease() {
         let mut db = sessions_database(None);
         let lease = current_lease(&mut db, "request_service", NOW);
-        db.reserve_authorized_lease(&lease, AuthorizedLeaseConfig::default(), NOW, true)
-            .unwrap();
-        let expectation = AuthorizedLeaseExpectation::from(&lease);
-        db.authorize_revalidation_free_lease(
+        db.reserve_authorized_lease(
             &lease,
+            AuthorizedLeaseConfig::default(),
+            NOW,
+            true,
+            &lease.issuer_id,
+        )
+        .unwrap();
+        let expectation = AuthorizedLeaseExpectation::from(&lease);
+        let verified = signer()
+            .verify_for_service(
+                &lease,
+                &expectation,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                "local-dev-sqlite-ibex",
+                "lease-test",
+            )
+            .unwrap();
+        db.authorize_revalidation_free_lease(
+            &verified,
             AuthorizedLeaseConfig::default(),
             NOW + 1,
             true,
-            || {
-                signer().verify_for_service(
-                    &lease,
-                    &expectation,
-                    AuthorizedLeaseConfig::default(),
-                    NOW + 1,
-                    "local-dev-sqlite-ibex",
-                    "lease-test",
-                )
-            },
         )
         .unwrap();
         assert_eq!(

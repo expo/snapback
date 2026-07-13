@@ -30,6 +30,10 @@ use super::crypto::{
     SessionBearer, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
+use super::lease::{
+    AuthorizedLease, AuthorizedLeaseAuthenticator, AuthorizedLeaseConfig,
+    AuthorizedLeaseExpectation, AuthorizedLeaseIssue, VerifiedAuthorizedLease,
+};
 use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
 use super::session_projection::ProjectedSessionInsert;
@@ -844,6 +848,69 @@ impl AuthProvider {
             })
             .map_err(|_| provider_unavailable())?
             .map_err(|_| provider_unavailable())
+    }
+
+    /// Issue an authorization lease with the same persistent owner-only
+    /// protocol keyring as invalidation, under a distinct MAC domain.  The
+    /// caller supplies the single server-time sample later committed with the
+    /// reservation so query, expiry, and rollback checks cannot disagree.
+    ///
+    /// @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+    /// lease keys rotate persistently and old keys remain verify-only for the
+    /// full maximum lease lifetime.
+    pub(crate) fn issue_authorized_lease_at(
+        &self,
+        issue: AuthorizedLeaseIssue,
+        config: AuthorizedLeaseConfig,
+        now_ms: u64,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<AuthorizedLease> {
+        self.keyring
+            .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
+                AuthorizedLeaseAuthenticator::new(key_id, key).issue(
+                    issue,
+                    config,
+                    now_ms,
+                    target_profile_id,
+                    app_id,
+                )
+            })
+            .map_err(|_| authorized_lease_key_unavailable())?
+    }
+
+    /// Verify a lease with its named active or retired key.  Missing/corrupt
+    /// key state is an availability failure, never permission to fall back to
+    /// ambient session authority.
+    pub(crate) fn verify_authorized_lease_at(
+        &self,
+        lease: &AuthorizedLease,
+        expectation: &AuthorizedLeaseExpectation,
+        config: AuthorizedLeaseConfig,
+        now_ms: u64,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<VerifiedAuthorizedLease> {
+        lease.validate_shape(config)?;
+        let key_id = AuthKeyId::parse(&lease.key_id).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTHORIZED_LEASE_INVALID",
+                "auth",
+                "authorized lease key id is invalid",
+            )
+        })?;
+        self.keyring
+            .with_key(&key_id, |key| {
+                AuthorizedLeaseAuthenticator::new(&key_id, key).verify_for_service(
+                    lease,
+                    expectation,
+                    config,
+                    now_ms,
+                    target_profile_id,
+                    app_id,
+                )
+            })
+            .map_err(|_| authorized_lease_key_unavailable())?
     }
 
     /// Closed, non-secret health fact. Session-digest resolution deliberately
@@ -4070,6 +4137,14 @@ fn provider_unavailable() -> ProviderError {
         "auth",
         "authentication provider is unavailable",
     ))
+}
+
+fn authorized_lease_key_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTHORIZED_LEASE_KEY_UNAVAILABLE",
+        "auth",
+        "authorized lease protocol key is unavailable",
+    )
 }
 
 pub(crate) fn code_invalid() -> ProviderError {
