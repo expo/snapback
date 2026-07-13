@@ -131,6 +131,10 @@ pub struct CronRunClaim {
     pub job: CronJobDefinition,
     pub metadata: CronRunMetadata,
     pub started_at_ms: u64,
+    /// Monotonic identity of the installed definition that created this
+    /// claim. Kept separate from the content hash so an A -> B -> A reload
+    /// cannot make the first A's completion look current again.
+    pub definition_generation: u64,
 }
 
 /// @ref LLP 0028#scheduler-state-and-run-ledger — cron definitions are source
@@ -143,6 +147,8 @@ pub struct LocalCronRuntime {
     recent_runs: VecDeque<CronRunRecord>,
     diagnostics: VecDeque<Diagnostic>,
     next_run_seq: u64,
+    #[serde(default)]
+    next_definition_generation: u64,
 }
 
 const CRON_RUNTIME_FORMAT_VERSION: u32 = 1;
@@ -164,6 +170,7 @@ impl Default for LocalCronRuntime {
             recent_runs: VecDeque::new(),
             diagnostics: VecDeque::new(),
             next_run_seq: 0,
+            next_definition_generation: 0,
         }
     }
 }
@@ -171,6 +178,8 @@ impl Default for LocalCronRuntime {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct CronJobRuntimeState {
     schedule_hash: String,
+    #[serde(default)]
+    definition_generation: u64,
     jitter_seed: String,
     jitter_offset_ms: u64,
     next_nominal_at_ms: Option<u64>,
@@ -256,6 +265,14 @@ impl LocalCronRuntime {
                 "supportedVersion": CRON_RUNTIME_FORMAT_VERSION,
             })));
         }
+        runtime.next_definition_generation = runtime.next_definition_generation.max(
+            runtime
+                .states
+                .values()
+                .map(|state| state.definition_generation)
+                .max()
+                .unwrap_or(0),
+        );
         // Persisted in-flight ownership cannot survive a process restart: no
         // worker from the old process can finish it. Recover that state once,
         // at load time. Live manifest reconciliation must preserve ownership
@@ -292,6 +309,17 @@ impl LocalCronRuntime {
             )
             .with_details(json!({ "error": error.to_string() }))
         })
+    }
+
+    fn allocate_definition_generation(&mut self) -> u64 {
+        self.next_definition_generation = self.next_definition_generation.wrapping_add(1);
+        if self.next_definition_generation == 0 {
+            // Zero is reserved for additive migration of the pre-generation
+            // persisted shape. Reaching this branch requires 2^64 live
+            // definition installs in one runtime lineage.
+            self.next_definition_generation = 1;
+        }
+        self.next_definition_generation
     }
 
     /// Whether any enabled cron job is currently armed (its demand condition is
@@ -347,23 +375,62 @@ impl LocalCronRuntime {
                 ))
             );
             let jitter_offset_ms = jitter_offset(job, &schedule_hash, &jitter_seed);
+            let replacement_generation = self
+                .states
+                .get(&job.name)
+                .is_none_or(|state| state.schedule_hash != schedule_hash)
+                .then(|| self.allocate_definition_generation());
             match self.states.get_mut(&job.name) {
-                Some(state) if state.schedule_hash == schedule_hash => {
-                    state.jitter_seed = jitter_seed;
-                    state.jitter_offset_ms = jitter_offset_ms;
-                    // A same-schedule hot reload happens while detached workers
-                    // are still alive. Preserve their ownership; startup-only
-                    // stale recovery occurs in `from_persisted` above.
+                Some(state) => {
                     state.normalize_in_flight();
-                    if let Some(nominal) = state.next_nominal_at_ms {
-                        state.next_due_at_ms = Some(nominal.saturating_add(jitter_offset_ms));
+                    if state.schedule_hash == schedule_hash {
+                        state.jitter_seed = jitter_seed;
+                        state.jitter_offset_ms = jitter_offset_ms;
+                        // A same-schedule hot reload happens while detached
+                        // workers are still alive. Preserve their ownership;
+                        // startup-only stale recovery occurs in
+                        // `from_persisted` above.
+                        if let Some(nominal) = state.next_nominal_at_ms {
+                            state.next_due_at_ms = Some(nominal.saturating_add(jitter_offset_ms));
+                        }
+                    } else {
+                        // A changed definition starts a fresh schedule
+                        // generation, but its detached predecessors still own
+                        // capacity under the logical job name. Carry that
+                        // ownership into the replacement so NoOverlap and the
+                        // Allow ceiling span hot reloads. Completion removes
+                        // the exact run id below, while generation-specific
+                        // outcome fields remain protected by the hash check.
+                        //
+                        // @ref LLP 0028#scheduler-state-and-run-ledger — live
+                        // ownership survives definition replacement; ordinary
+                        // reconciliation never treats live workers as stale.
+                        let in_flight_run_ids = std::mem::take(&mut state.in_flight_run_ids);
+                        *state = CronJobRuntimeState {
+                            schedule_hash,
+                            definition_generation: replacement_generation
+                                .expect("changed definition allocated a generation"),
+                            jitter_seed,
+                            jitter_offset_ms,
+                            next_nominal_at_ms: None,
+                            next_due_at_ms: None,
+                            in_flight_run_id: None,
+                            in_flight_run_ids,
+                            last_run_at_ms: None,
+                            last_outcome: None,
+                            last_error: None,
+                            consecutive_failures: 0,
+                        };
+                        state.sync_in_flight_projection();
                     }
                 }
-                _ => {
+                None => {
                     self.states.insert(
                         job.name.clone(),
                         CronJobRuntimeState {
                             schedule_hash,
+                            definition_generation: replacement_generation
+                                .expect("new definition allocated a generation"),
                             jitter_seed,
                             jitter_offset_ms,
                             next_nominal_at_ms: None,
@@ -387,7 +454,9 @@ impl LocalCronRuntime {
         self.states.clear();
         self.recent_runs.clear();
         self.diagnostics.clear();
-        self.next_run_seq = 0;
+        // Keep both identity sequences monotonic. Detached pre-reset workers
+        // may still return a generation-conflict result; reusing their run id
+        // could let that stale completion release a post-reset run's ownership.
         let _ = self.reconcile(manifest);
     }
 
@@ -404,6 +473,7 @@ impl LocalCronRuntime {
                 let seed = format!("fnv1a:{:016x}", stable_hash(&hash));
                 CronJobRuntimeState {
                     schedule_hash: hash.clone(),
+                    definition_generation: 0,
                     jitter_seed: seed.clone(),
                     jitter_offset_ms: jitter_offset(job, &hash, &seed),
                     next_nominal_at_ms: None,
@@ -535,6 +605,7 @@ impl LocalCronRuntime {
                     trigger: CronRunTrigger::Scheduled,
                 },
                 started_at_ms: now_ms,
+                definition_generation: state.definition_generation,
             });
         }
         claims
@@ -566,9 +637,8 @@ impl LocalCronRuntime {
             ));
         }
         // A manual run of a validation-rejected job must be refused, not just
-        // for the run itself: the `or_insert_with` below would create runtime
-        // state for a job `reconcile` deliberately gave none, permanently
-        // arming it for scheduled claims (ENG-23417).
+        // for the run itself: creating runtime state below would permanently
+        // arm a job `reconcile` deliberately gave none (ENG-23417).
         let validation_errors = validate_cron_manifest(manifest)
             .into_iter()
             .filter(|diagnostic| {
@@ -589,23 +659,32 @@ impl LocalCronRuntime {
                 "validationErrors": validation_errors,
             })));
         }
-        let state = self.states.entry(job.name.clone()).or_insert_with(|| {
+        if !self.states.contains_key(&job.name) {
             let hash = schedule_hash(&job);
             let seed = format!("fnv1a:{:016x}", stable_hash(&hash));
-            CronJobRuntimeState {
-                schedule_hash: hash.clone(),
-                jitter_seed: seed.clone(),
-                jitter_offset_ms: jitter_offset(&job, &hash, &seed),
-                next_nominal_at_ms: None,
-                next_due_at_ms: None,
-                in_flight_run_id: None,
-                in_flight_run_ids: BTreeSet::new(),
-                last_run_at_ms: None,
-                last_outcome: None,
-                last_error: None,
-                consecutive_failures: 0,
-            }
-        });
+            let definition_generation = self.allocate_definition_generation();
+            self.states.insert(
+                job.name.clone(),
+                CronJobRuntimeState {
+                    schedule_hash: hash.clone(),
+                    definition_generation,
+                    jitter_seed: seed.clone(),
+                    jitter_offset_ms: jitter_offset(&job, &hash, &seed),
+                    next_nominal_at_ms: None,
+                    next_due_at_ms: None,
+                    in_flight_run_id: None,
+                    in_flight_run_ids: BTreeSet::new(),
+                    last_run_at_ms: None,
+                    last_outcome: None,
+                    last_error: None,
+                    consecutive_failures: 0,
+                },
+            );
+        }
+        let state = self
+            .states
+            .get_mut(&job.name)
+            .expect("manual claim state exists");
         if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight() {
             return Err(SnapbackError::error(
                 "SNAPBACK_CRON_JOB_IN_FLIGHT",
@@ -645,6 +724,7 @@ impl LocalCronRuntime {
                 trigger: CronRunTrigger::Manual,
             },
             started_at_ms: now_ms,
+            definition_generation: state.definition_generation,
         })
     }
 
@@ -676,17 +756,22 @@ impl LocalCronRuntime {
             result: result_value,
         };
 
-        if let Some(state) = self.states.get_mut(&claim.job.name)
-            && state.schedule_hash == schedule_hash(&claim.job)
-            && state.finish_owned_run(&claim.metadata.run_id)
-        {
-            state.last_run_at_ms = Some(finished_at_ms);
-            state.last_outcome = Some(outcome.clone());
-            state.last_error = diagnostic.clone();
-            if outcome == CronRunOutcome::Failed {
-                state.consecutive_failures += 1;
-            } else {
-                state.consecutive_failures = 0;
+        if let Some(state) = self.states.get_mut(&claim.job.name) {
+            let current_generation = state.definition_generation == claim.definition_generation
+                && state.schedule_hash == schedule_hash(&claim.job);
+            // Ownership is logical-job-wide and must be released even when
+            // this detached worker belongs to an older definition. Outcome
+            // state is generation-specific: a predecessor must not overwrite
+            // the replacement's last-run summary after a hot reload.
+            if state.finish_owned_run(&claim.metadata.run_id) && current_generation {
+                state.last_run_at_ms = Some(finished_at_ms);
+                state.last_outcome = Some(outcome.clone());
+                state.last_error = diagnostic.clone();
+                if outcome == CronRunOutcome::Failed {
+                    state.consecutive_failures += 1;
+                } else {
+                    state.consecutive_failures = 0;
+                }
             }
         }
         self.record_run(ledger_record(&record));
@@ -1989,9 +2074,15 @@ mod tests {
         );
     }
 
+    // A definition change does not stop a detached worker. NoOverlap is
+    // therefore keyed by logical job name, not by schedule generation.
+    // @ref LLP 0028#scheduler-state-and-run-ledger — hot replacement carries
+    // live ownership forward while generation-specific schedule state resets.
     #[test]
-    fn hot_reload_preserves_run_ownership_and_stale_finish_cannot_clear_replacement() {
-        let original = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+    fn changed_schedule_no_overlap_waits_for_predecessor() {
+        let mut original_job = interval_job("poll", 60_000);
+        original_job.jitter_policy.enabled = false;
+        let original = manifest_with_jobs(vec![original_job]);
         let mut runtime = LocalCronRuntime::default();
         runtime.reconcile(&original);
         let old_claim = runtime
@@ -2006,21 +2097,199 @@ mod tests {
             .expect_err("same-schedule reload must preserve no-overlap ownership");
         assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_JOB_IN_FLIGHT");
 
-        let replacement = manifest_with_jobs(vec![interval_job("poll", 30_000)]);
+        let mut replacement_job = interval_job("poll", 30_000);
+        replacement_job.jitter_policy.enabled = false;
+        let replacement = manifest_with_jobs(vec![replacement_job]);
         runtime.reconcile(&replacement);
-        let replacement_claim = runtime
-            .claim_due_runs(&replacement, &BTreeSet::new(), 60_000)
-            .pop()
-            .expect("replacement claim");
+        assert!(runtime.states["poll"].has_in_flight());
+        assert!(
+            runtime
+                .claim_due_runs(&replacement, &BTreeSet::new(), 60_000)
+                .is_empty(),
+            "a changed schedule must not overlap its still-running predecessor"
+        );
+        assert_eq!(
+            runtime.recent_runs.front().and_then(|run| run
+                .diagnostic
+                .as_ref()
+                .map(|diagnostic| diagnostic.code.as_str())),
+            Some("SNAPBACK_CRON_RUN_SKIPPED_OVERLAP")
+        );
+
         runtime.finish_run(old_claim, 62_000, Ok(Value::Null));
+        assert!(!runtime.states["poll"].has_in_flight());
+        assert_eq!(
+            runtime.states["poll"].last_run_at_ms, None,
+            "an old generation must not write the replacement's outcome state"
+        );
+        let replacement_claim = runtime
+            .claim_due_runs(&replacement, &BTreeSet::new(), 90_000)
+            .pop()
+            .expect("replacement may run after predecessor completion");
+        runtime.finish_run(replacement_claim, 91_000, Ok(Value::Null));
+        assert_eq!(runtime.states["poll"].last_run_at_ms, Some(91_000));
+    }
+
+    #[test]
+    fn definition_generation_prevents_reload_aba_outcome_clobber() {
+        let mut original_job = interval_job("poll", 60_000);
+        original_job.overlap_policy = CronOverlapPolicy::Allow;
+        original_job.jitter_policy.enabled = false;
+        let original = manifest_with_jobs(vec![original_job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&original);
+        let old_claim = runtime
+            .claim_due_runs(&original, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("old claim");
+
+        let mut replacement_job = interval_job("poll", 30_000);
+        replacement_job.overlap_policy = CronOverlapPolicy::Allow;
+        replacement_job.jitter_policy.enabled = false;
+        let replacement = manifest_with_jobs(vec![replacement_job]);
+        runtime.reconcile(&replacement);
+        runtime.reconcile(&original);
+        let current_claim = runtime
+            .claim_due_runs(&original, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("restored definition claim");
+        assert_eq!(
+            schedule_hash(&old_claim.job),
+            schedule_hash(&current_claim.job),
+            "the regression requires the definition hash to return to A"
+        );
+        assert_ne!(
+            old_claim.definition_generation, current_claim.definition_generation,
+            "definition generations must distinguish an A -> B -> A reload"
+        );
         assert!(
             runtime.states["poll"]
                 .in_flight_run_ids
-                .contains(&replacement_claim.metadata.run_id),
-            "an old generation must not clear its replacement"
+                .contains(&old_claim.metadata.run_id),
+            "the restored definition must retain predecessor ownership"
         );
-        runtime.finish_run(replacement_claim, 63_000, Ok(Value::Null));
+
+        let current_failure = Diagnostic::error(
+            "SNAPBACK_TEST_REPLACEMENT_FAILED",
+            "cron",
+            "replacement failed",
+        );
+        runtime.finish_run(current_claim, 63_000, Err(current_failure.clone()));
+        assert_eq!(runtime.states["poll"].last_run_at_ms, Some(63_000));
+        assert_eq!(
+            runtime.states["poll"].last_outcome,
+            Some(CronRunOutcome::Failed)
+        );
+        assert_eq!(runtime.states["poll"].last_error, Some(current_failure));
+
+        runtime.finish_run(old_claim, 64_000, Ok(Value::Null));
         assert!(!runtime.states["poll"].has_in_flight());
+        assert_eq!(
+            runtime.states["poll"].last_run_at_ms,
+            Some(63_000),
+            "old completion must not replace the current generation summary"
+        );
+        assert_eq!(
+            runtime.states["poll"].last_outcome,
+            Some(CronRunOutcome::Failed)
+        );
+        assert_eq!(runtime.states["poll"].consecutive_failures, 1);
+    }
+
+    #[test]
+    fn repeated_allow_schedule_reloads_cannot_bypass_active_run_cap() {
+        let mut first_job = interval_job("poll", 60_000);
+        first_job.overlap_policy = CronOverlapPolicy::Allow;
+        first_job.jitter_policy.enabled = false;
+        let first_manifest = manifest_with_jobs(vec![first_job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&first_manifest);
+        let mut claims = vec![
+            runtime
+                .claim_due_runs(&first_manifest, &BTreeSet::new(), 10_000_000)
+                .pop()
+                .expect("first generation claim"),
+        ];
+
+        for generation in 1..CRON_MAX_ACTIVE_RUNS_PER_JOB {
+            let mut job = interval_job("poll", 60_000 + generation as u64 * 1_000);
+            job.overlap_policy = CronOverlapPolicy::Allow;
+            job.jitter_policy.enabled = false;
+            let manifest = manifest_with_jobs(vec![job]);
+            runtime.reconcile(&manifest);
+            claims.push(
+                runtime
+                    .claim_due_runs(&manifest, &BTreeSet::new(), 10_000_000)
+                    .pop()
+                    .expect("reload below the logical-job active-run ceiling"),
+            );
+        }
+        assert_eq!(
+            runtime.states["poll"].in_flight_run_ids.len(),
+            CRON_MAX_ACTIVE_RUNS_PER_JOB
+        );
+
+        let mut saturated_job =
+            interval_job("poll", 60_000 + CRON_MAX_ACTIVE_RUNS_PER_JOB as u64 * 1_000);
+        saturated_job.overlap_policy = CronOverlapPolicy::Allow;
+        saturated_job.jitter_policy.enabled = false;
+        let saturated = manifest_with_jobs(vec![saturated_job]);
+        runtime.reconcile(&saturated);
+        assert!(
+            runtime
+                .claim_due_runs(&saturated, &BTreeSet::new(), 10_000_000)
+                .is_empty(),
+            "a new definition generation must not reset active-run capacity"
+        );
+        assert_eq!(
+            runtime.recent_runs.front().and_then(|run| run
+                .diagnostic
+                .as_ref()
+                .map(|diagnostic| diagnostic.code.as_str())),
+            Some("SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED")
+        );
+        assert_eq!(
+            runtime.states["poll"].in_flight_run_ids.len(),
+            CRON_MAX_ACTIVE_RUNS_PER_JOB
+        );
+
+        for claim in claims {
+            runtime.finish_run(claim, 10_000_001, Ok(Value::Null));
+        }
+        assert!(
+            !runtime.states["poll"].has_in_flight(),
+            "old-generation completions must release logical-job capacity"
+        );
+    }
+
+    #[test]
+    fn reset_does_not_reuse_live_run_identity() {
+        let mut job = interval_job("poll", 60_000);
+        job.overlap_policy = CronOverlapPolicy::Allow;
+        job.jitter_policy.enabled = false;
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let stale = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("pre-reset claim");
+
+        runtime.reset_runtime_state(&manifest);
+        let current = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("post-reset claim");
+        assert_ne!(stale.metadata.run_id, current.metadata.run_id);
+        assert_ne!(stale.definition_generation, current.definition_generation);
+
+        runtime.finish_run(stale, 61_000, Ok(Value::Null));
+        assert!(
+            runtime.states["poll"]
+                .in_flight_run_ids
+                .contains(&current.metadata.run_id),
+            "a stale pre-reset completion must not release the post-reset run"
+        );
     }
 
     #[test]

@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-13 (ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, hot reload and completion are ownership-safe, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-13 (ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -462,10 +462,17 @@ manual claims; later slots are skipped with
 The local scheduler also consumes a nominal slot atomically when it creates a
 claim, rather than waiting for completion. `overlap: allow` owns a set of active
 run ids, while `noOverlap` tests that set; finishing removes only the exact run
-it owns. Same-schedule hot reload preserves live ownership, schedule replacement
-generation-binds it, and only process startup clears persisted stale workers.
-This prevents a duplicate ticker from claiming one slot twice and prevents an
-old completion from clearing a newer run.
+it owns. Live ownership is keyed by logical job name and survives both
+same-schedule hot reload and schedule replacement, so a changed `noOverlap`
+definition waits for its predecessor and repeated `allow` replacements cannot
+reset the 32-run ceiling. A replacement starts fresh nominal/jitter/outcome
+state; completion always releases its exact logical-job run id, but updates the
+last-run outcome only when its monotonic definition generation and schedule hash
+are still current. Thus even an A → B → A reload cannot let an old completion
+clobber the new generation's scheduling or summary. Ordinary manifest
+reconciliation never clears ownership. Process startup clears persisted
+ownership because the owning workers cannot return; an explicit app reset is
+the separate generation-fenced operation that deliberately clears runtime state.
 
 An action paused in native fetch/timer work is not presently interrupted just
 because the app generation advances; wiring that prompt cancellation requires a
@@ -915,8 +922,9 @@ green:
   configured Cron-Trigger limits (the docs currently mix per-Worker and
   account-level language) and the CPU/wall ceiling for `scheduled()` and
   Queue-consumer handlers, checked against an egress + multi-mutation worst case.
-- **Definition changes** — exact migration behavior when a job is renamed,
-  removed, disabled, or changes schedule while run history exists.
+- **Definition changes** — schedule replacement is resolved above: fresh
+  generation state with logical-job live ownership retained. Exact history and
+  ownership migration for rename/removal remains open.
 
 ## Status
 
