@@ -444,6 +444,7 @@ export async function createSnapbackContractSurface({
     let disposed = false;
     let barrierPaused = false;
     let barrierBlanking = false;
+    let barrierPreparing = false;
     let activeUserId = coordinator?.authority?.kind === 'session'
       ? coordinator.authority.userId
       : userId;
@@ -563,14 +564,14 @@ export async function createSnapbackContractSurface({
     let boundary = null;
     const liveCellObservers = new Set();
     const surfaceConnectionId = connectionId ?? defaultContractConnectionId();
-    ephemeralWiring = buildEphemeralWiring({
+    ephemeralWiring = createSwappableEphemeralWiring(buildEphemeralWiring({
       client,
       manifest,
       connectionId: surfaceConnectionId,
       userId: activeUserId,
       ephemeralPermissions,
       ephemeralIdleLingerMs,
-    });
+    }));
 
     // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
     // concurrent live_replace can arrive DURING a local mutation's in-flight
@@ -742,6 +743,7 @@ export async function createSnapbackContractSurface({
         stream: liveStreamOptions,
         correlation: surfaceCorrelation,
         onUpdate: (rows, detail = {}) => {
+          if (coordinator && barrierPaused) return;
           const callbackCapture = captureForTransportValue(client, capture, rows);
           void publishServerRows(callbackCapture, rows, detail.version)
             .then((published) => {
@@ -1156,6 +1158,10 @@ export async function createSnapbackContractSurface({
         assertActive();
         const capture = operationCapture();
         const invoke = () => {
+          // The durable preflight above may yield before this synchronous
+          // optimistic write. Recheck the local barrier at the exact turn that
+          // can expose rows so transition blanking cannot be overwritten.
+          assertActive();
           const reducer = activeReducer;
         // A derived plan runs against serde_json::Value on the server. Take
         // one canonical snapshot and reuse it for the prediction, durable
@@ -1306,17 +1312,20 @@ export async function createSnapbackContractSurface({
             if (subscribedQuery !== queryName) {
               return baseProvider.subscribe(subscribedQuery, args, observer);
             }
-            const subscriptionCapture = operationCapture();
             const record = {
               lastCell: null,
               emit: (cell) => observer(cell),
             };
             liveCellObservers.add(record);
             const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+              if (coordinator && barrierPreparing && !barrierBlanking) {
+                record.lastCell = cell;
+                return;
+              }
               if (
                 coordinator
                 && !barrierBlanking
-                && !coordinator.isCurrent(subscriptionCapture)
+                && (barrierPaused || !coordinator.isCurrent(authorityCapture))
               ) return;
               record.lastCell = cell;
               observer({ ...cell, connection: surfaceConnection() });
@@ -1405,14 +1414,16 @@ export async function createSnapbackContractSurface({
         version = snapshot.version ?? maxServerRowVersion(rows);
       }
       if (generation !== resumeGeneration || disposed) return;
-      const published = await publishServerRows(capture, rows, version);
-      if (published === null || generation !== resumeGeneration || disposed) return;
 
       // Item 5 does not resume auth-scoped live/ephemeral state in sessions
       // mode. Dev/authority-independent surfaces rebuild only after the fresh
       // durable snapshot above has established their successor boundary.
-      if (context.authority?.authMode !== 'sessions') {
-        ephemeralWiring = buildEphemeralWiring({
+      const ephemeralMayResume = context.authority?.authMode !== 'sessions'
+        || ephemeralWiring.descriptors.every(([, descriptor]) => (
+          descriptor?.authorityIndependent === true
+        ));
+      if (ephemeralMayResume) {
+        const successorEphemeral = buildEphemeralWiring({
           client,
           manifest,
           connectionId: surfaceConnectionId,
@@ -1420,12 +1431,32 @@ export async function createSnapbackContractSurface({
           ephemeralPermissions,
           ephemeralIdleLingerMs,
         });
-        installEphemeralLinks(ephemeralWiring);
+        ephemeralWiring.prepare(successorEphemeral);
         await ephemeralWiring.prewarm();
       }
       if (generation !== resumeGeneration || !coordinator.isCurrent(capture)) return;
+      // The handle may have advanced while successor ephemerals were prepared.
+      // Read its latest snapshot once at the atomic exposure turn.
+      if (wantLivePush && liveHandle) {
+        rows = liveHandle.rows;
+        version = liveHandle.version ?? maxServerRowVersion(rows);
+      }
+      const resolvedVersion = version ?? maxServerRowVersion(rows);
+      barrierPreparing = true;
+      await commitCurrent(capture, () => {
+        lastServerRows = rows;
+        lastServerVersion = resolvedVersion;
+        if (!disposed && boundary) boundary.write(boundaryKey, () => rows);
+      });
+      if (generation !== resumeGeneration || !coordinator.isCurrent(capture)) return;
+      retainRows(rows, resolvedVersion, capture);
+      barrierPreparing = false;
+      if (ephemeralMayResume) ephemeralWiring.expose();
       attachReceiptListener();
       barrierPaused = false;
+      for (const record of liveCellObservers) {
+        if (record.lastCell) record.emit({ ...record.lastCell, connection: surfaceConnection() });
+      }
     };
 
     const scheduleAuthorityRefresh = (context) => {
@@ -1570,13 +1601,14 @@ export async function createSnapbackContractSurface({
           detachReceiptListener = null;
           liveHandle?.dispose?.();
           liveHandle = null;
-          ephemeralWiring?.dispose?.();
+          ephemeralWiring?.quiesce?.();
         },
         blank() {
           if (!boundary || disposed) return;
           barrierBlanking = true;
           try {
             boundary.write(boundaryKey, () => []);
+            ephemeralWiring?.blank?.();
           } finally {
             barrierBlanking = false;
           }
@@ -2274,6 +2306,123 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
   };
 }
 
+// Keep provider source identities stable across an authority transition. Exact
+// subscribes to the source function installed when the provider is built; just
+// replacing the underlying wiring would otherwise leave mounted components on
+// a disposed predecessor source, potentially frozen on predecessor entries.
+// The router quiesces callbacks, emits a synchronous empty cell at `blank`,
+// prepares successor subscriptions while still hidden, then exposes their
+// latest cells only after the caller's authority-fenced snapshot commit.
+function createSwappableEphemeralWiring(initialWiring) {
+  let current = initialWiring;
+  let generation = 0;
+  let blanked = false;
+  let disposed = false;
+  const records = new Set();
+  const sourceStarts = new Map();
+  const descriptorNames = initialWiring.descriptors.map(([name]) => name);
+  const blankCell = () => ({ status: 'ready', entries: [], connection: 'stale' });
+
+  const detach = (record) => {
+    try { record.off?.(); } catch { /* best-effort predecessor teardown */ }
+    record.off = null;
+  };
+  const attach = (record) => {
+    detach(record);
+    const source = current?.sources?.[record.name];
+    if (disposed || typeof source !== 'function') {
+      record.lastCell = blankCell();
+      return;
+    }
+    const attachedGeneration = generation;
+    record.off = source(record.args, (cell) => {
+      if (!record.active || disposed || attachedGeneration !== generation) return;
+      record.lastCell = cell;
+      if (!blanked) record.emit(cell);
+    });
+  };
+
+  const sources = Object.fromEntries(descriptorNames.map((name) => [name, (args, emit) => {
+    sourceStarts.set(name, (sourceStarts.get(name) ?? 0) + 1);
+    const record = {
+      name,
+      args,
+      emit,
+      active: true,
+      off: null,
+      lastCell: blankCell(),
+    };
+    records.add(record);
+    attach(record);
+    if (blanked) emit(blankCell());
+    return () => {
+      record.active = false;
+      detach(record);
+      records.delete(record);
+    };
+  }]));
+
+  return {
+    descriptors: initialWiring.descriptors,
+    sources,
+    sourceStarts: (name) => sourceStarts.get(name) ?? 0,
+    prewarm: () => current?.prewarm?.() ?? Promise.resolve(),
+    prewarmScope: (name, args) => current?.prewarmScope?.(name, args) ?? Promise.resolve(),
+    buildLinks(provider, runtime) {
+      const links = {};
+      for (const name of descriptorNames) {
+        links[name] = (args = {}) => runtime.createProviderEphemeralHandle(provider, name, args ?? {});
+        links[`${name}Publish`] = (args = {}) => {
+          if (!current) throw staleContractAuthorityError();
+          const active = current.buildLinks(provider, runtime)[`${name}Publish`];
+          if (typeof active !== 'function') throw staleContractAuthorityError();
+          return active(args);
+        };
+      }
+      return links;
+    },
+    quiesce() {
+      generation += 1;
+      for (const record of records) detach(record);
+      current?.dispose?.();
+      current = null;
+    },
+    blank() {
+      blanked = true;
+      for (const record of records) {
+        record.lastCell = blankCell();
+        record.emit(record.lastCell);
+      }
+    },
+    prepare(nextWiring) {
+      current?.dispose?.();
+      current = nextWiring;
+      generation += 1;
+      blanked = true;
+      for (const record of records) attach(record);
+    },
+    expose() {
+      blanked = false;
+      for (const record of records) record.emit(record.lastCell ?? blankCell());
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      generation += 1;
+      blanked = true;
+      for (const record of records) {
+        detach(record);
+        record.lastCell = blankCell();
+        record.emit(record.lastCell);
+        record.active = false;
+      }
+      records.clear();
+      current?.dispose?.();
+      current = null;
+    },
+  };
+}
+
 // Key-order-insensitive canonical form for args comparison (the multi-live
 // binding-args mismatch check): plain objects get sorted keys recursively;
 // arrays and primitives pass through.
@@ -2387,18 +2536,19 @@ async function createMultiLiveContractSurface({
     let disposed = false;
     let barrierPaused = false;
     let barrierBlanking = false;
+    let barrierPreparing = false;
     let boundary = null;
     const sharedConnectionId = connectionId ?? defaultContractConnectionId();
     const liveCellObservers = new Map(); // query name -> Set<record>
     const wantLivePush = livePush && typeof client.liveQuery === 'function';
-    ephemeralWiring = buildEphemeralWiring({
+    ephemeralWiring = createSwappableEphemeralWiring(buildEphemeralWiring({
       client,
       manifest,
       connectionId: sharedConnectionId,
       userId: activeUserId,
       ephemeralPermissions,
       ephemeralIdleLingerMs,
-    });
+    }));
 
     const assertActive = () => {
       if (disposed) {
@@ -2466,6 +2616,51 @@ async function createMultiLiveContractSurface({
       return outcome.committed ? outcome.value : null;
     };
 
+    const openMultiLiveHandle = async ({ name, args }, capture) => {
+      const handle = await client.liveQuery(name, {
+        connectionId: sharedConnectionId,
+        args,
+        userId: activeUserId,
+        transport: 'stream',
+        stream: liveStreamOptions,
+        // Adapter-stitched correlation (LLP 0034 §3.2); TODO(Exact LLP
+        // 0231/0278): thread action/wave ids when the runtime supplies them.
+        correlation: { rootId, bindingIds: [name] },
+        onUpdate: (rows) => {
+          if (coordinator && barrierPaused) return;
+          const callbackCapture = captureForTransportValue(client, capture, rows);
+          void publishRows(callbackCapture, name, rows).catch(() => {});
+        },
+        onConnectionChange: (connection, detail) => {
+          const callbackCapture = captureForTransportValue(client, capture, detail);
+          void compareContractCommit(coordinator, callbackCapture, () => {
+            reemitCells(name, connection);
+          }).then((outcome) => {
+            if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
+              onConnectionChange?.(connection, { ...detail, queryName: name });
+            }
+          }).catch(() => {});
+        },
+        onSubscriptionEvent: onSubscriptionEvent
+          ? (event) => {
+              const callbackCapture = captureForTransportValue(client, capture, event);
+              void compareContractCommit(coordinator, callbackCapture, () => undefined)
+                .then((outcome) => {
+                  if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
+                    onSubscriptionEvent({ ...event, queryName: name });
+                  }
+                })
+                .catch(() => {});
+            }
+          : null,
+      });
+      return {
+        name,
+        handle,
+        capture: captureForTransportValue(client, capture, handle),
+      };
+    };
+
     // Establish every live subscription (snapshot-with-subscribe each; one
     // shared socket via the connection id) before the boundary exists, then
     // build the boundary from the snapshots. Non-configured queries are not
@@ -2474,48 +2669,9 @@ async function createMultiLiveContractSurface({
     const initialRows = {};
     if (wantLivePush) {
       const liveCapture = currentCapture ?? operationCapture();
-      const subscriptions = liveQueryEntries.map(({ name, args }) =>
-        client.liveQuery(name, {
-          connectionId: sharedConnectionId,
-          args,
-          userId: activeUserId,
-          transport: 'stream',
-          stream: liveStreamOptions,
-          // Adapter-stitched correlation (LLP 0034 §3.2); TODO(Exact LLP
-          // 0231/0278): thread action/wave ids when the runtime supplies them.
-          correlation: { rootId, bindingIds: [name] },
-          onUpdate: (rows) => {
-            const callbackCapture = captureForTransportValue(client, liveCapture, rows);
-            void publishRows(callbackCapture, name, rows).catch(() => {});
-          },
-          onConnectionChange: (connection, detail) => {
-            const callbackCapture = captureForTransportValue(client, liveCapture, detail);
-            void compareContractCommit(coordinator, callbackCapture, () => {
-              reemitCells(name, connection);
-            }).then((outcome) => {
-              if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
-                onConnectionChange?.(connection, { ...detail, queryName: name });
-              }
-            }).catch(() => {});
-          },
-          onSubscriptionEvent: onSubscriptionEvent
-            ? (event) => {
-                const callbackCapture = captureForTransportValue(client, liveCapture, event);
-                void compareContractCommit(coordinator, callbackCapture, () => undefined)
-                  .then((outcome) => {
-                    if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
-                      onSubscriptionEvent({ ...event, queryName: name });
-                    }
-                  })
-                  .catch(() => {});
-              }
-            : null,
-        }).then((handle) => ({
-          name,
-          handle,
-          capture: captureForTransportValue(client, liveCapture, handle),
-        }))
-      );
+      const subscriptions = liveQueryEntries.map((entry) => (
+        openMultiLiveHandle(entry, liveCapture)
+      ));
       let liveResults;
       try {
         liveResults = await Promise.all(subscriptions);
@@ -2667,7 +2823,6 @@ async function createMultiLiveContractSurface({
         if (!liveHandles.has(subscribedQuery)) {
           return baseProvider.subscribe(subscribedQuery, args, observer);
         }
-        const subscriptionCapture = operationCapture();
         const records = liveCellObservers.get(subscribedQuery);
         const record = {
           lastCell: null,
@@ -2675,10 +2830,14 @@ async function createMultiLiveContractSurface({
         };
         records.add(record);
         const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+          if (coordinator && barrierPreparing && !barrierBlanking) {
+            record.lastCell = cell;
+            return;
+          }
           if (
             coordinator
             && !barrierBlanking
-            && !coordinator.isCurrent(subscriptionCapture)
+            && (barrierPaused || !coordinator.isCurrent(currentCapture))
           ) return;
           record.lastCell = cell;
           observer({ ...cell, connection: connectionFor(subscribedQuery) });
@@ -2741,20 +2900,97 @@ async function createMultiLiveContractSurface({
         activeUserId = context.authority?.kind === 'session'
           ? context.authority.userId
           : userId;
-        for (const { name, args } of liveQueryEntries) {
-          const snapshot = await client.query(name, { args, userId: activeUserId });
-          const capture = captureForTransportValue(client, context.capture, snapshot);
-          if (generation !== resumeGeneration || disposed) return;
-          const published = await publishRows(capture, name, snapshot.rows);
-          if (published === null) return;
+        const stagedRows = new Map();
+        const opened = [];
+        try {
+          if (wantLivePush) {
+            for (const entry of liveQueryEntries) {
+              const result = await openMultiLiveHandle(entry, context.capture);
+              if (generation !== resumeGeneration || disposed) {
+                result.handle.dispose?.();
+                return;
+              }
+              const current = await compareContractCommit(
+                coordinator,
+                result.capture,
+                () => undefined,
+              );
+              if (!current.committed) {
+                result.handle.dispose?.();
+                throw staleContractAuthorityError();
+              }
+              opened.push(result);
+              stagedRows.set(result.name, result.handle.rows);
+            }
+          } else {
+            for (const { name, args } of liveQueryEntries) {
+              const snapshot = await client.query(name, { args, userId: activeUserId });
+              const capture = captureForTransportValue(client, context.capture, snapshot);
+              const current = await compareContractCommit(coordinator, capture, () => undefined);
+              if (!current.committed) throw staleContractAuthorityError();
+              stagedRows.set(name, snapshot.rows);
+            }
+          }
+        } catch (error) {
+          for (const result of opened) result.handle.dispose?.();
+          throw error;
         }
+
+        const ephemeralMayResume = context.authority?.authMode !== 'sessions'
+          || ephemeralWiring.descriptors.every(([, descriptor]) => (
+            descriptor?.authorityIndependent === true
+          ));
+        if (ephemeralMayResume) {
+          const successorEphemeral = buildEphemeralWiring({
+            client,
+            manifest,
+            connectionId: sharedConnectionId,
+            userId: activeUserId,
+            ephemeralPermissions,
+            ephemeralIdleLingerMs,
+          });
+          ephemeralWiring.prepare(successorEphemeral);
+          await ephemeralWiring.prewarm();
+        }
+
         if (
-          generation === resumeGeneration
-          && !disposed
-          && coordinator.isCurrent(context.capture)
+          generation !== resumeGeneration
+          || disposed
+          || !coordinator.isCurrent(context.capture)
         ) {
+          for (const result of opened) result.handle.dispose?.();
+          return;
+        }
+        let installed = false;
+        try {
+          barrierPreparing = true;
+          await commitCurrent(context.capture, () => {
+            for (const [name, rows] of stagedRows) boundary.write(name, () => rows);
+          });
+          if (
+            generation !== resumeGeneration
+            || disposed
+            || !coordinator.isCurrent(context.capture)
+          ) return;
+          for (const result of opened) {
+            liveHandles.set(result.name, result.handle);
+          }
+          installed = true;
+          barrierPreparing = false;
+          if (ephemeralMayResume) ephemeralWiring.expose();
           attachReceiptListener?.();
           barrierPaused = false;
+          for (const [name, records] of liveCellObservers) {
+            for (const record of records) {
+              if (record.lastCell) {
+                record.emit({ ...record.lastCell, connection: connectionFor(name) });
+              }
+            }
+          }
+        } finally {
+          if (!installed) {
+            for (const result of opened) result.handle.dispose?.();
+          }
         }
       }).catch(() => {
         // Remain blank/paused until a later successful authority refresh.
@@ -2774,13 +3010,14 @@ async function createMultiLiveContractSurface({
           detachReceiptListener?.();
           for (const [, handle] of liveHandles) handle.dispose?.();
           liveHandles.clear();
-          ephemeralWiring?.dispose?.();
+          ephemeralWiring?.quiesce?.();
         },
         blank() {
           if (!boundary || disposed) return;
           barrierBlanking = true;
           try {
             for (const name of liveQueryNames) boundary.write(name, () => []);
+            ephemeralWiring?.blank?.();
           } finally {
             barrierBlanking = false;
           }

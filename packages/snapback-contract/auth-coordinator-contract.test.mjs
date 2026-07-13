@@ -39,13 +39,20 @@ const waitFor = async (predicate) => {
 const runtime = {
   createContractMockQueryBoundary(initialRows) {
     const rows = new Map(Object.entries(initialRows));
+    const listeners = new Map();
     return {
       current: (key) => rows.get(key) ?? [],
       query: (key, project = (value) => value) => project(rows.get(key) ?? []),
       write(key, update) {
         const next = update(rows.get(key) ?? []);
         rows.set(key, next);
+        for (const listener of listeners.get(key) ?? []) listener(next);
         return next;
+      },
+      subscribe(key, listener) {
+        if (!listeners.has(key)) listeners.set(key, new Set());
+        listeners.get(key).add(listener);
+        return () => listeners.get(key)?.delete(listener);
       },
     };
   },
@@ -53,10 +60,23 @@ const runtime = {
     return {
       boundary,
       subscribe(name, args, observer) {
+        if (options.ephemerals?.[name]) {
+          return { dispose: options.ephemerals[name](args, observer) };
+        }
         observer({ status: 'ready', rows: options.queries[name](args, boundary) });
-        return { dispose() {} };
+        const boundaryKey = name === 'listTodos' ? 'todos' : name;
+        const off = boundary.subscribe(boundaryKey, (rows) => {
+          observer({ status: 'ready', rows });
+        });
+        return { dispose: off };
       },
     };
+  },
+  createProviderEphemeralHandle() {
+    return { dispose() {} };
+  },
+  createProviderQueryHandle() {
+    return { dispose() {} };
   },
 };
 
@@ -74,6 +94,13 @@ const manifest = {
       mode: 'live',
       defaultLive: true,
       reads: ['todos'],
+    },
+    presence: {
+      name: 'presence',
+      ephemeral: true,
+      authorityIndependent: true,
+      keyMode: 'User',
+      scopeFields: [],
     },
   },
   mutations: {
@@ -156,6 +183,25 @@ const client = {
       (error) => { tag(error, capture); throw error; },
     );
   },
+  liveStreamManager() {
+    return { isOpen: () => true, onState: () => () => {} };
+  },
+  async subscribeEphemeral() {
+    const capture = coordinator.capture();
+    const listeners = new Set();
+    return {
+      currentEntries: () => [{
+        key: `presence-${capture.authorityEpoch}`,
+        value: { epoch: capture.authorityEpoch },
+        receivedAtMs: 1,
+        expiresAtMs: Date.now() + 60_000,
+      }],
+      onChange(listener) { listeners.add(listener); },
+      dispose() { listeners.clear(); },
+    };
+  },
+  async unsubscribeEphemeral() {},
+  async publishEphemeral() {},
 };
 
 const physicalStore = createMemorySnapbackClientStore();
@@ -188,6 +234,18 @@ const surfaceOptions = {
 };
 
 const surface = await createSnapbackContractSurface(surfaceOptions);
+const providerCells = [];
+const providerSubscription = surface.provider.subscribe(
+  'listTodos',
+  {},
+  (cell) => providerCells.push(cell),
+);
+const presenceCells = [];
+const presenceSubscription = surface.provider.subscribe(
+  'presence',
+  {},
+  (cell) => presenceCells.push(cell),
+);
 await waitFor(() => oldRetainedWriteStarted);
 assert.deepEqual(surface.boundary.current('todos').map((row) => row._id), ['snapshot-0']);
 assert.equal(
@@ -212,6 +270,8 @@ nextLive.resolve('snapshot-b');
 await assert.rejects(mutationA, { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' });
 await surface.flush();
 assert.deepEqual(surface.boundary.current('todos').map((row) => row._id), ['snapshot-b']);
+assert.deepEqual(providerCells.at(-1).rows.map((row) => row._id), ['snapshot-b']);
+assert.deepEqual(presenceCells.at(-1).entries.map((entry) => entry.key), ['presence-1']);
 assert.equal((await physicalStore.snapshot()).authorityEpoch, captureB.authorityEpoch);
 assert.deepEqual((await physicalStore.snapshot()).retained, {});
 
@@ -232,6 +292,8 @@ nextLive.resolve('snapshot-c');
 await assert.rejects(mutationB, { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' });
 await surface.flush();
 assert.deepEqual(surface.boundary.current('todos').map((row) => row._id), ['snapshot-c']);
+assert.deepEqual(providerCells.at(-1).rows.map((row) => row._id), ['snapshot-c']);
+assert.deepEqual(presenceCells.at(-1).entries.map((entry) => entry.key), ['presence-2']);
 assert.equal((await physicalStore.snapshot()).authorityEpoch, captureC.authorityEpoch);
 assert.equal(
   surface.diagnostics.some((diagnostic) => diagnostic.message.includes('late failure from B')),
@@ -252,6 +314,98 @@ assert.equal(surface.capabilityClass, 'Online');
 assert.deepEqual(await surface.reconnect(), { replayed: 0, failed: 0 });
 assert.deepEqual((await physicalStore.snapshot()).retained, {});
 assert.equal((await physicalStore.snapshot()).authorityEpoch, captureD.authorityEpoch);
+assert.deepEqual(providerCells.at(-1).rows.map((row) => row._id), ['snapshot-sessions']);
+assert.deepEqual(presenceCells.at(-1).entries.map((entry) => entry.key), ['presence-3']);
+
+// A transition in the exact post-preflight window cannot let an optimistic A
+// write overwrite the synchronous blank. The mutation transport is never
+// invoked because the surface rechecks its barrier at the exposure turn.
+const originalCompareAndCommit = coordinator.compareAndCommit.bind(coordinator);
+const preflightEntered = deferred();
+const releasePreflight = deferred();
+let interceptPreflight = true;
+coordinator.compareAndCommit = async (...args) => {
+  const result = await originalCompareAndCommit(...args);
+  if (interceptPreflight) {
+    interceptPreflight = false;
+    preflightEntered.resolve();
+    await releasePreflight.promise;
+  }
+  return result;
+};
+const pendingBeforeRace = pendingMutations.length;
+const racedOptimistic = surface.links.createTodo({ title: 'must-not-render' });
+await preflightEntered.promise;
+nextLive = deferred();
+const captureE = await coordinator.transition(
+  captureD,
+  anonymous('018f0d90-7b15-7a22-8c33-445566778899'),
+  'test-post-preflight-race',
+);
+assert.deepEqual(surface.boundary.current('todos'), []);
+releasePreflight.resolve();
+nextLive.resolve('snapshot-after-race');
+await assert.rejects(racedOptimistic, { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' });
+await surface.flush();
+assert.equal(pendingMutations.length, pendingBeforeRace);
+assert.deepEqual(surface.boundary.current('todos').map((row) => row._id), ['snapshot-after-race']);
+assert.equal((await physicalStore.snapshot()).authorityEpoch, captureE.authorityEpoch);
+coordinator.compareAndCommit = originalCompareAndCommit;
+
+// Multi-live surfaces reopen every live handle and publish all successor
+// boundaries behind the same blank gate; they do not silently degrade to
+// one-shot polling after an authority change.
+const multiManifest = {
+  ...manifest,
+  inputsHash: 'contract-barrier-multi-inputs',
+  schemaHash: 'contract-barrier-multi-schema',
+  bundleHash: 'contract-barrier-multi-bundle',
+  capabilities: {},
+  queries: {
+    first: { name: 'first', mode: 'live', defaultLive: true, reads: ['first'] },
+    second: { name: 'second', mode: 'live', defaultLive: true, reads: ['second'] },
+  },
+  mutations: {},
+};
+const multi = await createSnapbackContractSurface({
+  runtime,
+  client,
+  userId: null,
+  manifest: multiManifest,
+  liveQueries: [{ name: 'first', args: {} }, { name: 'second', args: {} }],
+  artifactIndex: { appId: APP },
+  schemaManifest: {
+    schemaHash: multiManifest.schemaHash,
+    targetProfile: 'local-dev-sqlite-ibex',
+  },
+});
+const firstCells = [];
+const secondCells = [];
+const firstSubscription = multi.provider.subscribe('first', {}, (cell) => firstCells.push(cell));
+const secondSubscription = multi.provider.subscribe('second', {}, (cell) => secondCells.push(cell));
+const liveCallsBeforeMultiTransition = liveCallbacks.length;
+const captureF = await coordinator.transition(
+  captureE,
+  anonymous('018f0d90-7b16-7a22-8c33-445566778899'),
+  'test-multi-live-resume',
+);
+assert.deepEqual(multi.boundary.current('first'), []);
+assert.deepEqual(multi.boundary.current('second'), []);
+await multi.flush();
+assert.equal(liveCallbacks.length, liveCallsBeforeMultiTransition + 2);
+assert.deepEqual(
+  multi.boundary.current('first').map((row) => row._id),
+  [`snapshot-${captureF.authorityEpoch}`],
+);
+assert.deepEqual(
+  multi.boundary.current('second').map((row) => row._id),
+  [`snapshot-${captureF.authorityEpoch}`],
+);
+assert.deepEqual(firstCells.at(-1).rows.map((row) => row._id), [`snapshot-${captureF.authorityEpoch}`]);
+assert.deepEqual(secondCells.at(-1).rows.map((row) => row._id), [`snapshot-${captureF.authorityEpoch}`]);
+firstSubscription.dispose();
+secondSubscription.dispose();
+await multi.dispose();
 
 // A second surface over the same physical store/coordinator does not register
 // another durable transition owner.
@@ -261,6 +415,8 @@ assert.equal(
   1,
 );
 await second.dispose();
+providerSubscription.dispose();
+presenceSubscription.dispose();
 await surface.dispose();
 
 console.log('auth-coordinator-contract.test.mjs: all assertions passed');
