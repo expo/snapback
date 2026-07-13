@@ -6,6 +6,10 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
+/// The paired schema/function artifact version reserved for session authority.
+/// Non-pair artifacts (capabilities, diagnostics, runtime state, and wire DTOs)
+/// intentionally remain at [`SNAPBACK_SCHEMA_VERSION`].
+pub const SNAPBACK_SESSIONS_SCHEMA_VERSION: &str = "snapback.v1";
 /// Portable query budgets shared by the local and Cloudflare evaluators. The
 /// Filter-bind and `In` caps stay below SQLite's 999-variable compatibility
 /// floor with room for target-internal parameters; the result cap matches the
@@ -54,6 +58,88 @@ fn default_true() -> bool {
     true
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+/// The authority mode declared by a schema artifact. The enum is deliberately
+/// closed: a mode changes who is allowed to supply invocation authority and an
+/// unknown spelling therefore cannot be treated as an additive field.
+///
+/// @ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthMode {
+    #[default]
+    Dev,
+    Sessions,
+}
+
+impl AuthMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Dev => "dev",
+            Self::Sessions => "sessions",
+        }
+    }
+}
+
+/// Closed schema-manifest auth declaration. Unknown members are rejected so a
+/// future authority-changing field cannot be silently ignored by this parser.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuthManifest {
+    pub mode: AuthMode,
+}
+
+/// Function-level requirement applied after caller authority has been resolved.
+/// Absence in a legacy function is represented by
+/// [`FunctionDefinition::effective_auth_requirement`] as `optional-user`.
+///
+/// @ref LLP 0055#closed-function-requirement — closed values fail at manifest parse.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthRequirement {
+    Public,
+    #[default]
+    OptionalUser,
+    Authenticated,
+}
+
+impl AuthRequirement {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Public => "public",
+            Self::OptionalUser => "optional-user",
+            Self::Authenticated => "authenticated",
+        }
+    }
+}
+
 /// Optional presentation identity for the loaded app: how the instance should
 /// introduce itself to a human. Everything here is public by construction — it
 /// is rendered on the public root page and flows into the public inspect
@@ -93,6 +179,15 @@ pub struct SchemaManifest {
     pub app_id: String,
     #[serde(default)]
     pub app: Option<AppIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<AuthManifest>,
+    #[serde(
+        default,
+        rename = "requiredCapabilities",
+        alias = "required_capabilities",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub required_capabilities: Vec<String>,
     #[serde(default, rename = "schemaHash", alias = "schema_hash")]
     pub schema_hash: Option<String>,
     #[serde(default, rename = "inputsHash", alias = "inputs_hash")]
@@ -127,6 +222,8 @@ impl Default for SchemaManifest {
             schema_version: snapback_schema_version(),
             app_id: local_app_id(),
             app: None,
+            auth: None,
+            required_capabilities: Vec::new(),
             schema_hash: None,
             inputs_hash: None,
             generated_at: None,
@@ -143,6 +240,10 @@ impl Default for SchemaManifest {
 impl SchemaManifest {
     pub fn table(&self, name: &str) -> Option<&TableManifest> {
         self.tables.iter().find(|table| table.name == name)
+    }
+
+    pub fn effective_auth_mode(&self) -> AuthMode {
+        self.auth.map(|auth| auth.mode).unwrap_or(AuthMode::Dev)
     }
 
     pub fn validate_artifact(&self) -> SnapbackResult<()> {
@@ -169,6 +270,9 @@ pub struct PublicSchemaManifest {
     #[serde(rename = "appId")]
     pub app_id: String,
     pub app: Option<AppIdentity>,
+    pub auth: Option<AuthManifest>,
+    #[serde(rename = "requiredCapabilities")]
+    pub required_capabilities: Vec<String>,
     #[serde(rename = "schemaHash")]
     pub schema_hash: Option<String>,
     #[serde(rename = "inputsHash")]
@@ -195,6 +299,8 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             schema_version,
             app_id,
             app,
+            auth,
+            required_capabilities,
             schema_hash,
             inputs_hash,
             generated_at,
@@ -210,6 +316,8 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             schema_version,
             app_id,
             app,
+            auth,
+            required_capabilities,
             schema_hash,
             inputs_hash,
             generated_at,
@@ -575,7 +683,14 @@ pub struct FunctionDefinition {
     )]
     pub required_capabilities: Vec<String>,
     #[serde(default, rename = "authRequirement", alias = "auth_requirement")]
-    pub auth_requirement: Option<String>,
+    pub auth_requirement: Option<AuthRequirement>,
+    #[serde(
+        default,
+        rename = "authorityIndependent",
+        alias = "authority_independent",
+        skip_serializing_if = "is_false"
+    )]
+    pub authority_independent: bool,
     #[serde(default, rename = "syncabilityClass", alias = "syncability_class")]
     pub syncability_class: Option<String>,
     #[serde(default, rename = "readSetSummary", alias = "read_set_summary")]
@@ -615,6 +730,7 @@ impl FunctionDefinition {
             source_span: None,
             required_capabilities: Vec::new(),
             auth_requirement: None,
+            authority_independent: false,
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
@@ -623,6 +739,11 @@ impl FunctionDefinition {
             uses: Vec::new(),
             runtime,
         }
+    }
+
+    pub fn effective_auth_requirement(&self) -> AuthRequirement {
+        self.auth_requirement
+            .unwrap_or(AuthRequirement::OptionalUser)
     }
 }
 
@@ -765,7 +886,9 @@ pub struct PublicFunctionDefinition {
     #[serde(rename = "requiredCapabilities")]
     pub required_capabilities: Vec<String>,
     #[serde(rename = "authRequirement")]
-    pub auth_requirement: Option<String>,
+    pub auth_requirement: Option<AuthRequirement>,
+    #[serde(rename = "authorityIndependent")]
+    pub authority_independent: bool,
     #[serde(rename = "syncabilityClass")]
     pub syncability_class: Option<String>,
     #[serde(rename = "readSetSummary")]
@@ -906,6 +1029,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             source_span: _,
             required_capabilities,
             auth_requirement,
+            authority_independent,
             syncability_class,
             read_set_summary,
             write_set_summary,
@@ -921,6 +1045,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             kind,
             required_capabilities,
             auth_requirement,
+            authority_independent,
             syncability_class,
             read_set_summary,
             write_set_summary,
