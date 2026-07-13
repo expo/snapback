@@ -333,6 +333,17 @@ pub(crate) enum ProjectedTokenResolution {
     Unknown,
 }
 
+/// Connection-open classification keeps an attributable session key even
+/// while its leaf is blocked. The key is used only for the per-session local
+/// throttle; a blocked or terminal leaf never produces grant authority.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectedConnectionTokenResolution {
+    Current(ProjectedSessionAuthority),
+    Superseded(ProjectedSessionAuthority),
+    Unavailable { session_id: String, generation: u64 },
+    Unknown,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum ProjectedToken {
     Current {
@@ -480,6 +491,26 @@ impl FencedPublication {
             return Ok(None);
         }
         publish().map(Some)
+    }
+
+    pub(crate) fn anonymous_for_unmanaged_dev_connection() -> (String, Self) {
+        static TEST_STREAM: std::sync::OnceLock<(
+            AuthorizationStreamIncarnation,
+            Arc<StreamFence>,
+        )> = std::sync::OnceLock::new();
+        let (incarnation, stream) = TEST_STREAM.get_or_init(|| {
+            let incarnation = AuthorizationStreamIncarnation::fresh();
+            let stream = Arc::new(StreamFence::new(incarnation.clone()));
+            (incarnation, stream)
+        });
+        (
+            incarnation.as_str().to_owned(),
+            Self {
+                expected_incarnation: incarnation.clone(),
+                stream: Arc::clone(stream),
+                session: None,
+            },
+        )
     }
 }
 
@@ -898,6 +929,109 @@ impl SessionProjection {
             },
             None => ProjectedTokenResolution::Current(authority),
         })
+    }
+
+    /// Classify a canonical connection-open bearer without consulting the
+    /// provider or SQLite. Unlike ordinary finite-request resolution, this
+    /// retains only the redacted bucket key for a known but blocked token so
+    /// rejected attempts cannot escape the exact session throttle.
+    ///
+    /// @ref LLP 0056#reuse-and-mismatch — every canonical open is indexed in
+    /// the process projection and current, superseded, blocked, and unknown
+    /// tokens consume their specified independent buckets.
+    pub(crate) fn classify_connection_token(
+        &self,
+        digest: &TokenDigest,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<ProjectedConnectionTokenResolution> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let stream = self.stream_fence.lock()?;
+        let (session_id, superseded) = match self.token_index.get(digest) {
+            Some(ProjectedToken::Current { session_id }) => (session_id, false),
+            Some(ProjectedToken::Superseded { session_id, .. }) => (session_id, true),
+            Some(ProjectedToken::Terminal { session_id })
+            | Some(ProjectedToken::Unavailable { session_id }) => (session_id, false),
+            None => return Ok(ProjectedConnectionTokenResolution::Unknown),
+        };
+        let Some(session) = self.by_session.get(session_id) else {
+            return Err(projection_unavailable(
+                "a projected connection token has a dangling session",
+            ));
+        };
+        let session_fence = session.fence.lock()?;
+        if !StreamFence::admits_locked(&stream, &self.incarnation)
+            || session.state != ProjectedSessionState::Current
+            || !SessionFence::admits_locked(
+                &session_fence,
+                session.generation,
+                epoch_now_ms,
+                monotonic_now,
+            )
+        {
+            return Ok(ProjectedConnectionTokenResolution::Unavailable {
+                session_id: session.session_id.clone(),
+                generation: session.generation,
+            });
+        }
+        let authority = ProjectedSessionAuthority {
+            session_id: session.session_id.clone(),
+            user_id: session.user_id.clone(),
+            provider: session.provider.clone(),
+            generation: session.generation,
+            authority_instance_id: session.authority_instance_id.clone(),
+            expires_at_ms: session.expires_at_ms,
+            absolute_expires_at_ms: session.absolute_expires_at_ms,
+        };
+        Ok(if superseded {
+            ProjectedConnectionTokenResolution::Superseded(authority)
+        } else {
+            ProjectedConnectionTokenResolution::Current(authority)
+        })
+    }
+
+    /// Rehydrate the internal authority-instance field omitted from a stored
+    /// connection grant. Every grant identity field is compared before that
+    /// internal value is returned, and the same stream/session locks prove
+    /// the exact generation is still available at this preparation point.
+    pub(crate) fn resolve_bound_connection_session(
+        &self,
+        expected_incarnation: &AuthorizationStreamIncarnation,
+        session_id: &str,
+        user_id: &str,
+        provider: &str,
+        generation: u64,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ProjectedSessionAuthority>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let stream = self.stream_fence.lock()?;
+        if !StreamFence::admits_locked(&stream, expected_incarnation)
+            || expected_incarnation != &self.incarnation
+        {
+            return Ok(None);
+        }
+        let Some(session) = self.by_session.get(session_id) else {
+            return Ok(None);
+        };
+        let session_fence = session.fence.lock()?;
+        if session.user_id != user_id
+            || session.provider != provider
+            || session.generation != generation
+            || session.state != ProjectedSessionState::Current
+            || !SessionFence::admits_locked(&session_fence, generation, epoch_now_ms, monotonic_now)
+        {
+            return Ok(None);
+        }
+        Ok(Some(ProjectedSessionAuthority {
+            session_id: session.session_id.clone(),
+            user_id: session.user_id.clone(),
+            provider: session.provider.clone(),
+            generation: session.generation,
+            authority_instance_id: session.authority_instance_id.clone(),
+            expires_at_ms: session.expires_at_ms,
+            absolute_expires_at_ms: session.absolute_expires_at_ms,
+        }))
     }
 
     /// Publish the safe post-act deadline after either a coalesced durable

@@ -16,8 +16,8 @@ use super::provider::{
 };
 use super::session_projection::{
     AuthorizationStreamIncarnation, ExpiredSession, FencedPublication, MutationTicket,
-    PendingMutationKind, ProjectedTokenResolution, RevocationReason, SessionProjection,
-    TokenDigest,
+    PendingMutationKind, ProjectedConnectionTokenResolution, ProjectedTokenResolution,
+    RevocationReason, SessionProjection, TokenDigest,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -217,6 +217,51 @@ pub(crate) enum IssuanceFinish {
 pub(crate) struct PreparedBearerAuthority {
     authority: ResolvedAppAuthority,
     publication: FencedPublication,
+}
+
+/// Projection-owned authority used to mint one session-bound connection
+/// grant. The full resolved authority is short-lived: the registry strips the
+/// authority-instance id and bearer before storing the immutable grant key.
+#[derive(Debug)]
+pub(crate) struct PreparedConnectionSessionAuthority {
+    authority: ResolvedAppAuthority,
+    authorization_stream_incarnation: String,
+    deadline_ms: u64,
+    publication: FencedPublication,
+}
+
+impl PreparedConnectionSessionAuthority {
+    pub(crate) fn into_parts(self) -> (ResolvedAppAuthority, String, u64, FencedPublication) {
+        (
+            self.authority,
+            self.authorization_stream_incarnation,
+            self.deadline_ms,
+            self.publication,
+        )
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ConnectionSessionThrottleKey {
+    pub(crate) authorization_stream_incarnation: String,
+    pub(crate) session_id: String,
+    pub(crate) generation: u64,
+}
+
+#[derive(Debug)]
+pub(crate) enum ConnectionBearerResolution {
+    Current(PreparedConnectionSessionAuthority),
+    Superseded(ConnectionSessionThrottleKey),
+    Unavailable(ConnectionSessionThrottleKey),
+    Unknown {
+        authorization_stream_incarnation: String,
+    },
+}
+
+#[derive(Debug)]
+pub(crate) struct PreparedAnonymousConnectionAuthority {
+    pub(crate) authorization_stream_incarnation: String,
+    pub(crate) publication: FencedPublication,
 }
 
 impl PreparedBearerAuthority {
@@ -667,6 +712,124 @@ impl AuthCoordinator {
             return Err(projection_unavailable());
         }
         Ok(topology.projection.anonymous_publication_fence())
+    }
+
+    /// Return the current anonymous stream fence without provider or SQLite
+    /// access. The caller performs the final grant insertion through this
+    /// fence, so a concurrent reset cannot publish predecessor authority.
+    pub(crate) fn prepare_anonymous_connection(
+        &self,
+    ) -> SnapbackResult<PreparedAnonymousConnectionAuthority> {
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        Ok(PreparedAnonymousConnectionAuthority {
+            authorization_stream_incarnation: topology.projection.incarnation().as_str().to_owned(),
+            publication: topology.projection.anonymous_publication_fence(),
+        })
+    }
+
+    /// Classify a canonical bearer exclusively through the detached
+    /// projection. Superseded and blocked tokens retain only their throttle
+    /// key and can never mint or renew a connection grant.
+    ///
+    /// @ref LLP 0056#connection-bound-authority — connection open never falls
+    /// through to provider/SQLite resolution and only an exact current leaf
+    /// yields a grant publication fence.
+    pub(crate) fn classify_connection_bearer(
+        &self,
+        bearer: &SessionBearer,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<ConnectionBearerResolution> {
+        let digest = TokenDigest::from_token_hash(&bearer.token_hash());
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        let incarnation = topology.projection.incarnation().as_str().to_owned();
+        let resolution =
+            topology
+                .projection
+                .classify_connection_token(&digest, epoch_now_ms, monotonic_now)?;
+        let key = |session_id: String, generation| ConnectionSessionThrottleKey {
+            authorization_stream_incarnation: incarnation.clone(),
+            session_id,
+            generation,
+        };
+        Ok(match resolution {
+            ProjectedConnectionTokenResolution::Current(authority) => {
+                let publication = topology
+                    .projection
+                    .session_publication_fence(&authority.session_id, authority.generation)?;
+                let deadline_ms = authority.expires_at_ms;
+                ConnectionBearerResolution::Current(PreparedConnectionSessionAuthority {
+                    authority: ResolvedAppAuthority::Session {
+                        user_id: authority.user_id,
+                        session_id: authority.session_id,
+                        provider: authority.provider,
+                        generation: authority.generation,
+                        authority_instance_id: authority.authority_instance_id,
+                    },
+                    authorization_stream_incarnation: incarnation,
+                    deadline_ms,
+                    publication,
+                })
+            }
+            ProjectedConnectionTokenResolution::Superseded(authority) => {
+                ConnectionBearerResolution::Superseded(key(
+                    authority.session_id,
+                    authority.generation,
+                ))
+            }
+            ProjectedConnectionTokenResolution::Unavailable {
+                session_id,
+                generation,
+            } => ConnectionBearerResolution::Unavailable(key(session_id, generation)),
+            ProjectedConnectionTokenResolution::Unknown => ConnectionBearerResolution::Unknown {
+                authorization_stream_incarnation: incarnation,
+            },
+        })
+    }
+
+    /// Rehydrate the internal authority-instance field deliberately omitted
+    /// from a stored grant. This is a bounded in-memory projection lookup; the
+    /// grant's cloned `FencedPublication` still owns the final act-time cut.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn resolve_bound_connection_session(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        user_id: &str,
+        provider: &str,
+        generation: u64,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ResolvedAppAuthority>> {
+        let incarnation = AuthorizationStreamIncarnation::parse(authorization_stream_incarnation)?;
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        Ok(topology
+            .projection
+            .resolve_bound_connection_session(
+                &incarnation,
+                session_id,
+                user_id,
+                provider,
+                generation,
+                epoch_now_ms,
+                monotonic_now,
+            )?
+            .map(|authority| ResolvedAppAuthority::Session {
+                user_id: authority.user_id,
+                session_id: authority.session_id,
+                provider: authority.provider,
+                generation: authority.generation,
+                authority_instance_id: authority.authority_instance_id,
+            }))
     }
 
     /// Publish the later deadline only after the provider's durable result is

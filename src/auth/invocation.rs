@@ -8,6 +8,7 @@
 use crate::admin::ServerProfile;
 use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
 use crate::auth::provider::ResolvedSession;
+use crate::auth::session_projection::FencedPublication;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
@@ -15,6 +16,7 @@ use crate::manifest::{
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::time::Instant;
 use uuid::Uuid;
 
 /// Presence of one authority-bearing wire location.
@@ -567,7 +569,10 @@ pub struct PreparedAuthority {
     projection: HandlerAuthProjection,
     audit: AuthorityAuditFact,
     availability: OperationAvailability,
-    publication: Option<crate::auth::session_projection::FencedPublication>,
+    /// Item-5 leaf handles for the final externally-observable publication
+    /// cut. Dev-only/local preparations may omit this; every projection- or
+    /// connection-resolved sessions-mode request installs it.
+    publication: Option<FencedPublication>,
 }
 
 /// Bearer-free authority retained by a durable live subscription. It carries
@@ -625,10 +630,7 @@ impl PreparedAuthority {
         self.resolved.legacy_input()
     }
 
-    pub(crate) fn with_fenced_publication(
-        mut self,
-        publication: crate::auth::session_projection::FencedPublication,
-    ) -> Self {
+    pub(crate) fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
         self.publication = Some(publication);
         self
     }
@@ -676,6 +678,17 @@ impl PreparedAuthority {
 
     pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
         self.admission.effect_guard(effect)
+    }
+
+    /// Validate the exact authorization stream/session leaf and perform one
+    /// bounded synchronous publication while its guards remain held.
+    pub(crate) fn try_fenced_publication<T>(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
+        self.try_publish_fenced(epoch_now_ms, monotonic_now, publish)
     }
 
     pub fn inherit_for(&self, source: InvocationSource) -> SnapbackResult<Self> {

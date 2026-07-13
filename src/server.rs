@@ -4,9 +4,10 @@ use crate::admin_secret_read::{
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommitFailure};
 use crate::auth::coordinator::{
-    AuthCoordinator, CommittedAuthOutcome, CommittedAuthResponseClass, IssuanceFinish,
-    RevocationFinish, RotationFinish,
+    AuthCoordinator, CommittedAuthOutcome, CommittedAuthResponseClass, ConnectionBearerResolution,
+    ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
 };
+use crate::auth::crypto::SessionBearer;
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
@@ -22,6 +23,7 @@ use crate::auth::provider::{
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
 };
+use crate::auth::session_projection::FencedPublication;
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -914,13 +916,235 @@ struct ConnectionRegistryState {
     grants: std::collections::HashMap<String, ConnectionGrantRecord>,
     unused: std::collections::BTreeSet<(u64, String)>,
     used: std::collections::BTreeSet<(u64, String)>,
+    anonymous_grants: std::collections::HashMap<String, std::collections::BTreeSet<String>>,
+    session_grants: std::collections::HashMap<BoundSessionKey, std::collections::BTreeSet<String>>,
+    anonymous_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
+    unknown_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
+    session_open_attempts:
+        std::collections::HashMap<BoundSessionKey, std::collections::VecDeque<Instant>>,
     pressure_mint_only: bool,
 }
 
 struct ConnectionGrantRecord {
+    grant_id: String,
     token: String,
     last_use_ms: u64,
     used: bool,
+    managed_authority: bool,
+    authority: BoundGrantAuthority,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct BoundSessionKey {
+    authorization_stream_incarnation: String,
+    session_id: String,
+    generation: u64,
+}
+
+impl From<ConnectionSessionThrottleKey> for BoundSessionKey {
+    fn from(value: ConnectionSessionThrottleKey) -> Self {
+        Self {
+            authorization_stream_incarnation: value.authorization_stream_incarnation,
+            session_id: value.session_id,
+            generation: value.generation,
+        }
+    }
+}
+
+#[derive(Clone)]
+enum BoundGrantAuthority {
+    Anonymous {
+        authorization_stream_incarnation: String,
+        publication: FencedPublication,
+    },
+    Session {
+        authorization_stream_incarnation: String,
+        session_id: String,
+        user_id: String,
+        provider: String,
+        generation: u64,
+        deadline_ms: u64,
+        publication: FencedPublication,
+    },
+}
+
+impl std::fmt::Debug for BoundGrantAuthority {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Anonymous {
+                authorization_stream_incarnation,
+                ..
+            } => formatter
+                .debug_struct("BoundGrantAuthority::Anonymous")
+                .field(
+                    "authorization_stream_incarnation",
+                    authorization_stream_incarnation,
+                )
+                .finish(),
+            Self::Session {
+                authorization_stream_incarnation,
+                session_id,
+                user_id,
+                provider,
+                generation,
+                deadline_ms,
+                ..
+            } => formatter
+                .debug_struct("BoundGrantAuthority::Session")
+                .field(
+                    "authorization_stream_incarnation",
+                    authorization_stream_incarnation,
+                )
+                .field("session_id", session_id)
+                .field("user_id", user_id)
+                .field("provider", provider)
+                .field("generation", generation)
+                .field("deadline_ms", deadline_ms)
+                .finish(),
+        }
+    }
+}
+
+impl BoundGrantAuthority {
+    fn publication(&self) -> &FencedPublication {
+        match self {
+            Self::Anonymous { publication, .. } | Self::Session { publication, .. } => publication,
+        }
+    }
+
+    fn reverse_key(&self) -> GrantReverseKey {
+        match self {
+            Self::Anonymous {
+                authorization_stream_incarnation,
+                ..
+            } => GrantReverseKey::Anonymous(authorization_stream_incarnation.clone()),
+            Self::Session {
+                authorization_stream_incarnation,
+                session_id,
+                generation,
+                ..
+            } => GrantReverseKey::Session(BoundSessionKey {
+                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+                session_id: session_id.clone(),
+                generation: *generation,
+            }),
+        }
+    }
+
+    fn same_identity(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::Anonymous {
+                    authorization_stream_incarnation: left,
+                    ..
+                },
+                Self::Anonymous {
+                    authorization_stream_incarnation: right,
+                    ..
+                },
+            ) => left == right,
+            (
+                Self::Session {
+                    authorization_stream_incarnation: left_incarnation,
+                    session_id: left_session,
+                    user_id: left_user,
+                    provider: left_provider,
+                    generation: left_generation,
+                    ..
+                },
+                Self::Session {
+                    authorization_stream_incarnation: right_incarnation,
+                    session_id: right_session,
+                    user_id: right_user,
+                    provider: right_provider,
+                    generation: right_generation,
+                    ..
+                },
+            ) => {
+                left_incarnation == right_incarnation
+                    && left_session == right_session
+                    && left_user == right_user
+                    && left_provider == right_provider
+                    && left_generation == right_generation
+            }
+            _ => false,
+        }
+    }
+
+    fn stale_error(&self) -> SnapbackError {
+        match self {
+            Self::Anonymous { .. } => SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_RESET",
+                "auth",
+                "the connection authorization stream is no longer current",
+            ),
+            Self::Session { .. } => SnapbackError::error(
+                "SNAPBACK_AUTH_SESSION_EXPIRED",
+                "auth",
+                "the connection session is no longer current",
+            ),
+        }
+    }
+
+    fn terminal_capture(
+        &self,
+        connection_id: String,
+        grant_id: String,
+    ) -> BoundConnectionTerminalCapture {
+        match self {
+            Self::Anonymous {
+                authorization_stream_incarnation,
+                ..
+            } => BoundConnectionTerminalCapture {
+                connection_id,
+                grant_id,
+                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+                session_id: None,
+                generation: None,
+            },
+            Self::Session {
+                authorization_stream_incarnation,
+                session_id,
+                generation,
+                ..
+            } => BoundConnectionTerminalCapture {
+                connection_id,
+                grant_id,
+                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+                session_id: Some(session_id.clone()),
+                generation: Some(*generation),
+            },
+        }
+    }
+}
+
+enum GrantReverseKey {
+    Anonymous(String),
+    Session(BoundSessionKey),
+}
+
+#[derive(Clone, Debug)]
+struct PreparedConnectionOpenAuthority {
+    resolved: ResolvedAppAuthority,
+    bound: BoundGrantAuthority,
+    managed_authority: bool,
+}
+
+#[derive(Clone, Debug)]
+struct PreparedConnectionAct {
+    connection_id: String,
+    grant_id: String,
+    resolved: ResolvedAppAuthority,
+    bound: BoundGrantAuthority,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BoundConnectionTerminalCapture {
+    pub(crate) connection_id: String,
+    pub(crate) grant_id: String,
+    pub(crate) authorization_stream_incarnation: String,
+    pub(crate) session_id: Option<String>,
+    pub(crate) generation: Option<u64>,
 }
 
 impl ConnectionRegistryState {
@@ -950,7 +1174,7 @@ impl ConnectionRegistryState {
             return Ok(());
         }
         if let Some((_last_use, connection_id)) = self.unused.pop_first() {
-            self.grants.remove(&connection_id);
+            self.remove_grant(&connection_id);
             return Ok(());
         }
         let expired_before = now_ms.saturating_sub(CONNECTION_GRANT_IDLE_TTL_MS);
@@ -960,7 +1184,7 @@ impl ConnectionRegistryState {
             .is_some_and(|(last_use, _)| *last_use <= expired_before)
             && let Some((_last_use, connection_id)) = self.used.pop_first()
         {
-            self.grants.remove(&connection_id);
+            self.remove_grant(&connection_id);
             self.pressure_mint_only = true;
             return Ok(());
         }
@@ -973,16 +1197,133 @@ impl ConnectionRegistryState {
         ))
     }
 
-    fn insert(&mut self, connection_id: String, token: String, now_ms: u64) {
+    fn insert(
+        &mut self,
+        connection_id: String,
+        grant_id: String,
+        token: String,
+        authority: BoundGrantAuthority,
+        managed_authority: bool,
+        now_ms: u64,
+    ) {
         self.unused.insert((now_ms, connection_id.clone()));
+        self.index_grant(&connection_id, &authority);
         self.grants.insert(
             connection_id,
             ConnectionGrantRecord {
+                grant_id,
                 token,
                 last_use_ms: now_ms,
                 used: false,
+                managed_authority,
+                authority,
             },
         );
+    }
+
+    fn index_grant(&mut self, connection_id: &str, authority: &BoundGrantAuthority) {
+        match authority.reverse_key() {
+            GrantReverseKey::Anonymous(incarnation) => {
+                self.anonymous_grants
+                    .entry(incarnation)
+                    .or_default()
+                    .insert(connection_id.to_owned());
+            }
+            GrantReverseKey::Session(key) => {
+                self.session_grants
+                    .entry(key)
+                    .or_default()
+                    .insert(connection_id.to_owned());
+            }
+        }
+    }
+
+    fn unindex_grant(&mut self, connection_id: &str, authority: &BoundGrantAuthority) {
+        match authority.reverse_key() {
+            GrantReverseKey::Anonymous(incarnation) => {
+                if let Some(ids) = self.anonymous_grants.get_mut(&incarnation) {
+                    ids.remove(connection_id);
+                    if ids.is_empty() {
+                        self.anonymous_grants.remove(&incarnation);
+                    }
+                }
+            }
+            GrantReverseKey::Session(key) => {
+                if let Some(ids) = self.session_grants.get_mut(&key) {
+                    ids.remove(connection_id);
+                    if ids.is_empty() {
+                        self.session_grants.remove(&key);
+                    }
+                }
+            }
+        }
+    }
+
+    fn remove_grant(&mut self, connection_id: &str) -> Option<ConnectionGrantRecord> {
+        let record = self.grants.remove(connection_id)?;
+        let index = if record.used {
+            &mut self.used
+        } else {
+            &mut self.unused
+        };
+        index.remove(&(record.last_use_ms, connection_id.to_owned()));
+        self.unindex_grant(connection_id, &record.authority);
+        Some(record)
+    }
+
+    fn consume_open_bucket(
+        bucket: &mut std::collections::VecDeque<Instant>,
+        limit: usize,
+        now: Instant,
+    ) -> Result<(), u64> {
+        while bucket.front().is_some_and(|attempt| {
+            now.saturating_duration_since(*attempt) >= CONNECTION_OPEN_WINDOW
+        }) {
+            bucket.pop_front();
+        }
+        if bucket.len() >= limit {
+            let remaining = bucket
+                .front()
+                .and_then(|oldest| {
+                    oldest
+                        .checked_add(CONNECTION_OPEN_WINDOW)
+                        .map(|deadline| deadline.saturating_duration_since(now))
+                })
+                .unwrap_or(CONNECTION_OPEN_WINDOW);
+            let millis = remaining.as_millis().max(1);
+            let seconds = ((millis + 999) / 1_000).min(u128::from(u64::MAX)) as u64;
+            return Err(seconds.max(1));
+        }
+        bucket.push_back(now);
+        Ok(())
+    }
+
+    fn consume_anonymous_open(&mut self, incarnation: &str, now: Instant) -> Result<(), u64> {
+        Self::consume_open_bucket(
+            self.anonymous_open_attempts
+                .entry(incarnation.to_owned())
+                .or_default(),
+            CONNECTION_OPEN_COARSE_LIMIT,
+            now,
+        )
+    }
+
+    fn consume_unknown_open(&mut self, incarnation: &str, now: Instant) -> Result<(), u64> {
+        Self::consume_open_bucket(
+            self.unknown_open_attempts
+                .entry(incarnation.to_owned())
+                .or_default(),
+            CONNECTION_OPEN_COARSE_LIMIT,
+            now,
+        )
+    }
+
+    fn consume_session_open(&mut self, key: BoundSessionKey, now: Instant) -> Result<(), u64> {
+        Self::consume_open_bucket(
+            self.session_open_attempts.entry(key).or_default(),
+            CONNECTION_OPEN_SESSION_LIMIT,
+            now,
+        )
     }
 }
 
@@ -1041,8 +1382,201 @@ impl std::fmt::Debug for OpenConnectionRequest {
 impl ConnectionRegistry {
     /// Invalidate every process-local connection capability after the shared
     /// authorization stream rotates at a committed app reset.
-    pub(crate) fn clear_after_committed_reset(&self) {
-        *self.lock() = ConnectionRegistryState::default();
+    pub(crate) fn clear_after_committed_reset(&self) -> Vec<BoundConnectionTerminalCapture> {
+        let mut state = self.lock();
+        let captures = state
+            .grants
+            .iter()
+            .map(|(connection_id, record)| {
+                record
+                    .authority
+                    .terminal_capture(connection_id.clone(), record.grant_id.clone())
+            })
+            .collect::<Vec<_>>();
+        *state = ConnectionRegistryState::default();
+        captures
+    }
+
+    /// Remove every grant bound to one exact predecessor session generation.
+    /// The reverse index keeps this proportional to the affected authority,
+    /// not to the 16,384-entry registry.
+    pub(crate) fn invalidate_session_generation(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        generation: u64,
+    ) -> Vec<BoundConnectionTerminalCapture> {
+        let key = BoundSessionKey {
+            authorization_stream_incarnation: authorization_stream_incarnation.to_owned(),
+            session_id: session_id.to_owned(),
+            generation,
+        };
+        let mut state = self.lock();
+        let ids = state.session_grants.get(&key).cloned().unwrap_or_default();
+        let captures = ids
+            .iter()
+            .filter_map(|connection_id| {
+                let record = state.grants.get(connection_id)?;
+                Some(
+                    record
+                        .authority
+                        .terminal_capture(connection_id.clone(), record.grant_id.clone()),
+                )
+            })
+            .collect::<Vec<_>>();
+        for connection_id in &ids {
+            state.remove_grant(connection_id);
+        }
+        state.session_open_attempts.remove(&key);
+        captures
+    }
+
+    /// Resolve and account for one connection-open credential before the
+    /// handler considers id reuse. This is the only production constructor
+    /// for `BoundGrantAuthority`.
+    fn prepare_open_authority(
+        &self,
+        coordinator: &AuthCoordinator,
+        presented: PresentedSessionBearer<'_>,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Result<PreparedConnectionOpenAuthority, ApiError> {
+        let incarnation = coordinator
+            .authorization_stream_incarnation()
+            .map_err(ApiError::from)?;
+        match presented {
+            PresentedSessionBearer::Absent => {
+                self.consume_anonymous_open(&incarnation, monotonic_now)?;
+                let prepared = coordinator
+                    .prepare_anonymous_connection()
+                    .map_err(ApiError::from)?;
+                Ok(PreparedConnectionOpenAuthority {
+                    resolved: ResolvedAppAuthority::Anonymous,
+                    managed_authority: true,
+                    bound: BoundGrantAuthority::Anonymous {
+                        authorization_stream_incarnation: prepared.authorization_stream_incarnation,
+                        publication: prepared.publication,
+                    },
+                })
+            }
+            PresentedSessionBearer::Malformed => {
+                self.consume_anonymous_open(&incarnation, monotonic_now)?;
+                Err(ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_REQUIRED",
+                    "auth",
+                    "authentication is required",
+                )))
+            }
+            PresentedSessionBearer::Candidate(raw) => {
+                let Ok(bearer) = SessionBearer::parse(raw) else {
+                    self.consume_anonymous_open(&incarnation, monotonic_now)?;
+                    return Err(ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_REQUIRED",
+                        "auth",
+                        "authentication is required",
+                    )));
+                };
+                match coordinator
+                    .classify_connection_bearer(&bearer, epoch_now_ms, monotonic_now)
+                    .map_err(ApiError::from)?
+                {
+                    ConnectionBearerResolution::Current(prepared) => {
+                        let (resolved, incarnation, deadline_ms, publication) =
+                            prepared.into_parts();
+                        let ResolvedAppAuthority::Session {
+                            user_id,
+                            session_id,
+                            provider,
+                            generation,
+                            ..
+                        } = &resolved
+                        else {
+                            unreachable!("connection session preparation is session authority")
+                        };
+                        self.consume_session_open(
+                            BoundSessionKey {
+                                authorization_stream_incarnation: incarnation.clone(),
+                                session_id: session_id.clone(),
+                                generation: *generation,
+                            },
+                            monotonic_now,
+                        )?;
+                        Ok(PreparedConnectionOpenAuthority {
+                            managed_authority: true,
+                            bound: BoundGrantAuthority::Session {
+                                authorization_stream_incarnation: incarnation,
+                                session_id: session_id.clone(),
+                                user_id: user_id.clone(),
+                                provider: provider.clone(),
+                                generation: *generation,
+                                deadline_ms,
+                                publication,
+                            },
+                            resolved,
+                        })
+                    }
+                    ConnectionBearerResolution::Superseded(key) => {
+                        self.consume_session_open(key.into(), monotonic_now)?;
+                        Err(ApiError::from(SnapbackError::error(
+                            "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED",
+                            "auth",
+                            "authentication credential has been superseded",
+                        )))
+                    }
+                    ConnectionBearerResolution::Unavailable(key) => {
+                        self.consume_session_open(key.into(), monotonic_now)?;
+                        Err(ApiError::from(SnapbackError::error(
+                            "SNAPBACK_AUTH_REQUIRED",
+                            "auth",
+                            "authentication is required",
+                        )))
+                    }
+                    ConnectionBearerResolution::Unknown {
+                        authorization_stream_incarnation,
+                    } => {
+                        self.consume_unknown_open(
+                            &authorization_stream_incarnation,
+                            monotonic_now,
+                        )?;
+                        Err(ApiError::from(SnapbackError::error(
+                            "SNAPBACK_AUTH_REQUIRED",
+                            "auth",
+                            "authentication is required",
+                        )))
+                    }
+                }
+            }
+        }
+    }
+
+    fn consume_anonymous_open(
+        &self,
+        incarnation: &str,
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        self.lock()
+            .consume_anonymous_open(incarnation, monotonic_now)
+            .map_err(ApiError::auth_throttled)
+    }
+
+    fn consume_unknown_open(
+        &self,
+        incarnation: &str,
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        self.lock()
+            .consume_unknown_open(incarnation, monotonic_now)
+            .map_err(ApiError::auth_throttled)
+    }
+
+    fn consume_session_open(
+        &self,
+        key: BoundSessionKey,
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        self.lock()
+            .consume_session_open(key, monotonic_now)
+            .map_err(ApiError::auth_throttled)
     }
 
     /// Open a grant. A caller-suggested id is adopted only in non-prod
@@ -1058,54 +1592,128 @@ impl ConnectionRegistry {
     /// proves ownership). This is what lets a client hold one connection
     /// identity across reconnects and server restarts: after a restart the
     /// registry is empty, so the suggestion is simply adopted afresh.
+    fn open_prepared(
+        &self,
+        suggested: Option<String>,
+        previous_token: Option<&str>,
+        allow_suggested: bool,
+        prepared: PreparedConnectionOpenAuthority,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<ConnectionGrant> {
+        let stale = prepared.bound.stale_error();
+        let publication = prepared.bound.publication().clone();
+        publication
+            .try_publish(now_ms, monotonic_now, || {
+                let mut grants = self.lock();
+                if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
+                    && grants
+                        .grants
+                        .get(id)
+                        .is_some_and(|existing| constant_time_str_eq(&existing.token, previous))
+                {
+                    let same_authority = grants
+                        .grants
+                        .get(id)
+                        .is_some_and(|existing| existing.authority.same_identity(&prepared.bound));
+                    if !same_authority {
+                        grants.remove_grant(id);
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
+                            "auth",
+                            "the previous connection token is bound to different authority",
+                        ));
+                    }
+                    let existing = grants
+                        .grants
+                        .get_mut(id)
+                        .expect("exact previous grant remains installed");
+                    existing.authority = prepared.bound.clone();
+                    existing.managed_authority = prepared.managed_authority;
+                    let connection_token = existing.token.clone();
+                    grants.touch(id, now_ms);
+                    return Ok(ConnectionGrant {
+                        connection_id: id.clone(),
+                        connection_token,
+                    });
+                }
+                grants.admit_slot(now_ms)?;
+                let connection_id = match suggested {
+                    Some(id)
+                        if allow_suggested
+                            && !grants.pressure_mint_only
+                            && valid_suggested_connection_id(&id)
+                            && !grants.grants.contains_key(&id) =>
+                    {
+                        id
+                    }
+                    _ => loop {
+                        let minted = format!("conn_{}", Uuid::new_v4().simple());
+                        if !grants.grants.contains_key(&minted) {
+                            break minted;
+                        }
+                    },
+                };
+                let grant_id = Uuid::now_v7().to_string();
+                let connection_token = format!("sct_{}", Uuid::new_v4().simple());
+                grants.insert(
+                    connection_id.clone(),
+                    grant_id,
+                    connection_token.clone(),
+                    prepared.bound,
+                    prepared.managed_authority,
+                    now_ms,
+                );
+                Ok(ConnectionGrant {
+                    connection_id,
+                    connection_token,
+                })
+            })?
+            .ok_or(stale)
+    }
+
+    /// Legacy Rust embedding seam used by dev/test harnesses that construct
+    /// grants before installing an auth coordinator. The record is marked
+    /// unmanaged and sessions-mode middleware refuses it; production HTTP
+    /// opens exclusively through projection-backed `open_prepared`.
+    #[doc(hidden)]
     pub fn open(
         &self,
         suggested: Option<String>,
         previous_token: Option<&str>,
         allow_suggested: bool,
     ) -> SnapbackResult<ConnectionGrant> {
-        let mut grants = self.lock();
-        let now_ms = now_millis();
-        if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
-            && let Some(existing) = grants.grants.get(id)
-            && constant_time_str_eq(&existing.token, previous)
-        {
-            let connection_token = existing.token.clone();
-            grants.touch(id, now_ms);
-            return Ok(ConnectionGrant {
-                connection_id: id.clone(),
-                connection_token,
-            });
-        }
-        grants.admit_slot(now_ms)?;
-        let connection_id = match suggested {
-            Some(id)
-                if allow_suggested
-                    && !grants.pressure_mint_only
-                    && valid_suggested_connection_id(&id)
-                    && !grants.grants.contains_key(&id) =>
-            {
-                id
-            }
-            _ => loop {
-                let minted = format!("conn_{}", Uuid::new_v4().simple());
-                if !grants.grants.contains_key(&minted) {
-                    break minted;
-                }
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        self.open_prepared(
+            suggested,
+            previous_token,
+            allow_suggested,
+            PreparedConnectionOpenAuthority {
+                resolved: ResolvedAppAuthority::Anonymous,
+                managed_authority: false,
+                bound: BoundGrantAuthority::Anonymous {
+                    authorization_stream_incarnation: incarnation,
+                    publication,
+                },
             },
-        };
-        let connection_token = format!("sct_{}", Uuid::new_v4().simple());
-        grants.insert(connection_id.clone(), connection_token.clone(), now_ms);
-        Ok(ConnectionGrant {
-            connection_id,
-            connection_token,
-        })
+            now_millis(),
+            Instant::now(),
+        )
     }
 
     /// Verify a presented token for one connection-scoped operation. Unknown
     /// connections and token mismatches share one diagnostic code so the gate
     /// is not an existence oracle for the connection-id namespace.
-    pub fn verify(&self, connection_id: &str, presented: Option<&str>) -> Result<(), ApiError> {
+    fn prepare_act(
+        &self,
+        connection_id: &str,
+        presented: Option<&str>,
+        coordinator: Option<&AuthCoordinator>,
+        allow_unmanaged_dev: bool,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Result<PreparedConnectionAct, ApiError> {
         let Some(presented) = presented else {
             return Err(connection_auth_error(
                 "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
@@ -1113,28 +1721,81 @@ impl ConnectionRegistry {
                 connection_id,
             ));
         };
-        let mut grants = self.lock();
-        let valid = grants
-            .grants
-            .get(connection_id)
-            .is_some_and(|expected| constant_time_str_eq(&expected.token, presented));
-        if valid {
-            grants.touch(connection_id, now_millis());
-            Ok(())
-        } else {
-            Err(connection_auth_error(
-                "SNAPBACK_CONNECTION_TOKEN_INVALID",
-                "connection is not open on this server or the token does not match",
-                connection_id,
-            ))
-        }
+        let (grant_id, bound) = {
+            let grants = self.lock();
+            let Some(record) = grants
+                .grants
+                .get(connection_id)
+                .filter(|expected| constant_time_str_eq(&expected.token, presented))
+            else {
+                return Err(connection_auth_error(
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                    "connection is not open on this server or the token does not match",
+                    connection_id,
+                ));
+            };
+            if !record.managed_authority && !allow_unmanaged_dev {
+                return Err(connection_auth_error(
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                    "connection authority is unavailable in sessions mode",
+                    connection_id,
+                ));
+            }
+            (record.grant_id.clone(), record.authority.clone())
+        };
+        let resolved = match &bound {
+            BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::Session {
+                authorization_stream_incarnation,
+                session_id,
+                user_id,
+                provider,
+                generation,
+                ..
+            } => {
+                let coordinator = coordinator.ok_or_else(|| {
+                    ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "authentication projection is unavailable",
+                    ))
+                })?;
+                coordinator
+                    .resolve_bound_connection_session(
+                        authorization_stream_incarnation,
+                        session_id,
+                        user_id,
+                        provider,
+                        *generation,
+                        epoch_now_ms,
+                        monotonic_now,
+                    )
+                    .map_err(ApiError::from)?
+                    .ok_or_else(|| ApiError::from(bound.stale_error()))?
+            }
+        };
+        Ok(PreparedConnectionAct {
+            connection_id: connection_id.to_owned(),
+            grant_id,
+            resolved,
+            bound,
+        })
     }
 
-    /// Authenticate a bearer before a body-carried connection id is decoded.
-    /// The exact id↔token pair is still checked after the bounded JSON peek,
-    /// but an invalid bearer cannot reach JSON extraction or a handler side
-    /// effect merely because this transport places its id in the body.
-    fn verify_presented_bearer(&self, presented: Option<&str>) -> Result<(), ApiError> {
+    #[cfg(test)]
+    pub fn verify(&self, connection_id: &str, presented: Option<&str>) -> Result<(), ApiError> {
+        let prepared = self.prepare_act(
+            connection_id,
+            presented,
+            None,
+            true,
+            now_millis(),
+            Instant::now(),
+        )?;
+        prepared.try_act(self, now_millis(), Instant::now(), || Ok(()))
+    }
+
+    fn authenticate_presented_bearer(&self, presented: Option<&str>) -> Result<(), ApiError> {
         let Some(presented) = presented else {
             return Err(connection_auth_error(
                 "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
@@ -1160,13 +1821,23 @@ impl ConnectionRegistry {
     /// Renew an already-authenticated WebSocket lease on frame traffic. The
     /// upgrade verified the bearer once; subsequent frames do not carry it,
     /// but they are still proof that this exact authorized socket is active.
+    #[cfg(test)]
     fn touch_verified_socket(&self, connection_id: &str) -> bool {
-        let mut grants = self.lock();
-        if !grants.grants.contains_key(connection_id) {
-            return false;
-        }
-        grants.touch(connection_id, now_millis());
-        true
+        let prepared = {
+            let state = self.lock();
+            let Some(record) = state.grants.get(connection_id) else {
+                return false;
+            };
+            PreparedConnectionAct {
+                connection_id: connection_id.to_owned(),
+                grant_id: record.grant_id.clone(),
+                resolved: ResolvedAppAuthority::Anonymous,
+                bound: record.authority.clone(),
+            }
+        };
+        prepared
+            .try_act(self, now_millis(), Instant::now(), || Ok(()))
+            .is_ok()
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, ConnectionRegistryState> {
@@ -1176,12 +1847,56 @@ impl ConnectionRegistry {
     }
 }
 
+impl PreparedConnectionAct {
+    pub(crate) fn terminal_capture(&self) -> BoundConnectionTerminalCapture {
+        self.bound
+            .terminal_capture(self.connection_id.clone(), self.grant_id.clone())
+    }
+
+    fn try_act<T>(
+        &self,
+        registry: &ConnectionRegistry,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        act: impl FnOnce() -> Result<T, ApiError>,
+    ) -> Result<T, ApiError> {
+        let mut outcome = None;
+        let published = self
+            .bound
+            .publication()
+            .try_publish(epoch_now_ms, monotonic_now, || {
+                let mut state = registry.lock();
+                let current = state
+                    .grants
+                    .get(&self.connection_id)
+                    .is_some_and(|record| record.grant_id == self.grant_id);
+                if !current {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                        "realtime",
+                        "the connection grant is no longer current",
+                    ));
+                }
+                state.touch(&self.connection_id, epoch_now_ms);
+                drop(state);
+                outcome = Some(act());
+                Ok(())
+            })
+            .map_err(ApiError::from)?;
+        if published.is_none() {
+            return Err(ApiError::from(self.bound.stale_error()));
+        }
+        outcome.expect("a successful fenced connection act records its outcome")
+    }
+}
+
 fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiError {
     ApiError(
         SnapbackError::new(
             Diagnostic::error(code, "realtime", message)
                 .with_details(json!({ "connection_id": connection_id })),
         ),
+        None,
         None,
     )
 }
@@ -1208,6 +1923,9 @@ const LIVE_STREAM_SUBPROTOCOL: &str = "snapback.v1";
 const MAX_LIVE_SOCKET_FRAME_BYTES: usize = 64 * 1_024;
 const MAX_CONNECTION_GRANTS: usize = 16_384;
 const CONNECTION_GRANT_IDLE_TTL_MS: u64 = CONNECTION_IDLE_TTL_MS;
+const CONNECTION_OPEN_SESSION_LIMIT: usize = 60;
+const CONNECTION_OPEN_COARSE_LIMIT: usize = 240;
+const CONNECTION_OPEN_WINDOW: Duration = Duration::from_secs(60);
 
 fn valid_suggested_connection_id(value: &str) -> bool {
     let bytes = value.as_bytes();
@@ -1307,9 +2025,9 @@ impl std::fmt::Debug for ConnectionTokenQuery {
 /// `/app/ensure`. The profile decides whether a caller-suggested id may be
 /// adopted (non-prod only).
 async fn open_connection(
-    State(connections): State<ConnectionRegistry>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(runtime): State<AppState>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(prepared): Extension<PreparedConnectionOpenAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -1318,12 +2036,16 @@ async fn open_connection(
     let (suggested, previous_token) = body
         .map(|body| (body.connection_id, body.previous_token))
         .unwrap_or_default();
-    let allow_suggested = ctx.profile.allows_provisioning();
+    let allow_suggested = runtime.server.profile.allows_provisioning();
     let _effect = admission.effect_guard("connection grant publication")?;
-    Ok(Json(connections.open(
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    Ok(Json(runtime.connections.open_prepared(
         suggested,
         previous_token.as_deref(),
         allow_suggested,
+        prepared,
+        epoch_now_ms,
+        monotonic_now,
     )?))
 }
 
@@ -2887,6 +3609,7 @@ async fn prepare_registered_route_authority(
     admission: Option<&AdmissionLease>,
     headers: &HeaderMap,
     body: Option<&Value>,
+    resolved_connection_authority: Option<&ResolvedAppAuthority>,
 ) -> Result<Option<PreparedAuthority>, ApiError> {
     let Some(source) = source else {
         return Ok(None);
@@ -2913,78 +3636,86 @@ async fn prepare_registered_route_authority(
             .into());
         }
     }
-    let (resolved, fenced_publication) = match active_mode {
-        crate::manifest::AuthMode::Dev => {
-            if source == InvocationSource::BootstrapHandshake
-                && headers.contains_key(header::AUTHORIZATION)
-            {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_REQUIRED",
-                    "auth",
-                    "session credentials are unavailable while auth mode is dev",
-                )
-                .into());
+    let (resolved, fenced_publication) = if let Some(resolved) = resolved_connection_authority {
+        // Connection open/acts already carry the exact bound publication
+        // fence. The caller installs that fence after the shared invocation
+        // gate has projected this resolved authority.
+        (resolved.clone(), None)
+    } else {
+        match active_mode {
+            crate::manifest::AuthMode::Dev => {
+                if source == InvocationSource::BootstrapHandshake
+                    && headers.contains_key(header::AUTHORIZATION)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_REQUIRED",
+                        "auth",
+                        "session credentials are unavailable while auth mode is dev",
+                    )
+                    .into());
+                }
+                if matches!(
+                    source,
+                    InvocationSource::HostOperationFunctionRun
+                        | InvocationSource::HostOperationMutationDryRun
+                ) {
+                    (dev_host_operation_authority(handler_value), None)
+                } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
+                    || source == InvocationSource::DirectAdminRunner
+                {
+                    (dev_body_authority(handler_value), None)
+                } else {
+                    (ResolvedAppAuthority::Anonymous, None)
+                }
             }
-            if matches!(
-                source,
-                InvocationSource::HostOperationFunctionRun
-                    | InvocationSource::HostOperationMutationDryRun
-            ) {
-                (dev_host_operation_authority(handler_value), None)
-            } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
-                || source == InvocationSource::DirectAdminRunner
-            {
-                (dev_body_authority(handler_value), None)
-            } else {
-                (ResolvedAppAuthority::Anonymous, None)
-            }
-        }
-        crate::manifest::AuthMode::Sessions => {
-            let coordinator = installed_auth_coordinator(runtime)?;
-            if matches!(
-                source,
-                InvocationSource::DirectAdminRunner
-                    | InvocationSource::HostOperationFunctionRun
-                    | InvocationSource::HostOperationMutationDryRun
-            ) {
-                (
-                    ResolvedAppAuthority::AdminBypass {
-                        reason: "administrative application invocation".to_owned(),
-                    },
-                    Some(
-                        coordinator
-                            .prepare_anonymous_publication()
-                            .map_err(ApiError::from)?,
-                    ),
-                )
-            } else if matches!(
-                effective.credential_resolution,
-                CredentialResolution::OptionalSessionBearer
-                    | CredentialResolution::RequiredSessionBearer
-            ) && (effective.credential_resolution
-                == CredentialResolution::RequiredSessionBearer
-                || headers.contains_key(header::AUTHORIZATION))
-            {
-                // Invalid and duplicate Authorization values remain
-                // presented-invalid credentials. Finite request resolution is
-                // projection-only and never falls through to provider/SQLite.
-                let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
-                let provider = installed_auth_provider(runtime)?;
-                let now_ms = provider.now_ms();
-                let prepared = coordinator
-                    .resolve_required_bearer(&bearer, now_ms, provider.monotonic_now())
-                    .map_err(ApiError::from)?;
-                let (resolved, publication) = prepared.into_parts();
-                (resolved, Some(publication))
-            } else {
-                (
-                    ResolvedAppAuthority::Anonymous,
-                    Some(
-                        coordinator
-                            .prepare_anonymous_publication()
-                            .map_err(ApiError::from)?,
-                    ),
-                )
+            crate::manifest::AuthMode::Sessions => {
+                let coordinator = installed_auth_coordinator(runtime)?;
+                if matches!(
+                    source,
+                    InvocationSource::DirectAdminRunner
+                        | InvocationSource::HostOperationFunctionRun
+                        | InvocationSource::HostOperationMutationDryRun
+                ) {
+                    (
+                        ResolvedAppAuthority::AdminBypass {
+                            reason: "administrative application invocation".to_owned(),
+                        },
+                        Some(
+                            coordinator
+                                .prepare_anonymous_publication()
+                                .map_err(ApiError::from)?,
+                        ),
+                    )
+                } else if matches!(
+                    effective.credential_resolution,
+                    CredentialResolution::OptionalSessionBearer
+                        | CredentialResolution::RequiredSessionBearer
+                ) && (effective.credential_resolution
+                    == CredentialResolution::RequiredSessionBearer
+                    || headers.contains_key(header::AUTHORIZATION))
+                {
+                    // Invalid and duplicate Authorization values remain
+                    // presented-invalid credentials. Finite request resolution
+                    // is projection-only and never falls through to provider or
+                    // SQLite.
+                    let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
+                    let provider = installed_auth_provider(runtime)?;
+                    let now_ms = provider.now_ms();
+                    let prepared = coordinator
+                        .resolve_required_bearer(&bearer, now_ms, provider.monotonic_now())
+                        .map_err(ApiError::from)?;
+                    let (resolved, publication) = prepared.into_parts();
+                    (resolved, Some(publication))
+                } else {
+                    (
+                        ResolvedAppAuthority::Anonymous,
+                        Some(
+                            coordinator
+                                .prepare_anonymous_publication()
+                                .map_err(ApiError::from)?,
+                        ),
+                    )
+                }
             }
         }
     };
@@ -3113,6 +3844,15 @@ fn finish_registered_response(
     admission: Option<&AdmissionLease>,
     authority: Option<&PreparedAuthority>,
 ) -> Response {
+    let response = if let Some(authority) = authority {
+        match authority.try_fenced_publication(now_millis(), Instant::now(), || Ok(response)) {
+            Ok(Some(response)) => response,
+            Ok(None) => ApiError::from(stale_prepared_authority(authority)).into_response(),
+            Err(error) => ApiError::from(error).into_response(),
+        }
+    } else {
+        response
+    };
     let mut response = if let Some(admission) = admission {
         match admission.effect_guard("HTTP response publication") {
             Ok(mode_publication) => {
@@ -3232,7 +3972,17 @@ impl HttpBody for RetainedAdmissionBody {
         else {
             return std::task::Poll::Ready(None);
         };
-        let frame = std::pin::Pin::new(&mut this.inner).poll_frame(context);
+        let frame = match this._authority.as_ref() {
+            Some(authority) => {
+                match authority.try_fenced_publication(now_millis(), Instant::now(), || {
+                    Ok(std::pin::Pin::new(&mut this.inner).poll_frame(context))
+                }) {
+                    Ok(Some(frame)) => frame,
+                    Ok(None) | Err(_) => std::task::Poll::Ready(None),
+                }
+            }
+            None => std::pin::Pin::new(&mut this.inner).poll_frame(context),
+        };
         drop(publication);
         frame
     }
@@ -3243,6 +3993,21 @@ impl HttpBody for RetainedAdmissionBody {
 
     fn size_hint(&self) -> http_body::SizeHint {
         self.inner.size_hint()
+    }
+}
+
+fn stale_prepared_authority(authority: &PreparedAuthority) -> SnapbackError {
+    match authority.resolved() {
+        ResolvedAppAuthority::Session { .. } => SnapbackError::error(
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+            "auth",
+            "authentication session is no longer current",
+        ),
+        _ => SnapbackError::error(
+            "SNAPBACK_AUTH_STREAM_RESET",
+            "auth",
+            "the authorization stream is no longer current",
+        ),
     }
 }
 
@@ -3300,30 +4065,38 @@ async fn enforce_registered_route_policy(
     // second exact id↔bearer check after decoding; an attacker-controlled
     // body never gets parsed merely to discover which bearer it claims.
     let mut presented_connection_token = None;
+    let mut prepared_connection_act = None;
     if effective.path_policy == RoutePolicy::ConnectionAuth {
         let presented = connection_token_for_request(effective, &request);
-        let verified = match route_admission
-            .as_ref()
-            .expect("connection-auth app routes are managed")
-            .effect_guard("connection bearer verification")
-        {
-            Ok(_effect) => match connection_id_from_request_path(request.uri().path()) {
+        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+        let verified: Result<Option<PreparedConnectionAct>, ApiError> =
+            match connection_id_from_request_path(request.uri().path()) {
                 Some(connection_id) => runtime
                     .connections
-                    .verify(connection_id, presented.as_deref()),
+                    .prepare_act(
+                        connection_id,
+                        presented.as_deref(),
+                        runtime.auth_coordinator.as_deref(),
+                        policy_mode == PolicyAuthMode::Dev,
+                        epoch_now_ms,
+                        monotonic_now,
+                    )
+                    .map(Some),
                 None => runtime
                     .connections
-                    .verify_presented_bearer(presented.as_deref()),
-            },
-            Err(error) => Err(ApiError::from(error)),
-        };
-        if let Err(error) = verified {
-            return finish_registered_response(
-                effective,
-                error.into_response(),
-                route_admission.as_ref(),
-                None,
-            );
+                    .authenticate_presented_bearer(presented.as_deref())
+                    .map(|()| None),
+            };
+        match verified {
+            Ok(prepared) => prepared_connection_act = prepared,
+            Err(error) => {
+                return finish_registered_response(
+                    effective,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
         }
         presented_connection_token = presented;
     }
@@ -3646,32 +4419,85 @@ async fn enforce_registered_route_policy(
                     .or_else(|| body.get("connectionId"))
             })
             .and_then(Value::as_str);
+        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         let verified = match body_connection_id {
-            Some(connection_id) if connection_id_in_body => match route_admission
-                .as_ref()
-                .expect("connection-auth app routes are managed")
-                .effect_guard("body-carried connection verification")
-            {
-                Ok(_effect) => runtime
-                    .connections
-                    .verify(connection_id, presented_connection_token.as_deref()),
-                Err(error) => Err(ApiError::from(error)),
-            },
+            Some(connection_id) if connection_id_in_body => runtime.connections.prepare_act(
+                connection_id,
+                presented_connection_token.as_deref(),
+                runtime.auth_coordinator.as_deref(),
+                policy_mode == PolicyAuthMode::Dev,
+                epoch_now_ms,
+                monotonic_now,
+            ),
             // Invalid JSON/missing fields are left to the closed typed
             // extractor, after the presented bearer was authenticated above.
-            _ => Ok(()),
+            _ => prepared_connection_act.clone().ok_or_else(|| {
+                connection_auth_error(
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                    "connection request does not identify its authenticated grant",
+                    "",
+                )
+            }),
         };
-        if let Err(error) = verified {
-            return finish_registered_response(
-                response_policy,
-                error.into_response(),
-                route_admission.as_ref(),
-                None,
-            );
+        match verified {
+            Ok(prepared) => prepared_connection_act = Some(prepared),
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
         }
     }
+
+    let prepared_connection_open = if spec.path == "/connection/open" {
+        let coordinator = match installed_auth_coordinator(&runtime) {
+            Ok(coordinator) => coordinator,
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
+        };
+        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+        match runtime.connections.prepare_open_authority(
+            coordinator.as_ref(),
+            presented_session_bearer(request.headers()),
+            epoch_now_ms,
+            monotonic_now,
+        ) {
+            Ok(prepared) => Some(prepared),
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
+        }
+    } else {
+        None
+    };
     let invocation_source =
         selected_invocation_source(spec, selected_operation.map(|(operation, _)| operation));
+    let resolved_connection_authority = if policy_mode == PolicyAuthMode::Sessions {
+        prepared_connection_act
+            .as_ref()
+            .map(|prepared| &prepared.resolved)
+            .or_else(|| {
+                prepared_connection_open
+                    .as_ref()
+                    .map(|prepared| &prepared.resolved)
+            })
+    } else {
+        None
+    };
     let prepared_authority = match prepare_registered_route_authority(
         invocation_source,
         selected_policy,
@@ -3679,6 +4505,7 @@ async fn enforce_registered_route_policy(
         route_admission.as_ref(),
         request.headers(),
         policy_body.as_ref(),
+        resolved_connection_authority,
     )
     .await
     {
@@ -3692,11 +4519,31 @@ async fn enforce_registered_route_policy(
             );
         }
     };
+    let prepared_authority = prepared_authority.map(|authority| {
+        let publication = prepared_connection_act
+            .as_ref()
+            .map(|prepared| prepared.bound.publication().clone())
+            .or_else(|| {
+                prepared_connection_open
+                    .as_ref()
+                    .map(|prepared| prepared.bound.publication().clone())
+            });
+        match publication {
+            Some(publication) => authority.with_fenced_publication(publication),
+            None => authority,
+        }
+    });
     if let Some(authority) = prepared_authority.as_ref() {
         request.extensions_mut().insert(authority.clone());
     }
     if let Some(admission) = route_admission.as_ref() {
         request.extensions_mut().insert(admission.clone());
+    }
+    if let Some(prepared) = prepared_connection_act.as_ref() {
+        request.extensions_mut().insert(prepared.clone());
+    }
+    if let Some(prepared) = prepared_connection_open.as_ref() {
+        request.extensions_mut().insert(prepared.clone());
     }
     request.extensions_mut().insert(spec);
     if let Some((operation, operation_policy)) = selected_operation {
@@ -3873,6 +4720,13 @@ fn installed_auth_coordinator(runtime: &AppState) -> Result<Arc<AuthCoordinator>
     })
 }
 
+fn auth_runtime_now(runtime: &AppState) -> (u64, Instant) {
+    runtime.auth_provider.as_ref().map_or_else(
+        || (now_millis(), Instant::now()),
+        |provider| (provider.now_ms(), provider.monotonic_now()),
+    )
+}
+
 async fn coordinated_mint_session(
     runtime: &AppState,
     provider: &Arc<AuthProvider>,
@@ -4029,6 +4883,25 @@ fn auth_bearer(headers: &HeaderMap) -> Option<&str> {
     let bearer = value.strip_prefix("Bearer ")?;
     (!bearer.is_empty() && bearer.trim() == bearer && !bearer.chars().any(char::is_whitespace))
         .then_some(bearer)
+}
+
+/// Preserve absence versus malformed/duplicate Authorization syntax so
+/// connection-open can account both in the coarse prebudget without ever
+/// hashing malformed bytes or consulting the projection.
+enum PresentedSessionBearer<'a> {
+    Absent,
+    Malformed,
+    Candidate(&'a str),
+}
+
+fn presented_session_bearer(headers: &HeaderMap) -> PresentedSessionBearer<'_> {
+    if !headers.contains_key(header::AUTHORIZATION) {
+        return PresentedSessionBearer::Absent;
+    }
+    match auth_bearer(headers) {
+        Some(bearer) => PresentedSessionBearer::Candidate(bearer),
+        None => PresentedSessionBearer::Malformed,
+    }
 }
 
 /// Parse one exact provider DTO without leaking parser details. The raw-byte
@@ -6729,7 +7602,7 @@ async fn coordinated_app_reset(
         snapback.publish_coordinated_reset(committed)
     })
     .await;
-    runtime.connections.clear_after_committed_reset();
+    let _terminal_connections = runtime.connections.clear_after_committed_reset();
     runtime.secret_reads.clear_after_committed_reset();
     maintenance.clear_mailbox_after_committed_reset();
     Ok(seeded)
@@ -7095,84 +7968,69 @@ async fn ensure_app(
 }
 
 async fn subscribe_live(
-    State(state): State<SharedSnapback>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
-    Extension(admission): Extension<AdmissionLease>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Path(name): Path<String>,
-    headers: HeaderMap,
     input: Result<Json<LiveSubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    {
-        let _effect = admission.effect_guard("live subscribe connection verification")?;
-        connections.verify(
-            &input.connection_id,
-            header_connection_token(&headers).as_deref(),
-        )?;
-    }
-    let output = with_snapback(&state, move |snapback| {
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.subscribe_live_prepared(&name, input, authority)
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     Ok(Json(output))
 }
 
 async fn resume_live(
-    State(state): State<SharedSnapback>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
-    Extension(admission): Extension<AdmissionLease>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Path(name): Path<String>,
-    headers: HeaderMap,
     input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    {
-        let _effect = admission.effect_guard("live resume connection verification")?;
-        connections.verify(
-            &input.connection_id,
-            header_connection_token(&headers).as_deref(),
-        )?;
-    }
-    let output = with_snapback(&state, move |snapback| {
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.resume_live_prepared(&name, input, authority)
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     Ok(Json(output))
 }
 
 async fn unsubscribe_live(
-    State(state): State<SharedSnapback>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
-    Extension(admission): Extension<AdmissionLease>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Path(name): Path<String>,
-    headers: HeaderMap,
     input: Result<Json<LiveUnsubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    {
-        let _effect = admission.effect_guard("live unsubscribe connection verification")?;
-        connections.verify(
-            &input.connection_id,
-            header_connection_token(&headers).as_deref(),
-        )?;
-    }
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
-    let output = with_snapback(&state, move |snapback| {
+    let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.unsubscribe_live_prepared(&name, input, authority)
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     Ok(Json(output))
 }
 
 async fn stream_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Path(connection_id): Path<String>,
-    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
     let state = runtime.snapback.clone();
@@ -7182,22 +8040,9 @@ async fn stream_live(
     let admission = runtime.auth_admission_controller();
     let active_mode = authority.active_mode();
     let admission_epoch = authority.admission_epoch();
-    // The token gate runs BEFORE the upgrade: an unauthorized caller gets the
-    // structured 401/403 diagnostic, never a socket. Browser WebSockets cannot
-    // set headers, so the token rides the
-    // `snapback.connection-token.<token>` subprotocol instead. Query-string
-    // credentials are intentionally ignored because URLs leak into logs,
-    // history, proxies, and telemetry (ENG-24354).
-    let presented =
-        header_connection_token(&headers).or_else(|| subprotocol_connection_token(&headers));
-    let verified = match authority
-        .admission_lease()
-        .effect_guard("WebSocket upgrade connection verification")
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    if let Err(error) = connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || Ok(()))
     {
-        Ok(_effect) => connections.verify(&connection_id, presented.as_deref()),
-        Err(error) => Err(ApiError::from(error)),
-    };
-    if let Err(error) = verified {
         return error.into_response();
     }
     // Select the negotiated subprotocol when offered (a browser fails the
@@ -7211,6 +8056,7 @@ async fn stream_live(
                 state,
                 ephemeral,
                 connections,
+                connection_act,
                 connection_id,
                 policy_mode,
                 admission,
@@ -7290,6 +8136,8 @@ async fn send_live_with_admission(
     writer: &mpsc::Sender<AdmittedLiveWrite>,
     message: Message,
     admission: &AdmissionLease,
+    connections: &ConnectionRegistry,
+    connection_act: &PreparedConnectionAct,
 ) -> bool {
     let (completed, completion) = oneshot::channel();
     // The complete frame crosses into the bounded writer queue under the same
@@ -7299,13 +8147,17 @@ async fn send_live_with_admission(
         let Ok(_publication) = admission.effect_guard("WebSocket writer handoff") else {
             return false;
         };
-        writer
-            .try_send(AdmittedLiveWrite {
-                message,
-                admission: admission.clone(),
-                completed,
+        connection_act
+            .try_act(connections, now_millis(), Instant::now(), || {
+                Ok(writer
+                    .try_send(AdmittedLiveWrite {
+                        message,
+                        admission: admission.clone(),
+                        completed,
+                    })
+                    .is_ok())
             })
-            .is_ok()
+            .unwrap_or(false)
     };
     if !handed_off {
         return false;
@@ -7322,6 +8174,7 @@ async fn live_stream(
     state: SharedSnapback,
     ephemeral: EphemeralApi,
     connections: ConnectionRegistry,
+    connection_act: PreparedConnectionAct,
     connection_id: String,
     policy_mode: PolicyAuthMode,
     admission_controller: AuthAdmissionController,
@@ -7367,8 +8220,11 @@ async fn live_stream(
     let initial_current = initial_admission
         .effect_guard("initial WebSocket drain")
         .is_ok_and(|_effect| {
-            connections.touch_verified_socket(&connection_id)
-                && notify.is_current(&connection_id, generation)
+            connection_act
+                .try_act(&connections, now_millis(), Instant::now(), || {
+                    Ok(notify.is_current(&connection_id, generation))
+                })
+                .unwrap_or(false)
         });
     if !initial_current
         || drain_and_send(
@@ -7377,6 +8233,8 @@ async fn live_stream(
             generation,
             &writer,
             &initial_admission,
+            &connections,
+            &connection_act,
         )
         .await
         .is_break()
@@ -7422,20 +8280,27 @@ async fn live_stream(
                             let Ok(_effect) = admission.effect_guard("WebSocket inbound act") else {
                                 break 'stream;
                             };
-                            if !connections.touch_verified_socket(&connection_id) {
+                            let Ok(response) = connection_act.try_act(
+                                &connections,
+                                now_millis(),
+                                Instant::now(),
+                                || Ok(handle_live_socket_text(
+                                    &ephemeral,
+                                    &connection_id,
+                                    &text,
+                                    policy_mode,
+                                )),
+                            ) else {
                                 break 'stream;
-                            }
-                            handle_live_socket_text(
-                                &ephemeral,
-                                &connection_id,
-                                &text,
-                                policy_mode,
-                            )
+                            };
+                            response
                         };
                         if !send_live_with_admission(
                             &writer,
                             Message::Text(response.into()),
                             &admission,
+                            &connections,
+                            &connection_act,
                         ).await {
                             break 'stream;
                         }
@@ -7459,10 +8324,15 @@ async fn live_stream(
                         let Ok(_effect) = admission.effect_guard("WebSocket liveness act") else {
                             break 'stream;
                         };
-                        if !connections.touch_verified_socket(&connection_id) {
+                        if connection_act
+                            .try_act(&connections, now_millis(), Instant::now(), || {
+                                ephemeral.touch_connection(&connection_id);
+                                Ok(())
+                            })
+                            .is_err()
+                        {
                             break 'stream;
                         }
-                        ephemeral.touch_connection(&connection_id);
                         None
                     }
                     Some(Ok(Message::Binary(_))) => {
@@ -7476,7 +8346,10 @@ async fn live_stream(
                         let Ok(_effect) = admission.effect_guard("WebSocket binary act") else {
                             break 'stream;
                         };
-                        if !connections.touch_verified_socket(&connection_id) {
+                        if connection_act
+                            .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
+                            .is_err()
+                        {
                             break 'stream;
                         }
                         None
@@ -7494,7 +8367,10 @@ async fn live_stream(
                 let Ok(_effect) = admission.effect_guard("WebSocket drain wake") else {
                     break 'stream;
                 };
-                if !connections.touch_verified_socket(&connection_id) {
+                if connection_act
+                    .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
+                    .is_err()
+                {
                     break 'stream;
                 }
                 drop(_effect);
@@ -7517,11 +8393,17 @@ async fn live_stream(
                 };
                 let current = admission
                     .effect_guard("WebSocket safety-net liveness")
-                    .is_ok_and(|_effect| connections.touch_verified_socket(&connection_id));
+                    .is_ok_and(|_effect| {
+                        connection_act
+                            .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
+                            .is_ok()
+                    });
                 if !current || !send_live_with_admission(
                     &writer,
                     Message::Ping(Vec::new().into()),
                     &admission,
+                    &connections,
+                    &connection_act,
                 ).await {
                     break 'stream;
                 }
@@ -7539,13 +8421,27 @@ async fn live_stream(
             // leaving the new socket's registration and subscriptions intact.
             let current = admission
                 .effect_guard("WebSocket drain ownership")
-                .is_ok_and(|_effect| notify.is_current(&connection_id, generation));
+                .is_ok_and(|_effect| {
+                    connection_act
+                        .try_act(&connections, now_millis(), Instant::now(), || {
+                            Ok(notify.is_current(&connection_id, generation))
+                        })
+                        .unwrap_or(false)
+                });
             if !current {
                 break 'stream;
             }
-            if drain_and_send(&ephemeral, &connection_id, generation, &writer, &admission)
-                .await
-                .is_break()
+            if drain_and_send(
+                &ephemeral,
+                &connection_id,
+                generation,
+                &writer,
+                &admission,
+                &connections,
+                &connection_act,
+            )
+            .await
+            .is_break()
             {
                 break 'stream;
             }
@@ -7602,19 +8498,32 @@ async fn drain_and_send(
     generation: u64,
     writer: &mpsc::Sender<AdmittedLiveWrite>,
     admission: &AdmissionLease,
+    connections: &ConnectionRegistry,
+    connection_act: &PreparedConnectionAct,
 ) -> std::ops::ControlFlow<()> {
     let messages = {
         let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
             return std::ops::ControlFlow::Break(());
         };
-        let Some(messages) = ephemeral.drain_live_stream_if_current(connection_id, generation)
+        let Ok(Some(messages)) =
+            connection_act.try_act(connections, now_millis(), Instant::now(), || {
+                Ok(ephemeral.drain_live_stream_if_current(connection_id, generation))
+            })
         else {
             return std::ops::ControlFlow::Break(());
         };
         messages
     };
     for message in messages {
-        if !send_live_with_admission(writer, Message::Text(message.into()), admission).await {
+        if !send_live_with_admission(
+            writer,
+            Message::Text(message.into()),
+            admission,
+            connections,
+            connection_act,
+        )
+        .await
+        {
             return std::ops::ControlFlow::Break(());
         }
     }
@@ -7903,18 +8812,21 @@ fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnos
 /// operation; polling clients may pass it as `?connection_token=` when headers
 /// are inconvenient.
 async fn drain_outbox(
-    State(ephemeral): State<EphemeralApi>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    Path(connection_id): Path<String>,
-    Query(query): Query<ConnectionTokenQuery>,
-    headers: HeaderMap,
+    Path(_connection_id): Path<String>,
 ) -> Result<Json<Vec<crate::ephemeral::RealtimeEnvelope>>, ApiError> {
-    let presented = header_connection_token(&headers).or(query.connection_token);
     let _effect = admission.effect_guard("HTTP outbox drain publication")?;
-    connections.verify(&connection_id, presented.as_deref())?;
-    Ok(Json(ephemeral.drain_outbox(&connection_id)))
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+        Ok(Json(
+            runtime
+                .ephemeral
+                .drain_outbox(&connection_act.connection_id),
+        ))
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -7959,63 +8871,60 @@ async fn ensure_ephemeral_collections(
 }
 
 async fn publish_ephemeral(
-    State(ephemeral): State<EphemeralApi>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    headers: HeaderMap,
     request: Result<Json<PublishRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     let _effect = admission.effect_guard("ephemeral publish")?;
-    connections.verify(
-        &request.connection_id,
-        header_connection_token(&headers).as_deref(),
-    )?;
-    ephemeral
-        .publish(request, now_millis())
-        .map(Json)
-        .map_err(ApiError::from_ephemeral)
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+        runtime
+            .ephemeral
+            .publish(request, epoch_now_ms)
+            .map(Json)
+            .map_err(ApiError::from_ephemeral)
+    })
 }
 
 async fn subscribe_ephemeral(
-    State(ephemeral): State<EphemeralApi>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    headers: HeaderMap,
     request: Result<Json<SubscribeRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     let _effect = admission.effect_guard("ephemeral subscribe")?;
-    connections.verify(
-        &request.connection_id,
-        header_connection_token(&headers).as_deref(),
-    )?;
-    ephemeral
-        .subscribe(request, now_millis())
-        .map(Json)
-        .map_err(ApiError::from_ephemeral)
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+        runtime
+            .ephemeral
+            .subscribe(request, epoch_now_ms)
+            .map(Json)
+            .map_err(ApiError::from_ephemeral)
+    })
 }
 
 async fn delete_ephemeral(
-    State(ephemeral): State<EphemeralApi>,
-    State(connections): State<ConnectionRegistry>,
+    State(runtime): State<AppState>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    headers: HeaderMap,
     request: Result<Json<DeleteRequest>, JsonRejection>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     let _effect = admission.effect_guard("ephemeral delete")?;
-    connections.verify(
-        &request.connection_id,
-        header_connection_token(&headers).as_deref(),
-    )?;
-    ephemeral
-        .delete(request, now_millis())
-        .map(Json)
-        .map_err(ApiError::from_ephemeral)
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+        runtime
+            .ephemeral
+            .delete(request, epoch_now_ms)
+            .map(Json)
+            .map_err(ApiError::from_ephemeral)
+    })
 }
 
 /// Connection teardown is instance control (it tears down the connection *and*
@@ -8036,11 +8945,15 @@ async fn disconnect(
 }
 
 #[derive(Debug)]
-pub struct ApiError(SnapbackError, Option<Receipt>);
+pub struct ApiError(SnapbackError, Option<Receipt>, Option<u64>);
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
-        Self(SnapbackError::new(diagnostic_from_ephemeral(error)), None)
+        Self(
+            SnapbackError::new(diagnostic_from_ephemeral(error)),
+            None,
+            None,
+        )
     }
 
     fn from_json_rejection(error: JsonRejection) -> Self {
@@ -8056,13 +8969,26 @@ impl ApiError {
             )
             .with_details(json!({ "error": error.into() })),
             None,
+            None,
         )
     }
 
     /// Attach a receipt to an error response (a REJECTED mutation still
     /// produces its receipt — LLP 0034 §3.2, ENG-22478).
     fn with_receipt(error: SnapbackError, receipt: Receipt) -> Self {
-        Self(error, Some(receipt))
+        Self(error, Some(receipt), None)
+    }
+
+    fn auth_throttled(retry_after_seconds: u64) -> Self {
+        Self(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_THROTTLED",
+                "auth",
+                "authentication request rate limit exceeded",
+            ),
+            None,
+            Some(retry_after_seconds.max(1)),
+        )
     }
 }
 
@@ -8075,7 +9001,7 @@ fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnos
 
 impl From<SnapbackError> for ApiError {
     fn from(value: SnapbackError) -> Self {
-        Self(value, None)
+        Self(value, None, None)
     }
 }
 
@@ -8124,8 +9050,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
         | "SNAPBACK_CONNECTION_TOKEN_REQUIRED"
+        | "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH"
         | "SNAPBACK_AUTH_REQUIRED"
         | "SNAPBACK_AUTH_SESSION_EXPIRED"
+        | "SNAPBACK_AUTH_STREAM_RESET"
         | "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED"
         | "SNAPBACK_AUTH_CODE_INVALID" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
@@ -8315,14 +9243,20 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = status_for_diagnostic_code(self.0.diagnostic.code.as_str());
-        (
+        let mut response = (
             status,
             Json(ErrorResponse {
                 diagnostic: self.0.diagnostic,
                 receipt: self.1,
             }),
         )
-            .into_response()
+            .into_response();
+        if let Some(seconds) = self.2
+            && let Ok(value) = HeaderValue::from_str(&seconds.to_string())
+        {
+            response.headers_mut().insert(header::RETRY_AFTER, value);
+        }
+        response
     }
 }
 
@@ -8853,9 +9787,9 @@ mod tests {
                     .header("x-snapback-auth-invalidation-protocol", "99")
                     .body(Body::empty())
                     .unwrap(),
-        )
-        .await
-        .unwrap();
+            )
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let captured_incarnation = response
             .extensions()
@@ -8872,10 +9806,7 @@ mod tests {
         assert_eq!(body["authority"]["userId"], credential["session"]["userId"]);
         assert_eq!(body["authority"]["sessionId"], credential["session"]["id"]);
         assert_eq!(body["authority"]["isAuthenticated"], true);
-        assert_eq!(
-            body["authorizationStreamIncarnation"],
-            captured_incarnation
-        );
+        assert_eq!(body["authorizationStreamIncarnation"], captured_incarnation);
         assert_eq!(
             body["availability"]["onlineRequestResponse"]["reason"],
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
@@ -10983,6 +11914,8 @@ mod tests {
         "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED",
         "SNAPBACK_AUTH_REQUIRED",
         "SNAPBACK_AUTH_SESSION_EXPIRED",
+        "SNAPBACK_AUTH_STREAM_RESET",
+        "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
         "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
     ];
 
