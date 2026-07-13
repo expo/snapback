@@ -596,6 +596,7 @@ impl LocalDatabase {
             super::authorization::AuthorizationCommitCause::DestructiveBoundary,
         )?;
         super::auth_invalidation::clear_retry_episodes_in(&tx)?;
+        super::authorized_lease::clear_authorized_lease_reservations_in(&tx)?;
         super::auth_invalidation::rotate_data_version_stream_in(&tx)?;
         restore_transaction_step_completed(2)?;
 

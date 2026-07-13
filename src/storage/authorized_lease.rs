@@ -68,7 +68,7 @@ impl LocalDatabase {
                 "authorized lease issuer is not the current process issuer",
             ))
         } else {
-            lease_state_error(&tx, lease)?
+            lease_state_error(&tx, lease, now_ms)?
         };
         if let Some(error) = semantic_error {
             // Persist the observed clock even though this snapshot lost its
@@ -174,7 +174,7 @@ impl LocalDatabase {
                 "a revalidation-free service cannot bypass a pending obligation",
             ))
         } else {
-            lease_state_error(&tx, lease)?
+            lease_state_error(&tx, lease, now_ms)?
         };
         tx.commit()?;
         if let Some(error) = semantic_error {
@@ -199,6 +199,14 @@ impl LocalDatabase {
     }
 }
 
+/// Destructive reset/restore rotates the authority/data streams and destroys
+/// every outstanding server reservation in that same transaction. No old
+/// request identity can remain the server-side half of a retained result.
+pub(super) fn clear_authorized_lease_reservations_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    tx.execute("DELETE FROM _snapback_authorized_lease_reservations", [])?;
+    Ok(())
+}
+
 fn advance_auth_clock_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
     if now_ms > MAX_AUTHORIZATION_EPOCH {
         return Err(lease_storage_error(
@@ -220,6 +228,7 @@ fn advance_auth_clock_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()
 fn lease_state_error(
     tx: &Transaction<'_>,
     lease: &AuthorizedLease,
+    now_ms: u64,
 ) -> SnapbackResult<Option<SnapbackError>> {
     let deployment = match inspect_for_open(tx)? {
         OpenAuthModeInspection::Managed(snapshot)
@@ -264,6 +273,74 @@ fn lease_state_error(
     if lease.issuer_id.authorization_incarnation != authorization.incarnation {
         return Ok(Some(stale(
             "authorized lease issuer is from another authorization incarnation",
+        )));
+    }
+    if let Some(error) = lease_session_state_error(tx, lease, now_ms)? {
+        return Ok(Some(error));
+    }
+    Ok(None)
+}
+
+fn lease_session_state_error(
+    tx: &Transaction<'_>,
+    lease: &AuthorizedLease,
+    now_ms: u64,
+) -> SnapbackResult<Option<SnapbackError>> {
+    let Some(session_id) = lease.session_id_at_issue.as_deref() else {
+        return Ok(None);
+    };
+    let Some(captured_not_after_ms) = lease.session_not_after_ms else {
+        return Ok(Some(stale(
+            "session-bound authorized lease lacks its captured expiry",
+        )));
+    };
+    let current = tx
+        .query_row(
+            "SELECT s.user_id, i.provider, s.authority_instance_id,
+                    s.expires_at_ms, s.absolute_expires_at_ms,
+                    s.revoked_at_ms IS NOT NULL
+               FROM _auth_sessions AS s
+               JOIN _auth_identities AS i
+                 ON i.id = s.identity_id AND i.user_id = s.user_id
+              WHERE s.id = ?1",
+            params![session_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, bool>(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((user_id, provider, authority_instance_id, expires_at, absolute_expires_at, revoked)) =
+        current
+    else {
+        return Ok(Some(stale("authorized lease session is no longer present")));
+    };
+    let expires_at = u64::try_from(expires_at).map_err(|_| {
+        unavailable("authorized lease session expiry is outside the canonical range")
+    })?;
+    let absolute_expires_at = u64::try_from(absolute_expires_at).map_err(|_| {
+        unavailable("authorized lease absolute session expiry is outside the canonical range")
+    })?;
+    let current_not_after = expires_at.min(absolute_expires_at);
+    let identity_matches = user_id == lease.principal_id
+        && lease.provider_key.as_deref() == Some(provider.as_str())
+        && lease
+            .authority_instance_id
+            .as_deref()
+            .is_none_or(|expected| expected == authority_instance_id);
+    if revoked
+        || now_ms >= current_not_after
+        || captured_not_after_ms > current_not_after
+        || !identity_matches
+    {
+        return Ok(Some(stale(
+            "authorized lease session authority is no longer current",
         )));
     }
     Ok(None)
@@ -355,6 +432,44 @@ mod tests {
             true, true, true, true, true, true, true,
         ))
         .unwrap();
+        db.activate_auth_catalog_v1().unwrap();
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params!["user_1", NOW as i64 - 1],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_identities(
+                   id, user_id, provider, subject, verified_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5)",
+                params![
+                    "identity_1",
+                    "user_1",
+                    "email-code",
+                    "lease@example.test",
+                    NOW as i64 - 1,
+                ],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_sessions(
+                   id, user_id, identity_id, authority_instance_id, token_hash,
+                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                   absolute_expires_at_ms, revoked_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
+                params![
+                    "session_1",
+                    "user_1",
+                    "identity_1",
+                    "01890f3c-9d5b-7000-8000-000000000004",
+                    vec![0x71_u8; 32],
+                    NOW as i64 - 1,
+                    (NOW + AUTHORIZED_LEASE_HARD_MAX_MS) as i64,
+                    (NOW + AUTHORIZED_LEASE_HARD_MAX_MS * 2) as i64,
+                ],
+            )?;
+            Ok(())
+        })
+        .unwrap();
         db
     }
 
@@ -393,7 +508,7 @@ mod tests {
                         snapshot_commit_version: db.current_version().unwrap(),
                     },
                     activation_hash: authorized_lease_activation_hash(&deployment),
-                    session_not_after_ms: Some(now_ms + 86_400_000),
+                    session_not_after_ms: Some(NOW + 86_400_000),
                     provider_not_after_ms: None,
                     authority_instance_id: Some("01890f3c-9d5b-7000-8000-000000000004".to_owned()),
                 },
@@ -626,6 +741,104 @@ mod tests {
             NOW + AUTHORIZED_LEASE_HARD_MAX_MS
         );
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn revoked_session_cannot_reserve_or_obtain_revalidation_free_service() {
+        let mut db = sessions_database(None);
+        let captured = current_lease(&mut db, "request_revoked_before_reserve", NOW);
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "UPDATE _auth_sessions
+                    SET revoked_at_ms = ?1, generation = generation + 1
+                  WHERE id = ?2",
+                params![NOW as i64, "session_1"],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        let error = db
+            .reserve_authorized_lease(
+                &captured,
+                AuthorizedLeaseConfig::default(),
+                NOW,
+                true,
+                &captured.issuer_id,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
+
+        let service = current_lease(&mut db, "request_revoked_service", NOW + 1);
+        let expected = AuthorizedLeaseExpectation::from(&service);
+        let verified = signer()
+            .verify_for_service(
+                &service,
+                &expected,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                "local-dev-sqlite-ibex",
+                "lease-test",
+            )
+            .unwrap();
+        let error = db
+            .authorize_revalidation_free_lease(
+                &verified,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                true,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+    }
+
+    #[test]
+    fn issuer_mismatch_and_clock_rollback_mint_no_reservation() {
+        let mut db = sessions_database(None);
+        let lease = current_lease(&mut db, "request_issuer", NOW);
+        let mut another_issuer = lease.issuer_id.clone();
+        another_issuer.boot_sequence += 1;
+        let error = db
+            .reserve_authorized_lease(
+                &lease,
+                AuthorizedLeaseConfig::default(),
+                NOW,
+                true,
+                &another_issuer,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
+
+        let rollback = current_lease(&mut db, "request_rollback", NOW - 1);
+        let error = db
+            .reserve_authorized_lease(
+                &rollback,
+                AuthorizedLeaseConfig::default(),
+                NOW - 1,
+                true,
+                &rollback.issuer_id,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CLOCK_ROLLBACK");
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
+    }
+
+    #[test]
+    fn destructive_reset_clears_all_server_lease_reservations() {
+        let mut db = sessions_database(None);
+        let lease = current_lease(&mut db, "request_reset", NOW);
+        db.reserve_authorized_lease(
+            &lease,
+            AuthorizedLeaseConfig::default(),
+            NOW,
+            true,
+            &lease.issuer_id,
+        )
+        .unwrap();
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 1);
+        db.reset().unwrap();
+        assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
     }
 
     #[test]

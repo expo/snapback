@@ -475,6 +475,7 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     auth_invalidation::clear_retry_episodes_in(tx)?;
+    authorized_lease::clear_authorized_lease_reservations_in(tx)?;
     auth_invalidation::rotate_data_version_stream_in(tx)?;
     tx.execute(
         "DELETE FROM _snapback_meta WHERE key = ?1",

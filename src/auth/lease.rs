@@ -263,6 +263,12 @@ pub(crate) struct VerifiedAuthorizedLease {
     verified_at_server_ms: u64,
 }
 
+impl std::fmt::Debug for VerifiedAuthorizedLease {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("VerifiedAuthorizedLease([BOUND])")
+    }
+}
+
 impl VerifiedAuthorizedLease {
     pub(crate) fn lease(&self) -> &AuthorizedLease {
         &self.lease
@@ -515,8 +521,6 @@ impl AuthorizedLease {
         }
         validate_optional_uuid_v7(self.authority_instance_id.as_deref(), "authorityInstanceId")?;
         validate_opaque_id(&self.key_id, "keyId")?;
-        AuthKeyId::parse(&self.key_id)
-            .map_err(|_| invalid("authorized lease keyId is not canonical"))?;
         let mac = URL_SAFE_NO_PAD
             .decode(&self.mac)
             .map_err(|_| invalid("authorized lease MAC is not canonical base64url"))?;
@@ -804,6 +808,145 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_INVALID");
+    }
+
+    #[test]
+    fn cross_language_identity_activation_and_context_grammar_is_exact() {
+        let signer = signer();
+        let mut invalid_opaque = issue();
+        invalid_opaque.principal_id = "user/one".to_owned();
+        assert!(
+            signer
+                .issue(
+                    invalid_opaque,
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    TARGET,
+                    APP,
+                )
+                .is_err()
+        );
+
+        let mut exact_query_limit = issue();
+        exact_query_limit.query_key = "🦀".repeat(2_048);
+        signer
+            .issue(
+                exact_query_limit,
+                AuthorizedLeaseConfig::default(),
+                NOW,
+                TARGET,
+                APP,
+            )
+            .unwrap();
+        let mut over_query_limit = issue();
+        over_query_limit.query_key = "🦀".repeat(2_049);
+        assert!(
+            signer
+                .issue(
+                    over_query_limit,
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    TARGET,
+                    APP,
+                )
+                .is_err()
+        );
+
+        let mut bad_activation = issue();
+        bad_activation.activation_hash = format!("{ACTIVATION_HASH_PREFIX}{}", "A".repeat(64));
+        assert!(
+            signer
+                .issue(
+                    bad_activation,
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    TARGET,
+                    APP,
+                )
+                .is_err()
+        );
+        let mut bad_authority_instance = issue();
+        bad_authority_instance.authority_instance_id = Some("authority_1".to_owned());
+        assert!(
+            signer
+                .issue(
+                    bad_authority_instance,
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    TARGET,
+                    APP,
+                )
+                .is_err()
+        );
+        let mut missing_session_expiry = issue();
+        missing_session_expiry.session_not_after_ms = None;
+        assert!(
+            signer
+                .issue(
+                    missing_session_expiry,
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    TARGET,
+                    APP,
+                )
+                .is_err()
+        );
+        assert!(
+            signer
+                .issue(
+                    issue(),
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    "target/invalid",
+                    APP,
+                )
+                .is_err()
+        );
+        assert!(
+            signer
+                .issue(
+                    issue(),
+                    AuthorizedLeaseConfig::default(),
+                    NOW,
+                    TARGET,
+                    "app invalid",
+                )
+                .is_err()
+        );
+
+        // keyId is frozen as OpaqueId on the wire. Provider lookup applies
+        // the narrower local keyring grammar only after cross-language shape
+        // validation.
+        let mut opaque_unknown_key = lease();
+        opaque_unknown_key.key_id = "unknown-key".to_owned();
+        opaque_unknown_key
+            .validate_shape(AuthorizedLeaseConfig::default())
+            .unwrap();
+    }
+
+    #[test]
+    fn configured_duration_and_activation_hash_have_stable_vectors() {
+        let configured = AuthorizedLeaseConfig::new(30_000).unwrap();
+        let mut unclamped = issue();
+        unclamped.session_not_after_ms = Some(NOW + 70_000);
+        unclamped.provider_not_after_ms = Some(NOW + 60_000);
+        let lease = signer()
+            .issue(unclamped, configured, NOW, TARGET, APP)
+            .unwrap();
+        assert_eq!(lease.authorized_until_server_ms, NOW + 30_000);
+
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: crate::manifest::AuthMode::Sessions,
+            app_id: APP.to_owned(),
+            schema_hash: format!("snapback.v1:sessions:schema:sha256:{}", "1".repeat(64)),
+            bundle_hash: format!("snapback.v1:sessions:function:sha256:{}", "2".repeat(64)),
+            inputs_hash: format!("snapback.v1:sessions:inputs:sha256:{}", "3".repeat(64)),
+        };
+        assert_eq!(
+            authorized_lease_activation_hash(&deployment),
+            "snapback.authorized-lease.activation.v1:sha256:d32507a87be992df54d41d42160789787b0759629d5b43cac1b2c829b4e6cc97"
+        );
     }
 
     #[test]

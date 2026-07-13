@@ -141,6 +141,58 @@
       ],
       "type": "object"
     },
+    "AuthorizedLeaseFacts": {
+      "additionalProperties": false,
+      "description": "Capability/runtime facts projected by the bootstrap handshake.",
+      "properties": {
+        "clamps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "clockRollback": {
+          "type": "string"
+        },
+        "configuredMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "defaultMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "hardMaxMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "renewal": {
+          "type": "string"
+        },
+        "timeBasis": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "defaultMs",
+        "hardMaxMs",
+        "configuredMs",
+        "clamps",
+        "renewal",
+        "timeBasis",
+        "clockRollback"
+      ],
+      "type": "object"
+    },
     "ClientProtocols": {
       "additionalProperties": false,
       "properties": {
@@ -277,6 +329,17 @@
     },
     "authorizationStreamIncarnation": {
       "type": "string"
+    },
+    "authorizedLease": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorizedLeaseFacts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Exact lease capability facts appear only when this binary's full\nissuance/store/service implementation is ready. A client offer alone\ncan never manufacture support."
     },
     "availability": {
       "$ref": "#/$defs/AuthSessionAvailability"

@@ -197,6 +197,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/logout"),
         ("POST", "/auth/family-alarm"),
         ("POST", "/query/{name}"),
+        ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
         ("POST", "/mutation/{name}"),
         ("POST", "/action/{name}"),
@@ -1233,6 +1234,20 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/query/missing_function",
                 base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/query/{name}/authorized-lease"),
+            SessionBodyProbe {
+                uri: "/query/missing_function/authorized-lease",
+                base: json!({
+                    "args": {},
+                    "leaseRequestId": "lease_request_policy_probe",
+                    "clientStoreId": "client_store_policy_probe",
+                    "queryKey": "missing_function:{}",
+                    "queryInstanceId": 1
+                }),
                 forbidden_fields: handler_fields(),
             },
         ),

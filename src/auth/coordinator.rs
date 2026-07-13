@@ -775,6 +775,10 @@ impl AuthCoordinator {
                         provider: authority.provider,
                         generation: authority.generation,
                         authority_instance_id: authority.authority_instance_id,
+                        session_not_after_ms: authority
+                            .expires_at_ms
+                            .min(authority.absolute_expires_at_ms),
+                        provider_not_after_ms: None,
                     },
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
@@ -833,6 +837,10 @@ impl AuthCoordinator {
                 provider: authority.provider,
                 generation: authority.generation,
                 authority_instance_id: authority.authority_instance_id,
+                session_not_after_ms: authority
+                    .expires_at_ms
+                    .min(authority.absolute_expires_at_ms),
+                provider_not_after_ms: None,
             }))
     }
 

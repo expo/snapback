@@ -211,6 +211,41 @@ fn dk7_committed_public_instances_match_rust_types() {
 /// closed, generated response rather than an ad hoc server object.
 #[test]
 fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
+    let authorized_lease = json!({
+        "protocolVersion": 1,
+        "leaseId": "lease_1",
+        "leaseRequestId": "request_1",
+        "issuerId": {
+            "authorizationIncarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "bootSequence": 7,
+            "bootNonce": "AQEBAQEBAQEBAQEBAQEBAQ"
+        },
+        "clientStoreId": "store_1",
+        "queryKey": "todos:{owner=me}",
+        "queryInstanceId": 9,
+        "principalId": "user_1",
+        "sessionIdAtIssue": "session_1",
+        "providerKey": "email-code",
+        "authorization": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 11
+        },
+        "data": {
+            "versionStream": "01890f3c-9d5b-7000-8000-000000000002",
+            "snapshotCommitVersion": 19
+        },
+        "activationHash": concat!(
+            "snapback.authorized-lease.activation.v1:sha256:",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ),
+        "issuedAtServerMs": 1_800_000_000_000_u64,
+        "authorizedUntilServerMs": 1_800_000_060_000_u64,
+        "sessionNotAfterMs": 1_800_000_070_000_u64,
+        "providerNotAfterMs": 1_800_000_060_000_u64,
+        "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000004",
+        "keyId": "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
+        "mac": "MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE"
+    });
     let cases = [
         (
             "auth.request-code.input.schema.json",
@@ -322,6 +357,15 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             "auth.rescue-colliding-table.input.schema.json",
             json!({ "sourceTable": "_auth_users", "targetTable": "legacy_auth_users" }),
         ),
+        ("authorized-lease.schema.json", authorized_lease.clone()),
+        (
+            "authorized-lease.query.output.schema.json",
+            json!({
+                "version": 19,
+                "rows": [],
+                "authorizedLease": authorized_lease
+            }),
+        ),
     ];
     for (file, exact) in cases {
         assert_validates(file, &exact);
@@ -332,6 +376,17 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             .insert("unexpected".to_owned(), json!(true));
         assert_rejects(file, &extended);
     }
+
+    assert_validates(
+        "authorized-lease.query.input.schema.json",
+        &json!({
+            "args": {},
+            "leaseRequestId": "request_1",
+            "clientStoreId": "store_1",
+            "queryKey": "todos:{owner=me}",
+            "queryInstanceId": 9
+        }),
+    );
 
     use snapback::auth::wire::{
         EmptyAuthRequest, ExchangeRequest, MailboxQuery, MintSessionRequest, RequestCodeRequest,

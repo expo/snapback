@@ -3112,7 +3112,9 @@ impl LocalSnapback {
         }
         // This guard covers the capture boundary. The cloned lease remains
         // live across signing and is consumed again at final reservation.
-        let _capture = admission.effect_guard("authorized lease full-query capture")?;
+        {
+            let _capture = admission.effect_guard("authorized lease full-query capture")?;
+        }
         Ok(AuthorizedLeaseCapture {
             issue: AuthorizedLeaseIssue {
                 lease_id: format!("lease_{}", Uuid::now_v7().simple()),

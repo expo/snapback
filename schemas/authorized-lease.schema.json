@@ -1,0 +1,176 @@
+{
+  "$defs": {
+    "AuthorizationVersion": {
+      "description": "The one durable authorization-stream witness. The incarnation closes reset\nand restore ABA; the JS-safe epoch advances for ordinary authorization\nevents within that stream.\n\n@ref LLP 0053#the-authorization-version — v1 has one global durable pair.",
+      "properties": {
+        "epoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incarnation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "incarnation",
+        "epoch"
+      ],
+      "type": "object"
+    },
+    "AuthorizedLeaseData": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshotCommitVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "versionStream",
+        "snapshotCommitVersion"
+      ],
+      "type": "object"
+    },
+    "IssuerId": {
+      "additionalProperties": false,
+      "description": "A boot identity is never reused, even when process-local counters restart.",
+      "properties": {
+        "authorizationIncarnation": {
+          "type": "string"
+        },
+        "bootNonce": {
+          "type": "string"
+        },
+        "bootSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizationIncarnation",
+        "bootSequence",
+        "bootNonce"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/authorized-lease.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact server-issued envelope.  `deny_unknown_fields` makes protocol v1\nclosed in both directions; additive fields require a new version.",
+  "properties": {
+    "activationHash": {
+      "type": "string"
+    },
+    "authorityInstanceId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authorization": {
+      "$ref": "#/$defs/AuthorizationVersion"
+    },
+    "authorizedUntilServerMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "clientStoreId": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/AuthorizedLeaseData"
+    },
+    "issuedAtServerMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "issuerId": {
+      "$ref": "#/$defs/IssuerId"
+    },
+    "keyId": {
+      "type": "string"
+    },
+    "leaseId": {
+      "type": "string"
+    },
+    "leaseRequestId": {
+      "type": "string"
+    },
+    "mac": {
+      "type": "string"
+    },
+    "principalId": {
+      "type": "string"
+    },
+    "protocolVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "providerKey": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "providerNotAfterMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "queryInstanceId": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "queryKey": {
+      "type": "string"
+    },
+    "sessionIdAtIssue": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sessionNotAfterMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "leaseId",
+    "leaseRequestId",
+    "issuerId",
+    "clientStoreId",
+    "queryKey",
+    "queryInstanceId",
+    "principalId",
+    "authorization",
+    "data",
+    "activationHash",
+    "issuedAtServerMs",
+    "authorizedUntilServerMs",
+    "keyId",
+    "mac"
+  ],
+  "title": "AuthorizedLease",
+  "type": "object"
+}
