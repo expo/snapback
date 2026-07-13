@@ -512,7 +512,18 @@ Local defaults:
   inspection session, but the client retains it only in the current JavaScript
   object, sends it only on secret-bearing inspect/scan/runner calls, and never
   writes or restores it through `localStorage`, `sessionStorage`, IndexedDB, or
-  another persistence adapter. The console retries
+  another persistence adapter. A serve process started with `--ready-file P`
+  creates an owner-only mechanical sibling `P.secret-read-root`; the root never
+  enters an HTTP request or descriptor. `snapback secret-read-mint --ready-file
+  P` verifies that the live `/health` startup nonce still matches the trusted
+  descriptor before reading that root or attaching the master admin credential,
+  then sends a fresh one-shot HMAC proof bound to the exact finite scopes, TTL,
+  and row/byte budgets. The response contains only the derived `sbrl_` lease and
+  is `no-store`. A URL alone can never select this operation. A serve process
+  without a ready file deliberately has no mint bridge; the staged-mode gate
+  must therefore refuse session activation in that posture rather than enable
+  an instance whose protected inspection lane no operator can enter. The
+  console retries
   boot without ever placing server error text into HTML
   (ENG-24560/ENG-24568/ENG-24595);
 - when the server binds a non-loopback host such as `0.0.0.0`, the admin console
