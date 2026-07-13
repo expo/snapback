@@ -177,6 +177,7 @@ impl AdmissionController {
     }
 
     pub fn from_mode_state(mode: &AuthModeStateRecord) -> SnapbackResult<Self> {
+        mode.validate_shape()?;
         let accepting = mode.mode_state == AuthModeStatus::Settled
             && mode.app_data_availability == AppDataAvailability::Available;
         Self::new_for_mode(mode.transition_generation, mode.active, accepting)
@@ -252,6 +253,7 @@ impl AdmissionController {
         &self,
         mode: &AuthModeStateRecord,
     ) -> SnapbackResult<AdmissionSnapshot> {
+        mode.validate_shape()?;
         let accepting = mode.mode_state == AuthModeStatus::Settled
             && mode.app_data_availability == AppDataAvailability::Available;
         self.synchronize_generation(mode.transition_generation, mode.active, accepting)
@@ -270,14 +272,14 @@ impl AdmissionController {
                 .epochs
                 .get_mut(&epoch)
                 .expect("current admission epoch exists");
-            if current.in_flight != 0 || current.retired || current.transition_owned {
-                return Err(admission_closed());
-            }
             if current.transition_generation == transition_generation
                 && current.active_mode == active_mode
                 && current.accepting == accepting
             {
                 return Ok(snapshot(&state));
+            }
+            if current.in_flight != 0 || current.retired || current.transition_owned {
+                return Err(admission_closed());
             }
             current.accepting = false;
             current.transition_owned = true;
@@ -559,6 +561,11 @@ impl AdmissionController {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn retire_current_epoch_for_test(&self) -> SnapbackResult<ModeTransitionGuard> {
+        self.begin_transition_with_suspend_and_timeout(|| Ok(()), Duration::ZERO)
+    }
+
     fn retire_and_reopen(
         &self,
         old_epoch: u64,
@@ -828,6 +835,7 @@ impl ModeTransitionGuard {
         mode: &AuthModeStateRecord,
     ) -> SnapbackResult<AdmissionSnapshot> {
         self.validate_closed()?;
+        mode.validate_shape()?;
         let accepting = mode.mode_state == AuthModeStatus::Settled
             && mode.app_data_availability == AppDataAvailability::Available;
         let snapshot = self.controller.retire_and_reopen(
@@ -979,9 +987,48 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::mode::{
+        AuthModeQuarantine, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+        SCHEMA_V1_PREFIX,
+    };
     use crate::manifest::AuthMode;
     use std::sync::mpsc;
     use std::thread;
+
+    fn sessions_identity() -> DeploymentIdentity {
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "app".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, 'a'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, 'c'),
+        }
+    }
+
+    fn pending_sessions(generation: u64) -> AuthModeStateRecord {
+        let mut pending = AuthModeStateRecord::initial_dev(None);
+        pending.transition_generation = generation;
+        pending.desired = AuthMode::Sessions;
+        pending.mode_state = AuthModeStatus::PendingRestart;
+        pending.app_data_availability = AppDataAvailability::RefusedPending;
+        pending.requested_deployment = Some(sessions_identity());
+        pending.validate_shape().unwrap();
+        pending
+    }
+
+    fn settled_sessions(generation: u64) -> AuthModeStateRecord {
+        let deployment = sessions_identity();
+        let mut settled = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+        settled.transition_generation = generation;
+        settled.active = AuthMode::Sessions;
+        settled.desired = AuthMode::Sessions;
+        settled.sessions_ever_activated = true;
+        settled.active_deployment = Some(deployment);
+        settled.validate_shape().unwrap();
+        settled
+    }
 
     #[test]
     fn cloned_lease_counts_one_finite_root_invocation() {
@@ -1162,11 +1209,7 @@ mod tests {
         assert_eq!(first, second);
         assert!(second.accepting);
 
-        let mut pending = settled.clone();
-        pending.transition_generation = 1;
-        pending.desired = AuthMode::Sessions;
-        pending.mode_state = AuthModeStatus::PendingRestart;
-        pending.app_data_availability = AppDataAvailability::RefusedPending;
+        let pending = pending_sessions(1);
         let pending_snapshot = controller.synchronize_mode_state(&pending).unwrap();
         assert_eq!(pending_snapshot.transition_generation, 1);
         assert!(!pending_snapshot.accepting);
@@ -1178,9 +1221,59 @@ mod tests {
         let mut quarantined = pending;
         quarantined.transition_generation = 2;
         quarantined.mode_state = AuthModeStatus::Quarantined;
+        quarantined.quarantine = Some(AuthModeQuarantine {
+            transition_generation: 2,
+            code: "SNAPBACK_AUTH_POLICY_UNAVAILABLE".to_owned(),
+        });
         let quarantined_snapshot = controller.synchronize_mode_state(&quarantined).unwrap();
         assert_eq!(quarantined_snapshot.transition_generation, 2);
         assert!(!quarantined_snapshot.accepting);
+    }
+
+    #[test]
+    fn exact_mode_sync_is_a_safe_noop_while_work_is_in_flight() {
+        let controller = AdmissionController::new(0, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let observed = controller
+            .synchronize_mode_state(&AuthModeStateRecord::initial_dev(None))
+            .unwrap();
+        assert_eq!(observed.admission_epoch, lease.admission_epoch());
+        assert_eq!(observed.in_flight, 1);
+        assert!(observed.accepting);
+    }
+
+    #[test]
+    fn invalid_mode_state_never_changes_controller_or_committed_publication() {
+        let controller = AdmissionController::new(70, true).unwrap();
+        let before = controller.snapshot();
+        let mut invalid = AuthModeStateRecord::initial_dev(None);
+        invalid.transition_generation = 71;
+        invalid.active = AuthMode::Sessions;
+        invalid.desired = AuthMode::Sessions;
+        assert_eq!(
+            controller
+                .synchronize_mode_state(&invalid)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+        );
+        assert_eq!(controller.snapshot(), before);
+
+        let guard = controller.begin_transition().unwrap();
+        assert_eq!(
+            guard
+                .publish_committed_mode_state(&invalid)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+        );
+        let reopened = controller.snapshot();
+        assert_eq!(reopened.transition_generation, before.transition_generation);
+        assert_eq!(reopened.active_mode, before.active_mode);
+        assert!(reopened.accepting);
+        assert_ne!(reopened.admission_epoch, before.admission_epoch);
     }
 
     #[test]
@@ -1236,10 +1329,7 @@ mod tests {
         };
         tokio::task::yield_now().await;
 
-        let mut sessions = AuthModeStateRecord::initial_dev(None);
-        sessions.transition_generation = 6;
-        sessions.active = AuthMode::Sessions;
-        sessions.desired = AuthMode::Sessions;
+        let sessions = settled_sessions(6);
         let published = controller.synchronize_mode_state(&sessions).unwrap();
         let observed = tokio::time::timeout(Duration::from_secs(1), waiter)
             .await
@@ -1266,11 +1356,7 @@ mod tests {
         let controller = AdmissionController::new(40, true).unwrap();
         let previous = controller.snapshot();
         let guard = controller.begin_transition().unwrap();
-        let mut pending = AuthModeStateRecord::initial_dev(None);
-        pending.transition_generation = 41;
-        pending.desired = AuthMode::Sessions;
-        pending.mode_state = AuthModeStatus::PendingRestart;
-        pending.app_data_availability = AppDataAvailability::RefusedPending;
+        let pending = pending_sessions(41);
         let published = guard.publish_committed_mode_state(&pending).unwrap();
         assert!(!published.accepting);
         assert_eq!(

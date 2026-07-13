@@ -733,6 +733,27 @@ impl InvocationGate {
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
     ) -> SnapbackResult<PreparedAuthority> {
+        Self::prepare_admitted_authority_inner(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            resolved,
+            false,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn prepare_admitted_authority_inner(
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        resolved: ResolvedAppAuthority,
+        allow_inherited_live_rerun: bool,
+    ) -> SnapbackResult<PreparedAuthority> {
         admission.validate("invocation preparation")?;
         admission.require_mode(active_mode)?;
         if active_mode == AuthMode::Sessions
@@ -744,6 +765,16 @@ impl InvocationGate {
                 format!(
                     "legacy authority field {} is unsupported in sessions mode",
                     location.wire_name()
+                ),
+            ));
+        }
+        if !source_allows_authority(source, active_mode, &resolved, allow_inherited_live_rerun) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                format!(
+                    "invocation source {source:?} cannot be prepared with this authority class in {} mode",
+                    active_mode.as_str()
                 ),
             ));
         }
@@ -810,6 +841,25 @@ impl InvocationGate {
         )
     }
 
+    /// Dev compatibility for retained live subscriptions. The source is
+    /// fixed by the type-level entry point; callers cannot use the generic
+    /// constructor to forge a raw LiveRerun or NestedMutation authority.
+    pub(crate) fn prepare_admitted_live_rerun_dev_input(
+        profile: ServerProfile,
+        input: &HandlerInput,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<PreparedAuthority> {
+        Self::prepare_admitted_authority_inner(
+            InvocationSource::LiveRerun,
+            AuthMode::Dev,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(&input.auth),
+            true,
+        )
+    }
+
     pub fn prepare_function(
         authority: PreparedAuthority,
         function: &FunctionDefinition,
@@ -850,6 +900,77 @@ impl InvocationGate {
             requirement,
             invocation_id: format!("inv_{}", Uuid::now_v7().simple()),
         })
+    }
+}
+
+fn source_allows_authority(
+    source: InvocationSource,
+    mode: AuthMode,
+    resolved: &ResolvedAppAuthority,
+    allow_inherited_live_rerun: bool,
+) -> bool {
+    let ordinary = match mode {
+        AuthMode::Dev => matches!(
+            resolved,
+            ResolvedAppAuthority::Anonymous
+                | ResolvedAppAuthority::DevImpersonation {
+                    local_dev_only: true,
+                    ..
+                }
+        ),
+        AuthMode::Sessions => matches!(
+            resolved,
+            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session { .. }
+        ),
+    };
+    let admin = match mode {
+        AuthMode::Dev => matches!(
+            resolved,
+            ResolvedAppAuthority::Anonymous
+                | ResolvedAppAuthority::DevImpersonation {
+                    local_dev_only: true,
+                    ..
+                }
+        ),
+        AuthMode::Sessions => matches!(resolved, ResolvedAppAuthority::AdminBypass { .. }),
+    };
+
+    match source {
+        InvocationSource::BootstrapHandshake => match mode {
+            AuthMode::Dev => matches!(resolved, ResolvedAppAuthority::Anonymous),
+            AuthMode::Sessions => matches!(
+                resolved,
+                ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session { .. }
+            ),
+        },
+        InvocationSource::HttpQuery
+        | InvocationSource::HttpMutation
+        | InvocationSource::HttpAction
+        | InvocationSource::LiveInitialQuery
+        | InvocationSource::StandaloneAcknowledgement
+        | InvocationSource::ConnectionOpen
+        | InvocationSource::ConnectionClose
+        | InvocationSource::EphemeralRegister
+        | InvocationSource::EphemeralPublish
+        | InvocationSource::EphemeralDelete
+        | InvocationSource::EphemeralSubscribe
+        | InvocationSource::EphemeralUnsubscribe
+        | InvocationSource::LiveResume
+        | InvocationSource::LiveUnsubscribe
+        | InvocationSource::LiveSupersede
+        | InvocationSource::LiveStream
+        | InvocationSource::OutboxDrain => ordinary,
+        InvocationSource::LocalQuery
+        | InvocationSource::LocalMutation
+        | InvocationSource::LocalAction => mode == AuthMode::Dev && ordinary,
+        InvocationSource::DirectAdminRunner
+        | InvocationSource::HostOperationFunctionRun
+        | InvocationSource::HostOperationMutationDryRun => admin,
+        InvocationSource::Cron => matches!(resolved, ResolvedAppAuthority::System),
+        InvocationSource::LiveRerun => {
+            allow_inherited_live_rerun && mode == AuthMode::Dev && ordinary
+        }
+        InvocationSource::NestedMutation => false,
     }
 }
 
@@ -979,9 +1100,18 @@ mod tests {
             .unwrap();
         }
         let error = InvocationGate::prepare_function(
-            prepared(ResolvedAppAuthority::AdminBypass {
-                reason: "direct runner".to_owned(),
-            }),
+            InvocationGate::prepare_authority(
+                InvocationSource::DirectAdminRunner,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::AdminBypass {
+                    reason: "direct runner".to_owned(),
+                },
+            )
+            .unwrap(),
             &function(Some(AuthRequirement::Authenticated)),
         )
         .unwrap_err();
@@ -1057,5 +1187,125 @@ mod tests {
         for source in InvocationSource::ALL {
             let _ = source.target();
         }
+    }
+
+    #[test]
+    fn source_mode_authority_matrix_is_closed_and_exhaustive() {
+        #[derive(Clone, Copy)]
+        enum Kind {
+            Anonymous,
+            Session,
+            Dev,
+            Admin,
+            System,
+        }
+        let authority = |kind| match kind {
+            Kind::Anonymous => ResolvedAppAuthority::Anonymous,
+            Kind::Session => ResolvedAppAuthority::Session {
+                user_id: "user".to_owned(),
+                session_id: "session".to_owned(),
+                provider: "email-code".to_owned(),
+                generation: 1,
+                authority_instance_id: "authority".to_owned(),
+            },
+            Kind::Dev => ResolvedAppAuthority::DevImpersonation {
+                user_id: "dev".to_owned(),
+                roles: Vec::new(),
+                local_dev_only: true,
+            },
+            Kind::Admin => ResolvedAppAuthority::AdminBypass {
+                reason: "operator".to_owned(),
+            },
+            Kind::System => ResolvedAppAuthority::System,
+        };
+        let expected = |source, mode, kind| {
+            let ordinary = matches!(
+                (mode, kind),
+                (AuthMode::Dev, Kind::Anonymous | Kind::Dev)
+                    | (AuthMode::Sessions, Kind::Anonymous | Kind::Session)
+            );
+            let admin = matches!(
+                (mode, kind),
+                (AuthMode::Dev, Kind::Anonymous | Kind::Dev) | (AuthMode::Sessions, Kind::Admin)
+            );
+            match source {
+                InvocationSource::BootstrapHandshake => matches!(
+                    (mode, kind),
+                    (AuthMode::Dev, Kind::Anonymous)
+                        | (AuthMode::Sessions, Kind::Anonymous | Kind::Session)
+                ),
+                InvocationSource::HttpQuery
+                | InvocationSource::HttpMutation
+                | InvocationSource::HttpAction
+                | InvocationSource::LiveInitialQuery
+                | InvocationSource::StandaloneAcknowledgement
+                | InvocationSource::ConnectionOpen
+                | InvocationSource::ConnectionClose
+                | InvocationSource::EphemeralRegister
+                | InvocationSource::EphemeralPublish
+                | InvocationSource::EphemeralDelete
+                | InvocationSource::EphemeralSubscribe
+                | InvocationSource::EphemeralUnsubscribe
+                | InvocationSource::LiveResume
+                | InvocationSource::LiveUnsubscribe
+                | InvocationSource::LiveSupersede
+                | InvocationSource::LiveStream
+                | InvocationSource::OutboxDrain => ordinary,
+                InvocationSource::LocalQuery
+                | InvocationSource::LocalMutation
+                | InvocationSource::LocalAction => mode == AuthMode::Dev && ordinary,
+                InvocationSource::DirectAdminRunner
+                | InvocationSource::HostOperationFunctionRun
+                | InvocationSource::HostOperationMutationDryRun => admin,
+                InvocationSource::Cron => matches!(kind, Kind::System),
+                InvocationSource::NestedMutation | InvocationSource::LiveRerun => false,
+            }
+        };
+
+        for source in InvocationSource::ALL {
+            for mode in [AuthMode::Dev, AuthMode::Sessions] {
+                for kind in [
+                    Kind::Anonymous,
+                    Kind::Session,
+                    Kind::Dev,
+                    Kind::Admin,
+                    Kind::System,
+                ] {
+                    let result = InvocationGate::prepare_authority(
+                        source,
+                        mode,
+                        ServerProfile::Test,
+                        0,
+                        0,
+                        &WireAuthorityFields::default(),
+                        authority(kind),
+                    );
+                    assert_eq!(
+                        result.is_ok(),
+                        expected(source, mode, kind),
+                        "unexpected compatibility for {source:?} in {mode:?}"
+                    );
+                    if let Err(error) = result {
+                        assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+                    }
+                }
+            }
+        }
+
+        let error = InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::DevImpersonation {
+                user_id: "dev".to_owned(),
+                roles: Vec::new(),
+                local_dev_only: false,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
     }
 }

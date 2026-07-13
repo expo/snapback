@@ -676,7 +676,7 @@ pub fn execute_host_op_with_profile(
 /// Execute with authority prepared by server middleware under one managed
 /// admission lease. Only app-executing host operations consume this value;
 /// administrative metadata operations must pass `None`.
-pub fn execute_host_op_with_profile_and_authority(
+pub(crate) fn execute_host_op_with_profile_and_authority(
     snapback: &mut LocalSnapback,
     request: HostOpsRequest,
     server_url: Option<String>,

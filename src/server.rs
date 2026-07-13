@@ -5758,6 +5758,7 @@ async fn config_verify(
                 input,
                 metadata,
                 mode,
+                admission,
             } = *stage;
             let result = match mode {
                 StagedAction::Detached(action) => {
@@ -5771,7 +5772,7 @@ async fn config_verify(
                 }
             };
             with_snapback(&state, move |snapback| {
-                snapback.finish_config_verify(&entry, entry_revision, started_ms, result)
+                snapback.finish_config_verify(&entry, entry_revision, started_ms, result, admission)
             })
             .await?
         }

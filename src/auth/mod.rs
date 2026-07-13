@@ -1,11 +1,13 @@
 //! Server-owned authentication primitives.
 
-pub mod admission;
+#[allow(dead_code)] // Server composition consumes the closed crate-private gate.
+pub(crate) mod admission;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod backup;
 pub mod crypto;
 pub mod handshake;
-pub mod invocation;
+#[allow(dead_code)] // Server composition consumes crate-private prepared authority.
+pub(crate) mod invocation;
 pub mod keyring;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod lifecycle;

@@ -79,6 +79,12 @@ thread_local! {
     /// before permission/live postcommit work begins.
     static BEFORE_MUTATION_POSTCOMMIT_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         std::cell::RefCell::new(None);
+    static BEFORE_QUERY_RESULT_HANDOFF_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        std::cell::RefCell::new(None);
+    static BEFORE_ACTION_RESULT_HANDOFF_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        std::cell::RefCell::new(None);
+    static BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        std::cell::RefCell::new(None);
 }
 
 fn next_app_generation() -> u64 {
@@ -1111,6 +1117,7 @@ pub(crate) struct ConfigVerifyStage {
     pub input: HandlerInput,
     pub metadata: CronRunMetadata,
     pub mode: StagedAction,
+    pub admission: AdmissionLease,
 }
 
 /// Assemble the `FunctionRunResult` envelope for an action run — shared by
@@ -2473,12 +2480,20 @@ impl LocalSnapback {
         source: InvocationSource,
         admission: AdmissionLease,
     ) -> SnapbackResult<QueryInvocation> {
-        let authority = InvocationGate::prepare_admitted_dev_input(
-            source,
-            ServerProfile::Dev,
-            &input,
-            admission,
-        )?;
+        let authority = if source == InvocationSource::LiveRerun {
+            InvocationGate::prepare_admitted_live_rerun_dev_input(
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )?
+        } else {
+            InvocationGate::prepare_admitted_dev_input(
+                source,
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )?
+        };
         self.invoke_query_with_dependencies_prepared(name, input, authority)
     }
 
@@ -4228,6 +4243,7 @@ impl LocalSnapback {
         match self.stage_config_verify(name)? {
             StagedConfigVerify::Done(outcome) => Ok(*outcome),
             StagedConfigVerify::Ready(stage) => {
+                let admission = stage.admission.clone();
                 let result = match stage.mode {
                     StagedAction::InLock(prepared) => self.invoke_action_prepared(
                         &stage.probe,
@@ -4242,7 +4258,13 @@ impl LocalSnapback {
                         action.invocation,
                     ),
                 };
-                self.finish_config_verify(name, stage.entry_revision, stage.started_ms, result)
+                self.finish_config_verify(
+                    name,
+                    stage.entry_revision,
+                    stage.started_ms,
+                    result,
+                    admission,
+                )
             }
         }
     }
@@ -4252,6 +4274,7 @@ impl LocalSnapback {
     /// through the cooldown stamp even when the probe itself runs off-lock
     /// (ENG-23493).
     pub(crate) fn stage_config_verify(&mut self, name: &str) -> SnapbackResult<StagedConfigVerify> {
+        let admission = self.admission.admit()?;
         let definition = self.config_definition(name)?.clone();
         let Some(probe) = definition.probe.clone() else {
             return Err(SnapbackError::error(
@@ -4275,7 +4298,10 @@ impl LocalSnapback {
             )
         })?;
         let now = now_millis();
-        self.config.check_verify_cooldown(name, now)?;
+        {
+            let _claim = admission.effect_guard("config verification cooldown claim")?;
+            self.config.check_verify_cooldown(name, now)?;
+        }
         let metadata = CronRunMetadata {
             job_name: format!("config-verify:{name}"),
             run_id: format!("config-verify:{name}:{now}"),
@@ -4293,13 +4319,13 @@ impl LocalSnapback {
             correlation: None,
             ctx_ledger: None,
         };
-        let mode = match self.stage_action_invocation(&probe) {
+        let mode = match self.stage_action_invocation_with_admission(&probe, admission.clone()) {
             Ok(mode) => mode,
             // A probe that cannot stage (unknown function, non-action) is a
             // failed verification, exactly as the in-lock run reported it.
             Err(error) => {
                 return Ok(StagedConfigVerify::Done(Box::new(
-                    self.finish_config_verify(name, entry_revision, now, Err(error))?,
+                    self.finish_config_verify(name, entry_revision, now, Err(error), admission)?,
                 )));
             }
         };
@@ -4310,6 +4336,7 @@ impl LocalSnapback {
             input,
             metadata,
             mode,
+            admission,
         })))
     }
 
@@ -4321,7 +4348,15 @@ impl LocalSnapback {
         entry_revision: u64,
         at_ms: u64,
         result: SnapbackResult<Value>,
+        admission: AdmissionLease,
     ) -> SnapbackResult<ConfigVerifyOutcome> {
+        #[cfg(test)]
+        BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook();
+            }
+        });
+        let _publication = admission.effect_guard("config verification publication")?;
         let record = match result {
             Ok(value) => {
                 let ok = value.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -5070,7 +5105,13 @@ impl LocalSnapback {
             // text before a later retention sink gets a chance to redact it.
             invocation_redactor.redact_error(error)
         });
-        prepared.validate_admission("action response publication")?;
+        #[cfg(test)]
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook();
+            }
+        });
+        let _publication = prepared.effect_guard("action result handoff")?;
         result
     }
 
@@ -6091,7 +6132,13 @@ fn execute_query_invocation(
             format!("{name} is not a query"),
         )),
     }?;
-    prepared.validate_admission("query result")?;
+    #[cfg(test)]
+    BEFORE_QUERY_RESULT_HANDOFF_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
+    let _publication = prepared.effect_guard("query result handoff")?;
     Ok(invocation)
 }
 
@@ -6356,9 +6403,11 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead, EnsureAppMode,
-        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
-        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, StagedNestedMutation,
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
+        BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
+        DetachedMutationRead, EnsureAppMode, LiveSubscribeInput, LiveUnsubscribeInput,
+        LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
+        StagedNestedMutation,
     };
     use crate::admin::ServerProfile;
     use crate::auth::invocation::{
@@ -6369,7 +6418,9 @@ mod tests {
         SCHEMA_V1_PREFIX,
     };
     use crate::manifest::{
-        AuthManifest, AuthMode, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
+        ActionPlan, AuthManifest, AuthMode, ConfigEntryDefinition, CronActivationPolicy,
+        CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
+        CronSchedule, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
         FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
         HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
         SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
@@ -6535,6 +6586,315 @@ globalThis.__snapbackHandlers = {
             .validate_shape()
             .expect("valid settled Sessions state");
         state
+    }
+
+    fn cron_gate_snapback() -> LocalSnapback {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "cronAction",
+                FunctionKind::Action,
+                FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                })),
+            )],
+            cron_jobs: vec![CronJobDefinition {
+                name: "gatedCron".to_owned(),
+                schedule: CronSchedule {
+                    every_ms: Some(60_000),
+                    cron: None,
+                },
+                action: "cronAction".to_owned(),
+                enabled: true,
+                activation: CronActivationPolicy::default(),
+                jitter_policy: CronJitterPolicy {
+                    enabled: false,
+                    max_offset_ms: 0,
+                },
+                overlap_policy: CronOverlapPolicy::NoOverlap,
+                retry_policy: CronRetryPolicy {
+                    mode: CronRetryMode::NextTick,
+                },
+                required_capabilities: Vec::new(),
+                target_wakeup: None,
+                source_span: None,
+            }],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("memory cron gate fixture");
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "cron gate fixture must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    #[test]
+    fn closed_admission_cannot_mutate_or_persist_scheduled_or_manual_cron_claim() {
+        let mut snapback = cron_gate_snapback();
+        let before = snapback.cron.persisted_value().unwrap();
+        let writes = snapback.cron_state_writes();
+        let guard = snapback.admission.begin_transition().unwrap();
+
+        let Err(scheduled_error) = snapback.claim_due_cron_runs(0) else {
+            panic!("closed scheduled claim must fail");
+        };
+        assert_eq!(
+            scheduled_error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        let Err(manual_error) = snapback.claim_manual_cron_run("gatedCron", 0) else {
+            panic!("closed manual claim must fail");
+        };
+        assert_eq!(manual_error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+        assert_eq!(snapback.cron.persisted_value().unwrap(), before);
+        assert_eq!(snapback.cron_state_writes(), writes);
+        drop(guard);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn admitted_cron_claim_may_finish_while_transition_drains() {
+        let mut snapback = cron_gate_snapback();
+        let claim = snapback
+            .claim_manual_cron_run("gatedCron", 10)
+            .expect("admitted manual claim");
+        let controller = snapback.admission.clone();
+        let (closed_tx, closed_rx) = tokio::sync::oneshot::channel();
+        let transition = tokio::spawn(async move {
+            controller
+                .begin_transition_async(move || {
+                    let _ = closed_tx.send(());
+                    Ok(())
+                })
+                .await
+        });
+        closed_rx.await.expect("transition published close");
+        assert!(!snapback.admission.snapshot().accepting);
+
+        let record = snapback
+            .finish_cron_claim(claim, super::now_millis(), Ok(json!({ "ok": true })))
+            .expect("old admitted claim linearizes finish before retirement");
+        assert_eq!(record.outcome, crate::cron::CronRunOutcome::Succeeded);
+        let guard = transition
+            .await
+            .expect("transition task")
+            .expect("claim drained");
+        guard.abort_and_reopen().expect("reopen after test drain");
+    }
+
+    #[test]
+    fn timeout_retirement_suppresses_cron_finish_and_result_ledger_publication() {
+        let mut snapback = cron_gate_snapback();
+        let claim = snapback
+            .claim_manual_cron_run("gatedCron", 20)
+            .expect("admitted manual claim");
+        let before = snapback.cron.persisted_value().unwrap();
+        let writes = snapback.cron_state_writes();
+        let error = snapback
+            .admission
+            .retire_current_epoch_for_test()
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+
+        assert_eq!(
+            snapback
+                .finish_cron_claim(claim, super::now_millis(), Ok(json!({ "ok": true })))
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        assert_eq!(snapback.cron.persisted_value().unwrap(), before);
+        assert_eq!(snapback.cron_state_writes(), writes);
+    }
+
+    fn result_handoff_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory result handoff fixture");
+        snapback
+            .apply_schema(reload_schema("result-handoff-schema", false))
+            .expect("apply result handoff schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "listItems",
+                    FunctionKind::Query,
+                    FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                        table: "items".to_owned(),
+                        filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    })),
+                ),
+                FunctionDefinition::new(
+                    "emptyAction",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+            ],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "result handoff fixture must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    #[test]
+    fn retirement_at_local_query_and_action_handoff_suppresses_results() {
+        let mut snapback = result_handoff_snapback();
+        let query_controller = snapback.admission.clone();
+        BEFORE_QUERY_RESULT_HANDOFF_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                assert_eq!(
+                    query_controller
+                        .retire_current_epoch_for_test()
+                        .unwrap_err()
+                        .diagnostic
+                        .code,
+                    "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+                );
+            }));
+        });
+        assert_eq!(
+            snapback
+                .invoke_query("listItems", HandlerInput::default())
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+
+        let action_controller = snapback.admission.clone();
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                assert_eq!(
+                    action_controller
+                        .retire_current_epoch_for_test()
+                        .unwrap_err()
+                        .diagnostic
+                        .code,
+                    "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+                );
+            }));
+        });
+        assert_eq!(
+            snapback
+                .run_app_action("emptyAction", HandlerInput::default())
+                .diagnostic
+                .expect("retired action result")
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    fn config_verify_gate_snapback() -> LocalSnapback {
+        let mut probe = FunctionDefinition::new(
+            "configProbe",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        probe.uses = vec!["gateKey".to_owned()];
+        let mut snapback = LocalSnapback::memory().expect("memory config verify gate fixture");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![probe],
+            config: vec![ConfigEntryDefinition {
+                name: "gateKey".to_owned(),
+                description: None,
+                purpose: None,
+                secret: true,
+                required: false,
+                pool: false,
+                probe: Some("configProbe".to_owned()),
+                how_to_get: None,
+                acquisition: None,
+                default: None,
+                source_span: None,
+            }],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "config verify gate fixture must load: {diagnostics:?}"
+        );
+        snapback
+            .set_config_entry("gateKey", vec!["secret".to_owned()], false, "test")
+            .expect("set config fixture value");
+        snapback
+    }
+
+    #[test]
+    fn config_verify_admission_precedes_cooldown_and_retirement_suppresses_finish() {
+        let mut snapback = config_verify_gate_snapback();
+        let guard = snapback.admission.begin_transition().unwrap();
+        let Err(error) = snapback.stage_config_verify("gateKey") else {
+            panic!("closed config verification must fail before staging");
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+        drop(guard);
+
+        let stage = match snapback
+            .stage_config_verify("gateKey")
+            .expect("closed attempt did not claim cooldown")
+        {
+            super::StagedConfigVerify::Ready(stage) => stage,
+            super::StagedConfigVerify::Done(_) => panic!("valid probe must stage"),
+        };
+        let admission = stage.admission.clone();
+        let revision = stage.entry_revision;
+        let started = stage.started_ms;
+        drop(stage);
+        let diagnostics_before = snapback.recent_diagnostics.len();
+        assert!(snapback.config.entry("gateKey").unwrap().verified.is_none());
+        let controller = snapback.admission.clone();
+        BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                assert_eq!(
+                    controller
+                        .retire_current_epoch_for_test()
+                        .unwrap_err()
+                        .diagnostic
+                        .code,
+                    "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+                );
+            }));
+        });
+        assert_eq!(
+            snapback
+                .finish_config_verify(
+                    "gateKey",
+                    revision,
+                    started,
+                    Ok(json!({ "ok": true })),
+                    admission,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        assert!(snapback.config.entry("gateKey").unwrap().verified.is_none());
+        assert_eq!(snapback.recent_diagnostics.len(), diagnostics_before);
     }
 
     #[test]
@@ -6989,11 +7349,13 @@ globalThis.__snapbackHandlers = {
 
     fn nested_authority() -> PreparedAuthority {
         InvocationGate::prepare_dev_input(
-            InvocationSource::NestedMutation,
+            InvocationSource::LocalMutation,
             ServerProfile::Test,
             &input(),
         )
         .expect("prepare nested test authority")
+        .inherit_for(InvocationSource::NestedMutation)
+        .expect("inherit nested test authority")
     }
 
     fn prepared_mutation(snapback: &LocalSnapback, name: &str) -> PreparedInvocation {
