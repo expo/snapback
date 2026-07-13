@@ -6,6 +6,7 @@
 #![allow(clippy::result_large_err)]
 
 pub mod admin;
+pub mod admin_secret_read;
 pub mod bench;
 pub mod cli;
 pub mod config;

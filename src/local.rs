@@ -931,6 +931,11 @@ pub struct FunctionRunResult {
     pub captured_reads: Vec<CapturedReadDependency>,
     #[serde(default)]
     pub captured_writes: Vec<CapturedWriteDependency>,
+    /// Envelope-level audit fact for session-mode operator invocation. The
+    /// handler input remains anonymous; this records that access came through
+    /// the explicit administrative bypass rather than an app principal.
+    #[serde(default, rename = "adminBypass", skip_serializing_if = "bool_is_false")]
+    pub admin_bypass: bool,
     pub elapsed_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<u64>,
@@ -942,6 +947,10 @@ pub struct FunctionRunResult {
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostic: Option<Diagnostic>,
+}
+
+fn bool_is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// How a staged action must execute.
@@ -1044,6 +1053,7 @@ pub(crate) fn action_run_result(
         writes,
         captured_reads: Vec::new(),
         captured_writes: Vec::new(),
+        admin_bypass: false,
         elapsed_ms,
         version: None,
         changed_count: None,
@@ -1427,6 +1437,12 @@ pub struct LocalSnapback {
     // and must still match at commit (ENG-24340).
     app_generation: u64,
     app_generation_fence: Arc<AtomicU64>,
+    // Dedicated destructive-reset boundary for secret-read leases. Unlike
+    // `app_generation`, schema/function reloads do not invalidate leases;
+    // only a committed reset advances this fence.
+    // @ref LLP 0039#protocol-obligations-deferred-to-implementation — derived
+    // secret-read authority is reset-bounded independently of code reloads.
+    secret_read_reset_generation: Arc<AtomicU64>,
 }
 
 #[derive(Clone, Debug)]
@@ -1438,9 +1454,9 @@ struct LiveSubscription {
     read_dependencies: Vec<CapturedReadDependency>,
 }
 
-struct QueryInvocation {
-    output: QueryOutput,
-    read_dependencies: Vec<CapturedReadDependency>,
+pub(crate) struct QueryInvocation {
+    pub(crate) output: QueryOutput,
+    pub(crate) read_dependencies: Vec<CapturedReadDependency>,
 }
 
 /// Outcome of the DK-3 op-log delta fast path for one subscription.
@@ -1582,6 +1598,8 @@ impl LocalSnapback {
     }
 
     fn finish_committed_reset(&mut self) {
+        self.secret_read_reset_generation
+            .fetch_add(1, Ordering::AcqRel);
         self.advance_app_generation();
         self.warm_vms.clear();
         // ENG-23333: capture the live subscriptions being dropped so their
@@ -1953,7 +1971,7 @@ impl LocalSnapback {
         Ok(self.invoke_query_with_dependencies(name, input)?.output)
     }
 
-    fn invoke_query_with_dependencies(
+    pub(crate) fn invoke_query_with_dependencies(
         &self,
         name: &str,
         input: HandlerInput,
@@ -2738,6 +2756,7 @@ impl LocalSnapback {
                 writes: Vec::new(),
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
                 changed_count: None,
@@ -2764,6 +2783,7 @@ impl LocalSnapback {
             writes,
             captured_reads: Vec::new(),
             captured_writes: Vec::new(),
+            admin_bypass: false,
             elapsed_ms: 0,
             version: None,
             changed_count: None,
@@ -2773,20 +2793,23 @@ impl LocalSnapback {
         };
 
         match kind {
-            FunctionKind::Query | FunctionKind::LiveQuery => match self.invoke_query(name, input) {
-                Ok(output) => FunctionRunResult {
-                    elapsed_ms: elapsed_ms(started),
-                    version: Some(output.version),
-                    rows: Some(output.rows),
-                    ..base
-                },
-                Err(error) => FunctionRunResult {
-                    ok: false,
-                    elapsed_ms: elapsed_ms(started),
-                    diagnostic: Some(error.diagnostic),
-                    ..base
-                },
-            },
+            FunctionKind::Query | FunctionKind::LiveQuery => {
+                match self.invoke_query_with_dependencies(name, input) {
+                    Ok(invocation) => FunctionRunResult {
+                        elapsed_ms: elapsed_ms(started),
+                        version: Some(invocation.output.version),
+                        rows: Some(invocation.output.rows),
+                        captured_reads: invocation.read_dependencies,
+                        ..base
+                    },
+                    Err(error) => FunctionRunResult {
+                        ok: false,
+                        elapsed_ms: elapsed_ms(started),
+                        diagnostic: Some(error.diagnostic),
+                        ..base
+                    },
+                }
+            }
             FunctionKind::Mutation => match self.invoke_mutation_commit(name, input) {
                 Ok(commit) => FunctionRunResult {
                     elapsed_ms: elapsed_ms(started),
@@ -2823,6 +2846,13 @@ impl LocalSnapback {
         }
     }
 
+    pub(crate) fn function_declared_read_tables(&self, name: &str) -> Vec<String> {
+        self.functions
+            .function(name)
+            .map(|definition| plan_io(definition).0)
+            .unwrap_or_default()
+    }
+
     /// Run an app-data action through the normal action invocation path without
     /// borrowing the admin function runner's metadata. Non-actions return a
     /// diagnostic envelope and are never executed.
@@ -2855,6 +2885,7 @@ impl LocalSnapback {
                 writes: Vec::new(),
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
                 changed_count: None,
@@ -2881,6 +2912,7 @@ impl LocalSnapback {
                 writes,
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
                 changed_count: None,
@@ -3955,6 +3987,7 @@ impl LocalSnapback {
             warm_vms: Arc::new(crate::warm_vm::WarmVmPool::from_env()),
             app_generation,
             app_generation_fence: Arc::new(AtomicU64::new(app_generation)),
+            secret_read_reset_generation: Arc::new(AtomicU64::new(1)),
             read_manifests,
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             receipts: ReceiptLog::default(),
@@ -3982,6 +4015,7 @@ impl LocalSnapback {
             epochs: self.read_epochs.clone(),
             pool: self.db.reader_pool(),
             warm_vms: self.warm_vms.clone(),
+            secret_read_reset_generation: self.secret_read_reset_generation.clone(),
         }
     }
 
@@ -4743,6 +4777,7 @@ pub struct ReadLane {
     // (exclusive ownership per checkout), warming extras on miss up to the
     // pool bound.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
+    secret_read_reset_generation: Arc<AtomicU64>,
 }
 
 /// What the read lane can serve for `/health` without the global mutex.
@@ -4752,6 +4787,10 @@ pub struct ReadHealth {
 }
 
 impl ReadLane {
+    pub(crate) fn secret_read_reset_generation(&self) -> Arc<AtomicU64> {
+        self.secret_read_reset_generation.clone()
+    }
+
     /// Whether the lock-free lane exists for this instance (file-backed WAL
     /// database). When false, callers must use the write lane.
     pub fn available(&self) -> bool {

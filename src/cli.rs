@@ -350,6 +350,9 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             data,
             diagnostics,
             next: Vec::new(),
+            secret_read_tables: Vec::new(),
+            secret_read_rows: 0,
+            secret_read_query: false,
         };
     if let Err(diagnostic) = verify_stop_target(&descriptor, &health) {
         let refused = envelope(

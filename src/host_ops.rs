@@ -18,6 +18,7 @@ use crate::manifest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::collections::BTreeSet;
 use uuid::Uuid;
 
 pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
@@ -70,6 +71,23 @@ pub struct HostOpsResult {
     pub data: Value,
     pub diagnostics: Vec<Diagnostic>,
     pub next: Vec<Value>,
+    /// Request-local charging facts consumed by the HTTP secret-read gate;
+    /// never part of the host-ops wire envelope or generated schema.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) secret_read_tables: Vec<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) secret_read_rows: usize,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) secret_read_query: bool,
+}
+
+impl HostOpsResult {
+    pub(crate) fn mark_admin_bypass(&mut self, reason: &str) {
+        self.authority = authority_admin(reason);
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -324,6 +342,9 @@ pub fn execute_host_op_with_profile(
         data,
         diagnostics,
         next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
     };
 
     let profile_requirement =
@@ -536,6 +557,7 @@ fn run_function(
         );
     };
     let (name, kind) = (definition.name.clone(), definition.kind.clone());
+    let declared_reads = snapback.function_declared_read_tables(&name);
     let input = HandlerInput {
         args: request
             .args
@@ -552,25 +574,42 @@ fn run_function(
     };
     match kind {
         FunctionKind::Query | FunctionKind::LiveQuery => {
-            match snapback.invoke_query(&name, input) {
-                Ok(output) => {
-                    let result = serde_json::to_value(&output)
+            match snapback.invoke_query_with_dependencies(&name, input) {
+                Ok(invocation) => {
+                    let rows = invocation.output.rows.len();
+                    let mut tables: BTreeSet<String> = declared_reads.into_iter().collect();
+                    tables.extend(
+                        invocation
+                            .read_dependencies
+                            .iter()
+                            .filter_map(|dependency| dependency.table.clone()),
+                    );
+                    let result = serde_json::to_value(&invocation.output)
                         .unwrap_or_else(|_| Value::Object(Default::default()));
-                    envelope(
+                    let mut response = envelope(
                         snapback,
                         true,
                         authority,
                         json!({ "functionResult": result }),
                         Vec::new(),
-                    )
+                    );
+                    response.secret_read_tables = tables.into_iter().collect();
+                    response.secret_read_rows = rows;
+                    response.secret_read_query = true;
+                    response
                 }
-                Err(error) => envelope(
-                    snapback,
-                    false,
-                    authority,
-                    Value::Object(Default::default()),
-                    vec![error.diagnostic],
-                ),
+                Err(error) => {
+                    let mut response = envelope(
+                        snapback,
+                        false,
+                        authority,
+                        Value::Object(Default::default()),
+                        vec![error.diagnostic],
+                    );
+                    response.secret_read_tables = declared_reads;
+                    response.secret_read_query = true;
+                    response
+                }
             }
         }
         FunctionKind::Mutation => match snapback.invoke_mutation(&name, input) {
@@ -836,8 +875,24 @@ fn explain_function(
         correlation: None,
         ctx_ledger: None,
     };
+    let declared_secret_reads = snapback.function_declared_read_tables(&function);
     match snapback.dry_run_mutation(&function, input) {
         Ok(outcome) => {
+            let secret_read_rows = outcome
+                .read_dependencies
+                .iter()
+                .map(|dependency| dependency.rows.len())
+                .sum::<usize>()
+                .saturating_add(outcome.changes.len());
+            let mut secret_read_tables: BTreeSet<String> =
+                declared_secret_reads.into_iter().collect();
+            secret_read_tables.extend(
+                outcome
+                    .read_dependencies
+                    .iter()
+                    .filter_map(|dependency| dependency.table.clone()),
+            );
+            secret_read_tables.extend(outcome.changes.iter().map(|change| change.table.clone()));
             let mut diagnostics = outcome.diagnostics;
             let denial_reason = if outcome.denied {
                 outcome.failure.clone()
@@ -893,6 +948,8 @@ fn explain_function(
                     .unwrap_or_else(|_| Value::Object(Default::default())),
             });
             let mut result = envelope(snapback, true, authority, data, Vec::new());
+            result.secret_read_tables = secret_read_tables.into_iter().collect();
+            result.secret_read_rows = secret_read_rows;
             if report.would_commit {
                 // propose → simulate → inspect writes → commit (LLP 0051 D8).
                 result.next.push(json!({
@@ -903,13 +960,17 @@ fn explain_function(
             }
             result
         }
-        Err(error) => envelope(
-            snapback,
-            false,
-            authority,
-            Value::Object(Default::default()),
-            vec![error.diagnostic],
-        ),
+        Err(error) => {
+            let mut result = envelope(
+                snapback,
+                false,
+                authority,
+                Value::Object(Default::default()),
+                vec![error.diagnostic],
+            );
+            result.secret_read_tables = declared_secret_reads;
+            result
+        }
     }
 }
 

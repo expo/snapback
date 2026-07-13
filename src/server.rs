@@ -1,4 +1,5 @@
 use crate::admin::{AppState, ServerContext};
+use crate::admin_secret_read::{SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry};
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
@@ -1148,6 +1149,14 @@ fn header_connection_token(headers: &HeaderMap) -> Option<String> {
         .get(CONNECTION_TOKEN_HEADER)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned)
+}
+
+fn header_secret_read_lease(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(SECRET_READ_LEASE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn subprotocol_connection_token(headers: &HeaderMap) -> Option<String> {
@@ -2474,11 +2483,12 @@ async fn enforce_registered_route_policy(
                         )
                     })
                 } else {
-                    authorize_operation_spec(
+                    authorize_operation_spec_with_secret_reads(
                         &runtime.server,
                         request.headers(),
                         operation,
                         runtime.policy_auth_mode,
+                        &runtime.secret_reads,
                     )
                 }
             }
@@ -2538,7 +2548,10 @@ async fn enforce_registered_route_policy(
             RoutePolicy::AdminWrite => {
                 crate::admin::authorize(&runtime.server, request.headers(), true)
             }
-            RoutePolicy::AdminSecretRead | RoutePolicy::SessionAuth => Err(SnapbackError::error(
+            RoutePolicy::AdminSecretRead => {
+                authorize_secret_read(&runtime.secret_reads, request.headers())
+            }
+            RoutePolicy::SessionAuth => Err(SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                 "auth",
                 "session policy cannot become active before staged auth-mode enforcement lands",
@@ -3132,6 +3145,44 @@ pub(crate) fn authorize_operation_spec(
         .into()),
         RoutePolicy::Public | RoutePolicy::AppAuth | RoutePolicy::ConnectionAuth => Ok(()),
     }
+}
+
+/// Operation-policy authorization with the installed secret-read resolver.
+/// Kept separate from the legacy helper so non-HTTP callers cannot
+/// accidentally manufacture a lease from an ordinary admin credential.
+pub(crate) fn authorize_operation_spec_with_secret_reads(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    spec: OperationSpec,
+    mode: PolicyAuthMode,
+    secret_reads: &SecretReadLeaseRegistry,
+) -> Result<(), ApiError> {
+    let effective = spec.effective_for(mode);
+    if matches!(
+        effective.effect_policy,
+        EffectPolicy::Unavailable | EffectPolicy::ImpersonationCapability
+    ) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "this operation requires auth enforcement that is not installed yet",
+        )
+        .into());
+    }
+    match effective.path_policy {
+        RoutePolicy::AdminSecretRead => authorize_secret_read(secret_reads, headers),
+        _ => authorize_operation_spec(ctx, headers, spec, mode),
+    }
+}
+
+fn authorize_secret_read(
+    secret_reads: &SecretReadLeaseRegistry,
+    headers: &HeaderMap,
+) -> Result<(), ApiError> {
+    secret_reads
+        .authorize(header_secret_read_lease(headers))
+        .map(|_| ())
+        .map_err(Into::into)
 }
 
 /// Exhaustive function-kind mapping used by the direct runner's actual
@@ -4026,7 +4077,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
         HeaderValue::from_static(
-            "content-type, authorization, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token",
+            "content-type, authorization, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-secret-read-lease",
         ),
     );
     response
@@ -4321,11 +4372,16 @@ async fn host_ops_handler(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
     headers: HeaderMap,
-    Json(request): Json<crate::host_ops::HostOpsRequest>,
+    Json(mut request): Json<crate::host_ops::HostOpsRequest>,
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
     let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
     let profile = ctx.profile;
+    let requested_operation = request.operation.clone();
+    let requested_function = request.function.clone();
+    let secret_reads_for_gate = secret_reads.clone();
+    let gate_headers = headers.clone();
     let result = with_snapback(&state, move |snapback| -> Result<_, ApiError> {
         let function_kind = request
             .function
@@ -4333,17 +4389,75 @@ async fn host_ops_handler(
             .and_then(|name| snapback.function_kind(name));
         crate::admin::authorize_host_operation(
             &ctx,
-            &headers,
+            &gate_headers,
             &request.operation,
             function_kind.as_ref(),
             request.user_id.is_some(),
             policy_mode,
+            &secret_reads_for_gate,
         )?;
-        Ok(crate::host_ops::execute_host_op_with_profile(
-            snapback, request, server_url, profile,
-        ))
+        if policy_mode == PolicyAuthMode::Sessions {
+            request.user_id = None;
+        }
+        let mut result =
+            crate::host_ops::execute_host_op_with_profile(snapback, request, server_url, profile);
+        if policy_mode == PolicyAuthMode::Sessions
+            && matches!(
+                result.operation.as_str(),
+                "function.run" | "function.explain"
+            )
+        {
+            result.mark_admin_bypass("session-mode anonymous administrative invocation");
+        }
+        Ok(result)
     })
     .await?;
+    if policy_mode == PolicyAuthMode::Sessions {
+        let mut scopes = std::collections::BTreeSet::new();
+        match requested_operation.as_str() {
+            "app.inspect" => {
+                scopes.insert(crate::admin_secret_read::SecretReadScope::AdminInspect);
+            }
+            "function.run" if result.secret_read_query => {
+                if let Some(function) = requested_function.as_ref() {
+                    scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionRun(
+                        function.clone(),
+                    ));
+                }
+                scopes.extend(
+                    result
+                        .secret_read_tables
+                        .iter()
+                        .cloned()
+                        .map(crate::admin_secret_read::SecretReadScope::Table),
+                );
+            }
+            "function.explain" => {
+                if let Some(function) = requested_function.as_ref() {
+                    scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionExplain(
+                        function.clone(),
+                    ));
+                }
+                scopes.extend(
+                    result
+                        .secret_read_tables
+                        .iter()
+                        .cloned()
+                        .map(crate::admin_secret_read::SecretReadScope::Table),
+                );
+            }
+            _ => {}
+        }
+        if !scopes.is_empty() {
+            crate::admin::reserve_secret_read_json(
+                &secret_reads,
+                &headers,
+                scopes,
+                result.secret_read_rows,
+                &result,
+            )?;
+        }
+    }
     Ok(Json(result))
 }
 
@@ -5375,13 +5489,17 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
+        | "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED"
+        | "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED"
         | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
         | "SNAPBACK_CONNECTION_TOKEN_INVALID"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
-        "SNAPBACK_ADMIN_TOKEN_REQUIRED" | "SNAPBACK_CONNECTION_TOKEN_REQUIRED" => {
-            StatusCode::UNAUTHORIZED
-        }
+        "SNAPBACK_ADMIN_TOKEN_REQUIRED"
+        | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
+        | "SNAPBACK_CONNECTION_TOKEN_REQUIRED" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
+        | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
+        | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
@@ -5391,6 +5509,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
         | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
         | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
@@ -5880,6 +5999,7 @@ mod tests {
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
+        "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
         "SNAPBACK_AUTH_STALE_RESULT",
@@ -6004,12 +6124,15 @@ mod tests {
     ];
 
     const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "SNAPBACK_ADMIN_TOKEN_REQUIRED",
         "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
     ];
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
+        "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
+        "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
         "SNAPBACK_PROFILE_FORBIDS",
@@ -6043,6 +6166,8 @@ mod tests {
     ];
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
+        "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
         "SNAPBACK_EPHEMERAL_RATE_LIMITED",
         "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
@@ -6084,6 +6209,7 @@ mod tests {
         "SNAPBACK_ACTION_THREAD_SPAWN_FAILED",
         "SNAPBACK_ACTION_TIMEOUT_INVALID",
         "SNAPBACK_ACTION_TIMEOUT_SETUP_FAILED",
+        "SNAPBACK_ADMIN_SECRET_READ_SERIALIZATION_FAILED",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",

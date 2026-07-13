@@ -6,6 +6,9 @@
 //! @ref LLP 0017#headless-admin-contract — the admin facts extend the inspect
 //! state rather than forking a parallel schema; the console is one consumer.
 
+use crate::admin_secret_read::{
+    SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadOperator, SecretReadScope,
+};
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
@@ -23,7 +26,7 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
@@ -528,6 +531,9 @@ pub struct AppState {
     /// until item 4 installs persisted staged-mode resolution; the separate
     /// field lets pre-effect gates prove the pending posture now.
     pub desired_policy_auth_mode: PolicyAuthMode,
+    /// Digest-only registry for reset-bounded administrative data leases.
+    /// Minting authority is deliberately not stored in HTTP state.
+    pub secret_reads: SecretReadLeaseRegistry,
 }
 
 impl AppState {
@@ -537,15 +543,32 @@ impl AppState {
         ephemeral: EphemeralApi,
         server: ServerContext,
     ) -> Self {
-        Self {
-            snapback,
-            read,
-            ephemeral,
-            server: Arc::new(server),
-            connections: ConnectionRegistry::default(),
-            policy_auth_mode: PolicyAuthMode::Dev,
-            desired_policy_auth_mode: PolicyAuthMode::Dev,
-        }
+        Self::new_with_secret_read_operator(snapback, read, ephemeral, server).0
+    }
+
+    /// Trusted embedding seam for operator-plane lease minting. The returned
+    /// capability is never placed in router state or accepted by a handler.
+    pub(crate) fn new_with_secret_read_operator(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+    ) -> (Self, SecretReadOperator) {
+        let (secret_reads, operator) =
+            SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
+        (
+            Self {
+                snapback,
+                read,
+                ephemeral,
+                server: Arc::new(server),
+                connections: ConnectionRegistry::default(),
+                policy_auth_mode: PolicyAuthMode::Dev,
+                desired_policy_auth_mode: PolicyAuthMode::Dev,
+                secret_reads,
+            },
+            operator,
+        )
     }
 
     /// Select an auth-policy mode for an embedded runtime. Production callers
@@ -583,6 +606,16 @@ impl AppState {
         let read = snapback.read_lane();
         let ephemeral = snapback.ephemeral_api();
         Self::new(Arc::new(Mutex::new(snapback)), read, ephemeral, server)
+    }
+
+    /// Trusted embedding variant that retains the non-network minting seam.
+    pub fn from_snapback_with_secret_read_operator(
+        snapback: LocalSnapback,
+        server: ServerContext,
+    ) -> (Self, SecretReadOperator) {
+        let read = snapback.read_lane();
+        let ephemeral = snapback.ephemeral_api();
+        Self::new_with_secret_read_operator(Arc::new(Mutex::new(snapback)), read, ephemeral, server)
     }
 
     pub fn detached(snapback: LocalSnapback) -> Self {
@@ -629,6 +662,12 @@ impl FromRef<AppState> for PolicyAuthMode {
 impl FromRef<AppState> for PolicyAuthPosture {
     fn from_ref(state: &AppState) -> Self {
         state.policy_auth_posture()
+    }
+}
+
+impl FromRef<AppState> for SecretReadLeaseRegistry {
+    fn from_ref(state: &AppState) -> Self {
+        state.secret_reads.clone()
     }
 }
 
@@ -845,6 +884,7 @@ pub(crate) fn authorize_host_operation(
     function_kind: Option<&FunctionKind>,
     impersonated: bool,
     mode: PolicyAuthMode,
+    secret_reads: &SecretReadLeaseRegistry,
 ) -> Result<(), crate::server::ApiError> {
     let Some(spec) = crate::server::host_ops_operation_spec(operation, function_kind, impersonated)
     else {
@@ -858,7 +898,13 @@ pub(crate) fn authorize_host_operation(
         )
         .into());
     };
-    crate::server::authorize_operation_spec(ctx, headers, spec, mode)
+    crate::server::authorize_operation_spec_with_secret_reads(
+        ctx,
+        headers,
+        spec,
+        mode,
+        secret_reads,
+    )
 }
 
 pub(crate) fn authorize_direct_runner(
@@ -866,9 +912,58 @@ pub(crate) fn authorize_direct_runner(
     headers: &HeaderMap,
     function_kind: Option<&FunctionKind>,
     mode: PolicyAuthMode,
+    secret_reads: &SecretReadLeaseRegistry,
 ) -> Result<(), crate::server::ApiError> {
     let spec = crate::server::direct_runner_operation_spec(function_kind);
-    crate::server::authorize_operation_spec(ctx, headers, spec, mode)
+    crate::server::authorize_operation_spec_with_secret_reads(
+        ctx,
+        headers,
+        spec,
+        mode,
+        secret_reads,
+    )
+}
+
+pub(crate) fn reserve_secret_read_json<T: Serialize>(
+    secret_reads: &SecretReadLeaseRegistry,
+    headers: &HeaderMap,
+    scopes: BTreeSet<SecretReadScope>,
+    rows: usize,
+    value: &T,
+) -> Result<(), ApiError> {
+    let bearer = headers
+        .get(SECRET_READ_LEASE_HEADER)
+        .and_then(|value| value.to_str().ok());
+    let permit = secret_reads.authorize(bearer)?;
+    let bytes = serde_json::to_vec(value).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ADMIN_SECRET_READ_SERIALIZATION_FAILED",
+            "admin-secret-read",
+            format!("failed to measure the complete secret-read response: {error}"),
+        )
+    })?;
+    secret_reads.reserve(
+        &permit,
+        &scopes,
+        u64::try_from(rows).unwrap_or(u64::MAX),
+        u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+    )?;
+    Ok(())
+}
+
+fn function_run_secret_scopes(
+    result: &crate::local::FunctionRunResult,
+) -> BTreeSet<SecretReadScope> {
+    let mut scopes = BTreeSet::from([SecretReadScope::FunctionRun(result.function.clone())]);
+    scopes.extend(result.reads.iter().cloned().map(SecretReadScope::Table));
+    scopes.extend(
+        result
+            .captured_reads
+            .iter()
+            .filter_map(|read| read.table.clone())
+            .map(SecretReadScope::Table),
+    );
+    scopes
 }
 
 pub(crate) fn authorize(
@@ -1357,6 +1452,8 @@ async fn mint_console_credential(
 async fn admin_inspect(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
     headers: HeaderMap,
 ) -> Result<Json<AdminInspect>, ApiError> {
     // This projection carries raw cron/recent diagnostics, handler results,
@@ -1364,9 +1461,21 @@ async fn admin_inspect(
     // sensitive administrative read and therefore requires the write-grade
     // bearer whenever one is configured; anonymous loopback callers use the
     // typed root `/inspect` projection instead.
-    authorize(&ctx, &headers, true)?;
+    if policy_mode == PolicyAuthMode::Dev {
+        authorize(&ctx, &headers, true)?;
+    }
     let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
-    Ok(Json(AdminInspect::assemble(inspect, &ctx)))
+    let response = AdminInspect::assemble(inspect, &ctx);
+    if policy_mode == PolicyAuthMode::Sessions {
+        reserve_secret_read_json(
+            &secret_reads,
+            &headers,
+            BTreeSet::from([SecretReadScope::AdminInspect]),
+            0,
+            &response,
+        )?;
+    }
+    Ok(Json(response))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1383,10 +1492,14 @@ struct DataQuery {
 async fn admin_receipts(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
     headers: HeaderMap,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, crate::server::ApiError> {
-    authorize(&ctx, &headers, false)?;
+    if policy_mode == PolicyAuthMode::Dev {
+        authorize(&ctx, &headers, false)?;
+    }
     // L7 shape: the rings and gauges are pure in-memory reads, but the guard
     // discipline is one pattern for every handler that takes the global lock.
     let connection_filter = params.get("connection_id").cloned();
@@ -1405,23 +1518,46 @@ async fn admin_receipts(
         body
     })
     .await;
+    if policy_mode == PolicyAuthMode::Sessions {
+        reserve_secret_read_json(
+            &secret_reads,
+            &headers,
+            BTreeSet::from([SecretReadScope::Receipts]),
+            0,
+            &body,
+        )?;
+    }
     Ok(Json(body))
 }
 
 async fn admin_data(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
     headers: HeaderMap,
     Path(table): Path<String>,
     Query(params): Query<DataQuery>,
 ) -> Result<Json<crate::storage::TableScan>, ApiError> {
-    authorize(&ctx, &headers, false)?;
+    if policy_mode == PolicyAuthMode::Dev {
+        authorize(&ctx, &headers, false)?;
+    }
     let limit = params.limit.unwrap_or(50).clamp(1, 500);
     let offset = params.offset.unwrap_or(0);
+    let table_scope = table.clone();
     let scan = crate::server::with_snapback(&snapback, move |snapback| {
         snapback.scan_table(&table, limit, offset)
     })
     .await?;
+    if policy_mode == PolicyAuthMode::Sessions {
+        reserve_secret_read_json(
+            &secret_reads,
+            &headers,
+            BTreeSet::from([SecretReadScope::Table(table_scope)]),
+            scan.rows.len(),
+            &scan,
+        )?;
+    }
     Ok(Json(scan))
 }
 
@@ -1429,10 +1565,17 @@ async fn admin_run_function(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
     headers: HeaderMap,
     Path(name): Path<String>,
-    Json(input): Json<HandlerInput>,
+    Json(mut input): Json<HandlerInput>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
+    // @ref LLP 0039#authority-resolution — session-mode administrative
+    // invocation never borrows a supplied app identity; the envelope records
+    // the explicit bypass and query reads consume scoped secret authority.
+    if policy_mode == PolicyAuthMode::Sessions {
+        input.auth = Default::default();
+    }
     // Actions leave the lock window and run detached under the watchdog
     // (ENG-23324); everything else runs under the lock as before.
     enum Routed {
@@ -1442,10 +1585,18 @@ async fn admin_run_function(
     let routed = {
         let name = name.clone();
         let input = input.clone();
+        let secret_reads = secret_reads.clone();
+        let gate_headers = headers.clone();
         crate::server::with_snapback(&snapback, move |snapback| -> Result<Routed, ApiError> {
             // A mutation is a write; a query (or unknown function) is a read.
             let function_kind = snapback.function_kind(&name);
-            authorize_direct_runner(&ctx, &headers, function_kind.as_ref(), policy_mode)?;
+            authorize_direct_runner(
+                &ctx,
+                &gate_headers,
+                function_kind.as_ref(),
+                policy_mode,
+                &secret_reads,
+            )?;
             // A caller-supplied app user is the `devUser` authority mode, not
             // hosted authentication. Apply the same centralized profile rule
             // as the multiplexed host-ops alias before invoking app code.
@@ -1462,12 +1613,23 @@ async fn admin_run_function(
         })
         .await?
     };
-    let result = match routed {
+    let mut result = match routed {
         Routed::Done(result) => *result,
         Routed::Action(stage) => {
             crate::server::run_staged_app_action(&snapback, &name, input, stage, "admin").await
         }
     };
+    if policy_mode == PolicyAuthMode::Sessions {
+        result.admin_bypass = true;
+        if matches!(
+            result.kind,
+            Some(FunctionKind::Query | FunctionKind::LiveQuery)
+        ) {
+            let scopes = function_run_secret_scopes(&result);
+            let rows = result.rows.as_ref().map_or(0, Vec::len);
+            reserve_secret_read_json(&secret_reads, &headers, scopes, rows, &result)?;
+        }
+    }
     Ok(Json(result))
 }
 
