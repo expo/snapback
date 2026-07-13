@@ -27,10 +27,9 @@ use crate::live_wire::{
 };
 use crate::local::{
     AdmittedCronClaim, AppActionStage, ConfigVerifyStage, DetachedMutationRead,
-    EnsureAppExplicitInput, EnsureAppInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse,
-    EphemeralApi, FunctionRunResult, InspectState, LiveResumeInput, LiveSubscribeInput,
-    LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction, StagedConfigVerify,
-    StagedNestedMutation,
+    EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
+    FunctionRunResult, InspectState, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
+    LocalSnapback, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
 };
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -2696,7 +2695,10 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
         ));
     }
     let policy_mode = runtime.active_policy_auth_mode();
-    if policy_mode == PolicyAuthMode::Dev && matches!(runtime.server.profile, ServerProfile::Prod) {
+    if spec.path != "/app/ensure"
+        && policy_mode == PolicyAuthMode::Dev
+        && matches!(runtime.server.profile, ServerProfile::Prod)
+    {
         return Some(SnapbackError::error(
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
             "auth",
@@ -6326,12 +6328,13 @@ async fn invoke_query(
 /// one-shot client's durable result indefinitely.
 async fn acknowledge_mutations(
     State(state): State<SharedSnapback>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<MutationAcknowledgementRequest>, JsonRejection>,
 ) -> Result<Json<MutationAcknowledgementResponse>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     let acknowledged = with_snapback(&state, move |snapback| {
-        snapback.acknowledge_client_mutations(&request.auth, &request.client_mutation_ids)
+        snapback
+            .acknowledge_client_mutations_with_authority(&authority, &request.client_mutation_ids)
     })
     .await?;
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
@@ -6362,10 +6365,10 @@ async fn invoke_mutation(
         .into());
     }
     if !request.acknowledged_client_mutation_ids.is_empty() {
-        let auth = request.input.auth.clone();
         let ids = request.acknowledged_client_mutation_ids.clone();
+        let acknowledgement_authority = authority.clone();
         with_snapback(&state, move |snapback| {
-            snapback.acknowledge_client_mutations(&auth, &ids)
+            snapback.acknowledge_client_mutations_with_authority(&acknowledgement_authority, &ids)
         })
         .await?;
     }
@@ -6427,16 +6430,15 @@ async fn invoke_action(
 /// observational; explicit provisioning is centrally AdminWrite and then
 /// profile-gated before entering the local core.
 async fn ensure_app(
-    State(state): State<SharedSnapback>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(runtime): State<AppState>,
     input: Result<Json<EnsureAppRequest>, JsonRejection>,
 ) -> Result<Json<EnsureAppResponse>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     match input {
         EnsureAppRequest::Legacy(input) => {
-            let provisioning_allowed = ctx.profile.allows_provisioning();
-            let profile = ctx.profile.as_str().to_owned();
-            let outcome = with_snapback(&state, move |snapback| {
+            let provisioning_allowed = runtime.server.profile.allows_provisioning();
+            let profile = runtime.server.profile.as_str().to_owned();
+            let outcome = with_snapback(&runtime.snapback, move |snapback| {
                 snapback.ensure_app(*input, provisioning_allowed, &profile)
             })
             .await?;
@@ -6449,14 +6451,14 @@ async fn ensure_app(
                     requested_mode,
                     pair,
                 } => {
-                    let outcome = with_snapback(&state, move |snapback| {
+                    let outcome = with_snapback(&runtime.snapback, move |snapback| {
                         snapback.attest_app(requested_mode, *pair)
                     })
                     .await?;
                     Ok(Json(EnsureAppResponse::Attest(outcome)))
                 }
                 EnsureAppExplicitInput::Provision {
-                    requested_mode: _,
+                    requested_mode,
                     schema,
                     functions,
                     seed,
@@ -6465,21 +6467,53 @@ async fn ensure_app(
                     // consumed by the centralized operation gate) and the
                     // positive non-production profile capability. The latter
                     // runs before the core can inspect hashes or take effects.
-                    crate::admin::require_operation_profile(&ctx, "app.ensure.provision", false)?;
-                    let profile = ctx.profile.as_str().to_owned();
-                    let outcome = with_snapback(&state, move |snapback| {
-                        snapback.ensure_app(
-                            EnsureAppInput {
-                                schema: schema.map(|manifest| *manifest),
-                                functions: functions.map(|manifest| *manifest),
-                                seed: seed.map(|seed| *seed),
-                            },
-                            true,
-                            &profile,
+                    crate::admin::require_operation_profile(
+                        &runtime.server,
+                        "app.ensure.provision",
+                        false,
+                    )?;
+                    let prepared = with_snapback(&runtime.snapback, move |snapback| {
+                        snapback.prepare_auth_provision(
+                            requested_mode,
+                            schema.map(|manifest| *manifest),
+                            functions.map(|manifest| *manifest),
+                            seed.map(|seed| *seed),
                         )
                     })
                     .await?;
-                    Ok(Json(EnsureAppResponse::Provision(outcome.into())))
+                    let profile = runtime.server.profile.as_str().to_owned();
+                    let cross_mode = prepared.requested_mode() != runtime.auth_mode_state().active;
+                    let (outcome, committed) = if cross_mode {
+                        // `/app/ensure` is the transition owner and therefore
+                        // never self-admits. Close the current epoch only after
+                        // the complete candidate pair passed the read-only
+                        // pass, then repeat and commit under the write lane.
+                        let controller = runtime.auth_admission_controller();
+                        let transition =
+                            tokio::task::spawn_blocking(move || controller.begin_transition())
+                                .await
+                                .expect("auth-mode transition task panicked")?;
+                        let (outcome, committed, _published) =
+                            with_snapback(&runtime.snapback, move |snapback| {
+                                transition.commit_and_publish_mode_state(|| {
+                                    snapback.commit_auth_provision(prepared, &profile)
+                                })
+                            })
+                            .await?;
+                        (outcome, committed)
+                    } else {
+                        // Same-mode hot apply is serialized by the write lane
+                        // but does not suspend unrelated app-data roots.
+                        with_snapback(&runtime.snapback, move |snapback| {
+                            snapback.commit_auth_provision(prepared, &profile)
+                        })
+                        .await?
+                    };
+                    // The controller already published cross-mode state at the
+                    // durable cut. Swap the clone-shared request projection
+                    // only afterward; same-mode synchronization is idempotent.
+                    runtime.publish_auth_mode_state(committed)?;
+                    Ok(Json(EnsureAppResponse::Provision(outcome)))
                 }
             }
         }
@@ -6489,7 +6523,7 @@ async fn ensure_app(
 async fn subscribe_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     headers: HeaderMap,
@@ -6503,10 +6537,8 @@ async fn subscribe_live(
             header_connection_token(&headers).as_deref(),
         )?;
     }
-    let effect_admission = admission.clone();
     let output = with_snapback(&state, move |snapback| {
-        let _effect = effect_admission.effect_guard("live subscribe publication")?;
-        snapback.subscribe_live(&name, input)
+        snapback.subscribe_live_prepared(&name, input, authority)
     })
     .await?;
     Ok(Json(output))
@@ -6515,7 +6547,7 @@ async fn subscribe_live(
 async fn resume_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     headers: HeaderMap,
@@ -6530,8 +6562,7 @@ async fn resume_live(
         )?;
     }
     let output = with_snapback(&state, move |snapback| {
-        let _effect = admission.effect_guard("live resume publication")?;
-        snapback.resume_live(&name, input)
+        snapback.resume_live_prepared(&name, input, authority)
     })
     .await?;
     Ok(Json(output))
@@ -6540,7 +6571,7 @@ async fn resume_live(
 async fn unsubscribe_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     headers: HeaderMap,
@@ -6557,8 +6588,7 @@ async fn unsubscribe_live(
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
     let output = with_snapback(&state, move |snapback| {
-        let _effect = admission.effect_guard("live unsubscribe publication")?;
-        snapback.unsubscribe_live(&name, input)
+        snapback.unsubscribe_live_prepared(&name, input, authority)
     })
     .await?;
     Ok(Json(output))
@@ -6763,9 +6793,15 @@ async fn live_stream(
                 && notify.is_current(&connection_id, generation)
         });
     if !initial_current
-        || drain_and_send(&ephemeral, &connection_id, &writer, &initial_admission)
-            .await
-            .is_break()
+        || drain_and_send(
+            &ephemeral,
+            &connection_id,
+            generation,
+            &writer,
+            &initial_admission,
+        )
+        .await
+        .is_break()
     {
         drop(writer);
         let _ = writer_task.await;
@@ -6929,7 +6965,7 @@ async fn live_stream(
             if !current {
                 break 'stream;
             }
-            if drain_and_send(&ephemeral, &connection_id, &writer, &admission)
+            if drain_and_send(&ephemeral, &connection_id, generation, &writer, &admission)
                 .await
                 .is_break()
             {
@@ -6985,6 +7021,7 @@ async fn teardown_live_stream(
 async fn drain_and_send(
     ephemeral: &EphemeralApi,
     connection_id: &str,
+    generation: u64,
     writer: &mpsc::Sender<AdmittedLiveWrite>,
     admission: &AdmissionLease,
 ) -> std::ops::ControlFlow<()> {
@@ -6992,7 +7029,11 @@ async fn drain_and_send(
         let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
             return std::ops::ControlFlow::Break(());
         };
-        ephemeral.drain_live_stream(connection_id)
+        let Some(messages) = ephemeral.drain_live_stream_if_current(connection_id, generation)
+        else {
+            return std::ops::ControlFlow::Break(());
+        };
+        messages
     };
     for message in messages {
         if !send_live_with_admission(writer, Message::Text(message.into()), admission).await {

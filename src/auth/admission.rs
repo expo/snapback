@@ -663,6 +663,7 @@ impl AdmissionLease {
     /// Compatibility bridge for call sites the HTTP composition lane has not
     /// yet moved onto the app's controller. Such a lease carries the exact
     /// fields but deliberately cannot claim to participate in quiescence.
+    #[cfg(test)]
     pub(crate) fn unmanaged(transition_generation: u64, admission_epoch: u64) -> Self {
         Self {
             token: Arc::new(LeaseToken {
@@ -806,6 +807,34 @@ impl ModeTransitionGuard {
         let output = preflight()?;
         self.validate_closed()?;
         Ok(output)
+    }
+
+    /// Execute the exact durable commit and publish the returned mode record
+    /// without yielding back to caller code between those two cuts. An `Err`
+    /// from `commit` means no durable commit occurred and Drop may reopen the
+    /// predecessor. Once `commit` returns `Ok`, any impossible publication
+    /// failure leaves admission closed instead of reopening stale authority.
+    pub(crate) fn commit_and_publish_mode_state<T>(
+        mut self,
+        commit: impl FnOnce() -> SnapbackResult<(T, AuthModeStateRecord)>,
+    ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
+        self.validate_closed()?;
+        let (output, mode) = commit()?;
+
+        // The durable cut is now known. From here on Drop must fail closed.
+        self.reopen_on_abort = false;
+        mode.validate_shape()?;
+        let accepting = mode.mode_state == AuthModeStatus::Settled
+            && mode.app_data_availability == AppDataAvailability::Available;
+        let snapshot = self.controller.retire_and_reopen(
+            self.admission_epoch,
+            self.transition_generation,
+            mode.transition_generation,
+            mode.active,
+            accepting,
+        )?;
+        self.finished = true;
+        Ok((output, mode, snapshot))
     }
 
     /// Publish a durable transaction that the caller already committed. The

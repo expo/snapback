@@ -569,6 +569,16 @@ pub struct PreparedAuthority {
     availability: OperationAvailability,
 }
 
+/// Bearer-free authority retained by a durable live subscription. It carries
+/// no admission lease; each rerun must combine it with a fresh short root from
+/// the current controller epoch through `prepare_rerun`.
+#[derive(Clone, Debug)]
+pub(crate) struct RetainedLiveAuthority {
+    active_mode: AuthMode,
+    profile: ServerProfile,
+    resolved: ResolvedAppAuthority,
+}
+
 impl PreparedAuthority {
     pub fn source(&self) -> InvocationSource {
         self.source
@@ -610,6 +620,26 @@ impl PreparedAuthority {
         &self.admission
     }
 
+    pub(crate) fn canonical_auth_input(&self) -> AuthInput {
+        self.resolved.legacy_input()
+    }
+
+    pub(crate) fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
+        self.validate_admission("live owner retention")?;
+        if self.source != InvocationSource::LiveInitialQuery {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "only LiveInitialQuery authority can establish a retained live owner",
+            ));
+        }
+        Ok(RetainedLiveAuthority {
+            active_mode: self.active_mode,
+            profile: self.profile,
+            resolved: self.resolved.clone(),
+        })
+    }
+
     pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
         self.admission.validate(effect)
     }
@@ -633,6 +663,34 @@ impl PreparedAuthority {
             source,
             ..self.clone()
         })
+    }
+}
+
+impl RetainedLiveAuthority {
+    pub(crate) fn matches(&self, authority: &PreparedAuthority) -> bool {
+        self.active_mode == authority.active_mode
+            && self.profile == authority.profile
+            && self.resolved == authority.resolved
+    }
+
+    pub(crate) fn prepare_rerun(
+        &self,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<PreparedAuthority> {
+        InvocationGate::prepare_admitted_authority_inner(
+            InvocationSource::LiveRerun,
+            self.active_mode,
+            self.profile,
+            admission,
+            &WireAuthorityFields::default(),
+            self.resolved.clone(),
+            true,
+        )
+    }
+
+    pub(crate) fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
+        input.auth = self.resolved.legacy_input();
+        input
     }
 }
 
@@ -703,6 +761,7 @@ pub struct InvocationGate;
 
 impl InvocationGate {
     #[allow(clippy::too_many_arguments)]
+    #[cfg(test)]
     pub fn prepare_authority(
         source: InvocationSource,
         active_mode: AuthMode,
@@ -809,6 +868,7 @@ impl InvocationGate {
         })
     }
 
+    #[cfg(test)]
     pub fn prepare_dev_input(
         source: InvocationSource,
         profile: ServerProfile,
@@ -838,25 +898,6 @@ impl InvocationGate {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
-        )
-    }
-
-    /// Dev compatibility for retained live subscriptions. The source is
-    /// fixed by the type-level entry point; callers cannot use the generic
-    /// constructor to forge a raw LiveRerun or NestedMutation authority.
-    pub(crate) fn prepare_admitted_live_rerun_dev_input(
-        profile: ServerProfile,
-        input: &HandlerInput,
-        admission: AdmissionLease,
-    ) -> SnapbackResult<PreparedAuthority> {
-        Self::prepare_admitted_authority_inner(
-            InvocationSource::LiveRerun,
-            AuthMode::Dev,
-            profile,
-            admission,
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::dev_from_auth(&input.auth),
-            true,
         )
     }
 
@@ -967,9 +1008,7 @@ fn source_allows_authority(
         | InvocationSource::HostOperationFunctionRun
         | InvocationSource::HostOperationMutationDryRun => admin,
         InvocationSource::Cron => matches!(resolved, ResolvedAppAuthority::System),
-        InvocationSource::LiveRerun => {
-            allow_inherited_live_rerun && mode == AuthMode::Dev && ordinary
-        }
+        InvocationSource::LiveRerun => allow_inherited_live_rerun && ordinary,
         InvocationSource::NestedMutation => false,
     }
 }
@@ -1307,5 +1346,44 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+    }
+
+    #[test]
+    fn sessions_live_rerun_requires_an_inherited_retained_owner() {
+        let resolved = ResolvedAppAuthority::Session {
+            user_id: "user".to_owned(),
+            session_id: "session".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "authority".to_owned(),
+        };
+        let initial = InvocationGate::prepare_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            7,
+            9,
+            &WireAuthorityFields::default(),
+            resolved.clone(),
+        )
+        .unwrap();
+        let retained = initial.retain_live_owner().unwrap();
+        let rerun = retained
+            .prepare_rerun(AdmissionLease::unmanaged(7, 10))
+            .unwrap();
+        assert_eq!(rerun.source(), InvocationSource::LiveRerun);
+        assert_eq!(rerun.resolved(), &resolved);
+
+        let raw = InvocationGate::prepare_authority(
+            InvocationSource::LiveRerun,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            7,
+            10,
+            &WireAuthorityFields::default(),
+            resolved,
+        )
+        .unwrap_err();
+        assert_eq!(raw.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
     }
 }

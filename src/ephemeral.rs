@@ -88,6 +88,34 @@ impl DeliveryNotifier {
         )
     }
 
+    /// Run one synchronous act only while `generation` owns the connection.
+    /// The notifier lock remains held through the closure, so a replacement
+    /// registration cannot linearize between the ownership check and an
+    /// outbox drain. Closures must follow the documented notifier→outbox lock
+    /// order and must never await.
+    fn act_if_current<T>(
+        &self,
+        connection_id: &str,
+        generation: u64,
+        act: impl FnOnce() -> T,
+    ) -> Option<T> {
+        let state_guard = lock(&self.state);
+        let current = matches!(
+            state_guard.waiters.get(connection_id),
+            Some((current, _)) if *current == generation
+        );
+        let output = current.then(act);
+        drop(state_guard);
+        output
+    }
+
+    fn act_with_registration<T>(&self, connection_id: &str, act: impl FnOnce(bool) -> T) -> T {
+        let state_guard = lock(&self.state);
+        let output = act(state_guard.waiters.contains_key(connection_id));
+        drop(state_guard);
+        output
+    }
+
     /// Whether ANY registration currently exists for the connection id
     /// (ENG-23426). After a teardown's `unregister` succeeded, the waiters
     /// map has no entry for the id, so a later presence can only mean a
@@ -1342,9 +1370,12 @@ struct DefinitionSwapTestHook {
 /// whose values are per-room locks, per-connection outbox locks, a
 /// rate-bucket map, a room-granular expiry index, and atomic event counters.
 ///
-/// Lock order (outer to inner): `rooms` map → one room → { `outboxes` map,
-/// one outbox, `expiry_index`, `connection_rooms` }, the inner four as leaves
-/// taken one at a time. Never two room locks; never acquire a room or the
+/// Lock order (outer to inner): `rooms` map → one room → `delivery` notifier →
+/// `outboxes` map → one outbox. `expiry_index` and `connection_rooms` remain
+/// room-leaf locks taken one at a time. A generation-bound drain takes only
+/// `delivery` → `outboxes` → one outbox. No enqueue retains an outbox lock
+/// while waking `delivery`, so reconnect registration and draining cannot
+/// form an inversion. Never two room locks; never acquire a room or the
 /// `rooms` map while holding an outbox or index lock; nothing that holds a room
 /// lock ever waits on the `rooms` map (the retire/wipe/prune paths take the map
 /// first, and prune only `try_lock`s the room). `rate_buckets` is a pure leaf.
@@ -2205,16 +2236,23 @@ impl LocalEphemeralBackend {
             return false;
         }
 
-        {
-            // ENG-23426: same check-under-the-lock for the shared outbox. A
-            // reconnect's first enqueue goes through `ensure_outbox`, which
-            // needs this map lock, so a registration invisible here can only
-            // enqueue into a fresh entry created after this removal.
-            let mut outboxes = lock(&self.shared.outboxes);
-            if guarded && self.shared.delivery.is_registered(connection_id) {
-                return false;
-            }
-            outboxes.remove(connection_id);
+        let outbox_removed =
+            self.shared
+                .delivery
+                .act_with_registration(connection_id, |registered| {
+                    // ENG-23426: same check-under-the-lock for the shared outbox. A
+                    // reconnect's first enqueue goes through `ensure_outbox`, which
+                    // needs this map lock, so a registration invisible here can only
+                    // enqueue into a fresh entry created after this removal.
+                    let mut outboxes = lock(&self.shared.outboxes);
+                    if guarded && registered {
+                        return false;
+                    }
+                    outboxes.remove(connection_id);
+                    true
+                });
+        if !outbox_removed {
+            return false;
         }
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D6:
         // rate buckets are keyed connection-first; drop this connection's
@@ -2343,6 +2381,21 @@ impl LocalEphemeralBackend {
         outbox
             .map(|outbox| lock(&outbox).drain())
             .unwrap_or_default()
+    }
+
+    /// Atomically prove socket-generation ownership and destructively drain.
+    /// Registration replacement takes the same notifier lock, so an old task
+    /// can never remove messages that became owned by a new generation.
+    pub(crate) fn drain_outbox_if_current(
+        &self,
+        connection_id: &str,
+        generation: u64,
+    ) -> Option<Vec<RealtimeEnvelope>> {
+        self.shared
+            .delivery
+            .act_if_current(connection_id, generation, || {
+                self.drain_outbox(connection_id)
+            })
     }
 
     pub fn diagnostics(&self) -> EphemeralDiagnostics {
@@ -3699,6 +3752,70 @@ mod tests {
         assert!(!notifier.is_current("other", new_generation));
         assert!(notifier.unregister("conn", new_generation));
         assert!(!notifier.is_current("conn", new_generation));
+    }
+
+    #[test]
+    fn generation_bound_drain_cannot_steal_replacement_messages() {
+        let backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let (old_generation, _old_waker) = notifier.register("conn");
+        assert!(notifier.is_current("conn", old_generation));
+
+        // This replacement lands at the exact pause that used to exist
+        // between `is_current` and the destructive drain.
+        let (new_generation, _new_waker) = notifier.register("conn");
+        backend.enqueue_durable("conn", b"new-owner".to_vec());
+
+        assert!(
+            backend
+                .drain_outbox_if_current("conn", old_generation)
+                .is_none(),
+            "the old generation must not drain after replacement"
+        );
+        let drained = backend
+            .drain_outbox_if_current("conn", new_generation)
+            .expect("new generation owns the drain");
+        assert_eq!(drained.len(), 1);
+    }
+
+    #[test]
+    fn generation_bound_drain_serializes_registration_without_deadlock() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let backend = Arc::new(LocalEphemeralBackend::new());
+        let notifier = backend.delivery_notifier();
+        let (generation, _waker) = notifier.register("conn");
+        backend.enqueue_durable("conn", b"queued".to_vec());
+
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let drain_backend = backend.clone();
+        let drain_notifier = notifier.clone();
+        let drain = std::thread::spawn(move || {
+            drain_notifier.act_if_current("conn", generation, || {
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                drain_backend.drain_outbox("conn")
+            })
+        });
+        entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+        let (registered_tx, registered_rx) = mpsc::channel();
+        let register_notifier = notifier.clone();
+        let replacement = std::thread::spawn(move || {
+            let registered = register_notifier.register("conn");
+            registered_tx.send(registered.0).unwrap();
+        });
+        assert!(
+            registered_rx
+                .recv_timeout(Duration::from_millis(20))
+                .is_err()
+        );
+        release_tx.send(()).unwrap();
+        assert!(registered_rx.recv_timeout(Duration::from_secs(1)).is_ok());
+        assert_eq!(drain.join().unwrap().unwrap().len(), 1);
+        replacement.join().unwrap();
     }
 
     fn scope() -> Scope {

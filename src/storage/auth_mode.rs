@@ -474,7 +474,7 @@ impl LocalDatabase {
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
         seed: Option<SeedData>,
-    ) -> SnapbackResult<NetworkSeedOutcome> {
+    ) -> SnapbackResult<(NetworkSeedOutcome, AuthModeStateRecord)> {
         deployment.validate()?;
         deployment.validate_schema_half(&manifest)?;
         validate_schema(&manifest)?;
@@ -539,7 +539,7 @@ impl LocalDatabase {
         require_managed_snapshot(&tx)?;
         tx.commit()?;
         self.schema = manifest;
-        Ok(seed_outcome)
+        Ok((seed_outcome, next))
     }
 
     pub(super) fn apply_schema_mode_aware(
@@ -1081,7 +1081,7 @@ mod tests {
             tables: BTreeMap::from([("network_items".to_owned(), vec![row])]),
         };
 
-        let outcome = database
+        let (outcome, committed) = database
             .apply_same_mode_network_deployment(
                 identity.clone(),
                 manifest.clone(),
@@ -1089,6 +1089,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(outcome, NetworkSeedOutcome::Seeded);
+        assert_eq!(committed.active_deployment, Some(identity.clone()));
         assert_eq!(
             database
                 .auth_mode_snapshot()
@@ -1103,10 +1104,18 @@ mod tests {
             values.get(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
         );
 
-        let outcome = database
+        let (outcome, committed) = database
             .apply_same_mode_network_deployment(identity, manifest, Some(seed))
             .unwrap();
         assert_eq!(outcome, NetworkSeedOutcome::SkippedNonempty);
+        assert_eq!(
+            committed.active_deployment,
+            database
+                .auth_mode_snapshot()
+                .unwrap()
+                .state
+                .active_deployment
+        );
         let count: i64 = database
             .conn
             .query_row("SELECT COUNT(*) FROM network_items", [], |row| row.get(0))

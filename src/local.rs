@@ -3,7 +3,7 @@ use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{AdmissionController, ModeTransitionGuard};
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    WireAuthorityFields,
+    RetainedLiveAuthority, WireAuthorityFields,
 };
 use crate::auth::mode::{
     AuthModeStateRecord, DeploymentIdentity, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
@@ -1348,6 +1348,22 @@ impl EphemeralApi {
     /// drained for delivery; an empty drain must not refresh the connection,
     /// or a dead idle WS peer is immortal against the L2 reaper (ENG-23424).
     /// Client liveness on the WS path comes from `touch_connection` instead.
+    pub fn drain_live_stream_if_current(
+        &self,
+        connection_id: &str,
+        generation: u64,
+    ) -> Option<Vec<String>> {
+        let drained = self
+            .store
+            .drain_outbox_if_current(connection_id, generation)?;
+        if !drained.is_empty() {
+            self.activity.touch(connection_id, now_millis());
+        }
+        Some(drained.into_iter().filter_map(live_stream_text).collect())
+    }
+
+    /// Embedded/test compatibility drain without socket-generation ownership.
+    /// WebSocket composition must use `drain_live_stream_if_current`.
     pub fn drain_live_stream(&self, connection_id: &str) -> Vec<String> {
         let drained = self.store.drain_outbox(connection_id);
         if !drained.is_empty() {
@@ -1563,6 +1579,7 @@ struct LiveSubscription {
     id: String,
     connection_id: String,
     function: String,
+    authority: RetainedLiveAuthority,
     input: HandlerInput,
     read_dependencies: Vec<CapturedReadDependency>,
 }
@@ -2121,24 +2138,23 @@ impl LocalSnapback {
         let functions_matched = comparison
             .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
 
-        let seed_outcome = if prepared.requested_mode == before.state.active {
-            let seed_outcome = self.db.apply_same_mode_network_deployment(
+        let (seed_outcome, state) = if prepared.requested_mode == before.state.active {
+            let (seed_outcome, state) = self.db.apply_same_mode_network_deployment(
                 prepared.deployment,
                 prepared.artifacts.schema,
                 prepared.artifacts.seed,
             )?;
             self.publish_preflighted_functions(prepared.artifacts.functions);
-            seed_outcome.as_str()
+            (seed_outcome.as_str(), state)
         } else {
             let seeded = prepared.artifacts.seed.is_some();
-            self.db.stage_auth_mode(
+            let state = self.db.stage_auth_mode(
                 prepared.deployment,
                 prepared.artifacts.schema,
                 prepared.artifacts.seed,
             )?;
-            if seeded { "seeded" } else { "skipped-absent" }
+            (if seeded { "seeded" } else { "skipped-absent" }, state)
         };
-        let state = self.db.auth_mode_snapshot()?.state;
         Ok((
             EnsureAppProvisionOutcome {
                 intent: EnsureAppIntent::Provision,
@@ -2365,6 +2381,17 @@ impl LocalSnapback {
         })
     }
 
+    pub(crate) fn acknowledge_client_mutations_with_authority(
+        &mut self,
+        authority: &PreparedAuthority,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
+        authority.validate_admission("client mutation acknowledgement")?;
+        let auth = authority.canonical_auth_input();
+        let _effect = authority.effect_guard("client mutation acknowledgement transaction")?;
+        self.acknowledge_client_mutations(&auth, ids)
+    }
+
     /// Administrative recovery for settlements whose original client can no
     /// longer deliver an acknowledgement. The HTTP boundary supplies an
     /// `AuthInput`, never a caller-chosen raw fingerprint, so targeted purge
@@ -2465,35 +2492,12 @@ impl LocalSnapback {
         input: HandlerInput,
         source: InvocationSource,
     ) -> SnapbackResult<QueryInvocation> {
-        self.invoke_query_with_dependencies_from_source_and_admission(
-            name,
-            input,
+        let authority = InvocationGate::prepare_admitted_dev_input(
             source,
+            ServerProfile::Dev,
+            &input,
             self.admission.admit_dev()?,
-        )
-    }
-
-    fn invoke_query_with_dependencies_from_source_and_admission(
-        &self,
-        name: &str,
-        input: HandlerInput,
-        source: InvocationSource,
-        admission: AdmissionLease,
-    ) -> SnapbackResult<QueryInvocation> {
-        let authority = if source == InvocationSource::LiveRerun {
-            InvocationGate::prepare_admitted_live_rerun_dev_input(
-                ServerProfile::Dev,
-                &input,
-                admission,
-            )?
-        } else {
-            InvocationGate::prepare_admitted_dev_input(
-                source,
-                ServerProfile::Dev,
-                &input,
-                admission,
-            )?
-        };
+        )?;
         self.invoke_query_with_dependencies_prepared(name, input, authority)
     }
 
@@ -3134,7 +3138,34 @@ impl LocalSnapback {
         name: &str,
         input: LiveSubscribeInput,
     ) -> SnapbackResult<LiveSubscribeOutput> {
-        self.touch_connection(&input.connection_id, now_millis());
+        let admission = self.admission.admit_dev()?;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Dev,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(&input.input.auth),
+        )?;
+        self.subscribe_live_prepared(name, input, authority)
+    }
+
+    pub(crate) fn subscribe_live_prepared(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        if authority.source() != InvocationSource::LiveInitialQuery {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "live subscribe requires LiveInitialQuery authority",
+            ));
+        }
+        authority.validate_admission("live subscribe preparation")?;
+        let retained_authority = authority.retain_live_owner()?;
+        let publication_authority = authority.clone();
         let function = self.function(name)?;
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
@@ -3144,7 +3175,7 @@ impl LocalSnapback {
             ));
         }
 
-        let subscription_input = input.input;
+        let subscription_input = retained_authority.canonicalize_input(input.input);
 
         // A valid explicit supersession is a net-zero replacement. Identify
         // it before admission, but do not remove it until the new snapshot
@@ -3153,10 +3184,8 @@ impl LocalSnapback {
         // no-op and therefore do not release capacity.
         let superseded_subscription_id = input.supersedes.as_ref().and_then(|old_id| {
             self.subscriptions.get(old_id).and_then(|existing| {
-                let owner = &existing.input.auth;
                 let same_connection = existing.connection_id == input.connection_id;
-                let same_owner = owner.principal == subscription_input.auth.principal
-                    && owner.user_id == subscription_input.auth.user_id;
+                let same_owner = existing.authority.matches(&authority);
                 (same_connection && same_owner).then(|| old_id.clone())
             })
         });
@@ -3195,16 +3224,18 @@ impl LocalSnapback {
             })));
         }
 
-        let query = self.invoke_query_with_dependencies_from_source(
+        let query = self.invoke_query_with_dependencies_prepared(
             name,
             subscription_input.clone(),
-            InvocationSource::LiveInitialQuery,
+            authority,
         )?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
         let subscription_id = format!("sub_{}", Uuid::now_v7().simple());
+        let _publication = publication_authority.effect_guard("live subscribe publication")?;
+        self.touch_connection(&input.connection_id, now_millis());
 
         // Superseded-subscription GC, EXPLICIT protocol (LLP 0034 §10.1
         // residual; ENG-22478 review fix A): the kit names the subscription
@@ -3239,6 +3270,7 @@ impl LocalSnapback {
                 id: subscription_id.clone(),
                 connection_id: input.connection_id.clone(),
                 function: name.to_owned(),
+                authority: retained_authority,
                 input: subscription_input.clone(),
                 read_dependencies: query.read_dependencies,
             },
@@ -3288,7 +3320,32 @@ impl LocalSnapback {
         name: &str,
         input: LiveUnsubscribeInput,
     ) -> SnapbackResult<LiveUnsubscribeOutput> {
-        self.touch_connection(&input.connection_id, now_millis());
+        let admission = self.admission.admit_dev()?;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveUnsubscribe,
+            AuthMode::Dev,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(&input.auth),
+        )?;
+        self.unsubscribe_live_prepared(name, input, authority)
+    }
+
+    pub(crate) fn unsubscribe_live_prepared(
+        &mut self,
+        name: &str,
+        input: LiveUnsubscribeInput,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<LiveUnsubscribeOutput> {
+        if authority.source() != InvocationSource::LiveUnsubscribe {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "live unsubscribe requires LiveUnsubscribe authority",
+            ));
+        }
+        authority.validate_admission("live unsubscribe preparation")?;
         let subscription = self
             .subscriptions
             .get(&input.subscription_id)
@@ -3310,10 +3367,7 @@ impl LocalSnapback {
                 ),
             ));
         }
-        let owner = &subscription.input.auth;
-        if (owner.principal.is_some() || owner.user_id.is_some())
-            && (owner.principal != input.auth.principal || owner.user_id != input.auth.user_id)
-        {
+        if !subscription.authority.matches(&authority) {
             return Err(SnapbackError::error(
                 "SNAPBACK_LIVE_RESUME_OWNERSHIP",
                 "realtime",
@@ -3324,6 +3378,8 @@ impl LocalSnapback {
             ));
         }
 
+        let _publication = authority.effect_guard("live unsubscribe publication")?;
+        self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
         // Losing the last watcher of a demand-gated live query disarms cron.
         self.refresh_cron_active();
@@ -3357,7 +3413,32 @@ impl LocalSnapback {
         name: &str,
         input: LiveResumeInput,
     ) -> SnapbackResult<LiveResumeOutput> {
-        self.touch_connection(&input.connection_id, now_millis());
+        let admission = self.admission.admit_dev()?;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveResume,
+            AuthMode::Dev,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(&input.auth),
+        )?;
+        self.resume_live_prepared(name, input, authority)
+    }
+
+    pub(crate) fn resume_live_prepared(
+        &mut self,
+        name: &str,
+        input: LiveResumeInput,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<LiveResumeOutput> {
+        if authority.source() != InvocationSource::LiveResume {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "live resume requires LiveResume authority",
+            ));
+        }
+        authority.validate_admission("live resume preparation")?;
         let subscription = self
             .subscriptions
             .get(&input.subscription_id)
@@ -3384,10 +3465,7 @@ impl LocalSnapback {
         // resume re-points a subscription's stream, so once a principal owns
         // the subscription the caller must present that principal; the
         // unguessable id alone is not ownership.
-        let owner = &subscription.input.auth;
-        if (owner.principal.is_some() || owner.user_id.is_some())
-            && (owner.principal != input.auth.principal || owner.user_id != input.auth.user_id)
-        {
+        if !subscription.authority.matches(&authority) {
             return Err(SnapbackError::error(
                 "SNAPBACK_LIVE_RESUME_OWNERSHIP",
                 "realtime",
@@ -3399,12 +3477,17 @@ impl LocalSnapback {
         }
 
         if self.resume_requires_resnapshot(&subscription, &input.recorded_permission_epochs) {
-            let query = self.invoke_query_with_dependencies_from_source(
+            let rerun = subscription
+                .authority
+                .prepare_rerun(authority.admission_lease().clone())?;
+            let query = self.invoke_query_with_dependencies_prepared(
                 &subscription.function,
                 subscription.input.clone(),
-                InvocationSource::LiveRerun,
+                rerun,
             )?;
             let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
+            let _publication = authority.effect_guard("live resume resnapshot publication")?;
+            self.touch_connection(&input.connection_id, now_millis());
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 stored.connection_id = input.connection_id;
                 stored.read_dependencies = query.read_dependencies;
@@ -3422,6 +3505,8 @@ impl LocalSnapback {
             current_permission_epochs_for_dependencies(&subscription.read_dependencies, |scope| {
                 self.permission_epoch(scope)
             });
+        let _publication = authority.effect_guard("live resume publication")?;
+        self.touch_connection(&input.connection_id, now_millis());
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.connection_id = input.connection_id;
         }
@@ -5335,12 +5420,16 @@ impl LocalSnapback {
                 }
             }
 
-            let query = match self.invoke_query_with_dependencies_from_source_and_admission(
-                &subscription.function,
-                subscription.input.clone(),
-                InvocationSource::LiveRerun,
-                admission.clone(),
-            ) {
+            let query = match subscription
+                .authority
+                .prepare_rerun(admission.clone())
+                .and_then(|authority| {
+                    self.invoke_query_with_dependencies_prepared(
+                        &subscription.function,
+                        subscription.input.clone(),
+                        authority,
+                    )
+                }) {
                 Ok(query) => query,
                 Err(error) => {
                     self.fail_subscription_fanout(
@@ -5539,12 +5628,17 @@ impl LocalSnapback {
         query_dep_index: usize,
         admission: &AdmissionLease,
     ) {
-        let Ok(fresh) = self.invoke_query_with_dependencies_from_source_and_admission(
-            &subscription.function,
-            subscription.input.clone(),
-            InvocationSource::LiveRerun,
-            admission.clone(),
-        ) else {
+        let Ok(fresh) = subscription
+            .authority
+            .prepare_rerun(admission.clone())
+            .and_then(|authority| {
+                self.invoke_query_with_dependencies_prepared(
+                    &subscription.function,
+                    subscription.input.clone(),
+                    authority,
+                )
+            })
+        else {
             return;
         };
         let fresh_ids: BTreeSet<&str> = fresh
