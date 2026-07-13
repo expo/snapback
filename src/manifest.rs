@@ -6,6 +6,10 @@ use std::collections::BTreeMap;
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 pub const TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX: &str = "local-dev-sqlite-ibex";
+/// The standard SQLite + Ibex server when its lifecycle and network endpoint
+/// are owned outside the consuming application. The service semantics match
+/// the local development target; only lifecycle authority differs.
+pub const TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX: &str = "remote-service-sqlite-ibex";
 /// The LLP 0048 conformance twin's internal profile — named to be
 /// unmistakably non-public so generated clients cannot mistake it for a
 /// supported `local-dev-sqlite-v8` target.
@@ -1440,6 +1444,21 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         }
+    }
+
+    /// The declared capability manifest for an independently managed
+    /// SQLite + Ibex service. This is deliberately derived from the standard
+    /// server declaration: moving the same server behind an HTTPS authority
+    /// does not change its data semantics. It changes exactly one capability
+    /// fact — the consuming host must never start or stop the service.
+    ///
+    /// Endpoint and credential values are runtime-private host inputs and do
+    /// not belong in this manifest or any generated application artifact.
+    pub fn remote_service_sqlite_ibex_declared() -> Self {
+        let mut manifest = Self::local_v0_declared();
+        manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
+        manifest.local_server_lifecycle = false;
+        manifest
     }
 
     /// The LLP 0048 conformance twin's internal manifest: the local target's
