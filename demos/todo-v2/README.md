@@ -119,8 +119,9 @@ user-scoped auth filtering, an authoritative live-subscription snapshot, a
 realtime update reaching a second client, an ordinary query honestly reported as
 **not** syncable (`SNAPBACK_FUNCTION_NOT_LIVE`), a read-set mutation conflict
 (`SNAPBACK_MUTATION_CONFLICT`), deterministic reset/seed, machine-readable
-diagnostics for invalid schema/query/codegen, and the LLP 0021 wrong-native
-server-shape diagnostic
+diagnostics for invalid schema, atomic rejection of an invalid query artifact
+(`SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID`), codegen failures, and the LLP
+0021 wrong-native server-shape diagnostic
 (`SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE`).
 
 **Contract/Exact (optional):** the real `.contract` surface compiles against the

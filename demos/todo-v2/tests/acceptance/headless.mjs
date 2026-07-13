@@ -178,14 +178,25 @@ try {
 
   await suite.check('diagnostic: invalid query (unknown field) fails loud at the server', async () => {
     await db.loadSchema(schemaManifest);
-    await db.loadFunctions({
+    const load = await db.loadFunctions({
       artifactKind: 'functionManifest',
       schemaVersion: 'snapback.v0',
       bundleHash: 'bad',
       functions: [{ name: 'badQuery', kind: 'Query', runtime: { HostPlan: { Query: { table: 'todos', filters: [{ field: 'nope', op: 'Eq', value: { Literal: 'x' } }], order: [], limit: null, indexed_by: null } } } }],
     });
-    const err = await assertThrows(() => db.query('badQuery', { userId: ADA }), 'SNAPBACK_UNKNOWN_FIELD', 'expected unknown-field');
-    return { code: err.diagnostic.code };
+    const invalid = load.diagnostics.find(
+      (diagnostic) => diagnostic.code === 'SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID',
+    );
+    assert(
+      invalid && invalid.message.includes('unknown field todos.nope'),
+      `expected load-time unknown-field schema-reference rejection, got ${load.diagnostics.map((diagnostic) => diagnostic.code)}`,
+    );
+    const absent = await assertThrows(
+      () => db.query('badQuery', { userId: ADA }),
+      'SNAPBACK_UNKNOWN_FUNCTION',
+      'an invalid function manifest must install nothing',
+    );
+    return { code: invalid.code, installCode: absent.diagnostic.code };
   });
 
   await suite.check('diagnostic: native Exact request to browser-only admin dist fails loud', async () => {
