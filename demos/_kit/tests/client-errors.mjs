@@ -13,9 +13,18 @@
 // failures, so one throwing app callback never discards the rest of a
 // destructively drained batch or escapes as an unhandled rejection.
 
-import { EphemeralOverlay, SnapbackClient } from '../client.mjs';
+import { EphemeralOverlay, SnapbackClient as RuntimeSnapbackClient } from '../client.mjs';
 import { AdminClient } from '../../../packages/snapback-admin-client/index.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
+
+// This suite isolates existing transport/error seams with request-specific
+// fetch stubs. Handshake behavior has its own network-sentinel suite; disabling
+// discovery here keeps each stub's asserted request boundary single-purpose.
+class SnapbackClient extends RuntimeSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, { authClientProtocol: null, ...options });
+  }
+}
 
 class FakeWebSocket {
   static instances = [];

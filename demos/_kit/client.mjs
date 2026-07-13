@@ -106,13 +106,79 @@ const LIVE_SUBSCRIBE_READINESS_RETRY_CODES = new Set([
   'SNAPBACK_CONNECTION_SESSION_REPLACED',
 ]);
 const LIVE_SUBSCRIBE_READINESS_RETRIES = 2;
+const AUTH_CLIENT_PROTOCOL_HEADER = 'x-snapback-auth-client-protocol';
+const AUTH_INVALIDATION_PROTOCOL_HEADER = 'x-snapback-auth-invalidation-protocol';
+const AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER = 'x-snapback-authority-descriptor-protocol';
+const AUTHORIZED_LEASE_PROTOCOL_HEADER = 'x-snapback-authorized-lease-protocol';
+
+const authHandshakeRequired = (path) => !(
+  path === '/health'
+  || path === '/inspect'
+  || path === '/auth/session'
+  || path === '/app/ensure'
+  || path.startsWith('/_snapback/')
+);
+
+const freshAuthHandshakeRequired = (path) => (
+  path === '/connection/open'
+  || (path.startsWith('/live/') && path.endsWith('/subscribe'))
+  || path === '/ephemeral/subscribe'
+);
+
+const sessionWireBody = (path, body) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const wire = { ...body };
+  delete wire.auth;
+  if (path.startsWith('/live/') && wire.input && typeof wire.input === 'object') {
+    wire.input = { ...wire.input };
+    delete wire.input.auth;
+  }
+  if (path.startsWith('/ephemeral/')) {
+    delete wire.principal;
+    delete wire.session_id;
+    delete wire.user_id;
+    delete wire.custom_key;
+  }
+  if (wire.ctx_ledger && typeof wire.ctx_ledger === 'object') {
+    wire.ctx_ledger = { ...wire.ctx_ledger };
+    delete wire.ctx_ledger.auth_fingerprint;
+  }
+  return wire;
+};
+
+const authAvailabilityError = (handshake) => {
+  if (handshake == null) return null;
+  const availability = handshake?.availability?.onlineRequestResponse;
+  if (availability?.available) return null;
+  const code = availability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
+  const error = new Error(`${code}: the current auth mode does not admit online app data`);
+  error.diagnostic = {
+    code,
+    message: 'the current auth mode does not admit online app data',
+  };
+  error.authSession = handshake;
+  return error;
+};
 
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
+    bearerToken = null,
+    authClientProtocol = 1,
+    authInvalidationProtocol = null,
+    authorityDescriptorProtocol = null,
+    authorizedLeaseProtocol = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
+    this.bearerToken = bearerToken;
+    this.authProtocols = Object.freeze({
+      authClient: authClientProtocol,
+      authInvalidation: authInvalidationProtocol,
+      authorityDescriptor: authorityDescriptorProtocol,
+      authorizedLease: authorizedLeaseProtocol,
+    });
+    this.__authSession = null;
     // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring
     // of every receipt this client observed (mutation receipts riding
     // responses, subscription receipts emitted by live handles, ephemeral
@@ -125,6 +191,81 @@ export class SnapbackClient {
     this.__laneConsumers = new Map();
     // ENG-23442 connection grants: caller label -> Promise<{id, token}>.
     this.__connectionGrants = new Map();
+  }
+
+  /// Resolve the current server/mode/authority projection. A successful value
+  /// is process- and generation-scoped by the returned nonce/generation; the
+  /// cache is cleared on every authority change and terminal mode/credential
+  /// diagnostic. Connection and subscribe boundaries request a fresh value.
+  // @ref LLP 0055#kit-ordering — no online boundary relies on capability-manifest mode guesses.
+  authSession({ force = false } = {}) {
+    if (this.authProtocols.authClient == null) return Promise.resolve(null);
+    if (!force && this.__authSession) return this.__authSession;
+    let pending;
+    pending = this.#fetchJson(
+      'GET',
+      '/auth/session',
+      undefined,
+      this.#authOfferHeaders(true),
+    ).then(
+      (session) => {
+        this.#validateAuthSession(session);
+        return session;
+      },
+      (error) => {
+        if (this.__authSession === pending) this.__authSession = null;
+        throw error;
+      },
+    );
+    this.__authSession = pending;
+    return pending;
+  }
+
+  setBearerToken(token) {
+    if (token === this.bearerToken) return;
+    this.bearerToken = token ?? null;
+    this.__authSession = null;
+    this.__connectionGrants.clear();
+  }
+
+  clearAuthSession() {
+    this.__authSession = null;
+  }
+
+  #authOfferHeaders(includeAll = false) {
+    const headers = {};
+    const add = (name, version) => {
+      if (version != null) headers[name] = String(version);
+    };
+    add(AUTH_CLIENT_PROTOCOL_HEADER, this.authProtocols.authClient);
+    if (includeAll) {
+      add(AUTH_INVALIDATION_PROTOCOL_HEADER, this.authProtocols.authInvalidation);
+      add(AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER, this.authProtocols.authorityDescriptor);
+      add(AUTHORIZED_LEASE_PROTOCOL_HEADER, this.authProtocols.authorizedLease);
+    }
+    if (this.bearerToken) headers.authorization = `Bearer ${this.bearerToken}`;
+    return headers;
+  }
+
+  #validateAuthSession(session) {
+    const valid = session
+      && session.protocolVersion === 1
+      && typeof session.serverStartupNonce === 'string'
+      && session.serverStartupNonce.length > 0
+      && Number.isSafeInteger(session.transitionGeneration)
+      && session.transitionGeneration >= 0
+      && (session.activeMode === 'dev' || session.activeMode === 'sessions')
+      && (session.desiredMode === 'dev' || session.desiredMode === 'sessions')
+      && session.availability
+      && session.authority;
+    if (valid) return;
+    const diagnostic = {
+      code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+      message: 'GET /auth/session returned an invalid protocol-v1 response',
+    };
+    const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+    error.diagnostic = diagnostic;
+    throw error;
   }
 
   // ENG-23442: connection ids are server-granted capabilities, not bare
@@ -262,8 +403,59 @@ export class SnapbackClient {
   }
 
   async #request(method, path, body, headers, { admin = false } = {}) {
+    let session = null;
+    if (
+      !admin
+      && this.authProtocols.authClient != null
+      && authHandshakeRequired(path)
+    ) {
+      session = await this.authSession({ force: freshAuthHandshakeRequired(path) });
+      const unavailable = authAvailabilityError(session);
+      if (unavailable) throw unavailable;
+    }
+
+    const sessionsMode = session?.activeMode === 'sessions';
+    const wireBody = sessionsMode ? sessionWireBody(path, body) : body;
     const merged = {
       ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
+      ...(sessionsMode ? this.#sessionRequestHeaders(path, body) : {}),
+      ...(headers ?? {}),
+    };
+    try {
+      return await this.#fetchJson(method, path, wireBody, merged);
+    } catch (error) {
+      if ([
+        'SNAPBACK_AUTH_MODE_PENDING',
+        'SNAPBACK_AUTH_REQUIRED',
+        'SNAPBACK_AUTH_SESSION_EXPIRED',
+        'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
+        'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+      ].includes(error?.diagnostic?.code)) {
+        this.__authSession = null;
+      }
+      throw error;
+    }
+  }
+
+  #sessionRequestHeaders(path, originalBody) {
+    const headers = this.#authOfferHeaders(false);
+    if (path.startsWith('/live/') || path.startsWith('/ephemeral/')) {
+      if (this.authProtocols.authInvalidation != null) {
+        headers[AUTH_INVALIDATION_PROTOCOL_HEADER] = String(this.authProtocols.authInvalidation);
+      }
+    }
+    if (path.startsWith('/mutation/') && originalBody?.clientMutationId) {
+      if (this.authProtocols.authorityDescriptor != null) {
+        headers[AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER] = String(
+          this.authProtocols.authorityDescriptor,
+        );
+      }
+    }
+    return headers;
+  }
+
+  async #fetchJson(method, path, body, headers) {
+    const merged = {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
     };
@@ -681,7 +873,13 @@ export class SnapbackClient {
     // The grant resolves before the socket exists (ENG-23442): the upgrade
     // carries the connection token as a subprotocol, and the URL addresses
     // the granted wire id.
-    const wsPromise = this.connectionGrant(connectionId).then((grant) => {
+    const wsPromise = this.authSession({ force: true })
+      .then((session) => {
+        const unavailable = authAvailabilityError(session);
+        if (unavailable) throw unavailable;
+        return this.connectionGrant(connectionId);
+      })
+      .then((grant) => {
       const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${grant.id}/stream`;
       const ws = new WebSocket(url, liveStreamProtocols(grant));
       wsRef = ws;
@@ -701,7 +899,7 @@ export class SnapbackClient {
       //   immediately instead of hanging until its timeout.
       ws.addEventListener('close', () => fail(new Error(`Snapback live stream closed: ${url}`)), { once: true });
       return ws;
-    });
+      });
     wsPromise.catch((error) => fail(error));
 
     const ready = wsPromise.then((ws) => new Promise((resolve, reject) => {
@@ -1781,10 +1979,15 @@ class LiveStreamManager {
     if (this.connectPending) return;
     this.connectPending = true;
     this.#emitState('connecting');
-    const grantPromise = this.grantSuspect
-      ? this.client.refreshConnectionGrant(this.connectionId)
-      : this.client.connectionGrant(this.connectionId);
+    const refreshGrant = this.grantSuspect;
     this.grantSuspect = false;
+    const grantPromise = this.client.authSession({ force: true }).then((session) => {
+      const unavailable = authAvailabilityError(session);
+      if (unavailable) throw unavailable;
+      return refreshGrant
+        ? this.client.refreshConnectionGrant(this.connectionId)
+        : this.client.connectionGrant(this.connectionId);
+    });
     grantPromise.then(
       (grant) => {
         this.connectPending = false;
