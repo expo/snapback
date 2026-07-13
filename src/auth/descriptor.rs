@@ -6,11 +6,10 @@
 
 use crate::auth::invocation::{PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::AuthorityDescriptor;
+use crate::manifest::{AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION, AuthorityDescriptor};
 use uuid::Uuid;
 
 pub const AUTHORITY_DESCRIPTOR_VERSION: u32 = 1;
-const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 /// Build the one descriptor the server is willing to accept for a prepared
 /// invocation. Sessions use the durable per-session opaque id; dev and
@@ -96,7 +95,7 @@ fn validate_descriptor_values(
 ) -> SnapbackResult<()> {
     if version != AUTHORITY_DESCRIPTOR_VERSION
         || canonical_uuid_v7(authority_instance_id).is_err()
-        || session_generation > MAX_SAFE_INTEGER
+        || session_generation > AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION
     {
         return Err(stale_descriptor("invalid"));
     }

@@ -1782,8 +1782,13 @@ pub struct AuthorityDescriptor {
     pub descriptor_version: u32,
     #[schemars(length(min = 36, max = 36))]
     pub authority_instance_id: String,
+    #[schemars(range(max = AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION))]
     pub session_generation: u64,
 }
+
+/// Highest generation that round-trips exactly through JavaScript's number
+/// representation and every generated Snapback client.
+pub const AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION: u64 = 9_007_199_254_740_991;
 
 /// Client-visible mutation request envelope. The idempotency key is mutation
 /// only: queries remain server-authoritative reads and are never queued or
