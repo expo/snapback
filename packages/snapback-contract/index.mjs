@@ -51,6 +51,7 @@ export {
   createClientMutationId,
   createLocalStorageSnapbackClientStore,
   createMemorySnapbackClientStore,
+  createSnapbackClientStoreAuthParticipant,
   retainedQueryKey,
   snapbackAuthFingerprint,
   SNAPBACK_CLIENT_STORE_VERSION,

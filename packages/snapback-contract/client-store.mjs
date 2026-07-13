@@ -5,7 +5,7 @@
 // SQLite/OPFS implementations can preserve the same records without changing
 // replay semantics (DK-9).
 
-export const SNAPBACK_CLIENT_STORE_VERSION = 2;
+export const SNAPBACK_CLIENT_STORE_VERSION = 3;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
 const SNAPBACK_CTX_LEDGER_VERSION = 1;
 const REPLAY_OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
@@ -17,7 +17,8 @@ const ARTIFACT_SCOPE_FIELDS = [
   'databaseId',
   'versionStreamId',
 ];
-const RECORD_IDENTITY_FIELDS = ['authFingerprint', ...ARTIFACT_SCOPE_FIELDS];
+const AUTHORITY_KEY_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const RECORD_IDENTITY_FIELDS = ['authFingerprint', 'authorityKey', ...ARTIFACT_SCOPE_FIELDS];
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
@@ -149,6 +150,8 @@ const freshState = () => ({
   version: SNAPBACK_CLIENT_STORE_VERSION,
   origin: newOrigin(),
   generation: 0,
+  authorityEpoch: null,
+  authorityKey: null,
   authFingerprint: null,
   artifactScope: null,
   nextSequence: 1,
@@ -156,6 +159,8 @@ const freshState = () => ({
   pending: [],
   failed: [],
   acknowledged: [],
+  stranded: [],
+  legacyV2Stranded: [],
 });
 
 function clientStoreStateError(code, message, details = {}) {
@@ -188,6 +193,23 @@ function assertOptionalRecordIdentity(record, path) {
       `${path}.${field}`,
     );
   }
+  assertStateField(
+    record.authorityEpoch === undefined
+      || record.authorityEpoch === null
+      || (Number.isSafeInteger(record.authorityEpoch) && record.authorityEpoch >= 0),
+    `${path}.authorityEpoch`,
+  );
+  assertStateField(
+    record.authorityKey === undefined
+      || record.authorityKey === null
+      || (typeof record.authorityKey === 'string' && AUTHORITY_KEY_PATTERN.test(record.authorityKey)),
+    `${path}.authorityKey`,
+  );
+  assertStateField(
+    (record.authorityEpoch === undefined || record.authorityEpoch === null)
+      === (record.authorityKey === undefined || record.authorityKey === null),
+    `${path}.authorityEpoch/authorityKey`,
+  );
 }
 
 function assertCursor(cursor, path) {
@@ -254,6 +276,10 @@ function assertMutationRecord(entry, path, expectedStatus) {
 }
 
 function assertMatchesCurrentScope(record, path, state) {
+  if (state.authorityEpoch !== null) {
+    assertStateField(record.authorityEpoch === state.authorityEpoch, `${path}.authorityEpoch`);
+    assertStateField(record.authorityKey === state.authorityKey, `${path}.authorityKey`);
+  }
   if (state.authFingerprint) {
     assertStateField(record.authFingerprint === state.authFingerprint, `${path}.authFingerprint`);
   }
@@ -278,8 +304,9 @@ const normalizeState = (state) => {
     );
   }
   const legacyV1 = state.version === 1;
-  if (legacyV1) {
-    // v2 changes acknowledgements from ambiguous bare ids to auth-tagged
+  const legacyV2 = state.version === 2;
+  if (legacyV1 || legacyV2) {
+    // v2 changed acknowledgements from ambiguous bare ids to auth-tagged
     // records and replaces the collision-prone FNV scope with SHA-256. A v1
     // store retained only the 64-bit alias, not the canonical auth tuple, so
     // no caller-supplied SHA identity can prove it owns those records. Fully
@@ -310,6 +337,13 @@ const normalizeState = (state) => {
   // let the next write destroy the only copy.
   if (!Object.hasOwn(state, 'generation')) state.generation = 0;
   if (!Object.hasOwn(state, 'acknowledged')) state.acknowledged = [];
+  // v3's authority axis is deliberately distinct from the old write
+  // generation and caller-asserted fingerprint. A v2 store stays unbound in
+  // dev until a server-proven coordinator transition explicitly binds it.
+  if (!Object.hasOwn(state, 'authorityEpoch')) state.authorityEpoch = null;
+  if (!Object.hasOwn(state, 'authorityKey')) state.authorityKey = null;
+  if (!Object.hasOwn(state, 'stranded')) state.stranded = [];
+  if (!Object.hasOwn(state, 'legacyV2Stranded')) state.legacyV2Stranded = [];
   // Early v1 stores persisted acknowledgement ids as bare strings. Attribute
   // them only when the enclosing store already had a known auth scope; an
   // unscoped id cannot safely be sent under a newly supplied identity.
@@ -321,6 +355,20 @@ const normalizeState = (state) => {
   });
   assertStateField(typeof state.origin === 'string' && state.origin.length > 0, 'origin');
   assertStateField(Number.isSafeInteger(state.generation) && state.generation >= 0, 'generation');
+  assertStateField(
+    state.authorityEpoch === null
+      || (Number.isSafeInteger(state.authorityEpoch) && state.authorityEpoch >= 0),
+    'authorityEpoch',
+  );
+  assertStateField(
+    state.authorityKey === null
+      || (typeof state.authorityKey === 'string' && AUTHORITY_KEY_PATTERN.test(state.authorityKey)),
+    'authorityKey',
+  );
+  assertStateField(
+    (state.authorityEpoch === null) === (state.authorityKey === null),
+    'authorityEpoch/authorityKey',
+  );
   assertStateField(
     state.authFingerprint === null || typeof state.authFingerprint === 'string',
     'authFingerprint',
@@ -347,6 +395,8 @@ const normalizeState = (state) => {
   );
   assertStateField(Array.isArray(state.pending), 'pending');
   assertStateField(Array.isArray(state.failed), 'failed');
+  assertStateField(Array.isArray(state.stranded), 'stranded');
+  assertStateField(Array.isArray(state.legacyV2Stranded), 'legacyV2Stranded');
   assertStateField(
     Array.isArray(state.acknowledged)
       && state.acknowledged.every((entry) => (
@@ -355,8 +405,17 @@ const normalizeState = (state) => {
         && REPLAY_OPAQUE_ID_PATTERN.test(entry.id)
         && typeof entry.authFingerprint === 'string'
         && entry.authFingerprint.length > 0
+        && (
+          state.authorityEpoch === null
+          || (
+            entry.authorityEpoch === state.authorityEpoch
+            && entry.authorityKey === state.authorityKey
+          )
+        )
       ))
-      && new Set(state.acknowledged.map((entry) => `${entry.authFingerprint}\0${entry.id}`)).size
+      && new Set(state.acknowledged.map((entry) => (
+        `${entry.authorityEpoch ?? 'legacy'}\0${entry.authorityKey ?? 'legacy'}\0${entry.authFingerprint}\0${entry.id}`
+      ))).size
         === state.acknowledged.length,
     'acknowledged',
   );
@@ -413,6 +472,21 @@ const normalizeState = (state) => {
     assertMutationRecord(entry, path, 'failed');
     assertMutationIdentity(entry, path);
   });
+  state.stranded.forEach((entry, index) => {
+    const path = `stranded.${index}`;
+    assertStateField(isRecord(entry), path);
+    assertOptionalRecordIdentity(entry, path);
+    assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
+    assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
+    assertStateField(Number.isSafeInteger(entry.sequence) && entry.sequence >= 1, `${path}.sequence`);
+  });
+  state.legacyV2Stranded.forEach((entry, index) => {
+    const path = `legacyV2Stranded.${index}`;
+    assertStateField(isRecord(entry), path);
+    assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
+    assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
+    assertStateField(Number.isSafeInteger(entry.sequence) && entry.sequence >= 1, `${path}.sequence`);
+  });
   assertStateField(state.nextSequence > highestSequence, 'nextSequence');
   if (legacyV1) {
     // Fail closed at the v1 authority boundary. Retained rows, queued/failed
@@ -426,6 +500,8 @@ const normalizeState = (state) => {
     state.pending = [];
     state.failed = [];
     state.acknowledged = [];
+    state.stranded = [];
+    state.legacyV2Stranded = [];
   }
   return state;
 };
@@ -433,7 +509,10 @@ const normalizeState = (state) => {
 // @ref LLP 0012#versioning — retained versions are meaningful only inside
 //   the full app/database/target stream identity; never compare a bare number.
 const recordMatchesArtifacts = (record, expected = {}) => (
-  (!expected.authFingerprint || record.authFingerprint === expected.authFingerprint)
+  (expected.authorityEpoch === undefined || expected.authorityEpoch === null
+    || record.authorityEpoch === expected.authorityEpoch)
+  && (!expected.authorityKey || record.authorityKey === expected.authorityKey)
+  && (!expected.authFingerprint || record.authFingerprint === expected.authFingerprint)
   && (!expected.schemaHash || record.schemaHash === expected.schemaHash)
   && (!expected.inputsHash || record.inputsHash === expected.inputsHash)
   && (!expected.targetProfileId || record.targetProfileId === expected.targetProfileId)
@@ -444,6 +523,8 @@ const recordMatchesArtifacts = (record, expected = {}) => (
 );
 
 const recordMatchesCurrentScope = (state, record) => recordMatchesArtifacts(record, {
+  authorityEpoch: state.authorityEpoch,
+  authorityKey: state.authorityKey,
   authFingerprint: state.authFingerprint,
   ...(state.artifactScope ?? {}),
 });
@@ -454,6 +535,34 @@ function staleStoreScopeError(operation) {
   return error;
 }
 
+function staleStoreAuthorityError(operation) {
+  return clientStoreStateError(
+    'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
+    `${operation} belongs to a stale client authority epoch`,
+    { operation },
+  );
+}
+
+function expectedAuthorityMatchesState(state, expected = {}) {
+  if (state.authorityEpoch === null) {
+    return expected.authorityEpoch === undefined || expected.authorityEpoch === null;
+  }
+  return expected.authorityEpoch === state.authorityEpoch
+    && expected.authorityKey === state.authorityKey;
+}
+
+function assertExpectedAuthority(state, expected, operation) {
+  if (!expectedAuthorityMatchesState(state, expected)) {
+    throw staleStoreAuthorityError(operation);
+  }
+}
+
+function recordAuthority(state) {
+  return state.authorityEpoch === null
+    ? {}
+    : { authorityEpoch: state.authorityEpoch, authorityKey: state.authorityKey };
+}
+
 function createStore({ read, write, withExclusive = (operation) => operation() }) {
   const load = () => normalizeState(read());
   const save = (state) => {
@@ -461,6 +570,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     // preserving corrupt/future input, this keeps failed writes from
     // poisoning the in-memory reference adapter.
     const next = clone(state);
+    if (next.generation === Number.MAX_SAFE_INTEGER) {
+      throw clientStoreStateError(
+        'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
+        'client-store write generation is exhausted and the store must be replaced',
+      );
+    }
     next.generation += 1;
     normalizeState(next);
     write(next);
@@ -470,8 +585,125 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
   return {
     version: SNAPBACK_CLIENT_STORE_VERSION,
 
-    async scopeToAuth(authFingerprint) {
+    // @ref LLP 0056#format-3-and-authority-tags — the coordinator epoch/key,
+    //   never the old write generation or caller fingerprint, owns privacy
+    //   records and every expected-epoch mutation.
+    async bindAuthority({ authorityEpoch, authorityKey, authMode = 'sessions' }) {
+      if (!Number.isSafeInteger(authorityEpoch) || authorityEpoch < 0) {
+        throw new TypeError('bindAuthority requires a safe nonnegative authorityEpoch');
+      }
+      if (typeof authorityKey !== 'string' || !AUTHORITY_KEY_PATTERN.test(authorityKey)) {
+        throw new TypeError('bindAuthority requires a canonical authorityKey');
+      }
+      if (authMode !== 'dev' && authMode !== 'sessions') {
+        throw new TypeError('bindAuthority authMode must be dev or sessions');
+      }
       return transact((state, commit) => {
+        if (state.authorityEpoch !== null) {
+          if (state.authorityEpoch === authorityEpoch && state.authorityKey === authorityKey) {
+            return clone({ authorityEpoch, authorityKey });
+          }
+          throw staleStoreAuthorityError('authority bind');
+        }
+
+        // A v2 fingerprint was client input, not server provenance. Preserve
+        // only records whose v2 shape is explicitly unscoped, and only in the
+        // non-replayable legacy namespace; sessions-mode binding deletes every
+        // fingerprint-bearing payload rather than retagging it as current.
+        const legacyQueue = [...state.pending, ...state.failed]
+          .filter((entry) => entry.authFingerprint === undefined || entry.authFingerprint === null)
+          .map((entry) => ({ ...clone(entry), legacyFormat: 2, replayable: false }));
+        state.legacyV2Stranded.push(...legacyQueue);
+        state.retained = {};
+        state.pending = [];
+        state.failed = [];
+        state.acknowledged = [];
+        state.authFingerprint = null;
+        state.authorityEpoch = authorityEpoch;
+        state.authorityKey = authorityKey;
+        commit(state);
+        return clone({ authorityEpoch, authorityKey });
+      });
+    },
+
+    async transitionAuthority({
+      expectedEpoch,
+      nextEpoch,
+      nextAuthorityKey,
+      disposition = 'delete',
+      strandQueued = false,
+    }) {
+      if (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0) {
+        throw new TypeError('transitionAuthority requires a safe expectedEpoch');
+      }
+      if (!Number.isSafeInteger(nextEpoch) || nextEpoch !== expectedEpoch + 1) {
+        throw new TypeError('transitionAuthority must advance authority epoch exactly once');
+      }
+      if (typeof nextAuthorityKey !== 'string' || !AUTHORITY_KEY_PATTERN.test(nextAuthorityKey)) {
+        throw new TypeError('transitionAuthority requires a canonical nextAuthorityKey');
+      }
+      if (disposition !== 'delete') {
+        throw clientStoreStateError(
+          'SNAPBACK_AUTH_DISPOSITION_UNSUPPORTED',
+          'item-5 client storage executes only delete disposition',
+          { disposition },
+        );
+      }
+      return transact((state, commit) => {
+        if (state.authorityEpoch === nextEpoch && state.authorityKey === nextAuthorityKey) {
+          return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
+        }
+        if (state.authorityEpoch !== expectedEpoch) {
+          throw staleStoreAuthorityError('authority transition');
+        }
+        if (strandQueued) {
+          state.stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
+            ...clone(entry),
+            strandedAtEpoch: nextEpoch,
+            disposition,
+            replayable: false,
+          })));
+        }
+        // Item 5 admits no retained private reads or queued replay. Even a
+        // same-user/new-session transition blanks and requires a fresh online
+        // snapshot; preservation becomes observable only under item 8.
+        state.retained = {};
+        state.pending = [];
+        state.failed = [];
+        state.acknowledged = [];
+        state.authFingerprint = null;
+        state.authorityEpoch = nextEpoch;
+        state.authorityKey = nextAuthorityKey;
+        commit(state);
+        return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
+      });
+    },
+
+    async authorityScope() {
+      return transact((state) => clone({
+        authorityEpoch: state.authorityEpoch,
+        authorityKey: state.authorityKey,
+      }));
+    },
+
+    async strandedMutations(expected = {}) {
+      return transact((state) => {
+        assertExpectedAuthority(state, expected, 'stranded mutation read');
+        return clone(state.stranded);
+      });
+    },
+
+    async discardStranded(expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'stranded mutation discard');
+        state.stranded = [];
+        commit(state);
+      });
+    },
+
+    async scopeToAuth(authFingerprint, expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'auth scope change');
         const changed = state.authFingerprint !== null
           && state.authFingerprint !== authFingerprint;
         const unknownLegacyState = state.authFingerprint === null
@@ -506,8 +738,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       appId = null,
       databaseId = null,
       versionStreamId = null,
-    } = {}) {
+    } = {}, expected = {}) {
       return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'artifact scope change');
         const nextScope = {
           schemaHash,
           inputsHash,
@@ -536,6 +769,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
               function: entry.function,
               sequence: entry.sequence,
               authFingerprint: entry.authFingerprint,
+              ...recordAuthority(state),
               schemaHash: entry.schemaHash,
               inputsHash: entry.inputsHash,
               status: 'failed',
@@ -558,6 +792,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
 
     async getRetainedQuery(key, expected = {}) {
       return transact((state) => {
+        if (!expectedAuthorityMatchesState(state, expected)) return null;
         const record = state.retained[key];
         if (!record || !recordMatchesArtifacts(record, expected)) return null;
         return clone({ ...record, stale: true });
@@ -566,6 +801,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
 
     async putRetainedQuery(key, record) {
       return transact((state, commit) => {
+        assertExpectedAuthority(state, record, 'retained query write');
         if (!recordMatchesCurrentScope(state, record)) {
           throw staleStoreScopeError('retained query write');
         }
@@ -588,6 +824,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
 
     async enqueueMutation(record) {
       return transact((state, commit) => {
+        assertExpectedAuthority(state, record, 'queued mutation write');
         if (!recordMatchesCurrentScope(state, record)) {
           throw staleStoreScopeError('queued mutation write');
         }
@@ -630,6 +867,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     },
 
     async pendingMutations({
+      authorityEpoch = null,
+      authorityKey = null,
       authFingerprint = null,
       schemaHash = null,
       inputsHash = null,
@@ -638,8 +877,13 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       databaseId = null,
       versionStreamId = null,
     } = {}) {
-      return transact((state) => clone(state.pending
+      return transact((state) => {
+        const expected = { authorityEpoch, authorityKey };
+        if (!expectedAuthorityMatchesState(state, expected)) return [];
+        return clone(state.pending
         .filter((entry) => recordMatchesArtifacts(entry, {
+          authorityEpoch,
+          authorityKey,
           authFingerprint,
           schemaHash,
           inputsHash,
@@ -648,14 +892,25 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           databaseId,
           versionStreamId,
         }))
-        .sort((left, right) => left.sequence - right.sequence)));
+        .sort((left, right) => left.sequence - right.sequence));
+      });
     },
 
-    async settleMutation(id, { status, output = null, diagnostic = null } = {}) {
+    async settleMutation(id, {
+      status,
+      output = null,
+      diagnostic = null,
+      authorityEpoch = null,
+      authorityKey = null,
+    } = {}) {
       return transact((state, commit) => {
+        assertExpectedAuthority(state, { authorityEpoch, authorityKey }, 'mutation settlement');
         const index = state.pending.findIndex((entry) => entry.id === id);
         if (index < 0) return null;
         const [entry] = state.pending.splice(index, 1);
+        if (!recordMatchesArtifacts(entry, { authorityEpoch, authorityKey })) {
+          throw staleStoreAuthorityError('mutation settlement');
+        }
         const settled = clone({ ...entry, status, output, diagnostic });
         if (status === 'failed') state.failed.push(settled);
         if (
@@ -665,7 +920,11 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             entry.id === id && entry.authFingerprint === settled.authFingerprint
           ))
         ) {
-          state.acknowledged.push({ id, authFingerprint: entry.authFingerprint });
+          state.acknowledged.push({
+            id,
+            authFingerprint: entry.authFingerprint,
+            ...recordAuthority(state),
+          });
         }
         commit(state);
         return settled;
@@ -675,26 +934,37 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async pendingMutationAcknowledgements(
       limit = MAX_OFFLINE_LEDGER_IDS,
       authFingerprint = null,
+      expected = {},
     ) {
-      return transact((state) => clone(state.acknowledged
+      return transact((state) => {
+        if (!expectedAuthorityMatchesState(state, expected)) return [];
+        return clone(state.acknowledged
+        .filter((entry) => recordMatchesArtifacts(entry, expected))
         .filter((entry) => entry.authFingerprint === (authFingerprint ?? state.authFingerprint))
         .slice(0, limit)
-        .map((entry) => entry.id)));
+        .map((entry) => entry.id));
+      });
     },
 
-    async confirmMutationAcknowledgements(ids, authFingerprint = null) {
+    async confirmMutationAcknowledgements(ids, authFingerprint = null, expected = {}) {
       const confirmed = new Set(ids);
       return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'mutation acknowledgement confirmation');
         const expectedAuth = authFingerprint ?? state.authFingerprint;
         state.acknowledged = state.acknowledged.filter((entry) => (
-          entry.authFingerprint !== expectedAuth || !confirmed.has(entry.id)
+          !recordMatchesArtifacts(entry, expected)
+          || entry.authFingerprint !== expectedAuth
+          || !confirmed.has(entry.id)
         ));
         commit(state);
       });
     },
 
-    async failedMutations() {
-      return transact((state) => clone(state.failed));
+    async failedMutations(expected = {}) {
+      return transact((state) => {
+        if (!expectedAuthorityMatchesState(state, expected)) return [];
+        return clone(state.failed.filter((entry) => recordMatchesArtifacts(entry, expected)));
+      });
     },
 
     async snapshot() {
@@ -780,6 +1050,32 @@ export function createLocalStorageSnapbackClientStore({
       { mode: 'exclusive' },
       operation,
     ),
+  });
+}
+
+/** Register one physical client store as the coordinator's durable participant. */
+export function createSnapbackClientStoreAuthParticipant(store, {
+  name = 'snapback-client-store',
+  strandQueued = () => false,
+} = {}) {
+  if (!store || typeof store.transitionAuthority !== 'function') {
+    throw new TypeError('client-store auth participant requires a format-3 store');
+  }
+  return Object.freeze({
+    name,
+    async quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable(context) {
+      await store.transitionAuthority({
+        expectedEpoch: context.expectedEpoch,
+        nextEpoch: context.nextEpoch,
+        nextAuthorityKey: context.nextAuthorityKey,
+        disposition: context.disposition,
+        strandQueued: strandQueued(context) === true,
+      });
+    },
+    async resume() {},
   });
 }
 

@@ -652,7 +652,9 @@ export class AuthCoordinator {
       });
       return this.#finishClearingOwned(owner, clearing, {
         expectedEpoch: current.authorityEpoch,
+        expectedAuthorityKey: canonicalAuthorityKey(this.#appId, current.authority),
         nextEpoch,
+        nextAuthorityKey: successorKey,
         reason,
         disposition: 'delete',
       });
@@ -700,7 +702,9 @@ export class AuthCoordinator {
   async #recoverOwned(owner, clearing, reason) {
     return this.#finishClearingOwned(owner, clearing, {
       expectedEpoch: clearing.authorityEpoch - 1,
+      expectedAuthorityKey: null,
       nextEpoch: clearing.authorityEpoch,
+      nextAuthorityKey: canonicalAuthorityKey(this.#appId, clearing.pendingAuthority),
       reason,
       disposition: 'delete',
       recovery: true,
@@ -716,7 +720,9 @@ export class AuthCoordinator {
     const barrier = Object.freeze({
       appId: this.#appId,
       expectedEpoch: context.expectedEpoch,
+      expectedAuthorityKey: context.expectedAuthorityKey,
       nextEpoch: context.nextEpoch,
+      nextAuthorityKey: context.nextAuthorityKey,
       reason: context.reason,
       disposition: context.disposition,
       recovery: context.recovery === true,
@@ -770,7 +776,11 @@ export class AuthCoordinator {
     const context = Object.freeze({
       appId: this.#appId,
       expectedEpoch: previous?.authorityEpoch ?? Math.max(0, record.authorityEpoch - 1),
+      expectedAuthorityKey: previous?.phase === 'settled'
+        ? canonicalAuthorityKey(this.#appId, previous.authority)
+        : null,
       nextEpoch: record.authorityEpoch,
+      nextAuthorityKey: canonicalAuthorityKey(this.#appId, record.authority),
       reason: 'peer_transition',
       disposition: 'delete',
       recovery: true,
@@ -889,7 +899,13 @@ export class AuthCoordinator {
     return Object.freeze({
       appId: this.#appId,
       expectedEpoch: this.#record ? Math.max(0, this.#record.authorityEpoch - 1) : 0,
+      expectedAuthorityKey: null,
       nextEpoch: this.#record?.authorityEpoch ?? 0,
+      nextAuthorityKey: this.#record?.phase === 'settled'
+        ? canonicalAuthorityKey(this.#appId, this.#record.authority)
+        : this.#record?.pendingAuthority
+          ? canonicalAuthorityKey(this.#appId, this.#record.pendingAuthority)
+          : null,
       reason: 'registration_while_blank',
       disposition: 'delete',
     });
