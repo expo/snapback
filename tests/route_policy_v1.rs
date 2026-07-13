@@ -176,6 +176,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/admin/{*path}"),
         ("GET", "/_snapback/api/health"),
         ("POST", "/_snapback/api/console/credential"),
+        ("POST", "/_snapback/api/admin-secret-read/mint"),
         ("GET", "/_snapback/api/inspect"),
         ("GET", "/_snapback/api/receipts"),
         ("GET", "/_snapback/api/data/{table}"),
@@ -1302,12 +1303,12 @@ async fn admin_policy_outcome(
     (status, diagnostic_code(response).await)
 }
 
-/// An operation-specific carrier cannot authorize its outer AdminRead floor
-/// before it knows whether the operation is a write. On a hostile bind,
-/// missing and wrong configured tokens therefore match dedicated read/write
-/// routes exactly across both multiplexed transports.
+/// A multiplexed route must not look up function kind before authenticating
+/// its coarse outer floor. On a hostile bind, missing and wrong credentials
+/// therefore receive one AdminRead denial across read and write branches;
+/// branch-specific authorization runs only after that carrier is admitted.
 #[tokio::test]
-async fn hostile_bind_multiplexed_admin_denials_match_dedicated_routes() {
+async fn hostile_bind_multiplexed_denials_use_one_pre_kind_floor() {
     let router = app(AppState::from_snapback(
         runner_fixture(),
         exposed_context("sekrit"),
@@ -1418,10 +1419,71 @@ async fn hostile_bind_multiplexed_admin_denials_match_dedicated_routes() {
         for probe in &writes {
             assert_eq!(
                 admin_policy_outcome(&router, probe, credential).await,
-                write_floor,
-                "{} did not match {} with a {credential_label} token",
+                read_floor,
+                "{} disclosed its write branch before the coarse carrier gate with a {credential_label} token",
                 probe.label,
-                dedicated_write.label
+            );
+        }
+    }
+}
+
+/// Sessions has two non-substitutable authorities behind the same deferred
+/// paths (secret-read lease for queries, ordinary admin for writes). Before
+/// the body or function kind is known, neither an absent nor malformed carrier
+/// may reach the bounded JSON peek or branch lookup.
+#[tokio::test]
+async fn sessions_deferred_system_routes_gate_carriers_before_body_and_kind() {
+    let router = app(
+        AppState::from_snapback(runner_fixture(), exposed_context("sekrit"))
+            .with_policy_auth_mode(PolicyAuthMode::Sessions),
+    );
+    let oversized = format!(r#"{{"padding":"{}"}}"#, "x".repeat(2 * 1024 * 1024 + 1));
+    for (label, uri, body) in [
+        (
+            "direct malformed",
+            "/_snapback/api/functions/policy_mutation/run",
+            "{".to_owned(),
+        ),
+        (
+            "direct oversized",
+            "/_snapback/api/functions/policy_mutation/run",
+            oversized.clone(),
+        ),
+        (
+            "direct unknown kind",
+            "/_snapback/api/functions/not_a_registered_function/run",
+            r#"{"args":{}}"#.to_owned(),
+        ),
+        ("host malformed", "/_snapback/api/host-ops", "{".to_owned()),
+        (
+            "host oversized",
+            "/_snapback/api/host-ops",
+            oversized.clone(),
+        ),
+        (
+            "host branch selector",
+            "/_snapback/api/host-ops",
+            r#"{"operation":"function.run","function":"policy_query"}"#.to_owned(),
+        ),
+    ] {
+        for (carrier_label, lease) in [("missing", None), ("invalid lease", Some("srl_wrong"))] {
+            let mut request = Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header("content-type", "application/json");
+            if let Some(lease) = lease {
+                request = request.header("x-snapback-admin-secret-read", lease);
+            }
+            let response = router
+                .clone()
+                .oneshot(request.body(Body::from(body.clone())).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{label}");
+            assert_eq!(
+                diagnostic_code(response).await,
+                "SNAPBACK_ADMIN_TOKEN_REQUIRED",
+                "{carrier_label} authority reached {label} body/kind selection"
             );
         }
     }
@@ -1857,6 +1919,129 @@ async fn every_connection_auth_route_enforces_runtime_401_and_403() {
             diagnostic_code(wrong).await,
             "SNAPBACK_CONNECTION_TOKEN_INVALID",
             "wrong bearer diagnostic drifted for {method} {path}"
+        );
+    }
+}
+
+/// LLP 0031#enforcement — a body-carried connection id cannot force JSON
+/// parsing before its independently-carried bearer is authenticated. Sweep
+/// every such registry row with malformed and over-limit bodies so a newly
+/// added route cannot silently reintroduce the ordering bypass.
+#[tokio::test]
+async fn connection_carriers_are_authenticated_before_any_body_inspection() {
+    let state = AppState::detached(LocalSnapback::memory().expect("connection body-order fixture"));
+    let grant = state
+        .connections
+        .open(Some("policy_probe".to_owned()), None, true)
+        .expect("known connection grant");
+    let router = app(state);
+    let body_routes = route_registry()
+        .into_iter()
+        .filter(|route| {
+            route.path_policy == RoutePolicy::ConnectionAuth
+                && !matches!(
+                    route.path,
+                    "/live/{connection_id}/stream" | "/outbox/{connection_id}"
+                )
+        })
+        .collect::<Vec<_>>();
+    assert!(!body_routes.is_empty());
+
+    let malformed = br#"{"connection_id":"policy_probe","value":nope}"#.to_vec();
+    let oversized = format!(
+        r#"{{"connection_id":"policy_probe","padding":"{}"}}"#,
+        "x".repeat(2 * 1024 * 1024 + 1)
+    )
+    .into_bytes();
+
+    for route in body_routes {
+        let uri = materialize_path(route.path);
+        for (body_label, body) in [("malformed", &malformed), ("oversized", &oversized)] {
+            for (carrier_label, carrier, status, code) in [
+                (
+                    "missing",
+                    None,
+                    StatusCode::UNAUTHORIZED,
+                    "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
+                ),
+                (
+                    "wrong",
+                    Some("sct_deliberately_wrong"),
+                    StatusCode::FORBIDDEN,
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                ),
+            ] {
+                let mut request = Request::builder()
+                    .method(route.method)
+                    .uri(&uri)
+                    .header("content-type", "application/json");
+                if let Some(carrier) = carrier {
+                    request = request.header("x-snapback-connection-token", carrier);
+                }
+                let response = router
+                    .clone()
+                    .oneshot(request.body(Body::from(body.clone())).unwrap())
+                    .await
+                    .unwrap();
+                assert_eq!(
+                    response.status(),
+                    status,
+                    "{carrier_label} carrier lost to {body_label} body on {} {}",
+                    route.method,
+                    route.path
+                );
+                assert_eq!(
+                    diagnostic_code(response).await,
+                    code,
+                    "{carrier_label} carrier diagnostic lost to {body_label} body on {} {}",
+                    route.method,
+                    route.path
+                );
+            }
+        }
+
+        let malformed_with_valid_carrier = Request::builder()
+            .method(route.method)
+            .uri(&uri)
+            .header("content-type", "application/json")
+            .header(
+                "x-snapback-connection-token",
+                grant.connection_token.as_str(),
+            )
+            .body(Body::from(malformed.clone()))
+            .unwrap();
+        let response = router
+            .clone()
+            .oneshot(malformed_with_valid_carrier)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{uri}");
+        assert_eq!(
+            diagnostic_code(response).await,
+            "SNAPBACK_REQUEST_JSON_INVALID",
+            "valid bearer should admit typed JSON rejection for {uri}"
+        );
+
+        let oversized_with_valid_carrier = Request::builder()
+            .method(route.method)
+            .uri(&uri)
+            .header("content-type", "application/json")
+            .header(
+                "x-snapback-connection-token",
+                grant.connection_token.as_str(),
+            )
+            .body(Body::from(oversized.clone()))
+            .unwrap();
+        let response = router
+            .clone()
+            .oneshot(oversized_with_valid_carrier)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE, "{uri}");
+        assert_eq!(
+            diagnostic_code(response).await,
+            "SNAPBACK_VALUE_TOO_LARGE",
+            "valid bearer should admit the bounded body gate for {uri}"
         );
     }
 }

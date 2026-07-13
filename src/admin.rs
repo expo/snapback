@@ -1111,8 +1111,15 @@ fn authorize_admin_access(
 /// credential cannot mint a fresh lifetime for itself. Served loopback
 /// instances always have a configured or auto-minted token; embedded tokenless
 /// routers do not need a browser credential and cannot mint one.
-fn authorize_master(ctx: &ServerContext, headers: &HeaderMap) -> Result<(), ApiError> {
-    let provided = provided_token(headers, true);
+fn authorize_master(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
+    // @ref LLP 0039#authority-resolution — sessions reserves Authorization
+    // for a session bearer; even this master-only exchange uses the explicit
+    // administrator carrier in that mode.
+    let provided = provided_token(headers, mode == PolicyAuthMode::Dev);
     match (ctx.admin_token.as_deref(), provided.as_deref()) {
         (Some(configured), Some(candidate)) if token_eq(configured, candidate) => Ok(()),
         (None, _) if !ctx.loopback => Err(SnapbackError::error(
@@ -1551,9 +1558,10 @@ async fn admin_health(
 /// intentionally non-renewable.
 async fn mint_console_credential(
     State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
     headers: HeaderMap,
 ) -> Result<Json<ConsoleCredentialResponse>, ApiError> {
-    authorize_master(&ctx, &headers)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
     Ok(Json(ctx.console_credentials.mint()))
 }
 

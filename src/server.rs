@@ -946,12 +946,24 @@ impl ConnectionRegistryState {
 
 /// The `POST /connection/open` response: the (possibly adopted) connection id
 /// and the bearer the caller must present on every connection-scoped call.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ConnectionGrant {
     #[serde(rename = "connectionId")]
     pub connection_id: String,
     #[serde(rename = "connectionToken")]
     pub connection_token: String,
+}
+
+impl std::fmt::Debug for ConnectionGrant {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // @ref LLP 0039#diagnostics-and-route-registry — bearer capabilities
+        // never enter logs or diagnostic/debug projections.
+        formatter
+            .debug_struct("ConnectionGrant")
+            .field("connection_id", &self.connection_id)
+            .field("connection_token", &"[REDACTED]")
+            .finish()
+    }
 }
 
 /// The `POST /connection/open` request. `previousToken` is a bearer secret
@@ -960,7 +972,7 @@ pub struct ConnectionGrant {
 ///
 /// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
 ///   the complete non-JS client HTTP surface is Rust-owned and generated.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OpenConnectionRequest {
     #[serde(default, alias = "connection_id")]
@@ -969,6 +981,19 @@ pub struct OpenConnectionRequest {
     /// server response and from all receipt/capsule schemas.
     #[serde(default, alias = "previous_token")]
     pub previous_token: Option<String>,
+}
+
+impl std::fmt::Debug for OpenConnectionRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OpenConnectionRequest")
+            .field("connection_id", &self.connection_id)
+            .field(
+                "previous_token",
+                &self.previous_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 impl ConnectionRegistry {
@@ -1172,10 +1197,55 @@ fn subprotocol_connection_token(headers: &HeaderMap) -> Option<String> {
         .map(str::to_owned)
 }
 
-#[derive(Debug, Default, Deserialize)]
+fn connection_token_for_request(
+    effective: EffectiveRoutePolicy,
+    request: &Request<Body>,
+) -> Option<String> {
+    match effective.credential_resolution {
+        CredentialResolution::ConnectionGrantHeader => header_connection_token(request.headers()),
+        CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol => {
+            header_connection_token(request.headers())
+                .or_else(|| subprotocol_connection_token(request.headers()))
+        }
+        CredentialResolution::ConnectionGrantHeaderOrDevQuery => {
+            header_connection_token(request.headers()).or_else(|| {
+                request.uri().query().and_then(|query| {
+                    query.split('&').find_map(|pair| {
+                        pair.strip_prefix("connection_token=")
+                            .filter(|value| !value.is_empty())
+                            .map(ToOwned::to_owned)
+                    })
+                })
+            })
+        }
+        // Route validation rejects ConnectionAuth entries whose credential
+        // axis does not name an HTTP connection carrier.
+        _ => None,
+    }
+}
+
+fn connection_id_from_request_path(path: &str) -> Option<&str> {
+    path.strip_prefix("/live/")
+        .and_then(|path| path.strip_suffix("/stream"))
+        .or_else(|| path.strip_prefix("/outbox/"))
+}
+
+#[derive(Default, Deserialize)]
 struct ConnectionTokenQuery {
     #[serde(default)]
     connection_token: Option<String>,
+}
+
+impl std::fmt::Debug for ConnectionTokenQuery {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ConnectionTokenQuery")
+            .field(
+                "connection_token",
+                &self.connection_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 /// `POST /connection/open` — the connection handshake (ENG-23442). Public by
@@ -2443,19 +2513,90 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(effective);
         return apply_registered_response_controls(effective, next.run(request).await);
     }
+    if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
+        && request.headers().contains_key(header::AUTHORIZATION)
+    {
+        return apply_registered_response_controls(
+            effective,
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "a presented session bearer cannot be accepted before the session resolver is installed",
+            ))
+            .into_response(),
+        );
+    }
+
+    // @ref LLP 0031#enforcement — authenticate every connection carrier
+    // before bounded JSON inspection. Body-carried connection ids get a
+    // second exact id↔bearer check after decoding; an attacker-controlled
+    // body never gets parsed merely to discover which bearer it claims.
+    let mut presented_connection_token = None;
+    if effective.path_policy == RoutePolicy::ConnectionAuth {
+        let presented = connection_token_for_request(effective, &request);
+        let verified = match connection_id_from_request_path(request.uri().path()) {
+            Some(connection_id) => runtime
+                .connections
+                .verify(connection_id, presented.as_deref()),
+            None => runtime
+                .connections
+                .verify_presented_bearer(presented.as_deref()),
+        };
+        if let Err(error) = verified {
+            return apply_registered_response_controls(effective, error.into_response());
+        }
+        presented_connection_token = presented;
+    }
+
     let operation_deferred = matches!(
         effective.effect_policy,
         EffectPolicy::FunctionKind | EffectPolicy::OperationSpecific
     );
-    let body_connection_id_in_path = request
-        .uri()
-        .path()
-        .strip_prefix("/live/")
-        .and_then(|path| path.strip_suffix("/stream"))
-        .or_else(|| request.uri().path().strip_prefix("/outbox/"))
-        .is_none();
+    // @ref LLP 0031#enforcement — the direct runner and host-ops multiplexer
+    // must authenticate an authority that could satisfy one of their branches
+    // before parsing the branch selector or looking up a function kind. The
+    // public app.ensure attestation/provisioning multiplexer is intentionally
+    // excluded and retains its operation-local posture gate below.
+    if operation_deferred
+        && matches!(
+            spec.path,
+            "/_snapback/api/functions/{name}/run" | "/_snapback/api/host-ops"
+        )
+    {
+        let coarse_authorization = match runtime.policy_auth_mode {
+            PolicyAuthMode::Dev => crate::admin::authorize_for_mode(
+                &runtime.server,
+                request.headers(),
+                false,
+                PolicyAuthMode::Dev,
+            ),
+            PolicyAuthMode::Sessions => {
+                let admin = crate::admin::authorize_for_mode(
+                    &runtime.server,
+                    request.headers(),
+                    true,
+                    PolicyAuthMode::Sessions,
+                );
+                if admin.is_ok()
+                    || authorize_secret_read(&runtime.secret_reads, request.headers()).is_ok()
+                {
+                    Ok(())
+                } else {
+                    // One stable outer denial avoids turning the preflight
+                    // into an oracle for lease validity or operation kind.
+                    admin
+                }
+            }
+        };
+        if let Err(error) = coarse_authorization {
+            return apply_registered_response_controls(effective, error.into_response());
+        }
+    }
+
+    let connection_id_in_body = effective.path_policy == RoutePolicy::ConnectionAuth
+        && connection_id_from_request_path(request.uri().path()).is_none();
     let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
-        || (effective.path_policy == RoutePolicy::ConnectionAuth && body_connection_id_in_path)
+        || connection_id_in_body
         || operation_deferred
         || effective.effect_policy == EffectPolicy::SecretReadMintProof;
     let mut policy_body = None;
@@ -2478,20 +2619,6 @@ async fn enforce_registered_route_policy(
             body_auth_unsupported(field).into_response(),
         );
     }
-    if effective.credential_resolution == CredentialResolution::OptionalSessionBearer
-        && request.headers().contains_key(header::AUTHORIZATION)
-    {
-        return apply_registered_response_controls(
-            effective,
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "a presented session bearer cannot be accepted before the session resolver is installed",
-            ))
-            .into_response(),
-        );
-    }
-
     // A lease-only caller must prove the statically named function scope
     // before kind lookup. This makes an existing and an unknown function
     // indistinguishable to an under-scoped lease while preserving the normal
@@ -2664,61 +2791,21 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(verified);
     }
     if effective.path_policy == RoutePolicy::ConnectionAuth {
-        let presented = match effective.credential_resolution {
-            CredentialResolution::ConnectionGrantHeader => {
-                header_connection_token(request.headers())
-            }
-            CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol => {
-                header_connection_token(request.headers())
-                    .or_else(|| subprotocol_connection_token(request.headers()))
-            }
-            CredentialResolution::ConnectionGrantHeaderOrDevQuery => {
-                header_connection_token(request.headers()).or_else(|| {
-                    request.uri().query().and_then(|query| {
-                        query.split('&').find_map(|pair| {
-                            pair.strip_prefix("connection_token=")
-                                .filter(|value| !value.is_empty())
-                                .map(ToOwned::to_owned)
-                        })
-                    })
-                })
-            }
-            // The route invariant below rejects a ConnectionAuth entry whose
-            // credential axis does not name an HTTP connection carrier.
-            _ => None,
-        };
-        let connection_id = request
-            .uri()
-            .path()
-            .strip_prefix("/live/")
-            .and_then(|path| path.strip_suffix("/stream"))
-            .or_else(|| request.uri().path().strip_prefix("/outbox/"));
-        let verified = match connection_id {
-            Some(connection_id) => runtime
+        let body_connection_id = policy_body
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|body| {
+                body.get("connection_id")
+                    .or_else(|| body.get("connectionId"))
+            })
+            .and_then(Value::as_str);
+        let verified = match body_connection_id {
+            Some(connection_id) if connection_id_in_body => runtime
                 .connections
-                .verify(connection_id, presented.as_deref()),
-            None => runtime
-                .connections
-                .verify_presented_bearer(presented.as_deref())
-                .and_then(|()| {
-                    let body_connection_id = policy_body
-                        .as_ref()
-                        .and_then(Value::as_object)
-                        .and_then(|body| {
-                            body.get("connection_id")
-                                .or_else(|| body.get("connectionId"))
-                        })
-                        .and_then(Value::as_str);
-                    match body_connection_id {
-                        Some(connection_id) => runtime
-                            .connections
-                            .verify(connection_id, presented.as_deref()),
-                        // Invalid JSON/missing fields are left to the closed
-                        // typed extractor, but only after the bearer itself
-                        // has been authenticated above.
-                        None => Ok(()),
-                    }
-                }),
+                .verify(connection_id, presented_connection_token.as_deref()),
+            // Invalid JSON/missing fields are left to the closed typed
+            // extractor, after the presented bearer was authenticated above.
+            _ => Ok(()),
         };
         if let Err(error) = verified {
             return apply_registered_response_controls(response_policy, error.into_response());
@@ -5838,10 +5925,11 @@ mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
         ACTION_WORKER_LIMIT_MAX, CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX,
-        DetachedActionHost, DetachedActionWorkerCounters, OpenConnectionRequest, SharedSnapback,
-        configured_action_worker_limit, configured_cron_dispatch_concurrency,
-        dispatch_cron_tick_background, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+        ConnectionGrant, ConnectionTokenQuery, DetachedActionHost, DetachedActionWorkerCounters,
+        OpenConnectionRequest, SharedSnapback, configured_action_worker_limit,
+        configured_cron_dispatch_concurrency, dispatch_cron_tick_background,
+        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+        reserve_detached_action_worker_with_counters,
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
         status_for_diagnostic_code,
     };
@@ -5904,6 +5992,33 @@ mod tests {
             "typed serde visitor should preserve the duplicate-field diagnostic: {}",
             duplicate.0.diagnostic.details["error"]
         );
+    }
+
+    #[test]
+    fn connection_credential_debug_is_redacted() {
+        const SENTINEL: &str = "CONNECTION_CREDENTIAL_SENTINEL_MUST_NOT_ESCAPE";
+        let grant = ConnectionGrant {
+            connection_id: "conn_debug".to_owned(),
+            connection_token: SENTINEL.to_owned(),
+        };
+        let grant_debug = format!("{grant:?}");
+        assert!(!grant_debug.contains(SENTINEL), "{grant_debug}");
+        assert!(grant_debug.contains("[REDACTED]"), "{grant_debug}");
+
+        let open = OpenConnectionRequest {
+            connection_id: Some("conn_debug".to_owned()),
+            previous_token: Some(SENTINEL.to_owned()),
+        };
+        let open_debug = format!("{open:?}");
+        assert!(!open_debug.contains(SENTINEL), "{open_debug}");
+        assert!(open_debug.contains("[REDACTED]"), "{open_debug}");
+
+        let query = ConnectionTokenQuery {
+            connection_token: Some(SENTINEL.to_owned()),
+        };
+        let query_debug = format!("{query:?}");
+        assert!(!query_debug.contains(SENTINEL), "{query_debug}");
+        assert!(query_debug.contains("[REDACTED]"), "{query_debug}");
     }
 
     fn has_cfg_test(attributes: &[syn::Attribute]) -> bool {

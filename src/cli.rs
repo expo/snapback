@@ -72,7 +72,7 @@ pub struct Cli {
     pub serve: Args,
 }
 
-#[derive(Debug, clap::Subcommand)]
+#[derive(clap::Subcommand)]
 pub enum HostCommand {
     /// host.start — run the local server in the foreground. Structured
     /// readiness is the --ready-file descriptor, not stdout.
@@ -140,7 +140,19 @@ pub enum HostCommand {
     },
 }
 
-#[derive(Debug, clap::Args)]
+impl std::fmt::Debug for HostCommand {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // @ref LLP 0039#diagnostics-and-route-registry — capabilities never
+        // enter logs or diagnostic/debug projections.
+        // Command payloads can include administrator capabilities today and
+        // provider/keyring capabilities in later auth slices. Keep this
+        // implementation variant-agnostic so newly added commands cannot
+        // accidentally regain derived Debug's recursive secret exposure.
+        formatter.write_str("HostCommand([REDACTED])")
+    }
+}
+
+#[derive(clap::Args)]
 pub struct TargetArgs {
     /// Server base URL (e.g. http://127.0.0.1:4287).
     #[arg(long, conflicts_with = "ready_file")]
@@ -151,6 +163,17 @@ pub struct TargetArgs {
     /// Admin token for gated writes (defaults to SNAPBACK_ADMIN_TOKEN).
     #[arg(long)]
     pub token: Option<String>,
+}
+
+impl std::fmt::Debug for TargetArgs {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TargetArgs")
+            .field("url", &self.url)
+            .field("ready_file", &self.ready_file)
+            .field("token", &self.token.as_ref().map(|_| "[REDACTED]"))
+            .finish()
+    }
 }
 
 pub async fn run_from_env() -> anyhow::Result<()> {
@@ -294,10 +317,23 @@ fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 struct ResolvedHttpTarget {
     server_url: String,
     minted_token: Option<String>,
+}
+
+impl std::fmt::Debug for ResolvedHttpTarget {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ResolvedHttpTarget")
+            .field("server_url", &self.server_url)
+            .field(
+                "minted_token",
+                &self.minted_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 fn resolve_http_target(target: &TargetArgs) -> anyhow::Result<ResolvedHttpTarget> {
@@ -1620,11 +1656,12 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, Cli, HostCommand, ManagedPath, ReadyFileTarget, TargetArgs, bind_first_available,
-        bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
-        path_with_filename_suffix, prepare_database_path, reject_misdirected_serve_flags,
-        resolve_http_target, validate_path_disjointness, validated_secret_read_root_path,
-        write_ready_file_atomic, write_ready_file_atomic_protected,
+        Args, Cli, HostCommand, ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs,
+        bind_first_available, bind_listener, managed_startup_paths, mint_secret_read_via_http,
+        parse_run_args, path_with_filename_suffix, prepare_database_path,
+        reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
+        validated_secret_read_root_path, write_ready_file_atomic,
+        write_ready_file_atomic_protected,
     };
     use clap::Parser;
     use serde_json::json;
@@ -1976,6 +2013,59 @@ mod tests {
         assert!(!observed.contains("sbrk_"));
         assert!(!observed.contains("\"proof\""));
         server.abort();
+    }
+
+    #[test]
+    fn credential_bearing_cli_debug_never_exposes_token_material() {
+        const SENTINEL: &str = "CLI_CREDENTIAL_SENTINEL_MUST_NOT_ESCAPE";
+        let target = TargetArgs {
+            url: Some("http://127.0.0.1:4287".to_owned()),
+            ready_file: None,
+            token: Some(SENTINEL.to_owned()),
+        };
+        let target_debug = format!("{target:?}");
+        assert!(!target_debug.contains(SENTINEL), "{target_debug}");
+        assert!(target_debug.contains("[REDACTED]"), "{target_debug}");
+
+        let command = HostCommand::Inspect(target);
+        let command_debug = format!("{command:?}");
+        assert!(!command_debug.contains(SENTINEL), "{command_debug}");
+        assert!(command_debug.contains("[REDACTED]"), "{command_debug}");
+
+        let mint_command = HostCommand::SecretReadMint {
+            ready_file: PathBuf::from("ready.json"),
+            token: Some(SENTINEL.to_owned()),
+            admin_inspect: true,
+            receipts: false,
+            table: Vec::new(),
+            function: Vec::new(),
+            explain_function: Vec::new(),
+            ttl_seconds: 60,
+            row_budget: 10,
+            byte_budget: 1_000,
+        };
+        let mint_debug = format!("{mint_command:?}");
+        assert!(!mint_debug.contains(SENTINEL), "{mint_debug}");
+        assert!(mint_debug.contains("[REDACTED]"), "{mint_debug}");
+
+        let cli = Cli::parse_from([
+            "snapback",
+            "inspect",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--token",
+            SENTINEL,
+        ]);
+        let cli_debug = format!("{cli:?}");
+        assert!(!cli_debug.contains(SENTINEL), "{cli_debug}");
+
+        let resolved = ResolvedHttpTarget {
+            server_url: "http://127.0.0.1:4287".to_owned(),
+            minted_token: Some(SENTINEL.to_owned()),
+        };
+        let resolved_debug = format!("{resolved:?}");
+        assert!(!resolved_debug.contains(SENTINEL), "{resolved_debug}");
+        assert!(resolved_debug.contains("[REDACTED]"), "{resolved_debug}");
     }
 
     #[test]
