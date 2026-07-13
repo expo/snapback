@@ -2092,6 +2092,30 @@ function validateProtectedAndRetainabilityDefinition(name, def, err) {
     }
   }
 
+  if (def.retainable !== true) return;
+  if (def.js) {
+    err(
+      'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
+      'auth',
+      `${name}: JavaScript handler retention is refused until ctx.auth and module-state reset equivalence are mechanically proved`,
+      { function: name, reason: 'opaqueJavaScript', authorizationDependence: jsAuthorizationDependence(def) },
+    );
+    return;
+  }
+
+  const dependence = hostPlanAuthorizationDependence(def);
+  const valid = def.authorityIndependent === true
+    ? dependence.length === 0
+    : dependence.length === 1 && dependence[0] === 'userId';
+  if (!valid) {
+    err(
+      'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
+      'auth',
+      `${name}: retainable query must be authorityIndependent or depend on userId only`,
+      { function: name, reason: 'notUserIdOnly', authorizationDependence: dependence },
+    );
+  }
+
 }
 
 function authoredExprUsesAuthorityOrAmbientInput(expr) {
@@ -3541,29 +3565,6 @@ function validateContractModuleFilenames(modules, err) {
     }
   }
 
-  if (def.retainable !== true) return;
-  if (def.js) {
-    err(
-      'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
-      'auth',
-      `${name}: JavaScript handler retention is refused until ctx.auth and module-state reset equivalence are mechanically proved`,
-      { function: name, reason: 'opaqueJavaScript', authorizationDependence: jsAuthorizationDependence(def) },
-    );
-    return;
-  }
-
-  const dependence = hostPlanAuthorizationDependence(def);
-  const valid = def.authorityIndependent === true
-    ? dependence.length === 0
-    : dependence.length === 1 && dependence[0] === 'userId';
-  if (!valid) {
-    err(
-      'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
-      'auth',
-      `${name}: retainable query must be authorityIndependent or depend on userId only`,
-      { function: name, reason: 'notUserIdOnly', authorizationDependence: dependence },
-    );
-  }
 }
 
 function writeGeneratedOutput(outDir, {
