@@ -28,6 +28,7 @@ fn context(profile: ServerProfile) -> ServerContext {
         admin_token: Some(ADMIN_TOKEN.to_owned()),
         admin_token_minted: false,
         admin_token_file: None,
+        console_credentials: Default::default(),
         admin_dist: None,
     }
 }
