@@ -11,6 +11,8 @@ use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
+use zeroize::Zeroize as _;
+
 #[cfg(unix)]
 fn open_existing(path: &Path, writable: bool) -> io::Result<File> {
     use std::os::unix::fs::OpenOptionsExt as _;
@@ -41,6 +43,27 @@ fn validate_open_file(file: &File) -> io::Result<()> {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "secret file is not owned by the effective user",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn validate_open_file_strict(file: &File) -> io::Result<()> {
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    validate_open_file(file)?;
+    let metadata = file.metadata()?;
+    if metadata.permissions().mode() & 0o777 != 0o600 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "secret file mode is not exactly owner read/write",
+        ));
+    }
+    if metadata.nlink() != 1 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "secret file must have exactly one hard link",
         ));
     }
     Ok(())
@@ -80,6 +103,92 @@ pub fn read_owner_only(path: &Path) -> io::Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Read an owner-only capability file under stricter auth-keyring rules.
+///
+/// Unlike [`read_owner_only`], this never repairs permissions: mode, owner,
+/// regular-file status, link count, and size must already be valid before a
+/// byte is exposed. The path must still name the opened inode after the read.
+#[cfg(unix)]
+pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::Result<Vec<u8>> {
+    use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
+
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)?;
+    validate_open_file_strict(&file)?;
+    let before = file.metadata()?;
+    if before.len() > maximum_bytes as u64 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "secret file exceeds its size limit",
+        ));
+    }
+
+    let mut bytes = Vec::with_capacity(before.len() as usize);
+    if let Err(error) = file.take(maximum_bytes as u64 + 1).read_to_end(&mut bytes) {
+        bytes.zeroize();
+        return Err(error);
+    }
+    if bytes.len() > maximum_bytes {
+        bytes.zeroize();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "secret file exceeds its size limit",
+        ));
+    }
+
+    // Re-open-free path verification closes the ordinary path-check/open race
+    // in the other direction: replacement during the read is refused rather
+    // than allowing this operation to keep using a stale cached inode.
+    let current = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) => {
+            bytes.zeroize();
+            return Err(error);
+        }
+    };
+    if !current.file_type().is_file()
+        || current.dev() != before.dev()
+        || current.ino() != before.ino()
+    {
+        bytes.zeroize();
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "secret path changed while it was being read",
+        ));
+    }
+    let after = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) => {
+            bytes.zeroize();
+            return Err(error);
+        }
+    };
+    // SAFETY: geteuid has no preconditions and reads process identity only.
+    let effective_uid = unsafe { libc::geteuid() };
+    if after.len() != bytes.len() as u64
+        || after.nlink() != 1
+        || after.uid() != effective_uid
+        || after.mode() & 0o777 != 0o600
+    {
+        bytes.zeroize();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "secret file changed while it was being read",
+        ));
+    }
+    Ok(bytes)
+}
+
+#[cfg(not(unix))]
+pub(crate) fn read_strict_owner_only(_path: &Path, _maximum_bytes: usize) -> io::Result<Vec<u8>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "strict owner-only capability-file validation is not implemented on this host",
+    ))
+}
+
 /// Replace a capability file's contents without following a link or trusting
 /// a pre-created inode. Existing files are validated before truncation.
 pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
@@ -98,11 +207,87 @@ pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
 /// existing inode. Atomic-publication temporary files use this variant: an
 /// attacker who pre-creates or races a hardlink at the candidate path gets
 /// `AlreadyExists`, never a truncation of the linked target.
-#[cfg(any(test, not(unix)))]
-pub fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut file = create_new_owner_only(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()
+    let result = (|| {
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        #[cfg(unix)]
+        validate_open_file_strict(&file)?;
+        Ok(())
+    })();
+    drop(file);
+    if result.is_err() {
+        // Creation succeeded, so this inode is ours. An AlreadyExists error
+        // returns before this block and never removes the preexisting path.
+        let _ = std::fs::remove_file(path);
+    }
+    result
+}
+
+/// Atomically install `source` at an absent `destination` without overwriting
+/// a file that appeared after the caller's read. Both paths must share a
+/// directory/filesystem.
+#[cfg(target_vendor = "apple")]
+pub(crate) fn rename_no_replace(source: &Path, destination: &Path) -> io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt as _;
+
+    let source = CString::new(source.as_os_str().as_bytes())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "source path contains NUL"))?;
+    let destination = CString::new(destination.as_os_str().as_bytes()).map_err(|_| {
+        io::Error::new(io::ErrorKind::InvalidInput, "destination path contains NUL")
+    })?;
+    // SAFETY: the C strings are NUL-terminated and valid for the duration of
+    // the call; renamex_np retains neither pointer.
+    let result =
+        unsafe { libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn rename_no_replace(source: &Path, destination: &Path) -> io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt as _;
+
+    let source = CString::new(source.as_os_str().as_bytes())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "source path contains NUL"))?;
+    let destination = CString::new(destination.as_os_str().as_bytes()).map_err(|_| {
+        io::Error::new(io::ErrorKind::InvalidInput, "destination path contains NUL")
+    })?;
+    // SAFETY: valid C strings are passed to the OS and retained by neither
+    // side. AT_FDCWD makes each same-directory path resolve normally.
+    let result = unsafe {
+        libc::renameat2(
+            libc::AT_FDCWD,
+            source.as_ptr(),
+            libc::AT_FDCWD,
+            destination.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+pub(crate) fn rename_no_replace(_source: &Path, _destination: &Path) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "atomic no-replace publication is not implemented on this host",
+    ))
+}
+
+pub(crate) fn sync_parent(path: &Path) -> io::Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    File::open(parent)?.sync_all()
 }
 
 #[cfg(unix)]

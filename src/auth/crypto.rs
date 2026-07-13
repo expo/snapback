@@ -1,0 +1,614 @@
+//! Exact v1 encodings and secret-bearing authentication types.
+
+// @ref LLP 0054#binary-and-textual-encodings — auth identifiers, code digests, and bearer spellings are versioned protocol bytes.
+// @ref LLP 0009#secrets — secret material crosses Rust boundaries only through explicit redacted, zeroizing wrappers.
+
+use std::fmt;
+
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use hmac::{Hmac, Mac as _};
+use sha2::{Digest as _, Sha256};
+use subtle::ConstantTimeEq as _;
+use unicode_normalization::UnicodeNormalization as _;
+use zeroize::{Zeroize as _, Zeroizing};
+
+const CHALLENGE_PREFIX: &str = "sbc_";
+const KEY_PREFIX: &str = "sbak_";
+const SESSION_PREFIX: &str = "sbs_";
+const IMPERSONATION_PREFIX: &str = "sbic_";
+const CODE_DIGEST_DOMAIN: &[u8] = b"snapback.auth.email-code.v1";
+
+/// Crypto failures deliberately carry no caller-controlled or secret input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CryptoError {
+    RandomUnavailable,
+    InvalidCanonicalAddress,
+    InvalidVerificationCode,
+    InvalidChallengeId,
+    InvalidKeyId,
+    InvalidBearer,
+}
+
+impl fmt::Display for CryptoError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::RandomUnavailable => "operating-system randomness is unavailable",
+            Self::InvalidCanonicalAddress => "invalid canonical address",
+            Self::InvalidVerificationCode => "invalid verification code",
+            Self::InvalidChallengeId => "invalid challenge id",
+            Self::InvalidKeyId => "invalid auth key id",
+            Self::InvalidBearer => "invalid auth bearer",
+        })
+    }
+}
+
+impl std::error::Error for CryptoError {}
+
+/// Injectable CSPRNG boundary. Production uses [`OsRandom`]; tests can supply
+/// exact byte streams and failure points without weakening production paths.
+pub trait RandomSource: Send + Sync {
+    fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError>;
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct OsRandom;
+
+impl RandomSource for OsRandom {
+    fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+        getrandom::fill(destination).map_err(|_| CryptoError::RandomUnavailable)
+    }
+}
+
+/// V1's canonical email identity subject.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CanonicalAddress(String);
+
+impl CanonicalAddress {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        // Controls are rejected before trimming. In particular, CR/LF cannot
+        // be smuggled at an edge and then erased by whitespace trimming.
+        if input.chars().any(char::is_control) {
+            return Err(CryptoError::InvalidCanonicalAddress);
+        }
+
+        let trimmed = input.trim_matches(char::is_whitespace);
+        let normalized: String = trimmed.nfc().collect();
+        let lowered: String = normalized.chars().flat_map(char::to_lowercase).collect();
+
+        if lowered.is_empty()
+            || lowered.len() > 320
+            || lowered
+                .chars()
+                .any(|character| character.is_whitespace() || character.is_control())
+        {
+            return Err(CryptoError::InvalidCanonicalAddress);
+        }
+
+        let mut parts = lowered.split('@');
+        let local = parts.next().unwrap_or_default();
+        let domain = parts.next().unwrap_or_default();
+        if local.is_empty() || domain.is_empty() || parts.next().is_some() {
+            return Err(CryptoError::InvalidCanonicalAddress);
+        }
+
+        Ok(Self(lowered))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for CanonicalAddress {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("CanonicalAddress([REDACTED])")
+    }
+}
+
+/// Exactly six ASCII digits, zeroized on drop.
+pub struct VerificationCode(Zeroizing<[u8; 6]>);
+
+impl VerificationCode {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        let bytes = input.as_bytes();
+        if bytes.len() != 6 || !bytes.iter().all(u8::is_ascii_digit) {
+            return Err(CryptoError::InvalidVerificationCode);
+        }
+        let mut code = [0_u8; 6];
+        code.copy_from_slice(bytes);
+        Ok(Self(Zeroizing::new(code)))
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        const RANGE: u64 = 1_000_000;
+        const ACCEPT_BELOW: u64 = ((u32::MAX as u64) + 1) / RANGE * RANGE;
+
+        loop {
+            let mut bytes = [0_u8; 4];
+            if let Err(error) = random.fill(&mut bytes) {
+                bytes.zeroize();
+                return Err(error);
+            }
+            let sample = u32::from_be_bytes(bytes) as u64;
+            bytes.zeroize();
+            if sample >= ACCEPT_BELOW {
+                continue;
+            }
+
+            let mut value = sample % RANGE;
+            let mut code = [b'0'; 6];
+            for digit in code.iter_mut().rev() {
+                *digit += (value % 10) as u8;
+                value /= 10;
+            }
+            return Ok(Self(Zeroizing::new(code)));
+        }
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        // Construction proves this is always six ASCII digits.
+        std::str::from_utf8(self.0.as_ref()).expect("verification code invariant")
+    }
+}
+
+impl fmt::Debug for VerificationCode {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("VerificationCode([REDACTED])")
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChallengeId(String);
+
+impl ChallengeId {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_prefixed_id(input, CHALLENGE_PREFIX)
+            .map(Self)
+            .map_err(|_| CryptoError::InvalidChallengeId)
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_prefixed_id(random, CHALLENGE_PREFIX).map(Self)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for ChallengeId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_tuple("ChallengeId").field(&self.0).finish()
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AuthKeyId(String);
+
+impl AuthKeyId {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_prefixed_id(input, KEY_PREFIX)
+            .map(Self)
+            .map_err(|_| CryptoError::InvalidKeyId)
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_prefixed_id(random, KEY_PREFIX).map(Self)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for AuthKeyId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Key ids are excluded from diagnostics alongside key material.
+        formatter.write_str("AuthKeyId([REDACTED])")
+    }
+}
+
+pub struct AuthKeyMaterial(Zeroizing<[u8; 32]>);
+
+impl AuthKeyMaterial {
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(Zeroizing::new(bytes))
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        let mut bytes = [0_u8; 32];
+        if let Err(error) = random.fill(&mut bytes) {
+            bytes.zeroize();
+            return Err(error);
+        }
+        Ok(Self::from_bytes(bytes))
+    }
+
+    pub(crate) fn expose_secret(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub(crate) fn encode_base64(&self) -> Zeroizing<String> {
+        Zeroizing::new(encode_base64url(self.0.as_ref()))
+    }
+}
+
+impl fmt::Debug for AuthKeyMaterial {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AuthKeyMaterial([REDACTED])")
+    }
+}
+
+pub struct CodeDigest(Zeroizing<[u8; 32]>);
+
+impl CodeDigest {
+    pub fn compute(
+        key: &AuthKeyMaterial,
+        challenge_id: &ChallengeId,
+        address: &CanonicalAddress,
+        code: &VerificationCode,
+    ) -> Self {
+        let mut mac = Hmac::<Sha256>::new_from_slice(key.expose_secret())
+            .expect("HMAC-SHA-256 accepts every key length");
+        update_lp(&mut mac, CODE_DIGEST_DOMAIN);
+        update_lp(&mut mac, challenge_id.as_str().as_bytes());
+        update_lp(&mut mac, address.as_str().as_bytes());
+        update_lp(&mut mac, code.expose_secret().as_bytes());
+        let mut output = mac.finalize().into_bytes();
+        let mut digest = [0_u8; 32];
+        digest.copy_from_slice(&output);
+        output.as_mut_slice().zeroize();
+        Self(Zeroizing::new(digest))
+    }
+
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(Zeroizing::new(bytes))
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub fn verify(&self, expected: &[u8]) -> bool {
+        expected.len() == 32 && bool::from(self.0.as_ref().ct_eq(expected))
+    }
+}
+
+impl fmt::Debug for CodeDigest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("CodeDigest([REDACTED])")
+    }
+}
+
+pub struct TokenHash(Zeroizing<[u8; 32]>);
+
+impl TokenHash {
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(Zeroizing::new(bytes))
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub fn verify(&self, expected: &[u8]) -> bool {
+        expected.len() == 32 && bool::from(self.0.as_ref().ct_eq(expected))
+    }
+}
+
+impl fmt::Debug for TokenHash {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("TokenHash([REDACTED])")
+    }
+}
+
+pub struct SessionBearer(Zeroizing<String>);
+
+impl SessionBearer {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_bearer(input, SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_bearer(random, SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        &self.0
+    }
+
+    pub fn token_hash(&self) -> TokenHash {
+        hash_bearer(self.0.as_bytes())
+    }
+}
+
+impl fmt::Debug for SessionBearer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SessionBearer([REDACTED])")
+    }
+}
+
+pub struct ImpersonationBearer(Zeroizing<String>);
+
+impl ImpersonationBearer {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_bearer(input, IMPERSONATION_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_bearer(random, IMPERSONATION_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        &self.0
+    }
+
+    pub fn token_hash(&self) -> TokenHash {
+        hash_bearer(self.0.as_bytes())
+    }
+}
+
+impl fmt::Debug for ImpersonationBearer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ImpersonationBearer([REDACTED])")
+    }
+}
+
+fn update_lp(mac: &mut Hmac<Sha256>, bytes: &[u8]) {
+    let length = u32::try_from(bytes.len()).expect("auth digest component length fits u32");
+    mac.update(&length.to_be_bytes());
+    mac.update(bytes);
+}
+
+fn parse_prefixed_id(input: &str, prefix: &str) -> Result<String, ()> {
+    let encoded = input.strip_prefix(prefix).ok_or(())?;
+    let mut bytes = decode_canonical_base64url::<16>(encoded).map_err(|_| ())?;
+    bytes.zeroize();
+    Ok(input.to_owned())
+}
+
+fn mint_prefixed_id(random: &dyn RandomSource, prefix: &str) -> Result<String, CryptoError> {
+    let mut bytes = [0_u8; 16];
+    if let Err(error) = random.fill(&mut bytes) {
+        bytes.zeroize();
+        return Err(error);
+    }
+    let encoded = encode_base64url(&bytes);
+    bytes.zeroize();
+    Ok(format!("{prefix}{encoded}"))
+}
+
+fn mint_bearer(random: &dyn RandomSource, prefix: &str) -> Result<String, CryptoError> {
+    let mut bytes = [0_u8; 32];
+    if let Err(error) = random.fill(&mut bytes) {
+        bytes.zeroize();
+        return Err(error);
+    }
+    let encoded = encode_base64url(&bytes);
+    let checksum = crc32fast::hash(&bytes);
+    bytes.zeroize();
+    Ok(format!("{prefix}{encoded}.{checksum:08x}"))
+}
+
+fn parse_bearer(input: &str, prefix: &str) -> Result<String, CryptoError> {
+    let expected_len = prefix.len() + 43 + 1 + 8;
+    if input.len() != expected_len {
+        return Err(CryptoError::InvalidBearer);
+    }
+    let body = input
+        .strip_prefix(prefix)
+        .ok_or(CryptoError::InvalidBearer)?;
+    let (encoded, checksum_text) = body.rsplit_once('.').ok_or(CryptoError::InvalidBearer)?;
+    if checksum_text.len() != 8
+        || !checksum_text
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
+    {
+        return Err(CryptoError::InvalidBearer);
+    }
+
+    let mut bytes = decode_canonical_base64url::<32>(encoded)?;
+    let expected_checksum =
+        u32::from_str_radix(checksum_text, 16).map_err(|_| CryptoError::InvalidBearer)?;
+    let actual_checksum = crc32fast::hash(&bytes);
+    bytes.zeroize();
+    if actual_checksum != expected_checksum {
+        return Err(CryptoError::InvalidBearer);
+    }
+    Ok(input.to_owned())
+}
+
+fn hash_bearer(bytes: &[u8]) -> TokenHash {
+    let mut output = Sha256::digest(bytes);
+    let mut digest = [0_u8; 32];
+    digest.copy_from_slice(&output);
+    output.as_mut_slice().zeroize();
+    TokenHash::from_bytes(digest)
+}
+
+pub(crate) fn encode_base64url(bytes: &[u8]) -> String {
+    URL_SAFE_NO_PAD.encode(bytes)
+}
+
+pub(crate) fn decode_canonical_base64url<const N: usize>(
+    encoded: &str,
+) -> Result<[u8; N], CryptoError> {
+    if encoded.is_empty() || encoded.contains('=') {
+        return Err(CryptoError::InvalidBearer);
+    }
+    let mut decoded = URL_SAFE_NO_PAD
+        .decode(encoded)
+        .map_err(|_| CryptoError::InvalidBearer)?;
+    if decoded.len() != N || encode_base64url(&decoded) != encoded {
+        decoded.zeroize();
+        return Err(CryptoError::InvalidBearer);
+    }
+    let mut output = [0_u8; N];
+    output.copy_from_slice(&decoded);
+    decoded.zeroize();
+    Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::VecDeque;
+    use std::sync::Mutex;
+
+    use super::*;
+
+    #[derive(Debug)]
+    struct ScriptedRandom {
+        chunks: Mutex<VecDeque<Result<Vec<u8>, CryptoError>>>,
+    }
+
+    impl ScriptedRandom {
+        fn new(chunks: impl IntoIterator<Item = Vec<u8>>) -> Self {
+            Self {
+                chunks: Mutex::new(chunks.into_iter().map(Ok).collect()),
+            }
+        }
+
+        fn failing() -> Self {
+            Self {
+                chunks: Mutex::new(VecDeque::from([Err(CryptoError::RandomUnavailable)])),
+            }
+        }
+    }
+
+    impl RandomSource for ScriptedRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            let chunk = self
+                .chunks
+                .lock()
+                .unwrap()
+                .pop_front()
+                .expect("scripted random exhausted")?;
+            assert_eq!(chunk.len(), destination.len());
+            destination.copy_from_slice(&chunk);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn canonical_address_pins_order_and_boundaries() {
+        let address = CanonicalAddress::parse("\u{00a0}CAFE\u{301}@EXAMPLE.COM\u{00a0}").unwrap();
+        assert_eq!(address.as_str(), "café@example.com");
+
+        let dotted_i = CanonicalAddress::parse("İ@EXAMPLE.COM").unwrap();
+        assert_eq!(dotted_i.as_str(), "i\u{307}@example.com");
+
+        assert!(CanonicalAddress::parse("person\n@example.com").is_err());
+        assert!(CanonicalAddress::parse("person @example.com").is_err());
+        assert!(CanonicalAddress::parse("person@example.com@example.net").is_err());
+        assert!(CanonicalAddress::parse("@example.com").is_err());
+        assert!(CanonicalAddress::parse("person@").is_err());
+
+        let exact_limit = format!("{}@x", "a".repeat(318));
+        assert_eq!(exact_limit.len(), 320);
+        assert!(CanonicalAddress::parse(&exact_limit).is_ok());
+        let too_long = format!("{}@x", "a".repeat(319));
+        assert!(CanonicalAddress::parse(&too_long).is_err());
+    }
+
+    #[test]
+    fn six_digit_sampling_rejects_modulo_bias_and_propagates_rng_failure() {
+        let random = ScriptedRandom::new([
+            u32::MAX.to_be_bytes().to_vec(),
+            42_u32.to_be_bytes().to_vec(),
+        ]);
+        let code = VerificationCode::generate(&random).unwrap();
+        assert_eq!(code.expose_secret(), "000042");
+        assert_eq!(format!("{code:?}"), "VerificationCode([REDACTED])");
+        assert!(VerificationCode::parse("12345").is_err());
+        assert!(VerificationCode::parse("12345x").is_err());
+        assert_eq!(
+            VerificationCode::generate(&ScriptedRandom::failing()).unwrap_err(),
+            CryptoError::RandomUnavailable
+        );
+    }
+
+    #[test]
+    fn ids_require_canonical_unpadded_base64url() {
+        let random = ScriptedRandom::new([vec![0_u8; 16], vec![0_u8; 16]]);
+        let challenge = ChallengeId::generate(&random).unwrap();
+        let key_id = AuthKeyId::generate(&random).unwrap();
+        assert_eq!(challenge.as_str(), "sbc_AAAAAAAAAAAAAAAAAAAAAA");
+        assert_eq!(key_id.as_str(), "sbak_AAAAAAAAAAAAAAAAAAAAAA");
+        assert!(ChallengeId::parse(challenge.as_str()).is_ok());
+        assert!(AuthKeyId::parse(key_id.as_str()).is_ok());
+        assert!(ChallengeId::parse("sbc_AAAAAAAAAAAAAAAAAAAAAA==").is_err());
+        assert!(AuthKeyId::parse("sbak_AAAAAAAAAAAAAAAAAAAAA_").is_err());
+    }
+
+    #[test]
+    fn length_prefix_and_hmac_fixed_vector() {
+        let key = AuthKeyMaterial::from_bytes(std::array::from_fn(|index| index as u8));
+        let challenge = ChallengeId::parse("sbc_AAAAAAAAAAAAAAAAAAAAAA").unwrap();
+        let address = CanonicalAddress::parse("CAFÉ@EXAMPLE.COM").unwrap();
+        let code = VerificationCode::parse("012345").unwrap();
+        let digest = CodeDigest::compute(&key, &challenge, &address, &code);
+
+        assert_eq!(
+            hex(digest.as_bytes()),
+            "a20020496edbc0952087cb4053d12f5cd8a2a800335046cafaae36597d6fbd47"
+        );
+        assert!(digest.verify(digest.as_bytes()));
+        assert!(!digest.verify(&[0_u8; 32]));
+        assert_eq!(format!("{digest:?}"), "CodeDigest([REDACTED])");
+        assert_eq!(format!("{key:?}"), "AuthKeyMaterial([REDACTED])");
+    }
+
+    #[test]
+    fn bearer_crc_shape_and_hash_fixed_vectors() {
+        let random = ScriptedRandom::new([vec![0_u8; 32], vec![0_u8; 32]]);
+        let session = SessionBearer::generate(&random).unwrap();
+        assert_eq!(
+            session.expose_secret(),
+            "sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ad"
+        );
+        assert_eq!(session.expose_secret().len(), 56);
+        assert_eq!(
+            hex(session.token_hash().as_bytes()),
+            "9d1a7107cb91bc1fe07a5a9222f52e48cbf1c226fb0f9ebf4937e703819abbeb"
+        );
+        assert!(SessionBearer::parse(session.expose_secret()).is_ok());
+
+        let impersonation = ImpersonationBearer::generate(&random).unwrap();
+        assert_eq!(
+            impersonation.expose_secret(),
+            "sbic_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ad"
+        );
+        assert_eq!(impersonation.expose_secret().len(), 57);
+        assert!(ImpersonationBearer::parse(impersonation.expose_secret()).is_ok());
+
+        assert!(
+            SessionBearer::parse("sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190A55AD")
+                .is_err()
+        );
+        assert!(
+            SessionBearer::parse("sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ae")
+                .is_err()
+        );
+        assert!(
+            SessionBearer::parse("sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=.190a55ad")
+                .is_err()
+        );
+        assert!(ImpersonationBearer::parse(session.expose_secret()).is_err());
+        assert_eq!(format!("{session:?}"), "SessionBearer([REDACTED])");
+        assert_eq!(
+            format!("{impersonation:?}"),
+            "ImpersonationBearer([REDACTED])"
+        );
+    }
+
+    #[test]
+    fn crc32_uses_iso_hdlc_parameters() {
+        assert_eq!(crc32fast::hash(b"123456789"), 0xcbf4_3926);
+    }
+
+    fn hex(bytes: &[u8]) -> String {
+        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    }
+}
