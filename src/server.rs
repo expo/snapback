@@ -1831,15 +1831,12 @@ fn admin_access_summary(ctx: &ServerContext) -> String {
             // resolves a token on loopback (ENG-23443).
             "Open on loopback; set SNAPBACK_ADMIN_TOKEN to require a token for writes".to_owned()
         }
-        (true, true) if ctx.admin_token_minted => match &ctx.admin_token_file {
-            Some(file) => format!(
-                "Reads open on loopback; writes require the minted admin token ({})",
-                file.display()
-            ),
-            None => "Reads open on loopback; writes require the minted admin token \
-                     (printed at startup, this run only)"
-                .to_owned(),
-        },
+        // The absolute capability-file path is an authenticated operator fact,
+        // never public homepage metadata. Same-user tools discover it from the
+        // trusted ready descriptor or gated admin inspect surface.
+        (true, true) if ctx.admin_token_minted => {
+            "Reads open on loopback; writes require the minted admin token".to_owned()
+        }
         (true, true) => "Reads open on loopback; writes require SNAPBACK_ADMIN_TOKEN".to_owned(),
         (false, false) => {
             "Admin API disabled on this non-loopback bind until SNAPBACK_ADMIN_TOKEN is set"
@@ -2059,7 +2056,7 @@ async fn apply_schema(
     Json(manifest): Json<SchemaManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
-    crate::admin::require_non_prod_profile(&ctx, "schema.load")?;
+    crate::admin::require_operation_profile(&ctx, "schema.load", false)?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.apply_schema(manifest)).await?;
     Ok(Json(DiagnosticsResponse { diagnostics }))
@@ -2072,7 +2069,7 @@ async fn load_functions(
     Json(manifest): Json<FunctionManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
-    crate::admin::require_non_prod_profile(&ctx, "functions.load")?;
+    crate::admin::require_operation_profile(&ctx, "functions.load", false)?;
     let diagnostics =
         with_snapback(&state, move |snapback| snapback.load_functions(manifest)).await;
     // @ref LLP 0036#the-setup-wizard-d3 — the printed line is the install
@@ -2247,6 +2244,7 @@ async fn config_verify(
         StagedConfigVerify::Ready(stage) => {
             let ConfigVerifyStage {
                 probe,
+                entry_revision,
                 started_ms,
                 input,
                 metadata,
@@ -2264,7 +2262,7 @@ async fn config_verify(
                 }
             };
             with_snapback(&state, move |snapback| {
-                snapback.finish_config_verify(&entry, started_ms, result)
+                snapback.finish_config_verify(&entry, entry_revision, started_ms, result)
             })
             .await?
         }
@@ -2284,8 +2282,9 @@ async fn host_ops_handler(
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
     let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
+    let profile = ctx.profile;
     let result = with_snapback(&state, move |snapback| {
-        crate::host_ops::execute_host_op(snapback, request, server_url)
+        crate::host_ops::execute_host_op_with_profile(snapback, request, server_url, profile)
     })
     .await;
     Ok(Json(result))
@@ -2304,19 +2303,9 @@ async fn app_reset(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AppResetResponse>, ApiError> {
     crate::admin::authorize(&ctx, &headers, true)?;
-    crate::admin::require_non_prod_profile(&ctx, "app.reset")?;
+    crate::admin::require_operation_profile(&ctx, "app.reset", false)?;
     let seed = parse_optional_json::<AppResetBody>(&headers, body)?.and_then(|body| body.seed);
-    let seeded = with_snapback(
-        &state,
-        move |snapback| -> Result<_, crate::diagnostic::SnapbackError> {
-            snapback.reset()?;
-            match seed {
-                Some(seed) => Ok(Some(snapback.seed(seed)?)),
-                None => Ok(None),
-            }
-        },
-    )
-    .await?;
+    let seeded = with_snapback(&state, move |snapback| snapback.reset_with_seed(seed)).await?;
     Ok(Json(AppResetResponse { seeded }))
 }
 
@@ -3080,6 +3069,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_UNKNOWN_CRON_JOB" | "SNAPBACK_UNKNOWN_SUBSCRIPTION" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -3669,6 +3659,7 @@ mod tests {
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+        "SNAPBACK_CONFIG_VERIFY_STALE",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
         "SNAPBACK_MUTATION_CONFLICT",
     ];
@@ -3714,6 +3705,7 @@ mod tests {
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
         "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
         "SNAPBACK_CONFIG_ENV_IMPORTED",
+        "SNAPBACK_CONFIG_GENERATION_EXHAUSTED",
         "SNAPBACK_CONFIG_STORE_INVALID",
         "SNAPBACK_CONFIG_STORE_IO",
         "SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED",
@@ -3739,6 +3731,7 @@ mod tests {
         "SNAPBACK_JSON_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+        "SNAPBACK_READY_FILE_PATH_COLLISION",
         "SNAPBACK_RUNTIME_CREATE_FAILED",
         "SNAPBACK_SCHEMA_SERIALIZE_FAILED",
         "SNAPBACK_SQLITE_ERROR",

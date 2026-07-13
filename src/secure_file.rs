@@ -88,6 +88,16 @@ pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
     file.sync_all()
 }
 
+/// Create a brand-new owner-only file and write it without ever accepting an
+/// existing inode. Atomic-publication temporary files use this variant: an
+/// attacker who pre-creates or races a hardlink at the candidate path gets
+/// `AlreadyExists`, never a truncation of the linked target.
+pub fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let mut file = create_new_owner_only(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
+}
+
 #[cfg(unix)]
 fn create_new_owner_only(path: &Path) -> io::Result<File> {
     use std::os::unix::fs::OpenOptionsExt as _;
@@ -164,6 +174,20 @@ mod tests {
 
         assert!(read_owner_only(dir.path()).is_err());
         assert!(write_owner_only(dir.path(), b"nope").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn create_new_write_refuses_a_precreated_hardlink_without_truncating_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("managed-artifact");
+        let candidate = dir.path().join("publication-temp");
+        std::fs::write(&target, b"do-not-touch").unwrap();
+        std::fs::hard_link(&target, &candidate).unwrap();
+
+        let error = write_new_owner_only(&candidate, b"replacement").unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read(target).unwrap(), b"do-not-touch");
     }
 
     #[cfg(not(unix))]

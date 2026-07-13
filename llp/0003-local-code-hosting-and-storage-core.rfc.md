@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-07 (ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
+**Revised:** 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
@@ -240,6 +240,13 @@ Mutation execution is server-authoritative. A mutation request that names a
 registered handler should run that handler on the server against the current
 database state. Direct table writes can exist for bring-up and tests, but the
 paved path is handler-based mutation.
+
+`app.reset` with an optional seed is likewise one logical write. Table and
+changeset deletion, version reset, seed validation, seed insertion, and the
+seed changeset commit in one SQLite transaction. Runtime generations,
+subscriptions, warm VMs, and cron demand state advance only after that commit.
+If any seed row is invalid, the transaction rolls back and the prior database
+and live runtime remain intact (ENG-24576).
 
 **Drive handlers to completion; commit writes in one brief transaction.** This
 is the structural correction to the Valet failure mode that both rejected

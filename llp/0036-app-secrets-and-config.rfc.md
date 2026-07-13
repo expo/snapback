@@ -615,9 +615,10 @@ from three orthogonal axes plus one overlay — names and states only, never
 values; everything else projects from this:
 
 - **value:** `unset → set` (per pool member for pooled entries);
-- **verification:** `unverified → verified(at) | failed(diagnostic)`; any
-  value change resets it to `unverified`, and it never survives migration to
-  a new deployment (it attests *this* deployment's values);
+- **verification:** `unverified → verified(at) | failed(diagnostic)`; every
+  set/unset transition changes an opaque value revision and resets it to
+  `unverified`, and it never survives migration to a new deployment (it
+  attests *this* deployment's exact value identity);
 - **application:** `applied(generation) | pending(staged generation)` —
   writer-computed and attested per §Config generations; on
   `local-file-immediate` this axis is trivially `applied`;
@@ -716,6 +717,11 @@ Probes execute as ordinary actions — same egress allowlist, same grant, no
 special network powers — and their results land in verification state and
 diagnostics, never in logs as raw responses (a vendor error body can echo the
 key that was sent).
+The host stages the entry's opaque revision with the detached probe and records
+the result only through a compare-and-set against that revision. A concurrent
+set, unset, or delete-and-recreate discards the stale outcome with a stable
+conflict diagnostic, even when the replacement has identical bytes; no value or
+value hash is retained for this check (ENG-24563).
 
 **Route placement** ([LLP 0031](./0031-server-route-taxonomy.spec.md)): the
 API routes are `system-api` entries with `admin-write` (set/unset/verify) and

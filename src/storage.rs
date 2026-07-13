@@ -18,6 +18,17 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+#[cfg(test)]
+type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
+
+#[cfg(test)]
+thread_local! {
+    /// Deterministic failure injection immediately before reset+seed commit.
+    /// Thread-local keeps parallel tests from perturbing unrelated databases.
+    static BEFORE_RESET_COMMIT_HOOK: std::cell::RefCell<Option<ResetCommitHook>> =
+        const { std::cell::RefCell::new(None) };
+}
+
 const META_SCHEMA_MANIFEST: &str = "schema_manifest";
 const META_CRON_STATE: &str = "cron_state";
 // @ref LLP 0032 L3 — the monotonic replay floor: the highest change version
@@ -527,8 +538,24 @@ impl LocalDatabase {
     }
 
     pub fn reset(&mut self) -> SnapbackResult<()> {
+        self.reset_and_seed(None).map(|_| ())
+    }
+
+    /// Replace all app data with an optional declarative seed in one SQLite
+    /// transaction. Validation, inserts, version reset, and seed changes are
+    /// all covered by the same commit: any error drops the transaction and
+    /// leaves the previous database byte-for-byte visible to callers.
+    ///
+    /// @ref LLP 0003#execution-and-write-semantics — a logical mutation has
+    /// one durable commit boundary; reset+seed is one operation, not a
+    /// committed reset followed by a fallible second mutation.
+    pub fn reset_and_seed(
+        &mut self,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<Option<MutationOutput>> {
+        let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
-        for table in &self.schema.tables {
+        for table in &schema.tables {
             tx.execute(&format!("DELETE FROM {}", quote_ident(&table.name)?), [])?;
         }
         tx.execute("DELETE FROM _snapback_changes", [])?;
@@ -537,9 +564,39 @@ impl LocalDatabase {
             "DELETE FROM _snapback_meta WHERE key = ?1",
             params![META_RETENTION_FLOOR],
         )?;
+        // Remove the previous runtime ledger in the same durable boundary.
+        // The post-commit runtime pass persists the new clean state; if that
+        // secondary write fails, restart observes no stale pre-reset claims.
+        tx.execute(
+            "DELETE FROM _snapback_meta WHERE key = ?1",
+            params![META_CRON_STATE],
+        )?;
         tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
+
+        let seeded = match seed {
+            None => None,
+            Some(seed) => {
+                let changed_count = seed_into_transaction(&tx, &schema, seed, 1)?;
+                if changed_count > 0 {
+                    set_version(&tx, 1)?;
+                }
+                Some(MutationOutput {
+                    version: if changed_count > 0 { 1 } else { 0 },
+                    changed_count,
+                    result: Value::Null,
+                    ctx_ledger: None,
+                })
+            }
+        };
+        #[cfg(test)]
+        BEFORE_RESET_COMMIT_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook()?;
+            }
+            Ok::<(), SnapbackError>(())
+        })?;
         tx.commit()?;
-        Ok(())
+        Ok(seeded)
     }
 
     pub fn load_cron_state(&self) -> SnapbackResult<Option<Value>> {
@@ -584,43 +641,10 @@ impl LocalDatabase {
     }
 
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
-        let mut changed_count = 0usize;
-        let now_ms = now_millis();
         let next_version = self.current_version()? + 1;
         let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
-
-        for (table_name, rows) in seed.tables {
-            let table = schema_table(&schema, &table_name)?;
-            for mut row in rows {
-                // Declarative seeds may choose a stable id, but every other
-                // system field remains host-owned. Remove the seed identity
-                // carrier before entering the same insert validator used by
-                // handler/derived writes.
-                let id = match row.remove("_id") {
-                    None => new_id(),
-                    Some(Value::String(id)) if !id.is_empty() => id,
-                    Some(_) => {
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_SEED_INVALID",
-                            "storage",
-                            format!("seed _id for {table_name} must be a nonempty string"),
-                        ));
-                    }
-                };
-                let document = insert_document(&tx, table, &id, &row, next_version, now_ms)?;
-                record_change(
-                    &tx,
-                    next_version,
-                    &table.name,
-                    &id,
-                    ChangeOp::Insert,
-                    Some(&document),
-                    now_ms,
-                )?;
-                changed_count += 1;
-            }
-        }
+        let changed_count = seed_into_transaction(&tx, &schema, seed, next_version)?;
 
         if changed_count > 0 {
             set_version(&tx, next_version)?;
@@ -2578,6 +2602,48 @@ fn timestamp_to_sql_millis(value: u64) -> SnapbackResult<i64> {
     })
 }
 
+fn seed_into_transaction(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    seed: SeedData,
+    version: u64,
+) -> SnapbackResult<usize> {
+    let mut changed_count = 0usize;
+    let now_ms = now_millis();
+    for (table_name, rows) in seed.tables {
+        let table = schema_table(schema, &table_name)?;
+        for mut row in rows {
+            // Declarative seeds may choose a stable id, but every other
+            // system field remains host-owned. Remove the seed identity
+            // carrier before entering the same insert validator used by
+            // handler/derived writes.
+            let id = match row.remove("_id") {
+                None => new_id(),
+                Some(Value::String(id)) if !id.is_empty() => id,
+                Some(_) => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEED_INVALID",
+                        "storage",
+                        format!("seed _id for {table_name} must be a nonempty string"),
+                    ));
+                }
+            };
+            let document = insert_document(tx, table, &id, &row, version, now_ms)?;
+            record_change(
+                tx,
+                version,
+                &table.name,
+                &id,
+                ChangeOp::Insert,
+                Some(&document),
+                now_ms,
+            )?;
+            changed_count += 1;
+        }
+    }
+    Ok(changed_count)
+}
+
 fn insert_document(
     tx: &Transaction<'_>,
     table: &TableManifest,
@@ -3285,6 +3351,66 @@ mod guarded_commit_tests {
     fn assert_empty(db: &LocalDatabase) {
         assert_eq!(db.current_version().expect("version"), 0);
         assert_eq!(db.scan_table("items", 10, 0).expect("scan").total, 0);
+    }
+
+    fn seed_data(id: &str, title: &str) -> SeedData {
+        SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!(id)),
+                    ("title".to_owned(), json!(title)),
+                ])],
+            )]),
+        }
+    }
+
+    #[test]
+    fn reset_seed_rolls_back_insert_and_precommit_failures() {
+        let mut db = database();
+        db.seed(seed_data("old", "old data")).expect("initial seed");
+
+        let duplicate_seed = SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("duplicate")),
+                        ("title".to_owned(), json!("first")),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("duplicate")),
+                        ("title".to_owned(), json!("second")),
+                    ]),
+                ],
+            )]),
+        };
+        db.reset_and_seed(Some(duplicate_seed))
+            .expect_err("duplicate insert must roll back the reset transaction");
+        let scan = db
+            .scan_table("items", 10, 0)
+            .expect("scan after insert failure");
+        assert_eq!(scan.total, 1);
+        assert_eq!(scan.rows[0]["_id"], "old");
+        assert_eq!(db.current_version().unwrap(), 1);
+
+        BEFORE_RESET_COMMIT_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(|| {
+                Err(SnapbackError::error(
+                    "SNAPBACK_ACTION_TIMEOUT",
+                    "storage",
+                    "injected reset commit-boundary failure",
+                ))
+            }));
+        });
+        db.reset_and_seed(Some(seed_data("new", "new data")))
+            .expect_err("precommit injection must roll back the reset transaction");
+        let scan = db
+            .scan_table("items", 10, 0)
+            .expect("scan after commit-boundary failure");
+        assert_eq!(scan.total, 1);
+        assert_eq!(scan.rows[0]["_id"], "old");
+        assert_eq!(db.current_version().unwrap(), 1);
     }
 
     struct CommitVisibilityGuard {

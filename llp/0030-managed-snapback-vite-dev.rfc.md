@@ -365,6 +365,14 @@ written atomically by Snapback only after the listener is bound and instance-loc
 metadata has been recorded. Snapback publishes the descriptor through an
 owner-only temporary file and atomic rename; its mode is 0600 independent of the
 ambient umask because it participates in the local admin-capability handoff.
+A ready-file destination must also be identity-disjoint from every startup
+artifact Snapback manages: the database, its lock/config/token siblings, and
+SQLite WAL/SHM/journal sidecars. Snapback validates normalized paths plus
+existing symlink/hardlink identity before opening the database and again just
+before publication, rejecting collisions with a stable diagnostic. The random
+temporary publication candidate is allocated and included in both checks, then
+opened create-new/no-follow so a pre-created or racing inode can never be
+truncated (ENG-24562).
 A consumer resolves the server URL and any `adminTokenFile` handoff from one
 validated descriptor read, never two path reads that a rename could splice
 together. A stale ready file must never be accepted as current readiness.

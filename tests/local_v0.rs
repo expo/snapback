@@ -1244,6 +1244,95 @@ fn ibex_action_can_call_run_mutation_with_cron_metadata() {
 }
 
 #[test]
+fn cron_detached_rejection_is_scrubbed_before_any_diagnostic_retention() {
+    const SECRET: &str = "cron-secret-must-never-escape";
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async leakingCron(ctx) {
+    const secret = ctx.secrets.get('cronKey').expose();
+    Promise.resolve().then(() => { throw new Error(`detached ${secret}`); });
+    return { settled: true };
+  }
+};
+"#;
+    let mut action = FunctionDefinition::new(
+        "leakingCron",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "leakingCron".to_owned(),
+        }),
+    );
+    action.uses = vec!["cronKey".to_owned()];
+    let manifest = FunctionManifest {
+        functions: vec![action],
+        config: vec![ConfigEntryDefinition {
+            name: "cronKey".to_owned(),
+            description: None,
+            purpose: None,
+            secret: true,
+            required: false,
+            pool: false,
+            probe: None,
+            how_to_get: None,
+            acquisition: None,
+            default: None,
+            source_span: None,
+        }],
+        cron_jobs: vec![CronJobDefinition {
+            name: "leakingCronJob".to_owned(),
+            schedule: CronSchedule {
+                every_ms: Some(60_000),
+                cron: None,
+            },
+            action: "leakingCron".to_owned(),
+            enabled: true,
+            activation: CronActivationPolicy::default(),
+            jitter_policy: CronJitterPolicy {
+                enabled: false,
+                max_offset_ms: 0,
+            },
+            overlap_policy: CronOverlapPolicy::NoOverlap,
+            retry_policy: CronRetryPolicy {
+                mode: CronRetryMode::NextTick,
+            },
+            required_capabilities: vec![],
+            target_wakeup: None,
+            source_span: None,
+        }],
+        ..FunctionManifest::default()
+    };
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(
+        diagnostics.iter().all(|diagnostic| {
+            diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+        }),
+        "unexpected load diagnostics: {diagnostics:?}"
+    );
+    snapback
+        .set_config_entry("cronKey", vec![SECRET.to_owned()], false, "test")
+        .expect("set cron secret");
+
+    let record = snapback
+        .run_cron_job_now("leakingCronJob", 123_000)
+        .expect("manual cron run records handler failure");
+    assert_eq!(record.outcome, CronRunOutcome::Failed);
+    let record_json = serde_json::to_string(&record).unwrap();
+    assert!(!record_json.contains(SECRET), "{record_json}");
+    assert!(record_json.contains("[REDACTED]"), "{record_json}");
+
+    let gated = snapback.inspect().expect("gated inspect");
+    let gated_json = serde_json::to_string(&gated).unwrap();
+    assert!(!gated_json.contains(SECRET), "{gated_json}");
+    let public = snapback::local::PublicInspect::from(gated);
+    let public_json = serde_json::to_string(&public).unwrap();
+    assert!(!public_json.contains(SECRET), "{public_json}");
+    assert!(!public_json.contains("detached"), "{public_json}");
+}
+
+#[test]
 fn ibex_handler_throw_is_structured() {
     let snapback = configured_ibex_snapback(
         r#"
@@ -1517,6 +1606,57 @@ fn reset_and_seed_are_deterministic_handler_bypass_paths() {
     assert_eq!(query.rows.len(), 1);
     assert_eq!(query.rows[0]["_id"], "seed_1");
     assert_eq!(query.rows[0]["title"], "Seeded");
+}
+
+#[test]
+fn rejected_reset_seed_preserves_database_generation_and_subscriptions() {
+    let mut snapback = configured_snapback();
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Before rejected reset" }), "user_1"),
+        )
+        .unwrap();
+    snapback
+        .subscribe_live(
+            "listTodos",
+            LiveSubscribeInput {
+                connection_id: "client_atomic_reset".to_owned(),
+                input: input(json!({}), "user_1"),
+                supersedes: None,
+            },
+        )
+        .unwrap();
+    snapback.drain_outbox("client_atomic_reset");
+
+    let invalid = serde_json::from_value(json!({
+        "tables": {
+            "todos": [
+                { "_id": "valid-prefix", "title": "would land", "completed": false, "userId": "user_1" },
+                { "_id": "invalid-row", "title": null, "completed": false, "userId": "user_1" }
+            ]
+        }
+    }))
+    .unwrap();
+    let error = snapback.reset_with_seed(Some(invalid)).unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+    let rows = snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .unwrap();
+    assert_eq!(rows.rows.len(), 1);
+    assert_eq!(rows.rows[0]["title"], "Before rejected reset");
+
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "Subscription survived" }), "user_1"),
+        )
+        .unwrap();
+    assert_eq!(
+        snapback.drain_outbox("client_atomic_reset").len(),
+        1,
+        "a rejected reset must not dispose the live subscription"
+    );
 }
 
 /// ENG-23333 — `reset()` drops every live subscription, so each dropped

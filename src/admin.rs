@@ -107,6 +107,49 @@ impl ServerProfile {
     }
 }
 
+/// Environment half of an operation's authority tuple. Every transport and
+/// alias asks this same policy before invoking the operation core.
+///
+/// @ref LLP 0024#authority-tuple — dev-user impersonation and destructive
+/// operations are local/non-production capabilities regardless of transport.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OperationProfileRequirement {
+    Any,
+    NonProd,
+}
+
+/// One operation policy table shared by dedicated routes and multiplexed
+/// host-ops. `has_dev_user` means the caller selected an app identity rather
+/// than presenting hosted app authentication.
+pub(crate) fn operation_profile_requirement(
+    operation: &str,
+    has_dev_user: bool,
+) -> OperationProfileRequirement {
+    match operation {
+        "app.reset" | "schema.load" | "functions.load" => OperationProfileRequirement::NonProd,
+        "function.run" | "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
+        _ => OperationProfileRequirement::Any,
+    }
+}
+
+pub(crate) fn operation_profile_diagnostic(
+    profile: ServerProfile,
+    operation: &str,
+    requirement: OperationProfileRequirement,
+) -> Option<crate::diagnostic::Diagnostic> {
+    if requirement == OperationProfileRequirement::Any || profile.allows_provisioning() {
+        return None;
+    }
+    Some(crate::diagnostic::Diagnostic::error(
+        "SNAPBACK_PROFILE_FORBIDS",
+        "admin",
+        format!(
+            "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE=dev|demo|test to enable it",
+            profile.as_str()
+        ),
+    ))
+}
+
 fn env_profile(loopback: bool) -> ServerProfile {
     resolve_profile(std::env::var("SNAPBACK_PROFILE").ok().as_deref(), loopback)
 }
@@ -580,26 +623,18 @@ fn token_eq(configured: &str, provided: &str) -> bool {
     diff == 0
 }
 
-/// Route-level profile gate (ENG-22527): destructive/provisioning system
-/// writes require a non-prod profile in addition to AdminWrite.
-pub(crate) fn require_non_prod_profile(
+/// Route-level environment gate: resolve the requirement through the shared
+/// operation table, then enforce it in addition to AdminWrite.
+pub(crate) fn require_operation_profile(
     ctx: &ServerContext,
     operation: &str,
+    has_dev_user: bool,
 ) -> Result<(), crate::server::ApiError> {
-    if ctx.profile.allows_provisioning() {
-        return Ok(());
+    let requirement = operation_profile_requirement(operation, has_dev_user);
+    match operation_profile_diagnostic(ctx.profile, operation, requirement) {
+        None => Ok(()),
+        Some(diagnostic) => Err(crate::diagnostic::SnapbackError::new(diagnostic).into()),
     }
-    Err(crate::diagnostic::SnapbackError::new(
-        crate::diagnostic::Diagnostic::error(
-            "SNAPBACK_PROFILE_FORBIDS",
-            "admin",
-            format!(
-                "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE=dev|demo|test to enable it",
-                ctx.profile.as_str()
-            ),
-        ),
-    )
-    .into())
 }
 
 pub(crate) fn authorize(
@@ -1026,6 +1061,12 @@ async fn admin_run_function(
                 Some(FunctionKind::Mutation | FunctionKind::Action)
             );
             authorize(&ctx, &headers, write)?;
+            // A caller-supplied app user is the `devUser` authority mode, not
+            // hosted authentication. Apply the same centralized profile rule
+            // as the multiplexed host-ops alias before invoking app code.
+            //
+            // @ref LLP 0024#authority-tuple — devUser is local/dev only.
+            require_operation_profile(&ctx, "function.run", input.auth.user_id.is_some())?;
             if matches!(snapback.function_kind(&name), Some(FunctionKind::Action)) {
                 return Ok(match snapback.stage_app_action(&name) {
                     crate::local::StagedAppAction::Done(result) => Routed::Done(result),

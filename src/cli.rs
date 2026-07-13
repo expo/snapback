@@ -7,6 +7,7 @@ use crate::server;
 use anyhow::Context;
 use clap::Parser;
 use serde_json::{Value, json};
+use std::ffi::OsString;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -471,19 +472,40 @@ fn verify_stop_target(
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    let mut database_lock = None;
-    let mut database_path = None;
-    let snapback = if args.memory {
-        LocalSnapback::memory()?
+    let prepared_database_path = if args.memory {
+        None
     } else {
-        let db_path = prepare_database_path(&args.db)?;
-        // @ref LLP 0003#decision — one local server process owns the SQLite
-        // database and process-local runtime state for this app instance.
-        let lock = DatabaseInstanceLock::acquire(&db_path)?;
-        let snapback = LocalSnapback::open(&db_path)?;
-        database_path = Some(db_path);
-        database_lock = Some(lock);
-        snapback
+        Some(prepare_database_path(&args.db)?)
+    };
+    let ready_temp_path = args
+        .ready_file
+        .as_deref()
+        .map(ready_file_temp_path)
+        .transpose()?;
+    let mut managed_paths = managed_startup_paths(
+        prepared_database_path.as_deref(),
+        args.ready_file.as_deref(),
+    )?;
+    if let Some(path) = &ready_temp_path {
+        managed_paths.push(ManagedPath {
+            label: "ready-file temporary artifact",
+            path: path.clone(),
+        });
+    }
+    validate_path_disjointness(&managed_paths)?;
+
+    let mut database_lock = None;
+    let database_path = prepared_database_path;
+    let snapback = match database_path.as_ref() {
+        None => LocalSnapback::memory()?,
+        Some(db_path) => {
+            // @ref LLP 0003#decision — one local server process owns the SQLite
+            // database and process-local runtime state for this app instance.
+            let lock = DatabaseInstanceLock::acquire(db_path)?;
+            let snapback = LocalSnapback::open(db_path)?;
+            database_lock = Some(lock);
+            snapback
+        }
     };
 
     let read_lane = snapback.read_lane();
@@ -568,9 +590,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             admin_token_file: admin_token_file_display.clone(),
             diagnostics: Vec::new(),
         };
-        write_ready_file_atomic(
+        write_ready_file_atomic_protected(
             path,
             &format!("{}\n", serde_json::to_string_pretty(&descriptor)?),
+            &managed_paths,
+            ready_temp_path
+                .as_deref()
+                .context("ready-file temporary path was not allocated")?,
         )
         .with_context(|| format!("failed to write ready file {}", path.display()))?;
         println!("ready file: {}", path.display());
@@ -662,7 +688,206 @@ async fn shutdown_signal() {
     ctrl_c.await;
 }
 
+#[derive(Clone, Debug)]
+struct ManagedPath {
+    label: &'static str,
+    path: PathBuf,
+}
+
+fn managed_startup_paths(
+    database: Option<&Path>,
+    ready_file: Option<&Path>,
+) -> anyhow::Result<Vec<ManagedPath>> {
+    let mut paths = Vec::new();
+    if let Some(database) = database {
+        paths.push(ManagedPath {
+            label: "database",
+            path: database.to_path_buf(),
+        });
+        paths.push(ManagedPath {
+            label: "database lock",
+            path: crate::instance_lock::lock_path_for_database(database)?,
+        });
+        paths.push(ManagedPath {
+            label: "config store",
+            path: crate::config::ConfigStore::path_for_database(database),
+        });
+        paths.push(ManagedPath {
+            label: "admin token",
+            path: crate::admin::admin_token_sibling(database),
+        });
+        for (label, suffix) in [
+            ("SQLite WAL", "-wal"),
+            ("SQLite shared memory", "-shm"),
+            ("SQLite journal", "-journal"),
+        ] {
+            paths.push(ManagedPath {
+                label,
+                path: path_with_filename_suffix(database, suffix)?,
+            });
+        }
+    }
+    if let Some(ready_file) = ready_file {
+        paths.push(ManagedPath {
+            label: "ready file",
+            path: ready_file.to_path_buf(),
+        });
+        if database.is_none() {
+            paths.push(ManagedPath {
+                label: "admin token",
+                path: crate::admin::admin_token_sibling(ready_file),
+            });
+        }
+    }
+    Ok(paths)
+}
+
+fn path_with_filename_suffix(path: &Path, suffix: &str) -> anyhow::Result<PathBuf> {
+    let mut name = path
+        .file_name()
+        .context("managed path must include a file name")?
+        .to_os_string();
+    name.push(suffix);
+    Ok(path.with_file_name(name))
+}
+
+fn resolve_candidate_path(path: &Path) -> anyhow::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    if let Ok(canonical) = std::fs::canonicalize(&absolute) {
+        return Ok(canonical);
+    }
+
+    // Resolve the deepest existing ancestor, then append the missing suffix.
+    // This normalizes `..` and catches a symlinked parent even before the final
+    // artifact exists.
+    let mut ancestor = absolute.as_path();
+    let mut suffix: Vec<OsString> = Vec::new();
+    loop {
+        if let Ok(canonical) = std::fs::canonicalize(ancestor) {
+            let mut resolved = canonical;
+            for component in suffix.iter().rev() {
+                resolved.push(component);
+            }
+            return Ok(normalize_lexically(&resolved));
+        }
+        let Some(name) = ancestor.file_name() else {
+            // `Path::file_name` is intentionally empty for a trailing `..`.
+            // Normalize that lexical spelling and restart the existing-prefix
+            // walk; a root path itself would already have canonicalized.
+            let normalized = normalize_lexically(&absolute);
+            if normalized != absolute {
+                return resolve_candidate_path(&normalized);
+            }
+            anyhow::bail!(
+                "managed path has no resolvable ancestor: {}",
+                path.display()
+            );
+        };
+        suffix.push(name.to_os_string());
+        ancestor = ancestor.parent().with_context(|| {
+            format!("managed path has no resolvable parent: {}", path.display())
+        })?;
+    }
+}
+
+fn normalize_lexically(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            component => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
+}
+
+#[cfg(unix)]
+fn existing_file_identity(path: &Path) -> Option<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt as _;
+    std::fs::metadata(path)
+        .ok()
+        .map(|metadata| (metadata.dev(), metadata.ino()))
+}
+
+#[cfg(not(unix))]
+fn existing_file_identity(_path: &Path) -> Option<(u64, u64)> {
+    None
+}
+
+fn validate_path_disjointness(paths: &[ManagedPath]) -> anyhow::Result<()> {
+    // @ref LLP 0030#readiness-and-port-discovery — readiness publication is
+    // atomic and must not alias another managed startup capability/artifact.
+    let resolved = paths
+        .iter()
+        .map(|path| {
+            Ok((
+                path,
+                resolve_candidate_path(&path.path)?,
+                existing_file_identity(&path.path),
+            ))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    for left in 0..resolved.len() {
+        for right in (left + 1)..resolved.len() {
+            let (left_path, left_resolved, left_id) = &resolved[left];
+            let (right_path, right_resolved, right_id) = &resolved[right];
+            let same_inode = left_id.is_some() && left_id == right_id;
+            if left_resolved == right_resolved || same_inode {
+                anyhow::bail!(
+                    "SNAPBACK_READY_FILE_PATH_COLLISION: {} ({}) aliases {} ({}); every managed startup artifact must have a distinct path and file identity",
+                    left_path.label,
+                    left_path.path.display(),
+                    right_path.label,
+                    right_path.path.display(),
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
 fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {
+    let tmp_path = ready_file_temp_path(path)?;
+    write_ready_file_atomic_protected(
+        path,
+        content,
+        &[
+            ManagedPath {
+                label: "ready file",
+                path: path.to_path_buf(),
+            },
+            ManagedPath {
+                label: "ready-file temporary artifact",
+                path: tmp_path.clone(),
+            },
+        ],
+        &tmp_path,
+    )
+}
+
+fn ready_file_temp_path(path: &Path) -> anyhow::Result<PathBuf> {
+    let file_name = path
+        .file_name()
+        .context("ready file path must include a file name")?
+        .to_string_lossy();
+    let tmp_name = format!(".{file_name}.tmp-{}", Uuid::now_v7().simple());
+    Ok(path.with_file_name(tmp_name))
+}
+
+fn write_ready_file_atomic_protected(
+    path: &Path,
+    content: &str,
+    protected_paths: &[ManagedPath],
+    tmp_path: &Path,
+) -> anyhow::Result<()> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
     {
@@ -670,20 +895,19 @@ fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {
             format!("failed to create ready-file directory {}", parent.display())
         })?;
     }
-    let file_name = path
-        .file_name()
-        .context("ready file path must include a file name")?
-        .to_string_lossy();
-    let tmp_name = format!(".{file_name}.tmp-{}", Uuid::now_v7().simple());
-    let tmp_path = path.with_file_name(tmp_name);
+    // Re-check immediately before publication to close the startup-to-ready
+    // window where a symlink or hardlink could otherwise be substituted.
+    validate_path_disjointness(protected_paths)?;
     let write_result = (|| -> anyhow::Result<()> {
-        crate::secure_file::write_owner_only(&tmp_path, content.as_bytes()).with_context(|| {
-            format!(
-                "failed to write owner-only temporary ready file {}",
-                tmp_path.display()
-            )
-        })?;
-        std::fs::rename(&tmp_path, path).with_context(|| {
+        crate::secure_file::write_new_owner_only(tmp_path, content.as_bytes()).with_context(
+            || {
+                format!(
+                    "failed to write owner-only temporary ready file {}",
+                    tmp_path.display()
+                )
+            },
+        )?;
+        std::fs::rename(tmp_path, path).with_context(|| {
             format!(
                 "failed to atomically publish ready file {} from {}",
                 path.display(),
@@ -693,7 +917,7 @@ fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {
         Ok(())
     })();
     if write_result.is_err() {
-        let _ = std::fs::remove_file(&tmp_path);
+        let _ = std::fs::remove_file(tmp_path);
     }
     write_result
 }
@@ -792,9 +1016,10 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, Cli, HostCommand, TargetArgs, bind_first_available, bind_listener, parse_run_args,
-        prepare_database_path, reject_misdirected_serve_flags, resolve_http_target,
-        write_ready_file_atomic,
+        Args, Cli, HostCommand, ManagedPath, TargetArgs, bind_first_available, bind_listener,
+        managed_startup_paths, parse_run_args, path_with_filename_suffix, prepare_database_path,
+        reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
+        write_ready_file_atomic, write_ready_file_atomic_protected,
     };
     use clap::Parser;
     use serde_json::json;
@@ -951,6 +1176,96 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
             .count();
         assert_eq!(leftovers, 0, "temporary ready files should be cleaned up");
+    }
+
+    #[test]
+    fn ready_file_must_be_identity_disjoint_from_every_managed_artifact() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("app.sqlite3");
+        std::fs::write(&db, b"database").unwrap();
+
+        for ready in [
+            db.clone(),
+            crate::instance_lock::lock_path_for_database(&db).unwrap(),
+            crate::config::ConfigStore::path_for_database(&db),
+            crate::admin::admin_token_sibling(&db),
+            path_with_filename_suffix(&db, "-wal").unwrap(),
+            dir.path()
+                .join("missing-parent")
+                .join("..")
+                .join("app.sqlite3-wal"),
+        ] {
+            let error = validate_path_disjointness(
+                &managed_startup_paths(Some(&db), Some(&ready)).unwrap(),
+            )
+            .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("SNAPBACK_READY_FILE_PATH_COLLISION"),
+                "{error:#}"
+            );
+        }
+
+        let distinct = dir.path().join("server.ready.json");
+        validate_path_disjointness(&managed_startup_paths(Some(&db), Some(&distinct)).unwrap())
+            .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ready_file_rejects_symlink_and_hardlink_aliases() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("app.sqlite3");
+        std::fs::write(&db, b"database").unwrap();
+
+        let symlink = dir.path().join("symlink.ready");
+        std::os::unix::fs::symlink(&db, &symlink).unwrap();
+        let error =
+            validate_path_disjointness(&managed_startup_paths(Some(&db), Some(&symlink)).unwrap())
+                .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
+        );
+
+        let hardlink = dir.path().join("hardlink.ready");
+        std::fs::hard_link(&db, &hardlink).unwrap();
+        let error =
+            validate_path_disjointness(&managed_startup_paths(Some(&db), Some(&hardlink)).unwrap())
+                .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ready_publication_refuses_a_precreated_temp_hardlink_without_truncation() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("server.ready.json");
+        let tmp = dir.path().join(".server.ready.json.injected-temp");
+        let managed = dir.path().join("managed-artifact");
+        std::fs::write(&managed, b"do-not-touch").unwrap();
+        std::fs::hard_link(&managed, &tmp).unwrap();
+        let protected = [
+            ManagedPath {
+                label: "ready file",
+                path: ready.clone(),
+            },
+            ManagedPath {
+                label: "ready-file temporary artifact",
+                path: tmp.clone(),
+            },
+        ];
+
+        write_ready_file_atomic_protected(&ready, "replacement", &protected, &tmp)
+            .expect_err("an existing temp inode must never be opened or truncated");
+        assert_eq!(std::fs::read(managed).unwrap(), b"do-not-touch");
+        assert!(!ready.exists());
     }
 
     #[cfg(unix)]

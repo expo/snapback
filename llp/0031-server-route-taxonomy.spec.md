@@ -355,6 +355,13 @@ field-level Enforcement test gains a whole-payload source-sentinel assertion —
 a sentinel planted in both runtime shapes must appear in the gated payload and
 never in the public one.
 
+Further field-level hardening (ENG-24560) treats handler-controlled operational
+text the same way: public cron inspection exposes only aggregate job,
+failed-job, and in-flight counts, while public recent diagnostics expose only
+code, severity, and subsystem. Raw cron runs/results and diagnostic
+messages/details stay on the gated twin. The root instance-status rendering
+also omits the absolute minted admin-token file path.
+
 **D4 — Split the collections routes: `ensure` is app-data, `register` is system.**
 These are different operations. `/ephemeral/collections/ensure` is *validate-only*
 — it errors if the named definitions are not already loaded or do not match, and

@@ -209,6 +209,11 @@ One constraint spans both: **public means public.** Every rendering is a
 projection of the same public instance-status object; nothing on the HTML
 page may exceed what the YAML/JSON renderings expose. App identity fields are
 app-authored input on an open route, so the HTML rendering escapes them.
+The public projection never includes the minted admin-token file path, raw cron
+run records/results, or diagnostic messages/details. Cron is reduced to
+aggregate job/failure/in-flight counts and diagnostics to code, severity, and
+subsystem; full operational records remain available only through authenticated
+admin inspect (ENG-24560).
 
 The app identity lives on the schema manifest (an optional `app` block beside
 `appId`) because the manifest is already the app-authored artifact the

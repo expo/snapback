@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-07-12 (ENG-24561: operation profile requirements are centralized across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
@@ -249,6 +249,13 @@ Hosted app-data MCP mutation tools are gated on `servicePrincipal`. Until
 LLP 0011 defines scoped tokens, hosted projections must reject those calls with a
 structured capability/auth diagnostic. They must not silently reinterpret
 `devUser` as hosted authority.
+
+The environment half of this authority tuple is operation-level policy, not a
+property of one route. Every alias and transport asks the same centralized
+profile policy before executing the operation core: provisioning/reset and any
+`function.run` or `function.explain` carrying a caller-selected `userId` require
+a non-production profile. A host-ops result reports the active profile in its
+target metadata rather than hard-coding local development (ENG-24561).
 
 ## CLI Projection
 

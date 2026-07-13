@@ -322,6 +322,32 @@ fn dk7_representative_values_validate_against_committed_schemas() {
     );
 }
 
+#[test]
+fn public_inspect_projection_drops_handler_controlled_diagnostic_text() {
+    const SECRET_SENTINEL: &str = "configured-secret-must-not-be-public";
+    let mut inspect = representative_inspect();
+    inspect.recent_diagnostics.push(
+        Diagnostic::error("SNAPBACK_HANDLER_FAILED", "runtime", SECRET_SENTINEL)
+            .with_details(json!({ "vendorBody": SECRET_SENTINEL })),
+    );
+    inspect.cron.diagnostics.push(
+        Diagnostic::error("SNAPBACK_CRON_FAILED", "cron", SECRET_SENTINEL)
+            .with_details(json!({ "reason": SECRET_SENTINEL })),
+    );
+    assert!(
+        serde_json::to_string(&inspect)
+            .unwrap()
+            .contains(SECRET_SENTINEL),
+        "fixture must prove the gated source contains the sentinel"
+    );
+    let public = serde_json::to_string(&PublicInspect::from(inspect)).unwrap();
+    assert!(!public.contains(SECRET_SENTINEL), "{public}");
+    assert!(
+        public.contains("SNAPBACK_HANDLER_FAILED"),
+        "codes remain useful"
+    );
+}
+
 /// ENG-23964 publication gate: a clean consumer can trust the committed
 /// profile + corpus manifest + cases without compiling Rust.
 #[test]

@@ -199,14 +199,17 @@ pub struct LiveSubscriptionInfo {
 /// `/`. It is a typed allowlist: the `From<InspectState>` below destructures the
 /// full struct, so a newly-added `InspectState` (or `StorageInfo`,
 /// `LiveSubscriptionInfo`) field is a compile error here rather than a silent
-/// leak. Three facts are deliberately dropped and live only in the gated
-/// `/_snapback/api/inspect` twin: `subscriptions[].connection_id` (the
+/// leak. Sensitive facts deliberately dropped to, or reduced on, the gated
+/// `/_snapback/api/inspect` twin include `subscriptions[].connection_id` (the
 /// enumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute
 /// `storage.sqlite_path` (an environment leak), and the executable handler
 /// bodies inside `functions` (`IbexModule.source` / `HandlerPlan` bodies — a
-/// source disclosure, ENG-23441; see [`PublicFunctionManifest`]).
+/// source disclosure, ENG-23441; see [`PublicFunctionManifest`]). Cron state is
+/// aggregate-only and recent diagnostics omit handler-controlled message and
+/// detail fields.
 ///
 /// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.
+/// @ref LLP 0036#runtime-exposure-d5-d8 — secret-like runtime diagnostics are redacted before retention and never projected anonymously as raw text.
 #[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub struct PublicInspect {
     #[serde(rename = "artifactKind")]
@@ -230,9 +233,9 @@ pub struct PublicInspect {
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
-    pub cron: CronInspectState,
+    pub cron: PublicCronInspectState,
     #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
-    pub recent_diagnostics: Vec<Diagnostic>,
+    pub recent_diagnostics: Vec<PublicDiagnostic>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
 }
@@ -250,6 +253,71 @@ pub struct PublicStorageInfo {
 pub struct PublicSubscriptionInfo {
     pub id: String,
     pub function: String,
+}
+
+/// Public cron posture: aggregate state only. Run records, result values,
+/// error messages, diagnostic details, run ids, and slot/idempotency keys stay
+/// on the gated administrative inspect surface because handler-controlled text
+/// can contain credentials or application data.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicCronInspectState {
+    pub artifact_kind: String,
+    pub schema_version: String,
+    pub job_count: usize,
+    pub failed_job_count: usize,
+    pub in_flight_job_count: usize,
+}
+
+impl From<CronInspectState> for PublicCronInspectState {
+    fn from(cron: CronInspectState) -> Self {
+        let CronInspectState {
+            artifact_kind,
+            schema_version,
+            jobs,
+            recent_runs: _,
+            diagnostics: _,
+        } = cron;
+        Self {
+            artifact_kind,
+            schema_version,
+            job_count: jobs.len(),
+            failed_job_count: jobs
+                .iter()
+                .filter(|job| job.last_outcome == Some(CronRunOutcome::Failed))
+                .count(),
+            in_flight_job_count: jobs
+                .iter()
+                .filter(|job| job.in_flight_run_id.is_some())
+                .count(),
+        }
+    }
+}
+
+/// A diagnostic safe for anonymous inspection. Handler-controlled messages
+/// and arbitrary details are intentionally absent.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicDiagnostic {
+    pub code: String,
+    pub severity: DiagnosticSeverity,
+    pub subsystem: String,
+}
+
+impl From<Diagnostic> for PublicDiagnostic {
+    fn from(diagnostic: Diagnostic) -> Self {
+        let Diagnostic {
+            code,
+            severity,
+            subsystem,
+            message: _,
+            details: _,
+        } = diagnostic;
+        Self {
+            code,
+            severity,
+            subsystem,
+        }
+    }
 }
 
 impl From<InspectState> for PublicInspect {
@@ -304,8 +372,11 @@ impl From<InspectState> for PublicInspect {
             reaped_connections,
             live_delivery,
             ephemeral,
-            cron,
-            recent_diagnostics,
+            cron: cron.into(),
+            recent_diagnostics: recent_diagnostics
+                .into_iter()
+                .map(PublicDiagnostic::from)
+                .collect(),
             capability_gaps,
         }
     }
@@ -531,6 +602,8 @@ pub(crate) enum StagedConfigVerify {
 
 pub(crate) struct ConfigVerifyStage {
     pub probe: String,
+    /// Opaque identity of the exact entry value the probe is exercising.
+    pub entry_revision: u64,
     /// Cooldown-claim wall time; also the `at_ms` of the eventual record.
     pub started_ms: u64,
     pub input: HandlerInput,
@@ -1031,7 +1104,23 @@ impl LocalSnapback {
     }
 
     pub fn reset(&mut self) -> SnapbackResult<()> {
-        self.db.reset()?;
+        self.reset_with_seed(None).map(|_| ())
+    }
+
+    /// Atomically reset durable app data and optionally install a seed, then
+    /// advance the in-memory lifecycle boundary only after SQLite commits.
+    /// A rejected seed therefore preserves both the old database and every
+    /// subscription/runtime generation that describes it.
+    pub fn reset_with_seed(
+        &mut self,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<Option<MutationOutput>> {
+        let seeded = self.db.reset_and_seed(seed)?;
+        self.finish_committed_reset();
+        Ok(seeded)
+    }
+
+    fn finish_committed_reset(&mut self) {
         self.advance_app_generation();
         self.warm_vms.clear();
         // ENG-23333: capture the live subscriptions being dropped so their
@@ -1098,8 +1187,12 @@ impl LocalSnapback {
         }
         // Clearing subscriptions can disarm a demand-gated cron job (L5).
         self.refresh_cron_active();
-        self.persist_cron_state()?;
-        Ok(())
+        // The durable reset has already committed. A secondary cron-state
+        // persistence failure is diagnostic-only: returning an error here
+        // would falsely imply the destructive operation rolled back.
+        if let Err(error) = self.persist_cron_state() {
+            self.record_diagnostics(vec![error.diagnostic]);
+        }
     }
 
     pub(crate) fn app_generation(&self) -> u64 {
@@ -2673,7 +2766,7 @@ impl LocalSnapback {
             StagedConfigVerify::Done(outcome) => Ok(*outcome),
             StagedConfigVerify::Ready(stage) => {
                 let result = self.invoke_action(&stage.probe, stage.input, stage.metadata);
-                self.finish_config_verify(name, stage.started_ms, result)
+                self.finish_config_verify(name, stage.entry_revision, stage.started_ms, result)
             }
         }
     }
@@ -2698,6 +2791,13 @@ impl LocalSnapback {
                 format!("config entry {name} has no value set; set it before verifying"),
             ));
         }
+        let entry_revision = self.config.entry_revision(name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CONFIG_MISSING",
+                "config",
+                format!("config entry {name} disappeared before verification staged"),
+            )
+        })?;
         let now = now_millis();
         self.config.check_verify_cooldown(name, now)?;
         let metadata = CronRunMetadata {
@@ -2723,12 +2823,13 @@ impl LocalSnapback {
             // failed verification, exactly as the in-lock run reported it.
             Err(error) => {
                 return Ok(StagedConfigVerify::Done(Box::new(
-                    self.finish_config_verify(name, now, Err(error))?,
+                    self.finish_config_verify(name, entry_revision, now, Err(error))?,
                 )));
             }
         };
         Ok(StagedConfigVerify::Ready(Box::new(ConfigVerifyStage {
             probe,
+            entry_revision,
             started_ms: now,
             input,
             metadata,
@@ -2741,6 +2842,7 @@ impl LocalSnapback {
     pub(crate) fn finish_config_verify(
         &mut self,
         name: &str,
+        entry_revision: u64,
         at_ms: u64,
         result: SnapbackResult<Value>,
     ) -> SnapbackResult<ConfigVerifyOutcome> {
@@ -2751,11 +2853,12 @@ impl LocalSnapback {
                     None
                 } else {
                     Some(
-                        value
-                            .get("message")
-                            .and_then(Value::as_str)
-                            .unwrap_or("probe reported failure")
-                            .to_owned(),
+                        self.config.redact_text(
+                            value
+                                .get("message")
+                                .and_then(Value::as_str)
+                                .unwrap_or("probe reported failure"),
+                        ),
                     )
                 };
                 VerificationRecord {
@@ -2764,16 +2867,27 @@ impl LocalSnapback {
                     diagnostic,
                 }
             }
-            Err(error) => VerificationRecord {
-                ok: false,
-                at_ms,
-                diagnostic: Some(format!(
-                    "{}: {}",
-                    error.diagnostic.code, error.diagnostic.message
-                )),
-            },
+            Err(error) => {
+                let error = self.config.redact_diagnostic(error.diagnostic);
+                VerificationRecord {
+                    ok: false,
+                    at_ms,
+                    diagnostic: Some(format!("{}: {}", error.code, error.message)),
+                }
+            }
         };
-        self.config.record_verification(name, record.clone())?;
+        if !self
+            .config
+            .record_verification_if_revision(name, entry_revision, record.clone())?
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONFIG_VERIFY_STALE",
+                "config",
+                format!(
+                    "config entry {name} changed while its probe was running; the result was discarded"
+                ),
+            ));
+        }
         self.record_diagnostics(vec![
             Diagnostic::info(
                 "SNAPBACK_CONFIG_VERIFY",
@@ -3325,6 +3439,7 @@ impl LocalSnapback {
         // consistent with the claim's start (start + elapsed), so a run's
         // duration reflects actual execution time on any clock the caller
         // stamped the claim with.
+        let result = result.map_err(|diagnostic| self.config.redact_diagnostic(diagnostic));
         let elapsed_ms = now_millis().saturating_sub(started_wall_ms);
         let finished_at_ms = claim.started_at_ms.saturating_add(elapsed_ms);
         let record = self.cron.finish_run(claim, finished_at_ms, result);
@@ -3935,6 +4050,7 @@ impl LocalSnapback {
 
     fn record_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
         for diagnostic in diagnostics {
+            let diagnostic = self.config.redact_diagnostic(diagnostic);
             self.recent_diagnostics.push_back(diagnostic);
             while self.recent_diagnostics.len() > MAX_RECENT_DIAGNOSTICS {
                 let evict = self

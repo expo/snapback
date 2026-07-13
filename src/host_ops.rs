@@ -274,13 +274,33 @@ pub fn execute_host_op(
     request: HostOpsRequest,
     server_url: Option<String>,
 ) -> HostOpsResult {
+    execute_host_op_with_profile(
+        snapback,
+        request,
+        server_url,
+        crate::admin::ServerProfile::Dev,
+    )
+}
+
+/// Execute with the serving environment's profile. HTTP passes the real
+/// [`ServerProfile`]; the legacy in-process helper above deliberately models
+/// the trusted local-dev embedding posture.
+pub fn execute_host_op_with_profile(
+    snapback: &mut LocalSnapback,
+    request: HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let operation = request.operation.clone();
 
     let target = |snapback: &LocalSnapback| HostOpsTarget {
         app_id: snapback.loaded_app_id(),
         app_root: None,
-        target_profile: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        target_profile: match profile {
+            crate::admin::ServerProfile::Dev => TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            other => format!("local-{}-sqlite-ibex", other.as_str()),
+        },
         server_url: server_url.clone(),
     };
     let artifacts = |snapback: &LocalSnapback| HostOpsArtifacts {
@@ -306,6 +326,20 @@ pub fn execute_host_op(
         next: Vec::new(),
     };
 
+    let profile_requirement =
+        crate::admin::operation_profile_requirement(&operation, request.user_id.is_some());
+    if let Some(diagnostic) =
+        crate::admin::operation_profile_diagnostic(profile, &operation, profile_requirement)
+    {
+        return envelope(
+            snapback,
+            false,
+            authority_none(),
+            Value::Object(Default::default()),
+            vec![diagnostic],
+        );
+    }
+
     match operation.as_str() {
         "app.inspect" => match snapback.inspect() {
             Ok(state) => {
@@ -329,33 +363,28 @@ pub fn execute_host_op(
         },
         "app.reset" => {
             let seed = request.seed.clone();
-            match snapback.reset() {
-                Ok(()) => {
+            let seed_requested = seed.is_some();
+            match snapback.reset_with_seed(seed) {
+                Ok(seeded_output) => {
                     let mut data = serde_json::Map::new();
                     data.insert("resetScope".to_owned(), json!("app"));
-                    let mut diagnostics = Vec::new();
-                    let mut ok = true;
-                    let mut seeded = false;
-                    if let Some(seed) = seed {
-                        match snapback.seed(seed) {
-                            Ok(_) => seeded = true,
-                            Err(error) => {
-                                ok = false;
-                                diagnostics.push(error.diagnostic);
-                            }
-                        }
+                    data.insert("seeded".to_owned(), json!(seed_requested));
+                    if let Some(output) = seeded_output {
+                        data.insert(
+                            "seedCommit".to_owned(),
+                            serde_json::to_value(output).unwrap_or_default(),
+                        );
                     }
-                    data.insert("seeded".to_owned(), json!(seeded));
                     data.insert(
                         "databaseVersion".to_owned(),
                         json!(snapback.durable_version()),
                     );
                     envelope(
                         snapback,
-                        ok,
+                        true,
                         authority_admin("host-ops admin write gate"),
                         Value::Object(data),
-                        diagnostics,
+                        Vec::new(),
                     )
                 }
                 Err(error) => envelope(

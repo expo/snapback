@@ -43,6 +43,11 @@ pub struct VerificationRecord {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct StoredEntry {
     values: Vec<String>,
+    /// Opaque value identity. It changes on every set (including a same-value
+    /// rewrite), so a detached verifier can compare-and-set its result without
+    /// retaining or hashing secret material.
+    #[serde(default)]
+    pub revision: u64,
     #[serde(rename = "setAtMs", alias = "set_at_ms")]
     pub set_at_ms: u64,
     pub source: String,
@@ -189,6 +194,10 @@ impl ConfigStore {
         self.state.entries.get(name)
     }
 
+    pub fn entry_revision(&self, name: &str) -> Option<u64> {
+        self.entry(name).map(|entry| entry.revision)
+    }
+
     /// Value material for the runtime grant path — the one value exit.
     ///
     /// @ref LLP 0036#runtime-exposure-d5-d8 — values reach handler code only
@@ -233,14 +242,16 @@ impl ConfigStore {
             .map(|existing| existing.values != next)
             .unwrap_or(true);
         let mut state = self.state.clone();
+        let revision = next_generation(state.generation)?;
         let entry = StoredEntry {
             values: next,
+            revision,
             set_at_ms: now_ms,
             source: source.to_owned(),
             verified: None,
         };
         state.entries.insert(name.to_owned(), entry);
-        state.generation += 1;
+        state.generation = revision;
         self.persist_state(&state)?;
         self.state = state;
         Ok(WriteOutcome {
@@ -255,7 +266,7 @@ impl ConfigStore {
         let mut state = self.state.clone();
         let value_changed = state.entries.remove(name).is_some();
         if value_changed {
-            state.generation += 1;
+            state.generation = next_generation(state.generation)?;
             self.persist_state(&state)?;
             self.state = state;
         }
@@ -270,8 +281,29 @@ impl ConfigStore {
         name: &str,
         record: VerificationRecord,
     ) -> SnapbackResult<()> {
+        let Some(revision) = self.entry_revision(name) else {
+            return Ok(());
+        };
+        self.record_verification_if_revision(name, revision, record)
+            .map(|_| ())
+    }
+
+    /// Record a detached verification only when the exact staged value still
+    /// exists. The revision is opaque and contains no derivation of the secret.
+    ///
+    /// @ref LLP 0036#status-model-and-app-visibility-d4 — verification attests
+    /// one value identity and is invalidated by every set/unset transition.
+    pub fn record_verification_if_revision(
+        &mut self,
+        name: &str,
+        expected_revision: u64,
+        record: VerificationRecord,
+    ) -> SnapbackResult<bool> {
         let mut state = self.state.clone();
         if let Some(entry) = state.entries.get_mut(name) {
+            if entry.revision != expected_revision {
+                return Ok(false);
+            }
             // Probes run off-lock (ENG-23493), so a hung run can finish after
             // a newer retry already recorded; a record never replaces one
             // with a later cooldown-claim stamp.
@@ -280,13 +312,50 @@ impl ConfigStore {
                 .as_ref()
                 .is_some_and(|existing| existing.at_ms > record.at_ms)
             {
-                return Ok(());
+                return Ok(true);
             }
             entry.verified = Some(record);
             self.persist_state(&state)?;
             self.state = state;
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
+    }
+
+    /// Defense-in-depth for diagnostic sinks. A handler deliberately using
+    /// `expose()` can put a secret in thrown text; anonymous projections never
+    /// carry messages, and gated diagnostic storage additionally replaces all
+    /// currently configured values before retention.
+    pub fn redact_text(&self, text: &str) -> String {
+        let mut redacted = text.to_owned();
+        let mut secrets = self
+            .state
+            .entries
+            .values()
+            .flat_map(|entry| entry.values.iter().map(String::as_str))
+            .filter(|secret| !secret.is_empty())
+            .collect::<Vec<_>>();
+        // If one configured value is a prefix of another, replacing the short
+        // value first would leave a recognizable suffix behind.
+        secrets.sort_unstable_by(|left, right| {
+            right.len().cmp(&left.len()).then_with(|| left.cmp(right))
+        });
+        secrets.dedup();
+        for secret in secrets {
+            if redacted.contains(secret) {
+                redacted = redacted.replace(secret, "[REDACTED]");
+            }
+        }
+        redacted
+    }
+
+    pub fn redact_diagnostic(
+        &self,
+        mut diagnostic: crate::diagnostic::Diagnostic,
+    ) -> crate::diagnostic::Diagnostic {
+        diagnostic.message = self.redact_text(&diagnostic.message);
+        redact_value_strings(self, &mut diagnostic.details);
+        diagnostic
     }
 
     /// One-time import from the deprecated `SNAPBACK_ACTION_SECRETS` blob:
@@ -311,6 +380,7 @@ impl ConfigStore {
             });
         }
         let mut state = self.state.clone();
+        let mut import_revision = None;
         for (name, value) in blob {
             if !declared.contains(name) {
                 ignored.push(name.clone());
@@ -332,10 +402,19 @@ impl ConfigStore {
                 ignored.push(name.clone());
                 continue;
             }
+            let revision = match import_revision {
+                Some(revision) => revision,
+                None => {
+                    let revision = next_generation(state.generation)?;
+                    import_revision = Some(revision);
+                    revision
+                }
+            };
             state.entries.insert(
                 name.clone(),
                 StoredEntry {
                     values,
+                    revision,
                     set_at_ms: now_ms,
                     source: "env-import".to_owned(),
                     verified: None,
@@ -343,8 +422,8 @@ impl ConfigStore {
             );
             imported.push(name.clone());
         }
-        if !imported.is_empty() {
-            state.generation += 1;
+        if let Some(import_revision) = import_revision {
+            state.generation = import_revision;
             self.persist_state(&state)?;
             self.state = state;
         }
@@ -404,6 +483,33 @@ impl ConfigStore {
             store_io_error(path, "rename", &error)
         })?;
         Ok(())
+    }
+}
+
+fn next_generation(current: u64) -> SnapbackResult<u64> {
+    current.checked_add(1).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_CONFIG_GENERATION_EXHAUSTED",
+            "config",
+            "config generation space is exhausted; refusing to reuse a value identity",
+        )
+    })
+}
+
+fn redact_value_strings(store: &ConfigStore, value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::String(text) => *text = store.redact_text(text),
+        serde_json::Value::Array(values) => {
+            for value in values {
+                redact_value_strings(store, value);
+            }
+        }
+        serde_json::Value::Object(values) => {
+            for value in values.values_mut() {
+                redact_value_strings(store, value);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -611,6 +717,94 @@ mod tests {
     }
 
     #[test]
+    fn detached_verification_is_compare_and_set_by_entry_revision() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = store_in(&dir);
+        store
+            .set("caltrainFeed", vec!["value-a".into()], false, "http", 1)
+            .unwrap();
+        let staged_revision = store.entry_revision("caltrainFeed").unwrap();
+
+        store
+            .set("caltrainFeed", vec!["value-b".into()], false, "http", 2)
+            .unwrap();
+        let applied = store
+            .record_verification_if_revision(
+                "caltrainFeed",
+                staged_revision,
+                VerificationRecord {
+                    ok: true,
+                    at_ms: 3,
+                    diagnostic: None,
+                },
+            )
+            .unwrap();
+        assert!(!applied, "a probe for value A must not attest value B");
+        assert!(store.entry("caltrainFeed").unwrap().verified.is_none());
+
+        // Delete/recreate is a new identity even if the text is restored.
+        let replacement_revision = store.entry_revision("caltrainFeed").unwrap();
+        store.unset("caltrainFeed").unwrap();
+        store
+            .set("caltrainFeed", vec!["value-b".into()], false, "http", 4)
+            .unwrap();
+        assert_ne!(
+            store.entry_revision("caltrainFeed"),
+            Some(replacement_revision)
+        );
+        assert!(
+            !store
+                .record_verification_if_revision(
+                    "caltrainFeed",
+                    replacement_revision,
+                    VerificationRecord {
+                        ok: true,
+                        at_ms: 5,
+                        diagnostic: None,
+                    },
+                )
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn retained_diagnostics_redact_configured_values_recursively() {
+        let mut store = ConfigStore::in_memory();
+        store
+            .set("apiKey", vec!["top-secret-value".into()], false, "test", 1)
+            .unwrap();
+        let diagnostic = store.redact_diagnostic(
+            crate::diagnostic::Diagnostic::error(
+                "SNAPBACK_TEST",
+                "runtime",
+                "request failed with top-secret-value",
+            )
+            .with_details(serde_json::json!({
+                "nested": ["prefix top-secret-value suffix"]
+            })),
+        );
+        let serialized = serde_json::to_string(&diagnostic).unwrap();
+        assert!(!serialized.contains("top-secret-value"), "{serialized}");
+        assert!(serialized.contains("[REDACTED]"), "{serialized}");
+    }
+
+    #[test]
+    fn redaction_replaces_overlapping_values_longest_first() {
+        let mut store = ConfigStore::in_memory();
+        store
+            .set("short", vec!["token".into()], false, "test", 1)
+            .unwrap();
+        store
+            .set("long", vec!["token-extended".into()], false, "test", 2)
+            .unwrap();
+
+        assert_eq!(
+            store.redact_text("vendor echoed token-extended"),
+            "vendor echoed [REDACTED]"
+        );
+    }
+
+    #[test]
     fn unchanged_set_reports_value_changed_false_but_still_bumps_generation() {
         let dir = tempfile::tempdir().unwrap();
         let mut store = store_in(&dir);
@@ -622,6 +816,32 @@ mod tests {
             .unwrap();
         assert!(!outcome.value_changed);
         assert_eq!(outcome.generation, 2);
+    }
+
+    #[test]
+    fn generation_exhaustion_fails_closed_without_reusing_an_entry_revision() {
+        let mut store = ConfigStore::in_memory();
+        store
+            .set("caltrainFeed", vec!["key-1".into()], false, "http", 1)
+            .unwrap();
+        store.state.generation = u64::MAX;
+        let before = store.state.clone();
+
+        let error = store
+            .set("caltrainFeed", vec!["key-2".into()], false, "http", 2)
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CONFIG_GENERATION_EXHAUSTED"
+        );
+        assert_eq!(store.state, before);
+
+        let error = store.unset("caltrainFeed").unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CONFIG_GENERATION_EXHAUSTED"
+        );
+        assert_eq!(store.state, before);
     }
 
     #[test]

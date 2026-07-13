@@ -125,6 +125,49 @@ fn p6_served_ops_round_trip_through_envelopes() {
 }
 
 #[test]
+fn host_ops_reset_and_seed_roll_back_as_one_operation() {
+    let mut snapback = LocalSnapback::memory().unwrap();
+    let loaded = envelope(
+        &mut snapback,
+        json!({ "operation": "schema.load", "schema": generated("schema.manifest.json") }),
+    );
+    assert_eq!(loaded["ok"], true);
+    let initial_seed: Value = serde_json::from_str(
+        &fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("demos/todo/snapback/seed.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        envelope(
+            &mut snapback,
+            json!({ "operation": "app.reset", "seed": initial_seed })
+        )["ok"],
+        true
+    );
+    let before = snapback.scan_table("todos", 100, 0).unwrap();
+    assert!(!before.rows.is_empty());
+
+    let rejected = envelope(
+        &mut snapback,
+        json!({
+            "operation": "app.reset",
+            "seed": { "tables": { "todos": [
+                { "_id": "valid-prefix", "title": "valid", "completed": false, "userId": "user_1" },
+                { "_id": "bad", "title": null, "completed": false, "userId": "user_1" }
+            ] } }
+        }),
+    );
+    assert_eq!(rejected["ok"], false, "{rejected}");
+    assert_eq!(
+        snapback.scan_table("todos", 100, 0).unwrap().rows,
+        before.rows,
+        "host-ops must preserve the pre-reset database on seed failure"
+    );
+}
+
+#[test]
 fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
 

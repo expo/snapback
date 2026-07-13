@@ -300,50 +300,6 @@
       ],
       "type": "object"
     },
-    "CronActivationState": {
-      "enum": [
-        "Armed",
-        "InactiveNoDemand",
-        "Disabled"
-      ],
-      "type": "string"
-    },
-    "CronInspectState": {
-      "properties": {
-        "artifactKind": {
-          "type": "string"
-        },
-        "diagnostics": {
-          "items": {
-            "$ref": "#/$defs/Diagnostic"
-          },
-          "type": "array"
-        },
-        "jobs": {
-          "items": {
-            "$ref": "#/$defs/CronJobInspect"
-          },
-          "type": "array"
-        },
-        "recentRuns": {
-          "items": {
-            "$ref": "#/$defs/CronRunRecord"
-          },
-          "type": "array"
-        },
-        "schemaVersion": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "artifactKind",
-        "schemaVersion",
-        "jobs",
-        "recentRuns",
-        "diagnostics"
-      ],
-      "type": "object"
-    },
     "CronJitterPolicy": {
       "properties": {
         "enabled": {
@@ -438,118 +394,6 @@
       ],
       "type": "object"
     },
-    "CronJobInspect": {
-      "properties": {
-        "action": {
-          "type": "string"
-        },
-        "activationPolicy": {
-          "type": "string"
-        },
-        "activationState": {
-          "$ref": "#/$defs/CronActivationState"
-        },
-        "consecutiveFailures": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "inFlightRunId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "jitterOffsetMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "jitterPolicy": {
-          "$ref": "#/$defs/CronJitterPolicy"
-        },
-        "jitterSeed": {
-          "type": "string"
-        },
-        "lastError": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Diagnostic"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "lastOutcome": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CronRunOutcome"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "lastRunAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "nextDueAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "nextNominalAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "recentRuns": {
-          "items": {
-            "$ref": "#/$defs/CronRunRecord"
-          },
-          "type": "array"
-        },
-        "schedule": {
-          "$ref": "#/$defs/CronSchedule"
-        },
-        "scheduleHash": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "action",
-        "enabled",
-        "schedule",
-        "scheduleHash",
-        "activationPolicy",
-        "activationState",
-        "jitterPolicy",
-        "jitterSeed",
-        "jitterOffsetMs",
-        "consecutiveFailures",
-        "recentRuns"
-      ],
-      "type": "object"
-    },
     "CronOverlapPolicy": {
       "enum": [
         "NoOverlap",
@@ -574,109 +418,6 @@
         "mode"
       ],
       "type": "object"
-    },
-    "CronRunOutcome": {
-      "enum": [
-        "Succeeded",
-        "Failed",
-        "Skipped"
-      ],
-      "type": "string"
-    },
-    "CronRunRecord": {
-      "properties": {
-        "attempt": {
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "diagnostic": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Diagnostic"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "dueAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "durationMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "finishedAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "idempotencyKey": {
-          "type": "string"
-        },
-        "jobName": {
-          "type": "string"
-        },
-        "outcome": {
-          "$ref": "#/$defs/CronRunOutcome"
-        },
-        "result": {
-          "default": null
-        },
-        "runId": {
-          "type": "string"
-        },
-        "scheduledAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "slotKey": {
-          "type": "string"
-        },
-        "startedAtMs": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "trigger": {
-          "$ref": "#/$defs/CronRunTrigger"
-        }
-      },
-      "required": [
-        "runId",
-        "jobName",
-        "dueAtMs",
-        "startedAtMs",
-        "trigger",
-        "attempt",
-        "outcome",
-        "idempotencyKey",
-        "slotKey"
-      ],
-      "type": "object"
-    },
-    "CronRunTrigger": {
-      "enum": [
-        "Scheduled",
-        "Manual",
-        "Recovery",
-        "DemandCatchUp"
-      ],
-      "type": "string"
     },
     "CronSchedule": {
       "properties": {
@@ -1231,6 +972,60 @@
         }
       ]
     },
+    "PublicCronInspectState": {
+      "description": "Public cron posture: aggregate state only. Run records, result values,\nerror messages, diagnostic details, run ids, and slot/idempotency keys stay\non the gated administrative inspect surface because handler-controlled text\ncan contain credentials or application data.",
+      "properties": {
+        "artifactKind": {
+          "type": "string"
+        },
+        "failedJobCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "inFlightJobCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "jobCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactKind",
+        "schemaVersion",
+        "jobCount",
+        "failedJobCount",
+        "inFlightJobCount"
+      ],
+      "type": "object"
+    },
+    "PublicDiagnostic": {
+      "description": "A diagnostic safe for anonymous inspection. Handler-controlled messages\nand arbitrary details are intentionally absent.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem"
+      ],
+      "type": "object"
+    },
     "PublicFunctionDefinition": {
       "description": "Public projection of [`FunctionDefinition`]: everything except the\nexecutable runtime body and the source span.",
       "properties": {
@@ -1678,7 +1473,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/inspect.public.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "The public projection of [`InspectState`] served at the root `/inspect` and\n`/`. It is a typed allowlist: the `From<InspectState>` below destructures the\nfull struct, so a newly-added `InspectState` (or `StorageInfo`,\n`LiveSubscriptionInfo`) field is a compile error here rather than a silent\nleak. Three facts are deliberately dropped and live only in the gated\n`/_snapback/api/inspect` twin: `subscriptions[].connection_id` (the\nenumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute\n`storage.sqlite_path` (an environment leak), and the executable handler\nbodies inside `functions` (`IbexModule.source` / `HandlerPlan` bodies — a\nsource disclosure, ENG-23441; see [`PublicFunctionManifest`]).\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.",
+  "description": "The public projection of [`InspectState`] served at the root `/inspect` and\n`/`. It is a typed allowlist: the `From<InspectState>` below destructures the\nfull struct, so a newly-added `InspectState` (or `StorageInfo`,\n`LiveSubscriptionInfo`) field is a compile error here rather than a silent\nleak. Sensitive facts deliberately dropped to, or reduced on, the gated\n`/_snapback/api/inspect` twin include `subscriptions[].connection_id` (the\nenumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute\n`storage.sqlite_path` (an environment leak), and the executable handler\nbodies inside `functions` (`IbexModule.source` / `HandlerPlan` bodies — a\nsource disclosure, ENG-23441; see [`PublicFunctionManifest`]). Cron state is\naggregate-only and recent diagnostics omit handler-controlled message and\ndetail fields.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.\n@ref LLP 0036#runtime-exposure-d5-d8 — secret-like runtime diagnostics are redacted before retention and never projected anonymously as raw text.",
   "properties": {
     "activeConnections": {
       "format": "uint",
@@ -1698,7 +1493,7 @@
       "$ref": "#/$defs/CapabilityManifest"
     },
     "cron": {
-      "$ref": "#/$defs/CronInspectState"
+      "$ref": "#/$defs/PublicCronInspectState"
     },
     "ephemeral": {
       "$ref": "#/$defs/EphemeralDiagnostics"
@@ -1716,7 +1511,7 @@
     },
     "recentDiagnostics": {
       "items": {
-        "$ref": "#/$defs/Diagnostic"
+        "$ref": "#/$defs/PublicDiagnostic"
       },
       "type": "array"
     },

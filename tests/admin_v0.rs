@@ -747,6 +747,23 @@ async fn minted_token_blocks_writes_from_arbitrary_localhost_origins() {
         "inspect must name the minted token file for same-user tooling"
     );
 
+    let public_home = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("accept", "application/json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let public_home = serde_json::to_string(&json(public_home).await).unwrap();
+    assert!(
+        !public_home.contains(&token_file.display().to_string()),
+        "the public homepage must not expose an absolute capability path: {public_home}"
+    );
+
     let allowed = app
         .oneshot(post_with_token(
             "/_snapback/api/app/reset",
@@ -791,7 +808,7 @@ async fn s1_gated_writes_fail_closed_on_non_loopback_binds() {
 }
 
 /// ENG-22527 FIX 3 e2e — under the `prod` profile the provisioning writes are
-/// refused by `require_non_prod_profile` even where the admin-token layer
+/// refused by the centralized operation-profile policy even where the admin-token layer
 /// would allow them (open loopback, no token configured): the profile gate is
 /// its own layer, and it answers with SNAPBACK_PROFILE_FORBIDS, not an auth
 /// diagnostic.
@@ -822,6 +839,36 @@ async fn provisioning_writes_are_profile_forbidden_under_prod() {
         let body = json(resp).await;
         assert_eq!(body["diagnostic"]["code"], "SNAPBACK_PROFILE_FORBIDS");
     }
+
+    for request in [
+        json!({ "operation": "schema.load", "schema": todo_schema() }),
+        json!({ "operation": "functions.load", "functions": todo_functions() }),
+        json!({ "operation": "app.reset" }),
+        json!({ "operation": "function.run", "function": "listTodos", "userId": "chosen-user" }),
+        json!({ "operation": "function.explain", "function": "createTodo", "kind": "mutationDryRun", "userId": "chosen-user" }),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(post("/_snapback/api/host-ops", request.clone()))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = json(response).await;
+        assert_eq!(body["ok"], false, "host-op bypassed prod: {request}");
+        assert_eq!(body["diagnostics"][0]["code"], "SNAPBACK_PROFILE_FORBIDS");
+        assert_eq!(body["target"]["targetProfile"], "local-prod-sqlite-ibex");
+    }
+
+    let dedicated_dev_user = app
+        .oneshot(post(
+            "/_snapback/api/functions/listTodos/run",
+            json!({ "auth": { "user_id": "chosen-user" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(dedicated_dev_user.status(), StatusCode::FORBIDDEN);
+    let body = json(dedicated_dev_user).await;
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_PROFILE_FORBIDS");
 }
 
 /// LLP 0032 S1 (was S0) — the open-loopback default is unchanged: no configured
@@ -860,6 +907,37 @@ async fn s1_app_reset_seeds_when_given_a_seed_argument() {
     .await;
     assert_eq!(scan["total"], 1);
     assert_eq!(scan["rows"][0]["title"], "Reset seeded");
+}
+
+#[tokio::test]
+async fn app_reset_rejects_a_late_bad_seed_without_clearing_existing_data() {
+    let app = app_with_context(seeded_snapback(), loopback_context(None));
+    let seed = json!({ "seed": { "tables": { "todos": [
+        { "_id": "would_have_landed", "title": "valid first row", "completed": false, "userId": "user_1" },
+        { "_id": "invalid_second", "title": null, "completed": false, "userId": "user_1" }
+    ] } } });
+    let rejected = app
+        .clone()
+        .oneshot(post("/_snapback/api/app/reset", seed))
+        .await
+        .unwrap();
+    assert_eq!(rejected.status(), StatusCode::BAD_REQUEST);
+
+    let scan = json(
+        app.oneshot(get("/_snapback/api/data/todos?limit=10&offset=0"))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(scan["total"], 2, "the pre-reset rows survive rollback");
+    assert!(
+        scan["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row["_id"] != "would_have_landed"),
+        "no prefix of the seed may commit"
+    );
 }
 
 #[tokio::test]
@@ -1095,6 +1173,21 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
     assert!(public["schema"].is_object());
     assert!(public["functions"].is_object());
     assert!(public["storage"]["version"].is_number());
+    assert!(public["cron"]["jobCount"].is_number());
+    assert!(
+        public["cron"].get("jobs").is_none()
+            && public["cron"].get("recentRuns").is_none()
+            && public["cron"].get("diagnostics").is_none(),
+        "anonymous cron state must contain aggregate posture only"
+    );
+    for diagnostic in public["recentDiagnostics"]
+        .as_array()
+        .expect("public diagnostics")
+    {
+        assert!(diagnostic.get("code").is_some());
+        assert!(diagnostic.get("message").is_none());
+        assert!(diagnostic.get("details").is_none());
+    }
     assert!(
         public["storage"].get("sqlitePath").is_none()
             && public["storage"].get("sqlite_path").is_none(),
@@ -1122,6 +1215,7 @@ async fn s1_public_inspect_is_trimmed_gated_inspect_is_full() {
             .any(|entry| entry["connectionId"] == "conn_secret"),
         "the gated inspect twin must retain connection ids"
     );
+    assert!(gated["cron"]["jobs"].is_array());
 }
 
 /// ENG-23441 (LLP 0031 D3) — the public `/inspect` functions manifest is a
