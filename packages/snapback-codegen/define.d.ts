@@ -145,18 +145,56 @@ export type OutgrewIrClass =
   | 'general-iteration';
 export declare const OUTGREW_IR_CLASSES: Readonly<Record<OutgrewIrClass, string>>;
 
-export declare function defineTable(fields: Record<string, Validator>): unknown;
-export declare function defineSchema(tables: Record<string, unknown>, options?: { ephemeral?: unknown }): unknown;
-export declare function defineQuery(spec: Record<string, unknown>): unknown;
-export declare function defineLiveQuery(spec: Record<string, unknown>): unknown;
-export declare function defineJsQuery(spec: Record<string, unknown>): unknown;
-export declare function defineJsLiveQuery(spec: Record<string, unknown>): unknown;
-export declare function defineMutation(spec: {
+export type AuthMode = 'dev' | 'sessions';
+export type AuthRequirement = 'public' | 'optional-user' | 'authenticated';
+export type TargetCapabilityId =
+  | 'auth.sessions.v1'
+  | 'cron'
+  | 'cron_action_run_mutation'
+  | 'host_plan_runtime'
+  | 'ibex_ctx_db_host_bridge'
+  | 'live_subscriptions'
+  | 'mutation_read_set_validation'
+  | 'permission_epoch_resync';
+
+export interface FunctionAuthOptions {
+  /** Controls whether the resolved server authority must carry a user. */
+  auth?: AuthRequirement;
+}
+
+export interface QueryAuthOptions extends FunctionAuthOptions {
+  /** Trusted declaration that the complete result is caller-authority invariant.
+   * Item 4 accepts true only for a public, ambient-free HostPlan query. */
+  authorityIndependent?: boolean;
+}
+
+export interface HostPlanQuerySpec extends QueryAuthOptions {
+  table: string;
+  args?: Record<string, Validator>;
+  filter?: FilterSpec[];
+  order?: OrderSpec[];
+  limit?: number;
+  index?: string;
+  defaultLive?: boolean;
+}
+
+export interface JsQuerySpec extends QueryAuthOptions {
+  args?: Record<string, Validator>;
+  source: string;
+  exportName: string;
+  reads: string[];
+  result?: Validator;
+  authScopeField?: string;
+  defaultLive?: boolean;
+}
+
+export interface HostPlanMutationSpec extends FunctionAuthOptions {
   args?: Record<string, Validator>;
   plan: MutationStep | MutationStep[];
   returns?: ReturnSpec;
-}): { plan: { steps: MutationStep[]; return_value: ReturnSpec | null } };
-export declare function defineJsMutation(spec: {
+}
+
+export interface JsMutationSpec extends FunctionAuthOptions {
   args?: Record<string, Validator>;
   source: string;
   exportName: string;
@@ -165,8 +203,39 @@ export declare function defineJsMutation(spec: {
   /** Declares the named out-of-profile class keeping this mutation JS-tier;
    * codegen emits the class-specific "outgrew the IR" info diagnostic. */
   outgrewIr?: OutgrewIrClass;
-}): unknown;
-export declare function defineAction(spec: Record<string, unknown>): unknown;
+}
+
+export interface HostPlanActionSpec extends FunctionAuthOptions {
+  args?: Record<string, Validator>;
+  plan: unknown | unknown[];
+  returns?: unknown;
+  writes?: string[];
+  uses?: string[];
+}
+
+export interface JsActionSpec extends FunctionAuthOptions {
+  args?: Record<string, Validator>;
+  js: { source: string; exportName: string };
+  writes?: string[];
+  uses?: string[];
+}
+
+export declare function defineTable(fields: Record<string, Validator>): unknown;
+export declare function defineSchema(
+  tables: Record<string, unknown>,
+  options?: {
+    ephemeral?: unknown;
+    auth?: { mode: AuthMode };
+    requiredCapabilities?: TargetCapabilityId[];
+  },
+): unknown;
+export declare function defineQuery(spec: HostPlanQuerySpec): unknown;
+export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
+export declare function defineJsQuery(spec: JsQuerySpec): unknown;
+export declare function defineJsLiveQuery(spec: JsQuerySpec): unknown;
+export declare function defineMutation(spec: HostPlanMutationSpec): { plan: { steps: MutationStep[]; return_value: ReturnSpec | null } };
+export declare function defineJsMutation(spec: JsMutationSpec): unknown;
+export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): unknown;
 export declare function defineCron(jobs: Record<string, unknown>): unknown;
 export declare function defineConfig(entries: Record<string, unknown>): unknown;
 export declare function runMutation(name: string, args?: Record<string, ValueExpr>, opts?: { bindResultAs?: string }): unknown;

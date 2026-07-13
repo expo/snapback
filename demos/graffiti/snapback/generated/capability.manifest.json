@@ -2,6 +2,12 @@
   "artifactKind": "capabilityManifest",
   "assetUpload": false,
   "authImpersonation": true,
+  "authProtocols": {
+    "bootstrap": 1,
+    "invocation": 1,
+    "provider": 1,
+    "stagedMode": 1
+  },
   "capabilityGaps": [
     "postgres",
     "cloudflare",
@@ -66,6 +72,34 @@
   "runtimeEngine": "ibex",
   "schemaVersion": "snapback.v0",
   "storageEngine": "sqlite",
+  "supportedArtifactAuthPairs": [
+    {
+      "authMode": "dev",
+      "schemaVersion": "snapback.v0"
+    },
+    {
+      "authMode": "sessions",
+      "schemaVersion": "snapback.v1"
+    }
+  ],
+  "supportedArtifactVersions": [
+    "snapback.v0",
+    "snapback.v1"
+  ],
+  "supportedAuthModes": [
+    "dev",
+    "sessions"
+  ],
+  "supportedCapabilities": [
+    "auth.sessions.v1",
+    "cron",
+    "cron_action_run_mutation",
+    "host_plan_runtime",
+    "ibex_ctx_db_host_bridge",
+    "live_subscriptions",
+    "mutation_read_set_validation",
+    "permission_epoch_resync"
+  ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",
     "host-plan-single-table-in",

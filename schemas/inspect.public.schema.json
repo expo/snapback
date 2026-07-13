@@ -64,6 +64,77 @@
       },
       "type": "object"
     },
+    "ArtifactVersion": {
+      "description": "A schema/function artifact version understood by the auth-aware receiver.\nCapability manifests report the dimensions separately for discovery, but\n[`SupportedArtifactAuthPair`] remains the actual compatibility authority.",
+      "enum": [
+        "snapback.v0",
+        "snapback.v1"
+      ],
+      "type": "string"
+    },
+    "AuthManifest": {
+      "additionalProperties": false,
+      "description": "Closed schema-manifest auth declaration. Unknown members are rejected so a\nfuture authority-changing field cannot be silently ignored by this parser.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/AuthMode"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "AuthProtocols": {
+      "additionalProperties": false,
+      "description": "Version-1 auth protocol numbers reported by an auth-aware target.",
+      "properties": {
+        "bootstrap": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "invocation": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "provider": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stagedMode": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "provider",
+        "invocation",
+        "stagedMode",
+        "bootstrap"
+      ],
+      "type": "object"
+    },
+    "AuthRequirement": {
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0055#closed-function-requirement — closed values fail at manifest parse.",
+      "enum": [
+        "public",
+        "optional-user",
+        "authenticated"
+      ],
+      "type": "string"
+    },
     "CapabilityManifest": {
       "properties": {
         "artifactKind": {
@@ -75,6 +146,16 @@
         },
         "authImpersonation": {
           "type": "boolean"
+        },
+        "authProtocols": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthProtocols"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "capabilityGaps": {
           "items": {
@@ -155,6 +236,34 @@
         },
         "storageEngine": {
           "type": "string"
+        },
+        "supportedArtifactAuthPairs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SupportedArtifactAuthPair"
+          },
+          "type": "array"
+        },
+        "supportedArtifactVersions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArtifactVersion"
+          },
+          "type": "array"
+        },
+        "supportedAuthModes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AuthMode"
+          },
+          "type": "array"
+        },
+        "supportedCapabilities": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TargetCapabilityId"
+          },
+          "type": "array"
         },
         "supportedQueryForms": {
           "items": {
@@ -892,10 +1001,17 @@
       "description": "Public projection of [`FunctionDefinition`]: everything except the\nexecutable runtime body and the source span.",
       "properties": {
         "authRequirement": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthRequirement"
+            },
+            {
+              "type": "null"
+            }
           ]
+        },
+        "authorityIndependent": {
+          "type": "boolean"
         },
         "bundleEntrypoint": {
           "type": [
@@ -959,6 +1075,7 @@
         "name",
         "kind",
         "requiredCapabilities",
+        "authorityIndependent",
         "readSetSummary",
         "writeSetSummary",
         "permissionEpochBumps",
@@ -1178,6 +1295,16 @@
         "artifactKind": {
           "type": "string"
         },
+        "auth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "ephemeralCollections": {
           "items": {
             "$ref": "#/$defs/EphemeralCollection"
@@ -1199,6 +1326,12 @@
           ]
         },
         "portabilityFlags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requiredCapabilities": {
           "items": {
             "type": "string"
           },
@@ -1236,6 +1369,7 @@
         "artifactKind",
         "schemaVersion",
         "appId",
+        "requiredCapabilities",
         "artifactDiagnostics",
         "portabilityFlags",
         "ephemeralCollections",
@@ -1303,6 +1437,23 @@
       ],
       "type": "string"
     },
+    "SupportedArtifactAuthPair": {
+      "additionalProperties": false,
+      "description": "One explicitly supported schema/function-version and auth-mode tuple.\nSeparate version/mode arrays are dimension reports and never imply a\nCartesian-product authorization.\n\n@ref LLP 0055#the-two-admissible-tuples — exactly v0+dev and v1+sessions.",
+      "properties": {
+        "authMode": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/ArtifactVersion"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode"
+      ],
+      "type": "object"
+    },
     "TableManifest": {
       "properties": {
         "fields": {
@@ -1331,6 +1482,20 @@
         "name"
       ],
       "type": "object"
+    },
+    "TargetCapabilityId": {
+      "description": "The exact target-capability vocabulary understood by paired-v1 manifests.\nApp artifacts retain string fields for v0 compatibility; every v1 string\nis parsed through this enum before target support is consulted.\n\n@ref LLP 0055#the-two-admissible-tuples — the v1 registry is closed to eight ids.",
+      "enum": [
+        "auth.sessions.v1",
+        "cron",
+        "cron_action_run_mutation",
+        "host_plan_runtime",
+        "ibex_ctx_db_host_bridge",
+        "live_subscriptions",
+        "mutation_read_set_validation",
+        "permission_epoch_resync"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/inspect.public.schema.json",

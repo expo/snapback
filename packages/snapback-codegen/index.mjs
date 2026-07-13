@@ -74,6 +74,19 @@ const RESERVED_WORDS = new Set([
 ]);
 const GENERATED_API_RESERVED_EXPORTS = new Set(['api', 'ephemeral']);
 const SCHEMA_VERSION = 'snapback.v0';
+const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
+const AUTH_MODES = new Set(['dev', 'sessions']);
+const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
+const TARGET_CAPABILITY_IDS = new Set([
+  'auth.sessions.v1',
+  'cron',
+  'cron_action_run_mutation',
+  'host_plan_runtime',
+  'ibex_ctx_db_host_bridge',
+  'live_subscriptions',
+  'mutation_read_set_validation',
+  'permission_epoch_resync',
+]);
 const TARGET_PROFILE = 'local-dev-sqlite-ibex';
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 
@@ -248,6 +261,83 @@ function typeMatches(propSchema, value) {
   return true;
 }
 
+function validateSchemaAuthDefinition(schemaDef, err) {
+  const auth = schemaDef.auth;
+  if (auth === undefined) {
+    validateAuthoredRequiredCapabilities(schemaDef.requiredCapabilities, err);
+    return 'dev';
+  }
+  if (!auth || typeof auth !== 'object' || Array.isArray(auth)) {
+    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth must be an object containing only mode', {});
+    return 'dev';
+  }
+  const keys = Object.keys(auth);
+  if (keys.length !== 1 || keys[0] !== 'mode' || !AUTH_MODES.has(auth.mode)) {
+    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts exactly mode: dev | sessions', { authMode: auth.mode });
+  }
+  validateAuthoredRequiredCapabilities(schemaDef.requiredCapabilities, err);
+  return AUTH_MODES.has(auth.mode) ? auth.mode : 'dev';
+}
+
+function validateAuthoredRequiredCapabilities(required, err) {
+  if (required === undefined) return;
+  if (!Array.isArray(required)) {
+    err('SCHEMA_REQUIRED_CAPABILITIES_INVALID', 'capability', 'schema requiredCapabilities must be an array', {});
+    return;
+  }
+  for (const capability of required) {
+    if (typeof capability !== 'string' || !TARGET_CAPABILITY_IDS.has(capability)) {
+      err('SNAPBACK_CAPABILITY_UNSUPPORTED', 'capability', `unknown required target capability ${String(capability)}`, { capability });
+    }
+  }
+}
+
+function validateTargetArtifactAuthSupport(manifest, version, authMode, required, err) {
+  for (const problem of targetArtifactAuthProblems(manifest, version, authMode, required)) {
+    err(problem.code, 'capability', problem.message, problem.details);
+  }
+}
+
+export function targetArtifactAuthProblems(manifest, version, authMode, required) {
+  // @ref LLP 0055#the-two-admissible-tuples — dimension arrays do not grant
+  // their Cartesian product; the exact pair and every positive capability do.
+  const problems = [];
+  const versions = Array.isArray(manifest.supportedArtifactVersions)
+    ? manifest.supportedArtifactVersions
+    : [];
+  const modes = Array.isArray(manifest.supportedAuthModes)
+    ? manifest.supportedAuthModes
+    : [];
+  const pairs = Array.isArray(manifest.supportedArtifactAuthPairs)
+    ? manifest.supportedArtifactAuthPairs
+    : [];
+  const supported = new Set(Array.isArray(manifest.supportedCapabilities)
+    ? manifest.supportedCapabilities
+    : []);
+
+  const pairSupported = versions.includes(version)
+    && modes.includes(authMode)
+    && pairs.some((pair) => pair?.schemaVersion === version && pair?.authMode === authMode);
+  if (!pairSupported) {
+    problems.push({
+      code: 'CODEGEN_ARTIFACT_AUTH_PAIR_UNSUPPORTED',
+      message: `target ${manifest.targetProfileId ?? 'unknown'} does not support ${version} + ${authMode}`,
+      details: { schemaVersion: version, authMode },
+    });
+  }
+
+  for (const capability of required) {
+    if (!TARGET_CAPABILITY_IDS.has(capability) || !supported.has(capability)) {
+      problems.push({
+        code: 'SNAPBACK_CAPABILITY_UNSUPPORTED',
+        message: `target ${manifest.targetProfileId ?? 'unknown'} does not support required capability ${capability}`,
+        details: { capability },
+      });
+    }
+  }
+  return problems;
+}
+
 // Returns { missing?, problems: [] }. `expected` pins the artifactKind and
 // schemaVersion constants the derived schema cannot express (serde defaults).
 function validateArtifactAgainstSchema(schemaFile, instance, expected) {
@@ -382,6 +472,18 @@ export async function generateInProcess(backendDir) {
     err('SCHEMA_NO_DEFAULT_EXPORT', 'schema', `${schemaPath} must default-export defineSchema(...)`);
     return { ok: false, diagnostics };
   }
+  const authMode = validateSchemaAuthDefinition(schemaDef, err);
+  const artifactVersion = authMode === 'sessions' ? SESSIONS_SCHEMA_VERSION : SCHEMA_VERSION;
+  const schemaRequiredCapabilities = [...new Set(schemaDef.requiredCapabilities ?? [])];
+  if (authMode === 'sessions' && !schemaRequiredCapabilities.includes('auth.sessions.v1')) {
+    schemaRequiredCapabilities.unshift('auth.sessions.v1');
+  }
+  if (authMode === 'dev' && schemaRequiredCapabilities.includes('auth.sessions.v1')) {
+    err('SCHEMA_AUTH_CAPABILITY_INVALID', 'auth', 'a dev schema must not require auth.sessions.v1', { authMode });
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
 
   // --- Build + validate schema ------------------------------------------------
   const tables = dict();
@@ -498,6 +600,7 @@ export async function generateInProcess(backendDir) {
       err('FUNCTION_RESERVED_EXPORT', 'function', `${name}: function export collides with a generated API namespace`, { function: name });
       continue;
     }
+    validateFunctionAuthDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
 
     // Recursive fail-closed validation of the closed v1 expression profile
@@ -550,6 +653,7 @@ export async function generateInProcess(backendDir) {
       functions.push({
         name,
         kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
         runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
         declaredReads: readTables,
         declaredWrites: [],
@@ -589,6 +693,7 @@ export async function generateInProcess(backendDir) {
       functions.push({
         name,
         kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
         runtime: { HostPlan: { Query: serializeQueryPlan(def.plan) } },
         declaredReads: [t],
         declaredWrites: [],
@@ -616,6 +721,7 @@ export async function generateInProcess(backendDir) {
       functions.push({
         name,
         kind: 'Mutation',
+        ...authoredFunctionManifestFields(def),
         runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
         declaredReads: reads,
         declaredWrites: writes,
@@ -710,6 +816,7 @@ export async function generateInProcess(backendDir) {
       functions.push({
         name,
         kind: 'Mutation',
+        ...authoredFunctionManifestFields(def),
         runtime: { HostPlan: { Mutation: serializedPlan } },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
@@ -742,6 +849,7 @@ export async function generateInProcess(backendDir) {
       functions.push({
         name,
         kind: 'Action',
+        ...authoredFunctionManifestFields(def),
         uses: def.uses ?? [],
         runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
         declaredReads: [],
@@ -758,6 +866,7 @@ export async function generateInProcess(backendDir) {
       functions.push({
         name,
         kind: 'Action',
+        ...authoredFunctionManifestFields(def),
         uses: def.uses ?? [],
         runtime: { HostPlan: { Action: serializeActionPlan(def.plan, name, err) } },
         declaredReads: [],
@@ -815,6 +924,24 @@ export async function generateInProcess(backendDir) {
   }
   const appId = inferAppId(backendRoot);
   const demoMetadata = readDemoAppMetadata(backendRoot, appId, diagnostics);
+  const decoratedFunctionDefinitions = decorateFunctions(appId, functions);
+  const requiredTargetCapabilities = new Set(schemaRequiredCapabilities);
+  for (const fn of decoratedFunctionDefinitions) {
+    for (const capability of fn.requiredCapabilities) requiredTargetCapabilities.add(capability);
+  }
+  for (const job of cronJobs) {
+    for (const capability of job.requiredCapabilities) requiredTargetCapabilities.add(capability);
+  }
+  validateTargetArtifactAuthSupport(
+    canonicalCapability.manifest,
+    artifactVersion,
+    authMode,
+    [...requiredTargetCapabilities],
+    err,
+  );
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   // Hash inputs use the MANIFEST-RELATIVE handler path (LLP 0034 review fix
   // 4): keying by absolute path baked the checkout location into inputsHash /
   // bundleHash, so committed artifacts only reproduced from the checkout that
@@ -853,28 +980,36 @@ export async function generateInProcess(backendDir) {
   // adjacent sources and preserve the hash while changing the emitted bundle.
   // Distinct domains also prevent the three identity contracts from becoming
   // interchangeable when their framed item sequences happen to match.
-  const inputsHash = sha256Framed('snapback-codegen/inputs-hash/v1', inputs);
-  const schemaContentHash = sha256Framed('snapback-codegen/schema-content-hash/v1', [
+  const schemaContentItems = [
     ...schemaGraphInputs,
     'schema-isolated-evaluation',
     schemaEvaluation,
-  ]);
-  const bundleContentHash = sha256Framed('snapback-codegen/bundle-content-hash/v1', [
+  ];
+  const bundleContentItems = [
     ...functionsGraphInputs,
     'functions-isolated-evaluation',
     functionsEvaluation,
     ...handlerInputs,
-  ]);
-
+  ];
   const generatedAt = generatedAtMillis();
   const appIdentity = demoMetadata.identity;
-  const schemaHash = `sha256:${schemaContentHash.slice(0, 16)}`;
-  const bundleHash = `sha256:${bundleContentHash.slice(0, 16)}`;
+  const { inputsHash, schemaHash, bundleHash } = computeArtifactIdentityStrings({
+    artifactVersion,
+    authMode,
+    appId,
+    sharedInputItems: inputs,
+    schemaContentItems,
+    bundleContentItems,
+  });
   const schemaManifest = {
     artifactKind: 'schemaManifest',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: artifactVersion,
     appId,
     ...(appIdentity ? { app: appIdentity } : {}),
+    ...(schemaDef.auth !== undefined ? { auth: { mode: authMode } } : {}),
+    ...(schemaRequiredCapabilities.length > 0
+      ? { requiredCapabilities: schemaRequiredCapabilities }
+      : {}),
     schemaHash,
     inputsHash,
     generatedAt,
@@ -886,13 +1021,13 @@ export async function generateInProcess(backendDir) {
   };
   const functionManifest = {
     artifactKind: 'functionManifest',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: artifactVersion,
     appId,
     bundleHash,
     inputsHash,
     generatedAt,
     unsupportedDependencyDiagnostics: infoDiagnostics,
-    functions: decorateFunctions(appId, functions),
+    functions: decoratedFunctionDefinitions,
     cronJobs,
     config: configEntries,
   };
@@ -955,8 +1090,8 @@ export async function generateInProcess(backendDir) {
   // Rust-derived schemas before writing. Fail closed (write nothing) on any
   // mismatch. The Exact-owned contract-data manifest is out of scope (scope fence).
   for (const [schemaFile, instance, expected] of [
-    ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: SCHEMA_VERSION }],
-    ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: SCHEMA_VERSION }],
+    ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: artifactVersion }],
+    ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: artifactVersion }],
     ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: SCHEMA_VERSION }],
   ]) {
     const { missing, problems } = validateArtifactAgainstSchema(schemaFile, instance, expected);
@@ -1502,7 +1637,7 @@ function serializeActionPlan(plan, functionName, err) {
 }
 
 function buildCronJobs(cronDefs, functions, err) {
-  const functionKinds = new Map(functions.map((fn) => [fn.name, fn.kind]));
+  const functionsByName = new Map(functions.map((fn) => [fn.name, fn]));
   const jobs = [];
   const seen = new Set();
   for (const { def } of cronDefs) {
@@ -1520,10 +1655,16 @@ function buildCronJobs(cronDefs, functions, err) {
       const action = spec.action;
       if (typeof action !== 'string' || action.length === 0) {
         err('CRON_ACTION_MISSING', 'cron', `${name}: cron job requires an action`, { jobName: name });
-      } else if (!functionKinds.has(action)) {
+      } else if (!functionsByName.has(action)) {
         err('CRON_ACTION_UNKNOWN', 'cron', `${name}: unknown action ${action}`, { jobName: name, action });
-      } else if (functionKinds.get(action) !== 'Action') {
-        err('CRON_ACTION_KIND_MISMATCH', 'cron', `${name}: ${action} is not an action`, { jobName: name, action, kind: functionKinds.get(action) });
+      } else if (functionsByName.get(action).kind !== 'Action') {
+        err('CRON_ACTION_KIND_MISMATCH', 'cron', `${name}: ${action} is not an action`, { jobName: name, action, kind: functionsByName.get(action).kind });
+      } else if ((functionsByName.get(action).authRequirement ?? 'optional-user') === 'authenticated') {
+        err('CRON_AUTH_REQUIREMENT_INVALID', 'cron', `${name}: authenticated action ${action} cannot run as system authority`, {
+          jobName: name,
+          action,
+          authRequirement: 'authenticated',
+        });
       }
       jobs.push({
         name,
@@ -1814,6 +1955,58 @@ function rowDescriptor(table) {
   return { shape: 'object', fields };
 }
 
+function authoredFunctionManifestFields(def) {
+  return {
+    ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
+    ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
+  };
+}
+
+function authoredExprUsesAuthorityOrAmbientInput(expr) {
+  if (!expr || typeof expr !== 'object') return false;
+  if (expr.kind === 'AuthUserId' || expr.kind === 'RuntimeId' || expr.kind === 'RuntimeNow') return true;
+  if ('Field' in expr) return authoredExprUsesAuthorityOrAmbientInput(expr.Field.base);
+  if ('Binary' in expr) {
+    return authoredExprUsesAuthorityOrAmbientInput(expr.Binary.left)
+      || authoredExprUsesAuthorityOrAmbientInput(expr.Binary.right);
+  }
+  if ('Unary' in expr) return authoredExprUsesAuthorityOrAmbientInput(expr.Unary.expr);
+  if ('If' in expr) {
+    return authoredExprUsesAuthorityOrAmbientInput(expr.If.cond)
+      || authoredExprUsesAuthorityOrAmbientInput(expr.If.then)
+      || authoredExprUsesAuthorityOrAmbientInput(expr.If.else);
+  }
+  if ('Concat' in expr) return expr.Concat.some(authoredExprUsesAuthorityOrAmbientInput);
+  if ('Call' in expr) return expr.Call.args.some(authoredExprUsesAuthorityOrAmbientInput);
+  if ('Record' in expr) return Object.values(expr.Record.fields).some(authoredExprUsesAuthorityOrAmbientInput);
+  return false;
+}
+
+function validateFunctionAuthDefinition(name, def, err) {
+  if (def.auth !== undefined && !AUTH_REQUIREMENTS.has(def.auth)) {
+    err('FUNCTION_AUTH_REQUIREMENT_INVALID', 'auth', `${name}: auth must be public, optional-user, or authenticated`, { function: name, authRequirement: def.auth });
+  }
+  if (def.authorityIndependent !== undefined && typeof def.authorityIndependent !== 'boolean') {
+    err('FUNCTION_AUTHORITY_INDEPENDENT_INVALID', 'auth', `${name}: authorityIndependent must be boolean`, { function: name });
+    return;
+  }
+  if (def.authorityIndependent !== true) return;
+
+  const queryKind = def.__kind === 'Query' || def.__kind === 'LiveQuery';
+  const hostPlanQuery = queryKind && def.plan && !def.js;
+  const publicRequirement = def.auth === 'public';
+  const ambientFree = hostPlanQuery
+    && (def.plan.filters ?? []).every((filter) => !authoredExprUsesAuthorityOrAmbientInput(filter.value));
+  if (!(queryKind && hostPlanQuery && publicRequirement && ambientFree)) {
+    err(
+      'FUNCTION_AUTHORITY_INDEPENDENT_INVALID',
+      'auth',
+      `${name}: authorityIndependent requires a public HostPlan query with no auth, runtime-clock, or runtime-id expression`,
+      { function: name, kind: def.__kind, authRequirement: def.auth ?? 'optional-user' },
+    );
+  }
+}
+
 function decorateFunctions(appId, functions) {
   return functions.map((fn) => {
     const reads = readSummary(fn);
@@ -1825,7 +2018,8 @@ function decorateFunctions(appId, functions) {
       kind: fn.kind,
       sourceSpan: null,
       requiredCapabilities: requiredCapabilities(fn),
-      authRequirement: 'optional-user',
+      authRequirement: fn.authRequirement ?? 'optional-user',
+      ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
       syncabilityClass: syncabilityClass(fn),
       readSetSummary: reads,
       writeSetSummary: writes,
@@ -2579,6 +2773,48 @@ function sha256Framed(domain, items) {
   append(String(items.length));
   for (const item of items) append(item);
   return hash.digest('hex');
+}
+
+/** Pure identity authority used by codegen and golden-vector tests. V0 keeps
+ * its historical domains/truncation byte-for-byte; only the closed v1+sessions
+ * tuple enters the disjoint serialized namespaces from LLP 0012/0055. */
+export function computeArtifactIdentityStrings({
+  artifactVersion,
+  authMode,
+  appId,
+  sharedInputItems,
+  schemaContentItems,
+  bundleContentItems,
+}) {
+  // @ref LLP 0055#disjoint-v1-identity-strings — preserve v0's domains and
+  // truncation; v1 sessions uses the three exact full-digest namespaces.
+  if (artifactVersion === SCHEMA_VERSION && authMode === 'dev') {
+    return {
+      inputsHash: sha256Framed('snapback-codegen/inputs-hash/v1', sharedInputItems),
+      schemaHash: `sha256:${sha256Framed('snapback-codegen/schema-content-hash/v1', schemaContentItems).slice(0, 16)}`,
+      bundleHash: `sha256:${sha256Framed('snapback-codegen/bundle-content-hash/v1', bundleContentItems).slice(0, 16)}`,
+    };
+  }
+  if (artifactVersion !== SESSIONS_SCHEMA_VERSION || authMode !== 'sessions') {
+    throw new Error(`unsupported artifact/auth identity tuple ${artifactVersion} + ${authMode}`);
+  }
+  const inputsDigest = sha256Framed(
+    'snapback-codegen/inputs-hash/snapback.v1/sessions',
+    ['schemaFunctionPair', SESSIONS_SCHEMA_VERSION, 'sessions', appId, ...sharedInputItems],
+  );
+  const schemaDigest = sha256Framed(
+    'snapback-codegen/schema-content-hash/snapback.v1/sessions',
+    ['schemaManifest', SESSIONS_SCHEMA_VERSION, 'sessions', appId, ...schemaContentItems],
+  );
+  const bundleDigest = sha256Framed(
+    'snapback-codegen/bundle-content-hash/snapback.v1/sessions',
+    ['functionManifest', SESSIONS_SCHEMA_VERSION, 'sessions', appId, ...bundleContentItems],
+  );
+  return {
+    inputsHash: `${SESSIONS_SCHEMA_VERSION}:sessions:inputs:sha256:${inputsDigest}`,
+    schemaHash: `${SESSIONS_SCHEMA_VERSION}:sessions:schema:sha256:${schemaDigest}`,
+    bundleHash: `${SESSIONS_SCHEMA_VERSION}:sessions:function:sha256:${bundleDigest}`,
+  };
 }
 
 function compareCodeUnits(a, b) {

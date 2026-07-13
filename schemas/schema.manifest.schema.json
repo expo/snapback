@@ -64,6 +64,27 @@
       },
       "type": "object"
     },
+    "AuthManifest": {
+      "additionalProperties": false,
+      "description": "Closed schema-manifest auth declaration. Unknown members are rejected so a\nfuture authority-changing field cannot be silently ignored by this parser.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/AuthMode"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
     "Diagnostic": {
       "properties": {
         "code": {
@@ -298,6 +319,16 @@
       "default": "schemaManifest",
       "type": "string"
     },
+    "auth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthManifest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "ephemeralCollections": {
       "default": [],
       "items": {
@@ -323,6 +354,12 @@
     },
     "portabilityFlags": {
       "default": [],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "requiredCapabilities": {
       "items": {
         "type": "string"
       },

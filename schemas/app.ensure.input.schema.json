@@ -158,6 +158,36 @@
       },
       "type": "object"
     },
+    "AuthManifest": {
+      "additionalProperties": false,
+      "description": "Closed schema-manifest auth declaration. Unknown members are rejected so a\nfuture authority-changing field cannot be silently ignored by this parser.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/AuthMode"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "AuthRequirement": {
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0055#closed-function-requirement — closed values fail at manifest parse.",
+      "enum": [
+        "public",
+        "optional-user",
+        "authenticated"
+      ],
+      "type": "string"
+    },
     "BinaryOp": {
       "enum": [
         "Add",
@@ -844,11 +874,18 @@
     "FunctionDefinition": {
       "properties": {
         "authRequirement": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthRequirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "authorityIndependent": {
+          "type": "boolean"
         },
         "bundleEntrypoint": {
           "default": null,
@@ -1590,6 +1627,16 @@
           "default": "schemaManifest",
           "type": "string"
         },
+        "auth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "ephemeralCollections": {
           "default": [],
           "items": {
@@ -1615,6 +1662,12 @@
         },
         "portabilityFlags": {
           "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requiredCapabilities": {
           "items": {
             "type": "string"
           },

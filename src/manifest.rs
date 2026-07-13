@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::str::FromStr;
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
@@ -261,7 +263,54 @@ impl SchemaManifest {
             &self.schema_version,
             self.schema_hash.as_deref(),
             self.inputs_hash.as_deref(),
-        )
+        )?;
+
+        let mode = self.effective_auth_mode();
+        let tuple_supported = matches!(
+            (self.schema_version.as_str(), mode),
+            (SNAPBACK_SCHEMA_VERSION, AuthMode::Dev)
+                | (SNAPBACK_SESSIONS_SCHEMA_VERSION, AuthMode::Sessions)
+        );
+        if !tuple_supported {
+            return Err(SnapbackError::error(
+                "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION",
+                "schema",
+                format!(
+                    "unsupported schema/auth tuple {} + {}",
+                    self.schema_version,
+                    mode.as_str()
+                ),
+            )
+            .with_details(serde_json::json!({
+                "schemaVersion": self.schema_version,
+                "authMode": mode.as_str(),
+            })));
+        }
+
+        if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
+            validate_known_v1_capabilities(self.required_capabilities.iter().map(String::as_str))?;
+            if !self
+                .required_capabilities
+                .iter()
+                .any(|capability| capability == TargetCapabilityId::AuthSessionsV1.as_str())
+            {
+                return Err(unsupported_capability_error(
+                    TargetCapabilityId::AuthSessionsV1.as_str(),
+                    "a sessions schema must require auth.sessions.v1",
+                ));
+            }
+        } else if self
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == TargetCapabilityId::AuthSessionsV1.as_str())
+        {
+            return Err(unsupported_capability_error(
+                TargetCapabilityId::AuthSessionsV1.as_str(),
+                "a v0 dev schema must not require auth.sessions.v1",
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -512,6 +561,14 @@ impl FunctionManifest {
                     ));
                 }
             }
+
+            validate_authority_independent(function)?;
+
+            if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
+                validate_known_v1_capabilities(
+                    function.required_capabilities.iter().map(String::as_str),
+                )?;
+            }
         }
 
         let by_name = self
@@ -605,7 +662,119 @@ impl FunctionManifest {
                 }
             }
         }
+        for job in &self.cron_jobs {
+            if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
+                validate_known_v1_capabilities(
+                    job.required_capabilities.iter().map(String::as_str),
+                )?;
+            }
+            if let Some(target) = self.function(&job.action)
+                && target.effective_auth_requirement() == AuthRequirement::Authenticated
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CRON_AUTH_REQUIREMENT_INVALID",
+                    "cron",
+                    format!(
+                        "cron job {} targets authenticated function {}; system authority has no user",
+                        job.name, job.action
+                    ),
+                )
+                .with_details(serde_json::json!({
+                    "jobName": job.name,
+                    "function": job.action,
+                    "authRequirement": AuthRequirement::Authenticated.as_str(),
+                })));
+            }
+        }
         Ok(())
+    }
+}
+
+fn unsupported_capability_error(capability: &str, message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_CAPABILITY_UNSUPPORTED",
+        "capability",
+        message.into(),
+    )
+    .with_details(serde_json::json!({ "capability": capability }))
+}
+
+fn validate_known_v1_capabilities<'a>(
+    required: impl IntoIterator<Item = &'a str>,
+) -> SnapbackResult<()> {
+    for capability in required {
+        capability.parse::<TargetCapabilityId>().map_err(|()| {
+            unsupported_capability_error(
+                capability,
+                format!("unknown required target capability {capability}"),
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !function.authority_independent {
+        return Ok(());
+    }
+
+    let eligible_kind = matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery);
+    let eligible_requirement = function.effective_auth_requirement() == AuthRequirement::Public;
+    let eligible_declarations =
+        function.uses.is_empty() && function.read_set_summary.auth_scope_field.is_none();
+    let eligible_runtime = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => !plan
+            .filters
+            .iter()
+            .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value)),
+        FunctionRuntime::HostPlan(_) | FunctionRuntime::IbexModule(_) => false,
+    };
+
+    if eligible_kind && eligible_requirement && eligible_declarations && eligible_runtime {
+        return Ok(());
+    }
+
+    Err(SnapbackError::error(
+        "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
+        "auth",
+        format!(
+            "function {} does not satisfy the authority-independent HostPlan profile",
+            function.name
+        ),
+    )
+    .with_details(serde_json::json!({
+        "function": function.name,
+        "kind": &function.kind,
+        "authRequirement": function.effective_auth_requirement().as_str(),
+        "hostPlanQuery": matches!(&function.runtime, FunctionRuntime::HostPlan(HandlerPlan::Query(_))),
+        "usesConfig": !function.uses.is_empty(),
+        "authScopeField": function.read_set_summary.auth_scope_field.as_deref(),
+    })))
+}
+
+fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
+    match value {
+        ValueExpr::AuthUserId | ValueExpr::RuntimeId | ValueExpr::RuntimeNow => true,
+        ValueExpr::Arg(_) | ValueExpr::Args | ValueExpr::Binding(_) | ValueExpr::Literal(_) => {
+            false
+        }
+        ValueExpr::Field { base, .. } => value_expr_uses_authority_or_ambient_input(base),
+        ValueExpr::Binary { left, right, .. } => {
+            value_expr_uses_authority_or_ambient_input(left)
+                || value_expr_uses_authority_or_ambient_input(right)
+        }
+        ValueExpr::Unary { expr, .. } => value_expr_uses_authority_or_ambient_input(expr),
+        ValueExpr::If { cond, then, r#else } => {
+            value_expr_uses_authority_or_ambient_input(cond)
+                || value_expr_uses_authority_or_ambient_input(then)
+                || value_expr_uses_authority_or_ambient_input(r#else)
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => values
+            .iter()
+            .any(value_expr_uses_authority_or_ambient_input),
+        ValueExpr::Record { fields } => fields
+            .values()
+            .any(value_expr_uses_authority_or_ambient_input),
     }
 }
 
@@ -1803,6 +1972,199 @@ pub struct SeedData {
     pub tables: BTreeMap<String, Vec<Map<String, Value>>>,
 }
 
+/// A schema/function artifact version understood by the auth-aware receiver.
+/// Capability manifests report the dimensions separately for discovery, but
+/// [`SupportedArtifactAuthPair`] remains the actual compatibility authority.
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+pub enum ArtifactVersion {
+    #[serde(rename = "snapback.v0")]
+    V0,
+    #[serde(rename = "snapback.v1")]
+    V1,
+}
+
+impl ArtifactVersion {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::V0 => SNAPBACK_SCHEMA_VERSION,
+            Self::V1 => SNAPBACK_SESSIONS_SCHEMA_VERSION,
+        }
+    }
+}
+
+/// One explicitly supported schema/function-version and auth-mode tuple.
+/// Separate version/mode arrays are dimension reports and never imply a
+/// Cartesian-product authorization.
+///
+/// @ref LLP 0055#the-two-admissible-tuples — exactly v0+dev and v1+sessions.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SupportedArtifactAuthPair {
+    #[serde(rename = "schemaVersion", alias = "schema_version")]
+    pub schema_version: ArtifactVersion,
+    #[serde(rename = "authMode", alias = "auth_mode")]
+    pub auth_mode: AuthMode,
+}
+
+/// The exact target-capability vocabulary understood by paired-v1 manifests.
+/// App artifacts retain string fields for v0 compatibility; every v1 string
+/// is parsed through this enum before target support is consulted.
+///
+/// @ref LLP 0055#the-two-admissible-tuples — the v1 registry is closed to eight ids.
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+pub enum TargetCapabilityId {
+    #[serde(rename = "auth.sessions.v1")]
+    AuthSessionsV1,
+    #[serde(rename = "cron")]
+    Cron,
+    #[serde(rename = "cron_action_run_mutation")]
+    CronActionRunMutation,
+    #[serde(rename = "host_plan_runtime")]
+    HostPlanRuntime,
+    #[serde(rename = "ibex_ctx_db_host_bridge")]
+    IbexCtxDbHostBridge,
+    #[serde(rename = "live_subscriptions")]
+    LiveSubscriptions,
+    #[serde(rename = "mutation_read_set_validation")]
+    MutationReadSetValidation,
+    #[serde(rename = "permission_epoch_resync")]
+    PermissionEpochResync,
+}
+
+impl TargetCapabilityId {
+    pub const ALL: [Self; 8] = [
+        Self::AuthSessionsV1,
+        Self::Cron,
+        Self::CronActionRunMutation,
+        Self::HostPlanRuntime,
+        Self::IbexCtxDbHostBridge,
+        Self::LiveSubscriptions,
+        Self::MutationReadSetValidation,
+        Self::PermissionEpochResync,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AuthSessionsV1 => "auth.sessions.v1",
+            Self::Cron => "cron",
+            Self::CronActionRunMutation => "cron_action_run_mutation",
+            Self::HostPlanRuntime => "host_plan_runtime",
+            Self::IbexCtxDbHostBridge => "ibex_ctx_db_host_bridge",
+            Self::LiveSubscriptions => "live_subscriptions",
+            Self::MutationReadSetValidation => "mutation_read_set_validation",
+            Self::PermissionEpochResync => "permission_epoch_resync",
+        }
+    }
+
+    /// Evaluate the id's named positive predicate for one exact target/runtime
+    /// instance. Missing facts are false; capability gaps are never consulted.
+    pub fn is_supported_by(
+        self,
+        manifest: &CapabilityManifest,
+        facts: TargetCapabilityFacts,
+    ) -> bool {
+        match self {
+            Self::AuthSessionsV1 => {
+                facts.paired_v1_parser_registered
+                    && facts.shared_invocation_gate_registered
+                    && facts.staged_mode_registered
+            }
+            Self::HostPlanRuntime => facts.host_plan_runtime,
+            Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
+            Self::LiveSubscriptions => manifest.live_subscriptions,
+            Self::MutationReadSetValidation => {
+                manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
+                    && facts.mutation_read_set_validator_registered
+            }
+            Self::Cron => manifest.cron,
+            Self::CronActionRunMutation => {
+                manifest.cron
+                    && manifest
+                        .supported_query_forms
+                        .iter()
+                        .any(|form| form == "cron-action-run-mutation")
+            }
+            Self::PermissionEpochResync => facts.permission_epoch_resync_registered,
+        }
+    }
+}
+
+impl fmt::Display for TargetCapabilityId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl FromStr for TargetCapabilityId {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|capability| capability.as_str() == value)
+            .ok_or(())
+    }
+}
+
+/// Code-owned implementation facts not representable by existing capability
+/// manifest fields. Constructors are internal so candidate artifacts cannot
+/// turn assertions into target authority.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TargetCapabilityFacts {
+    paired_v1_parser_registered: bool,
+    shared_invocation_gate_registered: bool,
+    staged_mode_registered: bool,
+    host_plan_runtime: bool,
+    ibex_ctx_db_host_bridge_available: bool,
+    mutation_read_set_validator_registered: bool,
+    permission_epoch_resync_registered: bool,
+}
+
+impl TargetCapabilityFacts {
+    fn local_auth_aware() -> Self {
+        Self {
+            paired_v1_parser_registered: true,
+            shared_invocation_gate_registered: true,
+            staged_mode_registered: true,
+            host_plan_runtime: true,
+            ibex_ctx_db_host_bridge_available: true,
+            mutation_read_set_validator_registered: true,
+            permission_epoch_resync_registered: true,
+        }
+    }
+
+    fn conformance_auth_aware() -> Self {
+        Self {
+            ibex_ctx_db_host_bridge_available: false,
+            ..Self::local_auth_aware()
+        }
+    }
+}
+
+/// Version-1 auth protocol numbers reported by an auth-aware target.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuthProtocols {
+    pub provider: u32,
+    pub invocation: u32,
+    #[serde(rename = "stagedMode", alias = "staged_mode")]
+    pub staged_mode: u32,
+    pub bootstrap: u32,
+}
+
+impl AuthProtocols {
+    const V1: Self = Self {
+        provider: 1,
+        invocation: 1,
+        staged_mode: 1,
+        bootstrap: 1,
+    };
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CapabilityManifest {
     #[serde(
@@ -1819,6 +2181,33 @@ pub struct CapabilityManifest {
     pub schema_version: String,
     #[serde(rename = "targetProfileId", alias = "target_profile_id")]
     pub target_profile_id: String,
+    #[serde(
+        default,
+        rename = "supportedArtifactVersions",
+        alias = "supported_artifact_versions"
+    )]
+    pub supported_artifact_versions: Vec<ArtifactVersion>,
+    #[serde(default, rename = "supportedAuthModes", alias = "supported_auth_modes")]
+    pub supported_auth_modes: Vec<AuthMode>,
+    #[serde(
+        default,
+        rename = "supportedArtifactAuthPairs",
+        alias = "supported_artifact_auth_pairs"
+    )]
+    pub supported_artifact_auth_pairs: Vec<SupportedArtifactAuthPair>,
+    #[serde(
+        default,
+        rename = "supportedCapabilities",
+        alias = "supported_capabilities"
+    )]
+    pub supported_capabilities: Vec<TargetCapabilityId>,
+    #[serde(
+        default,
+        rename = "authProtocols",
+        alias = "auth_protocols",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub auth_protocols: Option<AuthProtocols>,
     #[serde(rename = "storageEngine", alias = "storage_engine")]
     pub storage_engine: String,
     #[serde(rename = "runtimeEngine", alias = "runtime_engine")]
@@ -1953,10 +2342,24 @@ impl CapabilityManifest {
     }
 
     pub fn local_v0(capability_gaps: Vec<String>) -> Self {
-        Self {
+        let mut manifest = Self {
             artifact_kind: capability_manifest_kind(),
             schema_version: snapback_schema_version(),
             target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            supported_artifact_versions: vec![ArtifactVersion::V0, ArtifactVersion::V1],
+            supported_auth_modes: vec![AuthMode::Dev, AuthMode::Sessions],
+            supported_artifact_auth_pairs: vec![
+                SupportedArtifactAuthPair {
+                    schema_version: ArtifactVersion::V0,
+                    auth_mode: AuthMode::Dev,
+                },
+                SupportedArtifactAuthPair {
+                    schema_version: ArtifactVersion::V1,
+                    auth_mode: AuthMode::Sessions,
+                },
+            ],
+            supported_capabilities: Vec::new(),
+            auth_protocols: Some(AuthProtocols::V1),
             storage_engine: "sqlite".to_owned(),
             runtime_engine: "ibex".to_owned(),
             local_server_lifecycle: true,
@@ -2044,7 +2447,9 @@ impl CapabilityManifest {
             // with the live per-instance value (warm pool enabled or not).
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
-        }
+        };
+        manifest.refresh_supported_capabilities(TargetCapabilityFacts::local_auth_aware());
+        manifest
     }
 
     /// The LLP 0048 conformance twin's internal manifest: the local target's
@@ -2073,6 +2478,7 @@ impl CapabilityManifest {
             }
         }
         manifest.runtime_facts = Some(runtime_facts);
+        manifest.refresh_supported_capabilities(TargetCapabilityFacts::conformance_auth_aware());
         manifest
     }
 
@@ -2088,6 +2494,13 @@ impl CapabilityManifest {
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
+        manifest.supported_artifact_versions = vec![ArtifactVersion::V0];
+        manifest.supported_auth_modes = vec![AuthMode::Dev];
+        manifest.supported_artifact_auth_pairs = vec![SupportedArtifactAuthPair {
+            schema_version: ArtifactVersion::V0,
+            auth_mode: AuthMode::Dev,
+        }];
+        manifest.auth_protocols = None;
         manifest.storage_engine = "durable-object-sqlite".to_owned();
         manifest.runtime_engine = "v8".to_owned();
         manifest.local_server_lifecycle = false;
@@ -2169,7 +2582,48 @@ impl CapabilityManifest {
             },
         ];
         manifest.runtime_facts = Some(runtime_facts);
+        manifest.refresh_supported_capabilities(TargetCapabilityFacts::default());
         manifest
+    }
+
+    fn refresh_supported_capabilities(&mut self, facts: TargetCapabilityFacts) {
+        self.supported_capabilities = TargetCapabilityId::ALL
+            .into_iter()
+            .filter(|capability| capability.is_supported_by(self, facts))
+            .collect();
+    }
+
+    /// Validate one app-artifact requirement against the closed registry and
+    /// this target's positive support set. Candidate claims and missing gaps
+    /// are deliberately irrelevant.
+    pub fn require_capability(&self, required: &str) -> SnapbackResult<TargetCapabilityId> {
+        let capability = required.parse::<TargetCapabilityId>().map_err(|()| {
+            SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "capability",
+                format!("unknown required target capability {required}"),
+            )
+            .with_details(serde_json::json!({ "capability": required }))
+        })?;
+        if !self.supported_capabilities.contains(&capability) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "capability",
+                format!("target does not support required capability {required}"),
+            )
+            .with_details(serde_json::json!({ "capability": required })));
+        }
+        Ok(capability)
+    }
+
+    pub fn require_capabilities<'a>(
+        &self,
+        required: impl IntoIterator<Item = &'a str>,
+    ) -> SnapbackResult<()> {
+        for capability in required {
+            self.require_capability(capability)?;
+        }
+        Ok(())
     }
 }
 
@@ -2199,7 +2653,10 @@ fn validate_artifact_header(
         ));
     }
 
-    if schema_version != SNAPBACK_SCHEMA_VERSION {
+    if !matches!(
+        schema_version,
+        SNAPBACK_SCHEMA_VERSION | SNAPBACK_SESSIONS_SCHEMA_VERSION
+    ) {
         return Err(SnapbackError::error(
             format!(
                 "SNAPBACK_STALE_{}_ARTIFACT_VERSION",
@@ -2244,6 +2701,7 @@ impl ArtifactDiagnosticExt for SnapbackError {
             "expectedArtifactKind": expected_kind,
             "artifactKind": artifact_kind,
             "expectedSchemaVersion": SNAPBACK_SCHEMA_VERSION,
+            "supportedSchemaVersions": [SNAPBACK_SCHEMA_VERSION, SNAPBACK_SESSIONS_SCHEMA_VERSION],
             "schemaVersion": schema_version,
             "contentHash": content_hash,
             "inputsHash": inputs_hash,

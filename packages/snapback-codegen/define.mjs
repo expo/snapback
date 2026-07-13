@@ -22,6 +22,34 @@ const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
+const AUTH_MODES = new Set(['dev', 'sessions']);
+const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
+const TARGET_CAPABILITIES = new Set([
+  'auth.sessions.v1',
+  'cron',
+  'cron_action_run_mutation',
+  'host_plan_runtime',
+  'ibex_ctx_db_host_bridge',
+  'live_subscriptions',
+  'mutation_read_set_validation',
+  'permission_epoch_resync',
+]);
+
+function authoredFunctionAuth(spec, kind) {
+  // @ref LLP 0055#closed-function-requirement — authoring accepts only the
+  // closed requirement and authority-independence spellings the Rust parser owns.
+  const fields = {};
+  if (spec.auth !== undefined) {
+    assert(AUTH_REQUIREMENTS.has(spec.auth), `${kind} auth must be public, optional-user, or authenticated`);
+    fields.auth = spec.auth;
+  }
+  if (spec.authorityIndependent !== undefined) {
+    assert(typeof spec.authorityIndependent === 'boolean', `${kind} authorityIndependent must be boolean`);
+    assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be authorityIndependent`);
+    fields.authorityIndependent = spec.authorityIndependent;
+  }
+  return fields;
+}
 
 // ---------------------------------------------------------------------------
 // Validators (field + arg types). The vocabulary maps 1:1 onto the server's
@@ -98,7 +126,30 @@ export function defineSchema(tables, options = {}) {
   if (ephemeralDef !== null) {
     assert(ephemeralDef && ephemeralDef[EPHEMERAL], 'defineSchema option "ephemeral" must be defineEphemeral(...)');
   }
-  return { __schema: true, tables, ephemeral: ephemeralDef };
+  let auth;
+  // @ref LLP 0055#closed-auth-mode — auth mode is must-understand, including
+  // unknown members on the otherwise additive schema authoring object.
+  if (options.auth !== undefined) {
+    assert(options.auth && typeof options.auth === 'object' && !Array.isArray(options.auth), 'defineSchema option "auth" must be an object');
+    assert(Object.keys(options.auth).length === 1 && Object.hasOwn(options.auth, 'mode'), 'defineSchema option "auth" accepts only mode');
+    assert(AUTH_MODES.has(options.auth.mode), 'defineSchema auth.mode must be dev or sessions');
+    auth = { mode: options.auth.mode };
+  }
+  if (options.requiredCapabilities !== undefined) {
+    assert(Array.isArray(options.requiredCapabilities), 'defineSchema requiredCapabilities must be an array');
+    for (const capability of options.requiredCapabilities) {
+      assert(TARGET_CAPABILITIES.has(capability), `unknown required target capability ${String(capability)}`);
+    }
+  }
+  return {
+    __schema: true,
+    tables,
+    ephemeral: ephemeralDef,
+    ...(auth ? { auth } : {}),
+    ...(options.requiredCapabilities !== undefined
+      ? { requiredCapabilities: [...new Set(options.requiredCapabilities)] }
+      : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +320,7 @@ function queryDef(kind, spec) {
   return {
     [FN]: true,
     __kind: kind, // 'Query' | 'LiveQuery'
+    ...authoredFunctionAuth(spec, kind),
     args: spec.args ?? {},
     // LLP 0034 D3 (Exact LLP 0284 §2.4): a chatty/expensive LiveQuery may opt
     // out of binding live by default; livePush capability is unaffected.
@@ -302,6 +354,7 @@ function jsQueryDef(kind, spec) {
   return {
     [FN]: true,
     __kind: kind,
+    ...authoredFunctionAuth(spec, kind),
     args: spec.args ?? {},
     ...(spec.result !== undefined ? { result: spec.result } : {}),
     // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
@@ -384,6 +437,7 @@ export function defineMutation(spec) {
   return {
     [FN]: true,
     __kind: 'Mutation',
+    ...authoredFunctionAuth(spec, 'Mutation'),
     args: spec.args ?? {},
     plan: { steps, return_value: spec.returns ?? null },
   };
@@ -413,6 +467,7 @@ export function defineJsMutation(spec) {
   return {
     [FN]: true,
     __kind: 'Mutation',
+    ...authoredFunctionAuth(spec, 'Mutation'),
     args: spec.args ?? {},
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
     js: {
@@ -440,6 +495,7 @@ export function defineAction(spec) {
     return {
       [FN]: true,
       __kind: 'Action',
+      ...authoredFunctionAuth(spec, 'Action'),
       args: spec.args ?? {},
       // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the config
       // entries this action may receive via ctx.secrets.
@@ -458,6 +514,7 @@ export function defineAction(spec) {
   return {
     [FN]: true,
     __kind: 'Action',
+    ...authoredFunctionAuth(spec, 'Action'),
     args: spec.args ?? {},
     uses: spec.uses ?? [],
     plan: { steps, return_value: spec.returns ?? null },
