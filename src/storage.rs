@@ -10,7 +10,10 @@ use crate::manifest::{
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
-use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
+    params_from_iter,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value, json};
 use sha2::{Digest, Sha256};
@@ -332,6 +335,57 @@ pub struct LocalDatabase {
     // connections so queries do not queue behind writes. `None` for in-memory
     // databases, which cannot run WAL; those fall back to the serialized lane.
     reader_pool: Option<Arc<ReaderPool>>,
+}
+
+fn reset_and_seed_transaction(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    seed: Option<SeedData>,
+    successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+) -> SnapbackResult<Option<MutationOutput>> {
+    // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state is
+    // deleted in dependency order inside the same transaction as app reset,
+    // while the protected catalog DDL and marker remain installed.
+    auth::reset_auth_catalog_in(tx)?;
+    // @ref LLP 0007#schema-evolution — dormant rollback tables are still
+    // inside the app-wide reset boundary.
+    for table in physical_user_tables(tx)? {
+        tx.execute(&format!("DELETE FROM {}", quote_ident(&table)?), [])?;
+    }
+    tx.execute("DELETE FROM _snapback_changes", [])?;
+    tx.execute("DELETE FROM _snapback_client_mutations", [])?;
+    tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
+    tx.execute(
+        "DELETE FROM _snapback_meta WHERE key = ?1",
+        params![META_RETENTION_FLOOR],
+    )?;
+    save_meta_u64(tx, META_CLIENT_MUTATION_RECORDS, 0)?;
+    save_meta_u64(tx, META_CLIENT_MUTATION_BYTES, 0)?;
+    save_meta_u64(tx, META_CLIENT_MUTATION_GC_TOTAL, 0)?;
+    tx.execute(
+        "DELETE FROM _snapback_meta WHERE key = ?1",
+        params![META_CRON_STATE],
+    )?;
+    // @ref LLP 0056#reset-restore-and-stream-publication — the successor is
+    // durable in the same transaction as every destructive reset effect.
+    auth_stream::rotate_authorization_stream_incarnation_in(tx, successor)?;
+    tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
+
+    match seed {
+        None => Ok(None),
+        Some(seed) => {
+            let changed_count = seed_into_transaction(tx, schema, seed, 1)?;
+            if changed_count > 0 {
+                set_version(tx, 1)?;
+            }
+            Ok(Some(MutationOutput {
+                version: if changed_count > 0 { 1 } else { 0 },
+                changed_count,
+                result: Value::Null,
+                ctx_ledger: None,
+            }))
+        }
+    }
 }
 
 impl LocalDatabase {
@@ -828,6 +882,7 @@ impl LocalDatabase {
         Ok(Vec::new())
     }
 
+    #[cfg(test)]
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.reset_and_seed(None).map(|_| ())
     }
@@ -840,6 +895,7 @@ impl LocalDatabase {
     /// @ref LLP 0003#execution-and-write-semantics — a logical mutation has
     /// one durable commit boundary; reset+seed is one operation, not a
     /// committed reset followed by a fallible second mutation.
+    #[cfg(test)]
     pub fn reset_and_seed(
         &mut self,
         seed: Option<SeedData>,
@@ -854,65 +910,17 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0056#reset-restore-and-stream-publication — the stream ticket
     /// binds the same successor written by the destructive transaction.
+    #[cfg(test)]
     pub(crate) fn reset_and_seed_with_authorization_stream(
         &mut self,
         seed: Option<SeedData>,
         successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
     ) -> SnapbackResult<Option<MutationOutput>> {
         let schema = self.schema.clone();
-        let tx = self.conn.transaction()?;
-        // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state is
-        // deleted in dependency order inside the same transaction as app reset,
-        // while the protected catalog DDL and marker remain installed.
-        auth::reset_auth_catalog_in(&tx)?;
-        // Schema evolution preserves removed physical tables for rollback.
-        // Reset is a stronger, app-wide destruction boundary: clear every
-        // physical user table, including one absent from the current manifest,
-        // so removing → resetting → re-adding a table cannot resurrect data.
-        // @ref LLP 0007#schema-evolution — dormant rollback tables are still
-        // inside the app-wide reset boundary.
-        for table in physical_user_tables(&tx)? {
-            tx.execute(&format!("DELETE FROM {}", quote_ident(&table)?), [])?;
-        }
-        tx.execute("DELETE FROM _snapback_changes", [])?;
-        tx.execute("DELETE FROM _snapback_client_mutations", [])?;
-        tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
-        tx.execute(
-            "DELETE FROM _snapback_meta WHERE key = ?1",
-            params![META_RETENTION_FLOOR],
-        )?;
-        save_meta_u64(&tx, META_CLIENT_MUTATION_RECORDS, 0)?;
-        save_meta_u64(&tx, META_CLIENT_MUTATION_BYTES, 0)?;
-        save_meta_u64(&tx, META_CLIENT_MUTATION_GC_TOTAL, 0)?;
-        // Remove the previous runtime ledger in the same durable boundary.
-        // The post-commit runtime pass persists the new clean state; if that
-        // secondary write fails, restart observes no stale pre-reset claims.
-        tx.execute(
-            "DELETE FROM _snapback_meta WHERE key = ?1",
-            params![META_CRON_STATE],
-        )?;
-        // @ref LLP 0056#reset-restore-and-stream-publication — reset changes
-        // authorization authority in the same commit as app/auth destruction.
-        // Publication to the shared stream fence occurs only after this
-        // transaction commits in the item-5 coordinator.
-        auth_stream::rotate_authorization_stream_incarnation_in(&tx, successor)?;
-        tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
-
-        let seeded = match seed {
-            None => None,
-            Some(seed) => {
-                let changed_count = seed_into_transaction(&tx, &schema, seed, 1)?;
-                if changed_count > 0 {
-                    set_version(&tx, 1)?;
-                }
-                Some(MutationOutput {
-                    version: if changed_count > 0 { 1 } else { 0 },
-                    changed_count,
-                    result: Value::Null,
-                    ctx_ledger: None,
-                })
-            }
-        };
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let seeded = reset_and_seed_transaction(&tx, &schema, seed, successor)?;
         #[cfg(test)]
         BEFORE_RESET_COMMIT_HOOK.with(|slot| {
             if let Some(hook) = slot.borrow_mut().take() {
@@ -922,6 +930,53 @@ impl LocalDatabase {
         })?;
         tx.commit()?;
         Ok(seeded)
+    }
+
+    /// Coordinated destructive reset with explicit commit certainty. A unique
+    /// stream successor is the durable operation marker used to reconcile a
+    /// lost COMMIT acknowledgement without replaying seed effects.
+    pub(crate) fn attempt_reset_and_seed_with_authorization_stream(
+        &mut self,
+        seed: Option<SeedData>,
+        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+    ) -> auth::AuthTransactionAttempt<Option<MutationOutput>> {
+        let schema = self.schema.clone();
+        let tx = match self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+        {
+            Ok(tx) => tx,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error.into()),
+        };
+        let seeded = match reset_and_seed_transaction(&tx, &schema, seed, successor) {
+            Ok(seeded) => seeded,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        #[cfg(test)]
+        if let Err(error) = BEFORE_RESET_COMMIT_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook()?;
+            }
+            Ok::<(), SnapbackError>(())
+        }) {
+            return auth::AuthTransactionAttempt::RolledBack(error);
+        }
+        match tx.commit() {
+            Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
+            Err(error) => {
+                let error = SnapbackError::from(error);
+                match self.authorization_stream_incarnation() {
+                    Ok(durable) if &durable == successor => {
+                        auth::AuthTransactionAttempt::Committed(seeded)
+                    }
+                    Ok(durable) if &durable == predecessor => {
+                        auth::AuthTransactionAttempt::RolledBack(error)
+                    }
+                    Ok(_) | Err(_) => auth::AuthTransactionAttempt::CommitUncertain(error),
+                }
+            }
+        }
     }
 
     pub fn load_cron_state(&self) -> SnapbackResult<Option<Value>> {

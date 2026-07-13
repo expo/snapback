@@ -1036,6 +1036,12 @@ impl std::fmt::Debug for OpenConnectionRequest {
 }
 
 impl ConnectionRegistry {
+    /// Invalidate every process-local connection capability after the shared
+    /// authorization stream rotates at a committed app reset.
+    pub(crate) fn clear_after_committed_reset(&self) {
+        *self.lock() = ConnectionRegistryState::default();
+    }
+
     /// Open a grant. A caller-suggested id is adopted only in non-prod
     /// profiles (trusted local: readable ids keep demos, acceptance suites,
     /// and gated-inspect output debuggable) and only while unclaimed — a
@@ -6361,19 +6367,16 @@ async fn host_ops_handler(
             &secret_reads,
             impersonation.as_ref().map(|Extension(verified)| verified),
         )?;
+
+        let outcome = coordinated_app_reset(&runtime, &route_admission, request.seed.clone()).await;
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::coordinated_reset_result(
+                snapback, &request, server_url, profile, outcome,
+            )
+        })
+        .await;
+        return Ok(Json(result));
     }
-    // Reset is the one host-op branch that crosses the auth lifecycle
-    // boundary. Take exclusive maintenance before the outer app mutex; clear
-    // capture plaintext only after the returned envelope proves commit.
-    // @ref LLP 0054#concurrency-locks-and-linearization — reset takes exclusive auth maintenance before the app/database writer.
-    let reset_maintenance = if requested_operation == "app.reset" {
-        match runtime.auth_provider.clone() {
-            Some(provider) => Some(provider.exclusive_maintenance().await),
-            None => None,
-        }
-    } else {
-        None
-    };
     let secret_reads_for_gate = secret_reads.clone();
     let gate_headers = headers.clone();
     let result = with_snapback(&state, move |snapback| -> Result<_, ApiError> {
@@ -6455,12 +6458,6 @@ async fn host_ops_handler(
         Ok(result)
     })
     .await?;
-    if result.ok
-        && requested_operation == "app.reset"
-        && let Some(maintenance) = reset_maintenance.as_ref()
-    {
-        maintenance.clear_mailbox_after_committed_reset();
-    }
     if policy_mode == PolicyAuthMode::Sessions {
         if (result.secret_read_query || requested_operation == "function.explain")
             && (!result.ok || !result.secret_read_provenance_complete)
@@ -6518,6 +6515,60 @@ async fn host_ops_handler(
     Ok(Json(result))
 }
 
+/// Execute the sole production app-reset primitive. Provider maintenance is
+/// acquired before the app mutex; the shared stream is blocked before SQLite;
+/// all auxiliary process capabilities are cleared only after exact finalize.
+///
+/// @ref LLP 0056#reset-restore-and-stream-publication — destructive authority
+/// changes use premark → durable attempt → exact finalize.
+async fn coordinated_app_reset(
+    runtime: &AppState,
+    route_admission: &AdmissionLease,
+    seed: Option<SeedData>,
+) -> SnapbackResult<Option<crate::manifest::MutationOutput>> {
+    #[cfg(test)]
+    if runtime.auth_provider.is_none() || runtime.auth_coordinator.is_none() {
+        let effect_admission = route_admission.clone();
+        return with_snapback(&runtime.snapback, move |snapback| {
+            let _effect = effect_admission.effect_guard("app reset transaction")?;
+            snapback.reset_with_seed(seed)
+        })
+        .await;
+    }
+
+    let provider = runtime
+        .auth_provider
+        .clone()
+        .ok_or_else(auth_provider_unavailable_error)?;
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    // @ref LLP 0054#concurrency-locks-and-linearization — reset takes
+    // exclusive auth maintenance before the app/database writer.
+    let maintenance = provider.exclusive_maintenance().await;
+    let carrier = coordinator.premark_stream_reset()?;
+    let predecessor = carrier.predecessor().clone();
+    let successor = carrier.successor().clone();
+    let effect_admission = route_admission.clone();
+    let attempt = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = match effect_admission.effect_guard("app reset transaction") {
+            Ok(effect) => effect,
+            Err(error) => return AuthTransactionAttempt::RolledBack(error),
+        };
+        snapback.attempt_reset_with_seed_and_authorization_stream(seed, &predecessor, &successor)
+    })
+    .await;
+    let seeded = coordinator.finish_stream_reset(carrier, attempt)?;
+    runtime.connections.clear_after_committed_reset();
+    runtime.secret_reads.clear_after_committed_reset();
+    maintenance.clear_mailbox_after_committed_reset();
+    Ok(seeded)
+}
+
 /// `app.reset` — the gated system write that resets the instance and, per
 /// LLP 0024/LLP 0031 D5, optionally seeds it in the same call. Seed is folded
 /// in here rather than living as a standalone route, so an empty body resets
@@ -6527,26 +6578,14 @@ async fn host_ops_handler(
 async fn app_reset(
     State(runtime): State<AppState>,
     State(ctx): State<Arc<ServerContext>>,
+    Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AppResetResponse>, ApiError> {
     crate::admin::authorize_operation(&ctx, &headers, "app.reset", None)?;
     crate::admin::require_operation_profile(&ctx, "app.reset", false)?;
     let seed = parse_optional_json::<AppResetBody>(&headers, body)?.and_then(|body| body.seed);
-    // The maintenance guard is intentionally acquired before `with_snapback`;
-    // a rejected transaction returns through `?` without clearing the mailbox.
-    // @ref LLP 0054#catalog-write-and-lifecycle-rules — app reset commits auth deletion with app data and retains the catalog/keyring.
-    let maintenance = match runtime.auth_provider.clone() {
-        Some(provider) => Some(provider.exclusive_maintenance().await),
-        None => None,
-    };
-    let seeded = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.reset_with_seed(seed)
-    })
-    .await?;
-    if let Some(maintenance) = maintenance.as_ref() {
-        maintenance.clear_mailbox_after_committed_reset();
-    }
+    let seeded = coordinated_app_reset(&runtime, &route_admission, seed).await?;
     Ok(Json(AppResetResponse { seeded }))
 }
 
@@ -7898,6 +7937,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         | "SNAPBACK_AUTH_TABLE_COLLISION"
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
+        | "SNAPBACK_AUTH_MODE_DOWNGRADE"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -7956,7 +7996,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
         | "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        | "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
         | "SNAPBACK_AUTH_MODE_PENDING"
+        | "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+        | "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
@@ -7965,6 +8008,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
         | "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT"
+        | "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED"
+        | "SNAPBACK_APP_GENERATION_EXHAUSTED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -7974,6 +8019,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
+        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
         | "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID"
@@ -10396,6 +10442,14 @@ mod tests {
             "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
         ),
         (
+            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+            "handshake unavailable-reason identifier, not an emitted diagnostic",
+        ),
+        (
+            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+            "handshake unavailable-reason identifier, not an emitted diagnostic",
+        ),
+        (
             "SNAPBACK_BUILD_GIT_COMMIT",
             "compile-time environment variable carrying build provenance",
         ),
@@ -10506,6 +10560,7 @@ mod tests {
         "SNAPBACK_AUTH_USER_MISSING",
         "SNAPBACK_BINDING_MISSING",
         "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
+        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_CAPTURED_READ_INVALID",
         "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
@@ -10663,6 +10718,7 @@ mod tests {
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
+        "SNAPBACK_AUTH_MODE_DOWNGRADE",
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_AUTH_TABLE_COLLISION",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
@@ -10700,11 +10756,14 @@ mod tests {
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
+        "SNAPBACK_APP_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_CATALOG_CORRUPT",
         "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
+        "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
         "SNAPBACK_AUTH_MODE_PENDING",
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
         "SNAPBACK_AUTH_PROJECTION_CORRUPT",
@@ -10712,6 +10771,8 @@ mod tests {
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
         "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
@@ -11497,6 +11558,19 @@ globalThis.__snapbackHandlers = {
             registry
                 .verify(&collided.connection_id, Some(&collided.connection_token))
                 .is_ok()
+        );
+
+        registry.clear_after_committed_reset();
+        assert!(
+            registry
+                .verify("readable", Some(&adopted.connection_token))
+                .is_err(),
+            "a committed stream reset invalidates every predecessor grant"
+        );
+        assert!(
+            registry
+                .verify(&collided.connection_id, Some(&collided.connection_token))
+                .is_err()
         );
     }
 

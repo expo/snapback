@@ -207,9 +207,17 @@ impl AuthRuntime {
 pub(crate) async fn run_periodic_gc_pass(
     state: &SharedSnapback,
     provider: Arc<AuthProvider>,
+    coordinator: Arc<AuthCoordinator>,
 ) -> ProviderResult<AuthGcPass> {
     let maintenance = provider.exclusive_maintenance().await;
     let now_ms = provider.now_ms();
+    // Durable deletion follows, and can never race ahead of, process-local
+    // terminalization. A projection failure aborts this pass before SQLite.
+    // @ref LLP 0056#operation-specific-publication — the projection owns live
+    // expiry authority; GC only reclaims rows after that authority is closed.
+    coordinator
+        .expire_due(now_ms, provider.monotonic_now())
+        .map_err(ProviderError::from)?;
     crate::server::with_snapback(state, move |snapback| {
         maintenance.run_gc_pass(snapback.auth_database_mut(), now_ms)
     })
@@ -223,6 +231,7 @@ pub(crate) async fn run_periodic_gc_pass(
 pub(crate) fn spawn_auth_gc_worker(
     state: SharedSnapback,
     runtime: AuthRuntime,
+    coordinator: Arc<AuthCoordinator>,
     initial_delay: Duration,
 ) -> Option<JoinHandle<()>> {
     if !runtime.catalog_ready {
@@ -232,10 +241,11 @@ pub(crate) fn spawn_auth_gc_worker(
         let mut delay = initial_delay;
         loop {
             tokio::time::sleep(delay).await;
-            delay = match run_periodic_gc_pass(&state, runtime.provider()).await {
-                Ok(pass) => pass.next_delay(),
-                Err(_) => AUTH_GC_INTERVAL,
-            };
+            delay =
+                match run_periodic_gc_pass(&state, runtime.provider(), coordinator.clone()).await {
+                    Ok(pass) => pass.next_delay(),
+                    Err(_) => AUTH_GC_INTERVAL,
+                };
         }
     }))
 }
@@ -287,10 +297,13 @@ mod tests {
     use crate::auth::lifecycle::{
         RestoreDeclaration, activate_catalog, apply_declared_restore, restore_declaration_path,
     };
+    use crate::auth::provider::AuthClock;
     use crate::local::LocalSnapback;
     use crate::storage::auth::AUTH_GC_BATCH;
     use rusqlite::params;
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::Instant;
     use tokio::sync::Mutex;
 
     fn activate_file_catalog(
@@ -345,6 +358,37 @@ mod tests {
                     .map_err(crate::diagnostic::SnapbackError::from)
             })
             .expect("count retained auth challenges")
+    }
+
+    struct RuntimeManualClock {
+        epoch_ms: AtomicU64,
+        base_epoch_ms: u64,
+        base_monotonic: Instant,
+    }
+
+    impl RuntimeManualClock {
+        fn new(epoch_ms: u64) -> Self {
+            Self {
+                epoch_ms: AtomicU64::new(epoch_ms),
+                base_epoch_ms: epoch_ms,
+                base_monotonic: Instant::now(),
+            }
+        }
+
+        fn set(&self, epoch_ms: u64) {
+            self.epoch_ms.store(epoch_ms, Ordering::Release);
+        }
+    }
+
+    impl AuthClock for RuntimeManualClock {
+        fn epoch_ms(&self) -> u64 {
+            self.epoch_ms.load(Ordering::Acquire)
+        }
+
+        fn monotonic_now(&self) -> Instant {
+            self.base_monotonic
+                + Duration::from_millis(self.epoch_ms().saturating_sub(self.base_epoch_ms))
+        }
     }
 
     #[tokio::test]
@@ -548,15 +592,20 @@ mod tests {
         assert_eq!(challenge_count(&mut snapback), AUTH_GC_BATCH + 1);
         assert_eq!(runtime.health(), AuthProviderHealth::Unavailable);
         assert!(!keyring_path.exists());
+        let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
 
         // The startup result seeds an immediate worker pass. That pass also
         // hits the 512-row bound, so the last row disappears only if periodic
         // scheduling preserves a second immediate retry while the ring remains
         // unavailable.
         let state = Arc::new(Mutex::new(snapback));
-        let worker =
-            spawn_auth_gc_worker(state.clone(), runtime.clone(), startup_pass.next_delay())
-                .expect("ready catalog starts auth GC worker");
+        let worker = spawn_auth_gc_worker(
+            state.clone(),
+            runtime.clone(),
+            coordinator,
+            startup_pass.next_delay(),
+        )
+        .expect("ready catalog starts auth GC worker");
         let drained = tokio::time::timeout(Duration::from_secs(2), async {
             loop {
                 let remaining = crate::server::with_snapback(&state, challenge_count).await;
@@ -642,12 +691,29 @@ mod tests {
         )
         .unwrap();
         let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
+        snapback
+            .auth_database_mut()
+            .ensure_authorization_stream_incarnation()
+            .unwrap();
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            snapback
+                .auth_database_mut()
+                .session_projection_source()
+                .unwrap(),
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )
+        .unwrap();
+        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
         let state = Arc::new(Mutex::new(snapback));
         let outer = state.clone().lock_owned().await;
 
         let gc_state = state.clone();
         let gc_provider = provider.clone();
-        let gc = tokio::spawn(async move { run_periodic_gc_pass(&gc_state, gc_provider).await });
+        let gc =
+            tokio::spawn(
+                async move { run_periodic_gc_pass(&gc_state, gc_provider, coordinator).await },
+            );
         tokio::task::yield_now().await;
 
         let admission = tokio::time::timeout(Duration::from_millis(50), provider.admit()).await;
@@ -660,6 +726,97 @@ mod tests {
         tokio::time::timeout(Duration::from_secs(1), provider.admit())
             .await
             .expect("shared admission resumes after GC");
+    }
+
+    #[tokio::test]
+    async fn periodic_gc_terminalizes_projection_before_deleting_durable_session() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            1_000,
+            &OsRandom,
+        )
+        .unwrap();
+        let clock = Arc::new(RuntimeManualClock::new(1_000));
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                clock.clone(),
+            )
+            .unwrap(),
+        );
+        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let bearer_text = bearer.expose_secret().to_owned();
+        let token_hash = bearer.token_hash();
+        let user_id = uuid::Uuid::now_v7().to_string();
+        let identity_id = uuid::Uuid::now_v7().to_string();
+        let session_id = uuid::Uuid::now_v7().to_string();
+        let authority_instance_id = uuid::Uuid::now_v7().to_string();
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|transaction| {
+                transaction.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 900)",
+                    params![user_id],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
+                     VALUES(?1, ?2, 'email-code', 'gc@example.com', 900)",
+                    params![identity_id, user_id],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms, revoked_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, 1, 900, 900, 1100, 1100, NULL)",
+                    params![
+                        session_id,
+                        user_id,
+                        identity_id,
+                        authority_instance_id,
+                        token_hash.as_bytes().as_slice(),
+                    ],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        snapback
+            .auth_database_mut()
+            .ensure_authorization_stream_incarnation()
+            .unwrap();
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            snapback
+                .auth_database_mut()
+                .session_projection_source()
+                .unwrap(),
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )
+        .unwrap();
+        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        coordinator
+            .resolve_required_bearer(&bearer_text, provider.now_ms(), provider.monotonic_now())
+            .expect("predecessor session begins live");
+
+        let state = Arc::new(Mutex::new(snapback));
+        clock.set(1_101);
+        let pass = run_periodic_gc_pass(&state, provider.clone(), coordinator.clone())
+            .await
+            .unwrap();
+        assert_eq!(pass.sessions_deleted, 1);
+        assert_eq!(
+            coordinator
+                .resolve_required_bearer(&bearer_text, provider.now_ms(), provider.monotonic_now(),)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_REQUIRED"
+        );
     }
 
     #[tokio::test]

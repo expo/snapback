@@ -1725,6 +1725,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
         auth_runtime.clone(),
+        auth_coordinator.clone(),
         auth_gc_initial_delay,
     );
     let auth_expiry_worker =
@@ -1739,7 +1740,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if let Some(worker) = auth_maintenance_worker {
         worker.abort();
     }
-    auth_expiry_worker.abort();
     auth_expiry_worker.abort();
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {

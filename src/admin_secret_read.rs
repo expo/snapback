@@ -413,6 +413,13 @@ impl SecretReadLeaseRegistry {
         Self::new_with_clock(reset_generation, Arc::new(Instant::now))
     }
 
+    /// Drop all process-local lease records after a committed app reset. The
+    /// reset generation is the authority fence; eager clearing also releases
+    /// capacity and makes the post-commit boundary explicit.
+    pub(crate) fn clear_after_committed_reset(&self) {
+        self.lock_state().leases.clear();
+    }
+
     fn new_with_clock(
         reset_generation: Arc<AtomicU64>,
         clock: Arc<dyn Fn() -> Instant + Send + Sync>,

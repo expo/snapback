@@ -623,6 +623,58 @@ fn require_host_op_authority(
     Ok(authority)
 }
 
+/// Project an app reset already executed by the server's authorization-stream
+/// coordinator through the ordinary host-ops envelope.
+pub(crate) fn coordinated_reset_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: crate::diagnostic::SnapbackResult<Option<crate::manifest::MutationOutput>>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    match outcome {
+        Ok(seeded_output) => {
+            let mut data = serde_json::Map::new();
+            data.insert("resetScope".to_owned(), json!("app"));
+            data.insert("seeded".to_owned(), json!(request.seed.is_some()));
+            if let Some(output) = seeded_output {
+                data.insert(
+                    "seedCommit".to_owned(),
+                    serde_json::to_value(output).unwrap_or_default(),
+                );
+            }
+            data.insert(
+                "databaseVersion".to_owned(),
+                json!(snapback.durable_version()),
+            );
+            host_ops_result(
+                snapback,
+                request_id,
+                operation,
+                server_url,
+                profile,
+                true,
+                authority_admin("host-ops admin write gate"),
+                Value::Object(data),
+                Vec::new(),
+            )
+        }
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority_admin("host-ops admin write gate"),
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
 /// Execute one served host operation against the local instance and produce
 /// the envelope. The HTTP handler and (through HTTP) the CLI both come here,
 /// so the projections cannot drift.
@@ -740,38 +792,25 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
             ),
         },
         "app.reset" => {
-            let seed = request.seed.clone();
-            let seed_requested = seed.is_some();
-            match snapback.reset_with_seed(seed) {
-                Ok(seeded_output) => {
-                    let mut data = serde_json::Map::new();
-                    data.insert("resetScope".to_owned(), json!("app"));
-                    data.insert("seeded".to_owned(), json!(seed_requested));
-                    if let Some(output) = seeded_output {
-                        data.insert(
-                            "seedCommit".to_owned(),
-                            serde_json::to_value(output).unwrap_or_default(),
-                        );
-                    }
-                    data.insert(
-                        "databaseVersion".to_owned(),
-                        json!(snapback.durable_version()),
-                    );
-                    envelope(
-                        snapback,
-                        true,
-                        authority_admin("host-ops admin write gate"),
-                        Value::Object(data),
-                        Vec::new(),
-                    )
-                }
-                Err(error) => envelope(
+            #[cfg(not(test))]
+            {
+                envelope(
                     snapback,
                     false,
                     authority_admin("host-ops admin write gate"),
                     Value::Object(Default::default()),
-                    vec![error.diagnostic],
-                ),
+                    vec![Diagnostic::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "app.reset must execute through the authorization-stream coordinator",
+                    )],
+                )
+            }
+            #[cfg(test)]
+            {
+                let seed = request.seed.clone();
+                let outcome = snapback.reset_with_seed(seed);
+                coordinated_reset_result(snapback, &request, server_url, profile, outcome)
             }
         }
         "schema.load" => {

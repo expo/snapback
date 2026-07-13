@@ -88,8 +88,32 @@ thread_local! {
         std::cell::RefCell::new(None);
 }
 
-fn next_app_generation() -> u64 {
-    NEXT_APP_GENERATION.fetch_add(1, Ordering::Relaxed)
+fn reserve_unique_generation(counter: &AtomicU64) -> SnapbackResult<u64> {
+    counter
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            current.checked_add(1)
+        })
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_APP_GENERATION_EXHAUSTED",
+                "runtime",
+                "the process app-generation space is exhausted",
+            )
+        })
+}
+
+fn next_app_generation() -> SnapbackResult<u64> {
+    reserve_unique_generation(&NEXT_APP_GENERATION)
+}
+
+fn next_secret_read_reset_generation(current: u64) -> SnapbackResult<u64> {
+    current.checked_add(1).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
+            "admin-secret-read",
+            "the secret-read reset-generation space is exhausted",
+        )
+    })
 }
 
 /// Receipt retention (LLP 0034 §3 / ENG-22478): bounded in-memory rings — one
@@ -1781,11 +1805,12 @@ impl LocalSnapback {
         validate_collection_definitions(&manifest.ephemeral_collections)
             .map_err(ephemeral_manifest_error)?;
         let ephemeral_collections = manifest.ephemeral_collections.clone();
+        let generation = next_app_generation()?;
         let diagnostics = self.db.apply_schema(manifest)?;
         self.ephemeral
             .replace_collections(ephemeral_collections)
             .map_err(ephemeral_manifest_error)?;
-        self.advance_app_generation();
+        self.install_app_generation(generation);
         self.refresh_read_manifests();
         self.record_diagnostics(diagnostics.clone());
         Ok(diagnostics)
@@ -1811,9 +1836,18 @@ impl LocalSnapback {
             return preflight;
         }
 
+        let generation = match next_app_generation() {
+            Ok(generation) => generation,
+            Err(error) => {
+                let diagnostic = error.diagnostic;
+                self.record_diagnostics(vec![diagnostic.clone()]);
+                return vec![diagnostic];
+            }
+        };
+
         self.functions = manifest;
         self.functions_loaded = true;
-        self.advance_app_generation();
+        self.install_app_generation(generation);
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
@@ -1907,6 +1941,7 @@ impl LocalSnapback {
         self.record_diagnostics(diagnostics.to_vec());
     }
 
+    #[cfg(test)]
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.reset_with_seed(None).map(|_| ())
     }
@@ -1915,19 +1950,78 @@ impl LocalSnapback {
     /// advance the in-memory lifecycle boundary only after SQLite commits.
     /// A rejected seed therefore preserves both the old database and every
     /// subscription/runtime generation that describes it.
+    #[cfg(test)]
     pub fn reset_with_seed(
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<Option<MutationOutput>> {
+        let app_generation = next_app_generation()?;
+        let secret_read_generation = self.secret_read_reset_generation.load(Ordering::Acquire);
+        let next_secret_read_generation =
+            next_secret_read_reset_generation(secret_read_generation)?;
         let seeded = self.db.reset_and_seed(seed)?;
-        self.finish_committed_reset();
+        self.finish_committed_reset(
+            app_generation,
+            secret_read_generation,
+            next_secret_read_generation,
+        );
         Ok(seeded)
     }
 
-    fn finish_committed_reset(&mut self) {
-        self.secret_read_reset_generation
-            .fetch_add(1, Ordering::AcqRel);
-        self.advance_app_generation();
+    /// Perform the destructive database half of a coordinator-premarked reset.
+    /// In-memory generations move only when the durable stream successor is
+    /// known to have committed (including exact post-COMMIT reconciliation).
+    pub(crate) fn attempt_reset_with_seed_and_authorization_stream(
+        &mut self,
+        seed: Option<SeedData>,
+        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+    ) -> crate::storage::auth::AuthTransactionAttempt<Option<MutationOutput>> {
+        use crate::storage::auth::AuthTransactionAttempt;
+
+        let app_generation = match next_app_generation() {
+            Ok(generation) => generation,
+            Err(error) => return AuthTransactionAttempt::RolledBack(error),
+        };
+        let secret_read_generation = self.secret_read_reset_generation.load(Ordering::Acquire);
+        let next_secret_read_generation =
+            match next_secret_read_reset_generation(secret_read_generation) {
+                Ok(generation) => generation,
+                Err(error) => return AuthTransactionAttempt::RolledBack(error),
+            };
+        match self
+            .db
+            .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
+        {
+            AuthTransactionAttempt::Committed(seeded) => {
+                self.finish_committed_reset(
+                    app_generation,
+                    secret_read_generation,
+                    next_secret_read_generation,
+                );
+                AuthTransactionAttempt::Committed(seeded)
+            }
+            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                AuthTransactionAttempt::CommitUncertain(error)
+            }
+        }
+    }
+
+    fn finish_committed_reset(
+        &mut self,
+        app_generation: u64,
+        secret_read_generation: u64,
+        next_secret_read_generation: u64,
+    ) {
+        let exchanged = self.secret_read_reset_generation.compare_exchange(
+            secret_read_generation,
+            next_secret_read_generation,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        );
+        debug_assert_eq!(exchanged, Ok(secret_read_generation));
+        self.install_app_generation(app_generation);
         self.warm_vms.clear();
         // ENG-23333: capture the live subscriptions being dropped so their
         // clients can be told. Clearing the map alone leaves every connected
@@ -2005,8 +2099,7 @@ impl LocalSnapback {
         self.app_generation
     }
 
-    fn advance_app_generation(&mut self) {
-        let generation = next_app_generation();
+    fn install_app_generation(&mut self, generation: u64) {
         self.app_generation = generation;
         self.app_generation_fence
             .store(generation, Ordering::SeqCst);
@@ -5006,7 +5099,7 @@ impl LocalSnapback {
             capabilities: runtime.capabilities().clone(),
         })));
 
-        let app_generation = next_app_generation();
+        let app_generation = next_app_generation()?;
         Ok(Self {
             db,
             functions: FunctionManifest::default(),
@@ -6536,7 +6629,7 @@ mod tests {
         BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
         DetachedMutationRead, EnsureAppMode, LiveSubscribeInput, LiveUnsubscribeInput,
         LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
-        StagedNestedMutation,
+        StagedNestedMutation, next_secret_read_reset_generation, reserve_unique_generation,
     };
     use crate::admin::ServerProfile;
     use crate::auth::invocation::{
@@ -6559,7 +6652,7 @@ mod tests {
     use serde_json::json;
     use std::collections::BTreeMap;
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
 
     fn auth_artifact_pair(mode: AuthMode, marker: char) -> (SchemaManifest, FunctionManifest) {
@@ -7072,6 +7165,28 @@ globalThis.__snapbackHandlers = {
                 .read_lane()
                 .invoke_query("missing", HandlerInput::default())
                 .unwrap_err(),
+        );
+    }
+
+    #[test]
+    fn authority_generation_counters_refuse_before_wrap_or_reuse() {
+        let counter = AtomicU64::new(u64::MAX - 1);
+        assert_eq!(reserve_unique_generation(&counter).unwrap(), u64::MAX - 1);
+        assert_eq!(counter.load(Ordering::Relaxed), u64::MAX);
+        assert_eq!(
+            reserve_unique_generation(&counter)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_APP_GENERATION_EXHAUSTED"
+        );
+        assert_eq!(counter.load(Ordering::Relaxed), u64::MAX);
+        assert_eq!(
+            next_secret_read_reset_generation(u64::MAX)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED"
         );
     }
 

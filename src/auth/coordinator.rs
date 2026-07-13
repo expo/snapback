@@ -15,8 +15,9 @@ use super::provider::{
     SessionRevocation,
 };
 use super::session_projection::{
-    ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedTokenResolution, RevocationReason, SessionProjection, TokenDigest,
+    AuthorizationStreamIncarnation, ExpiredSession, FencedPublication, MutationTicket,
+    PendingMutationKind, ProjectedTokenResolution, RevocationReason, SessionProjection,
+    TokenDigest,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -76,6 +77,33 @@ pub(crate) struct PremarkedIssuance {
     plan: ProviderSessionIssuancePlan,
     issuance_ticket: MutationTicket,
     eviction_ticket: Option<MutationTicket>,
+}
+
+pub(crate) struct PremarkedStreamReset {
+    predecessor: AuthorizationStreamIncarnation,
+    successor: AuthorizationStreamIncarnation,
+    ticket: MutationTicket,
+}
+
+impl PremarkedStreamReset {
+    pub(crate) fn predecessor(&self) -> &AuthorizationStreamIncarnation {
+        &self.predecessor
+    }
+
+    pub(crate) fn successor(&self) -> &AuthorizationStreamIncarnation {
+        &self.successor
+    }
+}
+
+impl std::fmt::Debug for PremarkedStreamReset {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PremarkedStreamReset")
+            .field("predecessor", &self.predecessor)
+            .field("successor", &self.successor)
+            .field("ticket", &self.ticket)
+            .finish()
+    }
 }
 
 impl PremarkedIssuance {
@@ -238,6 +266,68 @@ impl AuthCoordinator {
             issuance_ticket,
             eviction_ticket,
         })
+    }
+
+    /// Block the shared authorization stream before the destructive database
+    /// transaction begins. The carrier owns no lock and binds one exact
+    /// predecessor/successor pair across SQLite commit.
+    ///
+    /// @ref LLP 0056#reset-restore-and-stream-publication — reset uses the
+    /// same premark/commit/finalize protocol as session leaf mutations.
+    pub(crate) fn premark_stream_reset(&self) -> SnapbackResult<PremarkedStreamReset> {
+        let mut topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        let predecessor = topology.projection.incarnation().clone();
+        let successor = AuthorizationStreamIncarnation::fresh();
+        let ticket = topology
+            .projection
+            .begin_stream_mutation(successor.clone())?;
+        Ok(PremarkedStreamReset {
+            predecessor,
+            successor,
+            ticket,
+        })
+    }
+
+    pub(crate) fn finish_stream_reset<T>(
+        &self,
+        carrier: PremarkedStreamReset,
+        attempt: AuthTransactionAttempt<T>,
+    ) -> SnapbackResult<T> {
+        let mut topology = self.lock_topology()?;
+        match attempt {
+            AuthTransactionAttempt::RolledBack(error) => {
+                match topology.projection.compare_unmark_stream(&carrier.ticket) {
+                    Ok(true) => Err(error),
+                    Ok(false) | Err(_) => {
+                        topology.global_rebuild_required = true;
+                        Err(projection_unavailable())
+                    }
+                }
+            }
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                // Keep the stream ticket installed: all predecessor publication
+                // remains blocked until a full durable rebuild establishes truth.
+                topology.global_rebuild_required = true;
+                Err(revocation_uncertain())
+            }
+            AuthTransactionAttempt::Committed(output) => {
+                if self.take_finalize_failpoint()
+                    || topology
+                        .projection
+                        .finalize_stream_rotation(&carrier.ticket)
+                        .is_err()
+                    || topology.projection.incarnation() != &carrier.successor
+                {
+                    topology.global_rebuild_required = true;
+                    return Err(projection_unavailable());
+                }
+                topology.rebuild_required_sessions.clear();
+                Ok(output)
+            }
+        }
     }
 
     pub(crate) fn finish_revocation(
@@ -602,14 +692,15 @@ fn exact_unmark_revocation(
     topology: &mut CoordinatorTopology,
     carrier: &PremarkedRevocation,
 ) -> SnapbackResult<()> {
-    if topology
+    match topology
         .projection
-        .compare_unmark_session(&carrier.ticket, carrier.plan.session_id())?
+        .compare_unmark_session(&carrier.ticket, carrier.plan.session_id())
     {
-        Ok(())
-    } else {
-        topology.global_rebuild_required = true;
-        Err(projection_unavailable())
+        Ok(true) => Ok(()),
+        Ok(false) | Err(_) => {
+            topology.global_rebuild_required = true;
+            Err(projection_unavailable())
+        }
     }
 }
 
@@ -617,14 +708,15 @@ fn exact_unmark_rotation(
     topology: &mut CoordinatorTopology,
     carrier: &PremarkedRotation,
 ) -> SnapbackResult<()> {
-    if topology
+    match topology
         .projection
-        .compare_unmark_session(&carrier.ticket, carrier.plan.session_id())?
+        .compare_unmark_session(&carrier.ticket, carrier.plan.session_id())
     {
-        Ok(())
-    } else {
-        topology.global_rebuild_required = true;
-        Err(projection_unavailable())
+        Ok(true) => Ok(()),
+        Ok(false) | Err(_) => {
+            topology.global_rebuild_required = true;
+            Err(projection_unavailable())
+        }
     }
 }
 
@@ -633,23 +725,26 @@ fn exact_unmark_issuance(
     carrier: &PremarkedIssuance,
 ) -> SnapbackResult<()> {
     if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction()) {
-        if !topology
-            .projection
-            .compare_unmark_session(ticket, eviction.session_id())?
-        {
+        if !matches!(
+            topology
+                .projection
+                .compare_unmark_session(ticket, eviction.session_id()),
+            Ok(true)
+        ) {
             topology.global_rebuild_required = true;
             return Err(projection_unavailable());
         }
     }
     let session_id = carrier.plan.projected_insert().session_id;
-    if topology
+    match topology
         .projection
-        .compare_unmark_issuance(&carrier.issuance_ticket, &session_id)?
+        .compare_unmark_issuance(&carrier.issuance_ticket, &session_id)
     {
-        Ok(())
-    } else {
-        topology.global_rebuild_required = true;
-        Err(projection_unavailable())
+        Ok(true) => Ok(()),
+        Ok(false) | Err(_) => {
+            topology.global_rebuild_required = true;
+            Err(projection_unavailable())
+        }
     }
 }
 
@@ -1029,6 +1124,122 @@ mod tests {
                 .unwrap()
         );
         fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[test]
+    fn stream_reset_rollback_exactly_reopens_predecessor_publication() {
+        let fixture = fixture();
+        let predecessor = fixture
+            .coordinator
+            .authorization_stream_incarnation()
+            .unwrap();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let carrier = fixture.coordinator.premark_stream_reset().unwrap();
+        assert!(
+            publication
+                .try_publish(200, fixture.monotonic_start, || Ok(()))
+                .unwrap()
+                .is_none()
+        );
+        let error = fixture
+            .coordinator
+            .finish_stream_reset::<()>(
+                carrier,
+                AuthTransactionAttempt::RolledBack(SnapbackError::error(
+                    "TEST_ROLLBACK",
+                    "test",
+                    "known rollback",
+                )),
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_ROLLBACK");
+        assert_eq!(
+            fixture
+                .coordinator
+                .authorization_stream_incarnation()
+                .unwrap(),
+            predecessor
+        );
+        assert!(
+            publication
+                .try_publish(200, fixture.monotonic_start, || Ok(()))
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn committed_stream_reset_installs_exact_successor_and_fences_predecessor() {
+        let fixture = fixture();
+        let predecessor = fixture
+            .coordinator
+            .authorization_stream_incarnation()
+            .unwrap();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let carrier = fixture.coordinator.premark_stream_reset().unwrap();
+        let successor = carrier.successor().as_str().to_owned();
+        fixture
+            .coordinator
+            .finish_stream_reset(carrier, AuthTransactionAttempt::Committed(()))
+            .unwrap();
+        assert_ne!(successor, predecessor);
+        assert_eq!(
+            fixture
+                .coordinator
+                .authorization_stream_incarnation()
+                .unwrap(),
+            successor
+        );
+        assert!(
+            publication
+                .try_publish(200, fixture.monotonic_start, || Ok(()))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            fixture
+                .coordinator
+                .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_REQUIRED"
+        );
+    }
+
+    #[test]
+    fn uncertain_stream_reset_stays_globally_blocked() {
+        let fixture = fixture();
+        let carrier = fixture.coordinator.premark_stream_reset().unwrap();
+        let error = fixture
+            .coordinator
+            .finish_stream_reset::<()>(
+                carrier,
+                AuthTransactionAttempt::CommitUncertain(SnapbackError::error(
+                    "SNAPBACK_SQLITE_ERROR",
+                    "storage",
+                    "ambiguous commit",
+                )),
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REVOCATION_UNCERTAIN");
+        assert_eq!(
+            fixture
+                .coordinator
+                .authorization_stream_incarnation()
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
     }
 
     #[test]
