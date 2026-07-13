@@ -7,6 +7,7 @@
 
 // @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — persisted capabilities are owner-only and validated through the opened inode.
 
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -110,13 +111,9 @@ pub fn read_owner_only(path: &Path) -> io::Result<Vec<u8>> {
 /// byte is exposed. The path must still name the opened inode after the read.
 #[cfg(unix)]
 pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::Result<Vec<u8>> {
-    use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
+    use std::os::unix::fs::MetadataExt as _;
 
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-        .open(path)?;
-    validate_open_file_strict(&file)?;
+    let file = open_strict_owner_only(path)?;
     let before = file.metadata()?;
     if before.len() > maximum_bytes as u64 {
         return Err(io::Error::new(
@@ -181,8 +178,31 @@ pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::R
     Ok(bytes)
 }
 
+/// Open a strict owner-only regular file without following symlinks or
+/// accepting hardlinks. Callers that must stream a large secret-bearing
+/// artifact use the validated descriptor rather than reopening its path.
+#[cfg(unix)]
+pub(crate) fn open_strict_owner_only(path: &Path) -> io::Result<File> {
+    use std::os::unix::fs::OpenOptionsExt as _;
+
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)?;
+    validate_open_file_strict(&file)?;
+    Ok(file)
+}
+
 #[cfg(not(unix))]
 pub(crate) fn read_strict_owner_only(_path: &Path, _maximum_bytes: usize) -> io::Result<Vec<u8>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "strict owner-only capability-file validation is not implemented on this host",
+    ))
+}
+
+#[cfg(not(unix))]
+pub(crate) fn open_strict_owner_only(_path: &Path) -> io::Result<File> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "strict owner-only capability-file validation is not implemented on this host",
@@ -215,6 +235,22 @@ pub(crate) fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> 
         validate_open_file_strict(file)?;
         Ok(())
     })
+}
+
+/// Copy a potentially large validated artifact to a brand-new owner-only file
+/// without buffering its secret-bearing contents in memory.
+#[allow(dead_code)] // Consumed by the physical auth-restore integration lane.
+pub(crate) fn copy_new_owner_only(source: &mut File, path: &Path) -> io::Result<u64> {
+    source.seek(SeekFrom::Start(0))?;
+    let mut copied = 0;
+    write_new_owner_only_with(path, |destination| {
+        copied = io::copy(source, destination)?;
+        destination.sync_all()?;
+        #[cfg(unix)]
+        validate_open_file_strict(destination)?;
+        Ok(())
+    })?;
+    Ok(copied)
 }
 
 fn write_new_owner_only_with(
@@ -290,6 +326,96 @@ pub(crate) fn rename_no_replace(_source: &Path, _destination: &Path) -> io::Resu
         io::ErrorKind::Unsupported,
         "atomic no-replace publication is not implemented on this host",
     ))
+}
+
+/// Atomically rename two direct children of an already-open directory without
+/// replacement. Pinning the parent descriptor prevents a path swap from
+/// redirecting final artifact publication after staging.
+#[cfg(target_vendor = "apple")]
+#[allow(dead_code)] // Consumed by descriptor-pinned auth artifact publication.
+pub(crate) fn rename_no_replace_in_directory(
+    directory: &File,
+    source_name: &OsStr,
+    destination_name: &OsStr,
+) -> io::Result<()> {
+    use std::os::fd::AsRawFd as _;
+
+    let source = direct_child_c_string(source_name)?;
+    let destination = direct_child_c_string(destination_name)?;
+    // SAFETY: both names are valid NUL-terminated direct children and the
+    // directory descriptor remains open for the duration of the call.
+    let result = unsafe {
+        libc::renameatx_np(
+            directory.as_raw_fd(),
+            source.as_ptr(),
+            directory.as_raw_fd(),
+            destination.as_ptr(),
+            libc::RENAME_EXCL,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[allow(dead_code)] // Consumed by descriptor-pinned auth artifact publication.
+pub(crate) fn rename_no_replace_in_directory(
+    directory: &File,
+    source_name: &OsStr,
+    destination_name: &OsStr,
+) -> io::Result<()> {
+    use std::os::fd::AsRawFd as _;
+
+    let source = direct_child_c_string(source_name)?;
+    let destination = direct_child_c_string(destination_name)?;
+    // SAFETY: both names are valid NUL-terminated direct children and the
+    // directory descriptor remains open for the duration of the call.
+    let result = unsafe {
+        libc::renameat2(
+            directory.as_raw_fd(),
+            source.as_ptr(),
+            directory.as_raw_fd(),
+            destination.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+#[allow(dead_code)] // Consumed by descriptor-pinned auth artifact publication.
+pub(crate) fn rename_no_replace_in_directory(
+    _directory: &File,
+    _source_name: &OsStr,
+    _destination_name: &OsStr,
+) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "descriptor-relative no-replace publication is not implemented on this host",
+    ))
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+#[allow(dead_code)] // Helper for descriptor-pinned auth artifact publication.
+fn direct_child_c_string(name: &OsStr) -> io::Result<std::ffi::CString> {
+    use std::os::unix::ffi::OsStrExt as _;
+
+    let bytes = name.as_bytes();
+    if bytes.is_empty() || bytes == b"." || bytes == b".." || bytes.contains(&b'/') {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "publication name is not a direct child",
+        ));
+    }
+    std::ffi::CString::new(bytes)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "publication name contains NUL"))
 }
 
 pub(crate) fn sync_parent(path: &Path) -> io::Result<()> {

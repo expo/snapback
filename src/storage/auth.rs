@@ -7,20 +7,29 @@
 
 use super::{LocalDatabase, is_auth_reserved_identifier};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
+};
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::File;
+use std::path::Path;
 use std::sync::OnceLock;
+use std::time::Duration;
+use uuid::Uuid;
 
 pub(crate) const AUTH_CATALOG_VERSION: &str = "1";
 pub(crate) const AUTH_GC_BATCH: usize = 512;
 const META_AUTH_CATALOG_VERSION: &str = "auth_catalog_version";
+const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declaration_id";
 #[cfg(test)]
 const AUTH_ACTIVATION_STEPS: usize = AUTH_TABLES.len() + AUTH_INDEXES.len() + 1;
 
 #[cfg(test)]
 thread_local! {
     static FAIL_AUTH_ACTIVATION_AFTER_STEP: std::cell::Cell<Option<usize>> =
+        const { std::cell::Cell::new(None) };
+    static FAIL_AUTH_RESTORE_AFTER_STEP: std::cell::Cell<Option<usize>> =
         const { std::cell::Cell::new(None) };
 }
 
@@ -53,6 +62,32 @@ fn activation_step_completed(step: usize) -> SnapbackResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
+fn inject_auth_restore_failure_after_step(step: usize) {
+    FAIL_AUTH_RESTORE_AFTER_STEP.with(|slot| {
+        assert!(slot.get().is_none(), "auth restore hook must be one-shot");
+        slot.set(Some(step));
+    });
+}
+
+fn restore_transaction_step_completed(step: usize) -> SnapbackResult<()> {
+    #[cfg(not(test))]
+    let _ = step;
+    #[cfg(test)]
+    FAIL_AUTH_RESTORE_AFTER_STEP.with(|slot| {
+        if slot.get() == Some(step) {
+            slot.set(None);
+            return Err(SnapbackError::error(
+                "TEST_AUTH_RESTORE_TRANSACTION_FAILURE",
+                "auth-restore",
+                "injected declared-restore transaction failure",
+            ));
+        }
+        Ok(())
+    })?;
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AuthCatalogState {
     Uninitialized,
@@ -64,6 +99,15 @@ pub(crate) struct AuthGcResult {
     pub challenges_deleted: usize,
     pub sessions_deleted: usize,
     pub immediate_retry: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AuthRestoreResult {
+    Applied {
+        sessions_revoked: usize,
+        challenges_deleted: usize,
+    },
+    AlreadyApplied,
 }
 
 struct ExpectedTable {
@@ -444,6 +488,169 @@ impl LocalDatabase {
             })
         })
     }
+
+    /// Prove whether a retained verification challenge still names a key.
+    /// The keyring maintenance caller holds the keyring lock before crossing
+    /// this read seam, preserving the global keyring-before-SQLite lock order.
+    pub(crate) fn auth_key_is_referenced(&self, key_id: &str) -> SnapbackResult<bool> {
+        self.with_auth_read(|conn| {
+            Ok(conn.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _auth_verification_codes WHERE key_id = ?1
+                 )",
+                params![key_id],
+                |row| row.get::<_, i64>(0),
+            )? != 0)
+        })
+    }
+
+    /// Enumerate only distinct retained key references for quiesced physical
+    /// backup validation. Callers must keep the values internal and redacted.
+    pub(crate) fn auth_retained_key_ids(&self) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(retained_key_ids_on)
+    }
+
+    /// Apply one destructive restore declaration atomically. The durable
+    /// declaration marker is deliberately the final statement, so retry after
+    /// an ambiguous post-commit failure is an exact idempotent no-op.
+    pub(crate) fn apply_auth_restore_declaration(
+        &mut self,
+        declaration_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<AuthRestoreResult> {
+        validate_restore_declaration(declaration_id)?;
+        if now_ms > 9_007_199_254_740_991 {
+            return Err(restore_invalid(
+                "declared restore time is outside the portable timestamp range",
+            ));
+        }
+        self.with_auth_transaction(|tx| {
+            let applied: Option<String> = tx
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key = ?1",
+                    params![META_AUTH_RESTORE_DECLARATION_ID],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if applied.as_deref() == Some(declaration_id) {
+                return Ok(AuthRestoreResult::AlreadyApplied);
+            }
+
+            let exhausted_generations: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM _auth_sessions
+                 WHERE revoked_at_ms IS NULL AND generation >= 9223372036854775807",
+                [],
+                |row| row.get(0),
+            )?;
+            if exhausted_generations != 0 {
+                return Err(corrupt(
+                    "auth catalog contains an unrevoked session with an exhausted generation",
+                ));
+            }
+            let sessions_revoked = tx.execute(
+                "UPDATE _auth_sessions
+                 SET revoked_at_ms = ?1, generation = generation + 1
+                 WHERE revoked_at_ms IS NULL",
+                params![now_ms as i64],
+            )?;
+            restore_transaction_step_completed(0)?;
+            let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
+            restore_transaction_step_completed(1)?;
+
+            // @ref LLP 0054#restore — the declaration id is written last in
+            // the same transaction as revocation and challenge destruction.
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![META_AUTH_RESTORE_DECLARATION_ID, declaration_id],
+            )?;
+            restore_transaction_step_completed(2)?;
+            Ok(AuthRestoreResult::Applied {
+                sessions_revoked,
+                challenges_deleted,
+            })
+        })
+    }
+
+    /// Produce a complete database image with SQLite's online-backup API.
+    /// The caller owns the exclusive maintenance boundary and retained
+    /// keyring bytes; this method creates only the requested new 0600 file.
+    pub(crate) fn backup_auth_catalog_to(&self, destination: &Path) -> SnapbackResult<()> {
+        require_ready_on(&self.conn)?;
+        crate::secure_file::write_new_owner_only(destination, &[])
+            .map_err(|_| backup_invalid("could not create the backup database image"))?;
+        let mut output = Connection::open_with_flags(
+            destination,
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        {
+            let backup = rusqlite::backup::Backup::new(&self.conn, &mut output)?;
+            backup.run_to_completion(128, Duration::from_millis(1), None)?;
+        }
+        // A WAL-mode bit copied from the source would make the standalone
+        // image try to create a fresh sidecar merely to open. Normalize the
+        // completed image to DELETE mode; all committed WAL pages are already
+        // folded into it by the online backup.
+        let journal_mode: String =
+            output.query_row("PRAGMA journal_mode = DELETE", [], |row| row.get(0))?;
+        if !journal_mode.eq_ignore_ascii_case("delete") {
+            return Err(backup_invalid(
+                "backup database image could not be made self-contained",
+            ));
+        }
+        output.close().map_err(|(_, error)| error)?;
+        File::open(destination)
+            .and_then(|file| file.sync_all())
+            .map_err(|_| backup_invalid("could not sync the backup database image"))
+    }
+
+    /// Inspect a physical backup image without configuring SQLite, opening a
+    /// WAL writer, or otherwise mutating the candidate artifact.
+    pub(crate) fn inspect_auth_catalog_file_read_only(
+        path: &Path,
+    ) -> SnapbackResult<AuthCatalogState> {
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        inspect_auth_catalog_on(&conn)
+    }
+
+    pub(crate) fn auth_retained_key_ids_file_read_only(path: &Path) -> SnapbackResult<Vec<String>> {
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        require_ready_on(&conn)?;
+        retained_key_ids_on(&conn)
+    }
+}
+
+fn retained_key_ids_on(conn: &Connection) -> SnapbackResult<Vec<String>> {
+    let mut statement =
+        conn.prepare("SELECT DISTINCT key_id FROM _auth_verification_codes ORDER BY key_id")?;
+    Ok(statement
+        .query_map([], |row| row.get(0))?
+        .collect::<Result<Vec<_>, _>>()?)
+}
+
+fn validate_restore_declaration(declaration_id: &str) -> SnapbackResult<()> {
+    let parsed = Uuid::parse_str(declaration_id)
+        .map_err(|_| restore_invalid("restore declaration id is not a canonical UUIDv7"))?;
+    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != declaration_id {
+        return Err(restore_invalid(
+            "restore declaration id is not a canonical UUIDv7",
+        ));
+    }
+    Ok(())
+}
+
+fn backup_invalid(message: &str) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_BACKUP_INVALID", "auth-backup", message)
+}
+
+fn restore_invalid(message: &str) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_BACKUP_INVALID", "auth-restore", message)
 }
 
 /// Reset helper called from the ordinary app-reset transaction. A dormant
@@ -1136,6 +1343,79 @@ mod tests {
             })
             .expect("journal count");
         assert_eq!(journal_after, journal_before);
+    }
+
+    #[test]
+    fn declared_restore_failure_at_every_boundary_rolls_back_all_effects() {
+        for step in 0..=2 {
+            let mut db = catalog_database();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('user-1', 0)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES('identity-1', 'user-1', 'email-code', 'person@example.com', 0)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms, revoked_at_ms
+                     ) VALUES(
+                       'session-1', 'user-1', 'identity-1', 'authority-1', ?1,
+                       1, 0, 0, 1000, 2000, NULL
+                     )",
+                    params![vec![7_u8; 32]],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_verification_codes(
+                       challenge_id, canonical_address, code_digest, key_id,
+                       attempts, max_attempts, requested_at_ms, expires_at_ms,
+                       consumed_at_ms, superseded_by
+                     ) VALUES(
+                       'challenge-1', 'person@example.com', ?1, 'key-1',
+                       0, 5, 0, 1000, NULL, NULL
+                     )",
+                    params![vec![9_u8; 32]],
+                )?;
+                Ok(())
+            })
+            .expect("seed restore rows");
+
+            inject_auth_restore_failure_after_step(step);
+            let declaration_id = Uuid::now_v7().to_string();
+            let error = db
+                .apply_auth_restore_declaration(&declaration_id, 100)
+                .expect_err("injected restore transaction must fail");
+            assert_eq!(
+                error.diagnostic.code,
+                "TEST_AUTH_RESTORE_TRANSACTION_FAILURE"
+            );
+            let session: (i64, Option<i64>) = db
+                .conn
+                .query_row(
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 'session-1'",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("session survives rollback");
+            assert_eq!(session, (1, None));
+            assert_eq!(row_count(&db, "_auth_verification_codes"), 1);
+            let marker: Option<String> = db
+                .conn
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key = ?1",
+                    params![META_AUTH_RESTORE_DECLARATION_ID],
+                    |row| row.get(0),
+                )
+                .optional()
+                .expect("restore marker query");
+            assert_eq!(marker, None);
+        }
     }
 
     #[test]
