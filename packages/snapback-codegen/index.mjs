@@ -66,6 +66,7 @@ const RESERVED_WORDS = new Set([
 const GENERATED_API_RESERVED_EXPORTS = new Set(['api', 'ephemeral']);
 const SCHEMA_VERSION = 'snapback.v0';
 const TARGET_PROFILE = 'local-dev-sqlite-ibex';
+const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 
 // Contract data manifest v2 (LLP 0034 D3; Exact LLP 0284 §2.4).
 //
@@ -1114,11 +1115,17 @@ function buildEphemeralCollections(ephemeralDef, err) {
       err('EPHEMERAL_INVALID_VALUE_FIELD', 'ephemeral', `${name} ${where} has invalid field identifier ${fieldName}`, { collection: name, field: fieldName });
     });
 
-    const routingFields = def.routing ?? scopeFields;
-    if (!Array.isArray(routingFields) || routingFields.length === 0) {
+    const requestedRoutingFields = def.routing ?? scopeFields;
+    const routingFields = Array.isArray(requestedRoutingFields) ? requestedRoutingFields : [];
+    if (routingFields.length === 0) {
       err('EPHEMERAL_UNSAFE_ROUTING', 'ephemeral', `${name} needs at least one routing field`, { collection: name });
     }
+    const seenRoutingFields = new Set();
     for (const field of routingFields) {
+      if (seenRoutingFields.has(field)) {
+        err('EPHEMERAL_UNSAFE_ROUTING', 'ephemeral', `${name} needs unique routing fields`, { collection: name, field });
+      }
+      seenRoutingFields.add(field);
       if (!scopeFields.includes(field)) {
         err('EPHEMERAL_UNSAFE_ROUTING', 'ephemeral', `${name} routes by ${field}, which is not in its scope`, { collection: name, field, scopeFields });
       }
@@ -1140,13 +1147,14 @@ function buildEphemeralCollections(ephemeralDef, err) {
       ['sustainedHz', def.publishRate?.sustainedHz, 0xffff_ffff],
       ['burst', def.publishRate?.burst, 0xffff_ffff],
       ['dispatchMs', def.delivery?.dispatchMs, Number.MAX_SAFE_INTEGER],
-      ['maxPendingEphemeralKeys', def.maxPendingEphemeralKeys, Number.MAX_SAFE_INTEGER],
+      ['maxPendingEphemeralKeys', def.maxPendingEphemeralKeys, LOCAL_MAX_PENDING_EPHEMERAL_KEYS],
     ]) {
       if (!isPositiveSafeInteger(value) || value > maximum) {
         err('EPHEMERAL_INVALID_BUDGET', 'ephemeral', `${name} ${field} must be a positive integer${maximum < Number.MAX_SAFE_INTEGER ? ` no greater than ${maximum}` : ''}`, {
           collection: name,
           field,
           value: Number.isFinite(value) ? value : String(value),
+          ...(maximum < Number.MAX_SAFE_INTEGER ? { maximum } : {}),
         });
       }
     }

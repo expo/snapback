@@ -1957,7 +1957,11 @@ fn handler_envelope_code(code: &str) -> &str {
         // LLP 0051 D1: ledger divergence and the ledger-length limit are
         // typed results, not generic handler failures.
         | "SNAPBACK_CTX_LEDGER_EXHAUSTED"
-        | "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED" => code,
+        | "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED"
+        | "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
+        | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
+        | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
+        | "SNAPBACK_QUERY_LIMIT_INVALID" => code,
         code if code.starts_with("SNAPBACK_HANDLER_HOST_CALL_") => code,
         _ => "SNAPBACK_HANDLER_FAILED",
     }
@@ -2292,6 +2296,16 @@ mod parse_handler_output_tests {
         assert_eq!(
             parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_ACTION_GENERATION_CONFLICT"}}"#),
             Err("SNAPBACK_ACTION_GENERATION_CONFLICT".to_owned())
+        );
+        assert_eq!(
+            parse(
+                r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"}}"#
+            ),
+            Err("SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED".to_owned())
+        );
+        assert_eq!(
+            parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_QUERY_FILTER_VALUE_INVALID"}}"#),
+            Err("SNAPBACK_QUERY_FILTER_VALUE_INVALID".to_owned())
         );
         assert_eq!(
             parse(r#"{"r":{"__snapbackOk":false,"code":"MADE_UP_BY_HANDLER"}}"#),

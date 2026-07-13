@@ -115,7 +115,7 @@ function detailsFor(db, sql, params) {
   return db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params).map((row) => String(row.detail));
 }
 
-function captureProductionRowQuery(plan) {
+function captureProductionRowQuery(plan, schemaTable = table) {
   const calls = [];
   const host = new HostContext({
     sql: {
@@ -128,8 +128,8 @@ function captureProductionRowQuery(plan) {
     nowMs: 0,
     epoch: 'index-scaling-acceptance',
     newId: () => 'unused',
-    tables: new Set([table.name]),
-    schemaTables: new Map([[table.name, table]]),
+    tables: new Set([schemaTable.name]),
+    schemaTables: new Map([[schemaTable.name, schemaTable]]),
   });
   assert.deepEqual(host.storageQuery(physicalTable, plan), []);
   assert.equal(calls.length, 1, 'storageQuery must execute one SQLite statement');
@@ -209,8 +209,8 @@ function executeProductionRowQuery(db, plan) {
   }
 }
 
-// Absence of take() is still bounded, and the In budget is cumulative across
-// filters rather than a per-clause loophole.
+// Absence of take() is still bounded. In values have their own cumulative cap,
+// and every filter operand also shares one total portable bind budget.
 {
   const rows = Array.from({ length: 1025 }, (_, index) => ({
     _id: `row-${String(index).padStart(4, '0')}`,
@@ -229,6 +229,79 @@ function executeProductionRowQuery(db, plan) {
     }),
     (error) => error?.snapbackCode === 'SNAPBACK_QUERY_IN_ITEMS_EXCEEDED',
   );
+  const atBindCap = {
+    table: table.name,
+    filters: [
+      { field: 'orderIndex', op: 'In', value: { Literal: Array(499).fill(1) } },
+      { field: 'orderIndex', op: 'Eq', value: { Literal: 2 } },
+    ],
+    order: [],
+    limit: null,
+  };
+  assert.equal(captureProductionRowQuery(atBindCap).params.length, 501, '500 filter binds plus LIMIT');
+
+  const overBindCap = {
+    ...atBindCap,
+    filters: [
+      { field: 'orderIndex', op: 'In', value: { Literal: Array(500).fill(1) } },
+      { field: 'orderIndex', op: 'Eq', value: { Literal: 2 } },
+    ],
+  };
+  for (const evaluate of [
+    () => applyPlan(rows, overBindCap),
+    () => captureProductionRowQuery(overBindCap),
+  ]) {
+    assert.throws(
+      evaluate,
+      (error) => error?.snapbackCode === 'SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED',
+    );
+  }
+}
+
+// Declared scalar fields and system fields accept the same filter values at
+// the Cloudflare SQL boundary as the Rust storage boundary.
+{
+  const scalarTable = {
+    ...table,
+    fields: [...table.fields, { name: 'active', field_type: 'Boolean', optional: true }],
+  };
+  const plan = (field, op, value) => ({
+    table: table.name,
+    filters: [{ field, op, value: { Literal: value } }],
+    order: [],
+    limit: null,
+  });
+
+  for (const [field, op, value] of [
+    ['name', 'Eq', 'station'],
+    ['orderIndex', 'Eq', -Number.MAX_SAFE_INTEGER],
+    ['lat', 'Eq', 1.5],
+    ['active', 'Eq', true],
+    ['active', 'Eq', null],
+    ['_id', 'Eq', 'station-1'],
+    ['_version', 'Eq', 0],
+    ['_createdAt', 'Eq', Number.MAX_SAFE_INTEGER],
+  ]) {
+    assert.doesNotThrow(() => captureProductionRowQuery(plan(field, op, value), scalarTable));
+  }
+
+  for (const [field, op, value] of [
+    ['name', 'Eq', 1],
+    ['name', 'Eq', null],
+    ['orderIndex', 'Eq', Number.MAX_SAFE_INTEGER + 1],
+    ['lat', 'Eq', '1.5'],
+    ['active', 'Eq', 'true'],
+    ['_id', 'Eq', 1],
+    ['_version', 'Eq', -1],
+    ['_updatedAt', 'Eq', 'now'],
+    ['name', 'In', ['station', 1]],
+  ]) {
+    assert.throws(
+      () => captureProductionRowQuery(plan(field, op, value), scalarTable),
+      (error) => error?.snapbackCode === 'SNAPBACK_QUERY_FILTER_VALUE_INVALID',
+      `invalid ${field} filter must fail with the portable type diagnostic`,
+    );
+  }
 }
 
 // Buffered delete overfetch is exact top-N but bounded to limit + writes.

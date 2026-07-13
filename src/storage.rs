@@ -3,10 +3,11 @@ use crate::ephemeral::validate_collection_definitions;
 use crate::manifest::{
     CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
     CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MutationOutput,
-    MutationPlan, MutationStep, OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_IN_ITEMS,
-    QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest,
-    ValueExpr, auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid,
-    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
+    MutationPlan, MutationStep, OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX,
+    QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
+    ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr, auth_fingerprint,
+    effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
@@ -2600,6 +2601,7 @@ fn build_query_sql(
     let mut values = Vec::new();
     let mut where_parts = Vec::new();
     let mut in_items = 0usize;
+    let mut filter_bindings = 0usize;
 
     for filter in &plan.filters {
         ensure_field_or_system(table, &filter.field)?;
@@ -2608,6 +2610,7 @@ fn build_query_sql(
                 let field_type = field_type(table, &filter.field);
                 let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
                 validate_query_filter_value(table, &filter.field, &value)?;
+                add_query_filter_bindings(&mut filter_bindings, 1, &filter.field)?;
                 values.push(json_to_sql_value(&value, field_type)?);
                 where_parts.push(format!("{} = ?", quote_ident(&filter.field)?));
             }
@@ -2641,6 +2644,7 @@ fn build_query_sql(
                 if matches!(field_type, Some(FieldType::Json)) {
                     validate_query_filter_value(table, &filter.field, &Value::Null)?;
                 }
+                add_query_filter_bindings(&mut filter_bindings, items.len(), &filter.field)?;
                 if items.is_empty() {
                     where_parts.push("1 = 0".to_owned());
                 } else {
@@ -2659,6 +2663,7 @@ fn build_query_sql(
                 let field_type = field_type(table, &filter.field);
                 let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
                 validate_query_filter_value(table, &filter.field, &value)?;
+                add_query_filter_bindings(&mut filter_bindings, 1, &filter.field)?;
                 values.push(json_to_sql_value(&value, field_type)?);
                 let op = match filter.op {
                     FilterOp::Lt => "<",
@@ -2706,6 +2711,26 @@ fn build_query_sql(
     Ok((sql, values))
 }
 
+fn add_query_filter_bindings(
+    total: &mut usize,
+    additional: usize,
+    field_name: &str,
+) -> SnapbackResult<()> {
+    *total = total.saturating_add(additional);
+    if *total > QUERY_MAX_FILTER_BINDINGS {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
+            "query",
+            format!(
+                "query filters bind {} values after {field_name}; maxFilterBindings is {QUERY_MAX_FILTER_BINDINGS}",
+                *total
+            ),
+        )
+        .with_detail("maxFilterBindings", QUERY_MAX_FILTER_BINDINGS as u64));
+    }
+    Ok(())
+}
+
 fn validate_query_filter_value(
     table: &TableManifest,
     field_name: &str,
@@ -2722,29 +2747,53 @@ fn validate_query_filter_value(
                 ),
             ));
         }
-        if value.is_null() && !field.optional {
-            return Err(SnapbackError::error(
-                "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
-                "query",
-                format!(
-                    "query filter {}.{} cannot compare required data with null",
-                    table.name, field_name
-                ),
-            ));
+        let compatible = if value.is_null() {
+            field.optional
+        } else {
+            match field.field_type {
+                FieldType::String => value.is_string(),
+                FieldType::Boolean => value.is_boolean(),
+                FieldType::Integer => portable_integer_value(value).is_some(),
+                FieldType::Real => value.as_f64().is_some(),
+                FieldType::Json => unreachable!("Json filters returned above"),
+            }
+        };
+        if compatible {
+            return Ok(());
         }
-        return Ok(());
-    }
-    if value.is_null() {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
             "query",
             format!(
-                "query filter {}.{} cannot compare with null",
+                "query filter {}.{} has a value incompatible with its declared type",
                 table.name, field_name
             ),
-        ));
+        )
+        .with_detail("table", table.name.clone())
+        .with_detail("field", field_name.to_owned())
+        .with_detail("fieldType", format!("{:?}", field.field_type)));
     }
-    Ok(())
+
+    let compatible = match field_name {
+        "_id" => value.is_string(),
+        "_version" | "_createdAt" | "_updatedAt" => {
+            portable_integer_value(value).is_some_and(|value| value >= 0)
+        }
+        _ => false,
+    };
+    if compatible {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+        "query",
+        format!(
+            "query filter {}.{} has a value incompatible with its system-field type",
+            table.name, field_name
+        ),
+    )
+    .with_detail("table", table.name.clone())
+    .with_detail("field", field_name.to_owned()))
 }
 
 fn validate_read_set(
@@ -3381,6 +3430,34 @@ fn sqlite_to_json(value: ValueRef<'_>, field_type: Option<&FieldType>) -> Snapba
 const PORTABLE_INTEGER_MAX: i64 = 9_007_199_254_740_991;
 const PORTABLE_INTEGER_MIN: i64 = -PORTABLE_INTEGER_MAX;
 
+fn portable_integer_value(value: &Value) -> Option<i64> {
+    value
+        .as_i64()
+        .filter(|value| (PORTABLE_INTEGER_MIN..=PORTABLE_INTEGER_MAX).contains(value))
+        .or_else(|| {
+            value.as_u64().and_then(|value| {
+                if value <= PORTABLE_INTEGER_MAX as u64 {
+                    Some(value as i64)
+                } else {
+                    None
+                }
+            })
+        })
+        .or_else(|| {
+            value.as_f64().and_then(|value| {
+                if value.is_finite()
+                    && value.fract() == 0.0
+                    && value >= PORTABLE_INTEGER_MIN as f64
+                    && value <= PORTABLE_INTEGER_MAX as f64
+                {
+                    Some(value as i64)
+                } else {
+                    None
+                }
+            })
+        })
+}
+
 fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackResult<SqlValue> {
     if value.is_null() {
         return Ok(SqlValue::Null);
@@ -3421,19 +3498,8 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
             .as_bool()
             .map(|value| SqlValue::Integer(i64::from(value)))
             .ok_or_else(|| type_error("boolean", value)),
-        Some(FieldType::Integer) => value
-            .as_i64()
-            .filter(|value| (PORTABLE_INTEGER_MIN..=PORTABLE_INTEGER_MAX).contains(value))
+        Some(FieldType::Integer) => portable_integer_value(value)
             .map(SqlValue::Integer)
-            .or_else(|| {
-                value.as_u64().and_then(|value| {
-                    if value <= PORTABLE_INTEGER_MAX as u64 {
-                        Some(SqlValue::Integer(value as i64))
-                    } else {
-                        None
-                    }
-                })
-            })
             .ok_or_else(|| type_error("integer", value)),
         Some(FieldType::Real) => value
             .as_f64()

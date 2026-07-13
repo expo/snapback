@@ -3817,6 +3817,156 @@ fn whole_manifest_rejects_cumulative_in_budget_before_atomic_install() {
 }
 
 #[test]
+fn query_filter_bind_budget_counts_every_filter_operand() {
+    let mut db = LocalDatabase::memory().expect("memory db");
+    db.apply_schema(todo_schema()).expect("schema");
+
+    let plan = |in_value: ValueExpr| QueryPlan {
+        table: "todos".to_owned(),
+        filters: vec![
+            FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::In,
+                value: in_value,
+            },
+            FilterExpr {
+                field: "userId".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(json!("u")),
+            },
+        ],
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    };
+
+    db.query(
+        &plan(ValueExpr::Literal(json!(vec!["x"; 499]))),
+        &input(json!({}), "u"),
+    )
+    .expect("499 In values plus one equality stay within the 500-bind cap");
+
+    let static_error = db
+        .query(
+            &plan(ValueExpr::Literal(json!(vec!["x"; 500]))),
+            &input(json!({}), "u"),
+        )
+        .expect_err("500 In values plus one equality must exceed the total bind cap");
+    assert_eq!(
+        static_error.diagnostic.code,
+        "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
+    );
+
+    let dynamic_error = db
+        .query(
+            &plan(ValueExpr::Arg("values".to_owned())),
+            &input(json!({ "values": vec!["x"; 500] }), "u"),
+        )
+        .expect_err("runtime-sized In operands must share the same total bind cap");
+    assert_eq!(
+        dynamic_error.diagnostic.code,
+        "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
+    );
+}
+
+#[test]
+fn query_filter_values_match_declared_and_system_field_types() {
+    let mut schema = todo_schema();
+    schema.tables[0].fields.push(FieldManifest {
+        name: "score".to_owned(),
+        field_type: FieldType::Real,
+        optional: false,
+    });
+    let mut db = LocalDatabase::memory().expect("memory db");
+    db.apply_schema(schema).expect("schema");
+
+    let plan = |field: &str, op: FilterOp, value: Value| QueryPlan {
+        table: "todos".to_owned(),
+        filters: vec![FilterExpr {
+            field: field.to_owned(),
+            op,
+            value: ValueExpr::Literal(value),
+        }],
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    };
+
+    for (field, op, value) in [
+        ("title", FilterOp::Eq, json!("todo")),
+        ("completed", FilterOp::Eq, json!(true)),
+        ("rank", FilterOp::Eq, json!(-9_007_199_254_740_991_i64)),
+        ("rank", FilterOp::Eq, json!(1.0)),
+        ("rank", FilterOp::Eq, Value::Null),
+        ("score", FilterOp::Eq, json!(1.5)),
+        ("_id", FilterOp::Eq, json!("todo-1")),
+        ("_version", FilterOp::Eq, json!(0)),
+        ("_version", FilterOp::Eq, json!(1.0)),
+        ("_createdAt", FilterOp::Eq, json!(9_007_199_254_740_991_i64)),
+    ] {
+        db.query(&plan(field, op, value), &input(json!({}), "u"))
+            .unwrap_or_else(|error| panic!("valid {field} filter failed: {error:?}"));
+    }
+
+    for (field, op, value) in [
+        ("title", FilterOp::Eq, json!(1)),
+        ("title", FilterOp::Eq, Value::Null),
+        ("completed", FilterOp::Eq, json!("true")),
+        ("rank", FilterOp::Eq, json!(9_007_199_254_740_992_i64)),
+        ("score", FilterOp::Eq, json!("1.5")),
+        ("_id", FilterOp::Eq, json!(1)),
+        ("_version", FilterOp::Eq, json!(-1)),
+        ("_updatedAt", FilterOp::Eq, json!("now")),
+        ("title", FilterOp::In, json!(["todo", 1])),
+    ] {
+        let error = db
+            .query(&plan(field, op, value), &input(json!({}), "u"))
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+            "wrong diagnostic for {field}"
+        );
+    }
+}
+
+#[test]
+fn ibex_query_filter_boundaries_preserve_portable_diagnostics() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx, args) {
+    const query = ctx.db.query('todos');
+    if (args.mode === 'bindings') {
+      for (let index = 0; index < 501; index += 1) query.eq('title', 'todo');
+    } else {
+      query.eq('title', 1);
+    }
+    return await query.collect();
+  },
+  async createTodo() { return null; },
+  async setCompleted() { return null; },
+  async deleteTodo() { return null; },
+};
+"#;
+
+    let snapback = configured_ibex_snapback(SOURCE);
+    let bindings = snapback
+        .invoke_query("listTodos", input(json!({ "mode": "bindings" }), "u"))
+        .expect_err("the JS builder must reject 501 scalar filter binds");
+    assert_eq!(
+        bindings.diagnostic.code,
+        "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
+    );
+
+    let wrong_type = snapback
+        .invoke_query("listTodos", input(json!({ "mode": "type" }), "u"))
+        .expect_err("the host boundary must reject a numeric String filter");
+    assert_eq!(
+        wrong_type.diagnostic.code,
+        "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
+    );
+}
+
+#[test]
 fn query_without_take_uses_the_portable_default_result_cap() {
     let mut db = LocalDatabase::memory().expect("memory db");
     db.apply_schema(todo_schema()).expect("schema");

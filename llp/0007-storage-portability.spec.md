@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
@@ -263,7 +263,8 @@ is currently running.
 First-slice requirements:
 
 - equality and inequality compare values of the same declared type only;
-- comparing unlike non-null types is an error;
+- comparing unlike non-null types is a
+  `SNAPBACK_QUERY_FILTER_VALUE_INVALID` error at every execution site;
 - null checks use explicit `isNull` and `isNotNull`;
 - sort order is stable and deterministic: every explicit field order ends in
   an ascending `_id` tie-break, including local/hosted SQL, buffered overlays,
@@ -274,8 +275,11 @@ First-slice requirements:
   closed until Snapback defines one canonical array/object order across every
   engine;
 - every materialized query is bounded: omitted `take` means 1,024 rows, an
-  explicit limit must be `0..=1,024`, and literal `In` operands are capped at
-  500 items cumulatively across the whole plan rather than per clause;
+  explicit limit must be `0..=1,024`, literal `In` operands are capped at 500
+  items cumulatively across the whole plan rather than per clause, and all
+  filter operands together bind at most 500 values (excluding target-internal
+  parameters such as the result limit); exceeding the latter reports
+  `SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED`;
 - one mutation may buffer at most 1,024 writes. Read-your-writes queries
   overfetch only `effective limit + buffered writes`, with an internal ceiling
   of 2,048, then merge and truncate through the same portable evaluator;

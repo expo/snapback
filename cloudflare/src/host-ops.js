@@ -26,6 +26,7 @@ const SYSTEM_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
 export const QUERY_MAX_LIMIT = 1024;
 export const QUERY_DEFAULT_LIMIT = QUERY_MAX_LIMIT;
 export const QUERY_MAX_IN_ITEMS = 500;
+export const QUERY_MAX_FILTER_BINDINGS = 500;
 export const QUERY_MAX_BUFFERED_WRITES = 1024;
 export const QUERY_INTERNAL_OVERFETCH_MAX = QUERY_MAX_LIMIT + QUERY_MAX_BUFFERED_WRITES;
 
@@ -53,17 +54,28 @@ function validatePortableQueryShape(plan) {
     );
   }
   let inItems = 0;
+  let filterBindings = 0;
   for (const filter of plan.filters || []) {
-    if (filter.op !== 'In') continue;
-    const target = literalValue(filter.value);
-    if (!Array.isArray(target)) {
-      throw queryError('SNAPBACK_QUERY_FILTER_VALUE_INVALID', `query In filter on ${filter.field} expects an array`);
+    let addedBindings = 1;
+    if (filter.op === 'In') {
+      const target = literalValue(filter.value);
+      if (!Array.isArray(target)) {
+        throw queryError('SNAPBACK_QUERY_FILTER_VALUE_INVALID', `query In filter on ${filter.field} expects an array`);
+      }
+      inItems += target.length;
+      if (inItems > QUERY_MAX_IN_ITEMS) {
+        throw queryError(
+          'SNAPBACK_QUERY_IN_ITEMS_EXCEEDED',
+          `query In operands contain ${inItems} total items; maxInItems is ${QUERY_MAX_IN_ITEMS}`
+        );
+      }
+      addedBindings = target.length;
     }
-    inItems += target.length;
-    if (inItems > QUERY_MAX_IN_ITEMS) {
+    filterBindings += addedBindings;
+    if (filterBindings > QUERY_MAX_FILTER_BINDINGS) {
       throw queryError(
-        'SNAPBACK_QUERY_IN_ITEMS_EXCEEDED',
-        `query In operands contain ${inItems} total items; maxInItems is ${QUERY_MAX_IN_ITEMS}`
+        'SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED',
+        `query filters bind ${filterBindings} values after ${filter.field}; maxFilterBindings is ${QUERY_MAX_FILTER_BINDINGS}`
       );
     }
   }
@@ -73,6 +85,10 @@ function validateQueryFilterTypes(table, plan) {
   const fields = new Map((table.fields || []).map((field) => [field.name, field]));
   for (const filter of plan.filters || []) {
     const declared = fields.get(filter.field) || null;
+    const system = SYSTEM_FIELDS.has(filter.field);
+    if (!declared && !system) {
+      throw queryError('SNAPBACK_UNKNOWN_FIELD', `unknown field ${table.name}.${filter.field}`);
+    }
     const target = literalValue(filter.value);
     const values = filter.op === 'In' ? target : [target];
     if (declared && fieldType(declared) === 'json') {
@@ -84,7 +100,7 @@ function validateQueryFilterTypes(table, plan) {
     for (const value of values) {
       let valid;
       if (value === null) valid = Boolean(declared?.optional);
-      else if (!declared) {
+      else if (system) {
         valid = filter.field === '_id'
           ? typeof value === 'string'
           : Number.isSafeInteger(value) && value >= 0;

@@ -139,6 +139,35 @@ import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}
 export default defineSchema({}, { ephemeral: defineEphemeral({
   cursors: ephemeral.collection({
     scope: { roomId: v.string() },
+    routing: ['roomId', 'roomId'],
+    value: v.object({ x: v.number() }),
+    ttlMs: 1000,
+    maxPendingEphemeralKeys: 1_025,
+    publish: allow.all(),
+    subscribe: allow.all(),
+  }),
+}) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_UNSAFE_ROUTING'
+    && d.field === 'roomId'
+  )));
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_INVALID_BUDGET'
+    && d.field === 'maxPendingEphemeralKeys'
+    && d.maximum === 1_024
+  )));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+export default defineSchema({}, { ephemeral: defineEphemeral({
+  cursors: ephemeral.collection({
+    scope: { roomId: v.string() },
     value: v.object({ x: v.number() }),
     ttlMs: 1000,
     publish: allow.roomPermission('room:admin'),

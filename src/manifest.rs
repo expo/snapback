@@ -6,12 +6,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// Portable query budgets shared by the local and Cloudflare evaluators. The
-/// `In` cap stays below SQLite's 999-variable compatibility floor with room
-/// for neighboring predicates; the result cap matches the existing 1,024-item
-/// bounded runtime lanes.
+/// Filter-bind and `In` caps stay below SQLite's 999-variable compatibility
+/// floor with room for target-internal parameters; the result cap matches the
+/// existing 1,024-item bounded runtime lanes.
 pub const QUERY_MAX_LIMIT: usize = 1_024;
 pub const QUERY_DEFAULT_LIMIT: usize = QUERY_MAX_LIMIT;
 pub const QUERY_MAX_IN_ITEMS: usize = 500;
+pub const QUERY_MAX_FILTER_BINDINGS: usize = 500;
 pub const QUERY_MAX_BUFFERED_WRITES: usize = 1_024;
 pub const QUERY_INTERNAL_OVERFETCH_MAX: usize = QUERY_MAX_LIMIT + QUERY_MAX_BUFFERED_WRITES;
 /// One request may cumulatively acknowledge this many durable mutation
@@ -501,28 +502,47 @@ pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
         ));
     }
     let mut literal_in_items = 0_usize;
+    let mut known_filter_bindings = 0_usize;
     for filter in &plan.filters {
-        if filter.op == FilterOp::In
-            && let ValueExpr::Literal(value) = &filter.value
-        {
-            let Some(items) = value.as_array() else {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
-                    "query",
-                    format!("query In filter on {} expects an array", filter.field),
-                ));
-            };
-            literal_in_items = literal_in_items.saturating_add(items.len());
-            if literal_in_items > QUERY_MAX_IN_ITEMS {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
-                    "query",
-                    format!(
-                        "query In filters contain {} literal items after {}; maxInItems is {}",
-                        literal_in_items, filter.field, QUERY_MAX_IN_ITEMS
-                    ),
-                ));
+        let added_bindings = if filter.op == FilterOp::In {
+            if let ValueExpr::Literal(value) = &filter.value {
+                let Some(items) = value.as_array() else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+                        "query",
+                        format!("query In filter on {} expects an array", filter.field),
+                    ));
+                };
+                literal_in_items = literal_in_items.saturating_add(items.len());
+                if literal_in_items > QUERY_MAX_IN_ITEMS {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
+                        "query",
+                        format!(
+                            "query In filters contain {} literal items after {}; maxInItems is {}",
+                            literal_in_items, filter.field, QUERY_MAX_IN_ITEMS
+                        ),
+                    ));
+                }
+                items.len()
+            } else {
+                // The runtime validator accounts for a dynamically evaluated
+                // `In` array once its length is known.
+                0
             }
+        } else {
+            1
+        };
+        known_filter_bindings = known_filter_bindings.saturating_add(added_bindings);
+        if known_filter_bindings > QUERY_MAX_FILTER_BINDINGS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
+                "query",
+                format!(
+                    "query filters bind {known_filter_bindings} statically known values after {}; maxFilterBindings is {QUERY_MAX_FILTER_BINDINGS}",
+                    filter.field
+                ),
+            ));
         }
     }
     Ok(())

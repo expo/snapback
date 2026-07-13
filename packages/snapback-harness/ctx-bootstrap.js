@@ -32,6 +32,7 @@
   function literal(value) { return { Literal: value }; }
   var QUERY_MAX_LIMIT = 1024;
   var QUERY_MAX_IN_ITEMS = 500;
+  var QUERY_MAX_FILTER_BINDINGS = 500;
   function normalizeDirection(direction) {
     return String(direction || "asc").toLowerCase() === "desc" ? "Desc" : "Asc";
   }
@@ -267,43 +268,51 @@
     }
     function makeBuilder(table) {
       var plan = { table: table, filters: [], order: [], limit: QUERY_MAX_LIMIT, indexed_by: null };
+      var filterBindings = 0;
+      var inItems = 0;
+      function appendFilter(filter, addedBindings) {
+        var nextBindings = filterBindings + addedBindings;
+        if (nextBindings > QUERY_MAX_FILTER_BINDINGS) {
+          throw snapbackError(
+            "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
+            "query filters exceed maxFilterBindings " + QUERY_MAX_FILTER_BINDINGS
+          );
+        }
+        filterBindings = nextBindings;
+        plan.filters.push(filter);
+      }
       var builder = {
         withIndex: function(name) { plan.indexed_by = name; return builder; },
         eq: function(field, value) {
-          plan.filters.push({ field: field, op: "Eq", value: literal(value) });
+          appendFilter({ field: field, op: "Eq", value: literal(value) }, 1);
           return builder;
         },
         in: function(field, values) {
           if (!Array.isArray(values)) {
             throw snapbackError("SNAPBACK_QUERY_FILTER_VALUE_INVALID", "query In expects an array");
           }
-          var total = values.length;
-          for (var i = 0; i < plan.filters.length; i++) {
-            var prior = plan.filters[i];
-            if (prior.op === "In" && prior.value && Array.isArray(prior.value.Literal)) {
-              total += prior.value.Literal.length;
-            }
-          }
-          if (total > QUERY_MAX_IN_ITEMS) {
+          var nextInItems = inItems + values.length;
+          if (nextInItems > QUERY_MAX_IN_ITEMS) {
             throw snapbackError("SNAPBACK_QUERY_IN_ITEMS_EXCEEDED", "query In operands exceed maxInItems " + QUERY_MAX_IN_ITEMS);
           }
-          plan.filters.push({ field: field, op: "In", value: literal(values) });
+          appendFilter({ field: field, op: "In", value: literal(values) }, values.length);
+          inItems = nextInItems;
           return builder;
         },
         lt: function(field, value) {
-          plan.filters.push({ field: field, op: "Lt", value: literal(value) });
+          appendFilter({ field: field, op: "Lt", value: literal(value) }, 1);
           return builder;
         },
         lte: function(field, value) {
-          plan.filters.push({ field: field, op: "Lte", value: literal(value) });
+          appendFilter({ field: field, op: "Lte", value: literal(value) }, 1);
           return builder;
         },
         gt: function(field, value) {
-          plan.filters.push({ field: field, op: "Gt", value: literal(value) });
+          appendFilter({ field: field, op: "Gt", value: literal(value) }, 1);
           return builder;
         },
         gte: function(field, value) {
-          plan.filters.push({ field: field, op: "Gte", value: literal(value) });
+          appendFilter({ field: field, op: "Gte", value: literal(value) }, 1);
           return builder;
         },
         order: function(field, direction) {
