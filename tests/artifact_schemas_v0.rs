@@ -199,6 +199,108 @@ fn dk7_committed_public_instances_match_rust_types() {
     }
 }
 
+/// LLP 0054's provider and operator objects are closed wire contracts. Keep a
+/// consumer-side fixture for every schema, not only the Rust schemars drift
+/// check, so camelCase or `additionalProperties` drift is caught here too.
+#[test]
+fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
+    let cases = [
+        (
+            "auth.request-code.input.schema.json",
+            json!({ "email": "person@example.com" }),
+        ),
+        (
+            "auth.request-code.output.schema.json",
+            json!({ "challengeId": "sbc_AAAAAAAAAAAAAAAAAAAAAA", "expiresAt": 10 }),
+        ),
+        (
+            "auth.exchange.input.schema.json",
+            json!({ "challengeId": "sbc_AAAAAAAAAAAAAAAAAAAAAA", "code": "012345" }),
+        ),
+        (
+            "auth.credential.output.schema.json",
+            json!({
+                "tokenType": "Bearer",
+                "token": "sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ad",
+                "refreshAfter": 7,
+                "session": {
+                    "id": "019b0000-0000-7000-8000-000000000001",
+                    "userId": "019b0000-0000-7000-8000-000000000002",
+                    "provider": "email-code",
+                    "createdAt": 1,
+                    "expiresAt": 2,
+                    "absoluteExpiresAt": 3
+                }
+            }),
+        ),
+        ("auth.empty.input.schema.json", json!({})),
+        (
+            "auth.family-alarm.output.schema.json",
+            json!({ "accepted": true }),
+        ),
+        (
+            "auth.mailbox.query.schema.json",
+            json!({ "challengeId": "sbc_AAAAAAAAAAAAAAAAAAAAAA" }),
+        ),
+        (
+            "auth.mailbox.output.schema.json",
+            json!({
+                "challengeId": "sbc_AAAAAAAAAAAAAAAAAAAAAA",
+                "canonicalAddress": "person@example.com",
+                "code": "012345",
+                "expiresAt": 10
+            }),
+        ),
+        (
+            "auth.mint-session.input.schema.json",
+            json!({ "email": "person@example.com" }),
+        ),
+        (
+            "auth.rescue-colliding-table.input.schema.json",
+            json!({ "sourceTable": "_auth_users", "targetTable": "legacy_auth_users" }),
+        ),
+    ];
+    for (file, exact) in cases {
+        assert_validates(file, &exact);
+        let mut extended = exact;
+        extended
+            .as_object_mut()
+            .expect("auth wire fixture is an object")
+            .insert("unexpected".to_owned(), json!(true));
+        assert_rejects(file, &extended);
+    }
+
+    use snapback::auth::wire::{
+        EmptyAuthRequest, ExchangeRequest, MailboxQuery, MintSessionRequest, RequestCodeRequest,
+        RescueCollidingTableRequest,
+    };
+    assert!(
+        serde_json::from_str::<RequestCodeRequest>(r#"{"email":"a@b","email":"duplicate@b"}"#)
+            .is_err()
+    );
+    assert!(
+        serde_json::from_str::<ExchangeRequest>(
+            r#"{"challengeId":"sbc_x","challengeId":"sbc_y","code":"012345"}"#
+        )
+        .is_err()
+    );
+    assert!(serde_json::from_str::<EmptyAuthRequest>(r#"{"x":1,"x":2}"#).is_err());
+    assert!(
+        serde_json::from_str::<MailboxQuery>(r#"{"challengeId":"sbc_x","challengeId":"sbc_y"}"#)
+            .is_err()
+    );
+    assert!(
+        serde_json::from_str::<MintSessionRequest>(r#"{"email":"a@b","email":"duplicate@b"}"#)
+            .is_err()
+    );
+    assert!(
+        serde_json::from_str::<RescueCollidingTableRequest>(
+            r#"{"sourceTable":"_auth_users","targetTable":"legacy","targetTable":"other"}"#
+        )
+        .is_err()
+    );
+}
+
 /// Every committed schema file has a corresponding generated artifact and vice
 /// versa — a new artifact type without a committed schema (or a stray file) is a
 /// failure, not a silent gap.
