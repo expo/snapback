@@ -291,7 +291,8 @@ async fn requested_active_desired_posture_blocks_public_branches_but_keeps_recov
 }
 
 #[tokio::test]
-async fn public_sessions_attest_requires_exact_durable_sessions_posture_and_rejects_smuggled_effects() {
+async fn public_sessions_attest_requires_exact_durable_sessions_posture_and_rejects_smuggled_effects()
+ {
     let mut snapback = LocalSnapback::memory().expect("attest ensure instance");
     let (schema, functions) = manifests();
     snapback

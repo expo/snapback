@@ -2,6 +2,7 @@ use crate::admin::{AppState, ServerContext, ServerProfile};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
+use crate::auth::admission::{AdmissionLease, AuthAdmissionController};
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
@@ -32,8 +33,8 @@ use crate::local::{
     StagedNestedMutation,
 };
 use crate::manifest::{
-    AuthInput, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
-    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
+    AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
     MutationRequest, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
@@ -49,6 +50,7 @@ use axum::{
     body::{Body, Bytes, to_bytes},
 };
 use futures_util::{SinkExt, StreamExt};
+use http_body::Body as HttpBody;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -56,7 +58,7 @@ use std::sync::Mutex as StdMutex;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
 use uuid::Uuid;
@@ -1292,6 +1294,7 @@ async fn open_connection(
     State(connections): State<ConnectionRegistry>,
     State(ctx): State<Arc<ServerContext>>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
@@ -1300,6 +1303,7 @@ async fn open_connection(
         .map(|body| (body.connection_id, body.previous_token))
         .unwrap_or_default();
     let allow_suggested = ctx.profile.allows_provisioning();
+    let _effect = admission.effect_guard("connection grant publication")?;
     Ok(Json(connections.open(
         suggested,
         previous_token.as_deref(),
@@ -2753,6 +2757,7 @@ fn session_online_protocol_refusal(
 
 fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
     match spec.path {
+        "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
@@ -2860,10 +2865,15 @@ async fn prepare_registered_route_authority(
     source: Option<InvocationSource>,
     effective: EffectiveRoutePolicy,
     runtime: &AppState,
+    admission: Option<&AdmissionLease>,
     headers: &HeaderMap,
     body: Option<&Value>,
 ) -> Result<Option<PreparedAuthority>, ApiError> {
     let Some(source) = source else {
+        return Ok(None);
+    };
+    let Some(admission) = admission else {
+        debug_assert_eq!(source, InvocationSource::BootstrapHandshake);
         return Ok(None);
     };
     let handler_value = invocation_authority_value(source, body);
@@ -2928,10 +2938,18 @@ async fn prepare_registered_route_authority(
                 // anonymous authority.
                 let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
                 let provider = installed_auth_provider(runtime)?;
-                let admission = provider.admit().await;
+                let provider_admission = provider.admit().await;
+                let route_admission = admission.clone();
                 let now_ms = provider.now_ms();
                 let session = with_snapback(&runtime.snapback, move |snapback| {
-                    admission.resolve_session(snapback.auth_database_mut(), bearer.as_str(), now_ms)
+                    let _effect = route_admission
+                        .effect_guard("bootstrap session resolution")
+                        .map_err(ProviderError::from)?;
+                    provider_admission.resolve_session(
+                        snapback.auth_database_mut(),
+                        bearer.as_str(),
+                        now_ms,
+                    )
                 })
                 .await
                 .map_err(map_provider_error)?;
@@ -2941,12 +2959,11 @@ async fn prepare_registered_route_authority(
             }
         }
     };
-    InvocationGate::prepare_authority(
+    InvocationGate::prepare_admitted_authority(
         source,
         active_mode,
         runtime.server.profile,
-        mode_state.transition_generation,
-        runtime.auth_admission_epoch(),
+        admission.clone(),
         &wire,
         resolved,
     )
@@ -2975,6 +2992,117 @@ fn deferred_secret_read_scope(
             }
         }
         _ => None,
+    }
+}
+
+fn route_uses_managed_admission(spec: RouteSpec) -> bool {
+    (spec.class == RouteClass::AppData && !matches!(spec.path, "/" | "/health" | "/app/ensure"))
+        || matches!(
+            spec.path,
+            "/_snapback/api/functions/{name}/run"
+                | "/_snapback/api/host-ops"
+                | "/_snapback/api/auth/mailbox"
+                | "/_snapback/api/admin-secret-read/mint"
+        )
+}
+
+fn acquire_registered_route_admission(
+    spec: RouteSpec,
+    runtime: &AppState,
+) -> Result<Option<AdmissionLease>, ApiError> {
+    if !route_uses_managed_admission(spec) {
+        return Ok(None);
+    }
+    let controller = runtime.auth_admission_controller();
+    let snapshot = controller.diagnostic_snapshot();
+    // The handshake is the diagnostic exception: it remains available while
+    // the current epoch is closing or a committed mode is pending, and merely
+    // reports the durable/controller snapshot without manufacturing a root.
+    if spec.path == "/auth/session" && !snapshot.accepting {
+        return Ok(None);
+    }
+    controller
+        .admit_for_mode(runtime.auth_mode_state().active)
+        .map(Some)
+        .map_err(ApiError::from)
+}
+
+fn finish_registered_response(
+    effective: EffectiveRoutePolicy,
+    response: Response,
+    admission: Option<&AdmissionLease>,
+    authority: Option<&PreparedAuthority>,
+) -> Response {
+    let mut response = if let Some(admission) = admission {
+        match admission.effect_guard("HTTP response publication") {
+            Ok(publication) => {
+                let response = apply_registered_response_controls(effective, response);
+                drop(publication);
+                response
+            }
+            Err(error) => {
+                apply_registered_response_controls(effective, ApiError::from(error).into_response())
+            }
+        }
+    } else {
+        apply_registered_response_controls(effective, response)
+    };
+    if let Some(admission) = admission {
+        // Clones share one root token, so retaining both the bare route lease
+        // and any prepared authority does not inflate the in-flight count.
+        response.extensions_mut().insert(admission.clone());
+    }
+    if let Some(authority) = authority {
+        response.extensions_mut().insert(authority.clone());
+    }
+    if let Some(admission) = admission {
+        let (parts, body) = response.into_parts();
+        let body = Body::new(RetainedAdmissionBody {
+            inner: body,
+            _admission: admission.clone(),
+            _authority: authority.cloned(),
+        });
+        Response::from_parts(parts, body)
+    } else {
+        response
+    }
+}
+
+/// Response extensions may be discarded after the headers are encoded. Keep
+/// the counted root (and exact authority when present) inside the body itself
+/// so transition quiescence covers every frame through end/error/drop.
+struct RetainedAdmissionBody {
+    inner: Body,
+    _admission: AdmissionLease,
+    _authority: Option<PreparedAuthority>,
+}
+
+impl HttpBody for RetainedAdmissionBody {
+    type Data = Bytes;
+    type Error = axum::Error;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        let this = self.get_mut();
+        let Ok(publication) = this
+            ._admission
+            .effect_guard("HTTP response body frame publication")
+        else {
+            return std::task::Poll::Ready(None);
+        };
+        let frame = std::pin::Pin::new(&mut this.inner).poll_frame(context);
+        drop(publication);
+        frame
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.inner.size_hint()
     }
 }
 
@@ -3021,6 +3149,12 @@ async fn enforce_registered_route_policy(
             .into_response(),
         );
     }
+    let route_admission = match acquire_registered_route_admission(spec, &runtime) {
+        Ok(admission) => admission,
+        Err(error) => {
+            return apply_registered_response_controls(effective, error.into_response());
+        }
+    };
     // @ref LLP 0031#enforcement — authenticate every connection carrier
     // before bounded JSON inspection. Body-carried connection ids get a
     // second exact id↔bearer check after decoding; an attacker-controlled
@@ -3028,16 +3162,28 @@ async fn enforce_registered_route_policy(
     let mut presented_connection_token = None;
     if effective.path_policy == RoutePolicy::ConnectionAuth {
         let presented = connection_token_for_request(effective, &request);
-        let verified = match connection_id_from_request_path(request.uri().path()) {
-            Some(connection_id) => runtime
-                .connections
-                .verify(connection_id, presented.as_deref()),
-            None => runtime
-                .connections
-                .verify_presented_bearer(presented.as_deref()),
+        let verified = match route_admission
+            .as_ref()
+            .expect("connection-auth app routes are managed")
+            .effect_guard("connection bearer verification")
+        {
+            Ok(_effect) => match connection_id_from_request_path(request.uri().path()) {
+                Some(connection_id) => runtime
+                    .connections
+                    .verify(connection_id, presented.as_deref()),
+                None => runtime
+                    .connections
+                    .verify_presented_bearer(presented.as_deref()),
+            },
+            Err(error) => Err(ApiError::from(error)),
         };
         if let Err(error) = verified {
-            return apply_registered_response_controls(effective, error.into_response());
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
         }
         presented_connection_token = presented;
     }
@@ -3083,7 +3229,12 @@ async fn enforce_registered_route_policy(
             }
         };
         if let Err(error) = coarse_authorization {
-            return apply_registered_response_controls(effective, error.into_response());
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
         }
     }
 
@@ -3102,16 +3253,23 @@ async fn enforce_registered_route_policy(
                 policy_body = body;
             }
             Err(error) => {
-                return apply_registered_response_controls(effective, error.into_response());
+                return finish_registered_response(
+                    effective,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
             }
         }
     }
     if effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         && let Some(field) = policy_body.as_ref().and_then(legacy_body_auth_field)
     {
-        return apply_registered_response_controls(
+        return finish_registered_response(
             effective,
             body_auth_unsupported(field).into_response(),
+            route_admission.as_ref(),
+            None,
         );
     }
     // A lease-only caller must prove the statically named function scope
@@ -3130,7 +3288,12 @@ async fn enforce_registered_route_policy(
             std::collections::BTreeSet::from([scope]),
         )
     {
-        return apply_registered_response_controls(effective, error.into_response());
+        return finish_registered_response(
+            effective,
+            error.into_response(),
+            route_admission.as_ref(),
+            None,
+        );
     }
 
     let mut selected_operation = None;
@@ -3250,7 +3413,12 @@ async fn enforce_registered_route_policy(
         }
     };
     if let Err(error) = authorization {
-        return apply_registered_response_controls(response_policy, error.into_response());
+        return finish_registered_response(
+            response_policy,
+            error.into_response(),
+            route_admission.as_ref(),
+            None,
+        );
     }
     if selected_policy.effect_policy == EffectPolicy::ImpersonationCapability {
         if !runtime.server.profile.allows_provisioning() {
@@ -3260,9 +3428,11 @@ async fn enforce_registered_route_policy(
                 crate::admin::OperationProfileRequirement::NonProd,
             )
             .expect("prod is the only profile that forbids impersonation");
-            return apply_registered_response_controls(
+            return finish_registered_response(
                 response_policy,
                 ApiError::from(SnapbackError::new(diagnostic)).into_response(),
+                route_admission.as_ref(),
+                None,
             );
         }
         let verified = runtime
@@ -3270,6 +3440,10 @@ async fn enforce_registered_route_policy(
             .as_ref()
             .ok_or_else(crate::admin_impersonation::impersonation_required)
             .and_then(|registry| {
+                let _effect = route_admission
+                    .as_ref()
+                    .expect("impersonation app routes are managed")
+                    .effect_guard("impersonation capability claim")?;
                 registry.authorize(single_header_value(
                     request.headers(),
                     crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
@@ -3280,18 +3454,22 @@ async fn enforce_registered_route_policy(
                 request.extensions_mut().insert(verified);
             }
             Err(error) => {
-                return apply_registered_response_controls(
+                return finish_registered_response(
                     response_policy,
                     ApiError::from(error).into_response(),
+                    route_admission.as_ref(),
+                    None,
                 );
             }
         }
     }
     if selected_policy.effect_policy == EffectPolicy::SecretReadMintProof {
         let Some(bridge) = runtime.secret_read_mint.as_ref() else {
-            return apply_registered_response_controls(
+            return finish_registered_response(
                 response_policy,
                 ApiError::from(crate::admin_secret_read::mint_proof_required()).into_response(),
+                route_admission.as_ref(),
+                None,
             );
         };
         let envelope = policy_body
@@ -3302,12 +3480,20 @@ async fn enforce_registered_route_policy(
                 serde_json::from_value::<SecretReadMintEnvelope>(body)
                     .map_err(|_| crate::admin_secret_read::mint_proof_invalid())
             });
-        let verified = match envelope.and_then(|envelope| bridge.verify_and_claim(&envelope)) {
+        let verified = match envelope.and_then(|envelope| {
+            let _effect = route_admission
+                .as_ref()
+                .expect("secret-read mint app routes are managed")
+                .effect_guard("secret-read mint proof claim")?;
+            bridge.verify_and_claim(&envelope)
+        }) {
             Ok(verified) => verified,
             Err(error) => {
-                return apply_registered_response_controls(
+                return finish_registered_response(
                     response_policy,
                     ApiError::from(error).into_response(),
+                    route_admission.as_ref(),
+                    None,
                 );
             }
         };
@@ -3323,15 +3509,27 @@ async fn enforce_registered_route_policy(
             })
             .and_then(Value::as_str);
         let verified = match body_connection_id {
-            Some(connection_id) if connection_id_in_body => runtime
-                .connections
-                .verify(connection_id, presented_connection_token.as_deref()),
+            Some(connection_id) if connection_id_in_body => match route_admission
+                .as_ref()
+                .expect("connection-auth app routes are managed")
+                .effect_guard("body-carried connection verification")
+            {
+                Ok(_effect) => runtime
+                    .connections
+                    .verify(connection_id, presented_connection_token.as_deref()),
+                Err(error) => Err(ApiError::from(error)),
+            },
             // Invalid JSON/missing fields are left to the closed typed
             // extractor, after the presented bearer was authenticated above.
             _ => Ok(()),
         };
         if let Err(error) = verified {
-            return apply_registered_response_controls(response_policy, error.into_response());
+            return finish_registered_response(
+                response_policy,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
         }
     }
     let invocation_source =
@@ -3340,6 +3538,7 @@ async fn enforce_registered_route_policy(
         invocation_source,
         selected_policy,
         &runtime,
+        route_admission.as_ref(),
         request.headers(),
         policy_body.as_ref(),
     )
@@ -3347,11 +3546,19 @@ async fn enforce_registered_route_policy(
     {
         Ok(authority) => authority,
         Err(error) => {
-            return apply_registered_response_controls(response_policy, error.into_response());
+            return finish_registered_response(
+                response_policy,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
         }
     };
-    if let Some(authority) = prepared_authority {
-        request.extensions_mut().insert(authority);
+    if let Some(authority) = prepared_authority.as_ref() {
+        request.extensions_mut().insert(authority.clone());
+    }
+    if let Some(admission) = route_admission.as_ref() {
+        request.extensions_mut().insert(admission.clone());
     }
     request.extensions_mut().insert(spec);
     if let Some((operation, operation_policy)) = selected_operation {
@@ -3360,7 +3567,12 @@ async fn enforce_registered_route_policy(
     } else {
         request.extensions_mut().insert(effective);
     }
-    apply_registered_response_controls(response_policy, next.run(request).await)
+    finish_registered_response(
+        response_policy,
+        next.run(request).await,
+        route_admission.as_ref(),
+        prepared_authority.as_ref(),
+    )
 }
 
 const AUTH_REQUEST_BODY_LIMIT: usize = 4 * 1024;
@@ -3405,6 +3617,7 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
 /// response authority and never includes bearer or provider internals.
 async fn auth_session(
     State(runtime): State<AppState>,
+    authority: Option<Extension<PreparedAuthority>>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -3415,36 +3628,45 @@ async fn auth_session(
     }
     let offers = AuthClientProtocolOffers::from_headers(&headers);
     let state = runtime.auth_mode_state();
-    let resolved = match state.active {
-        crate::manifest::AuthMode::Dev => {
-            if headers.contains_key(header::AUTHORIZATION) {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_REQUIRED",
-                    "auth",
-                    "session credentials are unavailable while auth mode is dev",
-                )
-                .into());
-            }
-            ResolvedAppAuthority::Anonymous
-        }
-        crate::manifest::AuthMode::Sessions => {
-            if headers.contains_key(header::AUTHORIZATION) {
-                let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
-                let provider = installed_auth_provider(&runtime)?;
-                let admission = provider.admit().await;
-                let now_ms = provider.now_ms();
-                let session = with_snapback(&runtime.snapback, move |snapback| {
-                    admission.resolve_session(snapback.auth_database_mut(), &bearer, now_ms)
-                })
-                .await
-                .map_err(map_provider_error)?;
-                ResolvedAppAuthority::from_session(session)
-            } else {
-                ResolvedAppAuthority::Anonymous
-            }
+    let projection = match authority {
+        Some(Extension(authority)) => authority.projection().clone(),
+        None => {
+            // A closed admission epoch is the handshake's diagnostic-only
+            // path. Resolve a presented bearer against the still-active
+            // durable mode, but do not manufacture managed invocation
+            // authority while ordinary app admission is suspended.
+            let resolved = match state.active {
+                AuthMode::Dev => {
+                    if headers.contains_key(header::AUTHORIZATION) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTH_REQUIRED",
+                            "auth",
+                            "session credentials are unavailable while auth mode is dev",
+                        )
+                        .into());
+                    }
+                    ResolvedAppAuthority::Anonymous
+                }
+                AuthMode::Sessions => {
+                    if headers.contains_key(header::AUTHORIZATION) {
+                        let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+                        let provider = installed_auth_provider(&runtime)?;
+                        let admission = provider.admit().await;
+                        let now_ms = provider.now_ms();
+                        let session = with_snapback(&runtime.snapback, move |snapback| {
+                            admission.resolve_session(snapback.auth_database_mut(), &bearer, now_ms)
+                        })
+                        .await
+                        .map_err(map_provider_error)?;
+                        ResolvedAppAuthority::from_session(session)
+                    } else {
+                        ResolvedAppAuthority::Anonymous
+                    }
+                }
+            };
+            HandlerAuthProjection::from_authority(&resolved)
         }
     };
-    let projection = HandlerAuthProjection::from_authority(&resolved);
     let provider_ready = runtime.auth_catalog_ready
         && runtime
             .auth_provider
@@ -3518,6 +3740,7 @@ fn parse_auth_json<T: serde::de::DeserializeOwned>(
 /// capture response is published and never enters the app event stream.
 async fn auth_request_code(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<RequestCodeResponse>, ApiError> {
@@ -3529,6 +3752,9 @@ async fn auth_request_code(
         .map_err(map_provider_error)?;
     let now_ms = provider.now_ms();
     let response = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission
+            .effect_guard("auth request-code transaction")
+            .map_err(ProviderError::from)?;
         admission.request_code(snapback.auth_database_mut(), now_ms)
     })
     .await
@@ -3544,6 +3770,7 @@ async fn auth_request_code(
 /// key material only; authorization comes from the rechecked transaction.
 async fn auth_exchange(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<CredentialResponse>, ApiError> {
@@ -3553,7 +3780,12 @@ async fn auth_exchange(
     let challenge_id = request.challenge_id;
     let preliminary_challenge_id = challenge_id.clone();
     let code = request.code;
+    let coordination_admission = route_admission.clone();
     let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = match coordination_admission.effect_guard("auth exchange coordination read") {
+            Ok(effect) => effect,
+            Err(error) => return (admission, Err(ProviderError::from(error))),
+        };
         let coordination = admission.exchange_coordination(
             snapback.auth_database_mut(),
             preliminary_challenge_id.as_str(),
@@ -3569,7 +3801,11 @@ async fn auth_exchange(
                 .await
                 .map_err(map_provider_error)?;
             let now_ms = provider.now_ms();
+            let route_admission = route_admission.clone();
             with_snapback(&runtime.snapback, move |snapback| {
+                let _effect = route_admission
+                    .effect_guard("auth exchange transaction")
+                    .map_err(ProviderError::from)?;
                 exchange.exchange(snapback.auth_database_mut(), code.as_str(), now_ms)
             })
             .await
@@ -3577,6 +3813,9 @@ async fn auth_exchange(
         None => {
             let now_ms = provider.now_ms();
             with_snapback(&runtime.snapback, move |snapback| {
+                let _effect = route_admission
+                    .effect_guard("unknown auth exchange transaction")
+                    .map_err(ProviderError::from)?;
                 admission.exchange_unknown(
                     snapback.auth_database_mut(),
                     challenge_id.as_str(),
@@ -3602,6 +3841,7 @@ async fn auth_exchange(
 /// the same closed credential response as exchange.
 async fn auth_refresh(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<CredentialResponse>, ApiError> {
@@ -3611,6 +3851,9 @@ async fn auth_refresh(
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
     let issue = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission
+            .effect_guard("auth refresh transaction")
+            .map_err(ProviderError::from)?;
         admission.refresh(snapback.auth_database_mut(), bearer.as_str(), now_ms)
     })
     .await
@@ -3633,6 +3876,7 @@ async fn auth_refresh(
 /// empty 204 response and never aliases a bearer through JSON or query input.
 async fn auth_logout(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<StatusCode, ApiError> {
@@ -3642,6 +3886,9 @@ async fn auth_logout(
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
     let _committed_revocation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission
+            .effect_guard("auth logout transaction")
+            .map_err(ProviderError::from)?;
         admission.logout(snapback.auth_database_mut(), bearer.as_str(), now_ms)
     })
     .await
@@ -3657,6 +3904,7 @@ async fn auth_logout(
 /// tombstone, and already-revoked bearers all publish the same delayed 202.
 async fn auth_family_alarm(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<(StatusCode, Json<FamilyAlarmResponse>), ApiError> {
@@ -3666,6 +3914,9 @@ async fn auth_family_alarm(
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
     let outcome = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission
+            .effect_guard("auth family-alarm transaction")
+            .map_err(ProviderError::from)?;
         admission.family_alarm(snapback.auth_database_mut(), bearer.as_str(), now_ms)
     })
     .await
@@ -3683,6 +3934,7 @@ async fn auth_family_alarm(
 /// maintenance, peek, address-stripe acquisition, and an exact re-read.
 async fn auth_mailbox(
     State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
     Extension(_verified): Extension<crate::admin_impersonation::VerifiedImpersonationCapability>,
     query: Result<Query<MailboxQuery>, QueryRejection>,
 ) -> Result<Json<MailboxResponse>, ApiError> {
@@ -3692,6 +3944,7 @@ async fn auth_mailbox(
         .mailbox_entry(&query.challenge_id)
         .await
         .map_err(map_provider_error)?;
+    route_admission.validate("auth mailbox response")?;
     Ok(Json(response))
 }
 
@@ -5711,6 +5964,7 @@ async fn execute_auth_host_operation(
 
 async fn host_ops_handler(
     State(runtime): State<AppState>,
+    authority: Option<Extension<PreparedAuthority>>,
     impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
     headers: HeaderMap,
     Json(mut request): Json<crate::host_ops::HostOpsRequest>,
@@ -5723,6 +5977,7 @@ async fn host_ops_handler(
     let profile = ctx.profile;
     let requested_operation = request.operation.clone();
     let requested_function = request.function.clone();
+    let prepared_authority = authority.map(|Extension(authority)| authority);
 
     if matches!(
         request.operation.as_str(),
@@ -5830,8 +6085,13 @@ async fn host_ops_handler(
             }
             request.user_id = None;
         }
-        let mut result =
-            crate::host_ops::execute_host_op_with_profile(snapback, request, server_url, profile);
+        let mut result = crate::host_ops::execute_host_op_with_profile_and_authority(
+            snapback,
+            request,
+            server_url,
+            profile,
+            prepared_authority,
+        );
         if policy_mode == PolicyAuthMode::Sessions
             && matches!(
                 result.operation.as_str(),
@@ -6229,16 +6489,22 @@ async fn subscribe_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     headers: HeaderMap,
     input: Result<Json<LiveSubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    connections.verify(
-        &input.connection_id,
-        header_connection_token(&headers).as_deref(),
-    )?;
+    {
+        let _effect = admission.effect_guard("live subscribe connection verification")?;
+        connections.verify(
+            &input.connection_id,
+            header_connection_token(&headers).as_deref(),
+        )?;
+    }
+    let effect_admission = admission.clone();
     let output = with_snapback(&state, move |snapback| {
+        let _effect = effect_admission.effect_guard("live subscribe publication")?;
         snapback.subscribe_live(&name, input)
     })
     .await?;
@@ -6249,16 +6515,24 @@ async fn resume_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     headers: HeaderMap,
     input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    connections.verify(
-        &input.connection_id,
-        header_connection_token(&headers).as_deref(),
-    )?;
-    let output = with_snapback(&state, move |snapback| snapback.resume_live(&name, input)).await?;
+    {
+        let _effect = admission.effect_guard("live resume connection verification")?;
+        connections.verify(
+            &input.connection_id,
+            header_connection_token(&headers).as_deref(),
+        )?;
+    }
+    let output = with_snapback(&state, move |snapback| {
+        let _effect = admission.effect_guard("live resume publication")?;
+        snapback.resume_live(&name, input)
+    })
+    .await?;
     Ok(Json(output))
 }
 
@@ -6266,18 +6540,23 @@ async fn unsubscribe_live(
     State(state): State<SharedSnapback>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     headers: HeaderMap,
     input: Result<Json<LiveUnsubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    connections.verify(
-        &input.connection_id,
-        header_connection_token(&headers).as_deref(),
-    )?;
+    {
+        let _effect = admission.effect_guard("live unsubscribe connection verification")?;
+        connections.verify(
+            &input.connection_id,
+            header_connection_token(&headers).as_deref(),
+        )?;
+    }
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
     let output = with_snapback(&state, move |snapback| {
+        let _effect = admission.effect_guard("live unsubscribe publication")?;
         snapback.unsubscribe_live(&name, input)
     })
     .await?;
@@ -6285,15 +6564,19 @@ async fn unsubscribe_live(
 }
 
 async fn stream_live(
-    State(state): State<SharedSnapback>,
-    State(ephemeral): State<EphemeralApi>,
-    State(connections): State<ConnectionRegistry>,
-    State(policy_mode): State<PolicyAuthMode>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(connection_id): Path<String>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
+    let state = runtime.snapback.clone();
+    let ephemeral = runtime.ephemeral.clone();
+    let connections = runtime.connections.clone();
+    let policy_mode = runtime.active_policy_auth_mode();
+    let admission = runtime.auth_admission_controller();
+    let active_mode = authority.active_mode();
+    let admission_epoch = authority.admission_epoch();
     // The token gate runs BEFORE the upgrade: an unauthorized caller gets the
     // structured 401/403 diagnostic, never a socket. Browser WebSockets cannot
     // set headers, so the token rides the
@@ -6302,7 +6585,14 @@ async fn stream_live(
     // history, proxies, and telemetry (ENG-24354).
     let presented =
         header_connection_token(&headers).or_else(|| subprotocol_connection_token(&headers));
-    if let Err(error) = connections.verify(&connection_id, presented.as_deref()) {
+    let verified = match authority
+        .admission_lease()
+        .effect_guard("WebSocket upgrade connection verification")
+    {
+        Ok(_effect) => connections.verify(&connection_id, presented.as_deref()),
+        Err(error) => Err(ApiError::from(error)),
+    };
+    if let Err(error) = verified {
         return error.into_response();
     }
     // Select the negotiated subprotocol when offered (a browser fails the
@@ -6318,8 +6608,108 @@ async fn stream_live(
                 connections,
                 connection_id,
                 policy_mode,
+                admission,
+                active_mode,
+                admission_epoch,
             )
         })
+}
+
+/// Acquire one short socket-act root, suspending without polling while the
+/// current epoch is transiently closed. An abort reopens under a fresh epoch;
+/// a committed pending epoch or mode change closes the old socket boundary.
+async fn acquire_live_act_admission(
+    controller: &AuthAdmissionController,
+    active_mode: AuthMode,
+    current_epoch: &mut u64,
+) -> Option<AdmissionLease> {
+    loop {
+        match controller.admit_for_mode(active_mode) {
+            Ok(admission) => {
+                *current_epoch = admission.admission_epoch();
+                return Some(admission);
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_MODE_PENDING" => {
+                let observed = controller.diagnostic_snapshot();
+                if observed.admission_epoch != *current_epoch {
+                    if !observed.accepting || observed.active_mode != active_mode {
+                        return None;
+                    }
+                    *current_epoch = observed.admission_epoch;
+                    continue;
+                }
+                let changed = controller.changed(observed).await;
+                if changed.admission_epoch != *current_epoch {
+                    if !changed.accepting || changed.active_mode != active_mode {
+                        return None;
+                    }
+                    *current_epoch = changed.admission_epoch;
+                }
+            }
+            Err(_) => return None,
+        }
+    }
+}
+
+struct AdmittedLiveWrite {
+    message: Message,
+    admission: AdmissionLease,
+    completed: oneshot::Sender<bool>,
+}
+
+async fn live_socket_writer(
+    mut sender: futures_util::stream::SplitSink<WebSocket, Message>,
+    mut writes: mpsc::Receiver<AdmittedLiveWrite>,
+    notify: Arc<crate::ephemeral::DeliveryNotifier>,
+    connection_id: String,
+    generation: u64,
+) {
+    while let Some(write) = writes.recv().await {
+        if !notify.is_current(&connection_id, generation) {
+            let _ = write.completed.send(false);
+            break;
+        }
+        let sent = tokio::select! {
+            biased;
+            _ = write.admission.cancelled() => false,
+            result = sender.send(write.message) => result.is_ok(),
+        };
+        let _ = write.completed.send(sent);
+        if !sent {
+            break;
+        }
+    }
+}
+
+async fn send_live_with_admission(
+    writer: &mpsc::Sender<AdmittedLiveWrite>,
+    message: Message,
+    admission: &AdmissionLease,
+) -> bool {
+    let (completed, completion) = oneshot::channel();
+    // The complete frame crosses into the bounded writer queue under the same
+    // mutex that retires an epoch. Socket I/O may await afterward, but no frame
+    // can begin its writer handoff after the retirement cut.
+    let handed_off = {
+        let Ok(_publication) = admission.effect_guard("WebSocket writer handoff") else {
+            return false;
+        };
+        writer
+            .try_send(AdmittedLiveWrite {
+                message,
+                admission: admission.clone(),
+                completed,
+            })
+            .is_ok()
+    };
+    if !handed_off {
+        return false;
+    }
+    tokio::select! {
+        biased;
+        _ = admission.cancelled() => false,
+        result = completion => result.unwrap_or(false),
+    }
 }
 
 async fn live_stream(
@@ -6329,56 +6719,112 @@ async fn live_stream(
     connections: ConnectionRegistry,
     connection_id: String,
     policy_mode: PolicyAuthMode,
+    admission_controller: AuthAdmissionController,
+    active_mode: AuthMode,
+    mut admission_epoch: u64,
 ) {
-    let (mut sender, mut receiver) = socket.split();
+    let (sender, mut receiver) = socket.split();
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: an enqueue
     // wakes this task immediately (sub-poll-interval delivery, and no periodic
     // lock traffic while idle). The long interval is a safety net only, in case
     // a wake is ever missed; register before draining so no push is lost.
     let notify = ephemeral.delivery_notifier();
     let (generation, waker) = notify.register(&connection_id);
+    let (writer, writes) = mpsc::channel(1);
+    let writer_task = tokio::spawn(live_socket_writer(
+        sender,
+        writes,
+        notify.clone(),
+        connection_id.clone(),
+        generation,
+    ));
     // Delivery is event-driven (the 25ms poll is gone); this heartbeat is only a
     // defensive fallback if a wake is ever missed. At 30s it is ~1200× less lock
     // traffic than the old poll, so an idle connection is effectively idle.
     let mut safety_net = interval(Duration::from_secs(30));
     safety_net.tick().await; // consume the immediate first tick
 
-    // Flush anything enqueued before (or racing) registration, then rely on
-    // wakeups. Enqueues are no longer serialized by the global mutex (L9);
-    // the no-lost-wakeup argument is push-before-wake at every enqueue site
-    // plus this register-before-first-drain: a push the drain below misses
-    // happened after the drain took the outbox lock, and its wake then finds
-    // the already-registered waker and stores a permit.
-    if !connections.touch_verified_socket(&connection_id)
-        || !notify.is_current(&connection_id, generation)
-        || drain_and_send(&ephemeral, &connection_id, &mut sender)
+    // Flush anything enqueued before (or racing) registration under one short
+    // managed root. The HTTP upgrade root ends with the 101 response; it is
+    // never retained for the lifetime of the socket.
+    let Some(initial_admission) =
+        acquire_live_act_admission(&admission_controller, active_mode, &mut admission_epoch).await
+    else {
+        drop(writer);
+        let _ = writer_task.await;
+        teardown_live_stream(&state, &notify, &connection_id, generation).await;
+        return;
+    };
+    let initial_current = initial_admission
+        .effect_guard("initial WebSocket drain")
+        .is_ok_and(|_effect| {
+            connections.touch_verified_socket(&connection_id)
+                && notify.is_current(&connection_id, generation)
+        });
+    if !initial_current
+        || drain_and_send(&ephemeral, &connection_id, &writer, &initial_admission)
             .await
             .is_break()
     {
+        drop(writer);
+        let _ = writer_task.await;
         teardown_live_stream(&state, &notify, &connection_id, generation).await;
         return;
     }
+    drop(initial_admission);
 
     // @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery — WebSocket push is a transport over the existing ordered live queue; deterministic drain stays available for tests.
     'stream: loop {
-        let drain = tokio::select! {
+        let admission_snapshot = admission_controller.diagnostic_snapshot();
+        let drain_admission = tokio::select! {
+            biased;
+            _ = admission_controller.changed(admission_snapshot) => {
+                // Closing the old epoch wakes the idle socket immediately.
+                // Wait for a fresh accepting epoch after abort, or close when
+                // staging committed a pending/mode-changed epoch.
+                let Some(admission) = acquire_live_act_admission(
+                    &admission_controller,
+                    active_mode,
+                    &mut admission_epoch,
+                ).await else {
+                    break 'stream;
+                };
+                drop(admission);
+                None
+            }
             incoming = receiver.next() => {
                 match incoming {
                     Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
                     Some(Ok(Message::Text(text))) => {
-                        if !connections.touch_verified_socket(&connection_id) {
+                        let Some(admission) = acquire_live_act_admission(
+                            &admission_controller,
+                            active_mode,
+                            &mut admission_epoch,
+                        ).await else {
+                            break 'stream;
+                        };
+                        let response = {
+                            let Ok(_effect) = admission.effect_guard("WebSocket inbound act") else {
+                                break 'stream;
+                            };
+                            if !connections.touch_verified_socket(&connection_id) {
+                                break 'stream;
+                            }
+                            handle_live_socket_text(
+                                &ephemeral,
+                                &connection_id,
+                                &text,
+                                policy_mode,
+                            )
+                        };
+                        if !send_live_with_admission(
+                            &writer,
+                            Message::Text(response.into()),
+                            &admission,
+                        ).await {
                             break 'stream;
                         }
-                        let response = handle_live_socket_text(
-                            &ephemeral,
-                            &connection_id,
-                            &text,
-                            policy_mode,
-                        );
-                        if sender.send(Message::Text(response.into())).await.is_err() {
-                            break 'stream;
-                        }
-                        false
+                        None
                     }
                     // A protocol Ping/Pong from the peer is client-initiated
                     // liveness for the L2 reaper (ENG-23424) — most
@@ -6388,25 +6834,56 @@ async fn live_stream(
                     // activity through their EphemeralApi calls; `live_ping`
                     // stays deliberately stateless.)
                     Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {
+                        let Some(admission) = acquire_live_act_admission(
+                            &admission_controller,
+                            active_mode,
+                            &mut admission_epoch,
+                        ).await else {
+                            break 'stream;
+                        };
+                        let Ok(_effect) = admission.effect_guard("WebSocket liveness act") else {
+                            break 'stream;
+                        };
                         if !connections.touch_verified_socket(&connection_id) {
                             break 'stream;
                         }
                         ephemeral.touch_connection(&connection_id);
-                        false
+                        None
                     }
                     Some(Ok(Message::Binary(_))) => {
+                        let Some(admission) = acquire_live_act_admission(
+                            &admission_controller,
+                            active_mode,
+                            &mut admission_epoch,
+                        ).await else {
+                            break 'stream;
+                        };
+                        let Ok(_effect) = admission.effect_guard("WebSocket binary act") else {
+                            break 'stream;
+                        };
                         if !connections.touch_verified_socket(&connection_id) {
                             break 'stream;
                         }
-                        false
+                        None
                     },
                 }
             }
             _ = waker.notified() => {
+                let Some(admission) = acquire_live_act_admission(
+                    &admission_controller,
+                    active_mode,
+                    &mut admission_epoch,
+                ).await else {
+                    break 'stream;
+                };
+                let Ok(_effect) = admission.effect_guard("WebSocket drain wake") else {
+                    break 'stream;
+                };
                 if !connections.touch_verified_socket(&connection_id) {
                     break 'stream;
                 }
-                true
+                drop(_effect);
+                Some(admission)
             },
             _ = safety_net.tick() => {
                 // ENG-23424: probe the peer, don't just drain. A peer that
@@ -6416,15 +6893,27 @@ async fn live_stream(
                 // I/O every 30s: a dead peer surfaces a send error within the
                 // TCP retransmission timeout, and a live one answers with a
                 // Pong that refreshes its activity above.
-                if !connections.touch_verified_socket(&connection_id)
-                    || sender.send(Message::Ping(Vec::new().into())).await.is_err()
-                {
+                let Some(admission) = acquire_live_act_admission(
+                    &admission_controller,
+                    active_mode,
+                    &mut admission_epoch,
+                ).await else {
+                    break 'stream;
+                };
+                let current = admission
+                    .effect_guard("WebSocket safety-net liveness")
+                    .is_ok_and(|_effect| connections.touch_verified_socket(&connection_id));
+                if !current || !send_live_with_admission(
+                    &writer,
+                    Message::Ping(Vec::new().into()),
+                    &admission,
+                ).await {
                     break 'stream;
                 }
-                true
+                Some(admission)
             }
         };
-        if drain {
+        if let Some(admission) = drain_admission {
             // ENG-23425: a superseded task must not drain. The outbox is
             // keyed by connection id alone, so after a reconnect replaces
             // this registration the queued messages belong to the NEW
@@ -6433,10 +6922,13 @@ async fn live_stream(
             // never reach the live client. Exit instead; the
             // generation-guarded teardown below then skips `disconnect`,
             // leaving the new socket's registration and subscriptions intact.
-            if !notify.is_current(&connection_id, generation) {
+            let current = admission
+                .effect_guard("WebSocket drain ownership")
+                .is_ok_and(|_effect| notify.is_current(&connection_id, generation));
+            if !current {
                 break 'stream;
             }
-            if drain_and_send(&ephemeral, &connection_id, &mut sender)
+            if drain_and_send(&ephemeral, &connection_id, &writer, &admission)
                 .await
                 .is_break()
             {
@@ -6445,6 +6937,8 @@ async fn live_stream(
         }
     }
 
+    drop(writer);
+    let _ = writer_task.await;
     teardown_live_stream(&state, &notify, &connection_id, generation).await;
 }
 
@@ -6490,11 +6984,17 @@ async fn teardown_live_stream(
 async fn drain_and_send(
     ephemeral: &EphemeralApi,
     connection_id: &str,
-    sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+    writer: &mpsc::Sender<AdmittedLiveWrite>,
+    admission: &AdmissionLease,
 ) -> std::ops::ControlFlow<()> {
-    let messages = ephemeral.drain_live_stream(connection_id);
+    let messages = {
+        let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
+            return std::ops::ControlFlow::Break(());
+        };
+        ephemeral.drain_live_stream(connection_id)
+    };
     for message in messages {
-        if sender.send(Message::Text(message.into())).await.is_err() {
+        if !send_live_with_admission(writer, Message::Text(message.into()), admission).await {
             return std::ops::ControlFlow::Break(());
         }
     }
@@ -6786,11 +7286,13 @@ async fn drain_outbox(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(connection_id): Path<String>,
     Query(query): Query<ConnectionTokenQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<crate::ephemeral::RealtimeEnvelope>>, ApiError> {
     let presented = header_connection_token(&headers).or(query.connection_token);
+    let _effect = admission.effect_guard("HTTP outbox drain publication")?;
     connections.verify(&connection_id, presented.as_deref())?;
     Ok(Json(ephemeral.drain_outbox(&connection_id)))
 }
@@ -6825,9 +7327,11 @@ impl EnsureEphemeralCollectionsInput {
 async fn ensure_ephemeral_collections(
     State(ephemeral): State<EphemeralApi>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     input: Result<Json<EnsureEphemeralCollectionsInput>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::CollectionEnsureOutcome>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let _effect = admission.effect_guard("ephemeral collection publication")?;
     ephemeral
         .ensure_collections(input.into_collections())
         .map(Json)
@@ -6838,10 +7342,12 @@ async fn publish_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     request: Result<Json<PublishRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let _effect = admission.effect_guard("ephemeral publish")?;
     connections.verify(
         &request.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -6856,10 +7362,12 @@ async fn subscribe_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     request: Result<Json<SubscribeRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let _effect = admission.effect_guard("ephemeral subscribe")?;
     connections.verify(
         &request.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -6874,10 +7382,12 @@ async fn delete_ephemeral(
     State(ephemeral): State<EphemeralApi>,
     State(connections): State<ConnectionRegistry>,
     Extension(_authority): Extension<PreparedAuthority>,
+    Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
     request: Result<Json<DeleteRequest>, JsonRejection>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let _effect = admission.effect_guard("ephemeral delete")?;
     connections.verify(
         &request.connection_id,
         header_connection_token(&headers).as_deref(),
@@ -7030,6 +7540,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+        | "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
         | "SNAPBACK_AUTH_MODE_PENDING"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
@@ -7195,10 +7706,10 @@ fn now_millis() -> u64 {
 mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
-        ACTION_WORKER_LIMIT_MAX, CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX,
-        ConnectionGrant, ConnectionTokenQuery, DetachedActionHost, DetachedActionWorkerCounters,
-        OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, SharedSnapback, app,
-        configured_action_worker_limit, configured_cron_dispatch_concurrency,
+        ACTION_WORKER_LIMIT_MAX, AdmissionLease, CRON_DISPATCH_CONCURRENCY_DEFAULT,
+        CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionTokenQuery, DetachedActionHost,
+        DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
+        SharedSnapback, app, configured_action_worker_limit, configured_cron_dispatch_concurrency,
         dispatch_cron_tick_background, parse_action_watchdog_timeout, parse_optional_json,
         reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
@@ -7370,6 +7881,15 @@ mod tests {
             );
         }
         headers
+    }
+
+    fn test_route_admission(state: &AppState) -> Extension<AdmissionLease> {
+        Extension(
+            state
+                .auth_admission_controller()
+                .admit_for_mode(state.auth_mode_state().active)
+                .expect("admit direct handler test route"),
+        )
     }
 
     fn auth_http_request(
@@ -7826,8 +8346,11 @@ mod tests {
         mode.transition_generation = 4;
         let state = state
             .with_auth_runtime_facts(mode, AuthProgramReadiness::item4(false))
-            .expect("install durable mode")
-            .with_auth_admission_epoch(11);
+            .expect("install durable mode");
+        let admission_epoch = state
+            .auth_admission_controller()
+            .diagnostic_snapshot()
+            .admission_epoch;
         let router = super::router_from_registrations(
             vec![
                 super::RegisteredRoute::new(
@@ -7860,7 +8383,7 @@ mod tests {
                 response_json(response).await,
                 json!({
                     "transitionGeneration": 4,
-                    "admissionEpoch": 11,
+                    "admissionEpoch": admission_epoch,
                     "userId": "user-1",
                     "authenticated": true,
                 }),
@@ -8447,6 +8970,7 @@ mod tests {
 
         let refreshed = super::auth_refresh(
             State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&initial_token)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -8473,6 +8997,7 @@ mod tests {
 
         let superseded = super::auth_refresh(
             State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&initial_token)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -8506,6 +9031,7 @@ mod tests {
         ] {
             let error = super::auth_refresh(
                 State(state.clone()),
+                test_route_admission(&state),
                 headers,
                 Ok(Bytes::from_static(br#"{}"#)),
             )
@@ -8516,6 +9042,7 @@ mod tests {
 
         let body_alias = super::auth_logout(
             State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&current_token)),
             Ok(Bytes::from_static(br#"{"token":"body-alias"}"#)),
         )
@@ -8529,6 +9056,7 @@ mod tests {
         assert_eq!(
             super::auth_logout(
                 State(state.clone()),
+                test_route_admission(&state),
                 auth_provider_headers(Some(&current_token)),
                 Ok(Bytes::from_static(br#"{}"#)),
             )
@@ -8537,7 +9065,8 @@ mod tests {
             StatusCode::NO_CONTENT
         );
         let repeated = super::auth_logout(
-            State(state),
+            State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&current_token)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -8562,6 +9091,7 @@ mod tests {
             let started = Instant::now();
             let (status, response) = super::auth_family_alarm(
                 State(state.clone()),
+                test_route_admission(&state),
                 auth_provider_headers(bearer),
                 Ok(Bytes::from_static(br#"{}"#)),
             )
@@ -8575,6 +9105,7 @@ mod tests {
         // A current bearer is an opaque no-op and remains refreshable.
         let (status, response) = super::auth_family_alarm(
             State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&predecessor)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -8583,6 +9114,7 @@ mod tests {
         assert_eq!((status, response.0.accepted), (StatusCode::ACCEPTED, true));
         let rotated = super::auth_refresh(
             State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&predecessor)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -8597,6 +9129,7 @@ mod tests {
             let started = Instant::now();
             let (status, response) = super::auth_family_alarm(
                 State(state.clone()),
+                test_route_admission(&state),
                 auth_provider_headers(Some(&predecessor)),
                 Ok(Bytes::from_static(br#"{}"#)),
             )
@@ -8607,6 +9140,7 @@ mod tests {
         }
         let revoked = super::auth_logout(
             State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(Some(&successor)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -8615,7 +9149,8 @@ mod tests {
         assert_eq!(revoked.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
 
         let invalid_body = super::auth_family_alarm(
-            State(state),
+            State(state.clone()),
+            test_route_admission(&state),
             auth_provider_headers(None),
             Ok(Bytes::from_static(br#"{"bearer":"body-alias"}"#)),
         )
@@ -9487,6 +10022,7 @@ mod tests {
         "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
         "SNAPBACK_AUTH_MODE_PENDING",
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",

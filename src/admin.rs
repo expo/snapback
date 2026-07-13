@@ -11,6 +11,7 @@ use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
     SecretReadScope, VerifiedSecretReadMint,
 };
+use crate::auth::admission::{AdmissionLease, AuthAdmissionController};
 use crate::auth::invocation::PreparedAuthority;
 use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
@@ -36,7 +37,6 @@ use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::fmt;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
@@ -625,10 +625,10 @@ pub struct AppState {
     /// Positive build/process facts used by both activation and the bootstrap
     /// availability matrix. The derived activation bit is validated at install.
     pub(crate) auth_program_readiness: Arc<AuthProgramReadiness>,
-    /// Process-local admission generation captured by every prepared
-    /// authority. The staging barrier may retire an epoch without mutating the
-    /// durable transition generation.
-    pub(crate) auth_admission_epoch: Arc<AtomicU64>,
+    /// Exact clone of the app instance's managed admission controller. HTTP,
+    /// runtime, cron, and staged-mode publication therefore count and retire
+    /// roots in one process-local epoch domain.
+    pub(crate) auth_admission: AuthAdmissionController,
     /// Public process identity bound to ready-file/operator sidecars and echoed
     /// by the bootstrap handshake. It is captured once so one response cannot
     /// accidentally combine facts from different startup identities.
@@ -678,6 +678,7 @@ impl AppState {
     ) -> (Self, SecretReadOperator) {
         let (secret_reads, operator) =
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
+        let auth_admission = read.admission_controller();
         (
             Self {
                 snapback,
@@ -691,7 +692,7 @@ impl AppState {
                     desired_policy: PolicyAuthMode::Dev,
                 })),
                 auth_program_readiness: Arc::new(AuthProgramReadiness::item4(false)),
-                auth_admission_epoch: Arc::new(AtomicU64::new(0)),
+                auth_admission,
                 server_startup_nonce: Arc::from(
                     crate::identity::binary_identity()
                         .startup_nonce
@@ -742,6 +743,7 @@ impl AppState {
     ) -> Result<Self, SnapbackError> {
         mode_state.validate_shape()?;
         readiness.validate()?;
+        self.auth_admission.synchronize_mode_state(&mode_state)?;
         let active_policy = mode_state.active.into();
         let desired_policy = mode_state.desired.into();
         self.auth_mode_runtime = Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
@@ -794,6 +796,11 @@ impl AppState {
         mode_state: AuthModeStateRecord,
     ) -> Result<(), SnapbackError> {
         mode_state.validate_shape()?;
+        // The controller publishes/reconciles first. Requests can briefly see
+        // a new closed epoch with the old durable projection (and fail
+        // closed), but can never see a new durable mode under an old accepting
+        // epoch.
+        self.auth_admission.synchronize_mode_state(&mode_state)?;
         let snapshot = AuthModeRuntimeSnapshot {
             active_policy: mode_state.active.into(),
             desired_policy: mode_state.desired.into(),
@@ -824,16 +831,8 @@ impl AppState {
         self.auth_program_readiness.as_ref()
     }
 
-    pub fn auth_admission_epoch(&self) -> u64 {
-        self.auth_admission_epoch.load(Ordering::SeqCst)
-    }
-
-    /// Trusted composition seam for a pre-existing process admission epoch.
-    /// The quiescence controller owns subsequent retirement.
-    pub fn with_auth_admission_epoch(self, admission_epoch: u64) -> Self {
-        self.auth_admission_epoch
-            .store(admission_epoch, Ordering::SeqCst);
-        self
+    pub fn auth_admission_controller(&self) -> AuthAdmissionController {
+        self.auth_admission.clone()
     }
 
     pub fn server_startup_nonce(&self) -> &str {
@@ -1851,11 +1850,13 @@ struct SecretReadMintResponse {
 async fn mint_secret_read_lease(
     State(state): State<AppState>,
     Extension(verified): Extension<VerifiedSecretReadMint>,
+    Extension(admission): Extension<AdmissionLease>,
 ) -> Result<Json<SecretReadMintResponse>, ApiError> {
     let bridge = state
         .secret_read_mint
         .as_ref()
         .ok_or_else(crate::admin_secret_read::mint_proof_required)?;
+    let _effect = admission.effect_guard("secret-read lease mint publication")?;
     let lease = bridge.mint(verified)?;
     Ok(Json(SecretReadMintResponse {
         lease: lease.into_bearer(),

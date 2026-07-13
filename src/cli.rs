@@ -1551,18 +1551,27 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     server_context.port = local_addr.port();
     server_context.loopback = loopback;
     debug_assert_eq!(server_context.profile, startup_profile);
+    let (app_state, secret_read_operator) = AppState::new_with_secret_read_operator(
+        state.clone(),
+        read_lane,
+        ephemeral.clone(),
+        server_context,
+    );
+    let app_state = app_state
+        .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
+        .map_err(anyhow::Error::new)?
+        .with_auth_runtime(&auth_runtime);
+    // Background roots start only after the exact durable mode/controller
+    // composition above is complete.
     let cron_scheduler = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         .then(|| server::spawn_cron_scheduler(state.clone()));
-    let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral.clone());
+    let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
-        state.clone(),
+        state,
         auth_runtime.clone(),
         auth_gc_initial_delay,
     );
-    let (app_state, secret_read_operator) =
-        AppState::new_with_secret_read_operator(state, read_lane, ephemeral, server_context);
-    let app_state = app_state.with_auth_runtime(&auth_runtime);
     let app_state = match secret_read_proof_root {
         Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
             secret_read_operator,
