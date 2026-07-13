@@ -1,0 +1,1294 @@
+# LLP 0054: Auth catalog and provider protocol
+
+**Type:** Spec
+**Status:** Draft
+**Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-13
+**Revised:** 2026-07-13 (initial ENG-24596 implementation protocol for LLP 0039 landing item 3)
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051
+
+## Summary
+
+This Spec makes landing item 3 of
+[LLP 0039](./0039-auth-vertical-slice.rfc.md) executable. It pins the local
+SQLite protocol for Snapback's protected auth catalog, passwordless email-code
+provider, session token family, capture mailbox, operator impersonation carrier,
+collision rescue, and database-plus-keyring backup.
+
+LLP 0039 remains **Draft / FROZEN**. This document does not amend or reinterpret
+it. Where 0039 pins an outcome, 0039 wins; this document chooses the exact wire,
+storage, constant, and failure-path details that 0039 deliberately deferred in
+`LLP 0039#protocol-obligations-deferred-to-implementation`.
+
+The protocol has four security boundaries:
+
+1. App schemas and app code cannot name, read, sync, journal, or subscribe to
+   `_auth_*` state.
+2. Low-entropy verification codes are protected by a versioned keyed digest;
+   high-entropy session credentials are stored only as SHA-256 digests.
+3. Reading a captured code or selecting another user's authority requires a
+   separate process-bound `ImpersonationCapability`. Admin, console, and
+   `AdminSecretRead` credentials are not substitutes.
+4. A physical backup succeeds only when its SQLite snapshot and exact keyring
+   bytes were captured under one quiescence boundary.
+
+This is a local-target v1 Spec. Provider delivery in `prod`, hosted/distributed
+throttling and invalidation, cookies, OAuth, and the client-page XSS posture stay
+outside this item exactly as LLP 0039 states.
+
+## Scope and ownership
+
+This document owns:
+
+- catalog version 1 DDL, catalog recognition, reservation, reset, and GC;
+- keyring format 1, file lifecycle, atomic replacement, and rotation;
+- email canonicalization, request throttling, challenge creation, exchange,
+  first-login provisioning, and capture delivery;
+- session minting, the 20-session cap, bearer rotation, tombstones, tiered
+  supersession, logout, and the refresh-family alarm;
+- item-3 HTTP and host-operation DTOs, routes, diagnostics, and schemas;
+- the v1 `ImpersonationCapability` wire carrier used by all impersonation
+  effects, including item 2's already-registered host-operation branch;
+- transactional collision rescue, including the database-open recovery case;
+- the consistent physical backup and declared-restore procedure; and
+- generated and adversarial acceptance matrices for those state machines.
+
+This document exposes, but does not implement, seams owned by later items:
+
+- item 4 calls the read-only collision check at stage time and catalog/keyring
+  activation at consume time; provider routes remain typed `MODE_DEV` refusals
+  until item 4 supplies active mode;
+- item 5 consumes session/revocation outcomes in the in-memory projection and
+  adds the authorization-stream incarnation to reset and declared restore;
+- item 7 turns `authority_instance_id` into the public authority descriptor;
+- LLP 0053 owns authorization invalidation and retained/offline admission.
+
+## Normative vocabulary and constants
+
+`MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative. All durations use a
+monotonic clock for in-process waits and Unix epoch milliseconds for durable and
+wire timestamps. Durable/wire timestamps must be integers in
+`0..=9_007_199_254_740_991`, following `LLP 0007#timestamps`.
+
+| Name | V1 value |
+|---|---:|
+| `AUTH_CATALOG_VERSION` | `1` |
+| `AUTH_KEYRING_FORMAT_VERSION` | `1` |
+| Request body limit | 4 KiB |
+| Canonical address limit | 320 UTF-8 bytes |
+| Verification code | 6 ASCII digits, uniformly sampled |
+| Challenge TTL | 10 minutes |
+| Maximum attempts | 5 total submitted attempts |
+| Per-address request budget | 5 accepted requests per rolling 10 minutes |
+| Global request budget | 120 accepted requests per rolling 60 seconds |
+| Address coordination | 256 fixed mutex stripes |
+| Capture mailbox capacity | 1,024 published or reserved entries |
+| Session bearer entropy | 256 random bits |
+| Sliding session window | 30 days |
+| Absolute session window | 90 days |
+| Client rotation cadence | 7 days |
+| Supersession grace | 10 seconds, inclusive |
+| Live sessions per user | 20 |
+| Sliding-use write coalescing | 3 days (one tenth of the sliding window) |
+| Key rotation age | 30 days |
+| Retired-key minimum retention | 24 hours and no referencing challenge |
+| Auth GC cadence | 30 seconds, plus startup |
+| Auth GC batch | 512 rows per table per pass |
+| Impersonation bearer lifetime | one server process |
+
+Constants are not configuration entries. Changing a cryptographic encoding,
+digest domain, catalog shape, or keyring shape is a version change. Operational
+constant changes require an acceptance update and an explicit compatibility
+decision; they do not silently reinterpret durable rows.
+
+## Binary and textual encodings
+
+### Randomness and identifiers
+
+All credentials, codes, challenge ids, and key material use the operating
+system CSPRNG. Failure to obtain all requested bytes is
+`SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`; no weak or deterministic fallback exists.
+
+- User, identity, session, and authority-instance ids are canonical lowercase
+  hyphenated UUIDv7 strings.
+- A challenge id is `sbc_` followed by base64url-without-padding of 16 random
+  bytes. Collision retries are bounded to three attempts.
+- A key id is `sbak_` followed by base64url-without-padding of 16 random bytes.
+- Base64url decoders require the canonical unpadded spelling. Alternate
+  spellings are rejected rather than normalized.
+
+Every freshly generated database id, key id, session bearer, challenge id, and
+impersonation bearer gets at most three complete random candidates when a
+uniqueness collision is observable. Each rejected candidate is zeroized; a
+third collision is `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`. The implementation
+never tweaks, truncates, or deterministically derives a colliding candidate.
+
+Six-digit codes are sampled without modulo bias: interpret four random bytes as
+a big-endian `u32`, reject values at or above
+`floor(2^32 / 1_000_000) * 1_000_000`, and format the remainder modulo one
+million as exactly six zero-padded ASCII digits.
+
+### Length-prefixed code digest
+
+`LP(x)` is a four-byte unsigned big-endian length followed by the exact bytes of
+`x`. Lengths are byte lengths, not character counts. Digest version 1 is:
+
+```text
+HMAC-SHA-256(
+  key,
+  LP("snapback.auth.email-code.v1") ||
+  LP(challenge_id) ||
+  LP(canonical_address_utf8) ||
+  LP(six_ascii_digits)
+)
+```
+
+The stored digest is the raw 32-byte HMAC output. Verification uses a
+constant-time comparison. `key_id` selects the key; absence of that key is a
+provider failure, never `CODE_INVALID`. Unknown and terminal challenges perform
+one dummy HMAC with a process-local dummy key before returning their uniform
+result so the obvious database-lookup timing distinction is not exposed.
+
+### Session bearer and at-rest digest
+
+A session credential has this single canonical spelling:
+
+```text
+sbs_<base64url-no-pad of 32 random bytes>.<8 lowercase hexadecimal CRC32>
+```
+
+The CRC is CRC-32/ISO-HDLC over the 32 raw random bytes: reflected polynomial
+`0xedb88320`, initial value `0xffffffff`, and final xor `0xffffffff` (the
+`123456789` check value is `cbf43926`). The complete token is 56 ASCII bytes.
+The checksum detects copy/scanner mistakes; it is not an authenticator. Parsing
+requires the exact prefix, separators, lengths, alphabet, canonical base64url
+spelling, lowercase checksum, and checksum value.
+
+`token_hash` is `SHA-256` over all 56 ASCII bytes, including prefix and
+checksum. The database stores the raw 32-byte digest. A structurally invalid or
+unknown bearer maps to `SNAPBACK_AUTH_REQUIRED`; a validly shaped digest that
+resolves to a revoked or expired session maps to
+`SNAPBACK_AUTH_SESSION_EXPIRED`.
+
+Secret-bearing Rust types do not implement serialization, cloning, display, or
+ordinary `Debug`. Their explicit `Debug` output is `[REDACTED]`; their owned
+buffers zeroize on drop.
+
+## Reserved namespace and catalog recognition
+
+### Reservation
+
+An identifier is auth-reserved when its ASCII-lowercased spelling is exactly
+`_auth` or begins `_auth_`. The comparison is ASCII-case-insensitive because
+SQLite identifiers are case-insensitive. Confusable Unicode is irrelevant to
+the existing ASCII identifier grammar.
+
+The reservation is enforced at the scopes the repository already uses:
+
+- codegen: table and index names;
+- storage manifest validation: table, field, and index names;
+- every `ctx.db`, sync, live, admin-edit, import, and direct storage name
+  resolver that accepts an app-owned identifier; and
+- stored-manifest load on every database open, not only new schema apply.
+
+The existing authoring/runtime invalid-identifier diagnostics remain the public
+result (`SCHEMA_INVALID_IDENTIFIER` in codegen and
+`SNAPBACK_INVALID_IDENTIFIER` in storage). No database-specific exemption or
+adoption flag exists.
+
+### Catalog states
+
+The marker is `_snapback_meta.key = 'auth_catalog_version'`; its value for this
+Spec is the exact ASCII string `1`. Catalog inspection reads both the marker and
+`sqlite_schema` without mutation and returns exactly one state:
+
+| Marker / physical state | Result |
+|---|---|
+| No marker, no auth-reserved physical table and no exact-v1 name conflict | `Uninitialized` |
+| No marker, any auth-reserved physical table | `SNAPBACK_AUTH_TABLE_COLLISION` |
+| No marker, exact-v1 index name owned by another table | `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` |
+| Marker other than exact `1` | `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` |
+| Marker `1`, exact v1 schema | `ReadyV1` |
+| Marker `1`, missing/changed catalog object or extra auth-reserved table/object attached to a catalog table | `SNAPBACK_AUTH_CATALOG_CORRUPT` |
+
+An unmarked catalog is never adopted, even if its SQL happens to equal v1.
+Exact-v1 recognition compares tables, columns, declared types, nullability,
+primary keys, checks, foreign keys, named indexes, uniqueness, indexed columns,
+and partial-index predicates. It ignores only SQLite's generated `sqlite_autoindex`
+names. Unknown auth-reserved objects make the marked catalog corrupt rather than
+future-compatible when they are tables or attach to catalog tables; a future
+migration changes the marker first-class. An unrelated legacy reserved-name
+index/trigger/view attached only to an ordinary app table is not silently
+adopted, but it also cannot wedge catalog creation unless its name is one of
+v1's exact globally named indexes. Stored-manifest validation still rejects any
+such declared object under the absolute reservation.
+
+Stage-time inspection is read-only: it MUST NOT create `_snapback_meta`, mint or
+read the keyring, start a transaction that writes a WAL frame, or alter the
+database file. Item 4 invokes it before accepting a desired `sessions` mode.
+
+## Catalog version 1
+
+Catalog creation uses the following logical SQLite DDL. Implementations may
+format SQL differently, but catalog recognition and behavior must be equivalent
+to this exact shape.
+
+```sql
+CREATE TABLE "_auth_users" (
+  id TEXT NOT NULL PRIMARY KEY,
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991)
+);
+
+CREATE TABLE "_auth_identities" (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK(length(provider) > 0),
+  subject TEXT NOT NULL CHECK(length(subject) > 0),
+  verified_at_ms INTEGER NOT NULL
+    CHECK(verified_at_ms BETWEEN 0 AND 9007199254740991),
+  FOREIGN KEY(user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX "_auth_identities_provider_subject_uq"
+  ON "_auth_identities"(provider, subject);
+CREATE UNIQUE INDEX "_auth_identities_id_user_uq"
+  ON "_auth_identities"(id, user_id);
+CREATE INDEX "_auth_identities_user"
+  ON "_auth_identities"(user_id, id);
+
+CREATE TABLE "_auth_sessions" (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  identity_id TEXT NOT NULL,
+  authority_instance_id TEXT NOT NULL,
+  token_hash BLOB NOT NULL CHECK(length(token_hash) = 32),
+  generation INTEGER NOT NULL DEFAULT 1 CHECK(generation >= 1),
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  last_used_at_ms INTEGER NOT NULL
+    CHECK(last_used_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  absolute_expires_at_ms INTEGER NOT NULL
+    CHECK(absolute_expires_at_ms BETWEEN 0 AND 9007199254740991),
+  revoked_at_ms INTEGER
+    CHECK(revoked_at_ms IS NULL OR revoked_at_ms BETWEEN 0 AND 9007199254740991),
+  CHECK(created_at_ms <= last_used_at_ms),
+  CHECK(last_used_at_ms <= expires_at_ms),
+  CHECK(expires_at_ms <= absolute_expires_at_ms),
+  CHECK(revoked_at_ms IS NULL OR created_at_ms <= revoked_at_ms),
+  FOREIGN KEY(user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE,
+  FOREIGN KEY(identity_id, user_id)
+    REFERENCES "_auth_identities"(id, user_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX "_auth_sessions_token_uq"
+  ON "_auth_sessions"(token_hash);
+CREATE UNIQUE INDEX "_auth_sessions_authority_instance_uq"
+  ON "_auth_sessions"(authority_instance_id);
+CREATE INDEX "_auth_sessions_user_live"
+  ON "_auth_sessions"(user_id, created_at_ms, id)
+  WHERE revoked_at_ms IS NULL;
+CREATE INDEX "_auth_sessions_absolute_expiry"
+  ON "_auth_sessions"(absolute_expires_at_ms, id);
+
+CREATE TABLE "_auth_session_tokens" (
+  token_hash BLOB NOT NULL PRIMARY KEY CHECK(length(token_hash) = 32),
+  session_id TEXT NOT NULL,
+  superseded_at_ms INTEGER NOT NULL
+    CHECK(superseded_at_ms BETWEEN 0 AND 9007199254740991),
+  FOREIGN KEY(session_id) REFERENCES "_auth_sessions"(id) ON DELETE CASCADE
+);
+CREATE INDEX "_auth_session_tokens_session"
+  ON "_auth_session_tokens"(session_id, superseded_at_ms, token_hash);
+
+CREATE TABLE "_auth_verification_codes" (
+  challenge_id TEXT NOT NULL PRIMARY KEY,
+  canonical_address TEXT NOT NULL CHECK(length(canonical_address) > 0),
+  code_digest BLOB NOT NULL CHECK(length(code_digest) = 32),
+  key_id TEXT NOT NULL CHECK(length(key_id) > 0),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 5,
+  requested_at_ms INTEGER NOT NULL
+    CHECK(requested_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  consumed_at_ms INTEGER
+    CHECK(consumed_at_ms IS NULL OR consumed_at_ms BETWEEN 0 AND 9007199254740991),
+  superseded_by TEXT,
+  CHECK(attempts >= 0 AND attempts <= max_attempts),
+  CHECK(max_attempts = 5),
+  CHECK(requested_at_ms <= expires_at_ms),
+  CHECK(consumed_at_ms IS NULL OR consumed_at_ms >= requested_at_ms),
+  CHECK(consumed_at_ms IS NULL OR superseded_by IS NULL)
+);
+CREATE UNIQUE INDEX "_auth_verification_codes_one_active"
+  ON "_auth_verification_codes"(canonical_address)
+  WHERE consumed_at_ms IS NULL AND superseded_by IS NULL;
+CREATE INDEX "_auth_verification_codes_address_requested"
+  ON "_auth_verification_codes"(canonical_address, requested_at_ms);
+CREATE INDEX "_auth_verification_codes_requested"
+  ON "_auth_verification_codes"(requested_at_ms, challenge_id);
+CREATE INDEX "_auth_verification_codes_expiry"
+  ON "_auth_verification_codes"(expires_at_ms, challenge_id);
+```
+
+Catalog creation and insertion of the marker are one `IMMEDIATE` transaction.
+The marker is inserted last. A rollback leaves no catalog object and no marker.
+
+### Activation ordering
+
+First activation has this order:
+
+1. Run read-only catalog inspection; stop on any result except `Uninitialized`
+   or `ReadyV1`.
+2. If `Uninitialized`, load an existing keyring or atomically mint the initial
+   keyring. A corrupt existing keyring is never overwritten.
+3. Re-run catalog inspection inside the serialized activation boundary.
+4. Create every catalog object and the marker in one transaction.
+5. Re-inspect and require `ReadyV1` before reporting success.
+
+A crash after keyring publication but before catalog commit leaves a harmless,
+valid pre-created keyring that the retry adopts. DDL never precedes a usable
+keyring. For an already-marked catalog, a missing keyring is not auto-minted:
+the provider fails closed because live challenges may reference lost keys.
+
+## Catalog write and lifecycle rules
+
+Every auth mutation uses direct storage methods below app `ctx.db`. It MUST NOT
+call app mutation helpers, advance `_snapback_version`, append
+`_snapback_changes`, produce a mutation receipt, wake the live matcher, or expose
+rows through sync/export snapshots. Tests compare the journal row count and app
+commit version before and after every auth operation.
+
+`app.reset` deletes, in this order, verification codes, token tombstones,
+sessions, identities, and users inside the same transaction as the app reset.
+It preserves the catalog DDL, marker, and keyring. The capture mailbox is cleared
+only after that transaction commits. A rejected reset preserves both durable
+auth rows and mailbox entries. A crash after commit but before the in-memory
+clear is safe because process loss clears the mailbox.
+
+Logical export/import tooling is not built by this item. Its pinned future
+contract is:
+
+- export users and identities, including canonical subjects;
+- exclude sessions, token hashes, tombstones, verification challenges/digests,
+  mailbox entries, and keyring bytes;
+- import into an empty auth catalog, reject identity collisions, and mint no
+  session; and
+- never treat logical import as a physical backup.
+
+### Garbage collection
+
+GC runs at startup and every 30 seconds, deleting at most 512 rows from each
+class per transaction and scheduling another immediate pass when a class hit the
+limit.
+
+- A challenge is retained until `now >= expires_at_ms`, even if consumed or
+  superseded, so the ten-minute per-address throttle history cannot be erased by
+  consuming a code. It is then deletable.
+- A session, revoked or not, and all its tombstones remain until
+  `now >= absolute_expires_at_ms`; deletion cascades to tombstones.
+- An orphan tombstone is corrupt catalog state, not silently collectible.
+- Mailbox expiry uses the challenge expiry and is pruned on every mailbox
+  operation plus the maintenance pass.
+- A retired key is prunable only after 24 hours and when no retained challenge
+  names it.
+
+GC uses the direct auth path and has no app journal/version/live effect.
+
+## Keyring protocol
+
+### Path and format
+
+For a file-backed database at `<db>`, the keyring is exactly
+`<db>.auth-keyring.json`. It is a deployment sidecar, not LLP 0036 app config.
+An in-memory database has an in-memory-only keyring that vanishes with the
+process.
+
+Format 1 is a closed JSON object:
+
+```json
+{
+  "format_version": 1,
+  "active_key_id": "sbak_BASE64URL16",
+  "keys": [
+    {
+      "id": "sbak_BASE64URL16",
+      "algorithm": "hmac-sha256",
+      "created_at_ms": 0,
+      "retired_at_ms": null,
+      "material": "BASE64URL_NO_PAD_32_BYTES"
+    }
+  ]
+}
+```
+
+Unknown fields, duplicate ids, a noncanonical encoding, a key not exactly 32
+bytes, more than 64 keys, a missing/retired active key, multiple unretired keys,
+an unsupported algorithm/version, or non-monotone timestamps make the keyring
+corrupt. Key records are serialized by `(created_at_ms, id)` for deterministic
+review. The file size is capped at 64 KiB.
+
+Persistent files are opened no-follow and, before any content is read, must be
+regular, owned by the effective service identity, mode exactly `0600`, and have
+exactly one hard link. A mode mismatch is not repaired in place; unsupported
+owner/ACL validation fails closed. A provider
+operation revalidates the current path and complete file under the keyring lock;
+deletion or replacement with an invalid file therefore cannot keep using a
+stale cached keyring.
+
+### Atomic publication and rotation
+
+Atomic replacement means:
+
+1. create an unpredictable same-directory temporary file with `O_EXCL`,
+   `O_NOFOLLOW`, and mode `0600`;
+2. write the complete closed JSON, flush, and `fsync` the file;
+3. rename over the destination without crossing filesystems;
+4. `fsync` the parent directory; and
+5. only then publish the new in-memory view.
+
+A failure before rename preserves the prior destination bytes. Rename is the
+filesystem linearization point, so an error from rename or the following parent
+`fsync` is treated as commit-ambiguous: discard the candidate in-memory view,
+re-open and fully validate the destination, and accept only bytes equal to the
+complete prior or complete candidate ring. The triggering mutation still
+returns unavailable; later operations use the revalidated result. Any other
+bytes fail the provider closed. A predictable reusable temporary path is
+forbidden.
+
+Before issuing a challenge, rotate when the active key is at least 30 days old:
+mark it retired at `now`, append a fresh active key, and atomically publish the
+keyring before computing any digest with the new key. A publication failure
+refuses the new request but leaves exchanges using the last validated on-disk
+ring available. Retired keys remain for at least 24 hours and until no retained
+challenge references them. Pruning is another atomic replacement. Keys are
+never returned by an API, diagnostic, receipt, or backup manifest.
+
+For `ReadyV1`, startup validates the keyring before bind and emits one redacted
+`SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` startup diagnostic plus an
+`authProvider: unavailable` health fact when it is missing or corrupt. Existing
+session resolution remains available because it needs no keyring, but
+request-code/exchange refuse without mutation until a valid ring is restored;
+startup never silently mints a replacement for a marked catalog.
+
+## Email-code provider
+
+### Canonical address
+
+Canonicalization is exact and ordered:
+
+1. decode the JSON string as Unicode and reject NUL or control characters;
+2. trim Unicode `White_Space` only at the two ends;
+3. normalize the complete string to Unicode NFC;
+4. apply Unicode default, locale-independent lowercase to the complete address;
+5. reject any remaining Unicode whitespace/control character;
+6. require exactly one ASCII `@`, with nonempty local and domain parts; and
+7. require `1..=320` UTF-8 bytes after all transformations.
+
+V1 performs no dot folding, plus-tag stripping, provider-specific rewrite,
+IDNA/punycode conversion, or local-part case exception. Those are future
+identity migrations, not invisible canonicalization changes. Invalid input is
+`SNAPBACK_AUTH_REQUEST_INVALID` with no address echoed in details.
+
+### Request-code transaction
+
+`POST /auth/request-code` is accepted only when a delivery provider is
+available. The capture provider is available in `dev`, `test`, and `demo`, never
+`prod`. A refused profile or unavailable/corrupt keyring mutates nothing.
+
+Canonical addresses map onto 256 fixed mutex stripes by a process-keyed hash;
+the service holds that stripe from mailbox reservation through publish. The
+fixed stripe set bounds memory while preventing two requests for one address
+from reordering. The flow is:
+
+1. Canonicalize and validate the address.
+2. Revalidate/rotate the keyring and generate challenge id, code, and digest.
+3. Reserve one mailbox slot. A reservation counts against the 1,024 cap;
+   capacity refusal is `SNAPBACK_AUTH_THROTTLED` and mutates nothing. Any
+   pre-commit refusal releases the reservation.
+4. In one `IMMEDIATE` transaction, count retained rows for the rolling global
+   and per-address half-open windows `(now - window, now]`. At either limit,
+   roll back and return `SNAPBACK_AUTH_THROTTLED`. A request exactly one full
+   window after an older request no longer counts that older row.
+5. Mark every active challenge for the address with
+   `superseded_by = new_challenge_id`, then insert the new challenge. The partial
+   unique index is the concurrency backstop.
+6. Commit. This is the durable linearization point.
+7. Erase superseded mailbox entries and publish the reserved new entry. Publish
+   after a valid reservation is infallible except process termination.
+8. Only after publish, return `{ challengeId, expiresAt }`.
+
+The address mutex prevents an older request from publishing after a newer one
+has superseded it. A process death after commit but before response can leave an
+unreadable active challenge; the next request supersedes it, and the caller that
+received no response has no challenge id. This is the only cross-resource crash
+residual and grants no authority.
+
+Every accepted request creates a challenge whether or not an identity exists.
+The response and status are identical in both cases.
+
+### Challenge states and exchange
+
+Challenge states are derived, not stored as a second enum:
+
+| State | Predicate |
+|---|---|
+| `Active` | unconsumed, unsuperseded, `now < expires`, attempts `< 5` |
+| `Locked` | unconsumed, unsuperseded, attempts `= 5`, not expired |
+| `Consumed` | `consumed_at_ms` is set |
+| `Superseded` | `superseded_by` is set |
+| `Expired` | `now >= expires_at_ms` |
+
+`POST /auth/exchange` runs lookup, HMAC verification, attempt accounting,
+challenge consumption, identity provisioning, session-cap enforcement, and
+session insertion in one `IMMEDIATE` transaction.
+
+Before that transaction, a read-only challenge lookup obtains the canonical
+address, if any, and exchange acquires the same fixed address stripe used by
+request-code. It rechecks every predicate in the transaction and holds the
+stripe through post-commit mailbox erase. The preliminary lookup grants no
+authority and an absent/deleted row follows the uniform invalid path.
+
+- Unknown, expired, consumed, or superseded returns
+  `SNAPBACK_AUTH_CODE_INVALID` without revealing which predicate failed.
+- A locked challenge returns `SNAPBACK_AUTH_CODE_LOCKED`.
+- For an active challenge, increment `attempts` for every submitted code. A
+  correct fifth attempt succeeds. An incorrect fifth attempt commits the value
+  `5` and returns `CODE_LOCKED`; earlier incorrect attempts commit and return
+  `CODE_INVALID`.
+- A correct code sets `consumed_at_ms`, finds or creates exactly one
+  `email-code` identity and user, enforces the session cap, and inserts exactly
+  one session before commit.
+- The wrong-code and locked outcomes are transaction outcomes, not errors that
+  roll back attempt accounting.
+- The plaintext code and returned bearer are generated outside SQL parameters
+  where possible and zeroized after use. Only their digests enter SQLite.
+
+After commit, the mailbox entry is erased before the credential response is
+returned. A crash after commit but before erase loses the in-memory mailbox with
+the process. Concurrent exchanges can therefore commit at most one session.
+
+## Session and token-family protocol
+
+### Session creation and cap
+
+A new session has generation `1`, `last_used_at_ms = created_at_ms`, sliding
+expiry `created + 30 days`, and absolute expiry `created + 90 days`. The sliding
+expiry is capped at the absolute expiry. `authority_instance_id` is random and
+stable across refresh.
+
+Within the creation transaction, expired sessions do not count toward the cap.
+If 20 unrevoked, unexpired sessions already exist, creation revokes the oldest
+by `(created_at_ms, id)`: set `revoked_at_ms = now`, increment its generation,
+then insert the new session. The transaction returns the revoked session id and
+generation to item 5's projection seam. It never mints a 21st live session.
+
+`auth.mintSession` uses the same canonicalization, user/identity provisioning,
+session creation, cap, and credential response as a successful exchange. It
+sets `verified_at_ms` to mint time only when creating the identity and records
+`issuedBy: admin` in the host-operation audit envelope. It is available only in
+`dev`, `test`, and `demo` and requires both `AdminWrite` and
+`ImpersonationCapability`. Item 3 implements this reusable core and closed DTO;
+item 4 owns host-op activation and its end-to-end acceptance, matching LLP
+0039's landing order.
+
+### Credential resolution matrix
+
+Resolution checks current-session hashes first, then tombstones. All comparisons
+are by fixed-length digests.
+
+| Presented bearer | Ordinary authenticated surface | `/auth/refresh` | `/auth/family-alarm` |
+|---|---|---|---|
+| Current, live | resolve session | rotate | opaque accepted/no-op |
+| Current but expired/revoked | `SESSION_EXPIRED` | `SESSION_EXPIRED` | opaque accepted/no-op |
+| Tombstone, age `<= 10s`, session live | resolve same session | `REFRESH_SUPERSEDED`, no mutation | revoke family |
+| Tombstone, age `> 10s`, session live | `CREDENTIAL_SUPERSEDED` | revoke family, then `SESSION_EXPIRED` | revoke family |
+| Tombstone, session expired/revoked | `SESSION_EXPIRED` | `SESSION_EXPIRED` | idempotent revoke/no-op |
+| Structurally valid but unknown | `AUTH_REQUIRED` | `AUTH_REQUIRED` | opaque accepted/no-op |
+| Structurally invalid | `AUTH_REQUIRED` | `AUTH_REQUIRED` | opaque accepted/no-op |
+
+The grace comparison is inclusive at exactly ten seconds. Ordinary grace use
+is a real authenticated use and may extend sliding expiry. A refresh alone never
+extends expiry.
+
+### Rotation
+
+Refreshing a current live bearer generates a noncolliding bearer and, in one
+transaction:
+
+1. rechecks that the presented digest is still current and the session live;
+2. checks the new digest against both current and tombstone tables;
+3. inserts the predecessor digest into `_auth_session_tokens` with `now`; and
+4. replaces `_auth_sessions.token_hash` with the successor digest.
+
+Session id, user id, identity id, generation, authority instance id, and expiry
+are unchanged. Commit is the linearization point; the plaintext successor is
+returned only after commit. A lost successful response strands the successor
+and requires reauthentication. The server never reissues it.
+
+Two refreshes racing with the same current bearer have only these outcomes: one
+commits; the other observes the tombstone. If it observes it inside grace, it
+returns `REFRESH_SUPERSEDED` without revocation. This is the sleeping/woken-tab
+case and MUST NOT destroy the healthy session.
+
+### Logout, ordinary supersession, and family alarm
+
+Logout of a resolved session sets `revoked_at_ms = now` and increments
+generation in one transaction. Repeating logout with the now-revoked bearer is
+`SESSION_EXPIRED` and changes nothing.
+
+When an ordinary request receives `CREDENTIAL_SUPERSEDED`, the client later
+tries custody reload and one retry. If it cannot find a valid successor, it
+calls the family alarm before clearing. The alarm is:
+
+- `POST /auth/family-alarm` with the suspect bearer in `Authorization` and an
+  empty closed body;
+- `Public` plus operation-specific `FamilyAlarmBearer` resolution, which grants
+  no caller or invocation authority;
+- lookup only in `_auth_session_tokens`; a current or unknown bearer is a no-op;
+- one `IMMEDIATE` transaction for every input, using a dummy digest for malformed
+  input and the same fixed lookup-plus-conditional-update statement shape; that
+  statement revokes only the attributable tombstone's session and increments
+  generation only when still live; and
+- always HTTP `202`, `{ "accepted": true }`, and `Cache-Control: no-store` for
+  missing, malformed, current, unknown, attributable, and already-revoked
+  inputs. Response publication waits until a fixed 20 ms minimum plus 0–5 ms of
+  CSPRNG jitter from admission, after the transaction completes; no status,
+  body, header, row count, or unpadded fast path returns a family/session fact.
+
+The operation can only destroy authority. It cannot authenticate, refresh,
+return a user/session id, or revoke a family not attributable to the presented
+tombstone. It is safe to retry after an unknown response. If the client is
+offline or permanently loses the alarm request, the stolen-successor residual
+survives until expiry or another revocation event; v1 makes no stronger claim.
+
+### Sliding use
+
+Item 3 exposes `record_authenticated_use(session_id, expected_generation, now)`.
+Authenticated app requests, connection open, and later live-socket liveness call
+it; refresh does not. It performs no write until at least three days have elapsed
+since `last_used_at_ms`. A write rechecks liveness/generation and sets
+`last_used_at_ms = now`, `expires_at_ms = min(now + 30d, absolute_expires_at_ms)`.
+An expired session is never revived.
+
+## Capture mailbox
+
+The capture mailbox is process-local and keyed only by challenge id. An entry
+contains the canonical address, six-digit code in a zeroizing secret wrapper,
+and expiry. It has no list operation and no durable representation. Published
+entries plus pre-commit reservations cannot exceed 1,024.
+
+`GET /_snapback/api/auth/mailbox?challengeId=<id>` returns the closed object
+`{ challengeId, canonicalAddress, code, expiresAt }` only when all gates pass.
+It does not consume the code. Missing, expired, consumed, or superseded entries
+return `SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND` without an address. Responses are
+`no-store`, excluded from logs/receipts, and available only in `dev`, `test`, or
+`demo`.
+
+Entries are erased on durable consume, durable supersede, committed reset,
+expiry, and process exit. A future LLP 0045 delivery adapter receives only an
+ephemeral payload handle; plaintext code material MUST NOT enter a durable
+notification intent, retry row, export, or backup.
+
+Mailbox GET first peeks only the entry's address, releases the map lock,
+acquires that address stripe, and then re-reads and validates the entry before
+returning it. Request-code and exchange hold the same stripe through publish or
+erase. Reset holds the exclusive maintenance gate through commit and mailbox
+clear, while mailbox GET takes that gate shared. Therefore no GET can observe a
+consumed, superseded, or reset entry in a commit-to-erase gap; no path holds the
+mailbox map while waiting for an address stripe.
+
+## ImpersonationCapability carrier
+
+V1 chooses the per-boot terminal/owner-file alternative allowed by LLP 0039,
+not raw keyring bytes and not the item-2 secret-read root.
+
+At every `dev`, `test`, or `demo` server start whose compiled registry exposes
+at least one enabled impersonation operation, the operator plane generates an
+independent 256-bit random bearer. It never mints or publishes one in `prod`:
+
+```text
+sbic_<base64url-no-pad of 32 bytes>.<8 lowercase hexadecimal CRC32>
+```
+
+The CRC and parser are the session-bearer construction with a distinct prefix.
+The request-side registry retains only `SHA-256` of the complete bearer and the
+process startup nonce. The raw value is held by a non-cloneable,
+non-serializable, zeroizing `ImpersonationOperator` during publication, then
+discarded by the server.
+
+When `--ready-file` is used, the raw bearer is written to the mechanically
+derived owner-only sibling `<ready-file>.impersonation` and the trusted ready
+descriptor names that exact sibling in `impersonationCapabilityFile`. Discovery
+accepts no arbitrary path. The file is mode `0600`, no-follow, size-bounded,
+included in managed-path alias checks, and removed with ready-file cleanup. It
+is atomically published before the ready descriptor; a descriptor-publication
+failure removes the unpublished sibling. Discovery verifies the descriptor's
+`startupNonce` against live `/health` before reading the sibling, so a stale
+file or descriptor never supplies a capability to another process. With no
+ready file, the bearer is printed exactly once to the controlling terminal; it
+is never printed in JSON logs or stdout envelopes. A later attaching CLI accepts
+that value only from an interactive/stdin secret input, never an argv flag or
+environment variable that exposes it through process inspection.
+
+HTTP carries it only in `x-snapback-impersonation-capability`. Middleware first
+proves the operation's ordinary `AdminWrite` credential, then constant-time
+compares this independent carrier. Missing/invalid produces
+`SNAPBACK_AUTH_IMPERSONATION_REQUIRED` without saying which credential failed.
+Restart invalidates it. Reset does not extend it beyond the process lifetime.
+
+This carrier gates all four impersonation effects:
+
+- mailbox read;
+- `auth.mintSession`;
+- `auth.rescueCollidingTable`; and
+- host-ops `function.run --as-user` / `--as-role`.
+
+The existing item-2 bridge stays categorically separate:
+
+- `SecretReadOperator` is an in-process, non-cloneable minting root;
+- its `sbrl_` derivative is scope/budget/expiry/reset bounded and travels only
+  in `x-snapback-secret-read-lease`;
+- the ordinary admin token is exchanged for a short-lived console credential;
+  the console stores only that ordinary credential and holds an `sbrl_` lease
+  in memory when explicitly handed one; and
+- none of the admin token, console credential, `sbrl_` lease, unexported
+  secret-read root, session bearer, or raw keyring material satisfies the
+  `sbic_` comparison. Conversely, `sbic_` satisfies neither AdminWrite nor
+  AdminSecretRead.
+
+No admin-console prompt or client setter accepts `sbic_`. The CLI attaches it
+only to a registered impersonation operation and never to ordinary mutation,
+action, inspection, or provisioning calls.
+`x-snapback-impersonation-capability` is not added to the permissive loopback
+cross-origin CORS header allowlist; local CLI HTTP needs no CORS. This is
+defense-in-depth only, because same-origin script execution remains part of the
+separate client-page XSS posture.
+
+## Routes, operations, and DTOs
+
+All new Rust request/response types are the serde + schemars authorities under
+`LLP 0037#decision-ratified-2026-07-02`. Request objects use camelCase,
+`deny_unknown_fields`, reject duplicate JSON keys, and have generated committed
+schemas. Credential responses are `Cache-Control: no-store` and never enter
+receipts or runtime-state snapshots.
+
+### Public provider DTOs
+
+```json
+// POST /auth/request-code
+{ "email": "person@example.com" }
+
+// 200
+{ "challengeId": "sbc_...", "expiresAt": 0 }
+
+// POST /auth/exchange
+{ "challengeId": "sbc_...", "code": "012345" }
+
+// 200 exchange and refresh response
+{
+  "tokenType": "Bearer",
+  "token": "sbs_...",
+  "refreshAfter": 0,
+  "session": {
+    "id": "uuid-v7",
+    "userId": "uuid-v7",
+    "provider": "email-code",
+    "createdAt": 0,
+    "expiresAt": 0,
+    "absoluteExpiresAt": 0
+  }
+}
+
+// POST /auth/refresh and POST /auth/logout
+{}
+
+// POST /auth/family-alarm
+{}
+
+// 202 family alarm
+{ "accepted": true }
+```
+
+`/auth/refresh`, `/auth/logout`, and `/auth/family-alarm` take the bearer only
+from `Authorization: Bearer ...`; no body/query token alias exists. Logout
+success is HTTP 204 with no body. `refreshAfter` is `created/rotated now + 7
+days`, capped at the response's sliding and absolute expiry as client guidance;
+it does not change server expiry.
+
+The session response deliberately omits identity subject, token digest,
+generation, and `authorityInstanceId`. Item 7 adds its versioned descriptor
+rather than making an item-3 credential response an accidental descriptor.
+
+### Host-operation DTOs
+
+```json
+// auth.mintSession args
+{ "email": "person@example.com" }
+
+// auth.rescueCollidingTable args
+{ "sourceTable": "_auth_users", "targetTable": "legacy_auth_users" }
+```
+
+`auth.mintSession` returns the same credential data inside the normal host-ops
+envelope. `auth.rescueCollidingTable` returns only source, target, copied row
+count, copied explicit-index count, manifest-updated boolean, and
+`catalogCollisionCleared`; it never returns rows.
+
+### Registry rows
+
+| Entry | Path policy | Credential resolution | Authority/effect | Response |
+|---|---|---|---|---|
+| `POST /auth/request-code` | Public | None | provider service; no caller | public typed, no-store |
+| `POST /auth/exchange` | Public | `ChallengeProof` | provider service; issues credential | `CredentialSecret` |
+| `POST /auth/refresh` | SessionAuth | `RequiredSessionBearer` | resolved session | `CredentialSecret` |
+| `POST /auth/logout` | SessionAuth | `RequiredSessionBearer` | resolved session | no body, no-store |
+| `POST /auth/family-alarm` | Public | `FamilyAlarmBearer` | no authority; revoke-only | opaque typed, no-store |
+| `GET /_snapback/api/auth/mailbox` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
+| host-op `auth.mintSession` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
+| host-op `auth.rescueCollidingTable` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | operator metadata |
+
+`ChallengeProof` and `FamilyAlarmBearer` are closed
+`CredentialResolution` cases; they do not overload `None`, `AdminCredential`,
+or `RequiredSessionBearer`. `x-snapback-impersonation-capability` is instead the
+sole resolver for the independent `EffectPolicy::ImpersonationCapability` axis,
+so it composes with but never replaces `AdminCredential`. Provider routes in
+active dev mode return the typed HTTP-404
+`SNAPBACK_AUTH_MODE_DEV`. The item-4 `/auth/session` handshake remains a
+separate exception.
+
+### Diagnostics
+
+| Code | HTTP / locus | Boundary |
+|---|---|---|
+| `SNAPBACK_AUTH_REQUEST_INVALID` | 400 | malformed closed DTO, email, challenge id, or code shape |
+| `SNAPBACK_AUTH_REQUIRED` | 401 | missing, malformed, or unknown session bearer |
+| `SNAPBACK_AUTH_SESSION_EXPIRED` | 401 | resolved family is expired or revoked |
+| `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` | 401 | ordinary use of an old family token after grace |
+| `SNAPBACK_AUTH_CODE_INVALID` | 401 | uniform unknown/wrong/expired/consumed/superseded challenge result |
+| `SNAPBACK_AUTH_CODE_LOCKED` | 403 | attempt budget exhausted |
+| `SNAPBACK_AUTH_IMPERSONATION_REQUIRED` | 403 | separate effect carrier missing or invalid |
+| `SNAPBACK_AUTH_MODE_DEV` | 404 | provider route unavailable in dev mode |
+| `SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND` | 404 | gated exact mailbox lookup has no live entry |
+| `SNAPBACK_AUTH_REFRESH_SUPERSEDED` | 409 | refresh raced a committed rotation inside grace |
+| `SNAPBACK_AUTH_THROTTLED` | 429 | address/global/capture capacity budget |
+| `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` | 503 | RNG, keyring, or delivery provider unavailable |
+| `SNAPBACK_AUTH_TABLE_COLLISION` | stage/startup/host-op | unmarked auth-reserved physical table |
+| `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` | stage/startup | exact v1 global object name is already foreign-owned |
+| `SNAPBACK_AUTH_CATALOG_CORRUPT` | startup | marked catalog differs from v1 |
+| `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` | startup | unknown marker |
+| `SNAPBACK_AUTH_RESCUE_INVALID` | host-op/CLI | invalid names/state or absent source |
+| `SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED` | host-op/CLI | source cannot be copied exactly by v1 rescue |
+| `SNAPBACK_AUTH_BACKUP_INVALID` | CLI | inconsistent/unverifiable backup input/output |
+
+The status mapper lists every request-path code explicitly; unknown codes remain
+500. Details may include limits, retry-after seconds, catalog version, and object
+kind/name where the operator must repair schema. They never include address,
+code, token, digest, key id/material, or impersonation carrier.
+
+## Collision rescue
+
+### Reachability
+
+There are two collision cases: a dormant physical `_auth_*` table not named by
+the stored manifest, and a stored manifest that itself names the colliding
+table. A normally valid dev manifest with only a dormant physical collision may
+open and serve in dev mode; item 4's stage-time check refuses the transition and
+the registered rescue host-op remains reachable through the ordinary server.
+The second case cannot enter the ordinary application open path after the
+reservation lands, so startup has a closed **collision-recovery posture**.
+
+When stored-manifest validation fails specifically because a declared physical
+table is auth-reserved, the startup probe opens only the SQLite catalog below
+stored-manifest validation and performs the read-only collision query. In `dev`
+or `test`, on a loopback bind, it may bind a recovery router that exposes
+exactly:
+
+- `GET /health`, whose typed public state is
+  `authRecovery: { reason: "table-collision", restartRequired: true }`; and
+- the registered `POST /_snapback/api/host-ops` carrier, accepting only the
+  selected `auth.rescueCollidingTable` operation.
+
+Every app-data, inspect, provider, static-console, WebSocket, and other host-op
+entry is absent/refused. No stored app manifest is accepted, no function bundle
+loads or executes, and no catalog/keyring/app mutation occurs merely by entering
+the posture. The ordinary serve startup still resolves or mints its configured
+AdminWrite credential and the independent per-boot `sbic_` before binding, so
+the rescue operation composes the same two gates as its normal HTTP projection.
+Tokenless loopback is not AdminWrite authority here.
+
+The no-mutation claim above is a database/catalog/keyring/app-state invariant.
+Normal owner-only admin-token, ready-descriptor, and impersonation-sidecar
+publication is allowed and is asserted separately; recovery never represents
+those operator-plane files as application or catalog state.
+
+`demo`, `prod`, non-loopback bind, missing AdminWrite configuration, ambiguous
+catalog state, and a validation failure not attributable to a declared physical
+auth-reserved table fail startup without a listener. A successful rescue leaves
+the process in recovery posture and returns `restartRequired: true`; application
+service begins only after a clean restart and normal manifest validation. More
+than one colliding table may be rescued through repeated gated calls before that
+restart.
+
+An exact-v1 index name already attached to another table yields the distinct
+`SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` and fails closed for offline operator
+repair; it never enters the table-copy recovery router. Other legacy reserved
+non-table objects attached only to app tables are outside catalog ownership as
+defined above. The recovery router never broadens table rescue into a generic
+reserved-object editor.
+
+### Transactional algorithm
+
+Rescue accepts one actual physical source table whose case-folded name is
+auth-reserved, an absent valid nonreserved target identifier, and an absent
+catalog marker. It refuses catalog-owned tables. It also refuses a target that
+already exists physically or in the stored manifest.
+
+Inside one `IMMEDIATE` transaction it:
+
+1. Rechecks marker/source/target and scans the complete schema, not only objects
+   owned by the source. It enumerates the source's table SQL, columns, outgoing
+   foreign keys, explicit indexes, and triggers; every other table's incoming
+   foreign keys; and every trigger/view whose tokenized SQL depends on the
+   source.
+2. Refuses virtual tables, generated/hidden columns, any incoming or outgoing
+   foreign key, any owned or externally owned trigger, any dependent view,
+   expression indexes, indexes with unknown collation, an ambiguous dependency,
+   or any `sqlite_schema.sql` shape the v1 token-aware rewriter cannot
+   round-trip. Refusal is `SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED` with no
+   mutation. Foreign-key enforcement remains enabled throughout.
+3. Tokenizes the original `CREATE TABLE` statement and replaces only its leading
+   schema object identifier with the quoted target, preserving column/check/
+   default/unique SQL byte-for-byte otherwise. String literals and comments are
+   never text-replaced.
+4. Creates the target and copies every named column using quoted identifiers in
+   one `INSERT INTO target(columns...) SELECT columns... FROM source` statement.
+5. Requires equal row count and bidirectional multiset equality before
+   proceeding. The comparison groups by every copied column (including NULL and
+   BLOB values), compares each group's `count(*)`, and applies `EXCEPT` in both
+   directions; set equality without multiplicity is insufficient.
+6. Recreates each explicit index from tokenized SQL. Its new deterministic name
+   is `<target>__rescue_idx_<zero-based-order>`; the rewriter replaces only the
+   leading index name and `ON` table identifier. Unique and partial predicates
+   are preserved.
+7. If the stored manifest names the source table, rewrites that one table name
+   and its explicit index names to the new values, clears its `schemaHash` and
+   `inputsHash`, validates the complete manifest under current rules, and writes
+   it in the same transaction. Clearing identity makes attestation report
+   unmatched/unavailable and requires an explicit full artifact-pair
+   reprovision; rescue never preserves a hash over changed content. If the
+   manifest does not name the source, it is unchanged.
+8. Drops the source only after table, rows, indexes, equality proof, and manifest
+   validation all succeed.
+9. Re-runs the read-only collision query inside the transaction. It commits the
+   completed rescue in either case and reports
+   `catalogCollisionCleared: true` only when no foreign auth-reserved object
+   remains; otherwise the operator may rescue the next table.
+
+Every error or injected failure rolls back target creation, manifest rewrite,
+and source drop. The source table, rows, indexes, and stored manifest remain
+logically equivalent to their pre-operation state; this does not falsely claim
+that rollback leaves SQLite database/WAL bytes untouched. The destructive
+`--drop-orphaned-auth-tables` command remains separate and backup-first; rescue
+never silently delegates to it.
+
+## Physical backup and declared restore
+
+### Consistent backup
+
+The canonical command is
+`snapback auth backup --db <path> --output <new-directory>`. It is local
+operator-plane work and accepts only a nonexistent output path on the same
+filesystem as its temporary sibling. It may run in process through trusted CLI
+control or against a stopped instance; an out-of-process invocation that cannot
+acquire the instance lock refuses rather than copying a live directory.
+The command requires a file-backed `ReadyV1` catalog; in-memory and
+uninitialized instances return `SNAPBACK_AUTH_BACKUP_INVALID`.
+
+The backup algorithm is:
+
+1. Acquire the instance write lock and the exclusive auth-maintenance gate.
+   Provider requests, key rotation, reset, rescue, and auth GC cannot cross this
+   gate. The lock order is maintenance gate, keyring, database writer.
+2. Fully validate catalog and keyring and retain the exact validated keyring
+   bytes.
+3. Use SQLite's online backup API from the locked live connection into a new
+   temporary `database.sqlite3`. This folds all committed database and WAL state
+   into the destination; copying a source `-wal` file is neither necessary nor
+   permitted by this protocol.
+4. Write the captured keyring bytes to `auth-keyring.json` mode `0600`.
+5. Write a closed `backup.json` containing format version `1`, creation time,
+   catalog version, database SHA-256, keyring SHA-256, and source database
+   basename. It contains no key ids or secret bytes.
+6. `fsync` all three files and the temporary directory, rename the directory to
+   the requested output, then `fsync` its parent.
+7. Release locks only after publication or cleanup of the unpublished temp.
+
+The output directory is mode `0700`; database, keyring, and manifest are `0600`.
+A full instance backup may additionally include LLP 0036 config, but the auth
+unit is successful only when these exact database and keyring bytes share the
+one quiescence boundary. A raw `cp` of the database, WAL, and keyring while the
+server runs is explicitly not a Snapback backup.
+
+### Restore
+
+`snapback auth restore --from <backup> --db <new-directory>/<database-name>`
+requires the target instance directory itself to be nonexistent. It runs
+offline under the target instance lock, validates both hashes and the closed
+format, stages the database, keyring sibling, and an owner-only closed
+`restore-declaration.json` in a sibling temporary directory, fsyncs them, and
+publishes the complete directory by one same-filesystem rename. It never claims
+to atomically replace two independent files in an existing instance directory.
+Replacing an old instance means restoring to a new directory, preserving or
+moving the stopped old directory, and then selecting the restored `--db` path.
+Cross-filesystem publication is refused.
+
+Each restore generates a fresh canonical UUIDv7 `declarationId`; it is not a
+secret. The declaration file is exactly
+`{ "formatVersion": 1, "declarationId": "<uuid-v7>" }`. The next start MUST
+carry `--restored-from-backup <declarationId>`, and the argument must equal that
+file. Before bind, one auth transaction compares
+`_snapback_meta['auth_restore_declaration_id']`:
+
+- if it already equals this id, the declaration is an idempotent no-op;
+- otherwise it revokes every restored session that is not already revoked,
+  setting `revoked_at_ms = now` and incrementing generation once;
+- deletes every verification challenge; and
+- writes this declaration id as the final statement.
+
+The non-idempotent branch also records success in operator diagnostics without
+a secret or source path. Item 5 adds authorization-stream incarnation
+regeneration to this branch of the same transaction before sessions become
+enableable. Thus accidentally retaining the same startup argument cannot revoke
+sessions or purge challenges created after the first successful start; a newly
+generated id is an explicit new destructive declaration.
+
+After the transaction commits, startup removes the declaration file and clears
+the capture mailbox. A crash before file removal is harmless because the durable
+id makes retry a no-op. Ordinary restart carries no declaration and does none of
+these things. An undeclared restore can resurrect backed-up sessions until
+expiry; this is the explicit residual LLP 0039 pins.
+
+## Concurrency, locks, and linearization
+
+No cryptographic file I/O or mailbox wait occurs while the SQLite writer is
+held except the bounded HMAC already required by the exchange transaction.
+Lock order is:
+
+```text
+auth-maintenance gate
+  -> keyed address/mailbox coordination (request-code, exchange, mailbox GET)
+  -> keyring lock
+  -> SQLite writer transaction
+  -> mailbox map (publish/erase after commit)
+```
+
+Ordinary provider calls take the maintenance gate shared; backup, restore,
+catalog activation, rescue, and reset take it exclusive. No code takes an
+earlier lock while holding a later one.
+
+| Operation | Linearization point |
+|---|---|
+| request-code | challenge transaction commit; response only after mailbox publish |
+| exchange wrong/lock | committed attempts update |
+| exchange success | consume + identity + session transaction commit |
+| refresh | tombstone + current-token swap commit |
+| logout/family alarm | generation/revocation commit |
+| session-cap eviction | same commit that creates the new session |
+| reset | app + auth delete transaction commit |
+| rescue | copy + manifest rewrite + source drop commit |
+| key rotation | fsynced rename + parent fsync |
+| backup | SQLite online snapshot and retained keyring bytes under quiescence |
+
+Commit ambiguity is handled conservatively: after a storage error where commit
+success is unknown, the server discards plaintext successor/code response state,
+reopens/reloads the database, and reports an unavailable outcome. It never
+retries a mint or rotation with the same plaintext credential based on an
+assumed rollback.
+
+## Security and redaction
+
+The following are secret material and never appear in logs, diagnostics,
+receipts, spans, panic messages, public/gated inspect payloads, runtime state,
+change rows, exports, or ordinary `Debug`: codes, session bearers, session-token
+hashes, code digests, key material, `sbic_`, and secret-read lease/root material.
+Hashing a secret into telemetry is also forbidden by `LLP 0009#secrets`.
+
+Canonical addresses may appear only in protected identity rows and the fully
+gated mailbox response. They do not appear in request/throttle/code diagnostics.
+Admin identity/session projections may expose user/session ids, provider,
+timestamps, and revocation state only through `AdminSecretRead`; they omit every
+digest and key id.
+
+All credential endpoints set `Cache-Control: no-store`; middleware must also
+disable body capture/access logging for those routes. Request body and header
+size limits run before parsing. CORS never treats possession of an admin,
+console, secret-read, session, or impersonation string as interchangeable
+authority.
+
+## Acceptance
+
+### Catalog and reservation
+
+- Codegen rejects lower-, upper-, and mixed-case auth-reserved tables and
+  indexes. Storage rejects auth-reserved tables, fields, and indexes on apply
+  and stored-manifest reopen. `ctx.db`, sync, live, export, and admin edit have
+  negative tests.
+- `Uninitialized`, unmarked table collision, exact-v1 global-name collision,
+  exact v1, unknown marker, corrupt marked catalog, and extra catalog-object
+  states each produce the pinned result.
+- Stage inspection is byte/WAL-frame read-only. Activation crash injection
+  before/after keyring publication, each DDL group, marker insert, commit, and
+  post-check yields only retryable pre-catalog or exact `ReadyV1`.
+- Every auth write, reset, GC, and rescue assertion proves no app journal row,
+  commit-version advance, receipt, or live wake unless the operation also
+  changes ordinary app data as part of reset/rescue manifest handling.
+
+### Keyring and crypto
+
+- Fixed vectors pin NFC/lowercase output, LP framing, HMAC bytes, base64url,
+  CRC32, bearer length, and SHA-256 input bytes in Rust and JS fixtures.
+- RNG failure, missing-after-catalog, corrupt JSON, unknown fields/version,
+  wrong owner/mode, symlink/hardlink substitution, oversize file, duplicate key,
+  missing active key, and interrupted atomic replacement all fail closed without
+  overwriting prior bytes.
+- First activation auto-mints mode `0600`; memory mode persists nothing.
+  Rotation publishes before first use, old challenges exchange through the old
+  key, and pruning cannot remove a referenced key.
+- A marked catalog with a missing/corrupt keyring binds with the redacted health
+  diagnostic, keeps session-digest resolution available, and makes every
+  provider operation fail closed without replacement minting.
+
+### Provider state machine
+
+- Canonical-equivalent addresses converge; invalid/control/whitespace/length/
+  multi-`@` cases reject without echo. There is no dot/plus/IDNA rewrite.
+- Known and unknown addresses get the same accepted request shape/status and
+  both create a challenge. Per-address, global, and mailbox budgets hit exact
+  boundaries and recover after their windows.
+- Request races on one address leave exactly one active challenge and one
+  mailbox entry. A late older publish is impossible. Consume, supersede, reset,
+  expiry, and process death clear plaintext capture; a mailbox GET raced at each
+  commit boundary never returns a consumed, superseded, or reset entry.
+- Wrong attempts 1–4 commit and return `CODE_INVALID`; wrong attempt 5 commits
+  and returns `CODE_LOCKED`; correct attempt 5 succeeds; later attempts lock.
+  Unknown, expired, consumed, and superseded are uniform invalid outcomes.
+- Concurrent correct exchanges create one session; concurrent first logins for
+  one canonical address create one user and identity. The 21st live session
+  revokes the deterministic oldest and never yields 21 live rows.
+
+### Session generated interleavings
+
+The suite runs an exhaustive small-state model and randomized/property traces.
+At minimum it covers:
+
+1. current N refreshes to N+1; N ordinary use inside/outside grace;
+2. N refresh inside grace (`REFRESH_SUPERSEDED`, no revoke) and outside grace
+   (revoke);
+3. N-2 and N-3 ordinary/refresh reuse while tombstones remain;
+4. two refreshes racing from N;
+5. a sleeping tab whose scheduled refresh wakes before custody reload;
+6. a woken tab on the ordinary path that reloads/retries without clearing;
+7. refresh commit with a lost response and no retained successor;
+8. thief rotates first, victim cannot reconcile, family alarm delivered,
+   duplicated, delayed, response-lost, or permanently offline;
+9. logout racing refresh and session-cap eviction; and
+10. sliding use at just-before/at/after three days, sliding expiry, absolute
+    expiry, restart, and GC.
+
+Every trace asserts the exact matrix outcome, at most one current token, all
+predecessors attributable until absolute expiry, monotone generation only for
+revocation-class events, stable session/authority-instance ids across rotation,
+and no revival after expiry/revocation.
+
+Family-alarm cases also assert the identical query plan/transaction count,
+fixed-minimum response gate, one opaque status/body/header shape, and that only
+an attributable tombstone can change a session.
+
+### Credential non-substitution
+
+For mailbox, mint-session, rescue, and impersonated function-run, the suite
+crosses these presented carriers:
+
+| Presented material | AdminWrite | AdminSecretRead | Impersonation effect |
+|---|---:|---:|---:|
+| ordinary admin token | yes | no | no |
+| persisted console credential | declared admin scope only | no | no |
+| `sbrl_` secret-read lease | no | scoped yes | no |
+| secret-read minting root without `sbic_` | not serializable | n/a | no |
+| session bearer | no | no | no |
+| `sbic_` only | no | no | no (missing AdminWrite) |
+| admin credential + live `sbic_` | yes | no | yes in allowed profile |
+
+Wrong header, expired/restarted `sbic_`, prod profile, operation mismatch, and
+browser-client attempts all refuse before the effect. The admin client never
+persists or attaches `sbrl_` to mutation/action calls and never accepts/attaches
+`sbic_` at all.
+
+### Rescue, backup, restore, and hygiene
+
+- Rescue is exercised for dormant and stored-manifest collisions, mixed-case
+  names, rows containing duplicate/NULL/blob/JSON values, unique and partial
+  indexes, incoming/outgoing foreign keys, external triggers/views, and every
+  unsupported schema class. Failure injection after each algorithm step leaves
+  source and manifest logically intact. A manifest rewrite clears artifact
+  hashes and cannot attest matched until explicit reprovisioning. Success
+  survives reopen and the next collision check.
+- Recovery posture is loopback-only and exposes exactly health plus the selected
+  rescue operation. Missing/wrong AdminWrite, missing/wrong/restarted `sbic_`,
+  `demo`/`prod`, non-loopback, every other route/operation, and every crash before
+  rescue commit produce no catalog, keyring, manifest, function, or app-data
+  effect. Tests separately allow only the declared owner-only operator sidecars.
+  Success still refuses app execution until restart.
+- Backup runs with writes and key rotation attempting to race it. The restored
+  database opens without WAL, every challenge's `key_id` exists in the captured
+  keyring, hashes match, and no half-published output directory is accepted.
+  Raw live-directory copy is a negative control.
+- Declared restore revokes sessions and purges challenges; repeat of the same
+  durable declaration id is idempotent even after new sessions exist; ordinary
+  restart preserves both. Item 5's acceptance extends the non-idempotent branch
+  of the same transaction with incarnation regeneration.
+- Planted code, token, digest, key, address, query-argument, receipt, and carrier
+  sentinels prove the exact redaction and projection boundaries. Every DTO has
+  positive schema instances and negative unknown/duplicate-field instances;
+  the Rust schema-generation drift gate and JS consumer fixtures agree.
+
+## Implementation hand-off
+
+The expected code seams are:
+
+- `src/auth/{mod,crypto,keyring,mailbox}.rs` for the provider service;
+- `src/storage/auth.rs` for direct catalog/state transactions;
+- `src/admin_impersonation.rs` for the process-bound carrier;
+- `src/secure_file.rs` for the reusable fsyncing atomic-replace primitive;
+- `src/server.rs`, `src/host_ops.rs`, and `src/cli.rs` for registered
+  projections;
+- `src/schema_export.rs` and committed `schemas/` for DTO authority; and
+- codegen/storage/auth integration suites for the acceptance above.
+
+Implementations may choose internal Rust type/module names and crate helpers.
+They may not vary the wire spelling, DDL invariants, digest/checksum framing,
+constants, state outcomes, carrier separation, rescue atomicity, or backup unit
+without revising this Draft and its fixtures.
+
+## Open questions
+
+No open question blocks item 3's local-v1 implementation. The following are
+explicit later-version questions and are not implementation latitude here:
+
+- whether a future external provider restores an account table;
+- whether address identity gains an IDNA/provider-specific migration;
+- whether session credentials become sender-bound (DPoP/WebCrypto);
+- whether hosted targets replace the process bearer with a platform operator
+  identity; and
+- whether a monotonic anchor outside the backup unit can detect undeclared
+  restore.
+
+## Status
+
+Draft. This Spec should receive an LLP review scaled to the stakes before item 3
+is called complete. Its executable vectors, state-model traces, and failure
+injection suite are the acceptance authority; prose-only implementation is not
+sufficient.
