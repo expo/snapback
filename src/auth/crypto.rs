@@ -319,7 +319,7 @@ impl SessionBearer {
     }
 
     pub fn token_hash(&self) -> TokenHash {
-        hash_bearer(self.0.as_bytes())
+        hash_bearer(self.expose_secret().as_bytes())
     }
 }
 
@@ -345,7 +345,7 @@ impl ImpersonationBearer {
     }
 
     pub fn token_hash(&self) -> TokenHash {
-        hash_bearer(self.0.as_bytes())
+        hash_bearer(self.expose_secret().as_bytes())
     }
 }
 

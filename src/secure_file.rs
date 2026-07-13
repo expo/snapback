@@ -208,14 +208,21 @@ pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
 /// attacker who pre-creates or races a hardlink at the candidate path gets
 /// `AlreadyExists`, never a truncation of the linked target.
 pub(crate) fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let mut file = create_new_owner_only(path)?;
-    let result = (|| {
+    write_new_owner_only_with(path, |file| {
         file.write_all(bytes)?;
         file.sync_all()?;
         #[cfg(unix)]
-        validate_open_file_strict(&file)?;
+        validate_open_file_strict(file)?;
         Ok(())
-    })();
+    })
+}
+
+fn write_new_owner_only_with(
+    path: &Path,
+    write: impl FnOnce(&mut File) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut file = create_new_owner_only(path)?;
+    let result = write(&mut file);
     drop(file);
     if result.is_err() {
         // Creation succeeded, so this inode is ours. An AlreadyExists error
@@ -380,6 +387,20 @@ mod tests {
         let error = write_new_owner_only(&candidate, b"replacement").unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
         assert_eq!(std::fs::read(target).unwrap(), b"do-not-touch");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn create_new_write_removes_its_partial_file_on_post_create_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let candidate = dir.path().join("publication-temp");
+        let error = write_new_owner_only_with(&candidate, |file| {
+            file.write_all(b"partial-secret")?;
+            Err(io::Error::other("injected fsync failure"))
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::Other);
+        assert!(!candidate.exists());
     }
 
     #[cfg(not(unix))]
