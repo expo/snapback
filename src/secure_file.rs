@@ -1,9 +1,10 @@
 //! Owner-only local capability-file I/O.
 //!
 //! Security-sensitive files must be validated through their opened file
-//! descriptor, not by a path check followed by an ordinary open. On Unix this
-//! uses `O_NOFOLLOW`, checks the inode is a regular file owned by the effective
-//! user, and repairs group/other permissions before any bytes are read.
+//! descriptor, not by a path check followed by an ordinary open. Ordinary
+//! capability files repair group/other permission bits before reading. The
+//! stricter auth path never repairs: it also requires one link, exact mode
+//! `0600`, and proof that the opened inode carries no extended access ACL.
 
 // @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — persisted capabilities are owner-only and validated through the opened inode.
 
@@ -67,7 +68,94 @@ fn validate_open_file_strict(file: &File) -> io::Result<()> {
             "secret file must have exactly one hard link",
         ));
     }
+    validate_no_extended_acl(file)?;
     Ok(())
+}
+
+// @ref LLP 0054#keyring-protocol — strict auth files fail closed on ACL-bearing inodes, and unsupported descriptor-level ACL validation never exposes bytes.
+#[cfg(target_os = "macos")]
+fn validate_no_extended_acl(file: &File) -> io::Result<()> {
+    use std::os::fd::AsRawFd as _;
+
+    const ACL_TYPE_EXTENDED: libc::c_int = 0x0000_0100;
+
+    unsafe extern "C" {
+        fn acl_get_fd_np(fd: libc::c_int, acl_type: libc::c_int) -> *mut libc::c_void;
+        fn acl_free(object: *mut libc::c_void) -> libc::c_int;
+    }
+
+    // SAFETY: the file descriptor remains valid for the duration of the call.
+    // `ACL_TYPE_EXTENDED` is the Darwin value from <sys/acl.h>.
+    let acl = unsafe { acl_get_fd_np(file.as_raw_fd(), ACL_TYPE_EXTENDED) };
+    if acl.is_null() {
+        let error = io::Error::last_os_error();
+        return match error.raw_os_error() {
+            // Darwin reports an absent extended ACL as ENOENT.
+            Some(libc::ENOENT) => Ok(()),
+            Some(libc::EOPNOTSUPP) => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "strict owner-only ACL validation is unsupported by this filesystem",
+            )),
+            _ => Err(error),
+        };
+    }
+
+    // A non-null ACL object means the inode has at least one persisted Darwin
+    // extended ACL. Reject it regardless of whether an individual entry grants
+    // or denies access: strict secret files have mode-only authority.
+    // SAFETY: `acl` was allocated by `acl_get_fd_np` and has not been freed.
+    let free_result = unsafe { acl_free(acl) };
+    if free_result != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Err(io::Error::new(
+        io::ErrorKind::PermissionDenied,
+        "secret file has an extended access ACL",
+    ))
+}
+
+#[cfg(target_os = "linux")]
+fn validate_no_extended_acl(file: &File) -> io::Result<()> {
+    use std::os::fd::AsRawFd as _;
+
+    // Linux exposes a file's POSIX access ACL through this descriptor-relative
+    // virtual xattr. A mode-equivalent ACL is normally elided by the VFS; any
+    // persisted value is conservatively treated as extended authority.
+    const POSIX_ACCESS_ACL: &[u8] = b"system.posix_acl_access\0";
+    // SAFETY: the descriptor is live, the attribute name is NUL-terminated,
+    // and a null buffer with size zero is the documented size probe.
+    let result = unsafe {
+        libc::fgetxattr(
+            file.as_raw_fd(),
+            POSIX_ACCESS_ACL.as_ptr().cast(),
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if result >= 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "secret file has an extended access ACL",
+        ));
+    }
+
+    let error = io::Error::last_os_error();
+    match error.raw_os_error() {
+        Some(libc::ENODATA) => Ok(()),
+        Some(libc::EOPNOTSUPP) => Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "strict owner-only ACL validation is unsupported by this filesystem",
+        )),
+        _ => Err(error),
+    }
+}
+
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+fn validate_no_extended_acl(_file: &File) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "strict owner-only ACL validation is not implemented on this Unix host",
+    ))
 }
 
 #[cfg(unix)]
@@ -113,7 +201,7 @@ pub fn read_owner_only(path: &Path) -> io::Result<Vec<u8>> {
 pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::Result<Vec<u8>> {
     use std::os::unix::fs::MetadataExt as _;
 
-    let file = open_strict_owner_only(path)?;
+    let mut file = open_strict_owner_only(path)?;
     let before = file.metadata()?;
     if before.len() > maximum_bytes as u64 {
         return Err(io::Error::new(
@@ -123,7 +211,10 @@ pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::R
     }
 
     let mut bytes = Vec::with_capacity(before.len() as usize);
-    if let Err(error) = file.take(maximum_bytes as u64 + 1).read_to_end(&mut bytes) {
+    if let Err(error) = (&mut file)
+        .take(maximum_bytes as u64 + 1)
+        .read_to_end(&mut bytes)
+    {
         bytes.zeroize();
         return Err(error);
     }
@@ -133,6 +224,14 @@ pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::R
             io::ErrorKind::InvalidData,
             "secret file exceeds its size limit",
         ));
+    }
+
+    // Do not return content if the opened inode's strict protection changed
+    // during the read. The pre-read check above remains the exposure boundary;
+    // this second descriptor check closes the returned-stale-validation race.
+    if let Err(error) = validate_open_file_strict(&file) {
+        bytes.zeroize();
+        return Err(error);
     }
 
     // Re-open-free path verification closes the ordinary path-check/open race
@@ -230,10 +329,7 @@ pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
 pub(crate) fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
     write_new_owner_only_with(path, |file| {
         file.write_all(bytes)?;
-        file.sync_all()?;
-        #[cfg(unix)]
-        validate_open_file_strict(file)?;
-        Ok(())
+        file.sync_all()
     })
 }
 
@@ -245,10 +341,7 @@ pub(crate) fn copy_new_owner_only(source: &mut File, path: &Path) -> io::Result<
     let mut copied = 0;
     write_new_owner_only_with(path, |destination| {
         copied = io::copy(source, destination)?;
-        destination.sync_all()?;
-        #[cfg(unix)]
-        validate_open_file_strict(destination)?;
-        Ok(())
+        destination.sync_all()
     })?;
     Ok(copied)
 }
@@ -258,7 +351,32 @@ fn write_new_owner_only_with(
     write: impl FnOnce(&mut File) -> io::Result<()>,
 ) -> io::Result<()> {
     let mut file = create_new_owner_only(path)?;
-    let result = write(&mut file);
+    // Strict publications reject inherited ACLs before any secret bytes are
+    // written, then revalidate the same descriptor after the complete fsynced
+    // candidate has been produced. Ordinary `write_owner_only` intentionally
+    // keeps its separate repair-in-place compatibility contract.
+    #[cfg(unix)]
+    let initial_validation = validate_open_file_strict(&file);
+    #[cfg(not(unix))]
+    let initial_validation: io::Result<()> = Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "strict owner-only capability-file validation is not implemented on this host",
+    ));
+    let result = initial_validation
+        .and_then(|()| write(&mut file))
+        .and_then(|()| {
+            #[cfg(unix)]
+            {
+                validate_open_file_strict(&file)
+            }
+            #[cfg(not(unix))]
+            {
+                Err(io::Error::new(
+                    io::ErrorKind::Unsupported,
+                    "strict owner-only capability-file validation is not implemented on this host",
+                ))
+            }
+        });
     drop(file);
     if result.is_err() {
         // Creation succeeded, so this inode is ours. An AlreadyExists error
@@ -451,6 +569,17 @@ fn create_new_owner_only(_path: &Path) -> io::Result<File> {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "macos")]
+    fn add_extended_acl(path: &Path, entry: &str) {
+        let status = std::process::Command::new("chmod")
+            .arg("+a")
+            .arg(entry)
+            .arg(path)
+            .status()
+            .unwrap();
+        assert!(status.success(), "chmod failed to install a test ACL");
+    }
+
     #[cfg(unix)]
     #[test]
     fn repairs_permissive_existing_file_before_reading() {
@@ -527,6 +656,68 @@ mod tests {
         .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::Other);
         assert!(!candidate.exists());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn strict_read_rejects_mode_0600_file_with_extended_acl() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("strict-secret");
+        std::fs::write(&path, b"acl-secret-sentinel").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        add_extended_acl(&path, "everyone allow read");
+
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(
+            open_strict_owner_only(&path).unwrap_err().kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        assert_eq!(
+            read_strict_owner_only(&path, 64).unwrap_err().kind(),
+            io::ErrorKind::PermissionDenied
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn strict_publication_rejects_inherited_acl_before_writing() {
+        use std::cell::Cell;
+
+        let directory = tempfile::tempdir().unwrap();
+        add_extended_acl(directory.path(), "everyone allow read,file_inherit");
+        let path = directory.path().join("strict-secret");
+        let writer_ran = Cell::new(false);
+
+        let error = write_new_owner_only_with(&path, |_| {
+            writer_ran.set(true);
+            Ok(())
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert!(!writer_ran.get());
+        assert!(!path.exists());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn strict_publication_revalidates_acl_after_writing() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("strict-secret");
+
+        let error = write_new_owner_only_with(&path, |file| {
+            file.write_all(b"acl-publication-sentinel")?;
+            file.sync_all()?;
+            add_extended_acl(&path, "everyone allow read");
+            Ok(())
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert!(!path.exists());
     }
 
     #[cfg(not(unix))]
