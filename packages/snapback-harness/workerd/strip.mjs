@@ -66,6 +66,7 @@ let capturedIntrinsics = {
   stringCharCodeAt: globalThis.String.prototype.charCodeAt,
   stringCharAt: globalThis.String.prototype.charAt,
   defineProperty: globalThis.Object.defineProperty,
+  objectFreeze: globalThis.Object.freeze,
   getOwnPropertyDescriptor: globalThis.Object.getOwnPropertyDescriptor,
   objectCreate: globalThis.Object.create,
   objectKeys: globalThis.Object.keys,

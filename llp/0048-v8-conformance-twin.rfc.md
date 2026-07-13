@@ -430,7 +430,10 @@ all are fixed and gated by the twin suites and the conformance corpus:
   through a lexical reference. Ibex captures its original FFI transport at
   bootstrap time. Twin probes cover hostile frozen globals, accessors,
   wrapper interception, and raw host-call attempts; Rust independently
-  rejects action DB reads at the shared host-op boundary.
+  rejects action DB reads at the shared host-op boundary. The Workerd default
+  service export is frozen before application evaluation as well: importing
+  `handler-server.mjs` cannot replace `fetch` and thereby receive the live
+  `env` bindings outside the invoke/host/response capability channels.
 - **Unforgeable settlement and rejection collection** (ENG-24559): the V8
   rejection ledger and its destructive drain live inside the handler-server
   closure; there is no importable sibling ledger module. The strip exposes a

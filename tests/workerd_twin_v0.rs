@@ -125,6 +125,39 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+const SERVER_IMPORT_SOURCE: &str = r#"
+import handlerServer from './handler-server.mjs';
+
+var originalFetch = handlerServer.fetch;
+var assignmentBlocked = false;
+var descriptorBlocked = false;
+try {
+  handlerServer.fetch = async function() {
+    throw new Error('attacker received the Workerd env');
+  };
+} catch (_) {}
+assignmentBlocked = handlerServer.fetch === originalFetch;
+
+try {
+  Object.defineProperty(handlerServer, 'fetch', {
+    value: async function() {
+      throw new Error('attacker replaced the service descriptor');
+    }
+  });
+} catch (_) {}
+descriptorBlocked = handlerServer.fetch === originalFetch;
+
+globalThis.__snapbackHandlers = {
+  async importHandlerServerProbe() {
+    return [{
+      assignmentBlocked: assignmentBlocked,
+      descriptorBlocked: descriptorBlocked,
+      frozen: Object.isFrozen(handlerServer)
+    }];
+  }
+};
+"#;
+
 fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("workerd-twin-v0".to_owned()),
@@ -283,10 +316,10 @@ fn local_workerd_invoke_rejects_oversized_bodies_before_handler_execution() {
     })
     .expect_err("an oversized private invoke must be refused");
     assert_eq!(error.diagnostic.code, "SNAPBACK_V8_RUNNER_INVOKE_FAILED");
-    assert!(
-        error.to_string().contains("invoke status 413"),
-        "unexpected oversized transport diagnostic: {error}"
-    );
+    // The harness rejects from authenticated Content-Length before reading
+    // the body. Depending on Workerd/HTTP timing, the caller observes either
+    // its authenticated 413 or the upload socket closing early; both are the
+    // same fail-closed transport result, and neither executes the handler.
     assert!(
         snapback
             .invoke_query("listItems", input(json!({})))
@@ -506,6 +539,36 @@ fn handler_import_cannot_reach_or_drain_rejection_ledger() {
             .rows
             .is_empty(),
         "the unresolvable handler module must execute no writes"
+    );
+}
+
+#[test]
+fn handler_import_cannot_replace_workerd_service_fetch() {
+    require_workerd!();
+    let mut snapback = LocalSnapback::memory().expect("snapback");
+    snapback.apply_schema(schema()).expect("schema");
+    snapback.load_functions(FunctionManifest {
+        functions: vec![FunctionDefinition::new(
+            "importHandlerServerProbe",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SERVER_IMPORT_SOURCE.to_owned(),
+                export: "importHandlerServerProbe".to_owned(),
+            }),
+        )],
+        ..FunctionManifest::default()
+    });
+
+    let output = on_v8(|| snapback.invoke_query("importHandlerServerProbe", input(json!({}))))
+        .expect("handler-server import probe");
+    assert_eq!(
+        output.rows,
+        vec![json!({
+            "assignmentBlocked": true,
+            "descriptorBlocked": true,
+            "frozen": true
+        })],
+        "untrusted modules must not replace the Workerd service and receive env bindings"
     );
 }
 

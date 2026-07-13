@@ -509,8 +509,10 @@ inherited `toJSON` hook cannot turn a thrown handler failure into success
 On the V8 leg, ESM exports are not treated as an access-control boundary. The
 server is the first application-graph dependency and consumes the strip's
 captured intrinsic bag through a one-shot function; a later application import
-of the same module receives `null`. The rejection ledger and its destructive
-drain live in the server module's closure, and the former importable ledger
+of the same module receives `null`. Its exported Workerd service object is
+frozen before application evaluation, so importing the server cannot replace
+`fetch` and recover the live `env` bindings. The rejection ledger and its
+destructive drain live in the server module's closure, and the former importable ledger
 module does not exist in the workerd config or deployed bundle. Records that
 cross an async Promise-resolution boundary are copied to null-prototype
 containers, `Response.prototype` has an own non-then property, and the native

@@ -10,8 +10,8 @@
 // (the twin passes none, the Cloudflare target passes the coordinator
 // Durable Object id). This module evaluates before handler.mjs and owns every
 // destructive control-plane primitive lexically. Application modules can
-// import this module's default fetch object, but no ledger or intrinsic bag is
-// exported from it.
+// import this module's default fetch object, so that service is frozen before
+// application evaluation; no ledger or intrinsic bag is exported from it.
 // @ref LLP 0048#review-hardening-2026-07-07-eng-23574eng-23593 — the trusted
 // module boundary and unforgeable settlement channel are one security seam.
 import { consumeTrustedIntrinsics } from "./strip.mjs";
@@ -246,7 +246,7 @@ async function readBoundedJson(request) {
 // that just ran (ENG-23574 / ENG-23585).
 let invocationChain = trustedResolve();
 
-export default {
+const handlerServer = {
   async fetch(request, env) {
     const responseToken = kept.String(env.SNAPBACK_RESPONSE_TOKEN || "");
     const respond = (status, value) => json(status, value, responseToken);
@@ -298,6 +298,28 @@ export default {
     return run;
   },
 };
+
+// The application module is a later sibling in the same ESM graph and can
+// import this module by name. Seal the service object before that module
+// evaluates: otherwise it could replace `fetch`, receive the Workerd `env`
+// bindings directly, and bypass every invocation/host/response capability.
+// Use the pre-application intrinsic because handler code may poison
+// `Object.freeze` after initialization.
+kept.objectFreeze(handlerServer);
+const handlerFetchDescriptor = kept.getOwnPropertyDescriptor(
+  handlerServer,
+  "fetch"
+);
+if (
+  !handlerFetchDescriptor ||
+  handlerFetchDescriptor.writable ||
+  handlerFetchDescriptor.configurable
+) {
+  throw new kept.Error(
+    "SNAPBACK_HANDLER_HARNESS_INIT_FAILED: service fetch could not be sealed"
+  );
+}
+export default handlerServer;
 
 async function invoke(body, env, responseToken) {
   // Hygiene for the pathological bail-out path below: if a previous
