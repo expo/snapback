@@ -22,6 +22,7 @@ use tokio::sync::{
     Mutex as AsyncMutex, OwnedMutexGuard, OwnedRwLockReadGuard, OwnedRwLockWriteGuard,
     RwLock as AsyncRwLock,
 };
+use uuid::Uuid;
 use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
@@ -31,11 +32,13 @@ use super::crypto::{
 use super::keyring::AuthKeyringStore;
 use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
+use super::session_projection::{RevocationReason, TokenDigest};
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::LocalDatabase;
+use crate::storage::auth::AuthTransactionAttempt;
 
 pub const AUTH_ADDRESS_STRIPES: usize = 256;
 pub const AUTH_MAX_COLLISION_ATTEMPTS: usize = 3;
@@ -365,6 +368,204 @@ enum LogoutOutcome {
     Revoked(SessionRevocation),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedTokenSource {
+    Current,
+    Superseded { superseded_at_ms: u64 },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProviderRevocationPlan {
+    session_id: String,
+    expected_generation: u64,
+    presented_digest: TokenDigest,
+    source: PlannedTokenSource,
+    reason: RevocationReason,
+}
+
+impl ProviderRevocationPlan {
+    pub(crate) fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub(crate) fn expected_generation(&self) -> u64 {
+        self.expected_generation
+    }
+
+    pub(crate) fn reason(&self) -> RevocationReason {
+        self.reason
+    }
+
+    fn committed_generation(&self) -> SnapbackResult<u64> {
+        self.expected_generation
+            .checked_add(1)
+            .filter(|generation| *generation <= MAX_SAFE_TIMESTAMP)
+            .ok_or_else(internal_state_snapback)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        session_id: String,
+        expected_generation: u64,
+        presented_digest: TokenDigest,
+        source: PlannedTokenSource,
+        reason: RevocationReason,
+    ) -> Self {
+        Self {
+            session_id,
+            expected_generation,
+            presented_digest,
+            source,
+            reason,
+        }
+    }
+}
+
+pub(crate) struct ProviderTokenRotationPlan {
+    session_id: String,
+    expected_generation: u64,
+    predecessor_digest: TokenDigest,
+    successor_digest: TokenDigest,
+    superseded_at_ms: u64,
+    successor: BearerCandidate,
+}
+
+impl ProviderTokenRotationPlan {
+    pub(crate) fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub(crate) fn expected_generation(&self) -> u64 {
+        self.expected_generation
+    }
+
+    pub(crate) fn predecessor_digest(&self) -> TokenDigest {
+        self.predecessor_digest
+    }
+
+    pub(crate) fn successor_digest(&self) -> TokenDigest {
+        self.successor_digest
+    }
+
+    pub(crate) fn superseded_at_ms(&self) -> u64 {
+        self.superseded_at_ms
+    }
+
+    pub(crate) fn into_issue(mut self, session: SessionResponse) -> CredentialIssue {
+        let token = self
+            .successor
+            .bearer
+            .take()
+            .expect("planned rotation retains plaintext until exact finalize");
+        let refresh_after = self
+            .superseded_at_ms
+            .checked_add(AUTH_SESSION_REFRESH_CADENCE_MS)
+            .unwrap_or(MAX_SAFE_TIMESTAMP)
+            .min(session.expires_at)
+            .min(session.absolute_expires_at);
+        CredentialIssue::new(CredentialResponse::new(token, refresh_after, session), None)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        session_id: String,
+        expected_generation: u64,
+        predecessor_digest: TokenDigest,
+        successor_bearer: SessionBearer,
+        superseded_at_ms: u64,
+    ) -> Self {
+        let successor = BearerCandidate {
+            token_hash: successor_bearer.token_hash(),
+            bearer: Some(successor_bearer),
+        };
+        let successor_digest = TokenDigest::from_token_hash(&successor.token_hash);
+        Self {
+            session_id,
+            expected_generation,
+            predecessor_digest,
+            successor_digest,
+            superseded_at_ms,
+            successor,
+        }
+    }
+}
+
+impl fmt::Debug for ProviderTokenRotationPlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ProviderTokenRotationPlan")
+            .field("session_id", &self.session_id)
+            .field("expected_generation", &self.expected_generation)
+            .field("predecessor_digest", &self.predecessor_digest)
+            .field("successor_digest", &self.successor_digest)
+            .field("superseded_at_ms", &self.superseded_at_ms)
+            .field("successor", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedLogout {
+    AuthRequired,
+    SessionExpired,
+    CredentialSuperseded,
+    Revoke(ProviderRevocationPlan),
+}
+
+pub(crate) enum PlannedRefresh {
+    AuthRequired,
+    SessionExpired,
+    SupersededInsideGrace,
+    Rotate(ProviderTokenRotationPlan),
+    ReuseRevoke(ProviderRevocationPlan),
+}
+
+/// Closed family-alarm plan. Even malformed/current/unknown inputs carry a
+/// dummy exact-shaped plan into one IMMEDIATE transaction; callers never skip
+/// the writer based on whether the preliminary lookup found a tombstone.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProviderFamilyAlarmPlan {
+    session_id: String,
+    expected_generation: u64,
+    presented_digest: TokenDigest,
+    superseded_at_ms: u64,
+    observed_at_ms: u64,
+    actionable: bool,
+}
+
+impl ProviderFamilyAlarmPlan {
+    pub(crate) fn revocation_plan(&self) -> Option<ProviderRevocationPlan> {
+        self.actionable.then(|| ProviderRevocationPlan {
+            session_id: self.session_id.clone(),
+            expected_generation: self.expected_generation,
+            presented_digest: self.presented_digest,
+            source: PlannedTokenSource::Superseded {
+                superseded_at_ms: self.superseded_at_ms,
+            },
+            reason: RevocationReason::FamilyAlarm,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedFamilyAlarmCommit {
+    Revoked(SessionRevocation),
+    Noop,
+    Retry,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedRevocationCommit {
+    Committed(SessionRevocation),
+    AlreadyTerminal { generation: u64 },
+    PredecessorChanged,
+}
+
+pub(crate) enum PlannedRotationCommit {
+    Committed { session: SessionResponse },
+    PredecessorChanged,
+}
+
 pub struct AuthProvider {
     profile: AuthProviderProfile,
     keyring: Arc<AuthKeyringStore>,
@@ -614,6 +815,272 @@ impl AuthAdmission {
             .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
             .map_err(|_| provider_unavailable())?;
         resolve_ordinary_lookup(lookup, now_ms)
+    }
+
+    /// Read and validate every logout precondition without mutating durable or
+    /// projected state. The caller releases its database guard, installs the
+    /// returned plan in `AuthCoordinator`, then re-enters through
+    /// `commit_planned_revocation`.
+    pub(crate) fn plan_logout(
+        &self,
+        database: &LocalDatabase,
+        bearer: &str,
+        now_ms: u64,
+    ) -> ProviderResult<PlannedLogout> {
+        validate_now(now_ms)?;
+        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let token_hash = bearer.token_hash();
+        let digest = TokenDigest::from_token_hash(&token_hash);
+        let lookup = database
+            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+            .map_err(|_| provider_unavailable())?;
+        Ok(match lookup {
+            PresentedSessionLookup::Unknown => PlannedLogout::AuthRequired,
+            PresentedSessionLookup::Current(session) => {
+                if !session.live_at(now_ms) {
+                    PlannedLogout::SessionExpired
+                } else {
+                    PlannedLogout::Revoke(revocation_plan(
+                        &session,
+                        digest,
+                        PlannedTokenSource::Current,
+                        RevocationReason::Logout,
+                    ))
+                }
+            }
+            PresentedSessionLookup::Tombstone {
+                session,
+                superseded_at_ms,
+            } => {
+                if !session.live_at(now_ms) {
+                    PlannedLogout::SessionExpired
+                } else if now_ms
+                    .checked_sub(superseded_at_ms)
+                    .ok_or_else(provider_unavailable)?
+                    > AUTH_SESSION_SUPERSESSION_GRACE_MS
+                {
+                    PlannedLogout::CredentialSuperseded
+                } else {
+                    PlannedLogout::Revoke(revocation_plan(
+                        &session,
+                        digest,
+                        PlannedTokenSource::Superseded { superseded_at_ms },
+                        RevocationReason::Logout,
+                    ))
+                }
+            }
+        })
+    }
+
+    pub(crate) fn plan_refresh(
+        &self,
+        database: &LocalDatabase,
+        bearer: &str,
+        now_ms: u64,
+    ) -> ProviderResult<PlannedRefresh> {
+        validate_now(now_ms)?;
+        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let token_hash = bearer.token_hash();
+        let digest = TokenDigest::from_token_hash(&token_hash);
+        let lookup = database
+            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+            .map_err(|_| provider_unavailable())?;
+        Ok(match lookup {
+            PresentedSessionLookup::Unknown => PlannedRefresh::AuthRequired,
+            PresentedSessionLookup::Current(session) => {
+                if !session.live_at(now_ms) {
+                    PlannedRefresh::SessionExpired
+                } else {
+                    let successor = BearerCandidate::generate(&self.provider)?;
+                    let successor_digest = TokenDigest::from_token_hash(&successor.token_hash);
+                    PlannedRefresh::Rotate(ProviderTokenRotationPlan {
+                        session_id: session.session.session_id,
+                        expected_generation: session.session.generation,
+                        predecessor_digest: digest,
+                        successor_digest,
+                        superseded_at_ms: now_ms,
+                        successor,
+                    })
+                }
+            }
+            PresentedSessionLookup::Tombstone {
+                session,
+                superseded_at_ms,
+            } => {
+                if !session.live_at(now_ms) {
+                    PlannedRefresh::SessionExpired
+                } else if now_ms
+                    .checked_sub(superseded_at_ms)
+                    .ok_or_else(provider_unavailable)?
+                    <= AUTH_SESSION_SUPERSESSION_GRACE_MS
+                {
+                    PlannedRefresh::SupersededInsideGrace
+                } else {
+                    PlannedRefresh::ReuseRevoke(revocation_plan(
+                        &session,
+                        digest,
+                        PlannedTokenSource::Superseded { superseded_at_ms },
+                        RevocationReason::RefreshReuse,
+                    ))
+                }
+            }
+        })
+    }
+
+    pub(crate) fn plan_family_alarm(
+        &self,
+        database: &LocalDatabase,
+        bearer: &str,
+        now_ms: u64,
+    ) -> ProviderResult<ProviderFamilyAlarmPlan> {
+        validate_now(now_ms)?;
+        let parsed = SessionBearer::parse(bearer).ok();
+        let token_hash = parsed
+            .as_ref()
+            .map(SessionBearer::token_hash)
+            .unwrap_or_else(|| TokenHash::from_bytes(*self.provider.dummy_token_hash.as_bytes()));
+        let digest = TokenDigest::from_token_hash(&token_hash);
+        let lookup = database
+            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+            .map_err(|_| provider_unavailable())?;
+        Ok(match lookup {
+            PresentedSessionLookup::Tombstone {
+                session,
+                superseded_at_ms,
+            } if session.live_at(now_ms) => ProviderFamilyAlarmPlan {
+                session_id: session.session.session_id,
+                expected_generation: session.session.generation,
+                presented_digest: digest,
+                superseded_at_ms,
+                observed_at_ms: now_ms,
+                actionable: true,
+            },
+            _ => ProviderFamilyAlarmPlan {
+                // This canonical value is process-independent but cannot be a
+                // provider-minted UUIDv7 session id. It still drives the same
+                // statement bindings and exact row-count checks.
+                session_id: Uuid::nil().to_string(),
+                expected_generation: 1,
+                presented_digest: digest,
+                superseded_at_ms: 0,
+                observed_at_ms: now_ms,
+                actionable: false,
+            },
+        })
+    }
+
+    pub(crate) fn commit_planned_family_alarm(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderFamilyAlarmPlan,
+    ) -> AuthTransactionAttempt<PlannedFamilyAlarmCommit> {
+        let attempt = database.attempt_auth_transaction(|transaction| {
+            planned_family_alarm_transaction(transaction, plan)
+        });
+        let AuthTransactionAttempt::CommitUncertain(error) = attempt else {
+            return attempt;
+        };
+        let Some(revocation) = plan.revocation_plan() else {
+            // The dummy statement cannot match a provider-minted session. An
+            // ambiguous SQLite commit still ran the fixed writer shape, and
+            // no authority successor exists to publish.
+            return AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop);
+        };
+        match database.with_auth_read(|connection| {
+            reconcile_planned_revocation(connection, &revocation, plan.observed_at_ms)
+        }) {
+            Ok(DurableRevocationReconcile::ExactSuccessor(revocation)) => {
+                AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation))
+            }
+            Ok(DurableRevocationReconcile::ExactPredecessor) => {
+                AuthTransactionAttempt::RolledBack(error)
+            }
+            Ok(DurableRevocationReconcile::DifferentValid) => {
+                AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
+            }
+            Err(_) => AuthTransactionAttempt::CommitUncertain(error),
+        }
+    }
+
+    /// Enter the SQLite lane with only immutable CAS inputs. The projection
+    /// ticket itself is opaque to this function and no topology/fence lock is
+    /// held across the transaction.
+    pub(crate) fn commit_planned_revocation(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderRevocationPlan,
+        now_ms: u64,
+    ) -> AuthTransactionAttempt<PlannedRevocationCommit> {
+        if let Err(error) = validate_now(now_ms) {
+            return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
+        }
+        let attempt = database.attempt_auth_transaction(|transaction| {
+            planned_revocation_transaction(transaction, plan, now_ms)
+        });
+        let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
+            return attempt;
+        };
+        // The connection is no longer inside the ambiguous transaction. Read
+        // the exact predecessor/successor facts before deciding whether the
+        // coordinator may unmark or finalize its ticket.
+        match database
+            .with_auth_read(|connection| reconcile_planned_revocation(connection, plan, now_ms))
+        {
+            Ok(DurableRevocationReconcile::ExactPredecessor) => {
+                AuthTransactionAttempt::RolledBack(commit_error)
+            }
+            Ok(DurableRevocationReconcile::ExactSuccessor(revocation)) => {
+                AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(revocation))
+            }
+            Ok(DurableRevocationReconcile::DifferentValid) => {
+                AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged)
+            }
+            Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+        }
+    }
+
+    pub(crate) fn commit_planned_rotation(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderTokenRotationPlan,
+    ) -> AuthTransactionAttempt<PlannedRotationCommit> {
+        if let Err(error) = validate_now(plan.superseded_at_ms) {
+            return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
+        }
+        match database.attempt_auth_transaction(|transaction| {
+            planned_rotation_transaction(
+                transaction,
+                plan,
+                &plan.successor.token_hash,
+                plan.superseded_at_ms,
+            )
+        }) {
+            AuthTransactionAttempt::Committed(PlannedRotationTransaction::PredecessorChanged) => {
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged)
+            }
+            AuthTransactionAttempt::Committed(PlannedRotationTransaction::Refreshed(session)) => {
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session })
+            }
+            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                match database
+                    .with_auth_read(|connection| reconcile_planned_rotation(connection, plan))
+                {
+                    Ok(DurableRotationReconcile::ExactPredecessor) => {
+                        AuthTransactionAttempt::RolledBack(error)
+                    }
+                    Ok(DurableRotationReconcile::ExactSuccessor(session)) => {
+                        AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                            session,
+                        })
+                    }
+                    Ok(DurableRotationReconcile::DifferentValid) => {
+                        AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged)
+                    }
+                    Err(_) => AuthTransactionAttempt::CommitUncertain(error),
+                }
+            }
+        }
     }
 
     /// Rotate a current bearer, or apply the exact predecessor-reuse matrix.
@@ -1315,14 +1782,16 @@ fn raw_session_record(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSessionRec
 }
 
 fn checked_session_record(raw: RawSessionRecord) -> SnapbackResult<SessionRecord> {
-    let generation = u64::try_from(raw.generation).map_err(|_| internal_state_snapback())?;
+    let generation = u64::try_from(raw.generation)
+        .ok()
+        .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
+        .ok_or_else(internal_state_snapback)?;
     let created_at_ms = checked_stored_time(raw.created_at_ms)?;
     let last_used_at_ms = checked_stored_time(raw.last_used_at_ms)?;
     let expires_at_ms = checked_stored_time(raw.expires_at_ms)?;
     let absolute_expires_at_ms = checked_stored_time(raw.absolute_expires_at_ms)?;
     let revoked_at_ms = raw.revoked_at_ms.map(checked_stored_time).transpose()?;
-    if generation == 0
-        || created_at_ms > last_used_at_ms
+    if created_at_ms > last_used_at_ms
         || last_used_at_ms > expires_at_ms
         || expires_at_ms > absolute_expires_at_ms
         || revoked_at_ms.is_some_and(|revoked_at_ms| revoked_at_ms < created_at_ms)
@@ -1350,6 +1819,63 @@ fn checked_stored_time(value: i64) -> SnapbackResult<u64> {
         .ok()
         .filter(|value| *value <= MAX_SAFE_TIMESTAMP)
         .ok_or_else(internal_state_snapback)
+}
+
+#[derive(Debug)]
+struct DurableSessionSnapshot {
+    record: SessionRecord,
+    current_digest: TokenDigest,
+    revoked_at_ms: Option<u64>,
+}
+
+fn lookup_session_snapshot(
+    connection: &Connection,
+    session_id: &str,
+) -> SnapbackResult<Option<DurableSessionSnapshot>> {
+    let raw = connection
+        .query_row(
+            "SELECT session.id, session.user_id, session.identity_id,
+                    identity.provider, session.generation,
+                    session.authority_instance_id, session.created_at_ms,
+                    session.last_used_at_ms, session.expires_at_ms,
+                    session.absolute_expires_at_ms, session.revoked_at_ms,
+                    session.token_hash
+             FROM _auth_sessions AS session
+             JOIN _auth_identities AS identity
+               ON identity.id = session.identity_id AND identity.user_id = session.user_id
+             WHERE session.id = ?1",
+            params![session_id],
+            |row| Ok((raw_session_record(row)?, row.get::<_, Vec<u8>>(11)?)),
+        )
+        .optional()?;
+    raw.map(|(raw, token_hash)| {
+        let revoked_at_ms = raw.revoked_at_ms.map(checked_stored_time).transpose()?;
+        let current_digest =
+            TokenDigest::from_slice(&token_hash).map_err(|_| internal_state_snapback())?;
+        Ok(DurableSessionSnapshot {
+            record: checked_session_record(raw)?,
+            current_digest,
+            revoked_at_ms,
+        })
+    })
+    .transpose()
+}
+
+fn exact_tombstone_time(
+    connection: &Connection,
+    session_id: &str,
+    digest: TokenDigest,
+) -> SnapbackResult<Option<u64>> {
+    connection
+        .query_row(
+            "SELECT superseded_at_ms FROM _auth_session_tokens
+             WHERE session_id = ?1 AND token_hash = ?2",
+            params![session_id, digest.as_bytes().as_slice()],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .map(checked_stored_time)
+        .transpose()
 }
 
 fn resolve_ordinary_lookup(
@@ -1382,6 +1908,260 @@ fn resolve_ordinary_lookup(
             }
         }
     }
+}
+
+fn revocation_plan(
+    session: &SessionRecord,
+    presented_digest: TokenDigest,
+    source: PlannedTokenSource,
+    reason: RevocationReason,
+) -> ProviderRevocationPlan {
+    ProviderRevocationPlan {
+        session_id: session.session.session_id.clone(),
+        expected_generation: session.session.generation,
+        presented_digest,
+        source,
+        reason,
+    }
+}
+
+fn planned_revocation_transaction(
+    transaction: &Transaction<'_>,
+    plan: &ProviderRevocationPlan,
+    now_ms: u64,
+) -> SnapbackResult<PlannedRevocationCommit> {
+    let committed_generation = plan.committed_generation()?;
+    let changed = match plan.source {
+        PlannedTokenSource::Current => transaction.execute(
+            "UPDATE _auth_sessions
+             SET revoked_at_ms = ?1, generation = ?2
+             WHERE id = ?3 AND generation = ?4 AND token_hash = ?5
+               AND revoked_at_ms IS NULL AND ?1 < expires_at_ms",
+            params![
+                now_ms as i64,
+                committed_generation as i64,
+                plan.session_id,
+                plan.expected_generation as i64,
+                plan.presented_digest.as_bytes().as_slice(),
+            ],
+        )?,
+        PlannedTokenSource::Superseded { superseded_at_ms } => transaction.execute(
+            "UPDATE _auth_sessions
+             SET revoked_at_ms = ?1, generation = ?2
+             WHERE id = ?3 AND generation = ?4 AND revoked_at_ms IS NULL
+               AND ?1 < expires_at_ms
+               AND EXISTS(
+                 SELECT 1 FROM _auth_session_tokens AS token
+                 WHERE token.session_id = _auth_sessions.id
+                   AND token.token_hash = ?5 AND token.superseded_at_ms = ?6
+               )",
+            params![
+                now_ms as i64,
+                committed_generation as i64,
+                plan.session_id,
+                plan.expected_generation as i64,
+                plan.presented_digest.as_bytes().as_slice(),
+                superseded_at_ms as i64,
+            ],
+        )?,
+    };
+    if changed == 1 {
+        return Ok(PlannedRevocationCommit::Committed(SessionRevocation {
+            session_id: plan.session_id.clone(),
+            generation: committed_generation,
+        }));
+    }
+    if changed != 0 {
+        return Err(internal_state_snapback());
+    }
+    let durable: Option<(i64, bool)> = transaction
+        .query_row(
+            "SELECT generation, revoked_at_ms IS NOT NULL
+             FROM _auth_sessions WHERE id = ?1",
+            params![plan.session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((generation, revoked)) = durable else {
+        return Ok(PlannedRevocationCommit::PredecessorChanged);
+    };
+    let generation = u64::try_from(generation)
+        .ok()
+        .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
+        .ok_or_else(internal_state_snapback)?;
+    if revoked && generation >= committed_generation {
+        Ok(PlannedRevocationCommit::AlreadyTerminal { generation })
+    } else {
+        Ok(PlannedRevocationCommit::PredecessorChanged)
+    }
+}
+
+fn planned_family_alarm_transaction(
+    transaction: &Transaction<'_>,
+    plan: &ProviderFamilyAlarmPlan,
+) -> SnapbackResult<PlannedFamilyAlarmCommit> {
+    let exact = ProviderRevocationPlan {
+        session_id: plan.session_id.clone(),
+        expected_generation: plan.expected_generation,
+        presented_digest: plan.presented_digest,
+        source: PlannedTokenSource::Superseded {
+            superseded_at_ms: plan.superseded_at_ms,
+        },
+        reason: RevocationReason::FamilyAlarm,
+    };
+    match planned_revocation_transaction(transaction, &exact, plan.observed_at_ms)? {
+        PlannedRevocationCommit::Committed(revocation) if plan.actionable => {
+            Ok(PlannedFamilyAlarmCommit::Revoked(revocation))
+        }
+        PlannedRevocationCommit::Committed(_) => Err(internal_state_snapback()),
+        PlannedRevocationCommit::AlreadyTerminal { .. }
+        | PlannedRevocationCommit::PredecessorChanged
+            if plan.actionable =>
+        {
+            Ok(PlannedFamilyAlarmCommit::Retry)
+        }
+        PlannedRevocationCommit::AlreadyTerminal { .. }
+        | PlannedRevocationCommit::PredecessorChanged => Ok(PlannedFamilyAlarmCommit::Noop),
+    }
+}
+
+enum DurableRevocationReconcile {
+    ExactPredecessor,
+    ExactSuccessor(SessionRevocation),
+    DifferentValid,
+}
+
+fn reconcile_planned_revocation(
+    connection: &Connection,
+    plan: &ProviderRevocationPlan,
+    now_ms: u64,
+) -> SnapbackResult<DurableRevocationReconcile> {
+    let Some(snapshot) = lookup_session_snapshot(connection, &plan.session_id)? else {
+        return Ok(DurableRevocationReconcile::DifferentValid);
+    };
+    let committed_generation = plan.committed_generation()?;
+    if snapshot.record.session.generation == committed_generation
+        && snapshot.revoked_at_ms == Some(now_ms)
+    {
+        return Ok(DurableRevocationReconcile::ExactSuccessor(
+            SessionRevocation {
+                session_id: plan.session_id.clone(),
+                generation: committed_generation,
+            },
+        ));
+    }
+    let exact_source = match plan.source {
+        PlannedTokenSource::Current => snapshot.current_digest == plan.presented_digest,
+        PlannedTokenSource::Superseded { superseded_at_ms } => {
+            exact_tombstone_time(connection, &plan.session_id, plan.presented_digest)?
+                == Some(superseded_at_ms)
+        }
+    };
+    if snapshot.record.session.generation == plan.expected_generation
+        && !snapshot.record.revoked
+        && snapshot.record.live_at(now_ms)
+        && exact_source
+    {
+        Ok(DurableRevocationReconcile::ExactPredecessor)
+    } else {
+        Ok(DurableRevocationReconcile::DifferentValid)
+    }
+}
+
+enum PlannedRotationTransaction {
+    Refreshed(SessionResponse),
+    PredecessorChanged,
+}
+
+enum DurableRotationReconcile {
+    ExactPredecessor,
+    ExactSuccessor(SessionResponse),
+    DifferentValid,
+}
+
+fn reconcile_planned_rotation(
+    connection: &Connection,
+    plan: &ProviderTokenRotationPlan,
+) -> SnapbackResult<DurableRotationReconcile> {
+    let Some(snapshot) = lookup_session_snapshot(connection, &plan.session_id)? else {
+        return Ok(DurableRotationReconcile::DifferentValid);
+    };
+    let predecessor_tombstone =
+        exact_tombstone_time(connection, &plan.session_id, plan.predecessor_digest)?;
+    if snapshot.record.session.generation == plan.expected_generation
+        && !snapshot.record.revoked
+        && snapshot.current_digest == plan.successor_digest
+    {
+        if predecessor_tombstone != Some(plan.superseded_at_ms) {
+            return Err(internal_state_snapback());
+        }
+        return Ok(DurableRotationReconcile::ExactSuccessor(
+            snapshot.record.response(),
+        ));
+    }
+    if snapshot.record.session.generation == plan.expected_generation
+        && !snapshot.record.revoked
+        && snapshot.current_digest == plan.predecessor_digest
+        && predecessor_tombstone.is_none()
+    {
+        Ok(DurableRotationReconcile::ExactPredecessor)
+    } else {
+        Ok(DurableRotationReconcile::DifferentValid)
+    }
+}
+
+fn planned_rotation_transaction(
+    transaction: &Transaction<'_>,
+    plan: &ProviderTokenRotationPlan,
+    successor_hash: &TokenHash,
+    now_ms: u64,
+) -> SnapbackResult<PlannedRotationTransaction> {
+    let predecessor = TokenHash::from_bytes(*plan.predecessor_digest.as_bytes());
+    let Some(current) = lookup_current_session(transaction, &predecessor)? else {
+        return Ok(PlannedRotationTransaction::PredecessorChanged);
+    };
+    if current.session.session_id != plan.session_id
+        || current.session.generation != plan.expected_generation
+        || !current.live_at(now_ms)
+    {
+        return Ok(PlannedRotationTransaction::PredecessorChanged);
+    }
+    let successor_exists: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE token_hash = ?1)
+                OR EXISTS(SELECT 1 FROM _auth_session_tokens WHERE token_hash = ?1)",
+        params![successor_hash.as_bytes().as_slice()],
+        |row| row.get(0),
+    )?;
+    if successor_exists {
+        return Err(internal_collision_snapback());
+    }
+    execute_candidate(
+        transaction,
+        "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
+         VALUES(?1, ?2, ?3)",
+        params![
+            plan.predecessor_digest.as_bytes().as_slice(),
+            plan.session_id,
+            now_ms as i64,
+        ],
+    )?;
+    let changed = execute_candidate(
+        transaction,
+        "UPDATE _auth_sessions SET token_hash = ?1
+         WHERE id = ?2 AND generation = ?3 AND token_hash = ?4
+           AND revoked_at_ms IS NULL AND ?5 < expires_at_ms",
+        params![
+            successor_hash.as_bytes().as_slice(),
+            plan.session_id,
+            plan.expected_generation as i64,
+            plan.predecessor_digest.as_bytes().as_slice(),
+            now_ms as i64,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(internal_state_snapback());
+    }
+    Ok(PlannedRotationTransaction::Refreshed(current.response()))
 }
 
 fn refresh_transaction(
@@ -1533,7 +2313,10 @@ fn family_alarm_transaction(
         .optional()?;
     revoked
         .map(|(session_id, generation)| {
-            let generation = u64::try_from(generation).map_err(|_| internal_state_snapback())?;
+            let generation = u64::try_from(generation)
+                .ok()
+                .filter(|generation| (2..=MAX_SAFE_TIMESTAMP).contains(generation))
+                .ok_or_else(internal_state_snapback)?;
             if generation < 2 {
                 return Err(internal_state_snapback());
             }
@@ -1568,7 +2351,10 @@ fn authenticated_use_row(
         )
         .optional()?;
     raw.map(|(generation, last_used, expires, absolute, revoked)| {
-        let generation = u64::try_from(generation).map_err(|_| internal_state_snapback())?;
+        let generation = u64::try_from(generation)
+            .ok()
+            .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
+            .ok_or_else(internal_state_snapback)?;
         let row = AuthenticatedUseRow {
             generation,
             last_used_at_ms: checked_stored_time(last_used)?,
@@ -1913,6 +2699,7 @@ fn enforce_session_cap(
     let generation = u64::try_from(generation)
         .ok()
         .and_then(|generation| generation.checked_add(1))
+        .filter(|generation| *generation <= MAX_SAFE_TIMESTAMP)
         .ok_or_else(internal_state_snapback)?;
     let changed = transaction.execute(
         "UPDATE _auth_sessions SET revoked_at_ms = ?1, generation = ?2
@@ -3458,5 +4245,132 @@ mod tests {
             "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         );
         assert_eq!(direct_stream_facts(&database), (0, 0));
+    }
+
+    #[tokio::test]
+    async fn planned_logout_uses_exact_generation_and_token_cas() {
+        let start_ms = 10_000;
+        let (provider, mut database) = provider_database(start_ms);
+        let issue = mint(
+            &provider,
+            &mut database,
+            "planned-logout@example.com",
+            start_ms,
+        )
+        .await;
+        let bearer = issue_token(&issue);
+        let admission = provider.admit().await;
+        let PlannedLogout::Revoke(plan) = admission
+            .plan_logout(&database, &bearer, start_ms + 1)
+            .expect("logout plan")
+        else {
+            panic!("current bearer must plan a revocation");
+        };
+        let committed = admission.commit_planned_revocation(&mut database, &plan, start_ms + 1);
+        assert!(matches!(
+            committed,
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
+                SessionRevocation { generation: 2, .. }
+            ))
+        ));
+        let loser = admission.commit_planned_revocation(&mut database, &plan, start_ms + 1);
+        assert!(matches!(
+            loser,
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
+                generation: 2
+            })
+        ));
+    }
+
+    #[tokio::test]
+    async fn planned_refresh_returns_plaintext_only_after_exact_rotation_commit() {
+        let start_ms = 20_000;
+        let (provider, mut database) = provider_database(start_ms);
+        let issue = mint(
+            &provider,
+            &mut database,
+            "planned-refresh@example.com",
+            start_ms,
+        )
+        .await;
+        let predecessor = issue_token(&issue);
+        let admission = provider.admit().await;
+        let PlannedRefresh::Rotate(plan) = admission
+            .plan_refresh(&database, &predecessor, start_ms + 1)
+            .expect("refresh plan")
+        else {
+            panic!("current bearer must plan rotation");
+        };
+        let successor_digest = plan.successor_digest();
+        let superseded_at_ms = plan.superseded_at_ms();
+        let attempt = admission.commit_planned_rotation(&mut database, &plan);
+        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
+            attempt
+        else {
+            panic!("exact rotation must commit");
+        };
+        assert_eq!(superseded_at_ms, start_ms + 1);
+        let issue = plan.into_issue(session);
+        let successor = issue_token(&issue);
+        assert_eq!(
+            TokenDigest::from_token_hash(&SessionBearer::parse(&successor).unwrap().token_hash()),
+            successor_digest
+        );
+        admission
+            .resolve_session(&database, &successor, start_ms + 2)
+            .expect("successor resolves after commit");
+        assert!(matches!(
+            admission
+                .plan_refresh(&database, &predecessor, start_ms + 2)
+                .expect("predecessor refresh plan"),
+            PlannedRefresh::SupersededInsideGrace
+        ));
+    }
+
+    #[tokio::test]
+    async fn planned_family_alarm_never_skips_the_dummy_writer_shape() {
+        let start_ms = 30_000;
+        let (provider, mut database) = provider_database(start_ms);
+        let admission = provider.admit().await;
+        let dummy = admission
+            .plan_family_alarm(&database, "malformed", start_ms)
+            .expect("dummy plan");
+        assert!(!dummy.actionable);
+        assert!(matches!(
+            admission.commit_planned_family_alarm(&mut database, &dummy),
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
+        ));
+
+        let issue = mint(
+            &provider,
+            &mut database,
+            "planned-alarm@example.com",
+            start_ms,
+        )
+        .await;
+        let predecessor = issue_token(&issue);
+        let PlannedRefresh::Rotate(rotation) = admission
+            .plan_refresh(&database, &predecessor, start_ms + 1)
+            .expect("rotation plan")
+        else {
+            panic!("current bearer must rotate");
+        };
+        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
+            admission.commit_planned_rotation(&mut database, &rotation)
+        else {
+            panic!("rotation commit");
+        };
+        drop(rotation.into_issue(session));
+        let alarm_at = start_ms + 1 + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1;
+        let alarm = admission
+            .plan_family_alarm(&database, &predecessor, alarm_at)
+            .expect("actionable alarm plan");
+        assert!(alarm.actionable);
+        assert!(matches!(
+            admission.commit_planned_family_alarm(&mut database, &alarm),
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
+                SessionRevocation { generation: 2, .. }
+            ))
+        ));
     }
 }

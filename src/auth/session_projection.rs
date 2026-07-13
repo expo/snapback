@@ -9,6 +9,7 @@
 //! @ref LLP 0056#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
 
+use crate::auth::crypto::TokenHash;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -22,6 +23,7 @@ pub(crate) const AUTHORIZATION_STREAM_FORMAT_VERSION: u32 = 1;
 pub(crate) const SESSION_PROJECTION_FORMAT_VERSION: u32 = 1;
 pub(crate) const AUTHORIZATION_STREAM_META_KEY: &str = "auth_stream_incarnation_v1";
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
+const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct AuthorizationStreamIncarnation(String);
@@ -104,7 +106,7 @@ impl AuthorizationStreamRecord {
 /// Raw rows copied from one SQLite read transaction. Numeric fields remain
 /// signed and digests remain variable-length until detached validation so a
 /// malformed database cannot be normalized accidentally while reading it.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct ProjectionSource {
     pub authorization_stream_value: Vec<u8>,
     pub restore_declaration_id: Option<Vec<u8>>,
@@ -114,13 +116,19 @@ pub(crate) struct ProjectionSource {
     pub superseded_tokens: Vec<ProjectionTokenRow>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+impl fmt::Debug for ProjectionSource {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProjectionSource([REDACTED])")
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct ProjectionUserRow {
     pub id: String,
     pub created_at_ms: i64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct ProjectionIdentityRow {
     pub id: String,
     pub user_id: String,
@@ -128,7 +136,7 @@ pub(crate) struct ProjectionIdentityRow {
     pub verified_at_ms: i64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct ProjectionSessionRow {
     pub id: String,
     pub user_id: String,
@@ -143,7 +151,7 @@ pub(crate) struct ProjectionSessionRow {
     pub revoked_at_ms: Option<i64>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct ProjectionTokenRow {
     pub token_hash: Vec<u8>,
     pub session_id: String,
@@ -159,6 +167,14 @@ impl TokenDigest {
             projection_corrupt("a projected token digest does not contain exactly 32 bytes")
         })?;
         Ok(Self(digest))
+    }
+
+    pub(crate) fn from_token_hash(token_hash: &TokenHash) -> Self {
+        Self(*token_hash.as_bytes())
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
     }
 }
 
@@ -223,6 +239,7 @@ pub(crate) enum RevocationReason {
     Logout,
     CapEviction,
     FamilyAlarm,
+    RefreshReuse,
     Reset,
     Restore,
     Expired,
@@ -239,9 +256,17 @@ pub(crate) enum ProjectedSessionState {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum PendingMutationKind {
-    Revoke { reason: RevocationReason },
-    TokenSupersede { predecessor: TokenDigest },
-    Expire,
+    Revoke {
+        reason: RevocationReason,
+    },
+    TokenSupersede {
+        predecessor: TokenDigest,
+        successor: TokenDigest,
+        superseded_at_ms: u64,
+    },
+    Expire {
+        deadline: DeadlinePair,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -255,6 +280,7 @@ struct ProjectedSession {
     session_id: String,
     user_id: String,
     provider: String,
+    authority_instance_id: String,
     generation: u64,
     expires_at_ms: u64,
     absolute_expires_at_ms: u64,
@@ -263,6 +289,34 @@ struct ProjectedSession {
     current_token: Option<TokenDigest>,
     pending: BTreeMap<MutationTicket, PendingMutation>,
     fence: Arc<SessionFence>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProjectedSessionAuthority {
+    pub session_id: String,
+    pub user_id: String,
+    pub provider: String,
+    pub generation: u64,
+    pub authority_instance_id: String,
+    pub expires_at_ms: u64,
+    pub absolute_expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ExpiredSession {
+    pub session_id: String,
+    pub generation: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectedTokenResolution {
+    Current(ProjectedSessionAuthority),
+    Superseded {
+        authority: ProjectedSessionAuthority,
+        superseded_at_ms: u64,
+    },
+    Unavailable,
+    Unknown,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -307,17 +361,16 @@ impl SessionFence {
             .map_err(|_| projection_unavailable("a session fence is poisoned"))
     }
 
-    pub(crate) fn admits(
-        &self,
+    fn admits_locked(
+        state: &SessionFenceState,
         expected_generation: u64,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<bool> {
-        let state = self.lock()?;
-        Ok(state.generation == expected_generation
+    ) -> bool {
+        state.generation == expected_generation
             && state.terminal.is_none()
             && state.pending_tickets.is_empty()
-            && state.deadline.live_at(epoch_now_ms, monotonic_now))
+            && state.deadline.live_at(epoch_now_ms, monotonic_now)
     }
 }
 
@@ -348,12 +401,61 @@ impl StreamFence {
             .map_err(|_| projection_unavailable("the authorization-stream fence is poisoned"))
     }
 
-    pub(crate) fn admits(
-        &self,
+    fn admits_locked(
+        state: &StreamFenceState,
         expected_incarnation: &AuthorizationStreamIncarnation,
-    ) -> SnapbackResult<bool> {
-        let state = self.lock()?;
-        Ok(&state.incarnation == expected_incarnation && state.pending_tickets.is_empty())
+    ) -> bool {
+        &state.incarnation == expected_incarnation && state.pending_tickets.is_empty()
+    }
+}
+
+/// Cloneable, bearer-free handles for the final synchronous publication cut.
+/// Validation and `publish` happen while stream then session guards remain
+/// held. The closure must only perform a bounded nonblocking in-memory handoff;
+/// it must never enter SQLite/provider state, await, or perform socket I/O.
+#[derive(Clone, Debug)]
+pub(crate) struct FencedPublication {
+    expected_incarnation: AuthorizationStreamIncarnation,
+    stream: Arc<StreamFence>,
+    session: Option<SessionPublicationFence>,
+}
+
+#[derive(Clone, Debug)]
+struct SessionPublicationFence {
+    expected_generation: u64,
+    session: Arc<SessionFence>,
+}
+
+impl FencedPublication {
+    /// Consume one prepared buffer into its synchronous handoff only if the
+    /// exact authority is still live at the linearization cut.
+    ///
+    /// @ref LLP 0056#act-time-validation — stream/session validation and the
+    /// leaf publication are one guarded operation, never check-then-act.
+    pub(crate) fn try_publish<T>(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let stream = self.stream.lock()?;
+        if !StreamFence::admits_locked(&stream, &self.expected_incarnation) {
+            return Ok(None);
+        }
+        let Some(session) = &self.session else {
+            return publish().map(Some);
+        };
+        let session_state = session.session.lock()?;
+        if !SessionFence::admits_locked(
+            &session_state,
+            session.expected_generation,
+            epoch_now_ms,
+            monotonic_now,
+        ) {
+            return Ok(None);
+        }
+        publish().map(Some)
     }
 }
 
@@ -374,6 +476,7 @@ pub(crate) struct SessionProjection {
     token_index: HashMap<TokenDigest, ProjectedToken>,
     deadline_index: BTreeSet<DeadlineKey>,
     ticket_index: HashMap<MutationTicket, TicketOwner>,
+    stream_pending: BTreeMap<MutationTicket, AuthorizationStreamIncarnation>,
     next_ticket: Option<NonZeroU64>,
     stream_fence: Arc<StreamFence>,
 }
@@ -438,14 +541,14 @@ impl SessionProjection {
             validate_projection_id(&row.user_id, "session user")?;
             validate_projection_id(&row.identity_id, "session identity")?;
             validate_projection_id(&row.authority_instance_id, "authority instance")?;
-            if !authority_instance_ids.insert(row.authority_instance_id) {
+            if !authority_instance_ids.insert(row.authority_instance_id.clone()) {
                 return Err(projection_corrupt(
                     "duplicate projected authority-instance id",
                 ));
             }
             let generation = u64::try_from(row.generation)
                 .ok()
-                .filter(|generation| *generation != 0)
+                .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_GENERATION)
                 .ok_or_else(|| projection_corrupt("a projected session generation is invalid"))?;
             let created_at_ms = validate_timestamp_i64(row.created_at_ms, "session creation")?;
             let last_used_at_ms = validate_timestamp_i64(row.last_used_at_ms, "session last use")?;
@@ -529,6 +632,7 @@ impl SessionProjection {
                 session_id: session_id.clone(),
                 user_id: row.user_id,
                 provider: provider.clone(),
+                authority_instance_id: row.authority_instance_id,
                 generation,
                 expires_at_ms,
                 absolute_expires_at_ms,
@@ -576,6 +680,7 @@ impl SessionProjection {
             token_index,
             deadline_index,
             ticket_index: HashMap::new(),
+            stream_pending: BTreeMap::new(),
             next_ticket: NonZeroU64::new(1),
             stream_fence: Arc::new(StreamFence::new(incarnation)),
         };
@@ -610,23 +715,248 @@ impl SessionProjection {
             .map(|session| Arc::clone(&session.fence))
     }
 
-    pub(crate) fn act_is_admissible(
+    pub(crate) fn session_publication_fence(
         &self,
         session_id: &str,
-        expected_incarnation: &AuthorizationStreamIncarnation,
+        expected_generation: u64,
+    ) -> SnapbackResult<FencedPublication> {
+        let session = self.by_session.get(session_id).ok_or_else(|| {
+            projection_unavailable("the publication session is absent from the projection")
+        })?;
+        if session.generation != expected_generation {
+            return Err(projection_unavailable(
+                "the publication generation does not match the projection",
+            ));
+        }
+        Ok(FencedPublication {
+            expected_incarnation: self.incarnation.clone(),
+            stream: Arc::clone(&self.stream_fence),
+            session: Some(SessionPublicationFence {
+                expected_generation,
+                session: Arc::clone(&session.fence),
+            }),
+        })
+    }
+
+    pub(crate) fn anonymous_publication_fence(&self) -> FencedPublication {
+        FencedPublication {
+            expected_incarnation: self.incarnation.clone(),
+            stream: Arc::clone(&self.stream_fence),
+            session: None,
+        }
+    }
+
+    /// Observe both authoritative clocks and terminalize every due exact
+    /// `(session, generation, deadline)` entry under one topology ownership
+    /// pass. Each entry still receives a unique ticket, so sibling operations
+    /// retain their own markers and can reconcile independently.
+    pub(crate) fn expire_due(
+        &mut self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Vec<ExpiredSession>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let due: Vec<_> = self
+            .deadline_index
+            .iter()
+            .filter(|key| {
+                epoch_now_ms >= key.epoch_deadline_ms || monotonic_now >= key.monotonic_deadline
+            })
+            .map(|key| (key.session_id.clone(), key.generation))
+            .collect();
+        let mut expired = Vec::with_capacity(due.len());
+        for (session_id, generation) in due {
+            let ticket = self.begin_expiry(&session_id, generation, epoch_now_ms, monotonic_now)?;
+            self.finalize_expiry(&ticket, &session_id, epoch_now_ms, monotonic_now)?;
+            expired.push(ExpiredSession {
+                session_id,
+                generation,
+            });
+        }
+        Ok(expired)
+    }
+
+    /// Expiry scheduling never sleeps more than one second, so a forward wall
+    /// jump is observed and permanently terminalized within the protocol bound.
+    pub(crate) fn expiry_scan_delay(&self, monotonic_now: Instant) -> Duration {
+        let until_first = self
+            .deadline_index
+            .iter()
+            .next()
+            .map(|deadline| {
+                deadline
+                    .monotonic_deadline
+                    .saturating_duration_since(monotonic_now)
+            })
+            .unwrap_or(Duration::from_millis(1_000));
+        until_first.min(Duration::from_millis(1_000))
+    }
+
+    /// Resolve a bearer digest entirely from the process projection. The
+    /// returned authority is bearer-free and retains the internal
+    /// `authority_instance_id` needed to construct `ResolvedAppAuthority`;
+    /// connection grants intentionally omit that field later.
+    pub(crate) fn resolve_token(
+        &self,
+        digest: &TokenDigest,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<ProjectedTokenResolution> {
+        let stream = self.stream_fence.lock()?;
+        if !StreamFence::admits_locked(&stream, &self.incarnation) {
+            return Ok(ProjectedTokenResolution::Unavailable);
+        }
+        let (session_id, superseded_at_ms) = match self.token_index.get(digest) {
+            Some(ProjectedToken::Current { session_id }) => (session_id, None),
+            Some(ProjectedToken::Superseded {
+                session_id,
+                superseded_at_ms,
+            }) => (session_id, Some(*superseded_at_ms)),
+            None => return Ok(ProjectedTokenResolution::Unknown),
+        };
+        let Some(session) = self.by_session.get(session_id) else {
+            return Err(projection_unavailable(
+                "a projected token has a dangling session",
+            ));
+        };
+        let session_fence = session.fence.lock()?;
+        if session.state != ProjectedSessionState::Current
+            || !SessionFence::admits_locked(
+                &session_fence,
+                session.generation,
+                epoch_now_ms,
+                monotonic_now,
+            )
+        {
+            return Ok(ProjectedTokenResolution::Unavailable);
+        }
+        let authority = ProjectedSessionAuthority {
+            session_id: session.session_id.clone(),
+            user_id: session.user_id.clone(),
+            provider: session.provider.clone(),
+            generation: session.generation,
+            authority_instance_id: session.authority_instance_id.clone(),
+            expires_at_ms: session.expires_at_ms,
+            absolute_expires_at_ms: session.absolute_expires_at_ms,
+        };
+        Ok(match superseded_at_ms {
+            Some(superseded_at_ms) => ProjectedTokenResolution::Superseded {
+                authority,
+                superseded_at_ms,
+            },
+            None => ProjectedTokenResolution::Current(authority),
+        })
+    }
+
+    /// Publish the safe post-act deadline after either a coalesced durable
+    /// write or the provider's no-write fast path. The exact stale deadline is
+    /// replaced under topology-then-session order; a concurrent terminal or
+    /// pending mutation merely loses the extension and cannot revive access.
+    pub(crate) fn publish_authenticated_use_deadline(
+        &mut self,
+        session_id: &str,
         expected_generation: u64,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<bool> {
-        if !self.stream_fence.admits(expected_incarnation)? {
-            return Ok(false);
-        }
-        let Some(session) = self.by_session.get(session_id) else {
-            return Ok(false);
+        sliding_window_ms: u64,
+        durable_expires_at_ms: Option<u64>,
+    ) -> SnapbackResult<Option<u64>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let (fence, predecessor_key, desired_expires_at_ms) = {
+            let Some(session) = self.by_session.get(session_id) else {
+                return Ok(None);
+            };
+            if session.generation != expected_generation
+                || session.state != ProjectedSessionState::Current
+            {
+                return Ok(None);
+            }
+            let in_memory = epoch_now_ms
+                .checked_add(sliding_window_ms)
+                .unwrap_or(MAX_SAFE_TIMESTAMP)
+                .min(session.absolute_expires_at_ms);
+            let desired = durable_expires_at_ms
+                .unwrap_or(in_memory)
+                .max(in_memory)
+                .min(session.absolute_expires_at_ms);
+            validate_timestamp_u64(desired)?;
+            (
+                Arc::clone(&session.fence),
+                deadline_key_for(session),
+                desired,
+            )
         };
-        session
-            .fence
-            .admits(expected_generation, epoch_now_ms, monotonic_now)
+        let mut fence_state = fence.lock()?;
+        if fence_state.generation != expected_generation
+            || fence_state.terminal.is_some()
+            || !fence_state.pending_tickets.is_empty()
+        {
+            return Ok(None);
+        }
+        let session = self.by_session.get(session_id).expect("checked above");
+        if desired_expires_at_ms <= session.expires_at_ms {
+            return Ok(Some(session.expires_at_ms));
+        }
+        if !self.deadline_index.contains(&predecessor_key) {
+            return Err(projection_unavailable(
+                "authenticated-use deadline predecessor is missing",
+            ));
+        }
+        let deadline = DeadlinePair::derive(desired_expires_at_ms, epoch_now_ms, monotonic_now)?;
+        self.deadline_index.remove(&predecessor_key);
+        let inserted = self.deadline_index.insert(DeadlineKey {
+            monotonic_deadline: deadline.monotonic_deadline,
+            epoch_deadline_ms: deadline.epoch_deadline_ms,
+            session_id: session_id.to_owned(),
+            generation: expected_generation,
+        });
+        if !inserted {
+            return Err(projection_unavailable(
+                "authenticated-use deadline replacement collided",
+            ));
+        }
+        let session = self.by_session.get_mut(session_id).expect("checked above");
+        session.expires_at_ms = desired_expires_at_ms;
+        session.deadline = deadline;
+        fence_state.deadline = deadline;
+        Ok(Some(desired_expires_at_ms))
+    }
+
+    /// Fail one affected session closed when a known commit cannot be
+    /// published exactly. The caller then requires controlled rebuild before
+    /// treating the durable/projection relationship as healthy again.
+    pub(crate) fn mark_session_uncertain(
+        &mut self,
+        ticket: &MutationTicket,
+        session_id: &str,
+        committed_generation: Option<u64>,
+    ) -> SnapbackResult<()> {
+        let session = self.session_for_ticket(ticket, session_id)?;
+        let fence = Arc::clone(&session.fence);
+        let deadline_key = deadline_key_for(session);
+        let current_token = session.current_token;
+        let mut fence_state = fence.lock()?;
+        if !fence_state.pending_tickets.contains(ticket) {
+            return Err(projection_unavailable(
+                "uncertain mutation ticket is absent from its leaf",
+            ));
+        }
+        if let Some(current_token) = current_token {
+            self.token_index.remove(&current_token);
+        }
+        self.deadline_index.remove(&deadline_key);
+        let session = self.by_session.get_mut(session_id).expect("checked above");
+        if let Some(generation) = committed_generation {
+            session.generation = generation;
+            fence_state.generation = generation;
+        }
+        session.state = ProjectedSessionState::Uncertain;
+        session.current_token = None;
+        session.pending.remove(ticket);
+        self.ticket_index.remove(ticket);
+        fence_state.terminal = Some(RevocationReason::Uncertain);
+        fence_state.pending_tickets.remove(ticket);
+        Ok(())
     }
 
     /// Install a unique marker in both topology and leaf indexes. A sibling
@@ -637,7 +967,14 @@ impl SessionProjection {
         expected_generation: u64,
         kind: PendingMutationKind,
     ) -> SnapbackResult<MutationTicket> {
-        if !self.stream_fence.admits(&self.incarnation)? {
+        if matches!(kind, PendingMutationKind::Expire { .. }) {
+            return Err(projection_unavailable(
+                "expiry must use the deadline-proving begin operation",
+            ));
+        }
+        let stream_fence = Arc::clone(&self.stream_fence);
+        let stream_state = stream_fence.lock()?;
+        if !StreamFence::admits_locked(&stream_state, &self.incarnation) {
             return Err(projection_unavailable(
                 "the authorization stream is unavailable for a session mutation",
             ));
@@ -653,8 +990,16 @@ impl SessionProjection {
                     "the planned session no longer matches the projection",
                 ));
             }
-            if let PendingMutationKind::TokenSupersede { predecessor } = &kind {
+            if let PendingMutationKind::TokenSupersede {
+                predecessor,
+                successor,
+                superseded_at_ms,
+            } = &kind
+            {
+                validate_timestamp_u64(*superseded_at_ms)?;
                 if session.current_token.as_ref() != Some(predecessor)
+                    || predecessor == successor
+                    || self.token_index.contains_key(successor)
                     || !matches!(
                         self.token_index.get(predecessor),
                         Some(ProjectedToken::Current { session_id: owner }) if owner == session_id
@@ -685,6 +1030,67 @@ impl SessionProjection {
                 kind,
             },
         );
+        self.ticket_index
+            .insert(ticket.clone(), TicketOwner::Session(session_id.to_owned()));
+        fence_state.pending_tickets.insert(ticket.clone());
+        Ok(ticket)
+    }
+
+    /// Atomically prove an authoritative deadline has elapsed and install its
+    /// unique terminal ticket. A wall-clock jump or the monotonic deadline may
+    /// independently prove due; once marked, later clock movement cannot make
+    /// the session transiently live again.
+    pub(crate) fn begin_expiry(
+        &mut self,
+        session_id: &str,
+        expected_generation: u64,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<MutationTicket> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let stream_fence = Arc::clone(&self.stream_fence);
+        let stream_state = stream_fence.lock()?;
+        if !StreamFence::admits_locked(&stream_state, &self.incarnation) {
+            return Err(projection_unavailable(
+                "the authorization stream is unavailable for expiry",
+            ));
+        }
+        let (fence, deadline) = {
+            let session = self.by_session.get(session_id).ok_or_else(|| {
+                projection_unavailable("the expiry session is absent from the projection")
+            })?;
+            if session.generation != expected_generation
+                || session.state != ProjectedSessionState::Current
+                || session.deadline.live_at(epoch_now_ms, monotonic_now)
+            {
+                return Err(projection_unavailable(
+                    "the expiry deadline is not due for the projected generation",
+                ));
+            }
+            (Arc::clone(&session.fence), session.deadline)
+        };
+        let ticket = self.allocate_ticket()?;
+        let mut fence_state = fence.lock()?;
+        if fence_state.generation != expected_generation
+            || fence_state.terminal.is_some()
+            || fence_state.deadline != deadline
+            || fence_state.deadline.live_at(epoch_now_ms, monotonic_now)
+        {
+            return Err(projection_unavailable(
+                "the expiry deadline no longer matches its leaf fence",
+            ));
+        }
+        self.by_session
+            .get_mut(session_id)
+            .expect("session validated before leaf acquisition")
+            .pending
+            .insert(
+                ticket.clone(),
+                PendingMutation {
+                    expected_generation,
+                    kind: PendingMutationKind::Expire { deadline },
+                },
+            );
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Session(session_id.to_owned()));
         fence_state.pending_tickets.insert(ticket.clone());
@@ -747,6 +1153,7 @@ impl SessionProjection {
             let expected_successor = pending
                 .expected_generation
                 .checked_add(1)
+                .filter(|generation| *generation <= MAX_SAFE_GENERATION)
                 .ok_or_else(|| projection_unavailable("session generation overflowed"))?;
             if committed_generation != expected_successor
                 || session.generation != pending.expected_generation
@@ -809,15 +1216,24 @@ impl SessionProjection {
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
     ) -> SnapbackResult<()> {
-        let (fence, deadline_key, current_token) = {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let (fence, deadline_key, current_token, deadline) = {
             let session = self.session_for_ticket(ticket, session_id)?;
             let pending = session
                 .pending
                 .get(ticket)
                 .cloned()
                 .ok_or_else(|| projection_unavailable("expiry ticket is not pending"))?;
-            if pending.kind != PendingMutationKind::Expire
+            let PendingMutationKind::Expire { deadline } = pending.kind else {
+                return Err(projection_unavailable(
+                    "ticket does not own an expiry mutation",
+                ));
+            };
+            if session.deadline != deadline
+                || deadline.live_at(epoch_now_ms, monotonic_now)
                 || session.generation != pending.expected_generation
                 || session.state != ProjectedSessionState::Current
             {
@@ -831,12 +1247,16 @@ impl SessionProjection {
                 session.current_token.ok_or_else(|| {
                     projection_unavailable("current projected session lacks its token")
                 })?,
+                deadline,
             )
         };
         let mut fence_state = fence.lock()?;
-        if !fence_state.pending_tickets.contains(ticket) {
+        if !fence_state.pending_tickets.contains(ticket)
+            || fence_state.deadline != deadline
+            || fence_state.deadline.live_at(epoch_now_ms, monotonic_now)
+        {
             return Err(projection_unavailable(
-                "expiry ticket is absent from its leaf",
+                "expiry ticket or due deadline is absent from its leaf",
             ));
         }
         self.token_index.remove(&current_token);
@@ -855,18 +1275,20 @@ impl SessionProjection {
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
-        successor: TokenDigest,
-        superseded_at_ms: u64,
     ) -> SnapbackResult<()> {
-        validate_timestamp_u64(superseded_at_ms)?;
-        let (fence, pending, predecessor) = {
+        let (fence, pending, predecessor, successor, superseded_at_ms) = {
             let session = self.session_for_ticket(ticket, session_id)?;
             let pending = session
                 .pending
                 .get(ticket)
                 .cloned()
                 .ok_or_else(|| projection_unavailable("rotation ticket is not pending"))?;
-            let PendingMutationKind::TokenSupersede { predecessor } = pending.kind else {
+            let PendingMutationKind::TokenSupersede {
+                predecessor,
+                successor,
+                superseded_at_ms,
+            } = pending.kind.clone()
+            else {
                 return Err(projection_unavailable(
                     "ticket does not own a token rotation",
                 ));
@@ -879,7 +1301,13 @@ impl SessionProjection {
                     "rotation does not match the projected predecessor",
                 ));
             }
-            (Arc::clone(&session.fence), pending, predecessor)
+            (
+                Arc::clone(&session.fence),
+                pending,
+                predecessor,
+                successor,
+                superseded_at_ms,
+            )
         };
         if predecessor == successor
             || self.token_index.contains_key(&successor)
@@ -922,7 +1350,10 @@ impl SessionProjection {
         Ok(())
     }
 
-    pub(crate) fn begin_stream_mutation(&mut self) -> SnapbackResult<MutationTicket> {
+    pub(crate) fn begin_stream_mutation(
+        &mut self,
+        successor: AuthorizationStreamIncarnation,
+    ) -> SnapbackResult<MutationTicket> {
         if !self.ticket_index.is_empty() {
             return Err(projection_unavailable(
                 "the authorization stream has in-flight session mutations",
@@ -935,10 +1366,16 @@ impl SessionProjection {
                 "the authorization stream is already unavailable",
             ));
         }
+        if successor == self.incarnation {
+            return Err(projection_unavailable(
+                "stream rotation successor equals its predecessor",
+            ));
+        }
         let ticket = self.allocate_ticket()?;
         state.pending_tickets.insert(ticket.clone());
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Stream);
+        self.stream_pending.insert(ticket.clone(), successor);
         Ok(ticket)
     }
 
@@ -957,6 +1394,7 @@ impl SessionProjection {
         }
         state.pending_tickets.remove(ticket);
         self.ticket_index.remove(ticket);
+        self.stream_pending.remove(ticket);
         Ok(true)
     }
 
@@ -966,7 +1404,6 @@ impl SessionProjection {
     pub(crate) fn finalize_stream_rotation(
         &mut self,
         ticket: &MutationTicket,
-        successor: AuthorizationStreamIncarnation,
     ) -> SnapbackResult<()> {
         if self.ticket_index.len() != 1
             || self.ticket_index.get(ticket) != Some(&TicketOwner::Stream)
@@ -981,10 +1418,14 @@ impl SessionProjection {
                 "stream rotation fence does not match its predecessor",
             ));
         }
+        let successor = self.stream_pending.get(ticket).cloned().ok_or_else(|| {
+            projection_unavailable("stream rotation ticket has no exact planned successor")
+        })?;
         self.by_session.clear();
         self.token_index.clear();
         self.deadline_index.clear();
         self.ticket_index.remove(ticket);
+        self.stream_pending.remove(ticket);
         self.incarnation = successor.clone();
         state.incarnation = successor;
         state.pending_tickets.remove(ticket);
@@ -1009,6 +1450,19 @@ impl SessionProjection {
                     "stream-fence ticket lacks an exact topology owner",
                 ));
             }
+            let successor = self.stream_pending.get(ticket).ok_or_else(|| {
+                projection_corrupt("stream-fence ticket lacks its planned successor")
+            })?;
+            if successor == &self.incarnation {
+                return Err(projection_corrupt(
+                    "stream-fence ticket repeats the current incarnation",
+                ));
+            }
+        }
+        if self.stream_pending.keys().cloned().collect::<BTreeSet<_>>() != stream.pending_tickets {
+            return Err(projection_corrupt(
+                "planned stream successors and stream-fence tickets differ",
+            ));
         }
         drop(stream);
 
@@ -1016,6 +1470,7 @@ impl SessionProjection {
             if session_id != &session.session_id
                 || session.user_id.is_empty()
                 || session.provider.is_empty()
+                || session.authority_instance_id.is_empty()
                 || session.expires_at_ms > session.absolute_expires_at_ms
             {
                 return Err(projection_corrupt("projected session shape is invalid"));
@@ -1170,6 +1625,36 @@ impl SessionProjection {
     #[cfg(test)]
     fn set_next_ticket_for_test(&mut self, sequence: Option<NonZeroU64>) {
         self.next_ticket = sequence;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn pending_kind_for_test(
+        &self,
+        session_id: &str,
+        ticket: &MutationTicket,
+    ) -> Option<PendingMutationKind> {
+        self.by_session
+            .get(session_id)?
+            .pending
+            .get(ticket)
+            .map(|pending| pending.kind.clone())
+    }
+
+    #[cfg(test)]
+    fn test_act_is_admissible(
+        &self,
+        session_id: &str,
+        expected_incarnation: &AuthorizationStreamIncarnation,
+        expected_generation: u64,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<bool> {
+        if expected_incarnation != &self.incarnation {
+            return Ok(false);
+        }
+        self.session_publication_fence(session_id, expected_generation)?
+            .try_publish(epoch_now_ms, monotonic_now, || Ok(()))
+            .map(|published| published.is_some())
     }
 }
 
@@ -1326,7 +1811,7 @@ mod tests {
         let incarnation = projection.incarnation().clone();
         assert!(
             projection
-                .act_is_admissible(
+                .test_act_is_admissible(
                     &session_id,
                     &incarnation,
                     1,
@@ -1337,7 +1822,7 @@ mod tests {
         );
         assert!(
             !projection
-                .act_is_admissible(
+                .test_act_is_admissible(
                     &session_id,
                     &incarnation,
                     1,
@@ -1349,7 +1834,7 @@ mod tests {
         // A backward wall-clock jump cannot outlive the monotonic deadline.
         assert!(
             !projection
-                .act_is_admissible(
+                .test_act_is_admissible(
                     &session_id,
                     &incarnation,
                     1,
@@ -1408,6 +1893,19 @@ mod tests {
             "SNAPBACK_AUTH_PROJECTION_CORRUPT",
         );
 
+        let mut oversized_generation = source();
+        oversized_generation.sessions[0].generation = (MAX_SAFE_GENERATION + 1) as i64;
+        assert_code(
+            SessionProjection::rebuild(
+                oversized_generation,
+                &startup_id(),
+                EPOCH_NOW_MS,
+                monotonic_now,
+            )
+            .unwrap_err(),
+            "SNAPBACK_AUTH_PROJECTION_CORRUPT",
+        );
+
         let mut timestamp = source();
         timestamp.sessions[0].last_used_at_ms = 201;
         assert_code(
@@ -1431,6 +1929,71 @@ mod tests {
                 .unwrap_err(),
             "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
         );
+    }
+
+    #[test]
+    fn projection_source_debug_redacts_every_raw_row_and_digest() {
+        let debug = format!("{:?}", source());
+        assert_eq!(debug, "ProjectionSource([REDACTED])");
+        assert!(!debug.contains("token_hash"));
+        assert!(!debug.contains("11"));
+    }
+
+    #[test]
+    fn publication_closure_runs_while_stream_and_session_guards_are_held() {
+        let monotonic_now = Instant::now();
+        let projection = rebuild_at(source(), monotonic_now);
+        let session_id = only_session_id(&projection);
+        let publication = projection
+            .session_publication_fence(&session_id, 1)
+            .unwrap();
+        let observed = publication
+            .try_publish(101, monotonic_now, || {
+                assert!(publication.stream.state.try_lock().is_err());
+                assert!(
+                    publication
+                        .session
+                        .as_ref()
+                        .unwrap()
+                        .session
+                        .state
+                        .try_lock()
+                        .is_err()
+                );
+                Ok("published")
+            })
+            .unwrap();
+        assert_eq!(observed, Some("published"));
+    }
+
+    #[test]
+    fn due_expiry_is_terminal_even_if_wall_clock_moves_backward() {
+        let monotonic_now = Instant::now();
+        let mut projection = rebuild_at(source(), monotonic_now);
+        let session_id = only_session_id(&projection);
+        let incarnation = projection.incarnation().clone();
+        let expired = projection
+            .expire_due(200, monotonic_now + Duration::from_millis(50))
+            .unwrap();
+        assert_eq!(
+            expired,
+            vec![ExpiredSession {
+                session_id: session_id.clone(),
+                generation: 1,
+            }]
+        );
+        assert!(
+            !projection
+                .test_act_is_admissible(
+                    &session_id,
+                    &incarnation,
+                    1,
+                    50,
+                    monotonic_now + Duration::from_millis(50),
+                )
+                .unwrap()
+        );
+        projection.check_invariants().unwrap();
     }
 
     #[test]
@@ -1463,7 +2026,7 @@ mod tests {
             assert_eq!(b.to_string(), format!("{}:2", startup_id()));
             assert!(
                 !projection
-                    .act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
+                    .test_act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
                     .unwrap()
             );
             let (winner, loser) = if finalize_second { (&b, &a) } else { (&a, &b) };
@@ -1483,7 +2046,7 @@ mod tests {
             assert!(session.pending.is_empty());
             assert!(
                 !projection
-                    .act_is_admissible(&session_id, &incarnation, 2, 101, monotonic_now,)
+                    .test_act_is_admissible(&session_id, &incarnation, 2, 101, monotonic_now,)
                     .unwrap()
             );
             projection.check_invariants().unwrap();
@@ -1517,13 +2080,13 @@ mod tests {
         assert!(projection.compare_unmark_session(&a, &session_id).unwrap());
         assert!(
             !projection
-                .act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
+                .test_act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
                 .unwrap()
         );
         assert!(projection.compare_unmark_session(&b, &session_id).unwrap());
         assert!(
             projection
-                .act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
+                .test_act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
                 .unwrap()
         );
         projection.check_invariants().unwrap();
@@ -1541,12 +2104,16 @@ mod tests {
             .begin_session_mutation(
                 &session_id,
                 1,
-                PendingMutationKind::TokenSupersede { predecessor },
+                PendingMutationKind::TokenSupersede {
+                    predecessor,
+                    successor,
+                    superseded_at_ms: 110,
+                },
             )
             .unwrap();
         assert!(
             !projection
-                .act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
+                .test_act_is_admissible(&session_id, &incarnation, 1, 101, monotonic_now,)
                 .unwrap()
         );
         assert!(
@@ -1563,11 +2130,15 @@ mod tests {
             .begin_session_mutation(
                 &session_id,
                 1,
-                PendingMutationKind::TokenSupersede { predecessor },
+                PendingMutationKind::TokenSupersede {
+                    predecessor,
+                    successor,
+                    superseded_at_ms: 110,
+                },
             )
             .unwrap();
         projection
-            .finalize_token_rotation(&commit, &session_id, successor, 110)
+            .finalize_token_rotation(&commit, &session_id)
             .unwrap();
         assert!(matches!(
             projection.token_index.get(&predecessor),
@@ -1588,19 +2159,43 @@ mod tests {
     fn stream_rotation_reuses_the_fence_and_invalidates_predecessor_authority() {
         let mut projection = rebuild_at(source(), Instant::now());
         let predecessor = projection.incarnation().clone();
-        let shared = projection.stream_fence();
-        let rollback = projection.begin_stream_mutation().unwrap();
-        assert!(!shared.admits(&predecessor).unwrap());
-        assert!(projection.compare_unmark_stream(&rollback).unwrap());
-        assert!(shared.admits(&predecessor).unwrap());
-
-        let commit = projection.begin_stream_mutation().unwrap();
-        let successor = AuthorizationStreamIncarnation::parse(&uuid_v7(20, 20)).unwrap();
-        projection
-            .finalize_stream_rotation(&commit, successor.clone())
+        let predecessor_publication = projection.anonymous_publication_fence();
+        let rollback_successor = AuthorizationStreamIncarnation::parse(&uuid_v7(19, 19)).unwrap();
+        let rollback = projection
+            .begin_stream_mutation(rollback_successor)
             .unwrap();
-        assert!(!shared.admits(&predecessor).unwrap());
-        assert!(shared.admits(&successor).unwrap());
+        assert!(
+            predecessor_publication
+                .try_publish(101, Instant::now(), || Ok(()))
+                .unwrap()
+                .is_none()
+        );
+        assert!(projection.compare_unmark_stream(&rollback).unwrap());
+        assert!(
+            predecessor_publication
+                .try_publish(101, Instant::now(), || Ok(()))
+                .unwrap()
+                .is_some()
+        );
+
+        let successor = AuthorizationStreamIncarnation::parse(&uuid_v7(20, 20)).unwrap();
+        let commit = projection.begin_stream_mutation(successor.clone()).unwrap();
+        projection.finalize_stream_rotation(&commit).unwrap();
+        assert!(
+            predecessor_publication
+                .try_publish(101, Instant::now(), || Ok(()))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(projection.incarnation(), &successor);
+        assert_ne!(projection.incarnation(), &predecessor);
+        assert!(
+            projection
+                .anonymous_publication_fence()
+                .try_publish(101, Instant::now(), || Ok(()))
+                .unwrap()
+                .is_some()
+        );
         assert!(projection.by_session.is_empty());
         projection.check_invariants().unwrap();
     }

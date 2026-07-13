@@ -844,6 +844,21 @@ impl LocalDatabase {
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<Option<MutationOutput>> {
+        let successor = crate::auth::session_projection::AuthorizationStreamIncarnation::fresh();
+        self.reset_and_seed_with_authorization_stream(seed, &successor)
+    }
+
+    /// Destructive reset primitive for the item-5 coordinator. The successor
+    /// is generated and premarked before this database lane is entered; this
+    /// transaction may only commit those exact planned bytes.
+    ///
+    /// @ref LLP 0056#reset-restore-and-stream-publication — the stream ticket
+    /// binds the same successor written by the destructive transaction.
+    pub(crate) fn reset_and_seed_with_authorization_stream(
+        &mut self,
+        seed: Option<SeedData>,
+        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+    ) -> SnapbackResult<Option<MutationOutput>> {
         let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
         // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state is
@@ -880,7 +895,7 @@ impl LocalDatabase {
         // authorization authority in the same commit as app/auth destruction.
         // Publication to the shared stream fence occurs only after this
         // transaction commits in the item-5 coordinator.
-        auth_stream::rotate_authorization_stream_incarnation_in(&tx)?;
+        auth_stream::rotate_authorization_stream_incarnation_in(&tx, successor)?;
         tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
 
         let seeded = match seed {

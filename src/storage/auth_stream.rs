@@ -56,6 +56,21 @@ impl LocalDatabase {
     /// identity bindings, tombstones, markers, and incarnation share one read
     /// snapshot; no partial projection escapes.
     pub(crate) fn session_projection_source(&mut self) -> SnapbackResult<ProjectionSource> {
+        self.session_projection_source_inner().map_err(|error| {
+            if matches!(
+                error.diagnostic.code.as_str(),
+                "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT" | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
+            ) {
+                error
+            } else {
+                projection_corrupt(
+                    "session projection source could not be read with its exact declared types",
+                )
+            }
+        })
+    }
+
+    fn session_projection_source_inner(&mut self) -> SnapbackResult<ProjectionSource> {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Deferred)?;
@@ -163,10 +178,10 @@ impl LocalDatabase {
 /// the successor incarnation in the same transaction as destructive state.
 pub(super) fn rotate_authorization_stream_incarnation_in(
     tx: &Transaction<'_>,
+    incarnation: &AuthorizationStreamIncarnation,
 ) -> SnapbackResult<AuthorizationStreamIncarnation> {
-    let incarnation = AuthorizationStreamIncarnation::fresh();
-    write_authorization_stream_incarnation_in(tx, &incarnation)?;
-    Ok(incarnation)
+    write_authorization_stream_incarnation_in(tx, incarnation)?;
+    Ok(incarnation.clone())
 }
 
 pub(super) fn write_authorization_stream_incarnation_in(
@@ -360,5 +375,25 @@ mod tests {
         projection
             .check_invariants()
             .expect("projection invariants");
+    }
+
+    #[test]
+    fn sqlite_row_type_failure_is_projection_corrupt_not_generic_storage() {
+        let mut database = LocalDatabase::memory().expect("database");
+        database.activate_auth_catalog_v1().expect("catalog");
+        database
+            .ensure_authorization_stream_incarnation()
+            .expect("stream migration");
+        database
+            .conn
+            .execute(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 1)",
+                params![vec![0xff_u8]],
+            )
+            .expect("SQLite accepts a deliberately mistyped row");
+        let error = database
+            .session_projection_source()
+            .expect_err("mistyped source must refuse projection rebuild");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PROJECTION_CORRUPT");
     }
 }

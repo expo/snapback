@@ -110,6 +110,15 @@ pub(crate) enum AuthRestoreResult {
     AlreadyApplied,
 }
 
+/// Commit certainty for an item-5 two-phase auth mutation. Body/begin errors
+/// are known rollbacks and may exact-unmark their projection ticket. A commit
+/// error is conservatively ambiguous and must reconcile or fail closed.
+pub(crate) enum AuthTransactionAttempt<T> {
+    Committed(T),
+    RolledBack(SnapbackError),
+    CommitUncertain(SnapbackError),
+}
+
 struct ExpectedTable {
     name: &'static str,
     sql: &'static str,
@@ -410,6 +419,36 @@ impl LocalDatabase {
         Ok(output)
     }
 
+    /// Run one direct auth transaction while preserving commit certainty for
+    /// the coordinator. No projection/topology value enters this method; the
+    /// caller has already installed a ticket and released every fence lock.
+    ///
+    /// @ref LLP 0056#rollback-and-ambiguous-commit — only a proven rollback
+    /// exact-unmarks; a commit error is reconciled or left unavailable.
+    pub(crate) fn attempt_auth_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
+    ) -> AuthTransactionAttempt<T> {
+        let tx = match self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+        {
+            Ok(tx) => tx,
+            Err(error) => return AuthTransactionAttempt::RolledBack(error.into()),
+        };
+        if let Err(error) = require_ready_on(&tx) {
+            return rollback_auth_transaction(tx, error);
+        }
+        let output = match operation(&tx) {
+            Ok(output) => output,
+            Err(error) => return rollback_auth_transaction(tx, error),
+        };
+        match tx.commit() {
+            Ok(()) => AuthTransactionAttempt::Committed(output),
+            Err(error) => AuthTransactionAttempt::CommitUncertain(error.into()),
+        }
+    }
+
     /// Delete expired durable auth state in bounded direct-path batches.
     pub(crate) fn auth_gc(&mut self, now_ms: u64) -> SnapbackResult<AuthGcResult> {
         if now_ms > 9_007_199_254_740_991 {
@@ -512,7 +551,7 @@ impl LocalDatabase {
 
             let exhausted_generations: i64 = tx.query_row(
                 "SELECT COUNT(*) FROM _auth_sessions
-                 WHERE revoked_at_ms IS NULL AND generation >= 9223372036854775807",
+                 WHERE revoked_at_ms IS NULL AND generation >= 9007199254740991",
                 [],
                 |row| row.get(0),
             )?;
@@ -535,7 +574,9 @@ impl LocalDatabase {
             // application rotates authorization authority in this same
             // destructive transaction; an idempotent declaration returns
             // above without rotating again.
-            super::auth_stream::rotate_authorization_stream_incarnation_in(tx)?;
+            let successor =
+                crate::auth::session_projection::AuthorizationStreamIncarnation::fresh();
+            super::auth_stream::rotate_authorization_stream_incarnation_in(tx, &successor)?;
             restore_transaction_step_completed(2)?;
 
             // @ref LLP 0054#restore — the declaration id is written last in
@@ -607,6 +648,30 @@ impl LocalDatabase {
     }
 }
 
+/// A failed operation is not a proven rollback until SQLite confirms the
+/// rollback. `Transaction::drop` intentionally ignores rollback failures, so
+/// relying on drop could exact-unmark a projection ticket while the durable
+/// outcome remained uncertain.
+///
+/// @ref LLP 0056#rollback-and-ambiguous-commit — exact compare-unmark requires
+/// a known rollback or an exact durable predecessor proof.
+fn rollback_auth_transaction<T>(
+    tx: Transaction<'_>,
+    operation_error: SnapbackError,
+) -> AuthTransactionAttempt<T> {
+    match tx.rollback() {
+        Ok(()) => AuthTransactionAttempt::RolledBack(operation_error),
+        Err(error) => AuthTransactionAttempt::CommitUncertain(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                "auth",
+                "authentication transaction rollback could not be proven",
+            )
+            .with_details(json!({ "sqlite": error.to_string() })),
+        ),
+    }
+}
+
 /// Install catalog v1 inside a caller-owned transaction. The caller has
 /// already established usable keyring state; this seam lets LLP 0055 commit
 /// catalog activation together with manifest relocation and mode settlement.
@@ -644,7 +709,7 @@ pub(super) fn revoke_all_sessions_in(tx: &Transaction<'_>, now_ms: u64) -> Snapb
     require_ready_on(tx)?;
     let exhausted: i64 = tx.query_row(
         "SELECT COUNT(*) FROM _auth_sessions
-         WHERE revoked_at_ms IS NULL AND generation >= 9223372036854775807",
+         WHERE revoked_at_ms IS NULL AND generation >= 9007199254740991",
         [],
         |row| row.get(0),
     )?;

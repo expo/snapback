@@ -4,6 +4,8 @@
 pub(crate) mod admission;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod backup;
+#[allow(dead_code)] // Published by the ENG-24603 server integration lane.
+pub(crate) mod coordinator;
 pub mod crypto;
 pub mod handshake;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.
