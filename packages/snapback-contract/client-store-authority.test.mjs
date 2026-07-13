@@ -1,4 +1,4 @@
-// Composed format-5 principal/data + authority-instance/queue tests.
+// Composed format-5 LLP 0056/0053 principal/data + authority-instance/queue tests.
 
 import assert from 'node:assert/strict';
 
@@ -117,8 +117,11 @@ const coordinatorAt = async (authority) => {
 // authority-instance axis strands (and never silently retags) queued writes.
 {
   const twoAxis = createMemorySnapbackClientStore();
+  // This item-7-only fixture stays on the legacy dev retained path. Sessions
+  // exercise the lease-bearing principal axis in authorized-retained-store.
+  const devPrincipal = { ...principal, authMode: 'dev' };
   await twoAxis.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_1),
     queryAuthorization: {},
   });
@@ -133,7 +136,7 @@ const coordinatorAt = async (authority) => {
   // Refresh changes generation only: both axes remain usable.
   await twoAxis.scopeToAuth('legacy-refresh-b');
   await twoAxis.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_1, 2),
   });
   assert.equal((await twoAxis.pendingMutations()).length, 1);
@@ -141,7 +144,7 @@ const coordinatorAt = async (authority) => {
   // New session, same user: rows survive; old queue is explicitly stranded.
   await twoAxis.scopeToAuth('legacy-session-c');
   await twoAxis.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_2),
   });
   assert.deepEqual((await twoAxis.getRetainedQuery('private')).rows, [{ card: 'ace' }]);
@@ -158,17 +161,17 @@ const coordinatorAt = async (authority) => {
 
   // Different principal owns a different retained-data namespace.
   await twoAxis.scopeAuthorization({
-    principalScope: { ...principal, userId: 'another-user' },
+    principalScope: { ...devPrincipal, userId: 'another-user' },
     authorityDescriptor: descriptor(AUTHORITY_2),
   });
   assert.equal(await twoAxis.getRetainedQuery('private'), null);
   await assert.rejects(
     twoAxis.scopeAuthorization({
-      principalScope: principal,
+      principalScope: devPrincipal,
       authorityDescriptor: descriptor(AUTHORITY_2),
       queryAuthorization: { lease: 'not-item-7' },
     }),
-    /queryAuthorization is reserved/,
+    /queryAuthorization must be an empty object/,
   );
 }
 

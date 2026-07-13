@@ -55,6 +55,16 @@ export {
 } from './query-authorization.mjs';
 
 export {
+  authorizedLeaseHash,
+  deriveAuthorizedLeaseCommit,
+  SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS,
+  SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS,
+  SNAPBACK_AUTHORIZED_LEASE_PROTOCOL_VERSION,
+  validateAuthorizedLease,
+  validateAuthorizedLeaseCapability,
+} from './authorized-lease.mjs';
+
+export {
   CONTRACT_RECEIPT_CAPABILITY,
   contractReceiptCapability,
   SNAPBACK_CONTRACT_RECEIPT_CAPABILITY,

@@ -9,11 +9,20 @@ import {
   effectiveDisposition,
   mergeResyncObligation,
   nextInvalidationGeneration,
+  nextQueryInstanceId,
   resolutionSatisfies,
   scopeKey,
+  validateAuthorizationVersion,
+  validateCompositeWitness,
+  validateIssuerId,
   validateResolutionTicket,
   validateResyncObligation,
 } from './auth-invalidation.mjs';
+import {
+  authorizedLeaseHash,
+  deriveAuthorizedLeaseCommit,
+  validateAuthorizedLease,
+} from './authorized-lease.mjs';
 
 export const SNAPBACK_CLIENT_STORE_VERSION = 5;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
@@ -170,8 +179,8 @@ const freshState = () => ({
   },
   principalScope: null,
   authorityDescriptor: null,
-  // Reserved for item 8. Format 5 owns and validates the namespace but gives
-  // it no lease/invalidation semantics.
+  queryInstanceHighWater: 0,
+  leaseClockHighWaterMs: 0,
   queryAuthorization: {},
   authFingerprint: null,
   artifactScope: null,
@@ -282,6 +291,167 @@ function assertAuthorityDescriptor(descriptor, path) {
       && descriptor.sessionGeneration >= 0,
     `${path}.sessionGeneration`,
   );
+}
+
+const QUERY_DISPOSITIONS = new Set(['retain', 'quarantine', 'delete']);
+const QUERY_DISPOSITION_ORDER = Object.freeze({ retain: 0, quarantine: 1, delete: 2 });
+
+function assertLeaseRequest(request, path) {
+  assertStateField(isRecord(request), path);
+  assertStateField(
+    Object.keys(request).sort().join(',')
+      === 'leaseRequestId,queryGeneration,queryInstanceId,startedClientMs',
+    path,
+  );
+  assertStateField(
+    typeof request.leaseRequestId === 'string'
+      && REPLAY_OPAQUE_ID_PATTERN.test(request.leaseRequestId),
+    `${path}.leaseRequestId`,
+  );
+  for (const field of ['queryInstanceId', 'queryGeneration', 'startedClientMs']) {
+    assertStateField(
+      Number.isSafeInteger(request[field]) && request[field] >= (field === 'queryInstanceId' ? 1 : 0),
+      `${path}.${field}`,
+    );
+  }
+}
+
+function assertQueryAuthorizationState(query, path, state, queryKey) {
+  assertStateField(isRecord(query), path);
+  assertStateField(
+    Object.keys(query).sort().join(',') === [
+      'accepted',
+      'authorityGeneration',
+      'authorityInstanceId',
+      'clientDeadlineMs',
+      'effectiveDisposition',
+      'expectedAuthorization',
+      'expectedIssuerId',
+      'expectedVersionStream',
+      'lease',
+      'leaseRequest',
+      'lifecycle',
+      'pendingByScope',
+      'principalId',
+      'queryGeneration',
+      'queryInstanceId',
+      'scopeRevisionHighWater',
+    ].sort().join(','),
+    path,
+  );
+  assertStateField(
+    Number.isSafeInteger(query.queryInstanceId)
+      && query.queryInstanceId >= 1
+      && query.queryInstanceId <= state.queryInstanceHighWater,
+    `${path}.queryInstanceId`,
+  );
+  assertStateField(
+    Number.isSafeInteger(query.authorityGeneration) && query.authorityGeneration >= 0,
+    `${path}.authorityGeneration`,
+  );
+  assertStateField(
+    Number.isSafeInteger(query.queryGeneration) && query.queryGeneration >= 0,
+    `${path}.queryGeneration`,
+  );
+  assertStateField(query.lifecycle === 'active' || query.lifecycle === 'retiring', `${path}.lifecycle`);
+  assertStateField(QUERY_DISPOSITIONS.has(query.effectiveDisposition), `${path}.effectiveDisposition`);
+  assertStateField(
+    typeof query.principalId === 'string' && REPLAY_OPAQUE_ID_PATTERN.test(query.principalId),
+    `${path}.principalId`,
+  );
+  try {
+    validateAuthorizationVersion(query.expectedAuthorization, `${path}.expectedAuthorization`);
+    validateIssuerId(query.expectedIssuerId, `${path}.expectedIssuerId`);
+  } catch {
+    assertStateField(false, path);
+  }
+  assertStateField(
+    typeof query.expectedVersionStream === 'string'
+      && REPLAY_OPAQUE_ID_PATTERN.test(query.expectedVersionStream),
+    `${path}.expectedVersionStream`,
+  );
+  assertStateField(
+    query.authorityInstanceId === null
+      || (typeof query.authorityInstanceId === 'string' && UUID_V7_PATTERN.test(query.authorityInstanceId)),
+    `${path}.authorityInstanceId`,
+  );
+  assertStateField(isRecord(query.pendingByScope), `${path}.pendingByScope`);
+  let pendingDisposition = 'retain';
+  for (const [key, obligation] of Object.entries(query.pendingByScope)) {
+    try {
+      const validated = validateResyncObligation(obligation, `${path}.pendingByScope`);
+      assertStateField(scopeKey(validated.scopeId) === key, `${path}.pendingByScope`);
+      assertStateField(
+        validated.scopeId.kind !== 'connection'
+          && validated.scopeId.namespace.clientStoreId === state.origin
+          && validated.scopeId.namespace.queryKey === queryKey
+          && validated.scopeId.namespace.queryInstanceId === query.queryInstanceId,
+        `${path}.pendingByScope`,
+      );
+      if (
+        QUERY_DISPOSITION_ORDER[validated.maxDisposition]
+          > QUERY_DISPOSITION_ORDER[pendingDisposition]
+      ) pendingDisposition = validated.maxDisposition;
+    } catch {
+      assertStateField(false, `${path}.pendingByScope`);
+    }
+  }
+  assertStateField(
+    QUERY_DISPOSITION_ORDER[query.effectiveDisposition]
+      >= QUERY_DISPOSITION_ORDER[pendingDisposition],
+    `${path}.effectiveDisposition`,
+  );
+  assertStateField(isRecord(query.scopeRevisionHighWater), `${path}.scopeRevisionHighWater`);
+  for (const [key, revision] of Object.entries(query.scopeRevisionHighWater)) {
+    assertStateField(key.length > 0, `${path}.scopeRevisionHighWater`);
+    assertStateField(Number.isSafeInteger(revision) && revision >= 1, `${path}.scopeRevisionHighWater`);
+  }
+  for (const [key, obligation] of Object.entries(query.pendingByScope)) {
+    assertStateField(
+      query.scopeRevisionHighWater[key] >= obligation.revision,
+      `${path}.scopeRevisionHighWater`,
+    );
+  }
+  if (query.accepted !== null) {
+    assertStateField(isRecord(query.accepted), `${path}.accepted`);
+    assertStateField(
+      Object.keys(query.accepted).sort().join(',') === 'authorizedLeaseHash,witness',
+      `${path}.accepted`,
+    );
+    assertStateField(
+      query.accepted.authorizedLeaseHash === null
+        || /^sha256:[0-9a-f]{64}$/.test(query.accepted.authorizedLeaseHash),
+      `${path}.accepted.authorizedLeaseHash`,
+    );
+    try {
+      validateCompositeWitness(query.accepted.witness, `${path}.accepted.witness`);
+    } catch {
+      assertStateField(false, `${path}.accepted.witness`);
+    }
+  }
+  if (query.leaseRequest !== null) assertLeaseRequest(query.leaseRequest, `${path}.leaseRequest`);
+  // A malformed lease is retained long enough for the first authorized read
+  // to commit the required delete tombstone. Treating it as whole-store
+  // corruption would strand the bytes without performing delete-before-read.
+  assertStateField(query.lease === null || isRecord(query.lease), `${path}.lease`);
+  assertStateField(
+    query.clientDeadlineMs === null
+      || (Number.isSafeInteger(query.clientDeadlineMs) && query.clientDeadlineMs >= 0),
+    `${path}.clientDeadlineMs`,
+  );
+  if (state.principalScope?.authMode === 'sessions') {
+    assertStateField(query.authorityGeneration === state.authorityEpoch, `${path}.authorityGeneration`);
+    assertStateField(query.principalId === state.principalScope.userId, `${path}.principalId`);
+    assertStateField(
+      query.expectedAuthorization.incarnation
+        === state.principalScope.authorizationStreamIncarnation,
+      `${path}.expectedAuthorization.incarnation`,
+    );
+    assertStateField(
+      query.authorityInstanceId === (state.authorityDescriptor?.authorityInstanceId ?? null),
+      `${path}.authorityInstanceId`,
+    );
+  }
 }
 
 function assertOptionalRecordIdentity(record, path) {
@@ -533,6 +703,8 @@ const normalizeState = (state) => {
   if (!Object.hasOwn(state, 'legacyV4Stranded')) state.legacyV4Stranded = [];
   if (!Object.hasOwn(state, 'principalScope')) state.principalScope = null;
   if (!Object.hasOwn(state, 'authorityDescriptor')) state.authorityDescriptor = null;
+  if (!Object.hasOwn(state, 'queryInstanceHighWater')) state.queryInstanceHighWater = 0;
+  if (!Object.hasOwn(state, 'leaseClockHighWaterMs')) state.leaseClockHighWaterMs = 0;
   if (!Object.hasOwn(state, 'queryAuthorization')) state.queryAuthorization = {};
   // Early v1 stores persisted acknowledgement ids as bare strings. Attribute
   // them only when the enclosing store already had a known auth scope; an
@@ -555,10 +727,18 @@ const normalizeState = (state) => {
     assertAuthorityDescriptor(state.authorityDescriptor, 'authorityDescriptor');
   }
   assertStateField(
-    isRecord(state.queryAuthorization)
-      && Object.keys(state.queryAuthorization).length === 0,
-    'queryAuthorization',
+    Number.isSafeInteger(state.queryInstanceHighWater) && state.queryInstanceHighWater >= 0,
+    'queryInstanceHighWater',
   );
+  assertStateField(
+    Number.isSafeInteger(state.leaseClockHighWaterMs) && state.leaseClockHighWaterMs >= 0,
+    'leaseClockHighWaterMs',
+  );
+  assertStateField(isRecord(state.queryAuthorization), 'queryAuthorization');
+  for (const [queryKey, query] of Object.entries(state.queryAuthorization)) {
+    assertStateField(queryKey.length > 0 && queryKey.length <= 8_192, 'queryAuthorization.key');
+    assertQueryAuthorizationState(query, 'queryAuthorization.entry', state, queryKey);
+  }
   assertStateField(
     state.authorityKey === null
       || (typeof state.authorityKey === 'string' && AUTHORITY_KEY_PATTERN.test(state.authorityKey)),
@@ -603,6 +783,11 @@ const normalizeState = (state) => {
   assertStateField(Array.isArray(state.legacyV2Stranded), 'legacyV2Stranded');
   assertStateField(Array.isArray(state.legacyV3Stranded), 'legacyV3Stranded');
   assertStateField(Array.isArray(state.legacyV4Stranded), 'legacyV4Stranded');
+  if (legacyV4 && state.principalScope?.authMode === 'sessions') {
+    // Clear before record-level scope validation: format 4 never carried the
+    // lease/fence fields that could make these session bytes attributable.
+    state.retained = {};
+  }
   assertStateField(
     Array.isArray(state.acknowledged)
       && state.acknowledged.every((entry) => (
@@ -799,6 +984,15 @@ const normalizeState = (state) => {
     for (const field of Object.keys(state)) {
       if (!format5Fields.has(field)) delete state[field];
     }
+  }
+  if (legacyV4) {
+    // Format 4 deliberately had no lease semantics. Session-mode retained
+    // bytes cannot be grandfathered into an item-8 authority proof; dev rows
+    // remain on their existing non-session path.
+    if (state.principalScope?.authMode === 'sessions') state.retained = {};
+    state.queryInstanceHighWater = 0;
+    state.leaseClockHighWaterMs = 0;
+    state.queryAuthorization = {};
   }
   return state;
 };
@@ -1094,6 +1288,94 @@ function expectationForObligation(obligation) {
   };
 }
 
+function queryFence(query) {
+  return Object.freeze({
+    queryInstanceId: query.queryInstanceId,
+    authorityGeneration: query.authorityGeneration,
+    queryGeneration: query.queryGeneration,
+    authorityInstanceId: query.authorityInstanceId,
+  });
+}
+
+function fenceMatches(query, fence) {
+  return isRecord(fence)
+    && fence.queryInstanceId === query.queryInstanceId
+    && fence.authorityGeneration === query.authorityGeneration
+    && fence.queryGeneration === query.queryGeneration
+    && fence.authorityInstanceId === query.authorityInstanceId;
+}
+
+function requireQuery(state, key, fence = null, operation = 'retained query operation') {
+  const query = state.queryAuthorization[key];
+  if (!query || query.lifecycle !== 'active' || (fence !== null && !fenceMatches(query, fence))) {
+    throw clientStoreStateError(
+      'SNAPBACK_AUTH_QUERY_FENCE_STALE',
+      `${operation} belongs to a stale or absent query instance`,
+      { operation },
+    );
+  }
+  return query;
+}
+
+function advanceQueryGeneration(query) {
+  query.queryGeneration = nextInvalidationGeneration(query.queryGeneration);
+  return queryFence(query);
+}
+
+function deleteAuthorizedPayload(state, key, query, { disposition = 'delete' } = {}) {
+  delete state.retained[key];
+  query.lease = null;
+  query.leaseRequest = null;
+  query.clientDeadlineMs = null;
+  query.accepted = null;
+  query.effectiveDisposition = disposition;
+  return advanceQueryGeneration(query);
+}
+
+function updateLeaseClock(state, clientNowMs, key, query) {
+  if (!Number.isSafeInteger(clientNowMs) || clientNowMs < 0) {
+    throw new TypeError('clientNowMs must be a safe nonnegative integer');
+  }
+  if (clientNowMs < state.leaseClockHighWaterMs) {
+    deleteAuthorizedPayload(state, key, query);
+    return clientStoreStateError(
+      'SNAPBACK_AUTH_CLOCK_ROLLBACK',
+      'client clock moved backward; retained query was deleted before read',
+    );
+  }
+  state.leaseClockHighWaterMs = clientNowMs;
+  return null;
+}
+
+function leaseExpectation(state, key, query) {
+  return {
+    clientStoreId: state.origin,
+    queryKey: key,
+    queryInstanceId: query.queryInstanceId,
+    principalId: query.principalId,
+    authorization: query.expectedAuthorization,
+    versionStream: query.expectedVersionStream,
+    authorityInstanceId: query.authorityInstanceId,
+  };
+}
+
+function invalidateQueriesForAuthorityTransition(state, { deleteRows }) {
+  for (const [key, query] of Object.entries(state.queryAuthorization)) {
+    if (deleteRows) {
+      delete state.retained[key];
+      delete state.queryAuthorization[key];
+      continue;
+    }
+    query.authorityGeneration = nextInvalidationGeneration(query.authorityGeneration);
+    query.queryGeneration = nextInvalidationGeneration(query.queryGeneration);
+    query.effectiveDisposition = 'quarantine';
+    query.lease = null;
+    query.leaseRequest = null;
+    query.clientDeadlineMs = null;
+    query.accepted = null;
+  }
+}
+
 function createStore({ read, write, withExclusive = (operation) => operation() }) {
   const load = () => normalizeState(read());
   const save = (state) => {
@@ -1145,6 +1427,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           .map((entry) => ({ ...clone(entry), legacyFormat: 2, replayable: false }));
         state.legacyV2Stranded.push(...legacyQueue);
         state.retained = {};
+        state.queryAuthorization = {};
         state.pending = [];
         state.failed = [];
         state.acknowledged = [];
@@ -1233,6 +1516,10 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           clearAllQueueNamespaces(state);
         }
         state.acknowledged = [];
+        invalidateQueriesForAuthorityTransition(
+          state,
+          { deleteRows: !preservePrincipalData },
+        );
         if (!preservePrincipalData) state.retained = {};
         if (!preservePrincipalData) state.authFingerprint = null;
         state.principalScope = clone(nextPrincipalScope);
@@ -1338,8 +1625,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     //   are independent axes in the composed format-5 store.
     /// Install the two independent format-5 axes from one authenticated
     /// handshake. Principal identity owns retained rows; the opaque authority
-    /// instance owns queued mutations. `queryAuthorization` is reserved and
-    /// deliberately empty until item 8 supplies lease semantics.
+    /// instance owns queued mutations. Query authorization remains durable and
+    /// is changed only through the item-8 fence/lease methods below.
     async scopeAuthorization({
       principalScope,
       authorityDescriptor,
@@ -1348,7 +1635,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       assertPrincipalScope(principalScope, 'principalScope');
       assertAuthorityDescriptor(authorityDescriptor, 'authorityDescriptor');
       if (!isRecord(queryAuthorization) || Object.keys(queryAuthorization).length !== 0) {
-        throw new TypeError('queryAuthorization is reserved and must be an empty object');
+        throw new TypeError('handshake queryAuthorization must be an empty object');
       }
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'authorization scope change');
@@ -1363,6 +1650,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         //   namespace; no later descriptor may make those bytes attributable.
         if (principalChanged || unknownPrincipal) {
           state.retained = {};
+          invalidateQueriesForAuthorityTransition(state, { deleteRows: true });
           advanceQueueGeneration(state);
           clearAllQueueNamespaces(state);
           state.authFingerprint = null;
@@ -1401,6 +1689,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             clearAllQueueNamespaces(state);
           }
           state.acknowledged = [];
+          invalidateQueriesForAuthorityTransition(state, { deleteRows: false });
         } else if (!principalChanged && !unknownPrincipal && unknownAuthority) {
           advanceQueueGeneration(state);
           // A transition participant may deliberately leave already-stranded
@@ -1410,7 +1699,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         }
         state.principalScope = clone(principalScope);
         state.authorityDescriptor = clone(authorityDescriptor);
-        state.queryAuthorization = {};
+        for (const query of Object.values(state.queryAuthorization)) {
+          query.authorityInstanceId = authorityDescriptor.authorityInstanceId;
+        }
         commit(state);
         return clone({
           principalScope: state.principalScope,
@@ -1547,6 +1838,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           // records; they cannot be attributed after the fact.
           state.retained = {};
           advanceQueueGeneration(state);
+          invalidateQueriesForAuthorityTransition(state, { deleteRows: true });
           state.pending = [];
           state.failed = [];
           // Acknowledgements are opaque settlement ids, not retained app
@@ -1587,6 +1879,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           );
         if (changed || unknownLegacyState) {
           state.retained = {};
+          invalidateQueriesForAuthorityTransition(state, { deleteRows: true });
           // Failed records can contain the original args. An artifact boundary
           // is also a privacy boundary: discard old failures, then retain only
           // redacted tombstones for writes this transition quarantines.
@@ -1619,8 +1912,547 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       });
     },
 
+    // @ref LLP 0053#client-fences — query identity is allocated only by an
+    // explicit initialization; incoming obligations and delayed callbacks can
+    // never recreate a missing or terminally retired instance.
+    async initializeAuthorizedRetainedQuery(key, {
+      authorization,
+      issuerId,
+      versionStream,
+      principalId,
+    }, expected = {}) {
+      if (typeof key !== 'string' || key.length === 0 || key.length > 8_192) {
+        throw new TypeError('authorized retained query key must be non-empty and bounded');
+      }
+      const normalizedAuthorization = validateAuthorizationVersion(authorization);
+      const normalizedIssuer = validateIssuerId(issuerId);
+      if (typeof versionStream !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(versionStream)) {
+        throw new TypeError('authorized retained query requires a canonical versionStream');
+      }
+      if (typeof principalId !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(principalId)) {
+        throw new TypeError('authorized retained query requires a canonical principalId');
+      }
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized retained query initialization');
+        if (
+          state.principalScope?.authMode !== 'sessions'
+          || state.principalScope.userId !== principalId
+          || state.principalScope.authorizationStreamIncarnation
+            !== normalizedAuthorization.incarnation
+          || state.authorityEpoch === null
+        ) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_RETAINED_AUTHORITY_INVALID',
+            'retainable session query must depend on the current userId-only principal scope',
+          );
+        }
+        const authorityInstanceId = state.authorityDescriptor?.authorityInstanceId ?? null;
+        const current = state.queryAuthorization[key];
+        if (
+          current?.lifecycle === 'active'
+          && current.authorityGeneration === state.authorityEpoch
+          && current.authorityInstanceId === authorityInstanceId
+          && current.principalId === principalId
+          && stableJson(current.expectedAuthorization) === stableJson(normalizedAuthorization)
+          && stableJson(current.expectedIssuerId) === stableJson(normalizedIssuer)
+          && current.expectedVersionStream === versionStream
+        ) {
+          return clone({
+            namespace: {
+              clientStoreId: state.origin,
+              queryKey: key,
+              queryInstanceId: current.queryInstanceId,
+            },
+            fence: queryFence(current),
+          });
+        }
+        if (current) delete state.retained[key];
+        const queryInstanceId = nextQueryInstanceId(state.queryInstanceHighWater);
+        state.queryInstanceHighWater = queryInstanceId;
+        const query = {
+          queryInstanceId,
+          lifecycle: 'active',
+          authorityGeneration: state.authorityEpoch,
+          queryGeneration: 0,
+          authorityInstanceId,
+          principalId,
+          expectedAuthorization: clone(normalizedAuthorization),
+          expectedIssuerId: clone(normalizedIssuer),
+          expectedVersionStream: versionStream,
+          effectiveDisposition: 'retain',
+          accepted: null,
+          pendingByScope: {},
+          scopeRevisionHighWater: {},
+          leaseRequest: null,
+          lease: null,
+          clientDeadlineMs: null,
+        };
+        state.queryAuthorization[key] = query;
+        commit(state);
+        return clone({
+          namespace: { clientStoreId: state.origin, queryKey: key, queryInstanceId },
+          fence: queryFence(query),
+        });
+      });
+    },
+
+    async captureAuthorizedRetainedQuery(key, expected = {}) {
+      return transact((state) => {
+        assertExpectedAuthority(state, expected, 'authorized retained query capture');
+        const query = requireQuery(state, key, null, 'authorized retained query capture');
+        return clone({
+          namespace: {
+            clientStoreId: state.origin,
+            queryKey: key,
+            queryInstanceId: query.queryInstanceId,
+          },
+          fence: queryFence(query),
+          disposition: query.effectiveDisposition,
+        });
+      });
+    },
+
+    async receiveRetainedQueryObligation(key, obligationValue, fence, expected = {}) {
+      const obligation = validateResyncObligation(obligationValue);
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'retained query invalidation');
+        const query = requireQuery(state, key, fence, 'retained query invalidation');
+        if (obligation.scopeId.kind === 'connection') {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID',
+            'a connection root must be expanded to an exact query scope before client apply',
+          );
+        }
+        const namespace = obligation.scopeId.namespace;
+        if (
+          namespace.clientStoreId !== state.origin
+          || namespace.queryKey !== key
+          || namespace.queryInstanceId !== query.queryInstanceId
+        ) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_QUERY_FENCE_STALE',
+            'invalidation names another query instance',
+          );
+        }
+        const keyForScope = scopeKey(obligation.scopeId);
+        const highWater = query.scopeRevisionHighWater[keyForScope] ?? 0;
+        if (obligation.revision <= highWater && !query.pendingByScope[keyForScope]) {
+          return clone({ status: 'duplicate', fence: queryFence(query) });
+        }
+        const merged = mergeResyncObligation(
+          query.pendingByScope[keyForScope] ?? null,
+          obligation,
+          {
+            authorization: query.expectedAuthorization,
+            versionStream: query.expectedVersionStream,
+            issuerId: obligation.scopeId.kind === 'clientQuery' ? null : query.expectedIssuerId,
+          },
+        );
+        if (merged.status !== 'accepted') {
+          return clone({ status: merged.status, fence: queryFence(query) });
+        }
+        query.pendingByScope[keyForScope] = clone(merged.obligation);
+        query.scopeRevisionHighWater[keyForScope] = Math.max(highWater, obligation.revision);
+        query.effectiveDisposition = effectiveDisposition(query.pendingByScope);
+        query.lease = null;
+        query.leaseRequest = null;
+        query.clientDeadlineMs = null;
+        if (query.effectiveDisposition === 'delete') delete state.retained[key];
+        const nextFence = advanceQueryGeneration(query);
+        commit(state);
+        return clone({
+          status: 'accepted',
+          disposition: query.effectiveDisposition,
+          fence: nextFence,
+        });
+      });
+    },
+
+    async beginAuthorizedLeaseRequest(key, {
+      fence,
+      leaseRequestId,
+      clientNowMs,
+    }, expected = {}) {
+      if (typeof leaseRequestId !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(leaseRequestId)) {
+        throw new TypeError('leaseRequestId must be a canonical opaque id');
+      }
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized lease request');
+        const query = requireQuery(state, key, fence, 'authorized lease request');
+        const rollback = updateLeaseClock(state, clientNowMs, key, query);
+        if (rollback) {
+          commit(state);
+          throw rollback;
+        }
+        if (Object.keys(query.pendingByScope).length > 0) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_INVALIDATION_PENDING',
+            'a retained query with pending invalidation cannot request a lease',
+          );
+        }
+        const nextFence = advanceQueryGeneration(query);
+        query.leaseRequest = {
+          leaseRequestId,
+          queryInstanceId: query.queryInstanceId,
+          queryGeneration: query.queryGeneration,
+          startedClientMs: clientNowMs,
+        };
+        commit(state);
+        return clone({ request: query.leaseRequest, fence: nextFence });
+      });
+    },
+
+    async commitAuthorizedRetainedSnapshot(key, {
+      fence,
+      lease: leaseValue,
+      record,
+      clientNowMs,
+    }, expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized retained snapshot');
+        const query = requireQuery(state, key, fence, 'authorized retained snapshot');
+        const rollback = updateLeaseClock(state, clientNowMs, key, query);
+        if (rollback) {
+          commit(state);
+          throw rollback;
+        }
+        if (
+          query.leaseRequest === null
+          || query.leaseRequest.queryGeneration !== query.queryGeneration
+          || Object.keys(query.pendingByScope).length > 0
+        ) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTHORIZED_LEASE_STALE',
+            'authorized snapshot does not own the current empty-obligation lease reservation',
+          );
+        }
+        const derived = deriveAuthorizedLeaseCommit({
+          lease: leaseValue,
+          request: query.leaseRequest,
+          expected: leaseExpectation(state, key, query),
+          clientNowMs,
+        });
+        if (
+          !isRecord(record)
+          || !Array.isArray(record.rows)
+          || record.versionStreamId !== derived.lease.data.versionStream
+          || record.cursor?.stream !== derived.lease.data.versionStream
+          || record.version !== derived.lease.data.snapshotCommitVersion
+          || record.cursor?.version !== derived.lease.data.snapshotCommitVersion
+        ) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTHORIZED_LEASE_SNAPSHOT_MISMATCH',
+            'lease-bearing snapshot does not match the authorized data witness',
+          );
+        }
+        const nextFence = advanceQueryGeneration(query);
+        query.accepted = {
+          witness: {
+            authorization: clone(derived.lease.authorization),
+            data: {
+              versionStream: derived.lease.data.versionStream,
+              minCommitVersion: derived.lease.data.snapshotCommitVersion,
+            },
+          },
+          authorizedLeaseHash: derived.leaseHash,
+        };
+        query.lease = clone(derived.lease);
+        query.leaseRequest = null;
+        query.clientDeadlineMs = derived.clientDeadlineMs;
+        query.effectiveDisposition = 'retain';
+        const scopedRecord = {
+          ...record,
+          principalScope: clone(state.principalScope),
+          queryInstanceId: query.queryInstanceId,
+          authorityGeneration: query.authorityGeneration,
+          queryGeneration: query.queryGeneration,
+          authorityInstanceId: query.authorityInstanceId,
+          authorizedLeaseHash: derived.leaseHash,
+          stale: false,
+        };
+        if (!recordMatchesCurrentRetainedScope(state, scopedRecord)) {
+          throw staleStoreScopeError('authorized retained snapshot');
+        }
+        state.retained[key] = clone(scopedRecord);
+        commit(state);
+        return clone({ fence: nextFence, record: state.retained[key] });
+      });
+    },
+
+    async putAuthorizedRetainedQuery(key, {
+      fence,
+      record,
+      clientNowMs,
+    }, expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized retained update');
+        const query = requireQuery(state, key, fence, 'authorized retained update');
+        const failDelete = (code, message) => {
+          deleteAuthorizedPayload(state, key, query);
+          commit(state);
+          throw clientStoreStateError(code, message);
+        };
+        const rollback = updateLeaseClock(state, clientNowMs, key, query);
+        if (rollback) {
+          commit(state);
+          throw rollback;
+        }
+        if (query.effectiveDisposition !== 'retain' || Object.keys(query.pendingByScope).length > 0) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_INVALIDATION_PENDING',
+            'retained update cannot cross a query invalidation barrier',
+          );
+        }
+        let currentLease;
+        try {
+          currentLease = validateAuthorizedLease(query.lease);
+          const expectation = leaseExpectation(state, key, query);
+          if (
+            currentLease.clientStoreId !== expectation.clientStoreId
+            || currentLease.queryKey !== expectation.queryKey
+            || currentLease.queryInstanceId !== expectation.queryInstanceId
+            || currentLease.principalId !== expectation.principalId
+            || stableJson(currentLease.authorization) !== stableJson(expectation.authorization)
+            || currentLease.data.versionStream !== expectation.versionStream
+            || currentLease.authorityInstanceId !== expectation.authorityInstanceId
+            || query.accepted?.authorizedLeaseHash !== authorizedLeaseHash(currentLease)
+          ) {
+            failDelete(
+              'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
+              'retained update lease does not bind the current query authority',
+            );
+          }
+        } catch (error) {
+          if (error?.code === 'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH') throw error;
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_INVALID',
+            'retained update lease is missing or malformed',
+          );
+        }
+        if (query.clientDeadlineMs === null || clientNowMs >= query.clientDeadlineMs) {
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_EXPIRED',
+            'retained update lease expired before commit',
+          );
+        }
+        const current = state.retained[key];
+        if (
+          !isRecord(record)
+          || !Array.isArray(record.rows)
+          || record.versionStreamId !== query.expectedVersionStream
+          || record.cursor?.stream !== query.expectedVersionStream
+          || !Number.isSafeInteger(record.version)
+          || record.version < (query.accepted?.witness?.data?.minCommitVersion ?? 0)
+          || record.cursor?.version !== record.version
+          || (current && Number.isSafeInteger(current.version) && record.version < current.version)
+        ) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_QUERY_FENCE_STALE',
+            'retained update does not advance the current data witness',
+          );
+        }
+        const nextFence = advanceQueryGeneration(query);
+        query.accepted.witness = {
+          authorization: clone(query.expectedAuthorization),
+          data: {
+            versionStream: query.expectedVersionStream,
+            minCommitVersion: record.version,
+          },
+        };
+        state.retained[key] = clone({
+          ...record,
+          principalScope: clone(state.principalScope),
+          queryInstanceId: query.queryInstanceId,
+          authorityGeneration: query.authorityGeneration,
+          queryGeneration: query.queryGeneration,
+          authorityInstanceId: query.authorityInstanceId,
+          authorizedLeaseHash: query.accepted.authorizedLeaseHash,
+          stale: false,
+        });
+        commit(state);
+        return clone({ fence: nextFence, record: state.retained[key] });
+      });
+    },
+
+    async applyRetainedQueryResolution(key, {
+      fence,
+      resolution: resolutionValue,
+      record = null,
+    }, expected = {}) {
+      const resolution = validateResolutionTicket(resolutionValue);
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'retained query resolution');
+        const query = requireQuery(state, key, fence, 'retained query resolution');
+        const keyForScope = scopeKey(resolution.scopeId);
+        const obligation = query.pendingByScope[keyForScope];
+        if (!obligation || !resolutionSatisfies(obligation, resolution)) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE',
+            'resolution does not satisfy the current exact query obligation',
+          );
+        }
+        const destructive = resolution.kind === 'terminalDelete'
+          || resolution.maxDisposition === 'delete';
+        if (!destructive) {
+          if (
+            !isRecord(record)
+            || !Array.isArray(record.rows)
+            || resolution.witness.data === null
+            || record.versionStreamId !== resolution.witness.data.versionStream
+            || record.cursor?.stream !== resolution.witness.data.versionStream
+            || !Number.isSafeInteger(record.version)
+            || record.version < resolution.witness.data.minCommitVersion
+            || record.cursor?.version !== record.version
+          ) {
+            throw clientStoreStateError(
+              'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE',
+              'resolution snapshot does not cover its composite witness',
+            );
+          }
+        }
+        delete query.pendingByScope[keyForScope];
+        query.lease = null;
+        query.leaseRequest = null;
+        query.clientDeadlineMs = null;
+        const remainingDisposition = effectiveDisposition(query.pendingByScope);
+        if (destructive || remainingDisposition === 'delete') {
+          delete state.retained[key];
+          query.accepted = null;
+          query.effectiveDisposition = 'delete';
+        } else {
+          query.accepted = {
+            witness: clone(resolution.witness),
+            authorizedLeaseHash: null,
+          };
+          query.effectiveDisposition = remainingDisposition;
+          state.retained[key] = clone({
+            ...record,
+            principalScope: clone(state.principalScope),
+            queryInstanceId: query.queryInstanceId,
+            authorityGeneration: query.authorityGeneration,
+            authorityInstanceId: query.authorityInstanceId,
+            authorizedLeaseHash: null,
+            stale: false,
+          });
+        }
+        const nextFence = advanceQueryGeneration(query);
+        if (state.retained[key]) state.retained[key].queryGeneration = query.queryGeneration;
+        commit(state);
+        return clone({
+          ackToken: resolution.ackToken,
+          disposition: query.effectiveDisposition,
+          fence: nextFence,
+        });
+      });
+    },
+
+    // @ref LLP 0053#retained-and-offline-authorization — clock rollback,
+    // expiry/equality, and any missing or mismatched lease commit delete the
+    // exact current instance before this method can return bytes.
+    async getAuthorizedRetainedQuery(key, {
+      fence = null,
+      clientNowMs,
+    }, expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized retained query read');
+        const query = requireQuery(state, key, fence, 'authorized retained query read');
+        const failDelete = (code, message) => {
+          deleteAuthorizedPayload(state, key, query);
+          commit(state);
+          throw clientStoreStateError(code, message);
+        };
+        const rollback = updateLeaseClock(state, clientNowMs, key, query);
+        if (rollback) {
+          commit(state);
+          throw rollback;
+        }
+        if (query.effectiveDisposition !== 'retain') {
+          commit(state);
+          return null;
+        }
+        let lease;
+        try {
+          lease = validateAuthorizedLease(query.lease);
+          const expectation = leaseExpectation(state, key, query);
+          if (
+            lease.clientStoreId !== expectation.clientStoreId
+            || lease.queryKey !== expectation.queryKey
+            || lease.queryInstanceId !== expectation.queryInstanceId
+            || lease.principalId !== expectation.principalId
+            || stableJson(lease.authorization) !== stableJson(expectation.authorization)
+            || lease.data.versionStream !== expectation.versionStream
+            || lease.authorityInstanceId !== expectation.authorityInstanceId
+            || query.accepted?.authorizedLeaseHash !== authorizedLeaseHash(lease)
+          ) {
+            failDelete(
+              'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
+              'retained query lease no longer binds the current query authority',
+            );
+          }
+        } catch (error) {
+          if (error?.code === 'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH') throw error;
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_INVALID',
+            'retained query lease is missing or malformed',
+          );
+        }
+        if (query.clientDeadlineMs === null || clientNowMs >= query.clientDeadlineMs) {
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_EXPIRED',
+            'retained query lease expired and was deleted before read',
+          );
+        }
+        const record = state.retained[key];
+        if (
+          !record
+          || !recordMatchesExpectedRetainedScope(state, record, expected)
+          || record.queryInstanceId !== query.queryInstanceId
+          || record.authorityGeneration !== query.authorityGeneration
+          || record.queryGeneration !== query.queryGeneration
+          || record.authorizedLeaseHash !== query.accepted?.authorizedLeaseHash
+        ) {
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
+            'retained payload does not match its current authorization fence',
+          );
+        }
+        commit(state);
+        return clone({ ...record, stale: true, fence: queryFence(query) });
+      });
+    },
+
+    async beginAuthorizedQueryRetirement(key, fence, expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized query retirement');
+        const query = requireQuery(state, key, fence, 'authorized query retirement');
+        query.lifecycle = 'retiring';
+        const nextFence = deleteAuthorizedPayload(state, key, query);
+        commit(state);
+        return clone({ queryInstanceId: query.queryInstanceId, fence: nextFence });
+      });
+    },
+
+    async finishAuthorizedQueryRetirement(key, queryInstanceId, expected = {}) {
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorized query retirement finalization');
+        const query = state.queryAuthorization[key];
+        if (!query || query.queryInstanceId !== queryInstanceId) return false;
+        if (query.lifecycle !== 'retiring' || Object.keys(query.pendingByScope).length > 0) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_QUERY_RETIREMENT_PENDING',
+            'query retirement cannot finalize while exact obligations remain',
+          );
+        }
+        delete state.retained[key];
+        delete state.queryAuthorization[key];
+        commit(state);
+        return true;
+      });
+    },
+
     async getRetainedQuery(key, expected = {}) {
       return transact((state) => {
+        if (state.principalScope?.authMode === 'sessions') return null;
         if (!expectedAuthorityMatchesState(state, expected)) return null;
         const record = state.retained[key];
         if (!record || !recordMatchesExpectedRetainedScope(state, record, expected)) return null;
@@ -1630,6 +2462,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
 
     async putRetainedQuery(key, record) {
       return transact((state, commit) => {
+        if (state.principalScope?.authMode === 'sessions') {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTHORIZED_LEASE_REQUIRED',
+            'session-mode retained writes require an exact query fence and AuthorizedLease commit',
+          );
+        }
         assertExpectedAuthority(state, record, 'retained query write');
         const scopedRecord = state.principalScope === null
           ? record
