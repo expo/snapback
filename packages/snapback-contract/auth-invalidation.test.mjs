@@ -113,11 +113,15 @@ const authenticatedIssuer = Object.freeze({
     protocolVersion: 1,
     issuerId,
     connectionGeneration: 5,
+    authorization: { incarnation: INCARNATION, epoch: 4 },
+    versionStream: 'stream-A',
     issuerRetirement,
   }), {
     protocolVersion: 1,
     issuerId,
     connectionGeneration: 5,
+    authorization: { incarnation: INCARNATION, epoch: 4 },
+    versionStream: 'stream-A',
     issuerRetirement,
   });
   assert.throws(
@@ -139,6 +143,8 @@ const authenticatedIssuer = Object.freeze({
       protocolVersion: 1,
       issuerId,
       connectionGeneration: 5,
+      authorization: { incarnation: INCARNATION, epoch: 4 },
+      versionStream: 'stream-A',
       issuerRetirement,
       bearer: 'planted',
     }),

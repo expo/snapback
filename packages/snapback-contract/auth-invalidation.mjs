@@ -280,7 +280,13 @@ export function validateAuthorizationInvalidationConnection(
   value,
   path = 'authorizationInvalidation',
 ) {
-  exact(value, ['protocolVersion', 'issuerId', 'connectionGeneration'], path, [
+  exact(value, [
+    'protocolVersion',
+    'issuerId',
+    'connectionGeneration',
+    'authorization',
+    'versionStream',
+  ], path, [
     'issuerRetirement',
   ]);
   if (value.protocolVersion !== SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION) {
@@ -289,14 +295,24 @@ export function validateAuthorizationInvalidationConnection(
       'authorization invalidation connection protocol version is unsupported',
     );
   }
+  const issuerId = validateIssuerId(value.issuerId, `${path}.issuerId`);
+  const authorization = validateAuthorizationVersion(
+    value.authorization,
+    `${path}.authorization`,
+  );
+  if (authorization.incarnation !== issuerId.authorizationIncarnation) {
+    throw corrupt(`${path} crosses authorization incarnations`, { field: path });
+  }
   return Object.freeze({
     protocolVersion: SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
-    issuerId: validateIssuerId(value.issuerId, `${path}.issuerId`),
+    issuerId,
     connectionGeneration: safeInteger(
       value.connectionGeneration,
       `${path}.connectionGeneration`,
       { positive: true },
     ),
+    authorization,
+    versionStream: opaque(value.versionStream, `${path}.versionStream`),
     ...(Object.hasOwn(value, 'issuerRetirement')
       ? {
           issuerRetirement: value.issuerRetirement === null

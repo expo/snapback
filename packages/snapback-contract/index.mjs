@@ -49,6 +49,12 @@ export {
 } from './auth-invalidation.mjs';
 
 export {
+  createLiveQueryAuthorizationFence,
+  createLiveQueryInstanceAllocator,
+  createLiveQueryNamespace,
+} from './query-authorization.mjs';
+
+export {
   CONTRACT_RECEIPT_CAPABILITY,
   contractReceiptCapability,
   SNAPBACK_CONTRACT_RECEIPT_CAPABILITY,
