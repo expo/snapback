@@ -1565,15 +1565,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let missing_config = snapback.required_missing_config();
     let loaded_app_id = snapback.loaded_app_id();
     let state = Arc::new(Mutex::new(snapback));
-    let listener = bind_listener(&bind_ip.to_string(), args.port).await?;
-    let local_addr = listener.local_addr()?;
-
-    // @ref LLP 0017#serving-model — capture the bound address so the admin API
-    // reports host/port/uptime and gates by loopback vs non-loopback.
-    debug_assert_eq!(loopback, local_addr.ip().is_loopback());
-    server_context.host = local_addr.ip().to_string();
-    server_context.port = local_addr.port();
-    server_context.loopback = loopback;
     debug_assert_eq!(server_context.profile, startup_profile);
     let (app_state, secret_read_operator) = AppState::new_with_secret_read_operator(
         state.clone(),
@@ -1593,10 +1584,44 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         )),
         None => app_state,
     };
-    let app_state = match impersonation_capabilities {
+    let mut app_state = match impersonation_capabilities {
         Some(registry) => app_state.with_impersonation_capabilities(registry),
         None => app_state,
     };
+    let auth_terminal_sink = app_state.auth_terminal_lifecycle.expiry_sink();
+    // The expiry authority is process-critical in sessions mode. Construct it,
+    // wait for its running handshake, and only then bind any listener.
+    // @ref LLP 0056#startup-rebuild-and-deadline-derivation — a sessions
+    //   listener cannot exist without a supervised terminal worker.
+    let mut auth_expiry_worker = crate::auth::runtime::spawn_auth_expiry_worker(
+        auth_coordinator.clone(),
+        auth_runtime.provider(),
+        auth_terminal_sink.clone(),
+    )
+    .await
+    .map_err(anyhow::Error::new)?;
+    let listener = match bind_listener(&bind_ip.to_string(), args.port).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            auth_expiry_worker.abort();
+            return Err(error);
+        }
+    };
+    let local_addr = match listener.local_addr() {
+        Ok(address) => address,
+        Err(error) => {
+            auth_expiry_worker.abort();
+            return Err(error.into());
+        }
+    };
+
+    // @ref LLP 0017#serving-model — capture the bound address so the admin API
+    // reports host/port/uptime and gates by loopback vs non-loopback.
+    debug_assert_eq!(loopback, local_addr.ip().is_loopback());
+    let published_server_context = Arc::make_mut(&mut app_state.server);
+    published_server_context.host = local_addr.ip().to_string();
+    published_server_context.port = local_addr.port();
+    published_server_context.loopback = loopback;
     let app = server::app(app_state);
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
@@ -1739,13 +1764,27 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         state,
         auth_runtime.clone(),
         auth_coordinator.clone(),
+        auth_terminal_sink,
         auth_gc_initial_delay,
     );
-    let auth_expiry_worker =
-        crate::auth::runtime::spawn_auth_expiry_worker(auth_coordinator, auth_runtime.provider());
-    let server_result = axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await;
+    let server = std::future::IntoFuture::into_future(
+        axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()),
+    );
+    tokio::pin!(server);
+    let server_result: anyhow::Result<()> = tokio::select! {
+        result = &mut server => result.map_err(anyhow::Error::new),
+        stopped = auth_expiry_worker.stopped() => {
+            let _ = auth_coordinator.fail_global_closed();
+            let error = stopped.err().unwrap_or_else(|| {
+                crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "the process-local session expiry worker stopped unexpectedly",
+                )
+            });
+            Err(anyhow::Error::new(error))
+        }
+    };
     if let Some(scheduler) = cron_scheduler {
         scheduler.abort();
     }

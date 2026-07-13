@@ -243,6 +243,9 @@
     "authority": {
       "$ref": "#/$defs/AuthSessionAuthority"
     },
+    "authorizationStreamIncarnation": {
+      "type": "string"
+    },
     "availability": {
       "$ref": "#/$defs/AuthSessionAvailability"
     },
@@ -287,6 +290,7 @@
   "required": [
     "protocolVersion",
     "serverStartupNonce",
+    "authorizationStreamIncarnation",
     "transitionGeneration",
     "activeMode",
     "desiredMode",

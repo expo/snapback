@@ -220,6 +220,7 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             json!({
                 "protocolVersion": 1,
                 "serverStartupNonce": "startup-1",
+                "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001",
                 "transitionGeneration": 0,
                 "activeMode": "dev",
                 "desiredMode": "dev",

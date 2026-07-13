@@ -286,6 +286,26 @@
         }
       ]
     },
+    "LiveAuthErrorCode": {
+      "description": "Closed terminal classes understood by item-5 clients. Later invalidation\ndispositions must revise the schema instead of smuggling new strings into\nthis family.",
+      "enum": [
+        "SNAPBACK_AUTH_SESSION_EXPIRED",
+        "SNAPBACK_AUTH_STREAM_RESET",
+        "SNAPBACK_AUTH_MODE_PENDING"
+      ],
+      "type": "string"
+    },
+    "LiveAuthErrorReason": {
+      "enum": [
+        "expired",
+        "revoked",
+        "reset",
+        "restore",
+        "downgrade",
+        "mode_transition"
+      ],
+      "type": "string"
+    },
     "RemoveReason": {
       "description": "Why an entry was removed. `AuthRevoked` was removed 2026-07-02: durable\npermission-change revocation is not integrated yet (LLP 0026 §Auth and\nrevocation), so the variant was unreachable vocabulary. Reintroduce it with\nthe event that owns it.\n\n@ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.",
       "enum": [
@@ -332,6 +352,27 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "A control-lane frame the server sends on the live WebSocket (the durable\nlane's [`LiveEnvelope`] payloads arrive on the same socket, unwrapped —\na socket client dispatches on `kind` across both families).",
   "oneOf": [
+    {
+      "description": "Terminal authority loss for the exact socket/grant generation. The\nframe intentionally carries no authority identifier; a client applies\nit only to the capture that owns this socket and then treats close code\n4401 as terminal rather than reconnectable.\n\n@ref LLP 0056#typed-terminal-auth-error — terminal live closure is a\n  closed, identifier-free wire event.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/LiveAuthErrorCode"
+        },
+        "kind": {
+          "const": "auth_error",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/LiveAuthErrorReason"
+        }
+      },
+      "required": [
+        "kind",
+        "code",
+        "reason"
+      ],
+      "type": "object"
+    },
     {
       "description": "Answer to a client `ping` (LLP 0034 D1 liveness probe).",
       "properties": {

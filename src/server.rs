@@ -32,7 +32,7 @@ use crate::auth::wire::{
 use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
+    AuthContext, DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
 };
 use crate::live_wire::{
     LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
@@ -51,7 +51,7 @@ use crate::manifest::{
 use crate::runtime::{CapabilityState, IbexActionHost};
 use crate::storage::auth::AuthTransactionAttempt;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{DefaultBodyLimit, Extension, OriginalUri, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
@@ -1178,6 +1178,127 @@ pub(crate) struct BoundConnectionTerminalCapture {
     pub(crate) authorization_stream_incarnation: String,
     pub(crate) session_id: Option<String>,
     pub(crate) generation: Option<u64>,
+}
+
+/// Clone-shared server half of item 5 terminal propagation. Registry removal
+/// invalidates every future act; notifier terminalization makes already-
+/// queued effects non-deliverable and wakes only the exact bound socket. The
+/// socket's generation-guarded teardown then performs physical room/outbox
+/// cleanup without risking a replacement grant that reused the readable id.
+#[derive(Clone)]
+pub(crate) struct AuthTerminalLifecycle {
+    connections: ConnectionRegistry,
+    delivery: Arc<crate::ephemeral::DeliveryNotifier>,
+}
+
+pub(crate) fn committed_mode_terminal_reason(
+    predecessor: &crate::auth::mode::AuthModeStateRecord,
+    committed: &crate::auth::mode::AuthModeStateRecord,
+) -> Option<crate::live_wire::LiveAuthErrorReason> {
+    (predecessor.active == crate::manifest::AuthMode::Sessions
+        && (committed.active != crate::manifest::AuthMode::Sessions
+            || committed.mode_state != crate::auth::mode::AuthModeStatus::Settled))
+        .then_some(if committed.desired == crate::manifest::AuthMode::Dev {
+            crate::live_wire::LiveAuthErrorReason::Downgrade
+        } else {
+            crate::live_wire::LiveAuthErrorReason::ModeTransition
+        })
+}
+
+impl AuthTerminalLifecycle {
+    pub(crate) fn new(connections: ConnectionRegistry, ephemeral: &EphemeralApi) -> Self {
+        Self {
+            connections,
+            delivery: ephemeral.delivery_notifier(),
+        }
+    }
+
+    pub(crate) fn expiry_sink(&self) -> crate::auth::runtime::AuthExpiryTerminalSink {
+        let lifecycle = self.clone();
+        crate::auth::runtime::AuthExpiryTerminalSink::new(move |expired| {
+            lifecycle.expire_sessions(expired);
+        })
+    }
+
+    fn expire_sessions(&self, expired: Vec<crate::auth::session_projection::ExpiredSession>) {
+        for expired in expired {
+            self.terminate_session_generation(
+                &expired.authorization_stream_incarnation,
+                &expired.session_id,
+                expired.generation,
+                crate::live_wire::LiveAuthErrorReason::Expired,
+                expired.close_by,
+            );
+        }
+    }
+
+    pub(crate) fn terminate_session_generation(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        generation: u64,
+        reason: crate::live_wire::LiveAuthErrorReason,
+        close_by: Instant,
+    ) {
+        let captures = self.connections.invalidate_session_generation(
+            authorization_stream_incarnation,
+            session_id,
+            generation,
+        );
+        self.terminalize_captures(
+            captures,
+            crate::live_wire::LiveAuthErrorCode::SessionExpired,
+            reason,
+            close_by,
+        );
+    }
+
+    pub(crate) fn committed_stream_reset(
+        &self,
+        reason: crate::live_wire::LiveAuthErrorReason,
+        close_by: Instant,
+    ) {
+        let captures = self.connections.clear_after_committed_reset();
+        self.terminalize_captures(
+            captures,
+            crate::live_wire::LiveAuthErrorCode::StreamReset,
+            reason,
+            close_by,
+        );
+    }
+
+    pub(crate) fn committed_mode_transition(
+        &self,
+        reason: crate::live_wire::LiveAuthErrorReason,
+        close_by: Instant,
+    ) {
+        let captures = self.connections.clear_after_committed_reset();
+        self.terminalize_captures(
+            captures,
+            crate::live_wire::LiveAuthErrorCode::ModePending,
+            reason,
+            close_by,
+        );
+    }
+
+    fn terminalize_captures(
+        &self,
+        captures: Vec<BoundConnectionTerminalCapture>,
+        code: crate::live_wire::LiveAuthErrorCode,
+        reason: crate::live_wire::LiveAuthErrorReason,
+        close_by: Instant,
+    ) {
+        let event = crate::ephemeral::DeliveryTerminalEvent {
+            code,
+            reason,
+            close_by,
+        };
+        for capture in captures {
+            let _ =
+                self.delivery
+                    .terminalize_bound(&capture.connection_id, &capture.grant_id, event);
+        }
+    }
 }
 
 impl ConnectionRegistryState {
@@ -5173,6 +5294,42 @@ async fn record_connection_authenticated_use(
         .ok_or_else(|| ApiError::from(provider_session_expired().into_snapback_error()))
 }
 
+fn propagate_committed_revocation(
+    runtime: &AppState,
+    provider: &AuthProvider,
+    revocation: &crate::auth::provider::SessionRevocation,
+) -> SnapbackResult<()> {
+    let coordinator = runtime.auth_coordinator.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable during terminal propagation",
+        )
+    })?;
+    let incarnation = coordinator.authorization_stream_incarnation()?;
+    let predecessor_generation = revocation.generation.checked_sub(1).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "committed revocation has no predecessor generation",
+        )
+    })?;
+    let close_by = provider
+        .monotonic_now()
+        .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+        .unwrap_or_else(|| provider.monotonic_now());
+    runtime
+        .auth_terminal_lifecycle
+        .terminate_session_generation(
+            &incarnation,
+            &revocation.session_id,
+            predecessor_generation,
+            crate::live_wire::LiveAuthErrorReason::Revoked,
+            close_by,
+        );
+    Ok(())
+}
+
 async fn coordinated_mint_session(
     runtime: &AppState,
     provider: &Arc<AuthProvider>,
@@ -5215,7 +5372,12 @@ async fn coordinated_mint_session(
             provider.now_ms(),
             provider.monotonic_now(),
         )? {
-            IssuanceFinish::Committed(issue) => return Ok(issue),
+            IssuanceFinish::Committed(issue) => {
+                if let Some(revocation) = issue.committed_revocation() {
+                    propagate_committed_revocation(runtime, provider, revocation)?;
+                }
+                return Ok(issue);
+            }
             IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
                 return Err(auth_provider_unavailable_error());
             }
@@ -5304,6 +5466,10 @@ async fn coordinated_exchange_session(
                     .map_err(ProviderError::from)?
                 {
                     IssuanceFinish::Committed(issue) => {
+                        if let Some(revocation) = issue.committed_revocation() {
+                            propagate_committed_revocation(runtime, provider, revocation)
+                                .map_err(ProviderError::from)?;
+                        }
                         exchange.finish_exchange_cleanup();
                         return Ok(issue);
                     }
@@ -5581,8 +5747,12 @@ async fn auth_refresh(
                     .finish_revocation(carrier, attempt)
                     .map_err(ApiError::from)?
                 {
-                    RevocationFinish::Committed { .. }
-                    | RevocationFinish::AlreadyTerminal { .. } => {
+                    RevocationFinish::Committed { revocation, .. } => {
+                        propagate_committed_revocation(&runtime, &provider, &revocation)
+                            .map_err(ApiError::from)?;
+                        return Err(map_provider_error(provider_session_expired()));
+                    }
+                    RevocationFinish::AlreadyTerminal { .. } => {
                         return Err(map_provider_error(provider_session_expired()));
                     }
                     RevocationFinish::PredecessorChanged => continue,
@@ -5650,7 +5820,12 @@ async fn auth_logout(
             .finish_revocation(carrier, attempt)
             .map_err(ApiError::from)?
         {
-            RevocationFinish::Committed { outcome, .. } => {
+            RevocationFinish::Committed {
+                revocation,
+                outcome,
+            } => {
+                propagate_committed_revocation(&runtime, &provider, &revocation)
+                    .map_err(ApiError::from)?;
                 let mut response = StatusCode::NO_CONTENT.into_response();
                 response.extensions_mut().insert(outcome);
                 return Ok(response);
@@ -5773,7 +5948,12 @@ async fn auth_family_alarm(
                     .finish_revocation(carrier, attempt)
                     .map_err(ApiError::from)?
                 {
-                    RevocationFinish::Committed { outcome, .. } => {
+                    RevocationFinish::Committed {
+                        revocation,
+                        outcome,
+                    } => {
+                        propagate_committed_revocation(&runtime, &provider, &revocation)
+                            .map_err(ApiError::from)?;
                         committed_outcome = Some(outcome);
                         accepted = true;
                         break;
@@ -8082,7 +8262,13 @@ async fn coordinated_app_reset(
         snapback.publish_coordinated_reset(committed)
     })
     .await;
-    let _terminal_connections = runtime.connections.clear_after_committed_reset();
+    let close_by = provider
+        .monotonic_now()
+        .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+        .unwrap_or_else(|| provider.monotonic_now());
+    runtime
+        .auth_terminal_lifecycle
+        .committed_stream_reset(crate::live_wire::LiveAuthErrorReason::Reset, close_by);
     runtime.secret_reads.clear_after_committed_reset();
     maintenance.clear_mailbox_after_committed_reset();
     Ok(seeded)
@@ -8396,6 +8582,8 @@ async fn ensure_app(
                         // the complete candidate pair passed the read-only
                         // pass, then repeat and commit under the write lane.
                         let controller = runtime.auth_admission_controller();
+                        let terminal_lifecycle = runtime.auth_terminal_lifecycle.clone();
+                        let predecessor = runtime.auth_mode_state();
                         let transition =
                             tokio::task::spawn_blocking(move || controller.begin_transition())
                                 .await
@@ -8403,7 +8591,28 @@ async fn ensure_app(
                         let (outcome, committed, _published) =
                             with_snapback(&runtime.snapback, move |snapback| {
                                 transition.commit_and_publish_mode_state(|| {
-                                    snapback.commit_auth_provision_classified(prepared, &profile)
+                                    let committed = snapback
+                                        .commit_auth_provision_classified(prepared, &profile);
+                                    if let Ok((_, mode)) = &committed
+                                        && let Some(reason) = committed_mode_terminal_reason(
+                                            predecessor.as_ref(),
+                                            mode,
+                                        )
+                                    {
+                                        let close_by = Instant::now()
+                                            .checked_add(
+                                                crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+                                            )
+                                            .unwrap_or_else(Instant::now);
+                                        // The durable cut is known, but the
+                                        // new admission epoch is not visible
+                                        // yet. Installing terminal state here
+                                        // means the epoch wake cannot outrun
+                                        // the required typed socket close.
+                                        terminal_lifecycle
+                                            .committed_mode_transition(reason, close_by);
+                                    }
+                                    committed
                                 })
                             })
                             .await?;
@@ -8515,6 +8724,8 @@ async fn stream_live(
 ) -> Response {
     let connections = runtime.connections.clone();
     let policy_mode = runtime.active_policy_auth_mode();
+    let authorization_invalidation_ready =
+        runtime.auth_program_readiness().authorization_invalidation;
     let admission = runtime.auth_admission_controller();
     let active_mode = authority.active_mode();
     let admission_epoch = authority.admission_epoch();
@@ -8535,6 +8746,7 @@ async fn stream_live(
                 connection_act,
                 connection_id,
                 policy_mode,
+                authorization_invalidation_ready,
                 admission,
                 active_mode,
                 admission_epoch,
@@ -8584,28 +8796,90 @@ struct AdmittedLiveWrite {
     completed: oneshot::Sender<bool>,
 }
 
+const TERMINAL_AUTH_CLOSE_CODE: u16 = 4401;
+
+async fn finish_terminal_live_write(
+    sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+    event: crate::ephemeral::DeliveryTerminalEvent,
+) {
+    let frame = LiveSocketServerFrame::AuthError {
+        code: event.code,
+        reason: event.reason,
+    };
+    let payload = match serde_json::to_string(&frame) {
+        Ok(payload) => payload,
+        Err(_) => return,
+    };
+    let close_by = tokio::time::Instant::from_std(event.close_by);
+    let _ = tokio::time::timeout_at(close_by, async {
+        // Failure to send the typed frame never postpones the hard close.
+        let _ = sender.send(Message::Text(payload.into())).await;
+        let _ = sender
+            .send(Message::Close(Some(CloseFrame {
+                code: TERMINAL_AUTH_CLOSE_CODE,
+                reason: Utf8Bytes::from_static("auth_error"),
+            })))
+            .await;
+    })
+    .await;
+}
+
 async fn live_socket_writer(
     mut sender: futures_util::stream::SplitSink<WebSocket, Message>,
     mut writes: mpsc::Receiver<AdmittedLiveWrite>,
+    mut terminal_writes: mpsc::Receiver<crate::ephemeral::DeliveryTerminalEvent>,
     notify: Arc<crate::ephemeral::DeliveryNotifier>,
     connection_id: String,
     generation: u64,
 ) {
-    while let Some(write) = writes.recv().await {
-        if !notify.is_current(&connection_id, generation) {
+    loop {
+        let write = tokio::select! {
+            biased;
+            Some(event) = terminal_writes.recv() => {
+                finish_terminal_live_write(&mut sender, event).await;
+                break;
+            }
+            write = writes.recv() => write,
+        };
+        let Some(write) = write else {
+            break;
+        };
+        if !notify.is_deliverable(&connection_id, generation) {
             let _ = write.completed.send(false);
+            if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+                finish_terminal_live_write(&mut sender, event).await;
+            }
             break;
         }
+        let mut terminal = None;
         let sent = tokio::select! {
             biased;
+            Some(event) = terminal_writes.recv() => {
+                terminal = Some(event);
+                false
+            },
             _ = write.admission.cancelled() => false,
             result = sender.send(write.message) => result.is_ok(),
         };
         let _ = write.completed.send(sent);
+        if let Some(event) = terminal {
+            finish_terminal_live_write(&mut sender, event).await;
+            break;
+        }
         if !sent {
             break;
         }
     }
+}
+
+fn offer_terminal_live_write(
+    terminal_writer: &mpsc::Sender<crate::ephemeral::DeliveryTerminalEvent>,
+    event: crate::ephemeral::DeliveryTerminalEvent,
+) {
+    // This dedicated one-slot channel is never occupied by ordinary effects.
+    // A failed offer means the writer has already stopped; it must not extend
+    // the close deadline or resume ordinary draining.
+    let _ = terminal_writer.try_send(event);
 }
 
 async fn send_live_with_admission(
@@ -8651,6 +8925,7 @@ async fn live_stream(
     connection_act: PreparedConnectionAct,
     connection_id: String,
     policy_mode: PolicyAuthMode,
+    authorization_invalidation_ready: bool,
     admission_controller: AuthAdmissionController,
     active_mode: AuthMode,
     mut admission_epoch: u64,
@@ -8664,15 +8939,19 @@ async fn live_stream(
     // lock traffic while idle). The long interval is a safety net only, in case
     // a wake is ever missed; register before draining so no push is lost.
     let notify = ephemeral.delivery_notifier();
-    let Ok((generation, waker)) = notify.register(&connection_id) else {
+    let terminal_capture = connection_act.terminal_capture();
+    let Ok((generation, waker)) = notify.register_bound(&connection_id, terminal_capture.grant_id)
+    else {
         // Generation reuse could transfer drain/teardown ownership to a stale
         // socket. Exhaustion is process-terminal for new live streams.
         return;
     };
     let (writer, writes) = mpsc::channel(1);
+    let (terminal_writer, terminal_writes) = mpsc::channel(1);
     let writer_task = tokio::spawn(live_socket_writer(
         sender,
         writes,
+        terminal_writes,
         notify.clone(),
         connection_id.clone(),
         generation,
@@ -8690,10 +8969,19 @@ async fn live_stream(
         acquire_live_act_admission(&admission_controller, active_mode, &mut admission_epoch).await
     else {
         drop(writer);
+        drop(terminal_writer);
         let _ = writer_task.await;
         teardown_live_stream(&state, &notify, &connection_id, generation).await;
         return;
     };
+    if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+        offer_terminal_live_write(&terminal_writer, event);
+        drop(writer);
+        drop(terminal_writer);
+        let _ = writer_task.await;
+        teardown_live_stream(&state, &notify, &connection_id, generation).await;
+        return;
+    }
     let initial_current = initial_admission
         .effect_guard("initial WebSocket drain")
         .is_ok_and(|_effect| {
@@ -8716,7 +9004,11 @@ async fn live_stream(
         .await
         .is_break()
     {
+        if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+            offer_terminal_live_write(&terminal_writer, event);
+        }
         drop(writer);
+        drop(terminal_writer);
         let _ = writer_task.await;
         teardown_live_stream(&state, &notify, &connection_id, generation).await;
         return;
@@ -8766,6 +9058,8 @@ async fn live_stream(
                                     &connection_id,
                                     &text,
                                     policy_mode,
+                                    authorization_invalidation_ready,
+                                    &connection_act.resolved,
                                 )),
                             ) else {
                                 break 'stream;
@@ -8858,6 +9152,10 @@ async fn live_stream(
                 }
             }
             _ = waker.notified() => {
+                if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+                    offer_terminal_live_write(&terminal_writer, event);
+                    break 'stream;
+                }
                 let Some(admission) = acquire_live_act_admission(
                     &admission_controller,
                     active_mode,
@@ -8949,7 +9247,11 @@ async fn live_stream(
         }
     }
 
+    if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+        offer_terminal_live_write(&terminal_writer, event);
+    }
     drop(writer);
+    drop(terminal_writer);
     let _ = writer_task.await;
     teardown_live_stream(&state, &notify, &connection_id, generation).await;
 }
@@ -9064,6 +9366,153 @@ fn live_socket_request_id(message: &LiveSocketClientMessage) -> Option<String> {
     }
 }
 
+/// Session-mode socket requests deliberately omit every client-asserted
+/// identity field. The connection grant supplies authority after this closed
+/// shape has decoded; dev mode continues to decode the legacy DTO unchanged.
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+enum SessionLiveSocketClientMessage {
+    EphemeralSubscribe {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: SessionSubscribeRequest,
+    },
+    EphemeralPublish {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: SessionPublishRequest,
+    },
+    EphemeralDelete {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: SessionDeleteRequest,
+    },
+    EphemeralUnsubscribe {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+        request: SessionSubscribeRequest,
+    },
+    Ping {
+        #[serde(default, rename = "requestId", alias = "request_id")]
+        request_id: Option<String>,
+    },
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionSubscribeRequest {
+    collection: String,
+    scope: Scope,
+    connection_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionPublishRequest {
+    collection: String,
+    scope: Scope,
+    connection_id: String,
+    value: Vec<u8>,
+    ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionDeleteRequest {
+    collection: String,
+    scope: Scope,
+    connection_id: String,
+}
+
+fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContext {
+    match authority {
+        ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            ..
+        } => AuthContext {
+            principal: None,
+            session_id: Some(session_id.clone()),
+            user_id: Some(user_id.clone()),
+            permissions: Default::default(),
+        },
+        ResolvedAppAuthority::DevImpersonation { user_id, .. } => AuthContext {
+            principal: None,
+            session_id: None,
+            user_id: Some(user_id.clone()),
+            permissions: Default::default(),
+        },
+        ResolvedAppAuthority::Anonymous
+        | ResolvedAppAuthority::AdminBypass { .. }
+        | ResolvedAppAuthority::System => AuthContext::default(),
+    }
+}
+
+impl SessionLiveSocketClientMessage {
+    fn resolve(self, authority: &ResolvedAppAuthority) -> LiveSocketClientMessage {
+        let auth = ephemeral_auth_from_authority(authority);
+        match self {
+            Self::EphemeralSubscribe {
+                request_id,
+                request,
+            } => LiveSocketClientMessage::EphemeralSubscribe {
+                request_id,
+                request: SubscribeRequest {
+                    collection: request.collection,
+                    scope: request.scope,
+                    connection_id: request.connection_id,
+                    auth,
+                },
+            },
+            Self::EphemeralPublish {
+                request_id,
+                request,
+            } => LiveSocketClientMessage::EphemeralPublish {
+                request_id,
+                request: PublishRequest {
+                    collection: request.collection,
+                    scope: request.scope,
+                    connection_id: request.connection_id,
+                    session_id: auth.session_id.clone(),
+                    user_id: auth.user_id.clone(),
+                    custom_key: None,
+                    value: request.value,
+                    ttl_ms: request.ttl_ms,
+                    auth,
+                },
+            },
+            Self::EphemeralDelete {
+                request_id,
+                request,
+            } => LiveSocketClientMessage::EphemeralDelete {
+                request_id,
+                request: DeleteRequest {
+                    collection: request.collection,
+                    scope: request.scope,
+                    connection_id: request.connection_id,
+                    session_id: auth.session_id.clone(),
+                    user_id: auth.user_id.clone(),
+                    custom_key: None,
+                    auth,
+                },
+            },
+            Self::EphemeralUnsubscribe {
+                request_id,
+                request,
+            } => LiveSocketClientMessage::EphemeralUnsubscribe {
+                request_id,
+                request: SubscribeRequest {
+                    collection: request.collection,
+                    scope: request.scope,
+                    connection_id: request.connection_id,
+                    auth,
+                },
+            },
+            Self::Ping { request_id } => LiveSocketClientMessage::Ping { request_id },
+        }
+    }
+}
+
 /// Handle a socket-text operation. Ephemeral operations reach the room
 /// authority directly — a busy mutation holding the global write mutex cannot
 /// delay a cursor publish on this socket (LLP 0032 L9).
@@ -9072,6 +9521,8 @@ fn handle_live_socket_text(
     connection_id: &str,
     text: &str,
     policy_mode: PolicyAuthMode,
+    authorization_invalidation_ready: bool,
+    authority: &ResolvedAppAuthority,
 ) -> String {
     if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
         return socket_error(
@@ -9103,22 +9554,27 @@ fn handle_live_socket_text(
             );
         }
     };
-    if matches!(policy_mode, PolicyAuthMode::Sessions)
-        && let Some(field) = legacy_body_auth_field(&raw)
-    {
-        let request_id = raw
-            .get("requestId")
-            .or_else(|| raw.get("request_id"))
-            .and_then(Value::as_str)
-            .map(ToOwned::to_owned);
-        let operation = raw.get("type").and_then(Value::as_str).unwrap_or("decode");
-        return socket_error(
-            request_id,
-            operation,
-            body_auth_unsupported(field).0.diagnostic,
-        );
-    }
-    let message = match serde_json::from_value::<LiveSocketClientMessage>(raw.clone()) {
+    let decoded = match policy_mode {
+        PolicyAuthMode::Sessions => {
+            if let Some(field) = legacy_body_auth_field(&raw) {
+                let request_id = raw
+                    .get("requestId")
+                    .or_else(|| raw.get("request_id"))
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned);
+                let operation = raw.get("type").and_then(Value::as_str).unwrap_or("decode");
+                return socket_error(
+                    request_id,
+                    operation,
+                    body_auth_unsupported(field).0.diagnostic,
+                );
+            }
+            serde_json::from_value::<SessionLiveSocketClientMessage>(raw.clone())
+                .map(|message| message.resolve(authority))
+        }
+        PolicyAuthMode::Dev => serde_json::from_value::<LiveSocketClientMessage>(raw.clone()),
+    };
+    let message = match decoded {
         Ok(message) => message,
         Err(error) => {
             return socket_error(
@@ -9147,6 +9603,36 @@ fn handle_live_socket_text(
                 "auth",
                 "this socket operation is unavailable under the active auth policy",
             ),
+        );
+    }
+
+    // The HTTP and WebSocket twins share the item-5 activation floor. A
+    // protected room subscribe is an auth-scoped live materialization even
+    // though its control frame arrives after the upgrade, so it must be
+    // refused before the room registration exists until item 6 installs the
+    // authorization-invalidation protocol. Public rooms remain available.
+    //
+    // @ref LLP 0055#live-and-replay-admission-before-later-items — protected
+    //   ephemeral registration is unavailable before item 6 on every transport.
+    if matches!(policy_mode, PolicyAuthMode::Sessions)
+        && !authorization_invalidation_ready
+        && let LiveSocketClientMessage::EphemeralSubscribe {
+            request_id,
+            request,
+        } = &message
+        && ephemeral
+            .subscription_requires_permission(&request.collection)
+            .unwrap_or(false)
+    {
+        return socket_error(
+            request_id.clone(),
+            "ephemeral_subscribe",
+            Diagnostic::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "auth-scoped live work is unavailable until authorization invalidation is ready",
+            )
+            .with_details(json!({ "capability": "authScopedLive" })),
         );
     }
 
@@ -9352,6 +9838,129 @@ impl EnsureEphemeralCollectionsInput {
     }
 }
 
+// HTTP ephemeral operations keep the legacy dev wire shape while allowing
+// the session-mode transport to omit client-asserted identity. These private
+// wire structs retain serde's duplicate-field checking; conversion installs
+// only the authority prepared by the shared invocation gate.
+#[derive(Debug, Deserialize)]
+struct WirePublishRequest {
+    collection: String,
+    scope: Scope,
+    connection_id: String,
+    session_id: Option<String>,
+    user_id: Option<String>,
+    custom_key: Option<String>,
+    value: Vec<u8>,
+    ttl_ms: Option<u64>,
+    auth: Option<AuthContext>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WireDeleteRequest {
+    collection: String,
+    scope: Scope,
+    connection_id: String,
+    session_id: Option<String>,
+    user_id: Option<String>,
+    custom_key: Option<String>,
+    auth: Option<AuthContext>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WireSubscribeRequest {
+    collection: String,
+    scope: Scope,
+    connection_id: String,
+    auth: Option<AuthContext>,
+}
+
+fn resolved_wire_ephemeral_auth(
+    supplied: Option<AuthContext>,
+    policy_mode: PolicyAuthMode,
+    authority: &ResolvedAppAuthority,
+) -> Result<AuthContext, ApiError> {
+    match policy_mode {
+        PolicyAuthMode::Dev => supplied.ok_or_else(|| {
+            ApiError::request_json_invalid("missing field `auth` in the dev ephemeral DTO")
+        }),
+        PolicyAuthMode::Sessions => {
+            if supplied.is_some() {
+                return Err(body_auth_unsupported("auth"));
+            }
+            Ok(ephemeral_auth_from_authority(authority))
+        }
+    }
+}
+
+impl WirePublishRequest {
+    fn resolve(
+        self,
+        policy_mode: PolicyAuthMode,
+        authority: &ResolvedAppAuthority,
+    ) -> Result<PublishRequest, ApiError> {
+        let auth = resolved_wire_ephemeral_auth(self.auth, policy_mode, authority)?;
+        let (session_id, user_id, custom_key) = match policy_mode {
+            PolicyAuthMode::Dev => (self.session_id, self.user_id, self.custom_key),
+            PolicyAuthMode::Sessions => (
+                auth.session_id.clone(),
+                auth.user_id.clone(),
+                // The shared gate rejects every planted custom-key authority
+                // carrier before this conversion.
+                None,
+            ),
+        };
+        Ok(PublishRequest {
+            collection: self.collection,
+            scope: self.scope,
+            connection_id: self.connection_id,
+            session_id,
+            user_id,
+            custom_key,
+            value: self.value,
+            ttl_ms: self.ttl_ms,
+            auth,
+        })
+    }
+}
+
+impl WireDeleteRequest {
+    fn resolve(
+        self,
+        policy_mode: PolicyAuthMode,
+        authority: &ResolvedAppAuthority,
+    ) -> Result<DeleteRequest, ApiError> {
+        let auth = resolved_wire_ephemeral_auth(self.auth, policy_mode, authority)?;
+        let (session_id, user_id, custom_key) = match policy_mode {
+            PolicyAuthMode::Dev => (self.session_id, self.user_id, self.custom_key),
+            PolicyAuthMode::Sessions => (auth.session_id.clone(), auth.user_id.clone(), None),
+        };
+        Ok(DeleteRequest {
+            collection: self.collection,
+            scope: self.scope,
+            connection_id: self.connection_id,
+            session_id,
+            user_id,
+            custom_key,
+            auth,
+        })
+    }
+}
+
+impl WireSubscribeRequest {
+    fn resolve(
+        self,
+        policy_mode: PolicyAuthMode,
+        authority: &ResolvedAppAuthority,
+    ) -> Result<SubscribeRequest, ApiError> {
+        Ok(SubscribeRequest {
+            collection: self.collection,
+            scope: self.scope,
+            connection_id: self.connection_id,
+            auth: resolved_wire_ephemeral_auth(self.auth, policy_mode, authority)?,
+        })
+    }
+}
+
 /// The ephemeral endpoints reach the sharded room authority directly: no
 /// global mutex, so a busy mutation on the write lane cannot delay presence
 /// (LLP 0013 §Delivery lanes; LLP 0032 L9). They are pure memory operations —
@@ -9373,12 +9982,13 @@ async fn ensure_ephemeral_collections(
 
 async fn publish_ephemeral(
     State(runtime): State<AppState>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    request: Result<Json<PublishRequest>, JsonRejection>,
+    request: Result<Json<WirePublishRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let request = request.resolve(runtime.active_policy_auth_mode(), authority.resolved())?;
     let _effect = admission.effect_guard("ephemeral publish")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
@@ -9392,12 +10002,13 @@ async fn publish_ephemeral(
 
 async fn subscribe_ephemeral(
     State(runtime): State<AppState>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    request: Result<Json<SubscribeRequest>, JsonRejection>,
+    request: Result<Json<WireSubscribeRequest>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let request = request.resolve(runtime.active_policy_auth_mode(), authority.resolved())?;
     let _effect = admission.effect_guard("ephemeral subscribe")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
@@ -9411,12 +10022,13 @@ async fn subscribe_ephemeral(
 
 async fn delete_ephemeral(
     State(runtime): State<AppState>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    request: Result<Json<DeleteRequest>, JsonRejection>,
+    request: Result<Json<WireDeleteRequest>, JsonRejection>,
 ) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
+    let request = request.resolve(runtime.active_policy_auth_mode(), authority.resolved())?;
     let _effect = admission.effect_guard("ephemeral delete")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
@@ -10574,6 +11186,7 @@ mod tests {
             })),
         );
         independent.authority_independent = true;
+        independent.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
         let scoped = FunctionDefinition::new(
             "privateFeed",
             FunctionKind::LiveQuery,
@@ -10586,6 +11199,22 @@ mod tests {
             })),
         );
         super::with_snapback(&state.snapback, move |snapback| {
+            snapback
+                .apply_schema(SchemaManifest {
+                    ephemeral_collections: vec![
+                        EphemeralCollection::local_cursor("public_cursors", "room"),
+                        EphemeralCollection::local_cursor("private_cursors", "room")
+                            .require_room_permission("room_read"),
+                    ],
+                    tables: vec![crate::manifest::TableManifest {
+                        name: "items".to_owned(),
+                        fields: Vec::new(),
+                        indexes: Vec::new(),
+                        syncable: false,
+                    }],
+                    ..SchemaManifest::default()
+                })
+                .expect("install live-gate schema");
             let diagnostics = snapback.load_functions(FunctionManifest {
                 functions: vec![independent, scoped],
                 ..FunctionManifest::default()
@@ -10597,7 +11226,7 @@ mod tests {
             );
         })
         .await;
-        let spec = super::app_data_route_registrations()
+        let spec = super::core_route_registrations()
             .into_iter()
             .find(|route| route.spec.path == "/live/{name}/subscribe")
             .expect("registered live subscribe")
@@ -10630,6 +11259,112 @@ mod tests {
         assert_eq!(
             refusal.diagnostic.code,
             "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+        );
+
+        let ephemeral_spec = super::core_route_registrations()
+            .into_iter()
+            .find(|route| route.spec.path == "/ephemeral/subscribe")
+            .expect("registered ephemeral subscribe")
+            .spec;
+        assert!(
+            super::session_live_protocol_refusal(
+                ephemeral_spec,
+                &state,
+                &headers,
+                "/ephemeral/subscribe",
+                Some(&json!({ "collection": "public_cursors" })),
+            )
+            .await
+            .is_none()
+        );
+        assert_eq!(
+            super::session_live_protocol_refusal(
+                ephemeral_spec,
+                &state,
+                &headers,
+                "/ephemeral/subscribe",
+                Some(&json!({ "collection": "private_cursors" })),
+            )
+            .await
+            .expect("protected room must fail before item 6")
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+        );
+
+        let socket_subscribe = |collection: &str| {
+            json!({
+                "type": "ephemeral_subscribe",
+                "requestId": format!("subscribe-{collection}"),
+                "request": {
+                    "collection": collection,
+                    "scope": { "room": "one" },
+                    "connection_id": "conn-item5"
+                }
+            })
+            .to_string()
+        };
+        let public_socket: Value = serde_json::from_str(&super::handle_live_socket_text(
+            &state.ephemeral,
+            "conn-item5",
+            &socket_subscribe("public_cursors"),
+            PolicyAuthMode::Sessions,
+            false,
+            &ResolvedAppAuthority::Anonymous,
+        ))
+        .expect("public socket response");
+        assert_eq!(
+            public_socket["kind"], "ephemeral_ack",
+            "session-mode authority-independent registration must not require body auth"
+        );
+        let protected_socket: Value = serde_json::from_str(&super::handle_live_socket_text(
+            &state.ephemeral,
+            "conn-item5",
+            &socket_subscribe("private_cursors"),
+            PolicyAuthMode::Sessions,
+            false,
+            &ResolvedAppAuthority::Anonymous,
+        ))
+        .expect("protected socket refusal");
+        assert_eq!(
+            protected_socket["diagnostic"]["code"], "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+            "the WebSocket registration twin must share the HTTP item-5 gate"
+        );
+
+        let mut planted: Value =
+            serde_json::from_str(&socket_subscribe("public_cursors")).expect("socket frame");
+        planted["request"]["auth"] = json!({
+            "principal": "planted",
+            "session_id": null,
+            "user_id": null,
+            "permissions": []
+        });
+        let planted: Value = serde_json::from_str(&super::handle_live_socket_text(
+            &state.ephemeral,
+            "conn-item5",
+            &planted.to_string(),
+            PolicyAuthMode::Sessions,
+            false,
+            &ResolvedAppAuthority::Anonymous,
+        ))
+        .expect("planted-auth refusal");
+        assert_eq!(
+            planted["diagnostic"]["code"],
+            "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED"
+        );
+
+        let dev_missing_auth: Value = serde_json::from_str(&super::handle_live_socket_text(
+            &state.ephemeral,
+            "conn-item5",
+            &socket_subscribe("public_cursors"),
+            PolicyAuthMode::Dev,
+            false,
+            &ResolvedAppAuthority::Anonymous,
+        ))
+        .expect("dev closed-shape refusal");
+        assert_eq!(
+            dev_missing_auth["diagnostic"]["code"], "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
+            "the legacy dev DTO must still require its auth member"
         );
     }
 
@@ -13305,7 +14040,9 @@ globalThis.__snapbackHandlers = {
         RouteClass, RoutePolicy, live_socket_operation_name, live_socket_operations,
         route_registry,
     };
-    use crate::ephemeral::{DeleteRequest, PublishRequest, Scope, SubscribeRequest};
+    use crate::ephemeral::{
+        DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
+    };
 
     fn synthetic_connection_authority(
         bound: BoundGrantAuthority,
@@ -14068,6 +14805,49 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    #[tokio::test]
+    async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory terminal lifecycle state"),
+        );
+        let registry = state.connections.clone();
+        let grant = registry
+            .open(Some("terminal-reset".to_owned()), None, true)
+            .expect("open predecessor grant");
+        let grant_id = registry
+            .lock()
+            .grants
+            .get(&grant.connection_id)
+            .expect("stored predecessor grant")
+            .grant_id
+            .clone();
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, waker) = notifier
+            .register_bound(&grant.connection_id, grant_id)
+            .expect("register exact socket grant");
+        let close_by = Instant::now() + Duration::from_secs(5);
+
+        state
+            .auth_terminal_lifecycle
+            .committed_stream_reset(crate::live_wire::LiveAuthErrorReason::Reset, close_by);
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("committed reset wakes exact socket");
+        let event = notifier
+            .terminal_if_current(&grant.connection_id, generation)
+            .expect("terminal event installed");
+        assert_eq!(event.code, crate::live_wire::LiveAuthErrorCode::StreamReset);
+        assert_eq!(event.reason, crate::live_wire::LiveAuthErrorReason::Reset);
+        assert_eq!(event.close_by, close_by);
+        assert!(!notifier.is_deliverable(&grant.connection_id, generation));
+        assert!(
+            registry
+                .verify(&grant.connection_id, Some(&grant.connection_token))
+                .is_err(),
+            "grant invalidation linearizes before the terminal wake"
+        );
+    }
+
     #[test]
     fn connection_registry_pressure_evicts_lru_instead_of_permanently_wedging() {
         let registry = ConnectionRegistry::default();
@@ -14261,6 +15041,84 @@ globalThis.__snapbackHandlers = {
         server.abort();
     }
 
+    #[tokio::test]
+    async fn terminal_socket_sends_closed_auth_error_then_4401() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory terminal socket state"),
+        );
+        let registry = state.connections.clone();
+        let ephemeral = state.ephemeral.clone();
+        let lifecycle = state.auth_terminal_lifecycle.clone();
+        let grant = registry
+            .open(Some("terminal_socket".to_owned()), None, true)
+            .expect("socket grant");
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind test server");
+        let address = listener.local_addr().expect("test server address");
+        let server = tokio::spawn(async move {
+            axum::serve(listener, super::app(state))
+                .await
+                .expect("serve socket test");
+        });
+
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+        let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
+            .into_client_request()
+            .expect("websocket request");
+        request.headers_mut().insert(
+            "x-snapback-connection-token",
+            grant
+                .connection_token
+                .parse()
+                .expect("connection token header"),
+        );
+        let (mut socket, _) = tokio_tungstenite::connect_async(request)
+            .await
+            .expect("connect authorized socket");
+        let notifier = ephemeral.delivery_notifier();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !notifier.is_registered(&grant.connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("live stream registered its notifier");
+
+        lifecycle.committed_stream_reset(
+            crate::live_wire::LiveAuthErrorReason::Reset,
+            Instant::now() + Duration::from_secs(5),
+        );
+        let terminal = tokio::time::timeout(Duration::from_secs(2), socket.next())
+            .await
+            .expect("terminal frame deadline")
+            .expect("terminal frame present")
+            .expect("terminal frame readable");
+        let tokio_tungstenite::tungstenite::Message::Text(terminal) = terminal else {
+            panic!("expected typed terminal text frame");
+        };
+        let terminal: Value = serde_json::from_str(&terminal).expect("typed terminal JSON");
+        assert_eq!(
+            terminal,
+            json!({
+                "kind": "auth_error",
+                "code": "SNAPBACK_AUTH_STREAM_RESET",
+                "reason": "reset",
+            })
+        );
+        let close = tokio::time::timeout(Duration::from_secs(2), socket.next())
+            .await
+            .expect("terminal close deadline")
+            .expect("terminal close present")
+            .expect("terminal close readable");
+        let tokio_tungstenite::tungstenite::Message::Close(Some(close)) = close else {
+            panic!("expected terminal close frame");
+        };
+        assert_eq!(u16::from(close.code), super::TERMINAL_AUTH_CLOSE_CODE);
+        assert_eq!(close.reason, "auth_error");
+        server.abort();
+    }
+
     const RESERVED_PREFIX: &str = "/_snapback/";
 
     /// LLP 0031 §The invariant — the declared registry holds the boundary: every
@@ -14435,6 +15293,8 @@ globalThis.__snapbackHandlers = {
             "conn",
             &frame,
             super::PolicyAuthMode::Dev,
+            false,
+            &ResolvedAppAuthority::Anonymous,
         ))
         .expect("typed socket error");
         assert_eq!(

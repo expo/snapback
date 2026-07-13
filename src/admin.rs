@@ -21,9 +21,10 @@ use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{
-    ApiError, ConnectionRegistry, EffectPolicy, HealthResponse, InvocationAuthority,
-    PolicyAuthMode, PolicyAuthPosture, RegisteredRoute, ResponseSensitivity, RoutePolicy,
-    SessionModeOverlay, SharedSnapback, system_api_route, system_static_route,
+    ApiError, AuthTerminalLifecycle, ConnectionRegistry, EffectPolicy, HealthResponse,
+    InvocationAuthority, PolicyAuthMode, PolicyAuthPosture, RegisteredRoute, ResponseSensitivity,
+    RoutePolicy, SessionModeOverlay, SharedSnapback, committed_mode_terminal_reason,
+    system_api_route, system_static_route,
 };
 use anyhow::Context as _;
 use axum::Json;
@@ -618,6 +619,10 @@ pub struct AppState {
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
+    /// Terminal invalidation shares the exact registry and delivery notifier
+    /// installed in this app state. The pre-bind expiry worker receives a
+    /// clone, so readiness cannot accidentally describe a different graph.
+    pub(crate) auth_terminal_lifecycle: AuthTerminalLifecycle,
     /// Clone-shared mode authority. A network stage/re-stage publishes the
     /// committed durable record and its derived active/desired policy inputs
     /// as one write before returning success.
@@ -686,13 +691,16 @@ impl AppState {
         let (secret_reads, operator) =
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
         let auth_admission = read.admission_controller();
+        let connections = ConnectionRegistry::default();
+        let auth_terminal_lifecycle = AuthTerminalLifecycle::new(connections.clone(), &ephemeral);
         (
             Self {
                 snapback,
                 read,
                 ephemeral,
                 server: Arc::new(server),
-                connections: ConnectionRegistry::default(),
+                connections,
+                auth_terminal_lifecycle,
                 auth_mode_runtime: Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
                     state: Arc::new(AuthModeStateRecord::initial_dev(None)),
                     active_policy: PolicyAuthMode::Dev,
@@ -865,6 +873,8 @@ impl AppState {
             ));
         }
         mode_state.validate_shape()?;
+        let predecessor = self.auth_mode_state();
+        let terminal_reason = committed_mode_terminal_reason(&predecessor, &mode_state);
         // The controller publishes/reconciles first. Requests can briefly see
         // a new closed epoch with the old durable projection (and fail
         // closed), but can never see a new durable mode under an old accepting
@@ -879,6 +889,13 @@ impl AppState {
             .auth_mode_runtime
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = snapshot;
+        if let Some(reason) = terminal_reason {
+            let close_by = Instant::now()
+                .checked_add(Duration::from_millis(5_000))
+                .unwrap_or_else(Instant::now);
+            self.auth_terminal_lifecycle
+                .committed_mode_transition(reason, close_by);
+        }
         Ok(())
     }
 

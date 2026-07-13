@@ -98,6 +98,12 @@ impl AuthExpiryWorker {
     }
 }
 
+impl Drop for AuthExpiryWorker {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
 /// The one provider assembled for a serve process, plus the catalog posture
 /// that controls maintenance and public readiness.
 #[derive(Clone)]
@@ -903,6 +909,44 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+    }
+
+    #[tokio::test]
+    async fn expiry_worker_reports_ready_then_stops_fail_closed() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            1_000,
+            &OsRandom,
+        )
+        .unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
+        snapback
+            .auth_database_mut()
+            .ensure_authorization_stream_incarnation()
+            .unwrap();
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            snapback
+                .auth_database_mut()
+                .session_projection_source()
+                .unwrap(),
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )
+        .unwrap();
+        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let mut worker =
+            spawn_auth_expiry_worker(coordinator, provider, AuthExpiryTerminalSink::noop())
+                .await
+                .expect("worker running handshake");
+
+        worker.abort();
+        assert_eq!(
+            worker.stopped().await.unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         );
     }
 
