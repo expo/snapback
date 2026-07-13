@@ -586,6 +586,7 @@ impl FunctionManifest {
 
             validate_protected_query_profile(function)?;
             validate_authority_independent(function)?;
+            validate_retainable_query(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -743,8 +744,9 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
 
     let eligible_kind = matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery);
     let eligible_requirement = function.effective_auth_requirement() == AuthRequirement::Public;
-    let eligible_declarations =
-        function.uses.is_empty() && function.read_set_summary.auth_scope_field.is_none();
+    let eligible_declarations = function.uses.is_empty()
+        && function.read_set_summary.auth_scope_field.is_none()
+        && function.authorization_dependence.is_empty();
     let eligible_runtime = match &function.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => !plan
             .filters
@@ -772,6 +774,7 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
         "hostPlanQuery": matches!(&function.runtime, FunctionRuntime::HostPlan(HandlerPlan::Query(_))),
         "usesConfig": !function.uses.is_empty(),
         "authScopeField": function.read_set_summary.auth_scope_field.as_deref(),
+        "authorizationDependence": &function.authorization_dependence,
     })))
 }
 
@@ -799,6 +802,36 @@ fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
             .values()
             .any(value_expr_uses_authority_or_ambient_input),
     }
+}
+
+/// Closed caller-authority dimensions that a query result may depend on.
+/// Retention v1 accepts exactly `userId`; spelling the rejected dimensions is
+/// still important because a manifest must describe why it is online-only
+/// rather than silently erasing session/provider/opaque dependence.
+///
+/// @ref LLP 0053#retained-and-offline-authorization — retained rows survive a
+///   same-user session replacement, so every other authority dimension is
+///   deliberately ineligible.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthorizationInputDimension {
+    UserId,
+    SessionId,
+    Provider,
+    Roles,
+    IsAuthenticated,
+    Opaque,
 }
 
 fn protected_input_error(function: &FunctionDefinition, input_kind: &str) -> SnapbackError {
@@ -871,6 +904,137 @@ fn validate_protected_query_profile(function: &FunctionDefinition) -> SnapbackRe
     Ok(())
 }
 
+fn undeclarable_retention(function: &FunctionDefinition, reason: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_UNDECLARABLE_RETENTION",
+        "auth",
+        format!(
+            "function {} cannot retain results because its authorization dependence is not declarable: {reason}",
+            function.name
+        ),
+    )
+    .with_details(serde_json::json!({
+        "function": function.name,
+        "reason": reason,
+    }))
+}
+
+fn host_plan_authorization_dimensions(
+    function: &FunctionDefinition,
+    plan: &QueryPlan,
+) -> BTreeSet<AuthorizationInputDimension> {
+    fn collect(value: &ValueExpr, dimensions: &mut BTreeSet<AuthorizationInputDimension>) {
+        match value {
+            ValueExpr::AuthUserId => {
+                dimensions.insert(AuthorizationInputDimension::UserId);
+            }
+            ValueExpr::Arg(_)
+            | ValueExpr::Args
+            | ValueExpr::Binding(_)
+            | ValueExpr::Literal(_)
+            | ValueExpr::RuntimeId
+            | ValueExpr::RuntimeNow => {}
+            ValueExpr::Field { base, .. } => collect(base, dimensions),
+            ValueExpr::Binary { left, right, .. } => {
+                collect(left, dimensions);
+                collect(right, dimensions);
+            }
+            ValueExpr::Unary { expr, .. } => collect(expr, dimensions),
+            ValueExpr::If { cond, then, r#else } => {
+                collect(cond, dimensions);
+                collect(then, dimensions);
+                collect(r#else, dimensions);
+            }
+            ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+                for value in values {
+                    collect(value, dimensions);
+                }
+            }
+            ValueExpr::Record { fields } => {
+                for value in fields.values() {
+                    collect(value, dimensions);
+                }
+            }
+        }
+    }
+
+    let mut dimensions = BTreeSet::new();
+    for filter in &plan.filters {
+        collect(&filter.value, &mut dimensions);
+    }
+    if function.read_set_summary.auth_scope_field.is_some() {
+        dimensions.insert(AuthorizationInputDimension::UserId);
+    }
+    dimensions
+}
+
+fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !function.retainable {
+        return Ok(());
+    }
+    if !matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery) {
+        return Err(undeclarable_retention(function, "retainableNonQuery"));
+    }
+
+    // The shipped DK-4 reset does not reset module lexical/imported singleton
+    // state, and JavaScript declarations cannot prove they read only userId.
+    // Retaining an Ibex result would therefore turn a trusted string into a
+    // security boundary. Keep it online until the reset-equivalence/profile
+    // proof exists.
+    // @ref LLP 0053#the-authorization-event-universe-closed — opaque ctx.auth
+    //   or module state makes retention a load error.
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        return Err(undeclarable_retention(function, "opaqueJavaScript"));
+    };
+
+    let summary = &function.read_set_summary;
+    let summary_complete = summary.mode.as_deref() == Some("singleTable")
+        && summary.primary_table.as_deref() == Some(plan.table.as_str())
+        && summary.tables.len() == 1
+        && summary.tables.first() == Some(&plan.table)
+        && summary
+            .auth_scope_field
+            .as_ref()
+            .is_none_or(|field| !field.trim().is_empty());
+    if !summary_complete {
+        return Err(undeclarable_retention(function, "incompleteReadSummary"));
+    }
+
+    let declared = function
+        .authorization_dependence
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    if declared.len() != function.authorization_dependence.len() {
+        return Err(undeclarable_retention(
+            function,
+            "duplicateAuthorizationDimension",
+        ));
+    }
+    let observed = host_plan_authorization_dimensions(function, plan);
+    if declared != observed {
+        return Err(undeclarable_retention(
+            function,
+            "authorizationDeclarationMismatch",
+        ));
+    }
+
+    if function.authority_independent {
+        if declared.is_empty() {
+            return Ok(());
+        }
+        return Err(undeclarable_retention(
+            function,
+            "authorityIndependentWithAuthorizationDependence",
+        ));
+    }
+
+    if declared == BTreeSet::from([AuthorizationInputDimension::UserId]) {
+        return Ok(());
+    }
+    Err(undeclarable_retention(function, "notUserIdOnly"))
+}
+
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
     // @ref LLP 0007#query-semantics — every direct artifact must enter the
     // same bounded portable expression profile before it can be installed.
@@ -936,6 +1100,7 @@ pub fn effective_query_limit(plan: &QueryPlan) -> usize {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
     #[serde(default, rename = "id")]
     pub id: Option<String>,
@@ -960,6 +1125,23 @@ pub struct FunctionDefinition {
         skip_serializing_if = "is_false"
     )]
     pub authority_independent: bool,
+    /// Results may be durably retained only when the item-8 admission profile
+    /// validates this declaration and the complete read summary.
+    ///
+    /// @ref LLP 0053#retained-and-offline-authorization — retainability is an
+    ///   explicit capability, never inferred from live/callable status.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub retainable: bool,
+    /// Closed authority dimensions used by this result. Codegen derives the
+    /// HostPlan value from `AuthUserId`/`authScopeField`; opaque JavaScript is
+    /// never upgraded merely because an author writes `userId` here.
+    #[serde(
+        default,
+        rename = "authorizationDependence",
+        alias = "authorization_dependence",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authorization_dependence: Vec<AuthorizationInputDimension>,
     #[serde(default, rename = "syncabilityClass", alias = "syncability_class")]
     pub syncability_class: Option<String>,
     #[serde(default, rename = "readSetSummary", alias = "read_set_summary")]
@@ -1000,6 +1182,8 @@ impl FunctionDefinition {
             required_capabilities: Vec::new(),
             auth_requirement: None,
             authority_independent: false,
+            retainable: false,
+            authorization_dependence: Vec::new(),
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
@@ -1015,9 +1199,21 @@ impl FunctionDefinition {
             .unwrap_or(AuthRequirement::OptionalUser)
     }
 
-    /// Every auth-scoped live query uses the default-deny input profile.
+    /// Every auth-scoped live query and every retainable query uses the same
+    /// default-deny execution profile. Ordinary finite queries remain outside
+    /// it unless they opt into retention.
     pub fn is_protected_query(&self) -> bool {
-        self.kind == FunctionKind::LiveQuery && !self.authority_independent
+        self.retainable
+            || (self.kind == FunctionKind::LiveQuery && !self.authority_independent)
+    }
+
+    /// True only for retained results whose continued visibility is bound to
+    /// the authenticated user rather than to a session lease. Public,
+    /// authority-independent results deliberately stay outside this path.
+    pub(crate) fn is_user_scoped_retainable_query(&self) -> bool {
+        self.kind == FunctionKind::Query
+            && self.retainable
+            && self.authorization_dependence == [AuthorizationInputDimension::UserId]
     }
 }
 
@@ -1163,6 +1359,13 @@ pub struct PublicFunctionDefinition {
     pub auth_requirement: Option<AuthRequirement>,
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub retainable: bool,
+    #[serde(
+        rename = "authorizationDependence",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authorization_dependence: Vec<AuthorizationInputDimension>,
     #[serde(rename = "syncabilityClass")]
     pub syncability_class: Option<String>,
     #[serde(rename = "readSetSummary")]
@@ -1304,6 +1507,8 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            retainable,
+            authorization_dependence,
             syncability_class,
             read_set_summary,
             write_set_summary,
@@ -1320,6 +1525,8 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            retainable,
+            authorization_dependence,
             syncability_class,
             read_set_summary,
             write_set_summary,

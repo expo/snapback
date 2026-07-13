@@ -627,7 +627,7 @@ export async function generateInProcess(backendDir) {
       continue;
     }
     validateFunctionAuthDefinition(name, def, err);
-    validateProtectedDefinition(name, def, err);
+    validateProtectedAndRetainabilityDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
 
     // Recursive fail-closed validation of the closed v1 expression profile
@@ -705,6 +705,7 @@ export async function generateInProcess(backendDir) {
         declaredReads: readTables,
         declaredWrites: [],
         authScopeField: def.js.authScopeField ?? null,
+        authorizationDependence: jsAuthorizationDependence(def),
         syncabilityClass: def.js.syncabilityClass,
       });
       contractQueries[name] = {
@@ -719,6 +720,7 @@ export async function generateInProcess(backendDir) {
         result: { kind: 'list', row: jsQueryRowDescriptor(def, name, err) },
         serverRunnable: true,
         localRunnable: false,
+        ...(def.retainable === true ? { retainable: true } : {}),
         ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
@@ -748,6 +750,7 @@ export async function generateInProcess(backendDir) {
         declaredReads: [t],
         declaredWrites: [],
         authScopeField: def.authScopeField ?? null,
+        authorizationDependence: hostPlanAuthorizationDependence(def),
         syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
       });
       contractQueries[name] = {
@@ -758,6 +761,7 @@ export async function generateInProcess(backendDir) {
         result: { kind: 'list', row: rowDescriptor(tables[t]) },
         serverRunnable: true,
         localRunnable: false,
+        ...(def.retainable === true ? { retainable: true } : {}),
         ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Mutation' && def.js) {
@@ -2010,11 +2014,50 @@ function authoredFunctionManifestFields(def) {
   return {
     ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
     ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
+    ...(def.retainable === true ? { retainable: true } : {}),
+    ...(Array.isArray(def.authorizationDependence)
+      ? { authorizationDependence: [...def.authorizationDependence] }
+      : {}),
   };
 }
 
+function collectAuthoredAuthorizationDimensions(expr, dimensions) {
+  if (!expr || typeof expr !== 'object') return;
+  if (expr.kind === 'AuthUserId') dimensions.add('userId');
+  if ('Field' in expr) collectAuthoredAuthorizationDimensions(expr.Field.base, dimensions);
+  if ('Binary' in expr) {
+    collectAuthoredAuthorizationDimensions(expr.Binary.left, dimensions);
+    collectAuthoredAuthorizationDimensions(expr.Binary.right, dimensions);
+  }
+  if ('Unary' in expr) collectAuthoredAuthorizationDimensions(expr.Unary.expr, dimensions);
+  if ('If' in expr) {
+    collectAuthoredAuthorizationDimensions(expr.If.cond, dimensions);
+    collectAuthoredAuthorizationDimensions(expr.If.then, dimensions);
+    collectAuthoredAuthorizationDimensions(expr.If.else, dimensions);
+  }
+  if ('Concat' in expr) for (const value of expr.Concat) collectAuthoredAuthorizationDimensions(value, dimensions);
+  if ('Call' in expr) for (const value of expr.Call.args) collectAuthoredAuthorizationDimensions(value, dimensions);
+  if ('Record' in expr) for (const value of Object.values(expr.Record.fields)) collectAuthoredAuthorizationDimensions(value, dimensions);
+}
+
+function hostPlanAuthorizationDependence(def) {
+  const dimensions = new Set();
+  for (const filter of def.plan?.filters ?? []) {
+    collectAuthoredAuthorizationDimensions(filter.value, dimensions);
+  }
+  if (def.authScopeField != null) dimensions.add('userId');
+  return [...dimensions].sort();
+}
+
+function jsAuthorizationDependence(def) {
+  if (Array.isArray(def.authorizationDependence)) return [...def.authorizationDependence];
+  if (def.js?.authScopeField != null) return ['userId'];
+  return ['opaque'];
+}
+
 function isProtectedQueryDefinition(def) {
-  return def.__kind === 'LiveQuery' && def.authorityIndependent !== true;
+  return def.retainable === true
+    || (def.__kind === 'LiveQuery' && def.authorityIndependent !== true);
 }
 
 function visitAuthoredExpr(expr, visit) {
@@ -2036,7 +2079,7 @@ function visitAuthoredExpr(expr, visit) {
   if ('Record' in expr) for (const value of Object.values(expr.Record.fields)) visitAuthoredExpr(value, visit);
 }
 
-function validateProtectedDefinition(name, def, err) {
+function validateProtectedAndRetainabilityDefinition(name, def, err) {
   if (isProtectedQueryDefinition(def) && def.plan) {
     for (const filter of def.plan.filters ?? []) {
       visitAuthoredExpr(filter.value, (expr) => {
@@ -2109,6 +2152,10 @@ function decorateFunctions(appId, functions) {
       requiredCapabilities: requiredCapabilities(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
       ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
+      ...(fn.retainable === true ? { retainable: true } : {}),
+      ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
+        ? { authorizationDependence: fn.authorizationDependence }
+        : {}),
       syncabilityClass: syncabilityClass(fn),
       readSetSummary: reads,
       writeSetSummary: writes,
@@ -3492,6 +3539,30 @@ function validateContractModuleFilenames(modules, err) {
     } else {
       seen.set(key, module.file);
     }
+  }
+
+  if (def.retainable !== true) return;
+  if (def.js) {
+    err(
+      'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
+      'auth',
+      `${name}: JavaScript handler retention is refused until ctx.auth and module-state reset equivalence are mechanically proved`,
+      { function: name, reason: 'opaqueJavaScript', authorizationDependence: jsAuthorizationDependence(def) },
+    );
+    return;
+  }
+
+  const dependence = hostPlanAuthorizationDependence(def);
+  const valid = def.authorityIndependent === true
+    ? dependence.length === 0
+    : dependence.length === 1 && dependence[0] === 'userId';
+  if (!valid) {
+    err(
+      'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
+      'auth',
+      `${name}: retainable query must be authorityIndependent or depend on userId only`,
+      { function: name, reason: 'notUserIdOnly', authorizationDependence: dependence },
+    );
   }
 }
 

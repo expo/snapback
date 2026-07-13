@@ -26,13 +26,22 @@ const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
+const AUTHORIZATION_DIMENSIONS = new Set([
+  'userId',
+  'sessionId',
+  'provider',
+  'roles',
+  'isAuthenticated',
+  'opaque',
+]);
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
-  'auth', 'authorityIndependent', 'authScopeField',
+  'auth', 'authorityIndependent', 'retainable', 'authScopeField',
 ]);
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
-  'defaultLive', 'auth', 'authorityIndependent',
+  'defaultLive', 'auth', 'authorityIndependent', 'retainable',
+  'authorizationDependence',
 ]);
 const TARGET_CAPABILITIES = new Set([
   'auth.sessions.v1',
@@ -57,6 +66,23 @@ function authoredFunctionAuth(spec, kind) {
     assert(typeof spec.authorityIndependent === 'boolean', `${kind} authorityIndependent must be boolean`);
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be authorityIndependent`);
     fields.authorityIndependent = spec.authorityIndependent;
+  }
+  if (spec.retainable !== undefined) {
+    assert(typeof spec.retainable === 'boolean', `${kind} retainable must be boolean`);
+    assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be retainable`);
+    fields.retainable = spec.retainable;
+  }
+  if (spec.authorizationDependence !== undefined) {
+    assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot declare authorizationDependence`);
+    assert(Array.isArray(spec.authorizationDependence), `${kind} authorizationDependence must be an array`);
+    const seen = new Set();
+    for (let index = 0; index < spec.authorizationDependence.length; index += 1) {
+      const dimension = spec.authorizationDependence[index];
+      assert(AUTHORIZATION_DIMENSIONS.has(dimension), `${kind} authorizationDependence contains unknown dimension ${String(dimension)}`);
+      assert(!seen.has(dimension), `${kind} authorizationDependence repeats ${dimension}`);
+      seen.add(dimension);
+    }
+    fields.authorizationDependence = REFLECT_APPLY(ARRAY_SLICE, spec.authorizationDependence, []);
   }
   return fields;
 }

@@ -147,6 +147,13 @@ export declare const OUTGREW_IR_CLASSES: Readonly<Record<OutgrewIrClass, string>
 
 export type AuthMode = 'dev' | 'sessions';
 export type AuthRequirement = 'public' | 'optional-user' | 'authenticated';
+export type AuthorizationInputDimension =
+  | 'userId'
+  | 'sessionId'
+  | 'provider'
+  | 'roles'
+  | 'isAuthenticated'
+  | 'opaque';
 export type TargetCapabilityId =
   | 'auth.sessions.v1'
   | 'cron'
@@ -166,6 +173,8 @@ export interface QueryAuthOptions extends FunctionAuthOptions {
   /** Trusted declaration that the complete result is caller-authority invariant.
    * Item 4 accepts true only for a public, ambient-free HostPlan query. */
   authorityIndependent?: boolean;
+  /** Opt into AuthorizedLease-backed offline retention after load-time proof. */
+  retainable?: boolean;
 }
 
 export interface HostPlanQuerySpec extends QueryAuthOptions {
@@ -187,6 +196,9 @@ export interface JsQuerySpec extends QueryAuthOptions {
   reads: string[];
   result?: Validator;
   authScopeField?: string;
+  /** Closed declaration for diagnostics. JavaScript remains non-retainable
+   * until its ctx.auth and module-state profile is mechanically proved. */
+  authorizationDependence?: AuthorizationInputDimension[];
   defaultLive?: boolean;
 }
 
