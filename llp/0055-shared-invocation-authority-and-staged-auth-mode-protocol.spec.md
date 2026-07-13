@@ -1,0 +1,1466 @@
+# LLP 0055: Shared invocation authority and staged auth-mode protocol
+
+**Type:** Spec
+**Status:** Draft
+**Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-13
+**Revised:** 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0054
+
+## Summary
+
+This Spec makes landing item 4 of
+[LLP 0039](./0039-auth-vertical-slice.rfc.md) executable. It pins one shared
+invocation-authority gate, the durable staged `auth.mode` state machine, the
+paired-v1 artifact protocol, cold-start bundle provenance, the bootstrap
+handshake, and the session-mode closure of legacy body authority and ephemeral
+identity fields.
+
+LLP 0039 remains **Draft / FROZEN**. This document does not amend, repair, or
+reinterpret it. Where 0039 pins an outcome, 0039 wins. This document chooses the
+storage keys, record shapes, wire types, transition ordering, and failure traces
+that 0039 deliberately left to an implementing Spec in
+`LLP 0039#protocol-obligations-deferred-to-implementation`.
+
+The existing corpus already covers the topic at design altitude: LLP 0011 owns
+the parent auth model, LLP 0031 owns route policy, LLP 0039 owns the program and
+landing order, and LLP 0054 owns provider/session state. A new document is still
+required because none of those documents may safely be extended with item 4's
+exact crash protocol: 0039 is frozen, 0031 is the route registry rather than the
+mode authority, and 0054 explicitly exposes this work as a later-item seam.
+
+The item has five load-bearing claims:
+
+1. Every entry path constructs the same immutable `PreparedAuthority`; handler
+   paths refine it to `PreparedInvocation`. No handler consumes a client
+   `AuthInput` directly, and non-handler surfaces never invent a function.
+2. The only admissible artifact/auth tuples are exactly `snapback.v0` + `dev`
+   and `snapback.v1` + `sessions`, checked as pairs before hashes or effects.
+3. A mode transition is durable and restart-gated. While it is pending or
+   quarantined, ordinary app data is unavailable; the server never executes a
+   session bundle under dev authority or a dev bundle under session authority.
+4. The first successful sessions activation permanently relocates the manifest
+   and poisons the legacy key, so a pre-auth binary fails parsing instead of
+   silently reopening under body authority.
+5. Item 4 does **not** make sessions enableable. The production readiness bit
+   stays false until item 5 installs connection binding, revocation projection,
+   and the client `AuthCoordinator`.
+
+## Scope and ownership
+
+This Spec owns:
+
+- the closed `AuthMode` and `AuthRequirement` manifest types;
+- exact v1 artifact identity namespaces and the exact supported-pair
+  capability;
+- the four durable metadata keys and their version-1 records;
+- stage, consume, quarantine, unstage, and downgrade ordering;
+- a single pre-bind `--startup-artifacts` carrier for a complete artifact pair;
+- `WireAuthorityFields`, `ResolvedAppAuthority`, `HandlerAuthProjection`,
+  `PreparedAuthority`, and `PreparedInvocation`;
+- the shared invocation gate and its complete entry-path inventory;
+- session-mode body/owner-field rejection and the replacement live-owner
+  predicate;
+- conservative pre-item-6 admission for `authorityIndependent` live queries;
+- `GET /auth/session`, its protocol headers, response DTO, and kit ordering;
+- item 4's activation/readiness fences and its diagnostics; and
+- executable acceptance matrices and crash traces.
+
+This Spec consumes without re-owning:
+
+- LLP 0031's effective route/operation policy and response controls;
+- LLP 0054's provider resolver, session-family outcomes, auth catalog,
+  keyring, collision check, and `ImpersonationCapability`;
+- LLP 0053's future authorization-invalidation declarations, dispositions,
+  obligations, and retained lease; and
+- LLP 0039 item 5's future connection-bound authority, revocation projection,
+  and client coordinator.
+
+This Spec does not implement or specify hosted coordinator security. A hosted
+sessions handler's must-understand invocation marker, handler-first deployment
+interleavings, TLS/trusted-proxy posture, and multi-replica invalidation belong
+to the hosted deployment-security contract. Item 4 remains a local Rust-target
+protocol.
+
+## Normative vocabulary and constants
+
+`MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative. JSON field names are
+camelCase unless an existing legacy field is quoted in snake_case. Closed DTOs
+reject duplicate keys and unknown fields.
+
+| Name | Exact v1 value |
+| --- | --- |
+| Mode-state format | `1` |
+| Startup-artifact carrier format | `1` |
+| Bootstrap auth protocol | `1` |
+| Legacy manifest key | `schema_manifest` |
+| Active capability-aware manifest key | `schema_manifest_capability_aware` |
+| Staged manifest key | `schema_manifest_staged_auth_mode` |
+| Mode-state key | `auth_mode_state_v1` |
+| Permanent legacy poison value bytes | `"SNAPBACK_SESSIONS_MANIFEST_RELOCATED: session-aware binary required"` |
+| Startup carrier flag | `--startup-artifacts <path>` |
+| Explicit unstage flag | `--clear-desired-auth-mode` |
+| Downgrade consume flag | `--allow-auth-downgrade` |
+| Dangerous dev-bind override | `--allow-insecure-dev-auth` |
+| Startup carrier maximum | 32 MiB |
+| Auth client protocol header | `x-snapback-auth-client-protocol` |
+| Invalidation protocol header | `x-snapback-auth-invalidation-protocol` |
+| Authority descriptor protocol header | `x-snapback-authority-descriptor-protocol` |
+| Authorized lease protocol header | `x-snapback-authorized-lease-protocol` |
+| Mode quiescence deadline | `30000` monotonic milliseconds |
+
+The poison value above is the complete JSON string encoding, including its two
+double-quote bytes and with **no trailing newline**. It is deliberately valid
+JSON whose top-level type is a string, not an object, so the pre-auth
+`SchemaManifest` parser fails.
+
+## Manifest and artifact contract
+
+### Closed auth mode
+
+The schema manifest gains this closed object:
+
+```ts
+type AuthManifest = {
+  mode: "dev" | "sessions"
+}
+```
+
+The schema field is `auth?: AuthManifest`. Absence means `dev`. `auth` denies
+unknown fields, and an unknown `mode` is a manifest-load error. `auth.mode` is a
+must-understand field and is the narrow exception to LLP 0012's otherwise
+additive unknown-field posture.
+
+The Rust authority is a closed `AuthMode::{Dev, Sessions}` enum. No internal
+`Option<String>` or best-effort parse may reach deployment or invocation code.
+
+### Closed function requirement
+
+The function manifest replaces the current unconstrained string with:
+
+```ts
+type AuthRequirement = "public" | "optional-user" | "authenticated"
+```
+
+Absence on a legacy function means `optional-user`. The typed authoring spelling
+`auth: "authenticated"` emits `authRequirement: "authenticated"`. An unknown
+value fails function-manifest load.
+
+The requirement controls only whether a resolved user is required:
+
+- `public` does not skip credential parsing. A presented invalid credential is
+  still an error.
+- `optional-user` admits anonymous or user-bearing authority after validating
+  any presented credential.
+- `authenticated` fails `SNAPBACK_AUTH_REQUIRED` before handler execution when
+  the resolved authority has no user.
+
+A cron target declared `authenticated` is invalid at manifest load because
+`system` carries no user. A nested mutation applies its own requirement to the
+inherited authority; `public` never strips an already-resolved user.
+
+### Authority-independent live declaration
+
+`FunctionDefinition` gains `authorityIndependent: boolean`, default `false`.
+It is valid only for `Query` or `LiveQuery`. It does not mean public, retained,
+or replayable; it means only that one live result is invariant under caller
+authority.
+
+Until LLP 0053 item 6 installs the complete protected-query profile and oracle,
+item 4 accepts `true` only for a HostPlan whose closed IR:
+
+- contains no auth expression or `authScopeField`;
+- has `authRequirement: "public"`;
+- contains no opaque Ibex code, action, config/provider read, runtime clock/id,
+  or nested call; and
+- produces the same full re-query result for anonymous and two distinct
+  authenticated fixtures in dev/test acceptance.
+
+No declaration is inferred from a missing auth expression, a public route, an
+empty read set, or a currently anonymous caller. An opaque Ibex live query is
+auth-scoped until item 6 can validate it. A false declaration is a manifest-load
+error in dev/test when the fixture disagrees and a capability refusal elsewhere.
+
+### The two admissible tuples
+
+The admissible set is closed:
+
+| Schema version | Function version | Effective auth mode | Result |
+| --- | --- | --- | --- |
+| `snapback.v0` | `snapback.v0` | `dev` | accept |
+| `snapback.v1` | `snapback.v1` | `sessions` | accept |
+| any other combination | any other combination | any | reject |
+
+This rejects v0-sessions, **v1-dev**, mixed versions, an unknown version, and an
+unknown mode. `supportedArtifactVersions` and `supportedAuthModes` remain useful
+dimension reports, but they are not a Cartesian-product authorization.
+
+The capability manifest therefore adds the authoritative pair list:
+
+```json
+{
+  "supportedArtifactVersions": ["snapback.v0", "snapback.v1"],
+  "supportedAuthModes": ["dev", "sessions"],
+  "supportedArtifactAuthPairs": [
+    { "schemaVersion": "snapback.v0", "authMode": "dev" },
+    { "schemaVersion": "snapback.v1", "authMode": "sessions" }
+  ],
+  "supportedCapabilities": [
+    "auth.sessions.v1",
+    "cron",
+    "cron_action_run_mutation",
+    "host_plan_runtime",
+    "ibex_ctx_db_host_bridge",
+    "live_subscriptions",
+    "mutation_read_set_validation",
+    "permission_epoch_resync"
+  ],
+  "authProtocols": {
+    "provider": 1,
+    "invocation": 1,
+    "stagedMode": 1,
+    "bootstrap": 1
+  }
+}
+```
+
+A v1 sessions schema manifest additionally contains
+`requiredCapabilities: ["auth.sessions.v1"]`. The array may contain other
+known capabilities, but it must contain that exact element and every element
+must be supported before any effect. A v0 dev manifest must not claim
+`auth.sessions.v1`.
+
+`supportedCapabilities` is emitted from the same closed Rust target-capability
+registry as the rest of `CapabilityManifest`; it is not accepted as authority
+from a posted schema or function artifact. `auth.sessions.v1` is a closed
+`TargetCapabilityId` meaning that the target can parse the paired-v1 artifact
+and staged-mode protocols. It does **not** mean that the current process is
+ready to activate sessions. A required capability is supported only when its id
+parses as a known `TargetCapabilityId` **and** that id is positively present in
+the server-declared `supportedCapabilities` set. An unknown required id always
+fails `SNAPBACK_CAPABILITY_UNSUPPORTED`, even if a foreign artifact claims that
+the target supports it. A target that omits the additive field has an empty
+support set. Missing `capabilityGaps` is never positive evidence of support.
+Top-level schema requirements and function/cron requirements are unioned and
+resolved through this same authority before any effect.
+
+The version-1 `TargetCapabilityId` set is closed to exactly the eight ids in the
+example above. The local target derives them from code-owned facts, never from
+candidate artifacts:
+
+| Capability id | Positive local authority |
+| --- | --- |
+| `auth.sessions.v1` | the paired-v1 parser, shared invocation gate, and staged-mode implementation are registered |
+| `host_plan_runtime` | `RuntimeCapabilities.host_plan_runtime == true` |
+| `ibex_ctx_db_host_bridge` | `RuntimeCapabilities.ibex_ctx_db_host_bridge == Available` |
+| `live_subscriptions` | `CapabilityManifest.liveSubscriptions == true` |
+| `mutation_read_set_validation` | `mutationIsolationMode == "handler-captured-read-set-validation"` and its commit validator is registered |
+| `cron` | `CapabilityManifest.cron == true` |
+| `cron_action_run_mutation` | `cron == true` and `supportedQueryForms` contains `cron-action-run-mutation` |
+| `permission_epoch_resync` | the local permission-epoch capture, bump, resync, and live-rerun implementation is registered |
+
+The registry emits only ids whose positive predicate is true for that exact
+target/runtime instance. Existing codegen-emitted function requirements and
+cron requirements therefore remain valid under v1 instead of being mistaken
+for unknown auth capabilities. Adding any ninth id requires a manifest/schema
+revision and a named positive predicate; string similarity, a missing gap, or a
+successful unrelated runtime probe cannot extend the enum.
+
+Only the schema and function artifact manifests move to `snapback.v1` for
+sessions. The capability manifest, runtime-state DTO, diagnostic schemas, wire
+DTO schemas, and every other non-schema/function artifact retain their existing
+version spelling (`snapback.v0` where applicable); the fields in this Spec are
+additive under LLP 0012. No implementation may infer a corpus-wide version
+bump from the paired-v1 rule.
+
+### Disjoint v1 identity strings
+
+V1 identity strings use serialized namespaces that no v0 producer emits:
+
+```text
+snapback.v1:sessions:schema:sha256:<64 lowercase hex>
+snapback.v1:sessions:function:sha256:<64 lowercase hex>
+snapback.v1:sessions:inputs:sha256:<64 lowercase hex>
+```
+
+The three hexadecimal payloads are SHA-256 over LLP 0012's existing
+length-framed encoding. The domain and leading framed sequence are exactly:
+
+```text
+schemaHash domain:  "snapback-codegen/schema-content-hash/snapback.v1/sessions"
+schemaHash items:   "schemaManifest", "snapback.v1", "sessions", appId, ...canonical schema-content items
+
+bundleHash domain:  "snapback-codegen/bundle-content-hash/snapback.v1/sessions"
+bundleHash items:   "functionManifest", "snapback.v1", "sessions", appId, ...canonical function-content items
+
+inputsHash domain:  "snapback-codegen/inputs-hash/snapback.v1/sessions"
+inputsHash items:   "schemaFunctionPair", "snapback.v1", "sessions", appId, ...canonical shared-input items
+```
+
+The first framed items are, in order, artifact kind, `snapback.v1`, `sessions`,
+and `appId`; each uses the pre-existing LLP 0012 length framing. `...` means the
+following existing canonical content or shared-input items, not a pre-hashed
+display string or self-containing JSON. The digest spelling is exactly 64
+lowercase hexadecimal SHA-256 digits.
+
+The schema manifest uses the `schema:sha256:` form for `schemaHash`; the
+function manifest uses `function:sha256:` for `bundleHash`; both halves carry
+the identical pair-level `inputs:sha256:` value. V0 preserves its existing
+identity encoding and must never emit a `snapback.v1:` prefix. Auth-aware
+receivers validate the full prefix and lowercase-hex shape. The actual
+unmodified pre-auth predecessor sees strings unequal to their v0 counterparts,
+cannot return early from its hash-match shortcut, and then rejects the v1
+artifact header with `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`.
+
+### Complete candidate-pair preflight
+
+Every provisioning ingress calls one preflight before a hash-match shortcut or
+effect. It resolves, in order:
+
+1. explicit ensure intent and its branch authorization;
+2. requested mode, active mode, desired mode, and mode-state availability;
+3. a complete schema/function pair;
+4. each artifact kind, version, non-empty identity field, and auth mode;
+5. equal `schemaVersion`, `appId`, and `inputsHash` across the pair;
+6. the exact supported artifact/auth pair;
+7. every `requiredCapabilities` entry and static target-support fact (the
+   separate item-5 activation-readiness check is consume-time);
+8. mode-specific manifest rules, including cron, live, and ephemeral rules;
+9. the LLP 0054 collision/catalog check when sessions is requested; and
+10. only then identity equality, DDL, mode-state writes, function replacement,
+    or seed.
+
+For a one-half update, the missing half may come only from the complete,
+already-loaded, previously preflighted sibling held in process memory for the
+**same** active deployment identity. The durable `activeDeployment` identity
+record is not a manifest body and cannot supply that sibling. Consequently,
+after restart a one-half request must provide both halves unless the startup
+carrier or another pre-bind load established the complete attested sibling in
+this boot. A first sessions request cannot pair a posted v1 half with an active
+v0 half, so it requires both v1 halves. A staged correction likewise supplies
+both halves unless its unchanged full sibling is loaded and exactly matches
+`requestedDeployment`.
+
+Public `attest` accepts only the closed identity pair from LLP 0012 and performs
+steps 2–8 plus equality. It never accepts a full manifest, seed, or stage field
+and never mutates. Privileged `provision` performs all ten steps. Hash equality
+does not change either branch's authority.
+
+## Durable staged-mode protocol
+
+### The four keys
+
+All four values live in `_snapback_meta` and are updated only inside the global
+SQLite write lane.
+
+`schema_manifest` is the legacy reader seam. Before the first sessions
+activation it contains the parseable active v0 schema manifest. After the first
+sessions activation it contains the permanent poison string and is never
+deleted, restored, or made parseable again.
+
+`schema_manifest_capability_aware` contains the active schema manifest consumed
+by auth-aware binaries. On first auth-aware open of a legacy database, the
+binary transactionally copies the validated v0 manifest here and creates an
+initial mode record while leaving `schema_manifest` parseable. Before sessions
+has ever activated, each dev schema update writes both manifest keys. After
+sessions has activated, only the capability-aware key changes.
+
+`schema_manifest_staged_auth_mode` contains the full staged schema manifest and
+its pinned pair identity. It exists only while a requested transition is
+pending or quarantined.
+
+`auth_mode_state_v1` contains the single mode-state authority below.
+
+### Exact deployment identity
+
+```json
+{
+  "schemaVersion": "snapback.v1",
+  "authMode": "sessions",
+  "appId": "example",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:...",
+  "bundleHash": "snapback.v1:sessions:function:sha256:...",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:..."
+}
+```
+
+The record is closed; all six strings are non-empty. `activeDeployment` may be
+`null` only for an adopted, settled legacy v0-dev database that never recorded a
+complete pair. A sessions deployment and every `requestedDeployment` are always
+non-null and complete.
+
+### Exact mode-state record
+
+```json
+{
+  "formatVersion": 1,
+  "transitionGeneration": 0,
+  "active": "dev",
+  "desired": "dev",
+  "modeState": "settled",
+  "appDataAvailability": "available",
+  "sessionsEverActivated": false,
+  "activeDeployment": null,
+  "requestedDeployment": null,
+  "quarantine": null
+}
+```
+
+Closed values are:
+
+- `modeState`: `settled | pendingRestart | quarantined`;
+- `appDataAvailability`: `available | refusedPending`;
+- `active` and `desired`: `dev | sessions`; and
+- `quarantine`, when present:
+
+```json
+{
+  "transitionGeneration": 7,
+  "code": "SNAPBACK_AUTH_TABLE_COLLISION"
+}
+```
+
+`transitionGeneration` is an unsigned 64-bit integer. It increments exactly
+once for each successful stage, re-stage, explicit unstage, quarantine, or
+consume commit. Overflow fails closed as corrupt state rather than wrapping.
+The quarantine record carries only a stable code and generation; secret or
+path-bearing diagnostic text remains on the operator plane.
+
+The record invariants are:
+
+| State | Required invariants |
+| --- | --- |
+| `settled` | `active == desired`; availability is `available`; `requestedDeployment` and `quarantine` are null; staged key absent |
+| `pendingRestart` | `active != desired`; availability is `refusedPending`; requested deployment non-null; quarantine null; staged key present at the same generation |
+| `quarantined` | `active != desired`; availability is `refusedPending`; requested deployment and quarantine non-null; staged key present at the same generation |
+
+`sessionsEverActivated` is monotonic. Once true it can never become false. If it
+is true, the legacy key must be exactly the poison value even while active mode
+is later `dev`. A record/key mismatch is
+`SNAPBACK_AUTH_MODE_STATE_CORRUPT`; the server binds no app-data listener.
+
+### Exact staged record
+
+```json
+{
+  "formatVersion": 1,
+  "transitionGeneration": 7,
+  "requestedDeployment": {
+    "schemaVersion": "snapback.v1",
+    "authMode": "sessions",
+    "appId": "example",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:...",
+    "bundleHash": "snapback.v1:sessions:function:sha256:...",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:..."
+  },
+  "schemaManifest": {}
+}
+```
+
+`schemaManifest` is the full closed manifest, not an identity-only projection.
+It must equal the requested deployment's schema identity and desired mode. The
+function body is deliberately absent: executable code is never persisted as a
+side effect of a dev-mode browser provision.
+
+### Adoption of a legacy database
+
+An auth-aware binary opening a database with no mode-state key:
+
+1. reads and validates the legacy `schema_manifest` as v0;
+2. treats its effective mode as `dev`;
+3. writes the same bytes to `schema_manifest_capability_aware` and creates the
+   settled generation-0 record in one transaction; and
+4. leaves the legacy key unchanged.
+
+An absent legacy manifest yields a settled dev record with null deployment and
+no capability-aware manifest until first provisioning. A string-valued legacy
+manifest is recognized only as the exact poison; poison with a missing or
+malformed mode record is corrupt state, never a fresh database.
+
+### Corrupt-state boundary
+
+The exact fresh/absent and legacy-adoption shapes above are the only pre-record
+exceptions, and classifying them is read-only. Once any mode-state or poison
+evidence exists, reading and cross-validating the four keys is a prerequisite
+to every transition decision, not a transition failure that may be recorded. A parse,
+format-version, closed-value, generation, key-presence, deployment-identity,
+poison, or monotonicity invariant failure returns
+`SNAPBACK_AUTH_MODE_STATE_CORRUPT`, binds no app-data listener, and performs
+**no durable write at all**. In particular, startup does not quarantine,
+rewrite a staged record, increment a generation, adopt, unstage, repair, or
+guess which key is authoritative. Tests compare all four values and the
+database/WAL byte-for-byte before and after this refusal.
+
+Quarantine is eligible only after all four keys form a valid pending snapshot.
+It records a transition-specific refusal discovered after that point, such as a
+missing/mismatched startup carrier, catalog collision, keyring/provider
+failure, downgrade authorization failure, or activation-readiness failure. Its
+single transaction increments mode and staged-record generations together.
+
+### Stage ordering
+
+Only `AdminWrite` or pre-bind startup authority may stage a mode change. A
+Public request cannot stage even while active mode is dev.
+
+Staging first performs the complete read-only candidate-pair preflight. It then
+uses a mode-admission barrier: close new app-data, cron, live-rerun, and
+nested-entry admission for the current durable generation and process-local
+`admissionEpoch`; reversibly suspend existing live boundaries; and wait for all
+finite invocations holding that epoch to leave. The v1 deadline is exactly
+`30000` milliseconds measured by a monotonic clock and is not configurable.
+
+At the deadline, staging atomically retires the old `admissionEpoch`, signals
+cooperative cancellation (including the runtime engine interrupt), and returns
+`SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT`. Every transaction sink, response
+publisher, live callback, and nested-entry seam checks that epoch; retired work
+may finish computation but cannot commit or publish any effect. The server then
+reopens the same unchanged durable mode generation under a new monotonically
+increasing `admissionEpoch` and resumes each suspended live boundary only by
+preparing fresh authority under that epoch. It never kills a thread or reuses a
+prepared snapshot from the retired epoch. Timeout writes no durable state.
+
+If the state-sensitive preflight repeated under the global write lane fails,
+the same cancellation/publication rules apply and staging reopens the unchanged
+durable generation with no write. Retirement of the durable generation becomes
+irreversible only after the pending-state transaction commits.
+
+For dev to sessions, the stage transaction:
+
+1. applies any already-preflighted additive app-schema DDL allowed by the
+   ordinary schema rules;
+2. runs the optional seed only after all DDL in that same transaction;
+3. stores the staged record with generation `N + 1`;
+4. stores mode state `{ active: dev, desired: sessions,
+   modeState: pendingRestart, appDataAvailability: refusedPending }`; and
+5. commits before reporting success.
+
+A seed failure rolls back the DDL, staged record, and mode state together.
+
+It does **not** replace the running dev function generation with the v1 session
+bundle and does not activate the provider. On commit, the in-memory posture is
+published before the stage response. All later ordinary app-data requests fail
+`SNAPBACK_AUTH_MODE_PENDING`; a request admitted under the old generation
+cannot publish a response or commit a nested effect after the barrier.
+
+For sessions to dev, the same privileged flow stages a complete v0-dev pair.
+Network `AdminWrite` may stage the downgrade, but only the pre-bind CLI flag
+`--allow-auth-downgrade` may consume it.
+
+During `pendingRestart` or `quarantined`:
+
+- health, server identity, `GET /auth/session`, and operator diagnostics serve;
+- ordinary app data, cron, live/ephemeral operations, and Public `attest` fail
+  `SNAPBACK_AUTH_MODE_PENDING`;
+- privileged `provision` is the sole schema correction/re-stage branch and
+  still runs complete preflight before hashes or effects; and
+- no generic admin, host-op, or handler-local bypass exists.
+
+### Cold startup artifact carrier
+
+The sole carrier is one operator-selected file:
+
+```json
+{
+  "formatVersion": 1,
+  "schema": {},
+  "functions": {},
+  "seed": null
+}
+```
+
+`schema` and `functions` are full manifests. `seed` is optional and may be
+non-null only for pre-bind provisioning of a truly empty database; it is
+rejected for a staged transition over an existing app. There are no separate
+schema/function path flags, so the two halves cannot be selected from different
+generations.
+
+The CLI opens the path once without following a final symlink, requires a
+regular file owned by the effective user and not writable by group or other,
+rejects an extended ACL that grants another principal write access, rejects a
+changing inode/size, reads at most 32 MiB, and parses from those exact bytes. The
+file contains no credential, but it contains executable authority, so an
+untrusted writable carrier is refused. All artifact validation and handler
+preparation completes before any durable transition commit.
+
+A settled sessions startup requires `--startup-artifacts` on **every** process
+start. Missing, unreadable, or mismatched artifacts fail pre-bind with
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` or
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`; no diagnostic-only HTTP listener is
+silently substituted. This is not a wedge: the operator can rerun with the
+pinned pair, and the CLI emits the exact expected deployment identity without
+secret material.
+
+### Consume ordering: dev to sessions
+
+Before binding any listener, startup:
+
+1. reads and cross-validates all four durable keys;
+2. reads the single startup carrier and performs the full pair preflight;
+3. requires its identity to equal `requestedDeployment` byte-for-byte;
+4. prepares/compiles the function generation without making it callable;
+5. reruns LLP 0054's catalog collision, catalog readiness, and keyring checks;
+6. requires the complete `sessionActivationReady` predicate below;
+7. in one SQLite transaction, activates the auth catalog, writes the staged
+   schema to `schema_manifest_capability_aware`, writes the permanent poison to
+   `schema_manifest`, deletes the staged key, and writes settled sessions state
+   with `sessionsEverActivated: true` and generation `N + 1`;
+8. publishes the already-prepared function generation through an infallible
+   in-process pointer swap; and
+9. only then binds the listener and admits app data.
+
+Every fallible artifact/provider operation precedes step 7. A crash after step 7
+but before bind observes a complete settled sessions record on restart and again
+requires the same startup carrier. No intermediate durable state has a relocated
+manifest without poison or poison without sessions-ever-activated state.
+
+Only after step 1 has produced a valid pending snapshot may a failure in steps
+2–6 commit a `quarantined` record at generation `N + 1`. That one transaction
+preserves `active: dev`, preserves the staged schema/requested deployment while
+rewriting the staged record to the same generation `N + 1`, and keeps app data
+refused. A step-1 invariant failure follows §Corrupt-state boundary and writes
+nothing. A quarantined startup may then serve only the diagnostic surfaces
+listed above. It never resumes dev app data merely because the sessions
+transition failed.
+
+### Fresh sessions provisioning
+
+A fresh database may consume a v1-sessions startup carrier in one pre-bind run,
+but it still performs the actual staged protocol as two durable transactions:
+
+1. after complete pair/capability and static catalog preflight, the **stage
+   transaction** applies additive app-schema DDL, then runs the optional seed,
+   then writes the complete staged key and pending mode state; and
+2. after rereading and validating that pending snapshot, the **consume
+   transaction** activates the auth catalog, writes the capability-aware active
+   manifest, writes the permanent legacy poison, deletes the staged key, and
+   writes settled sessions state.
+
+Seed failure rolls back the first transaction in full, including DDL. No
+listener is bound between the commits. A crash after the stage commit and
+before consume leaves an ordinary valid pending snapshot; restart with the same
+carrier resumes at consume and never restages or seeds twice. Thus a fresh
+pre-bind run has no listener-visible pending interval, but it has no
+direct-activate exception to the durable protocol either.
+
+### Explicit unstage and re-stage
+
+`--clear-desired-auth-mode` is pre-bind, local-operator-only, and mutually
+exclusive with `--allow-auth-downgrade`. It changes `desired` back to `active`,
+deletes the staged key, clears quarantine/requested deployment, increments the
+generation, and restores `available` in one transaction. It never deletes auth
+tables, changes the active manifest, or removes poison.
+
+A privileged provisioning correction during pending/quarantine performs a full
+preflight, replaces the staged record, clears quarantine, increments the
+generation, and returns to `pendingRestart`. A malformed or unauthorized
+correction changes nothing.
+
+### Same-mode provisioning
+
+A provision whose requested mode equals a settled active mode does not enter
+`pendingRestart`, but it still uses the complete pair preflight. V0-dev keeps
+the existing hot-apply behavior; before sessions has ever activated it writes
+the active manifest to both manifest keys and updates `activeDeployment` in the
+same transaction as schema effects; afterward it leaves poison in the legacy
+key while still atomically updating the capability-aware manifest and
+`activeDeployment`. V1-sessions prepares the full function generation before
+its transaction, updates the capability-aware manifest and `activeDeployment`
+atomically with schema effects, and only then swaps the prepared generation.
+The next process start requires a startup carrier matching that new active
+deployment. A same-mode request never makes the legacy key parseable and never
+bypasses branch authorization because its hashes happen to match.
+
+### Sessions-to-dev downgrade
+
+Consume of a staged v0-dev downgrade fails
+`SNAPBACK_AUTH_MODE_DOWNGRADE` unless `--allow-auth-downgrade` is present. With
+the flag, startup:
+
+1. preflights and prepares the exact requested v0-dev carrier;
+2. revokes every durable session through LLP 0054's revoke-all transaction;
+3. clears only process-local capture-mailbox entries and connection grants
+   available at pre-bind;
+4. writes the v0 manifest to the capability-aware key, leaves the legacy poison
+   untouched, deletes the staged key, and settles active/desired at dev with
+   `sessionsEverActivated: true`; and
+5. emits an operator audit fact before binding.
+
+It deletes no user, identity, catalog, app, or session row. Revoked sessions do
+not resurrect when sessions is later re-enabled. A pre-auth binary remains
+unable to open the database because the legacy key stays poisoned forever.
+
+Without the flag, startup quarantines the transition at the next generation,
+rewrites the staged record to that generation, preserves `active: sessions` and
+`desired: dev`, and serves only the pending-state diagnostic surfaces. It does
+not silently resume sessions app data and does not revoke or delete anything.
+
+### Crash and publication traces
+
+| Pause/failure boundary | Only allowed durable observation |
+| --- | --- |
+| Before stage transaction | old settled state; no staged key |
+| After stage transaction | complete staged record plus pending state; app data refused |
+| Quiescence deadline | unchanged durable state; old epoch retired/cancelled; same mode reopened under a fresh epoch |
+| Fresh sessions after stage, before consume | complete valid pending snapshot; restart resumes consume with the same carrier |
+| Before consume commit | old active mode plus pending/quarantined requested deployment |
+| After consume commit | complete new active manifest, settled state, and (once sessions ever activated) exact poison |
+| Before/after unstage commit | complete pending/quarantined state or complete old-mode settled state |
+| Before/after downgrade commit | complete sessions pending state or complete dev settled state with all sessions revoked and poison retained |
+
+SQLite transaction atomicity supplies the durable cut. The in-memory mode
+generation and function pointer publish only from a committed record and before
+listener admission. There is no repair path that guesses which side of an
+ambiguous commit won: startup rereads the four keys and accepts only a complete
+invariant-satisfying state.
+
+## Shared invocation authority
+
+### Five distinct internal types
+
+The names below are normative. The existing room-permission `AuthContext` in
+`src/ephemeral.rs` is not reused.
+
+#### `WireAuthorityFields`
+
+`WireAuthorityFields` is an ingress-only, untrusted presence map. Each known
+legacy authority location is one of `Absent`, `PresentNull`, or
+`PresentValue`; serde defaults may not erase this distinction. It covers:
+
+- `HandlerInput.auth` and its `principal`, `session_id`, and `user_id` members;
+- `CtxAnswerLedger.auth_fingerprint`;
+- live subscribe/resume/unsubscribe owner auth;
+- ephemeral `auth`, `principal`, `session_id`, `user_id`, and `custom_key` at
+  their actual operation-specific locations; and
+- any alias registered by the LLP 0031 route/operation registry.
+
+It is never passed to a handler, persisted as resolved authority, or used as a
+session credential.
+
+#### `ResolvedAppAuthority`
+
+```text
+Anonymous
+Session { userId, sessionId, provider, generation, authorityInstanceId }
+DevImpersonation { userId, roles, localDevOnly: true }
+AdminBypass { reason }
+System
+```
+
+This value is server-only. A session comes only from LLP 0054 credential
+resolution. Dev impersonation comes from a registered dev body-authority
+resolver. The LLP 0031 direct runner may select that body user after its
+ordinary `AdminRead` or `AdminWrite` check and does **not** require
+`ImpersonationCapability`. The distinct host operation
+`function.run --as-user/--as-role` may construct the same resolved variant only
+after its separately registered `ImpersonationCapability` check. The audit fact
+distinguishes `directRunnerBodyUser` from `hostOperationImpersonation`.
+`AdminBypass` grants an operator access path but no app identity. `System`
+carries no user.
+
+Item 4 retains `authorityInstanceId` internally because LLP 0054 already stores
+it, but does not expose an authority descriptor or use the id as authentication;
+item 7 owns that wire/store contract.
+
+#### `HandlerAuthProjection`
+
+The handler-visible projection is exactly:
+
+```ts
+type HandlerAuthProjection = {
+  userId: string | null
+  sessionId: string | null
+  isAuthenticated: boolean
+  provider?: string
+  roles?: readonly string[]
+}
+```
+
+Own-key rules are exact:
+
+- anonymous, `AdminBypass`, and `System` project exactly `userId`, `sessionId`,
+  and `isAuthenticated`, with values `null`, `null`, and `false`;
+- a real session additionally projects `provider` and `roles: []`;
+- dev impersonation additionally projects `roles`, omits `provider`, and has a
+  null `sessionId`; and
+- `isAuthenticated` is true if and only if the resolved authority carries a
+  user.
+
+The projection is allocated with `Object.create(null)`, and every listed key is
+an own, non-accessor data property. The object, roles array, and every nested
+value are deep-frozen before application code evaluates. Therefore
+`Object.getPrototypeOf(ctx.auth) === null`; `Object.prototype` pollution cannot
+add visible authority. The projection has no getter, proxy, raw token,
+generation, authority-instance id, admin reason, or room permission set.
+
+#### `PreparedAuthority`
+
+`PreparedAuthority` is immutable and contains:
+
+```text
+durable transitionGeneration and process-local admissionEpoch
+active AuthMode and ServerProfile
+registered route/operation identity and effective policy
+ResolvedAppAuthority
+HandlerAuthProjection
+authority audit fact
+operation-level availability/protocol decision
+```
+
+It is the shared result of mode, route-policy, wire-field, credential, and
+operation-level protocol enforcement. Functionless operations—including
+ephemeral publish/delete/subscribe, live owner acts, standalone
+acknowledgements, and connection operations—consume this type plus their own
+closed operation inputs. They never invent a function id or construct a
+`PreparedInvocation`.
+
+#### `PreparedInvocation`
+
+`PreparedInvocation` is immutable and contains:
+
+```text
+PreparedAuthority
+function id/kind and closed AuthRequirement
+invocation id
+function-specific availability decision
+```
+
+It is the only authority-bearing input accepted by the query, mutation, action,
+live-rerun, and nested-invocation runtime seams. The wire sidecar and credential
+bytes have been consumed before this type exists.
+
+### Gate algorithm
+
+`InvocationGate::prepare_authority` performs this order:
+
+1. require an invariant-valid, `available`, settled durable mode generation and
+   capture the current process-local `admissionEpoch`;
+2. resolve the effective LLP 0031 route/operation policy;
+3. inspect `WireAuthorityFields`; under sessions reject any forbidden presence
+   with `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` before considering a valid bearer;
+4. resolve `ResolvedAppAuthority` from the policy-selected carrier, or inherit
+   it for a nested call;
+5. validate every presented credential, even when the later target function is
+   `public`;
+6. enforce operation-level live, retained, replay, and protocol fences that do
+   not depend on a function definition;
+7. construct/deep-freeze the null-prototype handler projection; and
+8. return `PreparedAuthority` or fail before operation/runtime evaluation.
+
+A handler entry then calls
+`InvocationGate::prepare_function(preparedAuthority, functionIdentity)`, which:
+
+1. loads the closed function definition and `AuthRequirement`;
+2. enforces that requirement against the already-resolved authority;
+3. enforces function-specific capability and surface rules, including the
+   `authorityIndependent` exception; and
+4. returns `PreparedInvocation` or fails before handler evaluation.
+
+The closed `InvocationSource` registry determines whether a source stops after
+authority preparation or must refine to a function invocation. There is no
+nullable function slot and no catch-all variant: adding a source requires an
+explicit authority-only or function-backed case.
+
+Both durable generation and process-local `admissionEpoch` are checked again
+atomically at write commit and response/live publication. A stage or timed-out
+barrier that retires an epoch therefore prevents late success, callback, or
+nested work from crossing the boundary.
+
+Credential precedence under sessions remains LLP 0039/0054's: a current bearer,
+otherwise anonymous; malformed/unknown is `SNAPBACK_AUTH_REQUIRED`;
+expired/revoked is `SNAPBACK_AUTH_SESSION_EXPIRED`; ordinary superseded use
+beyond grace is `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED`. A legacy body field is
+always `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED`, even beside a valid bearer.
+
+### Complete gate coverage
+
+The following are not separate authority implementations. Each calls
+`prepare_authority`; each handler-backed entry additionally consumes the
+`PreparedInvocation` produced by `prepare_function`, while an authority-only
+entry consumes `PreparedAuthority` directly:
+
+| Entry | Authority source / rule |
+| --- | --- |
+| HTTP query | optional session in sessions; dev body authority in dev |
+| HTTP mutation and standalone acknowledgement | same; queued replay additionally fenced |
+| HTTP action | same; gate errors remain inside the HTTP-200 `FunctionRunResult` envelope after transport admission |
+| local query/mutation/action API used by server and tests | explicit registered admission, never a default `AuthInput` |
+| direct admin runner | sessions always gets anonymous projection plus `adminBypass` audit; dev may select its LLP 0031 body user after ordinary `AdminRead` (query) or `AdminWrite` (mutation/action), with no `ImpersonationCapability`; existing secret-read/write gates remain |
+| host-op `function.run --as-user/--as-role` | `DevImpersonation`, only after `AdminWrite` plus `ImpersonationCapability` |
+| cron | `System`; authenticated target rejected at manifest load |
+| action to `ctx.runMutation` | inherits the outer prepared authority, then enforces the target mutation requirement |
+| live initial query and every rerun | owner-derived prepared authority; auth-scoped admission fence below |
+| HTTP and WebSocket ephemeral operations | connection-bound authority seam; item 5 supplies the actual binding |
+| WebSocket subscribe/resume/unsubscribe | connection-bound authority seam and exact live-owner predicate |
+
+No code path may synthesize `HandlerInput { auth: default(), ... }` and call a
+handler as a substitute for the gate. Exhaustive call-site tests fail when a new
+invocation entry lacks a registered `InvocationSource` case.
+
+### Dev mode
+
+Dev mode preserves the legacy body authority only through registered `AppAuth`
+operations. The gate centralizes its resolution and still enforces
+`AuthRequirement`, so authenticated functions fail in development when the body
+does not select a user.
+
+On every server profile, dev app-data binds loopback only. The CLI-only
+`--allow-insecure-dev-auth` override is accepted only on non-production
+profiles, emits an operator warning/audit fact, and is never persisted in the
+database or accepted over HTTP. `prod` + dev serves health/identity/handshake and
+refuses all app data even on loopback. A Vite or reverse proxy can deliberately
+re-expose loopback dev auth; this Spec does not mislabel that opt-in as safe.
+
+### Session mode body closure
+
+Session-mode DTOs are closed variants, not legacy structs with fields ignored:
+
+- query/mutation/action and acknowledgements reject `auth` and
+  `ctx_ledger.auth_fingerprint` when present, including explicit null;
+- live subscribe/resume/unsubscribe reject every owner-auth field;
+- ephemeral publish/delete reject `auth`, `principal`, `session_id`, `user_id`,
+  and `custom_key` at their sibling locations, including explicit null;
+- ephemeral subscribe/unsubscribe reject `auth`, and their closed DTOs reject
+  injected sibling identity fields as unknown; and
+- HTTP and WebSocket twins deserialize through the same operation-owned schema.
+
+`KeyMode::Custom` is a sessions manifest-load error. `Connection`, `Session`,
+and `User` derive only from the bound authority. A missing required dimension
+(for example anonymous + `User`) fails explicitly; it never becomes a shared
+synthetic key. Collections with `RequireRoomPermission` refuse registration with
+`SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` until item 6.
+
+### Live owner and replacement predicate
+
+A sessions live subscription stores:
+
+```text
+LiveOwnerV1 {
+  resolvedAuthorityKey,
+  connectionGrantId
+}
+```
+
+`resolvedAuthorityKey` is `Anonymous` or
+`Session { userId, sessionId, generation }`. It contains no bearer. Item 5
+supplies the generation-valid bound grant from which this key is derived.
+
+Resume, unsubscribe, and explicit supersession all require **both**:
+
+```text
+stored.connectionGrantId == caller.connectionGrantId
+AND
+stored.resolvedAuthorityKey == caller.boundResolvedAuthorityKey
+```
+
+There is no `is_some()` short circuit. Anonymous ownership is connection-grant
+ownership, not equality of two absent user fields. Supersession additionally
+requires the ordinary query/function/argument identity match. The comparison
+and the destructive replace/unsubscribe act occur under the same owner lock.
+Connection B therefore cannot resume, unsubscribe, or supersede connection A's
+subscription for either anonymous or authenticated authorities.
+
+### Live and replay admission before later items
+
+The shared gate enforces the landing matrix rather than relying on kit manners:
+
+- before item 5 readiness, sessions cannot activate at all;
+- after item 5 but before item 6, every auth-scoped durable subscribe/resume and
+  protected ephemeral registration fails
+  `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` before query execution or
+  materialization; only item-4-proved `authorityIndependent` live may proceed;
+- before item 7, any session-mode request carrying `clientMutationId` fails
+  `SNAPBACK_AUTH_POLICY_UNAVAILABLE` with safe detail
+  `{ "capability": "queuedReplay" }` before execution or settlement lookup;
+  it does not misuse `SNAPBACK_AUTH_STALE_RESULT`, whose descriptor semantics
+  do not exist until item 7; and
+- before item 8, session-mode retained/offline read admission fails before any
+  retained bytes are read or rendered.
+
+Item 7 changes no live admission. Item 6 changes no retained admission.
+
+## Bootstrap handshake
+
+### Request and protocol offer
+
+`GET /auth/session` is Public app data with optional session resolution. It is
+the one `/auth/*` route that serves in dev and during
+`SNAPBACK_AUTH_MODE_PENDING`. It accepts
+no body and no query parameters. Its optional protocol offer is carried only in
+the four decimal-integer headers named in §Normative vocabulary. Missing means
+`null`; an unknown version is reported as unsupported, not rounded down.
+
+After discovery, the kit repeats `x-snapback-auth-client-protocol: 1` on every
+session-mode online app-data/provider request and connection open. It repeats
+the surface-specific headers on subscribe/resume, queued replay, and retained
+admission respectively. The shared gate validates those headers on the request
+that creates or acts on the surface; a prior handshake is not a transferable
+bearer and server correctness does not depend on remembering that a stateless
+HTTP caller once completed one.
+
+In settled sessions mode, a presented bearer is validated normally. In active
+dev mode there is no session-bearer resolver, so the caller projection is
+anonymous; presenting `Authorization` fails rather than becoming dev body
+authority. During a sessions-to-dev pending transition, active sessions
+resolution remains available for the handshake only. During dev-to-sessions
+pending, the handshake remains anonymous until activation.
+
+### Exact response DTO
+
+```json
+{
+  "protocolVersion": 1,
+  "serverStartupNonce": "opaque-public-process-id",
+  "transitionGeneration": 7,
+  "activeMode": "sessions",
+  "desiredMode": "sessions",
+  "modeState": "settled",
+  "appDataAvailability": "available",
+  "quarantineCode": null,
+  "clientProtocols": {
+    "authClient": 1,
+    "authInvalidation": null,
+    "authorityDescriptor": null,
+    "authorizedLease": null
+  },
+  "availability": {
+    "onlineRequestResponse": {
+      "available": true,
+      "reason": null
+    },
+    "authScopedLive": {
+      "available": false,
+      "minimumAuthInvalidationProtocol": 1,
+      "reason": "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+    },
+    "retainedReads": {
+      "available": false,
+      "minimumAuthInvalidationProtocol": 1,
+      "minimumAuthorizedLeaseProtocol": 1,
+      "reason": "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+    },
+    "queuedReplay": {
+      "available": false,
+      "minimumAuthorityDescriptorProtocol": 1,
+      "reason": "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+    }
+  },
+  "provider": {
+    "key": "email-code",
+    "available": true
+  },
+  "transports": ["bearer"],
+  "authority": {
+    "userId": null,
+    "sessionId": null,
+    "isAuthenticated": false
+  }
+}
+```
+
+The response is a closed Rust/schemars authority for protocol version 1 and is
+`Cache-Control: no-store`; it never enters receipts, logs, or runtime snapshots.
+`quarantineCode` is the stable safe code or null. `clientProtocols` echoes only
+exactly supported offered versions; unsupported/malformed offers are null and
+make the affected availability false.
+
+Availability is computed, never caller asserted:
+
+- all four app-data capabilities are false with reason
+  `SNAPBACK_AUTH_MODE_PENDING` while state is not settled/available;
+- settled dev reports the existing dev behavior and no protocol minima for its
+  non-session surfaces;
+- settled sessions requires item 5 plus auth-client protocol 1 for online work;
+- auth-scoped live additionally requires item 6 and invalidation protocol 1;
+- queued replay additionally requires item 7 and descriptor protocol 1; and
+- retained reads additionally require item 8, invalidation protocol 1, and
+  authorized-lease protocol 1.
+
+There is no separate disposition header, version, DTO field, or protocol.
+Per LLP 0053, `authInvalidationProtocol: 1` covers invalidation dispositions,
+the composite witness, tombstones, query-instance identity, and acknowledgement
+semantics as one must-understand protocol. Once item 6 is installed, a missing,
+malformed, or older invalidation offer fails its protected surface with LLP
+0053's `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`; before item 6, the
+server reports `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` instead.
+
+`provider.available` additionally requires settled sessions and LLP 0054
+provider readiness. Provider unavailability never leaks keyring details.
+`authority` is the same `HandlerAuthProjection` constructor used by handlers.
+Item 7 may add a versioned descriptor as an additive field only after revising
+the generated response schema; item 4 does not expose it accidentally.
+
+### Kit ordering
+
+The kit caches a successful handshake only for the returned
+`serverStartupNonce`, transition generation, and connection attempt. It must
+complete a fresh handshake before:
+
+- the first online app-data operation;
+- request-code/exchange or any auth-bearing request;
+- `POST /connection/open`;
+- first subscribe and every resubscribe/reconnect; and
+- promoting retained bytes or queued work into an online surface.
+
+Health may precede the handshake. Offline cold boot may render only according
+to the last durably stored mode/authorization metadata, marked stale, and does
+not count as handshake completion. A changed mode, startup nonce, or authority
+invalidates the cached result. Item 5's `AuthCoordinator` owns the actual clear
+barrier; until item 5 exists, the server's activation-readiness bit prevents a
+sessions mode that would need that barrier.
+
+The kit never treats capability-manifest support as current app mode and never
+uses a successful handshake from one process after reconnecting to another.
+
+## `auth.mintSession` activation
+
+Item 4 removes item 3's placeholder refusal only when all of these are true:
+
+- active and desired mode are both `sessions` and state is settled/available;
+- server profile is `dev`, `test`, or `demo` (not `prod`);
+- ordinary `AdminWrite` succeeds;
+- the independent LLP 0054 `ImpersonationCapability` succeeds; and
+- the provider is ready.
+
+The operation takes only the closed email args from LLP 0054, runs the normal
+find-or-create identity and session-mint transaction, returns
+`CredentialSecret` under `Cache-Control: no-store`, and records
+`issuedBy: admin`. It accepts no app-data body authority. Rescue remains
+dev/test-only; item 4 must not broaden it to demo.
+
+## Activation-readiness and later-item fences
+
+The capability/runtime authority carries these exact facts:
+
+```json
+{
+  "authProgramReadiness": {
+    "routeRegistryEnforced": true,
+    "existingSurfaceClosure": true,
+    "adminSecretReadEnforced": true,
+    "secretReadProcessPrerequisites": true,
+    "providerCore": true,
+    "sharedInvocationGate": true,
+    "stagedMode": true,
+    "connectionBinding": false,
+    "twoPhaseRevocation": false,
+    "authCoordinator": false,
+    "authorizationInvalidation": false,
+    "authorityDescriptor": false,
+    "authorizedLease": false,
+    "sessionActivationReady": false
+  }
+}
+```
+
+`sessionActivationReady` is derived as:
+
+```text
+routeRegistryEnforced
+AND existingSurfaceClosure
+AND adminSecretReadEnforced
+AND secretReadProcessPrerequisites
+AND providerCore
+AND sharedInvocationGate
+AND stagedMode
+AND connectionBinding
+AND twoPhaseRevocation
+AND authCoordinator
+```
+
+Items 1–3 supply the first, second/third, and fifth build facts respectively;
+item 4 supplies `sharedInvocationGate` and `stagedMode`; item 5 supplies the
+three remaining build facts. Each is a positive server-owned fact from its
+implementing registry/module, never absence of a diagnostic. A sessions stage
+may be validated and stored, but consume quarantines before catalog/poison
+activation with `SNAPBACK_AUTH_POLICY_UNAVAILABLE` and safe blocker names until
+every build fact and the process fact is true. No test-only environment variable
+or HTTP input may override the production readiness authority; embedded unit
+fixtures may construct the closed readiness type directly without making that
+constructor public.
+
+`secretReadProcessPrerequisites` is instance-specific and true only when the
+serve process was launched with `--ready-file P`, the master admin credential
+has been initialized, and the process has prepared LLP 0017's owner-only
+`P.secret-read-root` plus the mint verifier needed by
+`snapback secret-read-mint --ready-file P`. The trusted ready descriptor, root,
+and one-shot proof verification must all bind to this process's
+`serverStartupNonce`; a URL or console credential alone is insufficient. A
+serve process without a ready file deliberately has no mint bridge and cannot
+activate sessions.
+
+Before consume, startup validates that it can create and atomically publish the
+owner-only sidecar/descriptor state. After listener bind, app-data admission
+remains closed until the root sidecar and trusted ready descriptor have both
+been published for that same startup nonce. Publication failure opens no app
+data. For a valid pending transition, a process-prerequisite failure is an
+eligible readiness quarantine. For an already settled sessions database,
+restarting without these prerequisites returns
+`SNAPBACK_AUTH_POLICY_UNAVAILABLE`, performs no durable write, binds no app-data
+listener, and does not manufacture a quarantined sibling state merely because
+`active == desired`.
+
+The complete admission matrix is:
+
+| Installed items | Sessions admission |
+| --- | --- |
+| 1–4 | cannot activate; pending consume quarantines before effects |
+| 1–5 | online finite request/response and proved `authorityIndependent` live only; auth-scoped live, retained reads, and queued replay refused |
+| +6 | auth-scoped live unlocks only with auth-invalidation protocol 1 (including its dispositions); retained remains refused |
+| +7 | queued replay unlocks only with descriptor protocol 1; no live/retained change |
+| +8 | retained reads unlock only with auth-invalidation protocol 1 and authorized-lease protocol 1 |
+
+The hosted-target readiness fact stays false until ENG-24607's deployment
+security and client-page XSS contracts are owned and enforced. A local `prod`
+profile is not evidence that a reverse-proxied deployment satisfies them.
+
+## Diagnostics and failure semantics
+
+LLP 0012 remains the owning diagnostic registry. The item-4 companion amendment
+must register every new code/status class below before it can ship; this Spec
+pins the producer semantics and safe-detail boundary.
+
+| Code | Locus and meaning |
+| --- | --- |
+| `SNAPBACK_AUTH_MODE_PENDING` | 503 for ordinary app data/Public attest while pending or quarantined |
+| `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` | stage-time; exact 30000 ms monotonic barrier expired, retired work was cancelled, and durable state is unchanged |
+| `SNAPBACK_AUTH_MODE_DOWNGRADE` | pre-bind refusal when a sessions-to-dev consume lacks the explicit flag |
+| `SNAPBACK_AUTH_MODE_STATE_CORRUPT` | startup; four-key or record invariant failed; no quarantine or durable write |
+| `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | pre-bind; settled/pending sessions needs the single carrier |
+| `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | pre-bind; carrier pair differs from the pinned deployment |
+| `SNAPBACK_AUTH_TRANSPORT_INSECURE` | startup; sessions plaintext non-loopback, or dev non-loopback without its non-prod override |
+| `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` | 400; any forbidden legacy field is present under sessions |
+| `SNAPBACK_AUTH_POLICY_UNAVAILABLE` | 503 capability/readiness fence, including pre-item-7 queued replay |
+| `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | 503 pre-item-6 auth-scoped live/protected-room refusal |
+| `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` | actual pre-auth predecessor rejects the v1 header |
+| `SNAPBACK_CAPABILITY_UNSUPPORTED` | requested pair/required capability unsupported by knowing target |
+
+Existing LLP 0054 credential diagnostics retain their meanings and precedence.
+Mode/artifact failures include only expected/observed versions, modes, identity
+hash strings, capability names, and transition generation. They never include
+artifact source, function body, seed values, path-bearing parse text, token,
+code, address, key material, or impersonation carrier.
+
+An unavailable queued-replay capability is not a stale-authority judgment.
+`SNAPBACK_AUTH_STALE_RESULT` begins only with item 7's installed descriptor
+contract.
+
+## Acceptance
+
+### Artifact and predecessor matrix
+
+The auth-aware receiver acceptance table is exhaustive:
+
+| Candidate | Expected |
+| --- | --- |
+| paired v0-dev | accept |
+| paired v1-sessions | accept preflight; activation still item-5-fenced |
+| v0-sessions | reject before hashes/effects |
+| v1-dev | reject before hashes/effects |
+| mixed v0/v1 pair | reject before hashes/effects |
+| unknown version/mode | reject before hashes/effects |
+| first sessions request missing either half | reject before hashes/effects |
+| mismatched appId/inputsHash | reject before hashes/effects |
+| malformed v1 namespace | reject before hashes/effects |
+| unsupported pair or required capability | reject before hashes/effects |
+| unknown required capability, even when candidate claims support | reject `SNAPBACK_CAPABILITY_UNSUPPORTED` before effects |
+| unauthorized provision | reject before hashes/effects |
+
+Every negative repeats with candidate identity strings equal to the currently
+loaded strings where structurally possible, proving no equality shortcut bypass.
+For each refusal the database/WAL, logical schema/version, functions, mode keys,
+and seed are unchanged relative to the immediate snapshot.
+
+The pinned actual unmodified pre-auth predecessor runs in its provisioning-
+allowed `dev` profile against (a) a fresh database and (b) an identical-content
+v0-dev database. The complete v1-sessions request is refused in both with exact
+`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`; the three v1 identity strings differ
+from v0, the provisioned case cannot report `matched`, and neither request
+changes bytes or logical state.
+
+Golden vectors pin all three exact `snapback.v1:sessions:*:sha256:` spellings,
+the three LLP 0012 domains, the three constant framed items followed by `appId`,
+the shared pair-level `inputsHash`, and 64 lowercase digest digits. A v0 control
+proves its bytes and identity spellings are unchanged and contain no
+`snapback.v1:` prefix. Capability tests obtain positive support only from the
+closed server `TargetCapabilityId` registry, treat an older/missing
+`supportedCapabilities` field as empty, and prove neither candidate assertions
+nor absent `capabilityGaps` can authorize an unknown id. Schema/function
+artifacts alone use v1; golden schemas prove capability, runtime, diagnostics,
+and wire artifacts retain their existing versions with additive fields.
+
+A same-mode v0 update proves both manifest keys and `activeDeployment` change
+in one transaction. One-half updates succeed only while the complete attested
+sibling remains loaded in that process; after restart, the durable deployment
+identity alone cannot stand in for it and both manifest halves are required.
+
+### Stage, consume, poison, and downgrade
+
+Tests cover:
+
+- stage-time and consume-time collision checks;
+- generation closure with a paused query, mutation, action, nested mutation,
+  cron invocation, live callback, and response publication;
+- the exact 30000 ms monotonic quiescence deadline: the old admission epoch is
+  retired, engine/cooperative cancellation is signalled, every late commit,
+  response, callback, and nested effect is suppressed, a fresh epoch reopens
+  the unchanged mode, and the result is
+  `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` with no durable write;
+- every crash boundary in §Crash and publication traces;
+- every four-key corruption class returning
+  `SNAPBACK_AUTH_MODE_STATE_CORRUPT` with byte-for-byte unchanged keys/database
+  and no quarantine, contrasted with a valid pending snapshot whose
+  transition-specific failure atomically rewrites both generations into
+  quarantine;
+- quarantine preserving old active mode while refusing app data;
+- privileged re-stage and CLI unstage, with every unauthorized variant inert;
+- fresh pre-bind sessions provisioning with DDL-before-seed ordering, seed
+  rollback of DDL/state, separate stage and consume commits, and a crash after
+  stage that restarts into consume without rerunning seed;
+- settled sessions startup with correct, missing, swapped, mutable, oversized,
+  and mismatched carrier files;
+- capability-aware reopen from the active key after activation;
+- the exact legacy poison remaining after activation and downgrade;
+- a pinned pre-auth binary failing database open with
+  `SNAPBACK_SCHEMA_PARSE_FAILED`, binding no listener, and mutating nothing;
+- the negative control where a missing legacy key demonstrates relocation alone
+  would not satisfy the rollback backstop; and
+- downgrade refusing without the flag, then revoking every session, preserving
+  identity/app rows, and never resurrecting old credentials on re-enable.
+
+### Shared gate matrix
+
+For every entry in §Complete gate coverage, tests prove:
+
+- anonymous and authenticated projections use `Object.create(null)`, satisfy
+  `Object.getPrototypeOf(ctx.auth) === null`, expose only own non-accessor data
+  keys, and deep-freeze the projection and roles;
+- a real session has `roles: []`; admin bypass/system remain anonymous;
+- `authenticated` fails before handler evaluation in both dev and sessions;
+- `public` with an invalid bearer still fails credential resolution;
+- nested mutation authority is inherited and cannot be replaced by nested body
+  input;
+- action gate errors use the normal action envelope and commit nothing;
+- a sessions direct-runner admin bypass never becomes user identity; the dev
+  direct-runner body user succeeds with its normal AdminRead/AdminWrite and no
+  impersonation capability, while host-op `--as-user/--as-role` fails without
+  the distinct `ImpersonationCapability`;
+- function-backed sources refine `PreparedAuthority` to
+  `PreparedInvocation`, while every functionless ephemeral/connection/owner
+  operation consumes `PreparedAuthority` and cannot supply a fake function;
+- cron authenticated targets fail manifest load; and
+- an unregistered/new invocation source cannot compile or fails the exhaustive
+  registry drift test.
+
+An instrumented handler records if evaluation begins; every pre-gate failure
+asserts the marker remains absent and no commit/version/live output occurs.
+
+### Body and ephemeral closure
+
+The registry-derived HTTP and WebSocket sweep inserts each forbidden field at
+every supported nesting location as both a value and explicit null. Sessions
+reject every case with `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` or closed-DTO shape error;
+a valid bearer does not change the result. Identity-looking keys inside ordinary
+application args remain ordinary data and are not false positives.
+
+`KeyMode::Custom` and protected permission collections fail sessions manifest
+load/admission at their specified fences. `Connection`, `Session`, and `User`
+derive from bound authority only; missing dimensions fail. Cross-user overwrite
+and delete are negative for every permitted mode on both transports.
+
+### Live owner negatives
+
+Authenticated connection B and anonymous connection B each fail to resume,
+unsubscribe, or supersede connection A's subscription even when they know its
+subscription id and query args. A same-authority but different grant also fails.
+The exact same owner/grant may resume or supersede; the owner comparison and act
+are atomic. No absent-field short circuit appears in the implementation.
+
+Before item 6, an auth-scoped initial subscribe and resume fail before initial
+query execution and consume no subscription capacity. A proved
+`authorityIndependent` HostPlan positive control succeeds once item 5 is
+present. A false/opaque declaration fails rather than broadening the exception.
+
+### Handshake and later-item fences
+
+Handshake tests cover dev, sessions, pending, quarantined, anonymous, valid
+session, malformed/expired bearer, provider unavailable, every absent/unknown/
+supported protocol header, and process restart. The response matches its
+generated schema, uses no-store, and contains no credential/provider secret.
+
+A network sentinel proves the kit performs the handshake before every listed
+online boundary. A stale handshake from another startup nonce or generation is
+not reused. Offline cold boot remains possible and marked stale, but no retained
+or queued byte crosses to online use without current availability.
+
+Readiness tests prove item 4 alone cannot activate sessions. With item 5 facts,
+finite online requests work while auth-scoped live, queued replay, and retained
+reads remain refused. Adding item 6 changes only live; adding item 7 changes only
+queued replay; adding item 8 changes only retained reads. Missing or unknown
+client protocol versions fail closed at the same server gate the handshake
+reports.
+
+Each item-1 route-registry fact, item-2 surface-closure/secret-read-enforcement
+fact, item-3 provider-core fact, item-4 fact, and item-5 fact is independently
+negated and blocks consume. Process tests cover missing `--ready-file`, missing
+master credential, unsafe/unpublishable `P.secret-read-root`, nonce mismatch,
+and successful root/descriptor publication before app-data admission. A
+settled-sessions restart without the bridge refuses nonmutatingly and does not
+invent quarantine. Handshake fixtures contain no auth-disposition offer or
+response field; item 6 uses only auth-invalidation protocol 1 for its
+dispositions and rejects an old/missing client offer with
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`.
+
+### Bind and operator effects
+
+Dev non-loopback refuses without the explicit CLI-only non-prod override; `prod`
+dev refuses app data on loopback too. Sessions plaintext non-loopback always
+refuses with no override. Tests name the Vite/reverse-proxy residual rather than
+asserting the process can detect it.
+
+`auth.mintSession` succeeds only for settled sessions in dev/test/demo with both
+AdminWrite and the exact process `ImpersonationCapability`. Admin alone, console
+credential, secret-read lease/root, session bearer, wrong/restarted
+impersonation carrier, dev auth mode, pending mode, provider failure, and prod
+all fail without minting. Rescue remains dev/test-only.
+
+## Implementation hand-off
+
+Expected seams are:
+
+- `src/auth/mode.rs` for durable records, transition preflight, and startup
+  consume;
+- `src/auth/invocation.rs` for the five authority types and shared gate;
+- `src/manifest.rs`, codegen, and committed schemas for closed manifest fields;
+- `src/storage.rs` for four-key atomic reads/writes and poison;
+- `src/server.rs`, `src/live_wire.rs`, and `src/ephemeral.rs` for registered
+  ingress and owner replacement;
+- `src/cli.rs` for the three pre-bind flags and carrier validation; and
+- `demos/_kit/client.mjs` plus generated DTO schemas for handshake ordering.
+
+Internal Rust module names may vary. Durable keys, wire spellings, identity
+namespaces, transition ordering, poison bytes, readiness derivation, and
+acceptance outcomes may not vary without revising this Draft and its fixtures.
+
+## Open questions
+
+No open question grants implementation latitude for item 4. Later items may
+revise these explicit extension points:
+
+- item 7 adds the authority descriptor and may extend the handshake response;
+- item 6 replaces item 4's narrow HostPlan-only authority-independence proof
+  with LLP 0053's complete protected-query profile;
+- item 8 owns retained lease/store protocols; and
+- ENG-24607 owns hosted deployment security and the client-page XSS posture.
+
+Cookies, opaque-Ibex authority-independence proofs, persisted trusted function
+artifacts, and a general must-understand mechanism remain out of scope. None is
+a fallback when the pinned v1 mechanism refuses.
+
+## Status
+
+Draft. This Spec is foundational and security-sensitive and should receive an
+LLP review scaled to its stakes before item 4 is called complete. Executable
+pair matrices, actual-predecessor runs, crash injection, route/operation parity,
+and cross-transport authority negatives are the acceptance authority; prose-only
+implementation is insufficient.
