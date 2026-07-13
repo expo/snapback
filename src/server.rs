@@ -12362,6 +12362,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn authorized_lease_route_requires_readiness_and_exact_protocol_offer() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let credential = mint_test_credential(&state, "authorized-lease-route@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let request = |lease_protocol: Option<&str>| {
+            let mut builder = Request::builder()
+                .method("POST")
+                .uri("/query/missing_function/authorized-lease")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                .header("x-snapback-auth-client-protocol", "1")
+                .header("x-snapback-auth-invalidation-protocol", "1");
+            if let Some(lease_protocol) = lease_protocol {
+                builder = builder.header("x-snapback-authorized-lease-protocol", lease_protocol);
+            }
+            builder
+                .body(Body::from(
+                    r#"{
+                        "args": {},
+                        "leaseRequestId": "request_1",
+                        "clientStoreId": "store_1",
+                        "queryKey": "missing_function:{}",
+                        "queryInstanceId": 1
+                    }"#,
+                ))
+                .unwrap()
+        };
+
+        let dependencies_ready =
+            AuthProgramReadiness::new(true, true, true, true, true, true, false);
+        let unavailable = app(state
+            .clone()
+            .with_auth_runtime_facts(settled_sessions_state(), dependencies_ready)
+            .expect("install pre-authorized-lease readiness"))
+        .oneshot(request(Some("1")))
+        .await
+        .unwrap();
+        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(unavailable).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+
+        let ready = app(state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            )
+            .expect("install authorized-lease readiness"));
+        let missing_offer = ready.clone().oneshot(request(None)).await.unwrap();
+        assert_eq!(missing_offer.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(missing_offer).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+
+        let accepted_offer = ready.oneshot(request(Some("1"))).await.unwrap();
+        assert_eq!(
+            response_json(accepted_offer).await["diagnostic"]["code"],
+            "SNAPBACK_UNKNOWN_FUNCTION",
+            "an exact protocol offer must reach the fresh full-query path"
+        );
+    }
+
+    #[tokio::test]
     async fn dev_transport_and_prod_profile_fail_closed_but_keep_health_available() {
         let (mut non_loopback, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
         Arc::make_mut(&mut non_loopback.server).loopback = false;
