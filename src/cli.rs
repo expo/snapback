@@ -29,25 +29,268 @@ const DEFAULT_PORT_RANGE_END: u16 = 4387;
 // @ref LLP 0055#cold-startup-artifact-carrier — one trusted file carries the complete deployment generation.
 pub(crate) fn read_auth_startup_artifacts(
     path: &Path,
-) -> anyhow::Result<crate::auth::mode::StartupArtifacts> {
+) -> crate::diagnostic::SnapbackResult<crate::auth::mode::StartupArtifacts> {
     let bytes = crate::secure_file::read_trusted_executable_artifact(
         path,
         crate::auth::mode::STARTUP_ARTIFACT_MAX_BYTES,
     )
     .map_err(|_| {
-        anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+        crate::diagnostic::SnapbackError::error(
             "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
             "auth-mode",
             "the startup artifact carrier could not be read safely",
-        ))
+        )
     })?;
     crate::auth::mode::StartupArtifacts::parse(&bytes).map_err(|_| {
-        anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+        crate::diagnostic::SnapbackError::error(
             "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
             "auth-mode",
             "the startup artifact carrier is not the closed version-1 shape",
-        ))
+        )
     })
+}
+
+fn auth_startup_required(message: &'static str) -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
+        "auth-mode",
+        message,
+    )
+}
+
+fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "auth-mode",
+        message,
+    )
+}
+
+fn quarantine_pending_startup(
+    snapback: &mut LocalSnapback,
+    error: crate::diagnostic::SnapbackError,
+) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+    let code = error.diagnostic.code.clone();
+    snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
+    snapback.auth_database_mut().quarantine_auth_mode(&code)
+}
+
+/// Resolve the four durable auth-mode keys and the one cold artifact carrier
+/// before listener bind. Valid pending failures become a durable diagnostic
+/// posture; settled-state failures remain nonmutating startup refusals.
+// @ref LLP 0055#consume-ordering-dev-to-sessions — every fallible pair/provider/readiness operation precedes consume and listener bind.
+async fn compose_auth_mode_startup(
+    args: &Args,
+    snapback: &mut LocalSnapback,
+    auth_runtime: &mut crate::auth::runtime::AuthRuntime,
+    readiness: &crate::auth::mode::AuthProgramReadiness,
+) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+    use crate::auth::mode::AuthModeStatus;
+    use crate::manifest::AuthMode;
+
+    let mut snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+    if args.clear_desired_auth_mode {
+        if !matches!(
+            snapshot.state.mode_state,
+            AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
+        ) {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                "auth-mode",
+                "--clear-desired-auth-mode requires a valid pending transition",
+            ));
+        }
+        snapback.auth_database_mut().unstage_auth_mode()?;
+        snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+    }
+
+    let carrier = match args.startup_artifacts.as_deref() {
+        Some(path) => match read_auth_startup_artifacts(path) {
+            Ok(carrier) => Some(carrier),
+            Err(error)
+                if matches!(
+                    snapshot.state.mode_state,
+                    AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
+                ) =>
+            {
+                return quarantine_pending_startup(snapback, error);
+            }
+            Err(error) => return Err(error),
+        },
+        None => None,
+    };
+
+    if snapshot.state.mode_state == AuthModeStatus::Settled {
+        match snapshot.state.active {
+            AuthMode::Sessions => {
+                let carrier = carrier.as_ref().ok_or_else(|| {
+                    auth_startup_required(
+                        "settled sessions mode requires --startup-artifacts on every start",
+                    )
+                })?;
+                let expected = snapshot.state.active_deployment.as_ref().ok_or_else(|| {
+                    crate::auth::mode::mode_corrupt(
+                        "settled sessions mode lacks an active deployment",
+                    )
+                })?;
+                carrier.require_deployment(expected)?;
+                snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
+                if carrier.seed.is_some() {
+                    return Err(crate::diagnostic::SnapbackError::error(
+                        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+                        "auth-mode",
+                        "a settled sessions restart carrier cannot contain seed data",
+                    ));
+                }
+                if !readiness.session_activation_ready {
+                    return Err(auth_policy_unavailable(
+                        "this binary cannot admit an already-settled sessions deployment",
+                    ));
+                }
+                snapback.publish_preflighted_functions(carrier.functions.clone());
+                return Ok(snapshot.state);
+            }
+            AuthMode::Dev => {
+                let Some(carrier) = carrier.as_ref() else {
+                    return Ok(snapshot.state);
+                };
+                let requested_mode = carrier.schema.effective_auth_mode();
+                let deployment = snapback.preflight_auth_artifacts(carrier, requested_mode)?;
+                if requested_mode == AuthMode::Dev {
+                    snapback.auth_database_mut().apply_same_mode_deployment(
+                        deployment,
+                        carrier.schema.clone(),
+                        carrier.seed.clone(),
+                    )?;
+                    snapback.publish_preflighted_functions(carrier.functions.clone());
+                    return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
+                }
+                snapback.auth_database_mut().stage_auth_mode(
+                    deployment,
+                    carrier.schema.clone(),
+                    carrier.seed.clone(),
+                )?;
+                snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+            }
+        }
+    }
+
+    debug_assert!(matches!(
+        snapshot.state.mode_state,
+        AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
+    ));
+    let Some(carrier) = carrier.as_ref() else {
+        return quarantine_pending_startup(
+            snapback,
+            auth_startup_required("a pending auth-mode transition requires --startup-artifacts"),
+        );
+    };
+    let requested_mode = carrier.schema.effective_auth_mode();
+    let deployment = match snapback.preflight_auth_artifacts(carrier, requested_mode) {
+        Ok(deployment) => deployment,
+        Err(error) => return quarantine_pending_startup(snapback, error),
+    };
+    let expected = snapshot
+        .state
+        .requested_deployment
+        .as_ref()
+        .expect("a validated pending snapshot has a requested deployment");
+    if let Err(error) = carrier.require_deployment(expected) {
+        return quarantine_pending_startup(snapback, error);
+    }
+    if deployment != *expected {
+        return quarantine_pending_startup(
+            snapback,
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+                "auth-mode",
+                "startup artifact identity differs from the pending deployment",
+            ),
+        );
+    }
+
+    match (snapshot.state.active, snapshot.state.desired) {
+        (AuthMode::Dev, AuthMode::Sessions) => {
+            if !readiness.session_activation_ready {
+                let error = snapback
+                    .auth_database_mut()
+                    .consume_sessions_auth_mode(readiness)
+                    .expect_err("item readiness must refuse sessions consume");
+                snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
+                return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
+            }
+            let provider = auth_runtime.provider();
+            let maintenance = provider.exclusive_maintenance().await;
+            if let Err(error) = maintenance.prepare_catalog_activation() {
+                drop(maintenance);
+                return quarantine_pending_startup(snapback, error);
+            }
+            let state = match snapback
+                .auth_database_mut()
+                .consume_sessions_auth_mode(readiness)
+            {
+                Ok(state) => state,
+                Err(error) => {
+                    drop(maintenance);
+                    return quarantine_pending_startup(snapback, error);
+                }
+            };
+            auth_runtime.mark_catalog_ready_after_mode_activation();
+            drop(maintenance);
+            snapback.publish_preflighted_functions(carrier.functions.clone());
+            Ok(state)
+        }
+        (AuthMode::Sessions, AuthMode::Dev) => {
+            let state = match snapback
+                .auth_database_mut()
+                .consume_dev_downgrade(args.allow_auth_downgrade, auth_runtime.provider().now_ms())
+            {
+                Ok(result) => result.state,
+                Err(error) => {
+                    snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
+                    return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
+                }
+            };
+            auth_runtime
+                .provider()
+                .exclusive_maintenance()
+                .await
+                .clear_mailbox_after_committed_reset();
+            snapback.publish_preflighted_functions(carrier.functions.clone());
+            Ok(state)
+        }
+        _ => Err(crate::auth::mode::mode_corrupt(
+            "pending auth-mode transition has no supported direction",
+        )),
+    }
+}
+
+fn validate_auth_transport(
+    bind_ip: IpAddr,
+    profile: ServerProfile,
+    state: &crate::auth::mode::AuthModeStateRecord,
+    allow_insecure_dev_auth: bool,
+) -> crate::diagnostic::SnapbackResult<()> {
+    use crate::manifest::AuthMode;
+
+    if bind_ip.is_loopback() {
+        return Ok(());
+    }
+    if state.active == AuthMode::Sessions || state.desired == AuthMode::Sessions {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+            "auth-mode",
+            "sessions mode cannot bind a plaintext non-loopback listener",
+        ));
+    }
+    if profile == ServerProfile::Prod || !allow_insecure_dev_auth {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+            "auth-mode",
+            "dev auth on a non-loopback listener requires the explicit non-production override",
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
@@ -1139,7 +1382,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // is minted; a marked catalog validates only its existing sibling.
     // @ref LLP 0054#activation-ordering — startup never activates the auth catalog or replaces a lost ReadyV1 keyring.
     let startup_profile = ServerProfile::for_bind_ip(bind_ip);
-    let auth_runtime = crate::auth::runtime::AuthRuntime::inspect(
+    let mut auth_runtime = crate::auth::runtime::AuthRuntime::inspect(
         &mut snapback,
         database_path.as_deref(),
         crate::auth::runtime::provider_profile(startup_profile),
@@ -1189,36 +1432,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
     }
 
-    // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings stay
-    // in the provider health fact while the committed durable outcome carries
-    // its immediate-retry schedule into the worker.
-    let auth_gc_initial_delay = auth_runtime
-        .run_startup_gc(&mut snapback)
-        .await
-        .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?
-        .map(|pass| pass.next_delay())
-        .unwrap_or(crate::auth::lifecycle::AUTH_GC_INTERVAL);
-
-    let read_lane = snapback.read_lane();
-    let ephemeral = snapback.ephemeral_api();
-    let missing_config = snapback.required_missing_config();
-    let loaded_app_id = snapback.loaded_app_id();
-    let state = Arc::new(Mutex::new(snapback));
-    let listener = bind_listener(&bind_ip.to_string(), args.port).await?;
-    let local_addr = listener.local_addr()?;
-
-    // @ref LLP 0017#serving-model — capture the bound address so the admin API
-    // reports host/port/uptime and gates by loopback vs non-loopback.
-    let loopback = local_addr.ip().is_loopback();
-    let mut server_context =
-        ServerContext::new(local_addr.ip().to_string(), local_addr.port(), loopback);
+    // Prepare every process-local authority prerequisite before a mode consume
+    // can make sessions active. The listener is still absent; later
+    // ready-descriptor publication remains the final admission cut.
+    let loopback = bind_ip.is_loopback();
+    let mut server_context = ServerContext::new(bind_ip.to_string(), 0, loopback);
     debug_assert_eq!(server_context.profile, startup_profile);
-    // @ref LLP 0017#security-defaults — a served loopback instance is never
-    // tokenless (ENG-23443): with the reflected localhost CORS, tokenless
-    // writes would be drivable by any local web page. Without
-    // SNAPBACK_ADMIN_TOKEN we mint a local token, persisted 0600 next to the
-    // database (or the ready file for in-memory instances). Non-loopback
-    // binds keep admin disabled until an explicit token is set.
     let mut minted_token = None;
     if loopback && server_context.admin_token.is_none() {
         let token_file = database_path
@@ -1256,20 +1475,20 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .as_ref()
         .map(|path| path.display().to_string());
     let startup_nonce = crate::identity::binary_identity().startup_nonce;
-    let (impersonation_capabilities, impersonation_operator) =
-        if server_context.profile.allows_provisioning()
-            && server::impersonation_registry_enabled(crate::server::PolicyAuthMode::Dev)
-        {
-            let (registry, operator) =
-                crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
-                    startup_nonce.clone(),
-                    &crate::auth::crypto::OsRandom,
-                )
-                .context("failed to generate the process-bound impersonation capability")?;
-            (Some(registry), Some(operator))
-        } else {
-            (None, None)
-        };
+    let needs_impersonation_registry = server_context.profile.allows_provisioning()
+        && (server::impersonation_registry_enabled(crate::server::PolicyAuthMode::Dev)
+            || server::impersonation_registry_enabled(crate::server::PolicyAuthMode::Sessions));
+    let (impersonation_capabilities, impersonation_operator) = if needs_impersonation_registry {
+        let (registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                startup_nonce.clone(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .context("failed to generate the process-bound impersonation capability")?;
+        (Some(registry), Some(operator))
+    } else {
+        (None, None)
+    };
     let secret_read_root_file = ready_path.as_deref().map(secret_read_root_sibling);
     let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
         (Some(target), Some(path)) => Some(
@@ -1281,7 +1500,56 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ),
         _ => None,
     };
-    let cron_scheduler = server::spawn_cron_scheduler(state.clone());
+    let secret_read_process_prerequisites =
+        ready_target.is_some() && token_configured && secret_read_proof_root.is_some();
+
+    // Item 4 owns the positive registry/gate/staging facts but deliberately
+    // leaves the three item-5 activation facts false. Pending sessions may be
+    // staged and diagnosed; they cannot cross the catalog/poison cut yet.
+    let auth_program_readiness =
+        crate::auth::mode::AuthProgramReadiness::item4(secret_read_process_prerequisites);
+    let auth_mode_state = compose_auth_mode_startup(
+        &args,
+        &mut snapback,
+        &mut auth_runtime,
+        &auth_program_readiness,
+    )
+    .await?;
+    validate_auth_transport(
+        bind_ip,
+        startup_profile,
+        &auth_mode_state,
+        args.allow_insecure_dev_auth,
+    )?;
+
+    // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings stay
+    // in the provider health fact while the committed durable outcome carries
+    // its immediate-retry schedule into the worker.
+    let auth_gc_initial_delay = auth_runtime
+        .run_startup_gc(&mut snapback)
+        .await
+        .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?
+        .map(|pass| pass.next_delay())
+        .unwrap_or(crate::auth::lifecycle::AUTH_GC_INTERVAL);
+
+    let read_lane = snapback.read_lane();
+    let ephemeral = snapback.ephemeral_api();
+    let missing_config = snapback.required_missing_config();
+    let loaded_app_id = snapback.loaded_app_id();
+    let state = Arc::new(Mutex::new(snapback));
+    let listener = bind_listener(&bind_ip.to_string(), args.port).await?;
+    let local_addr = listener.local_addr()?;
+
+    // @ref LLP 0017#serving-model — capture the bound address so the admin API
+    // reports host/port/uptime and gates by loopback vs non-loopback.
+    debug_assert_eq!(loopback, local_addr.ip().is_loopback());
+    server_context.host = local_addr.ip().to_string();
+    server_context.port = local_addr.port();
+    server_context.loopback = loopback;
+    debug_assert_eq!(server_context.profile, startup_profile);
+    let cron_scheduler = (auth_mode_state.app_data_availability
+        == crate::auth::mode::AppDataAvailability::Available)
+        .then(|| server::spawn_cron_scheduler(state.clone()));
     let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral.clone());
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state.clone(),
@@ -1436,7 +1704,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let server_result = axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await;
-    cron_scheduler.abort();
+    if let Some(scheduler) = cron_scheduler {
+        scheduler.abort();
+    }
     maintenance_worker.abort();
     if let Some(worker) = auth_maintenance_worker {
         worker.abort();
@@ -3216,6 +3486,188 @@ mod tests {
             error
                 .to_string()
                 .contains("SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH")
+        );
+    }
+
+    #[cfg(unix)]
+    fn sessions_startup_carrier(path: &Path) {
+        use crate::auth::mode::{FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX};
+        use crate::manifest::{
+            AuthManifest, AuthMode, FunctionManifest, SNAPBACK_SESSIONS_SCHEMA_VERSION,
+            SchemaManifest, TargetCapabilityId,
+        };
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let digest =
+            |prefix: &str, nibble: char| format!("{prefix}{}", nibble.to_string().repeat(64));
+        let inputs = digest(INPUTS_V1_PREFIX, 'c');
+        let schema = SchemaManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            app_id: "startup-auth-test".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+            }),
+            required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
+            schema_hash: Some(digest(SCHEMA_V1_PREFIX, 'a')),
+            inputs_hash: Some(inputs.clone()),
+            ..SchemaManifest::default()
+        };
+        let functions = FunctionManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            app_id: "startup-auth-test".to_owned(),
+            bundle_hash: Some(digest(FUNCTION_V1_PREFIX, 'b')),
+            inputs_hash: Some(inputs),
+            ..FunctionManifest::default()
+        };
+        std::fs::write(
+            path,
+            serde_json::to_vec(&json!({
+                "formatVersion": 1,
+                "schema": schema,
+                "functions": functions,
+                "seed": null,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn fresh_sessions_startup_stages_then_quarantines_before_item_five() {
+        use crate::admin::ServerProfile;
+        use crate::auth::mode::{AppDataAvailability, AuthModeStatus, AuthProgramReadiness};
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("app.sqlite3");
+        let carrier = directory.path().join("startup.json");
+        sessions_startup_carrier(&carrier);
+        let args = Args {
+            db: database.clone(),
+            startup_artifacts: Some(carrier),
+            ..Args::default()
+        };
+        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let readiness = AuthProgramReadiness::item4(true);
+
+        let state =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(state.active, AuthMode::Dev);
+        assert_eq!(state.desired, AuthMode::Sessions);
+        assert_eq!(state.mode_state, AuthModeStatus::Quarantined);
+        assert_eq!(
+            state.app_data_availability,
+            AppDataAvailability::RefusedPending
+        );
+        assert_eq!(
+            state.quarantine.as_ref().map(|value| value.code.as_str()),
+            Some("SNAPBACK_AUTH_POLICY_UNAVAILABLE")
+        );
+        assert!(!runtime.catalog_ready());
+        assert!(
+            !crate::auth::keyring::AuthKeyringStore::keyring_path(&database).exists(),
+            "the item-5 readiness fence must run before keyring/catalog effects"
+        );
+        super::validate_auth_transport(
+            "127.0.0.1".parse().unwrap(),
+            ServerProfile::Test,
+            &state,
+            false,
+        )
+        .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn pending_missing_carrier_quarantines_and_explicit_clear_restores_dev() {
+        use crate::auth::mode::{AuthModeStatus, AuthProgramReadiness};
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("app.sqlite3");
+        let carrier = directory.path().join("startup.json");
+        sessions_startup_carrier(&carrier);
+        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let readiness = AuthProgramReadiness::item4(true);
+        let stage = Args {
+            db: database.clone(),
+            startup_artifacts: Some(carrier),
+            ..Args::default()
+        };
+        super::compose_auth_mode_startup(&stage, &mut snapback, &mut runtime, &readiness)
+            .await
+            .unwrap();
+
+        let missing = Args {
+            db: database.clone(),
+            ..Args::default()
+        };
+        let missing_state =
+            super::compose_auth_mode_startup(&missing, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(missing_state.mode_state, AuthModeStatus::Quarantined);
+        assert_eq!(
+            missing_state
+                .quarantine
+                .as_ref()
+                .map(|value| value.code.as_str()),
+            Some("SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED")
+        );
+
+        let clear = Args {
+            db: database,
+            clear_desired_auth_mode: true,
+            ..Args::default()
+        };
+        let settled =
+            super::compose_auth_mode_startup(&clear, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(settled.active, AuthMode::Dev);
+        assert_eq!(settled.desired, AuthMode::Dev);
+        assert_eq!(settled.mode_state, AuthModeStatus::Settled);
+        assert!(settled.requested_deployment.is_none());
+        assert!(settled.quarantine.is_none());
+    }
+
+    #[test]
+    fn auth_transport_matrix_has_no_sessions_plaintext_override() {
+        use crate::admin::ServerProfile;
+        use crate::auth::mode::AuthModeStateRecord;
+        use crate::manifest::AuthMode;
+
+        let dev = AuthModeStateRecord::initial_dev(None);
+        let remote = "192.0.2.10".parse().unwrap();
+        assert!(super::validate_auth_transport(remote, ServerProfile::Dev, &dev, false).is_err());
+        super::validate_auth_transport(remote, ServerProfile::Dev, &dev, true).unwrap();
+        assert!(super::validate_auth_transport(remote, ServerProfile::Prod, &dev, true).is_err());
+
+        let mut sessions = dev;
+        sessions.active = AuthMode::Sessions;
+        sessions.desired = AuthMode::Sessions;
+        assert!(
+            super::validate_auth_transport(remote, ServerProfile::Test, &sessions, true).is_err()
         );
     }
 

@@ -1068,6 +1068,25 @@ impl AuthMaintenanceGuard {
         &self.provider.keyring
     }
 
+    /// Prepare the only fallible external half of first catalog activation.
+    /// The staged-mode consume transaction installs the SQLite catalog marker;
+    /// publishing a usable keyring first preserves LLP 0054's one-way ordering
+    /// without creating a second provider or escaping this maintenance guard.
+    // @ref LLP 0054#activation-ordering — usable key material precedes the catalog marker and is never reminted for a marked catalog.
+    pub(crate) fn prepare_catalog_activation(&self) -> SnapbackResult<()> {
+        self.provider
+            .keyring
+            .load_or_mint_initial(self.provider.now_ms(), self.provider.random.as_ref())
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                    "auth",
+                    "email-code auth provider is unavailable",
+                )
+            })?;
+        Ok(())
+    }
+
     pub fn mailbox(&self) -> &CaptureMailbox {
         &self.provider.mailbox
     }

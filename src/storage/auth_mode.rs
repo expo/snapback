@@ -387,11 +387,29 @@ impl LocalDatabase {
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
     ) -> SnapbackResult<()> {
+        self.apply_same_mode_deployment(deployment, manifest, None)
+    }
+
+    /// Pre-bind same-mode deployment, with an optional seed accepted only for
+    /// a truly fresh target. DDL, seed, active manifest, and deployment
+    /// identity share one SQLite cut.
+    pub fn apply_same_mode_deployment(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<()> {
         deployment.validate()?;
         deployment.validate_schema_half(&manifest)?;
         validate_schema(&manifest)?;
         reject_field_retypes(&self.schema, &manifest)?;
         reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
+
+        let current = self.auth_mode_snapshot()?;
+        require_settled_available(&current.state)?;
+        if seed.is_some() {
+            require_fresh_seed_target(&self.conn, &current.state)?;
+        }
 
         let tx = self
             .conn
@@ -404,6 +422,16 @@ impl LocalDatabase {
             ));
         }
         apply_schema_ddl(&tx, &manifest)?;
+        if let Some(seed) = seed {
+            require_fresh_seed_target(&tx, &current.state)?;
+            let next_version = current_version_on(&tx)?
+                .checked_add(1)
+                .ok_or_else(|| mode_corrupt("app version overflowed while seeding deployment"))?;
+            let changed = seed_into_transaction(&tx, &manifest, seed, next_version)?;
+            if changed > 0 {
+                set_version(&tx, next_version)?;
+            }
+        }
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let next = AuthModeStateRecord {

@@ -351,7 +351,7 @@ pub struct AuthProgramReadiness {
 impl AuthProgramReadiness {
     /// Item 4's positive build facts. Sessions deliberately remain impossible
     /// because the three item-5 facts are false.
-    pub const fn item4(secret_read_process_prerequisites: bool) -> Self {
+    pub(crate) const fn item4(secret_read_process_prerequisites: bool) -> Self {
         Self::new(
             secret_read_process_prerequisites,
             false,
@@ -365,7 +365,7 @@ impl AuthProgramReadiness {
 
     /// Compose later-item build facts without allowing a caller to assert the
     /// derived activation bit independently.
-    pub const fn new(
+    pub(crate) const fn new(
         secret_read_process_prerequisites: bool,
         connection_binding: bool,
         two_phase_revocation: bool,

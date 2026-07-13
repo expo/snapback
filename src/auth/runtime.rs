@@ -125,6 +125,20 @@ impl AuthRuntime {
         self.catalog_ready
     }
 
+    /// Refresh the process fact after the staged-mode consume transaction has
+    /// atomically installed the exact catalog and sessions mode. The provider
+    /// object is intentionally retained; startup never assembles a second
+    /// provider merely to observe its own committed activation.
+    pub(crate) fn mark_catalog_ready_after_mode_activation(&mut self) {
+        debug_assert_eq!(
+            self.provider.readiness(),
+            AuthProviderReadiness::Available,
+            "catalog activation prepared a usable keyring before commit"
+        );
+        self.catalog_ready = true;
+        self.startup_diagnostic = None;
+    }
+
     #[cfg(test)]
     pub(crate) fn startup_diagnostic(&self) -> Option<&Diagnostic> {
         self.startup_diagnostic.as_ref()

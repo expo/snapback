@@ -3,6 +3,7 @@ use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
     WireAuthorityFields,
 };
+use crate::auth::mode::{DeploymentIdentity, StartupArtifacts};
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
@@ -1538,6 +1539,60 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Validate one complete cold-start/provisioning pair without changing
+    /// schema, functions, cron, config, or auth-mode state. The returned
+    /// identity is safe to pin durably only because every artifact-owned and
+    /// target-owned predicate has already run against these exact values.
+    // @ref LLP 0055#complete-candidate-pair-preflight — hashes are evidence only after the complete pair and target capability registry validate.
+    pub(crate) fn preflight_auth_artifacts(
+        &self,
+        artifacts: &StartupArtifacts,
+        requested_mode: AuthMode,
+    ) -> SnapbackResult<DeploymentIdentity> {
+        artifacts.schema.validate_artifact()?;
+        artifacts.functions.validate_artifact()?;
+        validate_collection_definitions(&artifacts.schema.ephemeral_collections)
+            .map_err(ephemeral_manifest_error)?;
+
+        let deployment = artifacts.deployment_identity(requested_mode)?;
+        let target = CapabilityManifest::local_v0_declared();
+        target.require_capabilities(
+            artifacts
+                .schema
+                .required_capabilities
+                .iter()
+                .map(String::as_str)
+                .chain(
+                    artifacts.functions.functions.iter().flat_map(|function| {
+                        function.required_capabilities.iter().map(String::as_str)
+                    }),
+                )
+                .chain(
+                    artifacts
+                        .functions
+                        .cron_jobs
+                        .iter()
+                        .flat_map(|job| job.required_capabilities.iter().map(String::as_str)),
+                ),
+        )?;
+        validate_function_schema_references(&artifacts.functions, &artifacts.schema)?;
+        let cron_diagnostics = validate_cron_manifest(&artifacts.functions);
+        if let Some(diagnostic) = cron_diagnostics.iter().find(|diagnostic| {
+            matches!(
+                diagnostic.severity,
+                DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+            )
+        }) {
+            return Err(SnapbackError::new(diagnostic.clone()));
+        }
+        if requested_mode == AuthMode::Sessions {
+            // This read-only shape check catches exact-object and dormant
+            // namespace collisions before staging can make the app pending.
+            self.db.inspect_auth_catalog()?;
+        }
+        Ok(deployment)
+    }
+
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
         validate_collection_definitions(&manifest.ephemeral_collections)
@@ -1594,6 +1649,54 @@ impl LocalSnapback {
             ));
         }
 
+        diagnostics.extend(self.cron.reconcile(&self.functions));
+        diagnostics.extend(self.reconcile_config());
+        diagnostics.extend(self.runtime.diagnostics());
+        self.refresh_read_manifests();
+        self.refresh_cron_active();
+        if let Err(error) = self.persist_cron_state() {
+            diagnostics.push(error.diagnostic);
+        }
+        self.record_diagnostics(diagnostics.clone());
+        diagnostics
+    }
+
+    /// Publish a function generation that passed
+    /// [`Self::preflight_auth_artifacts`] against the schema now committed by
+    /// the staged-mode transaction. The swap itself contains no fallible
+    /// artifact or schema-reference work; secondary cron/config persistence
+    /// failures remain ordinary diagnostics after the generation is live.
+    // @ref LLP 0055#consume-ordering-dev-to-sessions — the prepared generation publishes only after the durable consume cut.
+    pub(crate) fn publish_preflighted_functions(
+        &mut self,
+        manifest: FunctionManifest,
+    ) -> Vec<Diagnostic> {
+        debug_assert!(manifest.validate_artifact().is_ok());
+        debug_assert!(validate_function_schema_references(&manifest, self.db.schema()).is_ok());
+        debug_assert!(!validate_cron_manifest(&manifest).iter().any(|diagnostic| {
+            matches!(
+                diagnostic.severity,
+                DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+            )
+        }));
+
+        self.functions = manifest;
+        self.functions_loaded = true;
+        self.advance_app_generation();
+        self.warm_vms.clear();
+        let mut diagnostics = Vec::new();
+        if self
+            .functions
+            .functions
+            .iter()
+            .any(|function| matches!(function.runtime, FunctionRuntime::IbexModule(_)))
+        {
+            diagnostics.push(Diagnostic::info(
+                "SNAPBACK_IBEX_FUNCTIONS_LOADED",
+                "runtime",
+                "Ibex handler modules loaded for embedded ctx.db execution",
+            ));
+        }
         diagnostics.extend(self.cron.reconcile(&self.functions));
         diagnostics.extend(self.reconcile_config());
         diagnostics.extend(self.runtime.diagnostics());
