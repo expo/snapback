@@ -6,7 +6,7 @@
 
 use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -137,6 +137,589 @@ pub fn lock_path_for_database(db_path: &Path) -> anyhow::Result<PathBuf> {
         .parent()
         .map(|parent| parent.join(&lock_name))
         .unwrap_or_else(|| PathBuf::from(lock_name)))
+}
+
+fn target_reservation_path_for_database(db_path: &Path) -> anyhow::Result<PathBuf> {
+    let instance = db_path.parent().ok_or_else(|| {
+        anyhow!(
+            "restore database path has no instance directory: {}",
+            db_path.display()
+        )
+    })?;
+    let instance_name = instance.file_name().ok_or_else(|| {
+        anyhow!(
+            "restore instance path has no directory name: {}",
+            instance.display()
+        )
+    })?;
+    let mut lock_name = instance_name.to_os_string();
+    lock_name.push(".snapback.restore.lock");
+    Ok(instance
+        .parent()
+        .map(|parent| parent.join(&lock_name))
+        .unwrap_or_else(|| PathBuf::from(lock_name)))
+}
+
+const TARGET_RESERVATION_KIND: &str = "snapback.target-instance-reservation.v1";
+const TARGET_RESERVATION_FORMAT_VERSION: u32 = 1;
+const TARGET_RESERVATION_RECORD_MAX_BYTES: u64 = 4096;
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TargetReservationRecord {
+    kind: String,
+    format_version: u32,
+    target_instance_hex: String,
+    pid: u32,
+    started_at_ms: u64,
+}
+
+/// An outer, instance-name reservation used while the instance directory does
+/// not yet exist. Unlike [`DatabaseInstanceLock`], this guard pins the existing
+/// parent directory and keeps the persistent sibling lock entry tied to that
+/// exact directory capability.
+// @ref LLP 0054#restore — restore is offline under the target-instance lock and publishes one complete required-absent directory.
+pub(crate) struct TargetInstanceReservation {
+    parent: File,
+    parent_path: PathBuf,
+    parent_identity: (u64, u64),
+    target_instance: PathBuf,
+    target_name: OsString,
+    lock_file: File,
+    lock_name: OsString,
+    lock_identity: (u64, u64),
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+struct CreatedReservationCleanup<'a> {
+    parent: &'a File,
+    name: std::ffi::CString,
+    identity: (u64, u64),
+    armed: bool,
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+impl CreatedReservationCleanup<'_> {
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+impl Drop for CreatedReservationCleanup<'_> {
+    fn drop(&mut self) {
+        use std::mem::MaybeUninit;
+        use std::os::fd::AsRawFd as _;
+
+        if !self.armed {
+            return;
+        }
+        let mut stat = MaybeUninit::<libc::stat>::uninit();
+        let found = unsafe {
+            libc::fstatat(
+                self.parent.as_raw_fd(),
+                self.name.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        } == 0;
+        if found {
+            let stat = unsafe { stat.assume_init() };
+            if (stat.st_dev as u64, stat.st_ino) == self.identity {
+                unsafe {
+                    libc::unlinkat(self.parent.as_raw_fd(), self.name.as_ptr(), 0);
+                }
+                let _ = self.parent.sync_all();
+            }
+        }
+    }
+}
+
+impl std::fmt::Debug for TargetInstanceReservation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TargetInstanceReservation")
+            .field("target_instance", &self.target_instance)
+            .field("parent_identity", &self.parent_identity)
+            .field("lock_identity", &self.lock_identity)
+            .finish_non_exhaustive()
+    }
+}
+
+impl TargetInstanceReservation {
+    /// Reserve the instance containing `db_path` without creating that
+    /// instance. Unsupported hosts fail before creating a lock or target.
+    pub(crate) fn acquire(db_path: impl AsRef<Path>) -> anyhow::Result<Self> {
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            Self::acquire_supported(db_path.as_ref())
+        }
+        #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+        {
+            let _ = db_path;
+            Err(anyhow!(
+                "descriptor-pinned target-instance reservations are unsupported on this host"
+            ))
+        }
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn acquire_supported(db_path: &Path) -> anyhow::Result<Self> {
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _, PermissionsExt as _};
+
+        let database_name = db_path
+            .file_name()
+            .filter(|name| *name != OsStr::new(".") && *name != OsStr::new(".."))
+            .ok_or_else(|| anyhow!("target database path has no file name"))?;
+        let requested_instance = db_path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .ok_or_else(|| anyhow!("target database has no instance directory"))?;
+        let target_name = requested_instance
+            .file_name()
+            .filter(|name| *name != OsStr::new(".") && *name != OsStr::new(".."))
+            .ok_or_else(|| anyhow!("target instance path has no directory name"))?
+            .to_os_string();
+        let requested_parent = requested_instance
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let parent_path = std::fs::canonicalize(requested_parent).with_context(|| {
+            format!(
+                "failed to resolve target-instance parent {}",
+                requested_parent.display()
+            )
+        })?;
+        let target_instance = parent_path.join(&target_name);
+        let canonical_database = target_instance.join(database_name);
+        let lock_path = target_reservation_path_for_database(&canonical_database)?;
+        let lock_name = lock_path
+            .file_name()
+            .expect("a target reservation lock always has a basename")
+            .to_os_string();
+
+        let parent = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+            .open(&parent_path)
+            .with_context(|| {
+                format!(
+                    "failed to pin target-instance parent {}",
+                    parent_path.display()
+                )
+            })?;
+        let parent_metadata = parent.metadata()?;
+        anyhow::ensure!(
+            parent_metadata.file_type().is_dir(),
+            "target-instance parent is not a directory"
+        );
+        let parent_identity = (parent_metadata.dev(), parent_metadata.ino());
+
+        let lock_name_c = std::ffi::CString::new(lock_name.as_bytes())
+            .map_err(|_| anyhow!("target-instance reservation name contains NUL"))?;
+        // First creation is exclusive. Existing entries are opened without
+        // mutation and must prove they are our exact closed stale record after
+        // the OS lock is acquired.
+        let mut created = false;
+        let mut fd = unsafe {
+            libc::openat(
+                parent.as_raw_fd(),
+                lock_name_c.as_ptr(),
+                libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        if fd >= 0 {
+            created = true;
+        } else if io::Error::last_os_error().kind() == io::ErrorKind::AlreadyExists {
+            fd = unsafe {
+                libc::openat(
+                    parent.as_raw_fd(),
+                    lock_name_c.as_ptr(),
+                    libc::O_RDWR | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                    0,
+                )
+            };
+        }
+        if fd < 0 {
+            return Err(io::Error::last_os_error()).with_context(|| {
+                format!(
+                    "failed to open target-instance reservation {}",
+                    lock_path.display()
+                )
+            });
+        }
+        let mut lock_file = unsafe { File::from_raw_fd(fd) };
+        if created {
+            lock_file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        }
+        validate_target_reservation_file(&lock_file)?;
+        let lock_metadata = lock_file.metadata()?;
+        let lock_identity = (lock_metadata.dev(), lock_metadata.ino());
+        let mut created_cleanup = created.then(|| CreatedReservationCleanup {
+            parent: &parent,
+            name: lock_name_c.clone(),
+            identity: lock_identity,
+            armed: true,
+        });
+        let strict_path_file = crate::secure_file::open_strict_owner_only(&lock_path)
+            .context("target-instance reservation is not strictly owner-only")?;
+        let strict_path_metadata = strict_path_file.metadata()?;
+        anyhow::ensure!(
+            (strict_path_metadata.dev(), strict_path_metadata.ino()) == lock_identity,
+            "target-instance reservation path does not name the opened inode"
+        );
+
+        if let Err(error) = platform::try_lock_exclusive(&lock_file) {
+            if error.kind() == io::ErrorKind::WouldBlock {
+                return Err(anyhow!(
+                    "Snapback target instance is already reserved by another process:\n  target: {}\n  lock: {}",
+                    target_instance.display(),
+                    lock_path.display()
+                ));
+            }
+            return Err(error).context("failed to lock target-instance reservation");
+        }
+
+        let expected_target_hex = os_path_hex(&target_instance);
+        if created {
+            let record = TargetReservationRecord {
+                kind: TARGET_RESERVATION_KIND.to_owned(),
+                format_version: TARGET_RESERVATION_FORMAT_VERSION,
+                target_instance_hex: expected_target_hex,
+                pid: std::process::id(),
+                started_at_ms: now_millis(),
+            };
+            write_target_reservation_record(&mut lock_file, &record)?;
+            parent.sync_all()?;
+        } else {
+            let record = read_target_reservation_record(&mut lock_file)?;
+            anyhow::ensure!(
+                record.kind == TARGET_RESERVATION_KIND
+                    && record.format_version == TARGET_RESERVATION_FORMAT_VERSION
+                    && record.target_instance_hex == expected_target_hex,
+                "existing target-instance reservation is not the exact closed record for this target"
+            );
+        }
+
+        if let Some(cleanup) = &mut created_cleanup {
+            cleanup.disarm();
+        }
+        drop(created_cleanup);
+
+        let reservation = Self {
+            parent,
+            parent_path,
+            parent_identity,
+            target_instance,
+            target_name,
+            lock_file,
+            lock_name,
+            lock_identity,
+        };
+        reservation.ensure_valid()?;
+        Ok(reservation)
+    }
+
+    pub(crate) fn ensure_target_absent(&self) -> anyhow::Result<()> {
+        self.ensure_valid()?;
+        anyhow::ensure!(
+            self.stat_at(&self.target_name)?.is_none(),
+            "target instance directory already exists"
+        );
+        Ok(())
+    }
+
+    pub(crate) fn lock_path(&self) -> PathBuf {
+        self.parent_path.join(&self.lock_name)
+    }
+
+    /// Create the absent instance for ordinary startup while holding the same
+    /// reservation a restore would need. The inner database lock is acquired
+    /// before the caller releases this guard.
+    pub(crate) fn create_instance_directory_for_startup(&self) -> anyhow::Result<()> {
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            use std::os::fd::AsRawFd as _;
+            use std::os::unix::ffi::OsStrExt as _;
+
+            self.ensure_target_absent()?;
+            let name = std::ffi::CString::new(self.target_name.as_bytes())
+                .map_err(|_| anyhow!("target instance name contains NUL"))?;
+            if unsafe { libc::mkdirat(self.parent.as_raw_fd(), name.as_ptr(), 0o777) } != 0 {
+                return Err(io::Error::last_os_error())
+                    .context("failed to create reserved target instance directory");
+            }
+            let result = (|| -> anyhow::Result<()> {
+                self.parent.sync_all()?;
+                self.ensure_valid()?;
+                let stat = self
+                    .stat_at(&self.target_name)?
+                    .ok_or_else(|| anyhow!("created target instance disappeared"))?;
+                anyhow::ensure!(
+                    stat.st_mode & libc::S_IFMT == libc::S_IFDIR,
+                    "reserved target instance is not a directory"
+                );
+                Ok(())
+            })();
+            if result.is_err() {
+                unsafe {
+                    libc::unlinkat(self.parent.as_raw_fd(), name.as_ptr(), libc::AT_REMOVEDIR);
+                }
+                let _ = self.parent.sync_all();
+            }
+            result
+        }
+        #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+        {
+            Err(anyhow!(
+                "descriptor-relative target creation is unsupported on this host"
+            ))
+        }
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn create_staging_directory(&self, name: &OsStr) -> io::Result<(File, PathBuf)> {
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+        self.ensure_valid().map_err(io::Error::other)?;
+        let name_c = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
+            io::Error::new(io::ErrorKind::InvalidInput, "staging name contains NUL")
+        })?;
+        if unsafe { libc::mkdirat(self.parent.as_raw_fd(), name_c.as_ptr(), 0o700) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let fd = unsafe {
+            libc::openat(
+                self.parent.as_raw_fd(),
+                name_c.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0,
+            )
+        };
+        if fd < 0 {
+            let error = io::Error::last_os_error();
+            unsafe {
+                libc::unlinkat(self.parent.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR);
+            }
+            return Err(error);
+        }
+        let directory = unsafe { File::from_raw_fd(fd) };
+        let result = (|| -> io::Result<()> {
+            directory.set_permissions(std::fs::Permissions::from_mode(0o700))?;
+            let metadata = directory.metadata()?;
+            if !metadata.file_type().is_dir()
+                || metadata.uid() != unsafe { libc::geteuid() }
+                || metadata.permissions().mode() & 0o777 != 0o700
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "staging directory is not strictly owner-only",
+                ));
+            }
+            self.ensure_valid().map_err(io::Error::other)
+        })();
+        if let Err(error) = result {
+            unsafe {
+                libc::unlinkat(self.parent.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR);
+            }
+            let _ = self.parent.sync_all();
+            return Err(error);
+        }
+        Ok((directory, self.parent_path.join(name)))
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn create_staging_directory(&self, _name: &OsStr) -> io::Result<(File, PathBuf)> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "descriptor-relative restore staging is unsupported on this host",
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn rename_staging_directory(&self, name: &OsStr) -> io::Result<()> {
+        self.ensure_valid().map_err(io::Error::other)?;
+        crate::secure_file::rename_no_replace_in_directory(&self.parent, name, &self.target_name)
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn rename_staging_directory(&self, _name: &OsStr) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "descriptor-relative restore publication is unsupported on this host",
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn sync_parent(&self) -> io::Result<()> {
+        self.parent.sync_all()
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn sync_parent(&self) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "descriptor-relative restore publication is unsupported on this host",
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn remove_staging_directory(&self, name: &OsStr) -> io::Result<()> {
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::ffi::OsStrExt as _;
+
+        let name = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
+            io::Error::new(io::ErrorKind::InvalidInput, "staging name contains NUL")
+        })?;
+        let result =
+            unsafe { libc::unlinkat(self.parent.as_raw_fd(), name.as_ptr(), libc::AT_REMOVEDIR) };
+        if result == 0 {
+            let _ = self.parent.sync_all();
+            Ok(())
+        } else {
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::NotFound {
+                Ok(())
+            } else {
+                Err(error)
+            }
+        }
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn remove_staging_directory(&self, _name: &OsStr) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "descriptor-relative restore cleanup is unsupported on this host",
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn ensure_valid(&self) -> anyhow::Result<()> {
+        use std::os::unix::fs::MetadataExt as _;
+
+        let parent = std::fs::symlink_metadata(&self.parent_path)?;
+        anyhow::ensure!(
+            parent.file_type().is_dir() && (parent.dev(), parent.ino()) == self.parent_identity,
+            "target-instance parent identity changed while reserved"
+        );
+        validate_target_reservation_file(&self.lock_file)?;
+        let lock = self
+            .stat_at(&self.lock_name)?
+            .ok_or_else(|| anyhow!("target-instance reservation entry disappeared"))?;
+        anyhow::ensure!(
+            (lock.st_dev as u64, lock.st_ino) == self.lock_identity,
+            "target-instance reservation entry changed while locked"
+        );
+        let strict =
+            crate::secure_file::open_strict_owner_only(&self.parent_path.join(&self.lock_name))?;
+        let strict_metadata = strict.metadata()?;
+        anyhow::ensure!(
+            (strict_metadata.dev(), strict_metadata.ino()) == self.lock_identity,
+            "target-instance reservation path changed while locked"
+        );
+        Ok(())
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn ensure_valid(&self) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "descriptor-pinned target-instance reservations are unsupported on this host"
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn stat_at(&self, name: &OsStr) -> io::Result<Option<libc::stat>> {
+        use std::mem::MaybeUninit;
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::ffi::OsStrExt as _;
+
+        let name = std::ffi::CString::new(name.as_bytes())
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path name contains NUL"))?;
+        let mut stat = MaybeUninit::<libc::stat>::uninit();
+        let result = unsafe {
+            libc::fstatat(
+                self.parent.as_raw_fd(),
+                name.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if result == 0 {
+            return Ok(Some(unsafe { stat.assume_init() }));
+        }
+        let error = io::Error::last_os_error();
+        if error.kind() == io::ErrorKind::NotFound {
+            Ok(None)
+        } else {
+            Err(error)
+        }
+    }
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn validate_target_reservation_file(file: &File) -> anyhow::Result<()> {
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    let metadata = file.metadata()?;
+    anyhow::ensure!(
+        metadata.file_type().is_file()
+            && metadata.uid() == unsafe { libc::geteuid() }
+            && metadata.permissions().mode() & 0o777 == 0o600
+            && metadata.nlink() == 1,
+        "target-instance reservation must be one owner-only regular-file link"
+    );
+    Ok(())
+}
+
+fn read_target_reservation_record(file: &mut File) -> anyhow::Result<TargetReservationRecord> {
+    file.seek(SeekFrom::Start(0))?;
+    let mut bytes = Vec::new();
+    file.take(TARGET_RESERVATION_RECORD_MAX_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    anyhow::ensure!(
+        bytes.len() as u64 <= TARGET_RESERVATION_RECORD_MAX_BYTES,
+        "target-instance reservation record is too large"
+    );
+    let record = serde_json::from_slice(&bytes)
+        .context("target-instance reservation is not a closed record")?;
+    Ok(record)
+}
+
+fn write_target_reservation_record(
+    file: &mut File,
+    record: &TargetReservationRecord,
+) -> anyhow::Result<()> {
+    let bytes = serde_json::to_vec(record)?;
+    anyhow::ensure!(
+        bytes.len() as u64 <= TARGET_RESERVATION_RECORD_MAX_BYTES,
+        "target-instance reservation record is too large"
+    );
+    file.set_len(0)?;
+    file.seek(SeekFrom::Start(0))?;
+    file.write_all(&bytes)?;
+    file.write_all(b"\n")?;
+    file.sync_data()?;
+    Ok(())
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn os_path_hex(path: &Path) -> String {
+    use std::os::unix::ffi::OsStrExt as _;
+
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let bytes = path.as_os_str().as_bytes();
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    encoded
 }
 
 fn read_metadata(file: &mut File) -> anyhow::Result<Option<DatabaseInstanceMetadata>> {
@@ -598,7 +1181,10 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-    use super::{DatabaseInstanceLock, lock_path_for_database};
+    use super::{
+        DatabaseInstanceLock, TargetInstanceReservation, lock_path_for_database,
+        target_reservation_path_for_database,
+    };
 
     #[test]
     fn lock_path_appends_sidecar_suffix() {
@@ -615,6 +1201,83 @@ mod tests {
     fn ipv6_url_hosts_are_bracketed() {
         assert_eq!(super::url_host("::1"), "[::1]");
         assert_eq!(super::url_host("127.0.0.1"), "127.0.0.1");
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn target_reservation_is_persistent_closed_and_never_creates_the_target_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("restored").join("snapback.db");
+        let lock_path = target_reservation_path_for_database(&db_path).expect("restore lock path");
+        assert_eq!(lock_path, dir.path().join("restored.snapback.restore.lock"));
+
+        let first = TargetInstanceReservation::acquire(&db_path).expect("first reservation");
+        assert!(lock_path.is_file());
+        assert!(!db_path.parent().unwrap().exists());
+
+        let error = TargetInstanceReservation::acquire(&db_path)
+            .expect_err("second restore reservation must fail");
+        assert!(error.to_string().contains("already reserved"));
+        assert!(!db_path.parent().unwrap().exists());
+
+        drop(first);
+        assert!(lock_path.is_file(), "stale lock entries are never unlinked");
+        TargetInstanceReservation::acquire(&db_path).expect("closed stale record can be reused");
+        assert!(!db_path.parent().unwrap().exists());
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn corrupt_or_hardlinked_reservation_is_rejected_without_mutation() {
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("restored").join("snapback.db");
+        let lock_path = target_reservation_path_for_database(&db_path).unwrap();
+        std::fs::write(&lock_path, b"not a reservation\n").unwrap();
+        std::fs::set_permissions(&lock_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let before = std::fs::read(&lock_path).unwrap();
+        TargetInstanceReservation::acquire(&db_path).expect_err("corrupt record must fail closed");
+        assert_eq!(std::fs::read(&lock_path).unwrap(), before);
+
+        std::fs::remove_file(&lock_path).unwrap();
+        let source = dir.path().join("important");
+        std::fs::write(&source, b"must survive").unwrap();
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o600)).unwrap();
+        std::fs::hard_link(&source, &lock_path).unwrap();
+        assert_eq!(std::fs::metadata(&source).unwrap().nlink(), 2);
+        TargetInstanceReservation::acquire(&db_path).expect_err("hard link must fail closed");
+        assert_eq!(std::fs::read(&source).unwrap(), b"must survive");
+        assert_eq!(
+            std::fs::metadata(&source).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn parent_or_lock_entry_replacement_invalidates_the_live_reservation() {
+        let root = tempfile::tempdir().unwrap();
+        let parent = root.path().join("parent");
+        let moved = root.path().join("moved");
+        std::fs::create_dir(&parent).unwrap();
+        let db_path = parent.join("restored").join("snapback.db");
+        let reservation = TargetInstanceReservation::acquire(&db_path).unwrap();
+
+        std::fs::rename(&parent, &moved).unwrap();
+        std::fs::create_dir(&parent).unwrap();
+        assert!(reservation.ensure_valid().is_err());
+        assert!(
+            reservation
+                .create_staging_directory(std::ffi::OsStr::new("temp"))
+                .is_err()
+        );
+
+        let replacement = TargetInstanceReservation::acquire(&db_path).unwrap();
+        let replacement_lock = target_reservation_path_for_database(&db_path).unwrap();
+        std::fs::remove_file(&replacement_lock).unwrap();
+        std::fs::write(&replacement_lock, b"replacement").unwrap();
+        assert!(replacement.ensure_valid().is_err());
     }
 
     #[cfg(any(unix, windows))]

@@ -4,7 +4,7 @@ use crate::admin_secret_read::{
     sign_secret_read_mint,
 };
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
-use crate::instance_lock::DatabaseInstanceLock;
+use crate::instance_lock::{DatabaseInstanceLock, TargetInstanceReservation};
 use crate::local::LocalSnapback;
 use crate::manifest::SNAPBACK_SCHEMA_VERSION;
 use crate::server;
@@ -950,11 +950,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    let prepared_database_path = if args.memory {
-        None
+    let (prepared_database_path, mut startup_target_reservation) = if args.memory {
+        (None, None)
     } else {
-        Some(prepare_database_path(&args.db)?)
+        let (path, reservation) = prepare_database_path_for_startup(&args.db)?;
+        (Some(path), reservation)
     };
+    let startup_reservation_path = startup_target_reservation
+        .as_ref()
+        .map(TargetInstanceReservation::lock_path);
     // Reject lexical/canonical nesting before ReadyFileTarget creates a
     // missing parent. Otherwise a ready path beneath `app.sqlite3-wal/` (or a
     // lock/config/token sibling) could first occupy a managed file path with a
@@ -976,6 +980,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         prepared_database_path.as_deref(),
         args.ready_file.as_deref(),
     )?;
+    if let Some(path) = &startup_reservation_path {
+        provisional_paths.push(ManagedPath {
+            label: "target-instance reservation",
+            path: path.clone(),
+        });
+    }
     if let Some(path) = provisional_ready_temp {
         provisional_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
@@ -1016,6 +1026,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .transpose()?;
     let mut managed_paths =
         managed_startup_paths(prepared_database_path.as_deref(), ready_path.as_deref())?;
+    if let Some(path) = startup_reservation_path {
+        managed_paths.push(ManagedPath {
+            label: "target-instance reservation",
+            path,
+        });
+    }
     if let Some(path) = &ready_temp_path {
         managed_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
@@ -1040,10 +1056,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             let lock = DatabaseInstanceLock::acquire(db_path)?;
             match LocalSnapback::open(db_path) {
                 Ok(snapback) => {
+                    // The ordinary inside-instance lock is now authoritative;
+                    // releasing the outer reservation cannot let restore win,
+                    // because the complete instance directory exists.
+                    drop(startup_target_reservation.take());
                     database_lock = Some(lock);
                     snapback
                 }
                 Err(open_error) => {
+                    drop(startup_target_reservation.take());
                     if !crate::auth::recovery::eligible(db_path, &open_error)? {
                         return Err(anyhow::Error::new(open_error));
                     }
@@ -2647,6 +2668,54 @@ fn prepare_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     resolve_database_path(path)
 }
 
+/// When startup is about to create the exact instance directory a restore
+/// would require absent, acquire their shared outer reservation first. Hosts
+/// without descriptor-relative restore publication retain legacy startup;
+/// restore itself is unavailable there, so no cross-operation race exists.
+fn prepare_database_path_for_startup(
+    path: &Path,
+) -> anyhow::Result<(PathBuf, Option<TargetInstanceReservation>)> {
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    {
+        let absolute = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            std::env::current_dir()?.join(path)
+        };
+        let database_name = absolute
+            .file_name()
+            .filter(|name| *name != "." && *name != "..")
+            .context("database path must include a file name")?
+            .to_os_string();
+        let instance = absolute
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .context("database path must include an instance directory")?;
+        let instance_missing = match std::fs::symlink_metadata(instance) {
+            Err(error) if error.kind() == ErrorKind::NotFound => true,
+            Ok(_) => false,
+            Err(error) => return Err(error).context("failed to inspect database instance path"),
+        };
+        let outer_parent = instance
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        if instance_missing && std::fs::metadata(outer_parent).is_ok_and(|entry| entry.is_dir()) {
+            let instance_name = instance
+                .file_name()
+                .filter(|name| *name != "." && *name != "..")
+                .context("database instance path must have a name")?;
+            let canonical_parent = std::fs::canonicalize(outer_parent)?;
+            let database = canonical_parent.join(instance_name).join(database_name);
+            let reservation = TargetInstanceReservation::acquire(&database)
+                .context("database target could not be reserved before startup creation")?;
+            reservation.create_instance_directory_for_startup()?;
+            return Ok((database, Some(reservation)));
+        }
+    }
+    Ok((prepare_database_path(path)?, None))
+}
+
 fn resolve_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     let absolute = if path.is_absolute() {
         path.to_path_buf()
@@ -2780,10 +2849,11 @@ fn describe_ports(ports: &[u16]) -> String {
 mod tests {
     use super::{
         Args, AuthCommand, Cli, HostCommand, ManagedPath, ReadyFileTarget, ResolvedHttpTarget,
-        TargetArgs, bind_first_available, bind_listener, managed_startup_paths,
-        mint_secret_read_via_http, parse_run_args, path_with_filename_suffix,
-        prepare_database_path, reject_misdirected_serve_flags, resolve_http_target,
-        validate_path_disjointness, validated_secret_read_root_path, write_ready_file_atomic,
+        TargetArgs, TargetInstanceReservation, bind_first_available, bind_listener,
+        managed_startup_paths, mint_secret_read_via_http, parse_run_args,
+        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
+        reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
+        validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use clap::Parser;
@@ -3086,6 +3156,17 @@ mod tests {
         let backup = directory.path().join("backup");
         super::auth_backup(&source_database, &backup).await.unwrap();
         let restored_database = directory.path().join("restored").join("app.sqlite3");
+        let competing_restore =
+            TargetInstanceReservation::acquire(&restored_database).expect("reserve restore target");
+        let reserved = super::auth_restore(&backup, &restored_database)
+            .expect_err("concurrent restore reservation must fail before publication");
+        assert!(
+            reserved
+                .to_string()
+                .contains("target instance is already reserved")
+        );
+        assert!(!restored_database.parent().unwrap().exists());
+        drop(competing_restore);
         super::auth_restore(&backup, &restored_database).unwrap();
         let declaration_path = restored_database
             .parent()
@@ -4399,6 +4480,29 @@ mod tests {
         assert!(resolved.is_absolute());
         assert_eq!(resolved.file_name().unwrap(), "snapback.db");
         assert!(db_path.parent().unwrap().exists());
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn startup_creation_participates_in_the_restore_target_reservation() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("new-instance").join("snapback.db");
+        let restore = TargetInstanceReservation::acquire(&db_path).unwrap();
+
+        let error = prepare_database_path_for_startup(&db_path)
+            .expect_err("startup must not create through a restore reservation");
+        assert!(format!("{error:#}").contains("already reserved"));
+        assert!(!db_path.parent().unwrap().exists());
+        drop(restore);
+
+        let (resolved, startup) = prepare_database_path_for_startup(&db_path).unwrap();
+        let startup = startup.expect("absent instance creation holds the outer reservation");
+        assert!(resolved.parent().unwrap().is_dir());
+        let _inner = crate::instance_lock::DatabaseInstanceLock::acquire(&resolved).unwrap();
+        drop(startup);
+
+        let restore_after_start = TargetInstanceReservation::acquire(&resolved).unwrap();
+        assert!(restore_after_start.ensure_target_absent().is_err());
     }
 
     #[cfg(unix)]

@@ -11,6 +11,7 @@ use crate::auth::crypto::{AuthKeyId, RandomSource, encode_base64url};
 use crate::auth::keyring::AuthKeyringStore;
 use crate::auth::lifecycle::{RESTORE_DECLARATION_FILE, RestoreDeclaration};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::instance_lock::TargetInstanceReservation;
 use crate::storage::LocalDatabase;
 use crate::storage::auth::{AUTH_CATALOG_VERSION, AuthCatalogState};
 use serde::{Deserialize, Serialize};
@@ -166,6 +167,14 @@ pub(crate) fn restore_backup(
     target_database: &Path,
     random: &dyn RandomSource,
 ) -> SnapbackResult<RestoreDeclaration> {
+    ensure_restore_target_outside_backup(backup_directory, target_database)?;
+    // Acquire the persistent outer reservation before any target inspection or
+    // staging. It pins the existing parent used by every later target effect.
+    let reservation = TargetInstanceReservation::acquire(target_database).map_err(|error| {
+        backup_invalid(&format!(
+            "restore target could not be reserved safely: {error}"
+        ))
+    })?;
     validate_owner_only_directory(backup_directory)?;
     require_exact_members(
         backup_directory,
@@ -204,19 +213,25 @@ pub(crate) fn restore_backup(
         ));
     }
 
-    let target_instance = target_instance_directory(target_database)?;
-    require_absent(
-        &target_instance,
-        "restore target instance directory already exists",
-    )?;
+    reservation
+        .ensure_target_absent()
+        .map_err(|_| backup_invalid("restore target instance directory already exists"))?;
     let database_basename = target_database
         .file_name()
         .ok_or_else(|| backup_invalid("restore target database has no basename"))?;
-    let mut temporary = TemporaryDirectory::create(&target_instance, "restore", random)?;
+    let mut temporary = RestoreTemporaryDirectory::create(&reservation, random)?;
+    restore_staging_created();
     restore_step_completed(0)?;
     let staged_database = temporary.path.join(database_basename);
-    crate::secure_file::copy_new_owner_only(&mut source_database, &staged_database)
-        .map_err(|_| backup_invalid("restored database could not be staged"))?;
+    temporary.register(database_basename);
+    copy_new_owner_only_at(
+        &mut source_database,
+        &temporary.directory,
+        database_basename,
+        &staged_database,
+    )
+    .map_err(|_| backup_invalid("restored database could not be staged"))?;
+    temporary.verify_child_path(database_basename)?;
     if sha256_path(&staged_database)? != manifest.database_sha256 {
         return Err(backup_invalid(
             "staged database hash does not match the validated backup",
@@ -238,16 +253,30 @@ pub(crate) fn restore_backup(
     )?;
 
     let staged_keyring = AuthKeyringStore::keyring_path(&staged_database);
-    crate::secure_file::write_new_owner_only(&staged_keyring, keyring_bytes.expose_secret())
-        .map_err(|_| backup_invalid("restored keyring could not be staged"))?;
+    let staged_keyring_name = staged_keyring
+        .file_name()
+        .expect("staged keyring has a basename");
+    temporary.register(staged_keyring_name);
+    write_new_owner_only_at(
+        &temporary.directory,
+        staged_keyring_name,
+        &staged_keyring,
+        keyring_bytes.expose_secret(),
+    )
+    .map_err(|_| backup_invalid("restored keyring could not be staged"))?;
+    temporary.verify_child_path(staged_keyring_name)?;
     restore_step_completed(2)?;
 
     let declaration = RestoreDeclaration::fresh();
-    crate::secure_file::write_new_owner_only(
+    temporary.register(OsStr::new(RESTORE_DECLARATION_FILE));
+    write_new_owner_only_at(
+        &temporary.directory,
+        OsStr::new(RESTORE_DECLARATION_FILE),
         &temporary.path.join(RESTORE_DECLARATION_FILE),
         &declaration.to_bytes()?,
     )
     .map_err(|_| backup_invalid("restore declaration could not be staged"))?;
+    temporary.verify_child_path(OsStr::new(RESTORE_DECLARATION_FILE))?;
     restore_step_completed(3)?;
 
     let expected = [
@@ -258,7 +287,7 @@ pub(crate) fn restore_backup(
             .to_owned(),
         OsString::from(RESTORE_DECLARATION_FILE),
     ];
-    require_exact_os_members(&temporary.path, &expected)?;
+    temporary.require_exact_members(&expected)?;
     require_exact_members(
         backup_directory,
         &[
@@ -267,10 +296,41 @@ pub(crate) fn restore_backup(
             BACKUP_MANIFEST_FILE,
         ],
     )?;
-    sync_directory(&temporary.path)?;
+    temporary.sync()?;
     restore_step_completed(4)?;
-    temporary.publish(&target_instance)?;
+    temporary.publish()?;
     Ok(declaration)
+}
+
+fn ensure_restore_target_outside_backup(
+    backup_directory: &Path,
+    target_database: &Path,
+) -> SnapbackResult<()> {
+    let backup = std::fs::canonicalize(backup_directory)
+        .map_err(|_| backup_invalid("backup directory could not be resolved"))?;
+    let instance = target_database
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .ok_or_else(|| backup_invalid("restore target has no instance directory"))?;
+    let instance_name = instance
+        .file_name()
+        .ok_or_else(|| backup_invalid("restore target instance has no name"))?;
+    let outer = instance
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let outer = std::fs::canonicalize(outer)
+        .map_err(|_| backup_invalid("restore target parent directory is unavailable"))?;
+    let instance = outer.join(instance_name);
+    let mut lock_name = instance_name.to_os_string();
+    lock_name.push(".snapback.restore.lock");
+    let lock = outer.join(lock_name);
+    if instance.starts_with(&backup) || lock.starts_with(&backup) || backup.starts_with(&instance) {
+        return Err(backup_invalid(
+            "restore target and reservation must be disjoint from the backup directory",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_retained_key_references(
@@ -294,30 +354,6 @@ fn validate_retained_key_references(
         ));
     }
     Ok(())
-}
-
-fn target_instance_directory(target_database: &Path) -> SnapbackResult<PathBuf> {
-    if target_database.file_name().is_none() {
-        return Err(backup_invalid("restore target database has no basename"));
-    }
-    let instance = target_database
-        .parent()
-        .filter(|path| path.file_name().is_some())
-        .ok_or_else(|| {
-            backup_invalid("restore target must be a database inside a new instance directory")
-        })?;
-    let parent = instance
-        .parent()
-        .filter(|path| !path.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let metadata = std::fs::metadata(parent)
-        .map_err(|_| backup_invalid("restore target parent directory is unavailable"))?;
-    if !metadata.is_dir() {
-        return Err(backup_invalid(
-            "restore target parent path is not a directory",
-        ));
-    }
-    Ok(instance.to_path_buf())
 }
 
 fn require_absent(path: &Path, message: &str) -> SnapbackResult<()> {
@@ -404,6 +440,358 @@ fn portable_basename(value: &str) -> bool {
         && value != "."
         && value != ".."
         && Path::new(value).file_name() == Some(OsStr::new(value))
+}
+
+/// Restore staging is deliberately separate from backup-output staging: its
+/// parent is the same live capability that owns the target reservation, and
+/// cleanup remains descriptor-relative even if that parent's pathname moves.
+struct RestoreTemporaryDirectory<'a> {
+    path: PathBuf,
+    name: OsString,
+    directory: File,
+    reservation: &'a TargetInstanceReservation,
+    children: BTreeSet<OsString>,
+    published: bool,
+}
+
+impl<'a> RestoreTemporaryDirectory<'a> {
+    fn create(
+        reservation: &'a TargetInstanceReservation,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<Self> {
+        for _ in 0..TEMP_CANDIDATE_ATTEMPTS {
+            let mut entropy = [0_u8; 16];
+            if random.fill(&mut entropy).is_err() {
+                entropy.zeroize();
+                return Err(backup_invalid(
+                    "temporary artifact name could not be generated",
+                ));
+            }
+            let suffix = encode_base64url(&entropy);
+            entropy.zeroize();
+            let name = OsString::from(format!(".snapback-auth-restore-{suffix}.tmp"));
+            match reservation.create_staging_directory(&name) {
+                Ok((directory, path)) => {
+                    return Ok(Self {
+                        path,
+                        name,
+                        directory,
+                        reservation,
+                        children: BTreeSet::new(),
+                        published: false,
+                    });
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(_) => {
+                    return Err(backup_invalid(
+                        "temporary artifact directory could not be created safely",
+                    ));
+                }
+            }
+        }
+        Err(backup_invalid(
+            "temporary artifact directory name collided repeatedly",
+        ))
+    }
+
+    fn register(&mut self, name: &OsStr) {
+        self.children.insert(name.to_os_string());
+    }
+
+    fn verify_child_path(&self, name: &OsStr) -> SnapbackResult<()> {
+        {
+            #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+            {
+                use std::os::unix::fs::MetadataExt as _;
+
+                self.reservation
+                    .ensure_valid()
+                    .map_err(|_| backup_invalid("restore parent changed during staging"))?;
+                let descriptor =
+                    open_strict_owner_only_at(&self.directory, name).map_err(|_| {
+                        backup_invalid("staged restore file is not strictly owner-only")
+                    })?;
+                let descriptor_metadata = descriptor
+                    .metadata()
+                    .map_err(|_| backup_invalid("staged restore file could not be inspected"))?;
+                let path = crate::secure_file::open_strict_owner_only(&self.path.join(name))
+                    .map_err(|_| {
+                        backup_invalid("staged restore path is not strictly owner-only")
+                    })?;
+                let path_metadata = path
+                    .metadata()
+                    .map_err(|_| backup_invalid("staged restore path could not be inspected"))?;
+                if (descriptor_metadata.dev(), descriptor_metadata.ino())
+                    != (path_metadata.dev(), path_metadata.ino())
+                {
+                    return Err(backup_invalid(
+                        "staged restore path does not name the pinned staging inode",
+                    ));
+                }
+                self.reservation
+                    .ensure_valid()
+                    .map_err(|_| backup_invalid("restore parent changed during staging"))
+            }
+            #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+            {
+                let _ = name;
+                Err(backup_invalid(
+                    "descriptor-relative restore staging is unsupported on this host",
+                ))
+            }
+        }
+    }
+
+    fn require_exact_members(&self, expected: &[OsString]) -> SnapbackResult<()> {
+        let actual = directory_members(&self.directory)?;
+        let expected = expected.iter().cloned().collect::<BTreeSet<_>>();
+        if actual != expected {
+            return Err(backup_invalid(
+                "artifact directory does not contain the exact required files",
+            ));
+        }
+        Ok(())
+    }
+
+    fn sync(&self) -> SnapbackResult<()> {
+        self.directory
+            .sync_all()
+            .map_err(|_| backup_invalid("artifact directory could not be synced"))
+    }
+
+    fn publish(&mut self) -> SnapbackResult<()> {
+        self.reservation
+            .ensure_target_absent()
+            .map_err(|_| backup_invalid("restore target appeared before publication"))?;
+        self.reservation
+            .rename_staging_directory(&self.name)
+            .map_err(|_| backup_invalid("artifact directory could not be published"))?;
+        // Once rename succeeds this guard must not attempt source-name cleanup,
+        // even if the durability sync reports an ambiguous failure.
+        self.published = true;
+        self.reservation
+            .sync_parent()
+            .map_err(|_| backup_invalid("artifact directory publication could not be synced"))
+    }
+}
+
+impl Drop for RestoreTemporaryDirectory<'_> {
+    fn drop(&mut self) {
+        if self.published {
+            return;
+        }
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            use std::os::fd::AsRawFd as _;
+            use std::os::unix::ffi::OsStrExt as _;
+
+            for child in &self.children {
+                if let Ok(child) = std::ffi::CString::new(child.as_bytes()) {
+                    unsafe {
+                        libc::unlinkat(self.directory.as_raw_fd(), child.as_ptr(), 0);
+                    }
+                }
+            }
+            let _ = self.directory.sync_all();
+            let _ = self.reservation.remove_staging_directory(&self.name);
+        }
+    }
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn create_new_owner_only_at(directory: &File, name: &OsStr, path: &Path) -> std::io::Result<File> {
+    use std::os::fd::{AsRawFd as _, FromRawFd as _};
+    use std::os::unix::ffi::OsStrExt as _;
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    let name = std::ffi::CString::new(name.as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "name contains NUL"))?;
+    let fd = unsafe {
+        libc::openat(
+            directory.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            0o600,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let file = unsafe { File::from_raw_fd(fd) };
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    let metadata = file.metadata()?;
+    if !metadata.file_type().is_file()
+        || metadata.uid() != unsafe { libc::geteuid() }
+        || metadata.permissions().mode() & 0o777 != 0o600
+        || metadata.nlink() != 1
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "new staged file is not strictly owner-only",
+        ));
+    }
+    // Reuse the strict auth-file ACL validator before writing any secret
+    // bytes, and prove the lexical path resolves to this opened inode.
+    let path_file = crate::secure_file::open_strict_owner_only(path)?;
+    let path_metadata = path_file.metadata()?;
+    if (path_metadata.dev(), path_metadata.ino()) != (metadata.dev(), metadata.ino()) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "new staged path does not name the descriptor-created inode",
+        ));
+    }
+    Ok(file)
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+fn create_new_owner_only_at(
+    _directory: &File,
+    _name: &OsStr,
+    _path: &Path,
+) -> std::io::Result<File> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "descriptor-relative restore staging is unsupported on this host",
+    ))
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn write_new_owner_only_at(
+    directory: &File,
+    name: &OsStr,
+    path: &Path,
+    bytes: &[u8],
+) -> std::io::Result<()> {
+    use std::io::Write as _;
+
+    let mut file = create_new_owner_only_at(directory, name, path)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    let _ = crate::secure_file::open_strict_owner_only(path)?;
+    Ok(())
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+fn write_new_owner_only_at(
+    _directory: &File,
+    _name: &OsStr,
+    _path: &Path,
+    _bytes: &[u8],
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "descriptor-relative restore staging is unsupported on this host",
+    ))
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn copy_new_owner_only_at(
+    source: &mut File,
+    directory: &File,
+    name: &OsStr,
+    path: &Path,
+) -> std::io::Result<u64> {
+    source.seek(SeekFrom::Start(0))?;
+    let mut destination = create_new_owner_only_at(directory, name, path)?;
+    let copied = std::io::copy(source, &mut destination)?;
+    destination.sync_all()?;
+    let _ = crate::secure_file::open_strict_owner_only(path)?;
+    Ok(copied)
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+fn copy_new_owner_only_at(
+    _source: &mut File,
+    _directory: &File,
+    _name: &OsStr,
+    _path: &Path,
+) -> std::io::Result<u64> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "descriptor-relative restore staging is unsupported on this host",
+    ))
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn open_strict_owner_only_at(directory: &File, name: &OsStr) -> std::io::Result<File> {
+    use std::os::fd::{AsRawFd as _, FromRawFd as _};
+    use std::os::unix::ffi::OsStrExt as _;
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    let name = std::ffi::CString::new(name.as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "name contains NUL"))?;
+    let fd = unsafe {
+        libc::openat(
+            directory.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            0,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let file = unsafe { File::from_raw_fd(fd) };
+    let metadata = file.metadata()?;
+    if !metadata.file_type().is_file()
+        || metadata.uid() != unsafe { libc::geteuid() }
+        || metadata.permissions().mode() & 0o777 != 0o600
+        || metadata.nlink() != 1
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "staged file is not strictly owner-only",
+        ));
+    }
+    Ok(file)
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+fn open_strict_owner_only_at(_directory: &File, _name: &OsStr) -> std::io::Result<File> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "descriptor-relative restore staging is unsupported on this host",
+    ))
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn directory_members(directory: &File) -> SnapbackResult<BTreeSet<OsString>> {
+    use std::os::fd::AsRawFd as _;
+    use std::os::unix::ffi::OsStringExt as _;
+
+    let duplicate = unsafe { libc::dup(directory.as_raw_fd()) };
+    if duplicate < 0 {
+        return Err(backup_invalid("artifact directory could not be enumerated"));
+    }
+    let stream = unsafe { libc::fdopendir(duplicate) };
+    if stream.is_null() {
+        unsafe {
+            libc::close(duplicate);
+        }
+        return Err(backup_invalid("artifact directory could not be enumerated"));
+    }
+    let mut members = BTreeSet::new();
+    loop {
+        let entry = unsafe { libc::readdir(stream) };
+        if entry.is_null() {
+            break;
+        }
+        let name = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) };
+        if name.to_bytes() != b"." && name.to_bytes() != b".." {
+            members.insert(OsString::from_vec(name.to_bytes().to_vec()));
+        }
+    }
+    unsafe {
+        libc::closedir(stream);
+    }
+    Ok(members)
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+fn directory_members(_directory: &File) -> SnapbackResult<BTreeSet<OsString>> {
+    Err(backup_invalid(
+        "descriptor-relative restore staging is unsupported on this host",
+    ))
 }
 
 struct TemporaryDirectory {
@@ -617,6 +1005,7 @@ thread_local! {
     static FAIL_BACKUP_AFTER_STEP: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
     static FAIL_RESTORE_AFTER_STEP: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
     static AFTER_RESTORE_SOURCE_HASH: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static AFTER_RESTORE_STAGING_CREATED: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
     static AFTER_BACKUP_KEYRING_CAPTURE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
 }
 
@@ -632,6 +1021,15 @@ fn backup_keyring_captured() {
 fn restore_source_database_hashed() {
     #[cfg(test)]
     AFTER_RESTORE_SOURCE_HASH.with(|slot| {
+        if let Some(operation) = slot.borrow_mut().take() {
+            operation();
+        }
+    });
+}
+
+fn restore_staging_created() {
+    #[cfg(test)]
+    AFTER_RESTORE_STAGING_CREATED.with(|slot| {
         if let Some(operation) = slot.borrow_mut().take() {
             operation();
         }
@@ -944,6 +1342,95 @@ mod tests {
         create_owner_only_directory(&parent).unwrap();
         let error = pinned.revalidate().unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+    }
+
+    #[test]
+    fn restore_parent_replacement_cleans_staging_through_the_pinned_descriptor() {
+        let fixture = Fixture::new();
+        let backup = fixture.parent().join("backup-for-parent-swap");
+        create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &backup,
+            123,
+            &fixture.random,
+        )
+        .unwrap();
+        let parent = fixture.parent().join("restore-parent");
+        let moved = fixture.parent().join("restore-parent-moved");
+        create_owner_only_directory(&parent).unwrap();
+        let target = parent.join("instance").join("app.sqlite3");
+        let parent_for_hook = parent.clone();
+        let moved_for_hook = moved.clone();
+        AFTER_RESTORE_STAGING_CREATED.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                std::fs::rename(&parent_for_hook, &moved_for_hook).unwrap();
+                create_owner_only_directory(&parent_for_hook).unwrap();
+            }));
+        });
+
+        let error = restore_backup(&backup, &target, &fixture.random).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!target.parent().unwrap().exists());
+        assert!(!moved.join("instance").exists());
+        assert_no_temporary(&parent, ".snapback-auth-restore-");
+        assert_no_temporary(&moved, ".snapback-auth-restore-");
+    }
+
+    #[test]
+    fn raw_live_directory_copy_is_not_a_restore_unit() {
+        let fixture = Fixture::new();
+        let raw = fixture.parent().join("raw-live-copy");
+        create_owner_only_directory(&raw).unwrap();
+        crate::secure_file::write_new_owner_only(
+            &raw.join(BACKUP_DATABASE_FILE),
+            &std::fs::read(&fixture.database_path).unwrap(),
+        )
+        .unwrap();
+        crate::secure_file::write_new_owner_only(
+            &raw.join(format!("{BACKUP_DATABASE_FILE}-wal")),
+            b"raw-wal-like-bytes",
+        )
+        .unwrap();
+        crate::secure_file::write_new_owner_only(
+            &raw.join(BACKUP_KEYRING_FILE),
+            b"raw-keyring-like-bytes",
+        )
+        .unwrap();
+
+        let target = fixture.parent().join("raw-restored").join("app.sqlite3");
+        let error = restore_backup(&raw, &target, &fixture.random).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!target.parent().unwrap().exists());
+        assert_no_temporary(fixture.parent(), ".snapback-auth-restore-");
+    }
+
+    #[test]
+    fn restore_target_cannot_place_its_reservation_inside_the_backup_unit() {
+        let fixture = Fixture::new();
+        let backup = fixture.parent().join("backup-overlap");
+        create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &backup,
+            123,
+            &fixture.random,
+        )
+        .unwrap();
+        let target = backup.join("restored").join("app.sqlite3");
+        let before = std::fs::read_dir(&backup)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect::<BTreeSet<_>>();
+
+        let error = restore_backup(&backup, &target, &fixture.random).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        let after = std::fs::read_dir(&backup)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(after, before, "refusal must not add a lock to the source");
+        assert!(!target.parent().unwrap().exists());
     }
 
     #[test]
