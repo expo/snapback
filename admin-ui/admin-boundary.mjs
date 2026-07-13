@@ -59,7 +59,7 @@ export async function createAdminSurface({ runtime, client }) {
       },
       // The function runner: parse the args text, invoke through the admin API's
       // normal runner path, and republish a shaped result. Errors become state.
-      runFunction: async ({ name, argsText, userId }, { publishOne }) => {
+      runFunction: async ({ name, argsText }, { publishOne }) => {
         if (!name) return;
         let args;
         try {
@@ -73,13 +73,11 @@ export async function createAdminSurface({ runtime, client }) {
           });
           return;
         }
-        const user = userId && userId.trim() ? userId.trim() : null;
         try {
-          const result = await client.runFunction(name, {
-            args,
-            auth: { principal: user, session_id: null, user_id: user },
-            read_set: [],
-          });
+          // Browser runs are anonymous administrative bypasses. App identity
+          // comes only from the hosted resolver; the console never
+          // manufactures a user-shaped HandlerInput.
+          const result = await client.runFunction(name, { args });
           publishOne('runResult', shapeRun(result));
         } catch (error) {
           publishOne('runResult', { ...emptyRun(), ran: true, ok: false, error: error.message });
@@ -95,9 +93,8 @@ export async function createAdminSurface({ runtime, client }) {
         }
         publishOne('inspect', await loadCommandView());
       },
-      // config.verify: run the entry's probe, remember the outcome (ok or the
-      // failure diagnostic — never a value), and republish so the Secrets
-      // surface shows both the fresh verification state and the probe result.
+      // config.verify: remember only the finite outcome. Probe text is
+      // handler-controlled and is deliberately absent from this AdminRead UI.
       verifyConfig: async ({ entry }, { publishOne }) => {
         if (!entry) return;
         try {
@@ -105,10 +102,9 @@ export async function createAdminSurface({ runtime, client }) {
           lastVerify = {
             entry: outcome.entry || entry,
             ok: !!outcome.ok,
-            detail: (outcome.verified && outcome.verified.diagnostic) || '',
           };
         } catch (error) {
-          lastVerify = { entry, ok: false, detail: error.message };
+          lastVerify = { entry, ok: false };
         }
         publishOne('inspect', await loadCommandView());
       },
@@ -644,7 +640,6 @@ function shapeConfigEntry(e, fns, lastVerify) {
     setTone: e.set ? 'ok' : e.required ? 'warn' : 'default',
     verifiedLabel,
     verifiedTone: verified ? (verified.ok ? 'ok' : 'err') : 'default',
-    verifyDiagnostic: verified && !verified.ok ? verified.diagnostic || '' : '',
     pendingLabel: e.applyState && e.applyState !== 'applied' ? e.applyState : '',
     changedLabel: changedParts.join(' '),
     howToGet: e.howToGet || '',
@@ -654,7 +649,6 @@ function shapeConfigEntry(e, fns, lastVerify) {
     verifyRan: !!verifyResult,
     verifyOk: !!(verifyResult && verifyResult.ok),
     verifyLabel: verifyResult ? (verifyResult.ok ? 'probe ok' : 'probe failed') : '',
-    verifyDetail: (verifyResult && verifyResult.detail) || '',
   };
 }
 

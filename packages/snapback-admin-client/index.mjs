@@ -10,29 +10,59 @@
 // functions. That keeps it usable even when the app's own schema/functions
 // are broken — the bootstrap property LLP 0017 requires.
 
-const TOKEN_STORAGE_KEY = 'snapback_admin_token';
+const CONSOLE_STORAGE_KEY = 'snapback_console_credential_v1';
+const LEGACY_MASTER_STORAGE_KEY = 'snapback_admin_token';
 
 export class AdminClient {
   constructor(baseUrl, { token } = {}) {
     this.baseUrl = String(baseUrl ?? '').replace(/\/$/, '');
-    this.token = token ?? storedToken();
+    // Explicit tokens are for headless callers and remain memory-only. Browser
+    // callers use setToken(), which immediately exchanges the master for a
+    // short-lived console credential before anything is persisted.
+    this.masterToken = token ?? '';
+    const stored = this.masterToken ? null : storedConsoleCredential();
+    this.consoleCredential = stored?.credential ?? '';
+    this.consoleExpiresAtMs = stored?.expiresAtMs ?? 0;
+    clearLegacyStoredMaster();
   }
 
-  setToken(token) {
-    this.token = token ?? '';
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(TOKEN_STORAGE_KEY, this.token);
-      }
-    } catch {
-      // Storage may be unavailable (private mode, headless); the in-memory
-      // token still applies to this client.
+  async setToken(token) {
+    const masterToken = String(token ?? '').trim();
+    if (!masterToken) {
+      this.masterToken = '';
+      this.#replaceConsoleCredential(null);
+      return;
     }
+    const minted = await this.#req(
+      'POST',
+      '/console/credential',
+      undefined,
+      { 'x-snapback-admin-token': masterToken },
+      false,
+    );
+    if (
+      !minted ||
+      typeof minted.credential !== 'string' ||
+      !minted.credential ||
+      !Number.isFinite(minted.expiresAtMs) ||
+      minted.expiresAtMs <= Date.now()
+    ) {
+      throw responseShapeError('console credential exchange returned an invalid credential');
+    }
+    this.masterToken = '';
+    this.#replaceConsoleCredential({
+      credential: minted.credential,
+      expiresAtMs: minted.expiresAtMs,
+    });
   }
 
-  async #req(method, path, body) {
-    const headers = {};
-    if (this.token) headers['x-snapback-admin-token'] = this.token;
+  async #req(method, path, body, explicitHeaders = {}, includeCredential = true) {
+    const headers = { ...explicitHeaders };
+    if (includeCredential && this.masterToken) {
+      headers['x-snapback-admin-token'] = this.masterToken;
+    } else if (includeCredential && this.#activeConsoleCredential()) {
+      headers['x-snapback-console-credential'] = this.consoleCredential;
+    }
     if (body !== undefined) headers['content-type'] = 'application/json';
     const res = await fetch(this.baseUrl + path, {
       method,
@@ -74,6 +104,30 @@ export class AdminClient {
     return json;
   }
 
+  #activeConsoleCredential() {
+    if (!this.consoleCredential) return '';
+    if (this.consoleExpiresAtMs > Date.now()) return this.consoleCredential;
+    this.#replaceConsoleCredential(null);
+    return '';
+  }
+
+  #replaceConsoleCredential(record) {
+    this.consoleCredential = record?.credential ?? '';
+    this.consoleExpiresAtMs = record?.expiresAtMs ?? 0;
+    try {
+      if (typeof localStorage === 'undefined') return;
+      clearLegacyStoredMaster();
+      if (record) {
+        localStorage.setItem(CONSOLE_STORAGE_KEY, JSON.stringify(record));
+      } else {
+        localStorage.removeItem(CONSOLE_STORAGE_KEY);
+      }
+    } catch {
+      // Storage may be unavailable (private mode, headless); the in-memory
+      // derived capability still applies to this client.
+    }
+  }
+
   inspect() {
     return this.#req('GET', '/inspect');
   }
@@ -109,12 +163,42 @@ export class AdminClient {
   }
 }
 
-function storedToken() {
+function storedConsoleCredential() {
   try {
-    return (typeof localStorage !== 'undefined' && localStorage.getItem(TOKEN_STORAGE_KEY)) || '';
+    if (typeof localStorage === 'undefined') return null;
+    clearLegacyStoredMaster();
+    const raw = localStorage.getItem(CONSOLE_STORAGE_KEY);
+    if (!raw) return null;
+    const record = JSON.parse(raw);
+    if (
+      typeof record?.credential !== 'string' ||
+      !record.credential ||
+      !Number.isFinite(record.expiresAtMs) ||
+      record.expiresAtMs <= Date.now()
+    ) {
+      localStorage.removeItem(CONSOLE_STORAGE_KEY);
+      return null;
+    }
+    return record;
   } catch {
-    return '';
+    return null;
   }
+}
+
+function clearLegacyStoredMaster() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(LEGACY_MASTER_STORAGE_KEY);
+    }
+  } catch {
+    // Best-effort migration when storage is unavailable.
+  }
+}
+
+function responseShapeError(message) {
+  const error = new Error(`SNAPBACK_RESPONSE_INVALID: ${message}`);
+  error.diagnostic = { code: 'SNAPBACK_RESPONSE_INVALID', message };
+  return error;
 }
 
 function bodySnippet(text, limit = 200) {

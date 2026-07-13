@@ -55,6 +55,7 @@ const inventories = [
     testDir: 'tests',
     suffix: '.mjs',
     expectedFiles: [
+      'tests/admin-client-credentials.mjs',
       'tests/auth-prompt.mjs',
       'tests/contract-bindings.mjs',
       'tests/dev-serve-react-esm.mjs',
@@ -104,7 +105,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 27, 'reviewed package/admin test count changed');
+assert.equal(total, 28, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-12 (ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
+**Revised:** 2026-07-13 (ENG-24595: browsers exchange the master admin token for a short-lived, non-renewable console credential and never persist the master; config status exposes only closed verification state; the browser runner no longer manufactures app identity; earlier: ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036
 
 ## Summary
@@ -464,7 +464,10 @@ The first "code runner" should be a generated-function runner:
 - choose a generated query or mutation;
 - inspect its args validator, kind, required capabilities, syncability class,
   auth requirement, read-set summary, and write-set summary when known;
-- provide args and an auth/impersonation context;
+- provide args; the browser runner is an anonymous administrative bypass and
+  never manufactures app identity. Hosted identity is resolved by the auth
+  gate, while any future developer impersonation requires its own explicit
+  non-browser capability;
 - run it through the same invocation path as generated clients;
 - show output, logs, diagnostics, affected rows, commit version, and runtime
   timing.
@@ -494,9 +497,19 @@ Local defaults:
   carries raw handler-controlled diagnostics/results, source, and local paths;
   whenever an admin token is configured or auto-minted it requires that bearer.
   Anonymous loopback clients use root `/inspect`, which is a typed redacted
-  projection. A fresh console renders a text-only token prompt on 401, stores
-  the submitted capability through the shared admin client, and retries boot
-  without ever placing server error text into HTML (ENG-24560/ENG-24568);
+  projection. A fresh console renders a text-only token prompt on 401 and sends
+  the submitted master token once to
+  `POST /_snapback/api/console/credential`. That response is `no-store` and
+  carries a process-bound console credential with a ten-minute expiry. The
+  server retains only its SHA-256 digest. The shared client may persist that
+  derived credential plus its expiry under
+  `snapback_console_credential_v1`, removes it when stale, and sends it only as
+  `x-snapback-console-credential`; the master never enters `localStorage`,
+  `sessionStorage`, or IndexedDB. A derived console credential satisfies only
+  ordinary `AdminRead`/`AdminWrite`: it cannot renew itself, satisfy
+  `AdminSecretRead`, or mint/use impersonation authority. The console retries
+  boot without ever placing server error text into HTML
+  (ENG-24560/ENG-24568/ENG-24595);
 - when the server binds a non-loopback host such as `0.0.0.0`, the admin console
   should either be disabled by default or require an explicit admin token;
 - write operations should require an admin token or equivalent local capability
@@ -528,7 +541,10 @@ Local defaults:
   should require the same explicit local capability;
 - browser write requests should have origin and CSRF protections appropriate to
   local development;
-- secrets and secret-like diagnostics must be redacted.
+- secrets and secret-like diagnostics must be redacted. In particular,
+  `config.status` and successful `config.verify` responses expose verification
+  only as the closed `{ok, atMs}` projection; handler-controlled probe messages
+  remain in operator-local state and cannot cross that `AdminRead` response.
 
 Hosted defaults:
 

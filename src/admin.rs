@@ -22,10 +22,12 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::Arc;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex as StdMutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::{
     ffi::{CString, OsStr},
@@ -210,6 +212,70 @@ fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
 /// `/_snapback/admin/client.mjs` for external tooling — one client, no drift.
 const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/index.mjs");
 
+/// Browser-safe administrator capability lifetime. The credential is both
+/// process-bound and short-lived; the master credential is used only for the
+/// exchange request and never needs to enter browser storage.
+const CONSOLE_CREDENTIAL_TTL: Duration = Duration::from_secs(10 * 60);
+const MAX_CONSOLE_CREDENTIALS: usize = 256;
+
+/// In-memory registry of derived console credentials. These credentials can
+/// satisfy ordinary AdminRead/AdminWrite policy only. Stronger resolvers such
+/// as AdminSecretRead and impersonation deliberately use distinct carriers
+/// and never consult this registry.
+///
+/// @ref LLP 0017#security-defaults — the browser persists a narrowly-scoped,
+/// short-lived console capability instead of the master admin credential.
+#[derive(Clone, Debug, Default)]
+pub struct ConsoleCredentialRegistry {
+    entries: Arc<StdMutex<HashMap<[u8; 32], Instant>>>,
+}
+
+impl ConsoleCredentialRegistry {
+    fn mint(&self) -> ConsoleCredentialResponse {
+        let now = Instant::now();
+        let mut entries = self.entries.lock().unwrap_or_else(|lock| lock.into_inner());
+        entries.retain(|_, expires_at| *expires_at > now);
+        if entries.len() >= MAX_CONSOLE_CREDENTIALS
+            && let Some(oldest) = entries
+                .iter()
+                .min_by_key(|(_, expires_at)| **expires_at)
+                .map(|(digest, _)| *digest)
+        {
+            entries.remove(&oldest);
+        }
+        let credential = format!("sbcc_{}", uuid::Uuid::new_v4().simple());
+        entries.insert(
+            console_credential_digest(&credential),
+            now + CONSOLE_CREDENTIAL_TTL,
+        );
+        ConsoleCredentialResponse {
+            credential,
+            expires_at_ms: now_millis().saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64),
+        }
+    }
+
+    fn allows(&self, credential: Option<&str>) -> bool {
+        let Some(credential) = credential else {
+            return false;
+        };
+        let now = Instant::now();
+        let mut entries = self.entries.lock().unwrap_or_else(|lock| lock.into_inner());
+        entries.retain(|_, expires_at| *expires_at > now);
+        entries.contains_key(&console_credential_digest(credential))
+    }
+}
+
+fn console_credential_digest(credential: &str) -> [u8; 32] {
+    Sha256::digest(credential.as_bytes()).into()
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleCredentialResponse {
+    credential: String,
+    expires_at_ms: u64,
+}
+
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
 #[derive(Clone, Debug)]
@@ -229,6 +295,9 @@ pub struct ServerContext {
     /// all. Reading this file as the same user is what makes a local process
     /// admin (LLP 0036 D3); a browser page on another localhost port cannot.
     pub admin_token_file: Option<PathBuf>,
+    /// Process-local, short-lived browser capabilities derived from the master
+    /// admin token. This registry never grants secret-read or impersonation.
+    pub console_credentials: ConsoleCredentialRegistry,
     /// Directory of a built static console bundle (`SNAPBACK_ADMIN_DIST`, or the
     /// repo-local `admin-ui/dist` when it has already been built). When present,
     /// the Contract console is served from here; otherwise `/_snapback/admin`
@@ -254,6 +323,7 @@ impl ServerContext {
             admin_token: env_admin_token(),
             admin_token_minted: false,
             admin_token_file: None,
+            console_credentials: ConsoleCredentialRegistry::default(),
             admin_dist: env_admin_dist(),
         }
     }
@@ -272,6 +342,7 @@ impl ServerContext {
             admin_token: env_admin_token(),
             admin_token_minted: false,
             admin_token_file: None,
+            console_credentials: ConsoleCredentialRegistry::default(),
             admin_dist: env_admin_dist(),
         }
     }
@@ -772,6 +843,20 @@ pub(crate) fn authorize(
     headers: &HeaderMap,
     write: bool,
 ) -> Result<(), ApiError> {
+    if ctx
+        .console_credentials
+        .allows(provided_console_credential(headers))
+    {
+        return Ok(());
+    }
+    authorize_admin_access(ctx, headers, write)
+}
+
+fn authorize_admin_access(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    write: bool,
+) -> Result<(), ApiError> {
     let provided = provided_token(headers);
     match evaluate_access(
         ctx.loopback,
@@ -793,6 +878,38 @@ pub(crate) fn authorize(
         )
         .into()),
     }
+}
+
+/// Resolve only an explicitly configured master administrator credential. The
+/// console-credential exchange uses this stricter gate so a stolen derived
+/// credential cannot mint a fresh lifetime for itself. Served loopback
+/// instances always have a configured or auto-minted token; embedded tokenless
+/// routers do not need a browser credential and cannot mint one.
+fn authorize_master(ctx: &ServerContext, headers: &HeaderMap) -> Result<(), ApiError> {
+    let provided = provided_token(headers);
+    match (ctx.admin_token.as_deref(), provided.as_deref()) {
+        (Some(configured), Some(candidate)) if token_eq(configured, candidate) => Ok(()),
+        (None, _) if !ctx.loopback => Err(SnapbackError::error(
+            "SNAPBACK_ADMIN_DISABLED",
+            "admin",
+            "admin API is disabled on this non-loopback bind without a valid admin token",
+        )
+        .into()),
+        _ => Err(SnapbackError::error(
+            "SNAPBACK_ADMIN_TOKEN_REQUIRED",
+            "admin",
+            "minting a console credential requires the configured master admin token",
+        )
+        .into()),
+    }
+}
+
+fn provided_console_credential(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("x-snapback-console-credential")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|credential| !credential.is_empty())
 }
 
 fn provided_token(headers: &HeaderMap) -> Option<String> {
@@ -849,6 +966,14 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             get(admin_health),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/credential",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(mint_console_credential),
         ),
         RegisteredRoute::new(
             write(
@@ -1182,6 +1307,18 @@ async fn admin_health(
             || inspect.runtime.ibex_ctx_db_host_bridge == CapabilityState::Available,
         binary: crate::identity::binary_identity(),
     }))
+}
+
+/// Exchange the master administrator token for the capability a browser may
+/// persist. Even though registry middleware enforces the route's AdminWrite
+/// floor, repeat the narrower master-only check here: console credentials are
+/// intentionally non-renewable.
+async fn mint_console_credential(
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<ConsoleCredentialResponse>, ApiError> {
+    authorize_master(&ctx, &headers)?;
+    Ok(Json(ctx.console_credentials.mint()))
 }
 
 async fn admin_inspect(

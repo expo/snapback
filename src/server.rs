@@ -3932,7 +3932,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
         HeaderValue::from_static(
-            "content-type, authorization, x-snapback-admin-token, x-snapback-connection-token",
+            "content-type, authorization, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token",
         ),
     );
     response

@@ -18,7 +18,7 @@ use snapback::manifest::{
     MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData,
     TableManifest, ValueExpr,
 };
-use snapback::server::{ErrorResponse, MutationResponse};
+use snapback::server::{ErrorResponse, MutationResponse, PolicyAuthMode};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
@@ -633,6 +633,138 @@ async fn non_loopback_with_token_allows_admin_reads() {
         .await
         .unwrap();
     assert_eq!(allowed.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn console_credential_is_derived_nonrenewable_and_no_store() {
+    let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
+    let minted = app
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/console/credential",
+            json!({}),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(minted.status(), StatusCode::OK);
+    assert_eq!(
+        minted
+            .headers()
+            .get("cache-control")
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store, private"),
+        "credential responses must never be cacheable"
+    );
+    let body = json(minted).await;
+    let credential = body["credential"].as_str().expect("derived credential");
+    assert!(credential.starts_with("sbcc_"), "{body}");
+    let expires_at_ms = body["expiresAtMs"].as_u64().expect("expiry");
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    assert!(expires_at_ms > now_ms, "{body}");
+    assert!(expires_at_ms <= now_ms + 10 * 60 * 1_000, "{body}");
+
+    let ordinary_write = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/app/reset")
+                .header("content-type", "application/json")
+                .header("x-snapback-console-credential", credential)
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        ordinary_write.status(),
+        StatusCode::OK,
+        "derived credential should carry ordinary console authority"
+    );
+
+    let cannot_renew = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/console/credential")
+                .header("x-snapback-console-credential", credential)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(cannot_renew.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        json(cannot_renew).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_TOKEN_REQUIRED"
+    );
+
+    let wrong_carrier = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/app/reset")
+                .header("content-type", "application/json")
+                .header("x-snapback-admin-token", credential)
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        wrong_carrier.status(),
+        StatusCode::UNAUTHORIZED,
+        "derived token must not become interchangeable with the master"
+    );
+
+    let tokenless_embedded = app_with_context(seeded_snapback(), loopback_context(None))
+        .oneshot(post("/_snapback/api/console/credential", json!({})))
+        .await
+        .unwrap();
+    assert_eq!(
+        tokenless_embedded.status(),
+        StatusCode::UNAUTHORIZED,
+        "a tokenless embedded router has no master capability to derive"
+    );
+}
+
+#[tokio::test]
+async fn console_credential_cannot_satisfy_sessions_secret_read() {
+    let state = AppState::from_snapback(seeded_snapback(), loopback_context(Some("master-secret")))
+        .with_policy_auth_mode(PolicyAuthMode::Sessions);
+    let app = snapback::server::app(state);
+    let body = json(
+        app.clone()
+            .oneshot(post_with_token(
+                "/_snapback/api/console/credential",
+                json!({}),
+                "master-secret",
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let credential = body["credential"].as_str().expect("derived credential");
+    let secret_read = app
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/inspect")
+                .header("x-snapback-console-credential", credential)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_ne!(
+        secret_read.status(),
+        StatusCode::OK,
+        "ordinary console capability must not satisfy AdminSecretRead"
+    );
 }
 
 /// LLP 0032 S1 (LLP 0031 §Enforcement) — the ungated root aliases and the
@@ -1992,6 +2124,7 @@ fn loopback_context(token: Option<&str>) -> ServerContext {
         admin_token: token.map(ToOwned::to_owned),
         admin_token_minted: false,
         admin_token_file: None,
+        console_credentials: Default::default(),
         admin_dist: None,
     }
 }
@@ -2008,6 +2141,7 @@ fn exposed_context(token: Option<&str>) -> ServerContext {
         admin_token: token.map(ToOwned::to_owned),
         admin_token_minted: false,
         admin_token_file: None,
+        console_credentials: Default::default(),
         admin_dist: None,
     }
 }
@@ -2024,6 +2158,7 @@ fn dist_context(dist: std::path::PathBuf) -> ServerContext {
         admin_token: None,
         admin_token_minted: false,
         admin_token_file: None,
+        console_credentials: Default::default(),
         admin_dist: Some(dist),
     }
 }

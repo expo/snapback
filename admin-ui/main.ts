@@ -64,7 +64,7 @@ async function start(): Promise<void> {
       renderAdminTokenPrompt(document, {
         message: error instanceof Error ? error.message : String(error),
         onSubmit: async (token: string) => {
-          client.setToken(token);
+          await client.setToken(token);
           await boot(client);
         },
       });

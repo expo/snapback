@@ -1119,12 +1119,9 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
         verify_body["ok"], false,
         "timed-out probe must record failure: {verify_body}"
     );
-    let diagnostic = verify_body["verified"]["diagnostic"]
-        .as_str()
-        .unwrap_or_default();
     assert!(
-        diagnostic.contains("SNAPBACK_ACTION_TIMEOUT"),
-        "the record must carry the watchdog code: {verify_body}"
+        verify_body["verified"].get("diagnostic").is_none(),
+        "handler/runtime diagnostics must not cross the AdminRead config projection: {verify_body}"
     );
     assert!(
         verify_elapsed >= Duration::from_millis(WATCHDOG_MS - 100)

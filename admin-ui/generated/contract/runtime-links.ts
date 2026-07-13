@@ -7,7 +7,7 @@ export interface AdminContractLinks {
   tableScan(args: Record<string, never>): unknown;
   loadTable(args: { table: string; offset: number }): unknown;
   runResult(args: Record<string, never>): unknown;
-  runFunction(args: { name: string; argsText: string; userId: string }): unknown;
+  runFunction(args: { name: string; argsText: string }): unknown;
   cleanup(args: Record<string, never>): unknown;
   verifyConfig(args: { entry: string }): unknown;
 }

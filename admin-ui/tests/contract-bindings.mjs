@@ -86,6 +86,11 @@ const verifiedView = surface.queryRows('inspect')[0];
 const verifiedFeed = verifiedView.ui.config.entries.find((e) => e.name === 'caltrainFeed');
 assert.equal(verifiedFeed.verifyRan, true, 'verify outcome is folded into the entry');
 assert.equal(verifiedFeed.verifyOk, true, 'verify outcome reports the probe result');
+assert.equal(
+  JSON.stringify(verifiedView).includes('HANDLER_CONTROLLED_VERIFY_SENTINEL'),
+  false,
+  'handler-controlled verify text cannot enter the AdminRead view model',
+);
 
 await surface.links.loadTable({ table: 'todos', offset: 0 });
 assert.equal(surface.queryRows('tableScan')[0].loaded, true, 'loadTable publishes scan state');
@@ -98,9 +103,14 @@ assert.deepEqual(client.scanOffsets.slice(-2), [999, 100], 'oversized offset ref
 assert.equal(surface.queryRows('tableScan')[0].offset, 100, 'final page offset is published');
 assert.equal(surface.queryRows('tableScan')[0].rangeLabel, '101–125 of 125', 'range reflects the clamped final page');
 
-await surface.links.runFunction({ name: 'listTodos', argsText: '{}', userId: 'user_ada' });
+await surface.links.runFunction({ name: 'listTodos', argsText: '{}' });
 assert.equal(surface.queryRows('runResult')[0].ok, true, 'runFunction publishes success state');
 assert.match(surface.queryRows('runResult')[0].payload, /Read the Snapback explainer/, 'run payload is rendered');
+assert.deepEqual(
+  client.lastRunInput,
+  { args: {} },
+  'browser runner never manufactures app identity or replay authority',
+);
 
 await surface.links.cleanup({});
 assert.equal(surface.queryRows('inspect')[0].id, 'inspect', 'cleanup republishes a fresh inspect view');
@@ -330,7 +340,11 @@ function createFakeAdminClient() {
       return {
         entry,
         ok: true,
-        verified: { ok: true, atMs: 1750000400000 },
+        verified: {
+          ok: true,
+          atMs: 1750000400000,
+          diagnostic: 'HANDLER_CONTROLLED_VERIFY_SENTINEL',
+        },
         generation: 3,
       };
     },
@@ -351,7 +365,8 @@ function createFakeAdminClient() {
         rows,
       };
     },
-    async runFunction(name) {
+    async runFunction(name, input) {
+      client.lastRunInput = input;
       return {
         ok: true,
         function: name,

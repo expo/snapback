@@ -33,7 +33,6 @@ component AdminConsole
   state dataOffset = 0
   state runName = ""
   state runArgs = "{}"
-  state runUser = ""
 
   query state = inspect({})
   query scan = tableScan({})
@@ -73,10 +72,8 @@ component AdminConsole
     runName = name
   action setArgs(value) writes runArgs
     runArgs = value
-  action setUser(value) writes runUser
-    runUser = value
   action runFn mutates runMut
-    runMut({ name: runName, argsText: runArgs, userId: runUser })
+    runMut({ name: runName, argsText: runArgs })
   action cleanupNow mutates cleanupMut
     cleanupMut()
   action verifyEntry(name) mutates verifyMut
@@ -241,10 +238,9 @@ component AdminConsole
                         text "Run a function" size=13 weight=700 color=c.text family=f.sans flex=1 minWidth=0
                         text runName == "" ? "select a function below" : runName size=13 weight=600 color=runName == "" ? c.textFaint : c.accentText family=f.mono
                       input label="Arguments (JSON)" value=runArgs change=setArgs submit=runFn multiline=true testId="run-args" width="100%" minHeight=70 paddingTop=10 paddingBottom=10 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
-                      row gap=8 align="center" wrap="wrap" width="100%"
-                        input label="auth user id" value=runUser change=setUser submit=runFn placeholder="auth user id (optional)" testId="run-user" flex=1 minWidth=200 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surface color=c.text size=13 family=f.sans
+                      row gap=8 align="center" justify="end" width="100%"
                         button press=runFn testId="run-btn" paddingTop=10 paddingBottom=10 paddingLeft=20 paddingRight=20 radius=8 background=c.accent borderWidth=0
-                          text "Run" size=13 weight=600 color=c.onAccent family=f.sans
+                          text "Run anonymously" size=13 weight=600 color=c.onAccent family=f.sans
                       async runResultQ
                         ready runRows
                           each rr in runRows key=rr.id
@@ -367,9 +363,6 @@ component AdminConsole
                                     text "used by" size=11 color=c.textFaint family=f.sans
                                     each u in e.usedBy key=u.key
                                       Badge(c=c, label=u.label, tone="default", mono=true)
-                                when e.verifyDiagnostic
-                                  column padding=12 radius=8 background=c.errSoft width="100%"
-                                    text e.verifyDiagnostic size=12 color=c.err family=f.mono
                                 row gap=10 align="center" wrap="wrap" width="100%" minHeight=30
                                   when e.changedLabel
                                     text e.changedLabel size=12 color=c.textFaint family=f.sans flex=1 minWidth=0
@@ -380,9 +373,6 @@ component AdminConsole
                                   when e.canVerify
                                     button press=verifyEntry(e.name) testId=`verify-${e.name}` paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=8 borderWidth=1 borderColor=c.border background=c.surface
                                       text "Verify" size=12 weight=600 color=c.textMuted family=f.sans
-                                when e.verifyDetail
-                                  column padding=12 radius=8 background=e.verifyOk ? c.surfaceRaised : c.errSoft width="100%"
-                                    text e.verifyDetail size=12 color=e.verifyOk ? c.textMuted : c.err family=f.mono
                         else
                           column gap=6 padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
                             text s.ui.config.emptyTitle size=13 weight=600 color=c.text family=f.sans

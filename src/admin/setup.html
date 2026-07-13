@@ -75,7 +75,7 @@
   <div id="auth" class="banner warn" hidden>
     <div class="head">
       <span class="grow" id="authmsg">Admin API needs a token.</span>
-      <input type="text" id="tokenInput" placeholder="admin token" />
+      <input type="password" id="tokenInput" autocomplete="off" spellcheck="false" placeholder="admin token" />
       <button class="primary" id="tokenSave">Use token</button>
     </div>
   </div>
@@ -87,13 +87,62 @@
 <script>
 (function () {
   "use strict";
-  var store = { token: localStorage.getItem("snapback_admin_token") || "" };
+  var CONSOLE_STORAGE_KEY = "snapback_console_credential_v1";
+  var LEGACY_MASTER_STORAGE_KEY = "snapback_admin_token";
+  var store = loadConsoleCredential();
   var $ = function (sel) { return document.querySelector(sel); };
 
   function headers(json) {
     var out = json ? { "content-type": "application/json" } : {};
-    if (store.token) out["x-snapback-admin-token"] = store.token;
+    if (activeConsoleCredential()) {
+      out["x-snapback-console-credential"] = store.credential;
+    }
     return out;
+  }
+  function loadConsoleCredential() {
+    try {
+      localStorage.removeItem(LEGACY_MASTER_STORAGE_KEY);
+      var raw = localStorage.getItem(CONSOLE_STORAGE_KEY);
+      if (!raw) return { credential: "", expiresAtMs: 0 };
+      var record = JSON.parse(raw);
+      if (!record.credential || !Number.isFinite(record.expiresAtMs) || record.expiresAtMs <= Date.now()) {
+        localStorage.removeItem(CONSOLE_STORAGE_KEY);
+        return { credential: "", expiresAtMs: 0 };
+      }
+      return { credential: String(record.credential), expiresAtMs: record.expiresAtMs };
+    } catch (_) {
+      return { credential: "", expiresAtMs: 0 };
+    }
+  }
+  function activeConsoleCredential() {
+    if (!store.credential) return "";
+    if (store.expiresAtMs > Date.now()) return store.credential;
+    replaceConsoleCredential(null);
+    return "";
+  }
+  function replaceConsoleCredential(record) {
+    store = record || { credential: "", expiresAtMs: 0 };
+    try {
+      localStorage.removeItem(LEGACY_MASTER_STORAGE_KEY);
+      if (record) localStorage.setItem(CONSOLE_STORAGE_KEY, JSON.stringify(record));
+      else localStorage.removeItem(CONSOLE_STORAGE_KEY);
+    } catch (_) {
+      // The in-memory derived credential remains usable when storage is off.
+    }
+  }
+  function exchangeMasterToken(masterToken) {
+    return api("/_snapback/api/console/credential", {
+      method: "POST",
+      headers: { "x-snapback-admin-token": masterToken }
+    }).then(function (minted) {
+      if (!minted || !minted.credential || !Number.isFinite(minted.expiresAtMs) || minted.expiresAtMs <= Date.now()) {
+        throw new Error("Console credential exchange returned an invalid response.");
+      }
+      replaceConsoleCredential({
+        credential: String(minted.credential),
+        expiresAtMs: minted.expiresAtMs
+      });
+    });
   }
   function api(path, options) {
     return fetch(path, options).then(function (res) {
@@ -266,7 +315,6 @@
     var meta = [];
     if (entry.lastChangedMs) meta.push("last changed " + new Date(entry.lastChangedMs).toLocaleString());
     if (entry.source) meta.push("via " + entry.source);
-    if (entry.verified && !entry.verified.ok && entry.verified.diagnostic) meta.push(entry.verified.diagnostic);
     if (meta.length) card.appendChild(el("p", { class: "meta", text: meta.join(" · ") }));
     var msg = el("p", { class: "msg", hidden: "hidden" });
     card.appendChild(msg);
@@ -308,8 +356,7 @@
           headers: headers(true),
           body: JSON.stringify({ entry: entry.name })
         }).then(function (outcome) {
-          note(outcome.ok ? "Probe succeeded." : "Probe failed" +
-            (outcome.verified && outcome.verified.diagnostic ? ": " + outcome.verified.diagnostic : "."), outcome.ok);
+          note(outcome.ok ? "Probe succeeded." : "Probe failed.", outcome.ok);
           refresh();
         }).catch(function (error) {
           verifyButton.disabled = false;
@@ -348,9 +395,22 @@
   }
 
   $("#tokenSave").addEventListener("click", function () {
-    store.token = $("#tokenInput").value.trim();
-    localStorage.setItem("snapback_admin_token", store.token);
-    refresh();
+    var input = $("#tokenInput");
+    var masterToken = input.value.trim();
+    input.value = "";
+    if (!masterToken) {
+      $("#authmsg").textContent = "Paste the admin token first.";
+      return;
+    }
+    $("#tokenSave").disabled = true;
+    exchangeMasterToken(masterToken).then(function () {
+      $("#tokenSave").disabled = false;
+      refresh();
+    }).catch(function (error) {
+      $("#tokenSave").disabled = false;
+      $("#authmsg").textContent = error.message;
+      $("#auth").hidden = false;
+    });
   });
 
   refresh();

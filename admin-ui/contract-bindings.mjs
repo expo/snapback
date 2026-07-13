@@ -56,7 +56,6 @@ export const adminContractBindings = [
     args: {
       name: 'string',
       argsText: 'string',
-      userId: 'string',
     },
     effects: ['runResult.run'],
     invalidates: ['runResult'],

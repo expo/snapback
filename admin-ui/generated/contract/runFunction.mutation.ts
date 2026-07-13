@@ -5,7 +5,7 @@
 import { getAdminContractLinks } from './runtime-links';
 
 export const descriptor = 'runFunction';
-export type RunFunctionArgs = { name: string; argsText: string; userId: string };
+export type RunFunctionArgs = { name: string; argsText: string };
 
 export function runFunction(args: RunFunctionArgs) {
   return getAdminContractLinks().runFunction(args);

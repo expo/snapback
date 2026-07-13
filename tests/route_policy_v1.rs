@@ -90,6 +90,7 @@ fn exposed_context(token: &str) -> ServerContext {
         admin_token: Some(token.to_owned()),
         admin_token_minted: false,
         admin_token_file: None,
+        console_credentials: Default::default(),
         admin_dist: None,
     }
 }
@@ -174,6 +175,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/admin/setup"),
         ("GET", "/_snapback/admin/{*path}"),
         ("GET", "/_snapback/api/health"),
+        ("POST", "/_snapback/api/console/credential"),
         ("GET", "/_snapback/api/inspect"),
         ("GET", "/_snapback/api/receipts"),
         ("GET", "/_snapback/api/data/{table}"),

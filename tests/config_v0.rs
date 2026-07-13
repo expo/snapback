@@ -68,7 +68,11 @@ globalThis.__snapbackHandlers = {
   async probeKeys(ctx) {
     // The probe: implicitly granted the entry it verifies.
     var handle = ctx.secrets.get('feedKeys');
-    return { ok: handle.expose().length > 0 };
+    var value = handle.expose();
+    if (value === 'force-handler-failure') {
+      return { ok: false, message: 'HANDLER_CONTROLLED_CONFIG_DIAGNOSTIC_SENTINEL' };
+    }
+    return { ok: value.length > 0 };
   }
 };
 "#;
@@ -406,6 +410,7 @@ fn context(loopback: bool, token: Option<&str>) -> ServerContext {
         admin_token: token.map(ToOwned::to_owned),
         admin_token_minted: false,
         admin_token_file: None,
+        console_credentials: Default::default(),
         admin_dist: None,
     }
 }
@@ -545,6 +550,50 @@ async fn envelopes_and_status_never_contain_values() {
 }
 
 #[tokio::test]
+async fn config_status_and_verify_drop_handler_controlled_probe_text() {
+    const SENTINEL: &str = "HANDLER_CONTROLLED_CONFIG_DIAGNOSTIC_SENTINEL";
+    let open = app(configured(), context(true, None));
+    let set = open
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/config/set",
+            json!({ "entry": "feedKeys", "value": "force-handler-failure" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(set.status(), StatusCode::OK);
+
+    let verify = open
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/config/verify",
+            json!({ "entry": "feedKeys" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(verify.status(), StatusCode::OK);
+    let verify = body_json(verify).await;
+    assert_eq!(verify["ok"], false);
+    assert_eq!(verify["verified"]["ok"], false);
+    assert!(verify["verified"]["atMs"].is_number(), "{verify}");
+    assert!(verify["verified"].get("diagnostic").is_none(), "{verify}");
+    assert!(!verify.to_string().contains(SENTINEL), "{verify}");
+
+    let status = body_json(
+        open.oneshot(get("/_snapback/api/config/status"))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status["entries"][0]["verified"]["ok"], false);
+    assert!(
+        status["entries"][0]["verified"].get("diagnostic").is_none(),
+        "{status}"
+    );
+    assert!(!status.to_string().contains(SENTINEL), "{status}");
+}
+
+#[tokio::test]
 async fn setup_wizard_page_is_served_from_the_static_lane() {
     let open = app(configured(), context(true, None));
     let resp = open.oneshot(get("/_snapback/admin/setup")).await.unwrap();
@@ -588,6 +637,18 @@ async fn setup_wizard_page_is_served_from_the_static_lane() {
     assert!(
         html.contains("This app declares no configuration"),
         "wizard still reports the provisioned-but-nothing-declared state"
+    );
+    assert!(
+        html.contains("/_snapback/api/console/credential"),
+        "wizard exchanges the master token for a derived browser credential"
+    );
+    assert!(
+        html.contains("snapback_console_credential_v1"),
+        "wizard persists only the expiring derived credential"
+    );
+    assert!(
+        !html.contains("localStorage.setItem(\"snapback_admin_token\""),
+        "wizard must never persist the master admin token"
     );
 }
 

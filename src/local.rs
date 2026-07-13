@@ -1005,9 +1005,31 @@ pub struct ConfigEntryStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub verified: Option<VerificationRecord>,
+    pub verified: Option<ConfigVerificationStatus>,
     #[serde(rename = "applyState")]
     pub apply_state: String,
+}
+
+/// Closed public projection of a stored verification record. Probe messages
+/// are handler-controlled text and therefore stay in operator-local storage;
+/// AdminRead responses expose only the finite state and timestamp.
+///
+/// @ref LLP 0031#independent-policy-axes — config status remains AdminRead only
+/// because this type cannot carry handler output or configured values.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ConfigVerificationStatus {
+    pub ok: bool,
+    #[serde(rename = "atMs", alias = "at_ms")]
+    pub at_ms: u64,
+}
+
+impl From<&VerificationRecord> for ConfigVerificationStatus {
+    fn from(record: &VerificationRecord) -> Self {
+        Self {
+            ok: record.ok,
+            at_ms: record.at_ms,
+        }
+    }
 }
 
 /// The `config.status` payload (LLP 0036 §Operations and projections).
@@ -1062,7 +1084,7 @@ pub struct ConfigWriteOutcome {
 pub struct ConfigVerifyOutcome {
     pub entry: String,
     pub ok: bool,
-    pub verified: VerificationRecord,
+    pub verified: ConfigVerificationStatus,
     pub generation: u64,
 }
 
@@ -2880,7 +2902,9 @@ impl LocalSnapback {
                     member_count: stored.map(|entry| entry.member_count()).unwrap_or(0),
                     last_changed_ms: stored.map(|entry| entry.set_at_ms),
                     source: stored.map(|entry| entry.source.clone()),
-                    verified: stored.and_then(|entry| entry.verified.clone()),
+                    verified: stored
+                        .and_then(|entry| entry.verified.as_ref())
+                        .map(ConfigVerificationStatus::from),
                     // v1 is local-file-immediate: every write applies at once.
                     apply_state: "applied".to_owned(),
                 }
@@ -3148,7 +3172,7 @@ impl LocalSnapback {
         Ok(ConfigVerifyOutcome {
             entry: name.to_owned(),
             ok: record.ok,
-            verified: record,
+            verified: ConfigVerificationStatus::from(&record),
             generation: self.config.generation(),
         })
     }
