@@ -1154,7 +1154,7 @@ fn provided_token(headers: &HeaderMap, allow_authorization: bool) -> Option<Stri
     {
         return Some(token.to_owned());
     }
-    allow_authorization.then(|| ())?;
+    allow_authorization.then_some(())?;
     headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
