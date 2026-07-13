@@ -257,6 +257,10 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
         memory: true,
         ready_file: Some(ready_path.clone()),
         restored_from_backup: None,
+        startup_artifacts: None,
+        clear_desired_auth_mode: false,
+        allow_auth_downgrade: false,
+        allow_insecure_dev_auth: false,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 

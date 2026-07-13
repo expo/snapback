@@ -50,6 +50,24 @@ pub struct Args {
     /// one declaration id.
     #[arg(long, conflicts_with = "memory")]
     pub restored_from_backup: Option<String>,
+
+    /// Exact schema/functions/optional-seed carrier used to stage or consume
+    /// an auth-mode deployment before any listener binds.
+    #[arg(long)]
+    pub startup_artifacts: Option<PathBuf>,
+
+    /// Abandon a valid pending auth-mode transition before listener bind.
+    #[arg(long, conflicts_with = "allow_auth_downgrade")]
+    pub clear_desired_auth_mode: bool,
+
+    /// Explicitly authorize consuming a staged sessions-to-dev downgrade.
+    #[arg(long, conflicts_with = "clear_desired_auth_mode")]
+    pub allow_auth_downgrade: bool,
+
+    /// Permit client-asserted dev auth on a plaintext non-loopback bind.
+    /// This is never accepted by the production profile.
+    #[arg(long)]
+    pub allow_insecure_dev_auth: bool,
 }
 
 impl Default for Args {
@@ -61,6 +79,10 @@ impl Default for Args {
             memory: false,
             ready_file: None,
             restored_from_backup: None,
+            startup_artifacts: None,
+            clear_desired_auth_mode: false,
+            allow_auth_downgrade: false,
+            allow_insecure_dev_auth: false,
         }
     }
 }
@@ -3097,6 +3119,41 @@ mod tests {
     }
 
     #[test]
+    fn staged_auth_mode_startup_flags_have_closed_spellings() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "start",
+            "--startup-artifacts",
+            "deployment.auth.json",
+            "--allow-auth-downgrade",
+            "--allow-insecure-dev-auth",
+        ]);
+        match cli.command {
+            Some(HostCommand::Start(args)) => {
+                assert_eq!(
+                    args.startup_artifacts,
+                    Some(PathBuf::from("deployment.auth.json"))
+                );
+                assert!(args.allow_auth_downgrade);
+                assert!(!args.clear_desired_auth_mode);
+                assert!(args.allow_insecure_dev_auth);
+            }
+            other => panic!("expected start command, got {other:?}"),
+        }
+
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "start",
+                "--clear-desired-auth-mode",
+                "--allow-auth-downgrade",
+            ])
+            .is_err(),
+            "unstage and downgrade-consume authority are mutually exclusive"
+        );
+    }
+
+    #[test]
     fn auth_backup_restore_and_declared_startup_have_closed_cli_spellings() {
         let backup = Cli::parse_from([
             "snapback",
@@ -3246,6 +3303,10 @@ mod tests {
             memory: false,
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
+            startup_artifacts: None,
+            clear_desired_auth_mode: false,
+            allow_auth_downgrade: false,
+            allow_insecure_dev_auth: false,
         })
         .await
         .expect_err("restored rows must not reach a listener without declaration authority");
@@ -3260,6 +3321,10 @@ mod tests {
             memory: false,
             ready_file: Some(ready.clone()),
             restored_from_backup: Some(declaration_id),
+            startup_artifacts: None,
+            clear_desired_auth_mode: false,
+            allow_auth_downgrade: false,
+            allow_insecure_dev_auth: false,
         }));
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         while !ready.exists() {
