@@ -4110,6 +4110,8 @@ fn auth_diagnostic_app_route(path: &str) -> bool {
 /// Central app-data availability fence. System/operator routes retain their
 /// own registered policies; the one pending recovery branch is selected and
 /// authorized later by the `/app/ensure` operation gate.
+// @ref LLP 0057#d1-plaintext-listener-fence — repeat the startup transport
+// refusal for embedded/router composition without claiming proxy/TLS posture.
 fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<SnapbackError> {
     if spec.class != RouteClass::AppData || auth_diagnostic_app_route(spec.path) {
         return None;
@@ -12757,6 +12759,24 @@ mod tests {
         assert_eq!(
             response_json(refused).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+
+        let (mut sessions, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        Arc::make_mut(&mut sessions.server).loopback = false;
+        let sessions = sessions.with_insecure_dev_auth_override(true);
+        let refused = app(sessions)
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response_json(refused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE"
         );
     }
 

@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
 **Revised:** 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0054
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0054, LLP 0057
 
 ## Summary
 
@@ -80,8 +80,8 @@ This Spec consumes without re-owning:
 This Spec does not implement or specify hosted coordinator security. A hosted
 sessions handler's must-understand invocation marker, handler-first deployment
 interleavings, TLS/trusted-proxy posture, and multi-replica invalidation belong
-to the hosted deployment-security contract. Item 4 remains a local Rust-target
-protocol.
+to [LLP 0057](./0057-hosted-auth-security.rfc.md). Item 4 remains a local
+Rust-target protocol.
 
 ## Normative vocabulary and constants
 

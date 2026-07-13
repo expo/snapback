@@ -963,6 +963,9 @@ impl AppState {
 
     /// Pre-bind transport validation used by the CLI composition lane. The
     /// request middleware repeats the same policy as defense in depth.
+    ///
+    /// @ref LLP 0057#d1-plaintext-listener-fence — this local listener check
+    /// does not attest a public reverse proxy or any hosted edge capability.
     pub fn validate_auth_transport(&self) -> Result<(), SnapbackError> {
         let override_allowed =
             self.allow_insecure_dev_auth && !matches!(self.server.profile, ServerProfile::Prod);

@@ -302,6 +302,8 @@ async fn compose_auth_mode_startup(
     }
 }
 
+// @ref LLP 0057#d1-plaintext-listener-fence — sessions have no plaintext
+// non-loopback override; desired sessions are fenced before listener bind too.
 fn validate_auth_transport(
     bind_ip: IpAddr,
     profile: ServerProfile,
@@ -3891,16 +3893,43 @@ mod tests {
 
         let dev = AuthModeStateRecord::initial_dev(None);
         let remote = "192.0.2.10".parse().unwrap();
-        assert!(super::validate_auth_transport(remote, ServerProfile::Dev, &dev, false).is_err());
+        let refused =
+            super::validate_auth_transport(remote, ServerProfile::Dev, &dev, false).unwrap_err();
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_TRANSPORT_INSECURE");
         super::validate_auth_transport(remote, ServerProfile::Dev, &dev, true).unwrap();
         assert!(super::validate_auth_transport(remote, ServerProfile::Prod, &dev, true).is_err());
+        super::validate_auth_transport(
+            "127.0.0.1".parse().unwrap(),
+            ServerProfile::Prod,
+            &dev,
+            false,
+        )
+        .unwrap();
 
-        let mut sessions = dev;
-        sessions.active = AuthMode::Sessions;
-        sessions.desired = AuthMode::Sessions;
-        assert!(
-            super::validate_auth_transport(remote, ServerProfile::Test, &sessions, true).is_err()
-        );
+        let mut active_sessions = dev.clone();
+        active_sessions.active = AuthMode::Sessions;
+        active_sessions.desired = AuthMode::Sessions;
+        let refused =
+            super::validate_auth_transport(remote, ServerProfile::Test, &active_sessions, true)
+                .unwrap_err();
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_TRANSPORT_INSECURE");
+
+        let mut desired_sessions = dev;
+        desired_sessions.desired = AuthMode::Sessions;
+        let refused =
+            super::validate_auth_transport(remote, ServerProfile::Demo, &desired_sessions, true)
+                .unwrap_err();
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_TRANSPORT_INSECURE");
+
+        // This proves only the local listener rule. LLP 0057 deliberately does
+        // not infer anything about a reverse proxy from a loopback address.
+        super::validate_auth_transport(
+            "::1".parse().unwrap(),
+            ServerProfile::Prod,
+            &active_sessions,
+            false,
+        )
+        .unwrap();
     }
 
     #[test]
