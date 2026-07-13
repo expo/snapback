@@ -532,3 +532,323 @@ because a primitive drifted across the seam unnoticed.
 with known-unreviewed enforcement fixes**, so item 6 is blocked — not as a
 formality, but because 0053's enforcement primitives have failed review twice and
 building them as written would build a fail-open mechanism.
+
+## Round 5 — 2026-07-13 (ENG-24592 enforcement gate)
+
+**Reviewer family:** Claude
+**Provider / runtime:** Claude Code 2.1.207, `claude-fable-5[1m]`, effort `max`
+**Method:** CLI runner, fresh foreground-only session, read-only tools; prior review artifacts supplied (not blind)
+**Session id:** `6a723460-9fcc-4699-be2d-49cb4868ffa5`
+**Reviewed SHA-256:** `e64dcb731745776511a8c85a571802548012a0f102554108f89a25da6c308cd7`
+**Transcript SHA-256:** `8f89b9014fc05ffafe1ed271c6d98284dac5fa94bf2d3f0af2784222fc327aa4`
+**Redacted:** no
+
+All verification is done. Here is the review.
+
+---
+
+# Review: LLP 0053 — Authorization invalidation (Claude family, ENG-24592 gate)
+
+**Reviewed:** `llp/0053-authorization-invalidation.rfc.md` at the current worktree revision, judged against `llp/0039-auth-vertical-slice.rfc.md` (seam and landing order), all prior `llp/reviews/0053-authorization-invalidation.{fable,codex}.md` artifacts (not blind — this is a gate review of known fixes), and direct source verification of the matcher, fan-out, outbox, client store, resume, wire, codegen, and runtime surfaces. Scope per the gate: the eight unreviewed enforcement fixes; the architecture is settled and I did not attempt a seventh design.
+
+## Overall assessment
+
+The architecture holds. I attempted no re-opening and found no reason for one: the negative-delta principle, the fail-closed auth-scoped definition, per-scope durability, and the corrected closure argument are all the right *shape*, and the reasoning recorded for each is sound. The failure is one level down, and it is the same failure §Status predicts for itself: **the prescribed fixes were transcribed into the explanatory prose but not into the normative artifacts** — the obligation record, the merge rule, the client fence, the dispositions producer table, and above all §Acceptance still encode the pre-fix design. A team that implements from the record, the table, and the acceptance rows — which is what those sections are for — builds both fail-open traces the round-4 review found, while §Status claims they are closed. Two findings are HIGH for exactly that reason; a third HIGH is an acceptance sentence that flatly forbids the obligation the central rule mandates, on the document's own canonical example. Separately, two factual baselines have gone stale against the shipped code (the client retained-write path now serializes and CASes; `Date.now()` is already refused at codegen and denied at runtime, so the named clock residual points at the wrong surface — the real one is `ctx.runtime.now()`).
+
+For calibration: the parallel GPT-family gate review (codex round 4, 2026-07-13) and this review converge independently on the same two HIGH enforcement defects. Everything here is fixable with local text; nothing requires reopening the architecture.
+
+## Strengths, with exact sections
+
+- **§Negative deltas are obligations; positive deltas are best-effort** — the general rule ("the shrinking of the result set is the security event, whatever caused it") and the denial bullet ("an error or denial outcome … is obligation-backed with disposition ≥ `quarantine`, never `retain`") are the correct minimal principles, and the denial bullet's description of the shipped path is accurate: a throwing re-query lands in `fail_subscription_fanout` (`src/local.rs:3958`, reason `live_refresh_failed`; substitution site at `src/local.rs:4247` with reason `permission_resync_serialize_failed`).
+- **§Negative deltas — the fail-closed "auth-scoped" definition** ("every subscription is auth-scoped unless explicitly declared `authorityIndependent`; undeclared means auth-scoped") closes the declared-only hole precisely, and the text correctly identifies why the opposite reading is attempt five's defect in disguise.
+- **§Invalidation is an obligation — the Discharge paragraph** is the right fix stated with the right reasoning: the callout ("the witness must be the commit version, because that is the only thing that actually moves when a row leaves a result set") is exactly correct. The defect (Finding 1) is that this paragraph is the *only* place the fix lives.
+- **§Invalidation is an obligation — per-scope durability** is honest engineering: the blanket same-transaction claim really is impossible for post-commit matcher discoveries, the crash-window-closed-by-reconnect argument is valid, and refusing durable writes on the fan-out hot path is the right cost call.
+- **§The authorization-event universe — the corrected closure argument** ("an unenumerated event source cannot corrupt retained data, and can leave a connected view stale") repairs the non sequitur without overclaiming; the enforced-vs-tested split ("declaration is enforced; truth is tested") remains the correct epistemic posture.
+- **§Dispositions (quarantine-then-prove) and §The lease** remain sound from prior rounds; the lease's honest threat model is still the best-written safety text in the corpus.
+- **§Status** — the freeze discipline, the explicit unreviewed list, and "the enforcement primitives are the risk" framing made this gate review efficient and targeted. That practice should be kept.
+- **The 0039 seam** (LLP 0039 §Permission dependencies, §Landing order) is correctly drawn: outcomes only, incarnation and disposition enum owned by 0039, item 6 explicitly blocked pending this review, items 1–5 and 7 verifiably free of 0053 deliverables.
+
+## Findings
+
+### HIGH
+
+**1. The commit-version witness exists only in the Discharge prose; the normative obligation record, merge rule, client fence, and acceptance still specify the epoch pair — and §Status claims otherwise.**
+
+*Evidence.* The record still reads `witness: (incarnation, epoch)` (0053 §Invalidation is an obligation, ~line 451); Identity/merge raises only `max_disposition` with no rule for the causing-version floor (~457–459); §Client fences still defines the fence as "the `(incarnation, epoch)` it was authorized under" with no version component and no ordering rule for equal-pair writes (~594–599); §Acceptance still says "an obligation is discharged only by a superseding snapshot under a satisfying `(incarnation, epoch)`" (~705–706). §Status nonetheless claims "Obligation discharge **and the client fence** … Now witnessed by **commit version**" (~780–784) — true for the discharge paragraph, false for the record, merge, fence, and acceptance. The fence section's code baseline is also stale: retained writes are now serialized per key and the store compare-and-sets by `(stream, version)` (`packages/snapback-contract/index.mjs:471–483`, `client-store.mjs:567–587`) — but that CAS applies only when a current record exists, so after a quarantine/delete removes the record, a delayed pre-removal write proceeds unconditionally. The shipped CAS does not close the race the fence must close; a tombstone/fence that survives deletion is still required.
+
+*Failure trace.* Removal commits at version 100; the pair does not move. A racing resubscribe's snapshot computed at 99 is acknowledged afterward; it satisfies the record's unchanged pair and the acceptance row, and the obligation discharges — forbidden row permanent on a connected client, the exact trace the fix was transcribed to kill. Fence side: quarantine deletes the retained record; a delayed version-99 callback finds no `current`, passes the CAS vacuously, and repopulates the store under the unchanged pair. Merge side: removals at 100 and 105 merge with no rule preserving the 105 floor; an ack at 102 discharges both.
+
+*Resolution.* Make the witness composite in every normative site, not just the prose: the record carries `(incarnation, epoch)` **plus version stream and minimum commit version**; merge takes the max disposition **and** the max causing version within a stream; pair/stream change dominates version comparison; every fence-checked write (including retained-store writes) is version-non-decreasing under an equal pair, checked against a persisted quarantine/delete tombstone that survives record removal; acceptance discharges only on an acknowledged snapshot satisfying the *composite* witness. Update the fence section's code baseline (serialized + CAS, tombstone still missing) and make §Status's claim true. This is a protocol pin required before implementation.
+
+**2. Denial/error is still normatively routable to `retain`: the dispositions producer table and §Acceptance never received the third delivery class.**
+
+*Evidence.* The rule (§Negative deltas, ~196–209) says error-or-denial ⇒ obligation-backed, ≥ `quarantine`, never `retain`. The producer table (§Dispositions, ~513–517) still maps unqualified "ordinary recovery resync (`outbox_overflow`, **fan-out retry**)" to `retain` and contains no error/denial producer. §Acceptance's obligation-durability block has no denial case — no typed-deny row, no untyped-throw row, no repeated-failing-resnapshot row. The shipped path makes the ambiguity concrete: every re-query failure funnels through `fail_subscription_fanout` (`src/local.rs:3946/3958/3970`, `4164`), which emits exactly the "recovery resync" the `retain` row names.
+
+*Failure trace.* A kick wakes a membership-gated query whose handler throws on the null membership lookup. The implementer, holding the producer table, maps the fan-out failure to `retain` — "keep showing current rows meanwhile." Every resnapshot throws too; "meanwhile" never ends. Forbidden rows persist on a connected client behind a failing resubscribe loop: the round-4 HIGH-2 trace, alive in the table the implementer will actually code from.
+
+*Resolution.* Add the denial/error producer row (≥ `quarantine`, obligation-backed) and qualify the `retain` row to outcomes that are provably not authorization-negative (overflow with no swallowed negative delta — the escalation rule already covers the swallowed case — and `authorityIndependent` subscriptions). State whether untyped errors get a bounded retry before quarantine and name the bound. Add acceptance rows: typed `AUTH_PERMISSION_DENIED`, untyped throw, repeated failed resnapshots, lost/overflowed quarantine delivery, and substitute-resync disposition inheritance for the denial case.
+
+**3. §Acceptance forbids the obligation the central rule mandates ("fires no obligation"), and its restart row contradicts mandatory resnapshot; the 0039 seam mirrors both.**
+
+*Evidence.* §Negative deltas (~188–192): a delivery that removes any held row is obligation-backed "whatever caused it — … or an ordinary delete." §Acceptance (~675–684): "An ordinary write by one user advances no authorization version, **fires no obligation**, and clears no other client's rows — in todo, todo-v2, **mine-OR-public**, …" and "the pin is *no epoch, no obligation, no resnapshot beyond what ships*." The `public → private` flip in mine-OR-public is this document's canonical negative delta — the round-3 defect the whole rule exists to close. Second half: §Design pins resnapshot for "every resumption from a non-live state … process restart, page reload …" (~236–246), while §Acceptance says an ordinary restart "does not force retained subscriptions to resnapshot" (~715–717). LLP 0039 carries the same two phrases at the seam ("Ordinary writes do not resync," ~1018–1023; "must not force every retained subscription to resnapshot," ~1012–1015).
+
+*Failure trace.* An implementer writes the acceptance test as specified: assert zero obligations for the mine-OR-public flip. A correct implementation fails the test; the "fix" that passes it recreates the permanent lost-removal defect — the acceptance suite becomes a machine for blessing the fail-open build. The restart row similarly licenses rendering an auth-scoped retained view after a resume without the revalidation §Design mandates.
+
+*Resolution.* One vocabulary distinction, applied in both documents: **delivery obligations** (per-subscription, raised by any result-shrinking delivery, discharged by the ack of the delivery that carries them, cheap, expected) versus **authorization-event obligations** (coarse, epoch-witnessed). Reword the no-regression pin to "no authorization-version advance, no coarse/quarantine obligation, zero resync amplification — delivery obligations on one's own removals excepted." Reword the restart rows both places to "an ordinary restart does not invalidate retained data or force quarantine-before-read; any subsequent live resumption still resnapshots — that is the reconnect rule, not the incarnation." I rate this HIGH rather than the parallel review's MEDIUM because acceptance text is the artifact implementations are tested against, and the contradicted sentence sits on the document's central fix.
+
+### MEDIUM
+
+**4. Per-scope obligation identity is under-pinned: the scope field is a category, "keyed durably" contradicts the non-durable scopes, and enumerated-event obligations have no target-enumeration or multi-query discharge story.**
+
+*Evidence.* The record carries `scope: subscription | connection | client` — a discriminant, not an identifier (~449). Identity says "one obligation per `(client, scope)`, keyed durably" (~457) while Durability makes subscription- and connection-scoped obligations explicitly non-durable (~470–474); the §Negative deltas bullet also calls every negative delta "durable," which the per-scope split then correctly walks back. "Enumerated-event obligations are written transactionally with their cause" never says how the causing transaction enumerates its targets (offline retained clients are not enumerable from inside a commit unless the durable authorization version itself is the projection source). No rule says which snapshot discharges a client-scoped obligation spanning N retained queries.
+
+*Failure trace.* An implementation keys obligations by transient subscription id; reconnect mints a fresh id (reconnect is a fresh subscribe — LLP 0008 P4), the old scope is GC'd, and a retained query silently loses the durable quarantine it still needs. Or: a coarse event commits, per-client obligations are materialized post-commit despite the transactional claim, and a crash leaves no durable object to reproject them from.
+
+*Resolution.* Pin an event-scope matrix: the transactionally durable cause (the authorization version itself), the post-commit live projection (subscription/connection scopes, non-durable, safe via reconnect-resnapshot), and durable client/query-scoped state for retained data — with the actual scope discriminator, its behavior across resubscribe/reconnect/restart/GC, and the per-query discharge rule for client-scoped dispositions. Clarify that "durable" in §Negative deltas means "persistent until discharged," which the per-scope split then refines.
+
+**5. Acknowledgement and re-fire have no protocol contract, and the legacy capability gate covers retained reads only — a disposition-ignoring live client defeats quarantine.**
+
+*Evidence.* Discharge requires delivery *and acknowledgement*; re-fire happens "on the next wakeup" — "wakeup" is undefined, and no promptness bound exists in §Acceptance. The client→server socket vocabulary has no acknowledgement variant at all (`src/live_wire.rs:146–177`: subscribe/publish/delete/unsubscribe/ping). The rollout pin (§The lease, ~580–583) gates only "session-mode retained reads" on client capability, while `quarantine` requires a *connected* client to hide live rows; the shipped kit ignores `clear_retained` entirely and answers `resync_required` with `void resubscribe(...)`. The shipped 120 s subscription reaper plus HTTP polling supplies the sharpest instance: a reaped subscription's later polls return an empty, healthy-looking drain.
+
+*Failure trace.* The sole removal hint is lost on a quiet connection; the obligation persists but nothing ever re-reads it — level-triggered state nobody consults is edge-triggered in practice. Or: a session-mode client that predates dispositions holds an auth-scoped live view through a coarse event; it never hides, never acks, and accumulates never-discharged obligations forever.
+
+*Resolution.* Protocol pins before implementation: (a) every outbox drain, connection open, subscribe, and the existing heartbeat consult undischarged obligations for the connection, with a stated promptness bound in §Acceptance; (b) a poll/drain against an unknown or reaped subscription returns a typed resnapshot-required signal, never an empty healthy drain; (c) what an acknowledgement names — scope identity, composite witness (pair + stream + version), disposition — and that discharge is compare-and-discharge against the current obligation, stale acks failing; (d) the handshake capability gate covers disposition-and-ack support for **all** session-mode auth-scoped live subscriptions, not just retained reads. Exact wire encoding can stay with the implementing spec; the semantic contract cannot.
+
+**6. The clock residual names the wrong surface: `Date.now()` is already refused and denied; the real opaque surface is `ctx.runtime.now()` — and §Acceptance overclaims blanket manifest refusal.**
+
+*Evidence.* 0053 claims "a JavaScript `Date.now()`-mediated authorization predicate is undetectable at load … a JS clock read leaves no trace" (~394–397; repeated in §Status ~793–797). Verified false: codegen bundle admission rejects `Date.now`/`new Date` (`packages/snapback-codegen/index.mjs:1901`, `BUNDLE_UNSUPPORTED_TIME`), and the deterministic Ibex tier denies `Date.now` and zero-arg `new Date()` at runtime (`src/runtime.rs:1756–1780`). The surviving sanctioned clock is `ctx.runtime.now()` (`packages/snapback-harness/ctx-bootstrap.js:495–501` → host op `"runtime.now"`, `src/runtime.rs:749`, wall-clock-seeded at `src/runtime.rs:483–488`). Because it is a **host call**, it is *not* traceless — it is observable at invocation, so runtime denial or capture-triggered demotion for subscribable/retainable functions is available enforcement, stronger than the "authoring guidance plus doctor diagnostic" the text settles for. Meanwhile §Acceptance (~695–697) says "a query whose authorization depends on the clock is refused at manifest load" — unqualified, contradicting the Design's own honest scoping to the declarable `RuntimeNow` form.
+
+*Failure trace.* The residual test as the RFC frames it (`Date.now()` in a handler) fails at codegen and cannot demonstrate the claimed behavior; conversely an opaque handler calls `ctx.runtime.now()`, publishes a time-limited result, and the connected view goes permanently stale — while the acceptance row claims such queries are refused at load.
+
+*Resolution.* Name the three surfaces and their enforcement stages: declarable `RuntimeNow` in auth filters → load-refused (`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`); ambient `Date` → codegen/runtime-denied (already shipped); `ctx.runtime.now()` → either pinned as runtime-denied in subscribable/retainable handlers (which would close the connected-view residual for Ibex) or explicitly admitted as *the* named residual with the doctor keyed to the observable host call. Align Summary, Design, Acceptance, and Status; scope the acceptance row to what is actually refused.
+
+**7. The negative-delta trigger — detecting a shrinking `live_replace` — is unpinned for general Ibex output.**
+
+*Evidence.* The rule fires on a delivery that "removes any row the client is known to hold." The subscription record retains input and captured read dependencies, not last-delivered logical output; the Ibex fan-out builds `LiveReplace` from the fresh query output with no comparison against prior deliveries (`src/local.rs:3953–3966`). Captured raw-read rows over-approximate only when output rows are dependency rows; a projecting/aggregating/synthesizing handler breaks that mapping, so raw-read comparison cannot prove an output row was removed.
+
+*Failure trace.* An Ibex query synthesizes output; a re-query at v100 omits a previously delivered output row; no dependency-level comparison detects the removal, no obligation is raised, the replacement frame is lost on the destructive drain (`src/ephemeral.rs:951–1053` sticky overflow; destructive drain unchanged) — permanent, with the mechanism nominally in place.
+
+*Resolution.* Pin one predicate before implementation: retain each auth-scoped subscription's last-delivered logical membership (with defined output-row identity), **or** conservatively obligation-back every auth-scoped `live_replace` (safe direction; costs acks on non-shrinking deliveries). Enforcement detail, not architecture — but it decides the obligation volume and must be in the RFC.
+
+**8. Quarantine's client-state semantics contradict the clear barrier: "keep bytes, recoverable" versus "remove overlays and queues" — unspecified for pending mutations, and multiplied by the global epoch.**
+
+*Evidence.* §Dispositions: quarantine "hide from render immediately and block reads; keep bytes; release on a superseding snapshot…"; "Cost is a hidden view and a re-query, not a destroyed cache." §Client fences: the barrier — "persisted atomically with the quarantine/delete" — is "hide live rows → **remove overlays and queues** → commit the durable transition → then permit resubscription," undifferentiated by disposition. Nothing states what happens to a pending optimistic queue on a not-proven-affected view, the common case under a global coarse event.
+
+*Failure trace.* Routine lobby churn in the card game fires a coarse event; every user's coordinator runs the barrier; every user's in-flight optimistic edits and queued mutations are destroyed on what quarantine's own rationale says is "mostly a false positive." The recoverability that justified quarantine over delete is silently lost for exactly the state users care about losing.
+
+*Resolution.* A per-disposition client-state matrix (live rows / retained bytes / optimistic overlays / pending queue): quarantine hides and *suspends* overlays and queued work pending revalidation (released or stranded-for-discard on proof); delete destroys. Add the pending-mutation dimension to the blast-radius acceptance metrics.
+
+### LOW
+
+**9. The fail-closed auth-scoped rule has no acceptance row, and `authorityIndependent` has no declared surface.** §Acceptance never tests that an *undeclared* function's removals are obligation-backed, nor the `authorityIndependent` opt-out; and the declaration itself appears only in prose — §Two orthogonal declarations never says where it lives (function-level manifest field? which vocabulary?). *Failure trace:* a suite passes while obligations apply only to declared-auth functions — the opaque-handler hole reopened. *Resolution:* acceptance fixtures for undeclared ⇒ auth-scoped and for the explicit opt-out; pin the declaration's surface and name alongside `authScopeField`/`permissionBacking`.
+
+**10. `permissionFields` still lacks the conservative unknown-fields rule.** Journal-reconstructed changes carry empty `changed_fields` by construction, and deletes carry the preimage with no field list; the matcher already treats empty-as-unknown conservatively. §Two orthogonal declarations (~282–291) never pins the same for the authorization-event check. *Failure trace:* a journal-reconstructed update (or a delete — the canonical kick) intersects an empty field list, and the event is suppressed. *Resolution:* two sentences — inserts and deletes on a `permissionBacking` table always fire; updates with empty/unknown `changed_fields` fire; field narrowing applies only to updates with known, provably disjoint fields.
+
+**11. The offline/boot pin maps every stored-pair mismatch to quarantine-then-release, while the dispositions table makes reset and declared restore `delete` producers.** (§Retained and offline, ~616–618 vs §Dispositions.) An incarnation mismatch at boot is indistinguishable, under the pinned rule, from an epoch advance — the client quarantines and releases-on-snapshot where the table demands destruction. End state is fail-closed either way (the superseding snapshot replaces the data), so this is coherence, not a leak — but pin it: incarnation mismatch ⇒ `delete` (or record why quarantine-then-supersede is deliberately sufficient).
+
+**12. LLP 0039 carries stale seam vocabulary.** The Open Questions hand-off (~1519–1523) still moves "whether the classification model needs a fifth class" (classification was rejected in attempt 4) and "what `authorizedUntil` default ships" (pinned at 24 h; only the number's ownership is open) to 0053. And once Finding 3's delivery-vs-event vocabulary lands, the seam's "ordinary writes do not resync" and the restart sentence need the same qualification. *Failure trace:* a landing planner treats rejected classification work or the settled lease as unresolved prerequisites. *Resolution:* replace the paragraph with 0053's actual open questions; mirror Finding 3's rewording.
+
+## Open questions
+
+1. What composite value does an acknowledgement name — scope identity, `(incarnation, epoch)`, version stream, commit version, disposition — and which document owns its wire schema, given 0039's registry partition assigns wire/serde schemas to LLP 0051 D4 while 0053 "registers its own wire vocabulary"?
+2. What stable identity names client/query-scoped obligations across resubscription, reconnect, multiple tabs, and restart (Finding 4's discriminator)?
+3. Is `ctx.runtime.now()` in subscribable/retainable handlers to be runtime-denied (converting the connected-view clock residual into a refusal, since it is an observable host call) or deliberately admitted as the named residual? The current text assumes the residual is undetectable; it is not.
+4. For general Ibex output (Finding 7): retain last-delivered logical membership, or conservatively obligation-back every auth-scoped `live_replace` — and what is the acceptable ack amplification of the conservative choice?
+5. Once denial ⇒ quarantine, what remains a legitimate `retain` producer for an auth-scoped subscription, and do untyped transient errors get a bounded retry before quarantine (availability vs. fail-closed) — and who owns the bound?
+6. Does quarantine suspend or strand pending optimistic mutations (Finding 8), and does that answer change the blast-radius acceptance metrics that gate shadow-mode graduation priority?
+
+## Recommended next step
+
+Revise LLP 0053 in place — no seventh design; nothing above touches the architecture. One revision should: carry the composite commit-version witness into the obligation record, merge rule, client fence, §Acceptance, and §Status (Finding 1); add the denial producer row and denial acceptance cases (Finding 2); introduce the delivery-vs-event obligation vocabulary and fix the two acceptance sentences, mirrored into 0039's seam (Findings 3, 12); pin the per-scope identity matrix, ack/re-fire/capability contract, the clock surfaces, the `live_replace` shrink predicate, and the per-disposition client-state matrix (Findings 4–8); and fold the LOW pins into acceptance (9–11). Then run one focused independent review of that diff — these fixes will be the third consecutive set of author-side enforcement edits, and this document's own §Status records that unreviewed enforcement text is exactly where it fails. Keep LLP 0039 landing item 6 blocked until that review passes.
+
+**Safe to implement as written: no.** The normative sections still specify both fail-open traces. **After the HIGH corrections and the MEDIUM protocol pins above are made — with the LOW items folded into acceptance — the enforcement design is safe to implement without a seventh design.** This review does not accept the RFC on the author's behalf.
+
+## Verdict
+
+**NOT READY**
+
+
+## Round 6 — 2026-07-13 (paired blind confirmation of the revised enforcement gate)
+
+**Reviewer family:** Claude
+**Provider / runtime:** Claude Code 2.1.207, `claude-fable-5[1m]`,
+effort `max`, read-only tools
+**Method:** Fresh foreground-only session; independent adversarial confirmation
+of the exact frozen candidate. Prior review artifacts were forbidden. The
+reviewer read the RFC, governing LLPs, and source tree and edited nothing.
+**Session id:** `4215db0d-53af-4d21-8990-9e9258c88acb`
+**Reviewed SHA-256:**
+`fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592`
+(the runner denied the reviewer's shell digest command; the orchestrator
+verified the stable worktree digest immediately before and after the run).
+**Review-body SHA-256:**
+`8ca220a4c235d1737f5b4873f9a02c6cf0daf7042f0ebd322539f010e2fee595`
+**Redacted:** no
+
+### Review body (verbatim)
+
+I've completed verification across the RFC, the governing LLPs (0008, 0011, 0013, 0020, 0032, 0039, 0043, 0051), and the source tree. Every material source-grounding claim I checked is accurate. My remaining analysis is protocol-level. Here is the review.
+
+---
+
+# Independent adversarial review — LLP 0053, ENG-24592 focused confirmation gate
+
+**Digest reviewed:** `fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592` (as asserted by the review request). I could not independently recompute the hash — shell access was denied in this session — so I state precisely what I did review: the complete working-tree file `llp/0053-authorization-invalidation.rfc.md`, 1252 lines, read in full, matching the 2026-07-13 ENG-24592 enforcement-gate revision described in its own header and §Status (which names prior-round SHAs `e64dcb…` and `5deb62…`). No file under `llp/reviews/` was read; nothing was edited.
+
+**Verdict: NOT READY** — one protocol-correctness defect (HIGH) plus material acceptance, dependency, and enforceability gaps. All are bounded edits within the existing design; none reopens the architecture.
+
+## Reasoning, concisely
+
+The document's spine is correct and its source grounding is unusually honest — I verified the shipped-behavior claims directly and they all hold: destructive drain and overflowed-push no-ops (`src/ephemeral.rs:1159, 1189, 1006-1047`), the kit ignoring `clear_retained` and mapping recovery resync to keep-rendering-meanwhile (`demos/_kit/client.mjs:979-986`, `src/local.rs:4180-4189`), the matcher's captured-dependency-first order and `userId`-only `authScopeField` (`src/live_matcher.rs:121-152`), `ChangedRow` single row image and `changed_fields` semantics including empty-on-journal-reconstruction (`src/storage.rs:152-160, 3305`), post-commit process-memory epochs and the epoch-free seed path (`src/local.rs:1085, 1452-1456, 4196-4208`), bare-`u64` `!=` resume comparison (`src/local.rs:4285-4305`), the retained-store CAS shape and `writeServerRows` retention-before-disposed-check ordering (`packages/snapback-contract/client-store.mjs:567-579`, `index.mjs:486-494`), the three clock surfaces (`src/manifest.rs:1283`, `src/runtime.rs:749, 1776, 1820-1830`), DK-3 `remove` identification (`src/live_wire.rs:80-93`), the LLP 0008 bar and L4 pattern (0008:163-164, 261-265), LLP 0011's layers and ratified resubscribe (0011:140, 232-249), LLP 0032 P4's no-ack-drain decision (0032:1256-1259), and the demo-corpus claim (only todo/todo-v2 exist; their declarations match the worked rows exactly — `demos/todo/snapback/functions.mjs:24-33`, `demos/todo-v2/snapback/functions.mjs:27-33`).
+
+The composite witness, denial routing, scope matrix, connection roots, retirement, ACK-after-commit, and fence machinery are internally coherent under every interleaving I could construct — with one exception: the protocol makes client-side `scope_state` (revision high-waters, retired lifecycle) durable forever while leaving server-side scope issuance in process memory with no freshness pin, which re-creates the ABA class this revision set out to close, one level up. That, plus the lease having zero acceptance coverage, an unowned ephemeral-room invalidation surface that 0039's item-6 promise depends on, and two operative constants referenced as pinned but defined nowhere, is enough to hold the gate.
+
+## Findings
+
+### HIGH
+
+**H1 — ScopeId reuse across server restarts turns the durable client fence into a fail-open filter (revision-high-water / retired-lifecycle ABA).**
+Anchors: §Invalidation is an obligation — ScopeId/issuance (lines 496-516), Identity and revision ("A revision high-water survives discharge for as long as the scope id can recur", lines 524-529), scope matrix ("deliberately not disk-durable", lines 543-560), Authenticated retirement (lines 571-585), §GC (lines 636-640); §Client fences (lines 765-791, esp. "The durable minimal instance/generation/scope high-water survives…" and "A retired lifecycle bit is equally durable"); §Acceptance Version durability (lines 1029-1038, no reuse row).
+The text pins non-reuse for `revision` and `query_instance_id`, persists per-`ScopeId` high-waters and a durable `retired` bit in the shared store, and explicitly contemplates scope-id recurrence — but never pins that `connection_generation` (hence `Subscription`/`Connection` ScopeIds) is unique across server lifetimes, while pinning that server-side obligation and retirement state is *not* disk-durable. Failure scenario: server restarts and re-issues generation values (nothing forbids a counter restarting); a client's durable fence holds `scope_state` for a numerically equal dead scope at high-water R5 (or durably `retired`). A real matcher removal then projects as the aliased new scope's R1; the client's serialized transition compares "revision only with that scope's high-water" and drops it as stale (or rejects it via the retired bit, which "no old owner can turn active again"). The 5-second level-triggered re-fire re-sends a frame the client discards forever: a permanent forbidden row on a healthy connected client — the exact failure class the document exists to close, reproduced at server-continuity granularity. Bounded resolution: one pin plus one acceptance row — `connection_generation` is never reused across server lifetimes (e.g., carries a durable monotone boot/stream component), and/or durable client `scope_state` for `Subscription`/`Connection` scopes is keyed to the issuing server continuity and dropped on continuity mismatch; acceptance: server restart with re-issued generations against a populated durable fence still delivers, applies, and discharges a fresh obligation.
+
+### MEDIUM
+
+**M1 — The lease has zero acceptance coverage.**
+Anchors: §The lease (lines 698-749: "required v1 mechanism", 24-hour default, capability reporting, ceiling opt-in, expiry refusal, server-side enforcement); §Dispositions (line 653: lease expiry → durable delete tombstone); §Acceptance (lines 910-1055 — no lease row; the only mention is incidental at lines 1034-1036).
+The document calls the lease "the security boundary for every offline device" and holds everything else to "measured not asserted," yet the acceptance suite never tests: client read refusal at expiry, the durable `ClientQuery` delete tombstone on expiry-without-revalidation, server refusal of revalidation-free service on an expired lease, renewal on successful revalidation, the default/ceiling appearing in capability facts, or §GC's rule that lease expiry is not a tab-death proof. Failure scenario: an implementation ships item 8 with a lease that renders but never refuses, and the only offline bound silently does not exist. Bounded resolution: add one acceptance block covering those six behaviors.
+
+**M2 — Ephemeral-room authorization invalidation is neither covered nor disclaimed, and 0039's item-6 promise depends on it.**
+Anchors: §Summary (lines 21-23), card-game worked row (line 884), §Non-goals (lines 894-908 — rooms absent); LLP 0039:1294-1298 ("a removed player keeps receiving the game **until item 6 lands**"); LLP 0013:308-315, 327-352 (per-subscriber `authContext`/`visibleKeys` membership cache; "auth dependency changes" as a `resync_required` cause); LLP 0032:955-962 (the ownerless `AuthRevoked`/`AuthChanged` room variants removed "until real").
+0053 is the corpus's authorization-invalidation owner, but its obligations cover only durable query scopes. Rooms deliver auth-gated ephemeral state through a cached membership snapshot; the shipped auth-change room hooks were removed as ownerless; 0053 never mentions the surface. Failure scenario: the proving demo's kick — 0053's own worked row — quarantines the board query while the kicked player's room subscription keeps streaming opponents' presence/cursor state on a connected client, with no epoch, no obligation, no resnapshot; meanwhile 0039 records that item 6 closes the removed-player leak. Bounded resolution: one paragraph — either project enumerated events and `permissionBacking`-derived membership changes into room authorities as LLP 0013's "auth dependency" resync (snapshot re-authorization included), or add an explicit Non-goal naming 0013/0039 as owner and correct the card-game acceptance row and 0039's item-6 claim to match.
+
+**M3 — Two operative constants are referenced as pinned but defined nowhere.**
+Anchors: line 233-236 ("the 15-second live freshness budget"; also §Acceptance line 1001-1002 "within the freshness budget"); line 710-711 ("Lengthening it past a pinned ceiling requires an explicit, documented opt-in").
+LLP 0008 pins only "a client freshness budget" with no number (0008:586-588, alongside a 30 s defensive heartbeat); no corpus document pins a 15-second budget or any lease ceiling. Both constants are load-bearing (the bounded-retry contract and the offline security ceiling) and unimplementable as written without inventing values. Failure scenario: two implementers pick different budgets/ceilings and both claim conformance; the acceptance rows referencing the budget are untestable. Bounded resolution: own both numbers in this document (one sentence each) or cite the owning document; wire the ceiling into Open Question 4's ownership ask.
+
+### LOW
+
+**L1 — The LLP 0008 supersession has no named companion amendment.**
+Anchors: lines 641-645 (supersedes LLP 0032 P4) and 621-623 (5-second session-mode cadence); LLP 0032:1255-1259 records that the no-ack-drain decision lives in LLP 0008 §Realtime Delivery, and 0008:581-588 still pins loss-recovered-by-snapshot and the 30 s heartbeat. Implementing 0053 leaves the corpus self-contradictory unless 0008 is amended; 0053, unlike 0039, carries no companion-obligations note. Resolution: add one (0008 amendment; the 0012/0051-D4 registrations 0039 already tracks).
+
+**L2 — The LLP 0011 "sensitive retained slices clear" reinterpretation is asserted, not ratified.**
+Anchor: lines 694-696. 0011:245-246 says "clear them before resubscribing"; quarantine keeps read-blocked bytes, and 0053 both declares 0011 wins where it pins a contract (line 77-78) and unilaterally declares quarantine "the faithful reading." The pending 0011 addendum 0039 tracks (0039:1306-1307) covers other topics. Resolution: extend that dated addendum to ratify quarantine-as-clear for permission-change invalidation.
+
+**L3 — The typed-denial production surface is unnamed.**
+Anchors: lines 230-236, 589-593; §Acceptance 996-1004. The delete-vs-quarantine fork hangs on `SNAPBACK_AUTH_PERMISSION_DENIED` being producible, and compare-and-discharge even requires proofs "authorized for that producer," but the document never says who can produce the typed code (the shared invocation gate? an app-facing typed-denial API?). LLP 0011's natural function-level check — the very shape cited at line 222-224 — throws untyped and therefore can only ever quarantine. Fail-closed, but the delete path may have no reachable producer. Resolution: one sentence naming the producer(s) and owner (0011/0004), and whether app code may signal it.
+
+**L4 — No acceptance row for the boot-path "pruned/unknown disposition history ⇒ delete-before-read" rule.**
+Anchor: lines 839-844 vs §Acceptance (fences/tombstones and Version durability cover compaction, recreation, restart, and reset/import, but not pruned-history or missing-witness delete-before-read). Resolution: add the row.
+
+## Architecture
+
+**The architecture is sound.** Matcher-carried live correctness with obligations for negative deltas, two orthogonal declarations, the closed event universe with machine-enforced online-only confinement, the composite authorization/data witness, mandatory resnapshot on any non-live resume, quarantine-then-prove, and the honestly-scoped lease survive every attack I constructed; the composite-witness discharge rules are coherent under merged removals, epoch-only causes, cross-scope coexistence, cross-tab ACK ownership, and denial floors. Nothing above requires reopening it — H1 is a missing freshness pin inside the existing scope-id design, and the rest are coverage and seam obligations.
+
+## Items 6 and 8
+
+**No — items 6 and 8 may not unblock on this text as it stands.** H1 is an operative protocol defect an implementer would build; M2 leaves 0039's own stated item-6 outcome (the removed player stops receiving the game) only partially deliverable; M1 and M3 leave item 8's security boundary untested and under-specified. All named resolutions are bounded edits. After they land, nothing I found calls for a seventh design round: one more focused confirmation of the amended text should suffice to unblock item 6, and item 8 alongside it (item 8 additionally awaits item 7, which this text correctly does not depend on — its item-5-keyed queue fence with the item-7 descriptor as an optional later equality axis is consistent with 0039's landing order).
+
+
+## Round 7 — 2026-07-13 (final paired blind confirmation of the operative gate)
+
+**Reviewed operative corpus:**
+
+- `llp/0000-snapback.explainer.md` at SHA-256
+  `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03`
+- `llp/0008-local-first-sync-and-realtime.rfc.md` at SHA-256
+  `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac`
+- `llp/0011-auth-and-permissions.rfc.md` at SHA-256
+  `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1`
+- `llp/0013-ephemeral-realtime-state.rfc.md` at SHA-256
+  `7c6bd5b4642153e75a684b1f4632b4187effcaa21630ded4e8a82bd753ae4177`
+- `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+  `33b71fbc229d61c793fafca867b8cb18c9186356722d101f0696a3fa84e84e0b`
+- `llp/0053-authorization-invalidation.rfc.md` at SHA-256
+  `98f286826e4cf0fb283648747ba209fbed99f8f09519a1e1498f18b86136bf8f`
+
+**Reviewer family:** Claude
+**Provider / runtime:** Claude Code 2.1.207, requested
+`claude-fable-5[1m]`, effort `max`; recorded model usage was
+`claude-fable-5`; read-only tools.
+**Method:** Fresh foreground-only session, blind adversarial confirmation. Prior
+review artifacts were forbidden. The reviewer read the operative candidate,
+companion amendments, governing LLPs, and source and edited nothing.
+**Session id:** `7AB35371-C509-49D1-84E2-08153EB655BE`
+**Review-body SHA-256:**
+`520db0dff8e7777a212dea705dfe536fe0e24f670cacc801ee8b080fdfea1dda`
+**Redacted:** no
+
+### Review body (verbatim)
+
+All verification passes are complete — the 0053 candidate read in full, all five companion amendments checked, the 0039 seam and activation matrix compared verbatim, and every sampled source-grounding claim checked against the shipped code. Here is the confirmation report.
+
+---
+
+# ENG-24592 — LLP 0053 enforcement gate: paired blind confirmation (Fable half)
+
+## Verdict: **READY**
+
+Zero blocking findings survived adversarial verification. Two LOW, non-blocking observations are recorded below with evidence and bounded resolutions. Readiness is reported only; acceptance is the author's decision and is not made here.
+
+## Provenance and scope of this review
+
+The six operative-candidate SHA-256 hashes were **supplied by the runner**; I have no Bash in this session, so I could not recompute them. This review binds to the working-tree bytes at these exact paths, which the runner attests are the hashed candidate:
+
+- `llp/0053-authorization-invalidation.rfc.md` — **read in full** (all 1,814 lines)
+- `llp/0000-snapback.explainer.md` — header/ledger (1–30, 320–364) and follow-on index (815–834)
+- `llp/0008-local-first-sync-and-realtime.rfc.md` — header, §Authorization-Aware Sync + dated amendment (441–524), §Realtime Delivery notes, Validation, Status (600–711), L4 definition (262–268)
+- `llp/0011-auth-and-permissions.rfc.md` — §Local-First and Realtime Implications, ratified answer + 2026-07-13 addendum, Validation, Status (230–393)
+- `llp/0013-ephemeral-realtime-state.rfc.md` — 2026-07-13 amendment + surrounding section (520–609), Status (860–883)
+- `llp/0039-auth-vertical-slice.rfc.md` — Summary/Target scope (1–160), Ephemeral rooms + §Permission dependencies (950–1130), Landing order/activation matrix/deferred obligations/Non-goals/Acceptance/Status (1270–1654)
+
+Blindness held: nothing under `llp/reviews/` was read, and nothing was edited. Source consulted for enforceability: `src/ephemeral.rs`, `src/local.rs`, `src/live_matcher.rs`, `src/live_wire.rs`, `src/storage.rs`, `src/value_expr.rs`, `src/manifest.rs`, `src/runtime.rs`, `src/warm_vm.rs`, `packages/snapback-contract/{client-store.mjs,index.mjs}`, plus targeted reads of LLP 0051 §D4, LLP 0043 §Status, LLP 0008 L4.
+
+## Adversarial confirmation, per gate item
+
+**1. Narrow corpus precedence and amendments — CONFIRMED.** The root ledger (0000:336–349), 0008 amendment (0008:465–493, Status 708–711), 0011 addendum (0011:261–293, Status 379–387), 0013 amendment (0013:538–564, Status 879–883), and 0039 seam (0039:53–58, 1006–1120) all state the same acceptance-gated rule: 0053 controls invalidation mechanics **once Accepted**; server authority, fail-closed stale handling, user-switch wipe, and fresh-authorized-snapshot fundamentals stay ratified; only the universal-epoch / generic-`resync_required` / trust-epoch-on-reconnect clauses are superseded; items 6 and 8 stay blocked meanwhile. The section names 0053 claims precedence over exist (0008:441 §Authorization-Aware Sync, 0008:549 §Realtime Delivery, 0011:222 §Local-First and Realtime Implications). The session-revocation exclusion is mirrored, not contradicted: 0039:1088–1098 owns session-loss `delete` and 0053 excludes it from the event universe.
+
+**2. Closed protected-query input profile — CONFIRMED.** The profile is a capability allowlist with default-deny at both gates (load-time and host invocation, on initial run and rerun), a recursive IR walk refusing `RuntimeNow`/`RuntimeId` in every expression position, a five-class exhaustive host-op registry with unknown/future ops denied, a sealed null-prototype frozen mode-specific `ctx.auth`, an ambient-capability-free realm with named negative fixtures (aliases and computed access tested), and fresh-or-reset-equivalent module state with the DK-4 pool explicitly disqualified. I probed for residual mutable inputs — clock, randomness, module lexicals, imported singletons, timers, locale/env, network, secrets, non-pinned config, ephemeral reads — every one lands in a denied class or an enumerated channel (matcher wake, event 2, 0039 authority fence). Client-supplied arguments are immutable per query instance, so they cannot mutate behind the matcher. The closure claim as stated (no mutable input can strand a connected result) holds. Grounding: `RuntimeNow`/`RuntimeId` are real IR kinds (manifest.rs:1282–1283; value_expr.rs:143–149), `runtime.now`/`runtime.id` are real host ops (runtime.rs:749, 771), `Date.now`/zero-arg `new Date()` denial ships today (runtime.rs:1769–1776), and the warm-VM sweep resets globals but cannot reach module-scope lexicals (warm_vm.rs:5–13, 102–105) — exactly why the doc routes protected queries to the fresh-VM path.
+
+**3. Composite witnesses, obligations, ACK/discharge, denial/error — CONFIRMED.** The state machine survives the adversarial interleavings I constructed: v99 snapshot cannot discharge a v100 removal (data floor); revision-R ACK cannot discharge merged R+1; scopes' revision domains never compare; a `Connection` overflow root clears only when all N children discharge; `data: None` cannot weaken a same-stream floor; incarnation/stream changes are accepted only from the authenticated bootstrap expectation; ACK binds to `(scope, revision, witness, disposition, proof)` and is sent only after the owning boundary applies. The overflow design is coherent precisely because obligations are state outside the queue: a `retain` on overflow recovery is legal only when *no* pending auth-scoped shrink/error obligation exists — and any lost removal by rule left one pending, so the disposition math is safe. Denial is a third delivery class with exactly three trusted producers and an unforgeable host brand; untyped errors quarantine immediately with a bounded episode and never fall back to `retain`. Grounding of the motivating defects: sticky `overflowed` early-return drops (ephemeral.rs:1006–1008, 1052–1056, 1080–1085), overflow clears every lane and emits unconditional `clear_retained: true` that "no shipped client read" (ephemeral.rs:1015–1038, comment 1023–1025), `fail_subscription_fanout` maps failures to a plain recovery resync (local.rs:4164–4185).
+
+**4. Authenticated never-reused boot/scope identities, bounded crash-safe frontiers — CONFIRMED.** `IssuerId` = durable monotone boot-sequence reservation + 128-bit nonce, MAC'd under a stable protocol key; scope sequences and connection generations are consumed-before-publish reservations a crash can never re-issue; retirement comes in two authenticated forms, requires a satisfying fresh snapshot before folding, applies max pending dispositions first, and leaves frontiers unchanged on crash (third boot repeats fail-closed). Durable growth reduces to scalar frontiers plus capped active/unresolved scopes; retry episodes are excluded from that argument and bounded by their own caps. The million-churn, double-crash, forged-MAC, and numeric-counter-reuse acceptance rows (0053:1474–1485) cover the ABA the prior round found. The shipped-resume weakness this replaces is real and correctly described: bare `u64 !=` epoch comparison with a trusted `"retained"` resume path (local.rs:4285–4305, 2307–2339).
+
+**5. AuthorizedLease — CONFIRMED.** Issuance is one linearization point inside the same commit-order gate as writers: exact app-data-head equality, authorization-pair equality, activation-hash equality, and an empty pending-obligation set, all-or-discard with no retry against the old snapshot; an obligation-resolving snapshot never carries a lease. Renewal is never ambient. Both clocks have durable rollback high-waters (`SNAPBACK_AUTH_CLOCK_ROLLBACK` server-side; client delete-before-read); the client deadline is derived from request-start elapsed time so delay only shortens validity; clamps (session/provider), overflow, and malformed cases fail issuance or delete-before-read. The 24-hour default and hard maximum are pinned as constants, with larger configuration rejected. The `public → private` race is pinned in both orders (0053:1567–1575), which is the sharp case: auth-pair equality alone can never accept a stale data head. The threat model is stated honestly — bounds honest offline clients; no defense against a hostile holder of the bytes (LLP 0043's open encryption question, explicitly not solved here).
+
+**6. Durable bounded retry episodes and retirement — CONFIRMED.** Attempt reservation is transactional and pre-invocation; the 15-second window is fixed at first failure and survives re-fire, reconnect, revision merge, and restart; crash after reservation consumes the attempt and *shortens* the window; server clock rollback exhausts fail-closed. Storage is hard-capped (10,000 global / 1,024 per authority-store) in the same auth-control transaction, refuses new keys at capacity with `SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY` and **no** handler run, never safety-evicts (eviction would reset the three-attempt limit), frees a slot only by transferring the resolution proof in one transaction, and rebuilds malformed counters from the bounded table. The availability-for-boundedness trade is stated, not hidden.
+
+**7. Room authorization invalidation linearized — CONFIRMED.** The two-phase protocol closes every window I could construct: the dependency-indexed registry ticket is installed atomically with affected-room enumeration; registration and initial snapshot installation go through the same admission gate, so a racing registration either becomes registry-visible before the ticket (enumerated and quiesced) or observes it and publishes nothing — **there is no enumerate-then-register gap**, the exact hole named in the gate. Publish/mutation, enqueue, destructive drain, and final send each take a single-use permit compared with the generation *atomically with the act*; envelopes carry the generation; drain checks under the outbox lock and send re-checks under the serialized sender gate, so a frame drained pre-barrier cannot escape post-commit. Rollback compare-removes only the exact ticket (overlapping writes covered); ambiguous commit keeps sinks closed until durable reconciliation, and timeout never guesses rollback; crash after commit destroys the process-local room and forces fresh authorization. No registry/room mutex is held across the commit, and L9 acceptance proves unrelated-room liveness. Acceptance schedules (a)–(d) plus the fifth registration-race schedule (0053:1415–1434) pin all of it.
+
+**8. Item 5/6/7/8 activation matrix and capability refusal — CONFIRMED.** The matrix is **verbatim identical** in 0053:870–878 and 0039:1325–1332, including the item-7 no-admission-change row and item-7-may-precede-item-6. `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` refusal at items 1–5, must-understand `authInvalidationProtocol: 1` for every session-mode auth-scoped live surface (legacy connected clients closed), separate `authorizedLeaseProtocol: 1` for item 8, and `clear_retained` demoted to a versioned compatibility projection are consistent across 0053, 0039 (961–1005, 1513–1553), and the rollout acceptance.
+
+**9. Acceptance coverage and source-grounded implementability — CONFIRMED.** Every mechanism has an acceptance pin, including everything the prior NOT READY rounds flagged as missing: pinned constants (the v1 table), typed-denial trusted/forged/untyped fixtures, pruned-history and retained-boot delete-before-read matrix, lease field/MAC/clock/race coverage, retry-episode churn bounds, boot-continuity/million-churn frontiers, the kick trace with adversarial schedules, and the blast-radius measurement. Every source-of-truth claim I sampled — fifteen of them — verified exactly against the shipped code:
+
+| 0053 claim | Verified at |
+|---|---|
+| sticky `overflowed` drops pushes; drain-destructive outbox | ephemeral.rs:1006, 1052, 1080 |
+| overflow emits unconditional `clear_retained: true`; no shipped client reads it | ephemeral.rs:1026–1038 |
+| `fail_subscription_fanout` recovery resync | local.rs:4164–4185 |
+| `authScopeField` is `userId`-only | live_matcher.rs:139 |
+| captured `Row`/`MissingRow`/`Query` deps consulted first | live_matcher.rs:165–176 |
+| `ChangedRow.changed_fields` exists and is consumed | live_matcher.rs:352–380 |
+| epoch map is process memory advanced post-commit | local.rs:531, 1085; refresh_read_epochs local.rs:3644–3653 |
+| seed does no epoch processing | local.rs:1452–1456 |
+| resume trusts bare-`u64` epoch equality (`!=`) | local.rs:4302–4303, 2326–2339 |
+| journal is postimage-only; deletes record no `row_json` | storage.rs:1244, 3643–3655 |
+| `putRetainedQuery` CAS lacks a generation; rejects only strictly-lower | client-store.mjs:567–587 |
+| `writeServerRows` retains before its disposed/boundary check | index.mjs:486–490 |
+| `RuntimeNow`/`RuntimeId`, `runtime.now`/`runtime.id`, `Date.now`/`new Date()` denial | manifest.rs:1282–83; runtime.rs:749/771/1769–76 |
+| L4 convergence pattern, 0051 D4 registry, 0043 M1/M2, 0020 Phase 4 anchor | 0008:262–266; 0051:596; 0043:250; local.rs:2260 @ref |
+
+## Non-blocking observations (LOW, no resolution required before acceptance)
+
+1. **LOW — 0013's amendment summarizes only the post-commit half of the room protocol.** Evidence: 0013:541–549 says a *committed* backing change "projects" `RoomAuthorityResync { authorization, minCommitVersion }` and describes suspension "before another publish/fanout," without the pre-commit ticket/barrier/quiescence phase, and omits `room_authority_generation` from the record. Failure trace if misread in isolation: an implementer building from 0013 alone could ship the post-commit-callback design 0053 §room explicitly rules out (the drain/send leak window). Why non-blocking: 0013:538–539 assigns the producer/ordering contract to 0053 item 6 by name, and 0039's deferred obligation 9 (0039:1415–1423) independently pins the commit-ordered barrier, so precedence is unambiguous. Bounded resolution: on 0013's next routine revision, add one clause ("…installs and quiesces exact-ticket barriers before the causing commit, per 0053") — no design change.
+
+2. **LOW — writer-side quiescence wait couples auth-changing commit latency to room sink acts (including a final send).** Evidence: 0053:504–519 (prepare-phase permit wait) with the abort rule "if … quiescence cannot be established, the write does not commit." Failure trace: a wedged sink act stalls, then aborts, an authorization-changing write — an availability cost, never a leak; the document frames the fail-closed cost as "temporary suspension" and L9 acceptance bounds unrelated liveness. Bounded resolution: the item-6 implementing spec (0039 obligation 9) should pin the per-sink act bound/timeout that makes "cannot be established" definite; nothing in the RFC needs to change.
+
+## Explicit gate answers
+
+- **Does the architecture remain sound?** Yes. This revision changes no architectural element — matcher-carried live correctness, two orthogonal declarations, the closed event universe, obligation-backed negative deltas, mandatory non-live resnapshot, quarantine-then-prove, and the bounded lease all stand, and I found no app shape or interleaving the model cannot express. Everything new is enforcement detail inside that settled frame, which is what the freeze demanded.
+- **May items 6 and 8 unblock?** From this reviewer's standpoint, yes: the enforcement contract is complete, internally consistent, consistent with its companions, and implementable against the shipped code as read. Mechanically, unblocking still requires the author to move 0053 out of Draft/FROZEN to Accepted (item 6 starts only then; item 8 additionally requires items 5, 6, and 7 landed), per the activation matrix both documents pin.
+- **Can ENG-24592 close?** Yes, contingent on two things this report cannot supply: concurrence of the paired blind confirmation's other half, and the author's own status decision. The gate's ask — focused independent confirmation of the bounded revision on its exact bytes — is satisfied by this half with a READY result and no blockers.
+
+Per the review protocol, this is a readiness report only: I do not accept LLP 0053 on the author's behalf, and I wrote no artifact and made no edit anywhere in the tree.

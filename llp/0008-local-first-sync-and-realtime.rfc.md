@@ -5,8 +5,8 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
-**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013
+**Revised:** 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0053
 
 ## Summary
 
@@ -452,17 +452,45 @@ result feed the sync system:
 - permission changes can invalidate or remove rows from local stores;
 - test tools can explain why a row was included, excluded, or removed.
 
-The recommended v1 model from LLP 0011 is **server-directed resubscribe on
-permission change**, not universal per-row live permission re-evaluation. A
-permission-affecting write advances an authorization epoch for the affected
-scope. The server sends `resync_required` to subscriptions whose auth or
-permission dependencies may have changed; the client immediately marks the
-result stale, clears the affected retained slice if the data may now be
-forbidden, and resubscribes to receive a fresh authorized snapshot. Reconnect
-and resume always filter through the current permissions and epoch. This is
-stricter than Valet's stale-until-manual-resubscribe behavior while avoiding a
-v1 requirement that every permission dependency be incrementally re-evaluated
-for every connected subscription.
+The recommended v1 model from LLP 0011 is **server-directed fail-closed
+reauthorization**, not universal precise per-row permission evaluation. As
+narrowly refined below, ordinary matcher-observed writes re-query normally and
+protect any potential shrink with a witnessed delivery obligation; declared
+permission-backing and writeless authorization events advance the authorization
+version. The client applies the resulting disposition before a fresh authorized
+snapshot, and every non-live auth-scoped resume fresh-snapshots regardless of
+epoch equality. This is stricter than Valet's stale-until-manual-resubscribe
+behavior while avoiding a global resync for every permission-shaped row write.
+
+### Authorization-invalidation amendment — 2026-07-13
+
+The paragraph above records the 2026-07-02 direction, but its universal
+mechanism is too coarse. The root ratification ledger now authorizes this narrow
+precedence rule: **when LLP 0053 reaches Accepted, LLP 0053 controls this RFC's
+authorization-invalidation mechanics.** Until then auth landing items 6 and 8
+remain blocked; this amendment is not permission to implement a Draft protocol.
+
+What remains ratified here: authorization is server-side; initial/live data is
+filtered before delivery; stale or uncertain authority fails closed; a
+non-live auth-scoped resume takes a fresh authorized snapshot; and permission
+behavior is explainable. What is superseded on acceptance of 0053:
+
+- not every permission-affecting row write advances an authorization epoch;
+  matcher-observed ordinary writes use the normal re-query/delta path, while a
+  result shrink is protected by a persistent composite-witness delivery
+  obligation;
+- permission-backing and enumerated writeless events advance the durable global
+  authorization version and project query/room obligations;
+- a generic lossy `resync_required` is not the security carrier: disposition,
+  durable client fence/tombstone, revision-bound ACK, and authenticated
+  retirement are;
+- reconnect never treats equal epoch as sufficient proof for an auth-scoped
+  live result; every non-live resume fresh-snapshots; and
+- protected query inputs that cannot produce a matcher wake, activation event,
+  or authority transition are denied by 0053's default-deny admission profile.
+
+This preserves the false-negative bar of this RFC while avoiding a global
+resync storm on ordinary writes.
 
 ## Retention and Resume
 
@@ -578,11 +606,16 @@ a target learns a change happened.
 >   global `disposed` receipt mirroring disconnect's markers; a connected
 >   tab re-snapshots the post-reset state instead of freezing on pre-reset
 >   data (ENG-23333).
-> - **Loss on a dying socket is recovered by snapshot, not requeue** (the
->   S5.D4/S5.D5 class): a send failure tears the socket down, reconnect
->   fresh-snapshots, and per-subscription non-decreasing versions filter
->   staleness — "nothing silently lost" is pinned by `regression-fake-live`
->   and the kill-socket legs.
+> - **Positive-data loss on a dying socket is recovered by snapshot, not
+>   requeue** (the S5.D4/S5.D5 class): a send failure tears the socket down,
+>   reconnect fresh-snapshots, and per-subscription non-decreasing versions
+>   filter staleness — "nothing silently lost" is pinned by
+>   `regression-fake-live` and the kill-socket legs. The 2026-07-13 amendment is
+>   narrow but load-bearing: an auth-scoped removal/potential shrink is negative
+>   information and, once LLP 0053 is Accepted, remains a witnessed
+>   level-triggered obligation until ACK or authenticated retirement. Fresh
+>   reconnect still closes the dead-socket window; destructive drain alone is
+>   no longer the authorization guarantee.
 > - **Liveness** is an application-level ping plus a client freshness budget;
 >   the server-side delivery is event-driven with a defensive 30 s heartbeat
 >   (L8).
@@ -636,9 +669,11 @@ The first sync/realtime validation should include:
 - a reconnect test from a retained version;
 - a reconnect test outside retention requiring resnapshot;
 - an auth-aware test where one client sees a row another client must not receive;
-- a permission-changing write that advances the authz epoch, forces
-  `resync_required`, clears stale retained data when required, and resubscribes
-  to a fresh authorized snapshot;
+- authorization-invalidation fixtures from LLP 0053: an ordinary
+  matcher-observed result shrink advances no coarse authz epoch but remains
+  obligation-backed through ACK; a `permissionBacking`/enumerated event advances
+  the authz version; uncertainty quarantines before read, proof deletes, and
+  every non-live auth-scoped resume takes a fresh authorized snapshot;
 - a diagnostic explaining one invalid or non-subscribable query.
 
 ## Open Questions
@@ -670,4 +705,7 @@ is now folded in, so the replay, suppression, retention, conflict, and delivery
 contracts above are grounded in a shipped system rather than proposed cold. This
 RFC should be revised again after the first local prototype measures subscription
 matching, retention, reconnect, and offline replay — especially the fan-out ceiling,
-which remains the key unmeasured unknown.
+which remains the key unmeasured unknown. The 2026-07-13 authorization amendment
+is ratified at the root but intentionally acceptance-gated: it removes the
+conflict now, while LLP 0053 stays Draft/FROZEN and implementation items 6/8 stay
+blocked until that RFC is Accepted.

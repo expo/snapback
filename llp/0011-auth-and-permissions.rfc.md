@@ -5,8 +5,8 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (v1 auth/sync direction ratified: server-directed resubscribe on permission change, authorization epochs, fail-closed stale handling, user-switch wipe — ratified before LLP 0032 P4 hardens the sync protocol, per §Status's own ask)
-**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032
+**Revised:** 2026-07-13 (narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
+**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032, LLP 0039, LLP 0053
 
 ## Summary
 
@@ -20,12 +20,13 @@ This RFC proposes a split between authentication, which establishes who the
 request is, and authorization, which decides what that identity can read, write,
 subscribe to, and sync.
 
-This revision also records the v1 answer to the auth/sync direction call
-surfaced by review — **ratified 2026-07-02**: use **server-directed
-resubscribe on permission changes**, backed by authorization epochs and
-fail-closed stale-result handling, instead of requiring universal live
-permission re-evaluation for every connected subscription in v1. Precise live
-`remove` deltas can be an optimization for analyzable rules later.
+This document records the v1 answer to the auth/sync direction call surfaced by
+review — **ratified 2026-07-02 and narrowly refined 2026-07-13**: use
+server-directed fail-closed reauthorization and fresh snapshots rather than
+requiring universal precise live permission evaluation. LLP 0053, once
+Accepted, owns whether a cause uses a matcher delivery obligation or the
+authorization version; the earlier universal-epoch/generic-resync wording is
+not a competing implementation contract.
 
 ## Motivation
 
@@ -240,19 +241,56 @@ depend on membership tables or opaque query functions. For v1, prefer a bounded
 contract:
 
 - rules declare the auth variables and permission tables/scopes they depend on;
-- a permission-affecting write advances an authorization epoch for that scope;
-- the server sends `resync_required` to affected subscriptions or clients;
-- clients immediately mark affected results stale and, for sensitive retained
-  slices, clear them before resubscribing;
+- matcher-observed ordinary writes re-query and protect a potential shrink with
+  LLP 0053's witnessed delivery obligation, while permission-backing and
+  enumerated writeless events advance the authorization version;
+- the server projects the applicable disposition/obligation to affected
+  subscriptions, retained queries, and protected room authorities;
+- clients immediately clear affected results from read/render — quarantine while
+  uncertain, delete on trusted proof — before reauthorization;
 - the fresh subscription snapshot is filtered through current permissions;
-- reconnect/resume always compares the client's epoch with the server's current
-  epoch and resnapshots if it is stale.
+- reconnect/any non-live auth-scoped resume always takes a fresh snapshot; epoch
+  equality alone never releases a cached live result.
 
 This is stricter than Valet's stale-until-manual-resubscribe behavior and cheaper
 than making the v1 matcher solve arbitrary permission dependency invalidation.
 Precise live `remove` deltas remain a later optimization for analyzable
 single-table or membership-filter cases, using the LLP 0008 membership matcher
 when the dependency graph is known.
+
+**Ratified narrow addendum (2026-07-13): LLP 0053 controls invalidation on
+acceptance.** The root ledger refines the mechanism above without weakening its
+security outcome. Server-resolved authorization, immediate fail-closed handling,
+a fresh authorized snapshot before release, and user-switch wipe remain this
+RFC's requirements. Once LLP 0053 is Accepted:
+
+- an ordinary matcher-observed row change does not automatically advance a
+  coarse authorization epoch; a potential/result shrink is instead a persistent
+  composite-witness delivery obligation;
+- `permissionBacking` writes and enumerated writeless events advance the global
+  authorization version and project durable-query and ephemeral-room
+  reauthorization obligations;
+- generic `resync_required`/destructive drain is not sufficient proof of
+  delivery; disposition, fences/tombstones, ACK, and authenticated retirement
+  are required; and
+- reconnect/any non-live resume always fresh-snapshots an auth-scoped result,
+  rather than releasing it because an epoch happens to compare equal.
+
+The older verb "clear" is now exact: **clear means deny read and render before
+reauthorization**. `quarantine` is a conforming immediate clear while authority
+is uncertain (bytes remain suspended and unreadable); trusted denial or boundary
+proof escalates to `delete`. This is the ratification 0053 previously inferred
+but did not own. LLP 0053 remains Draft/FROZEN, so the addendum resolves corpus
+precedence but does not unblock item 6 or 8 before acceptance.
+
+Function-level checks also gain one trusted failure surface. LLP 0004 owns the
+generated spelling and this RFC owns the semantic API:
+`ctx.permissions.deny()` is a host-owned terminal operation producing
+`SNAPBACK_AUTH_PERMISSION_DENIED`. The shared invocation gate brands it and
+discards any later handler result even if local JavaScript catches an exception.
+A plain throw or forged code is not permission proof; invalidation quarantines
+it as an untyped failure. Declarative RLS and room reauthorization are the other
+trusted producers enumerated by LLP 0053.
 
 A user's local store can contain sensitive data. **On user switch, the client must
 wipe all local data, mutation queues, and subscriptions** before resubscribing as
@@ -303,9 +341,14 @@ The first auth acceptance tests should prove:
 - `ctx.auth` available and identical across an optimistic client run and its server
   replay (offline-first parity);
 - a user switch wipes all local data, queues, and subscriptions before resubscribing;
-- permission change advances an authorization epoch, emits `resync_required`,
-  clears affected stale retained data when required, and resubscribes to a fresh
-  authorized snapshot;
+- the LLP 0053 invalidation matrix: ordinary shrinking writes use witnessed
+  delivery obligations without a coarse epoch; permission-backing/enumerated
+  events advance the authorization version; quarantine blocks read/render
+  before reauthorization, trusted denial deletes, and every non-live auth-scoped
+  resume fresh-snapshots;
+- `ctx.permissions.deny()` produces trusted
+  `SNAPBACK_AUTH_PERMISSION_DENIED`, while a forged code/plain throw remains an
+  untyped fail-closed quarantine;
 - doctor output explaining an allow and a deny.
 
 ## Open Questions
@@ -331,18 +374,17 @@ Draft, with the v1 auth/sync direction **ratified 2026-07-02** by Charlie
 section's own ask to settle the call before sync hardens — ratified ahead of
 LLP 0032 P4's reconnect/resume protocol work so the wire design can assume
 it. The ratified call: **server-directed resubscribe on permission change**
-— rules declare their auth dependencies, permission-affecting writes advance
-an authorization epoch, the server emits `resync_required` to affected
-subscriptions, clients fail closed (mark stale, clear sensitive retained
-slices, resubscribe), and reconnect/resume compares epochs and resnapshots
-when stale — plus the **user-switch full wipe** of local data, queues, and
-subscriptions. Universal mid-connection re-evaluation with precise `remove`
-deltas stays a later optimization for analyzable rules. The mechanism
-already has server-side footholds (permission epochs and `resync_required`
-signals from [LLP 0020](./0020-core-authoring-surface.plan.md) Phase 4 and
-LLP 0032 S5.D4/L1); the auth *surface* — providers, `ctx.auth`, RLS rules —
-remains unbuilt, so the RFC itself stays Draft. Ledgered in
-[LLP 0000](./0000-snapback.explainer.md).
+— rules declare their auth dependencies, clients fail closed, and release
+only through a fresh authorized snapshot — plus the **user-switch full wipe**
+of local data, queues, and subscriptions. The 2026-07-13 ratified addendum makes
+LLP 0053 the controlling narrow mechanism on acceptance: witnessed
+shrinking-delivery obligations for ordinary writes, authorization versions for
+enumerated events, query/room reauthorization, quarantine-as-immediate-clear,
+and unconditional fresh snapshot on non-live resume. The older universal
+epoch/generic-`resync_required` wording is historical, not a second protocol.
+LLP 0053 remains Draft/FROZEN and items 6/8 remain blocked. The auth *surface* —
+providers, `ctx.auth`, RLS rules — remains unbuilt, so this RFC itself stays
+Draft. Ledgered in [LLP 0000](./0000-snapback.explainer.md).
 
 Earlier: Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))
 is folded in — the stable-principal + identity-link model, write-side fail-closed

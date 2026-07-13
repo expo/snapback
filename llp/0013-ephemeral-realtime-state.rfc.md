@@ -5,8 +5,8 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026
+**Revised:** 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 projects permission-backing/enumerated events into level-triggered room-authority resync, suspends fanout before fresh durable membership reauthorization, and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053
 
 ## Summary
 
@@ -535,6 +535,34 @@ Online status is privacy-sensitive. Snapback should not expose global user
 presence by default. Presence should normally be scoped to the object where the
 user is actively collaborating: board, document, channel, game, or room.
 
+**Authorization-invalidation amendment (2026-07-13).** LLP 0053 item 6 owns
+the producer/ordering contract that this section previously left aspirational.
+A protected room collection declares the durable `permissionBacking`
+tables/fields used to derive its room permission. A committed backing-table
+change or another enumerated authorization event projects a level-triggered
+`RoomAuthorityResync { authorization, minCommitVersion }` into every possibly
+affected live room authority. Unknown fields/dependencies/subjects project
+coarsely; no declaration may suppress the event in v1.
+
+Before another publish/fanout, the room authority advances a separate
+authorization generation, suspends affected subscribers, and rejects every
+old-generation queued frame at the send boundary. It then takes a fresh durable
+permission snapshot at or after the cause, re-resolves the connection-bound
+authority from LLP 0039, and atomically either:
+
+- rebuilds `authContext`/`visibleKeys`, installs a fresh room snapshot, and
+  resumes; or
+- unregisters the denied subscriber, deletes its connection-owned entries, and
+  emits trusted `SNAPBACK_AUTH_PERMISSION_DENIED`/`AuthRevoked` semantics.
+
+The room obligation acknowledges only after that boundary commits and re-fires
+on the room heartbeat until then. Process death destroys local rooms and forces
+fresh snapshot/register authorization; a hosted adapter that preserves rooms
+must preserve the obligation or fail the capability. `AuthChanged` and
+`AuthRevoked` are therefore no longer ownerless vocabulary. This amendment does
+not authorize `KeyMode::Custom`; LLP 0039 keeps it refused until key-level
+authorization exists.
+
 ## Relationship to durable sync
 
 Ephemeral subscriptions are adjacent to, but not part of, the durable
@@ -788,8 +816,15 @@ The accepted implementation must keep the following acceptance proofs green:
   lost;
 - auth prevents a user outside a board/channel/document from seeing or
   publishing that scope's presence;
-- a permission-changing durable write removes or invalidates affected ephemeral
-  subscriptions;
+- a card-game kick through `gameMembers: permissionBacking` creates the room
+  authority obligation before later fanout, rejects the kicked player's queued
+  old-generation frames, fresh-snapshots durable membership, unregisters the
+  player/removes its entries on denial, and prevents further opponent-state
+  delivery even when the first resync/ACK is dropped;
+- unknown permission fields/dependencies reauthorize conservatively; a server
+  crash clears the room and forces fresh subscribe authorization, while a
+  preserving hosted adapter proves obligation persistence or reports a
+  capability error;
 - server restart clears local-process ephemeral state and clients recover by
   republishing/subscribing;
 - a multi-instance deployment without sticky routing or a shared backend reports
@@ -841,4 +876,8 @@ restart/resync handling, bounded room/subscription state, and index-driven
 disconnect cleanup. Hosted adapter and multi-process lease choices remain open
 without reopening the accepted product boundary: ephemeral state is typed,
 lossy, TTL-bound realtime authority rather than durable table sync or a raw
-cache protocol.
+cache protocol. The 2026-07-13 amendment adds the previously missing
+authorization-invalidation owner: LLP 0053 item 6 must land before a
+room-permission collection may claim live revocation under sessions. LLP 0053
+remains Draft/FROZEN, so current fail-closed capability refusal remains required
+until that item is accepted and implemented.

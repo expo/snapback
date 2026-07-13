@@ -522,3 +522,530 @@ machine is fully specified (identity, durability, discharge, escalation, GC); th
 closure claim is argued rather than asserted; the clock rule is made detectable;
 the matcher argument is aligned with the shipped precedence; and the 0008/0011/
 0020/0043 amendments are named.
+
+## Round 3 — 2026-07-12 (attempt five: delivery obligations, reconnect resnapshot, and offline lease)
+
+**Reviewed:** `llp/0053-authorization-invalidation.rfc.md` (sha256
+`33b91b4c4276917c00f1c009e0c8cf8ef4bb6f32cff362e36e628f561d15e17f`).
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1 (`codex exec`,
+non-interactive), model `gpt-5.6-sol`, reasoning effort `ultra`, sandbox
+`read-only`, workdir = repo root. Session id
+`019f57c8-a32d-76b1-b5af-03c0efce76e1`. Fresh session.
+**Date:** 2026-07-12
+**Redacted:** Same as round 1.
+**Method:** cli-runner — fresh session, blind to all archived reviews. The
+brief supplied the five-attempt failure history and directed the reviewer to
+attack the reframe, reconnect witness, persistent-obligation state machine,
+retainability enforcement and event-universe closure, quarantine semantics,
+and offline-lease clock threat model.
+
+### Review body (verbatim)
+
+## Overall assessment
+
+The central reframe is good: authorization shape should not be forced into an exhaustive taxonomy when complete database read dependencies and conservative re-evaluation can handle arbitrary joins, hierarchies, mixed ACL/result tables, and row-local visibility. The two orthogonal declaration axes are substantially better than the previous class model.
+
+However, attempt five is not sound yet. It closes delivery for coarse authorization events but not for ordinary matcher-mediated authorization removals. A `public → private` write can be computed correctly, then its sole removal can disappear in the shipped destructive HTTP drain. Because that write advances no authorization epoch and raises no obligation, the connected client can retain the forbidden row indefinitely without reconnecting or invoking the retained-data lease. This is a concrete sixth failure, not merely missing detail.
+
+The closure argument, online-only fallback, obligation state machine, lease scope, and client-clock assumptions also require material revision. The design direction is worth keeping, but it is not ready to implement as the security contract.
+
+## Strengths
+
+- The abandonment of exclusive authorization classes is well justified. LLP 0053 §Two orthogonal declarations cleanly separates result-delivery topology from authorization impact, fixing the mixed roster/ACL failure without inventing more overlapping classes.
+
+- The computation half of the reframe is supported by the implementation when authority is stable and database read capture is complete. Captured dependencies precede static metadata (`src/live_matcher.rs:121-125`); point reads participate in wake decisions (`src/live_matcher.rs:158-220`); changed or unknown scope fields conservatively wake (`src/live_matcher.rs:369-385`). This correctly follows LLP 0008 §Reactivity and Read Sets: false positives are acceptable, false negatives are not.
+
+- The RFC accurately diagnoses current implementation hazards in §Invalidation is an obligation, not a message and §Client fences. The outbox is destructively drained (`src/ephemeral.rs:910-923`), overflow is sticky and drops subsequent durable pushes (`src/ephemeral.rs:760-786,884-892`), and retained writes are fire-and-forget and unconditional (`packages/snapback-contract/index.mjs:418-443`; `client-store.mjs:147-150`).
+
+- §The authorization version correctly identifies that the shipped epochs are process memory advanced after commit, not durable causal witnesses (`src/local.rs:1411-1424,3611-3623`). Centralizing event production is a necessary prerequisite.
+
+- Mandatory fresh authorization evaluation after loss of continuity is the right direction. The shipped stream kit already reconnects by fresh subscription, and Contract replay already full-resyncs before replay (`demos/_kit/client.mjs:900-941`; `packages/snapback-contract/index.mjs:835-895`).
+
+- Quarantine-before-proof is preferable to globally deleting retained caches on every coarse event. §Dispositions recognizes the usability cost of false positives while preserving an intended fail-closed state.
+
+- Keeping subject targeting in shadow mode under §Shadow-mode targeting is disciplined. Nothing security-sensitive should depend on subject inference until completeness, old/new row handling, and oracle comparison are genuinely proved.
+
+- The todo and todo-v2 worked rows match current delivery behavior: todo is an ordered Ibex query and uses re-query plus `live_replace`; todo-v2 is an ordered HostPlan query and also falls back to `live_replace` (`src/live_matcher.rs:577-579`). The other worked shapes are reasonable proposed acceptance fixtures.
+
+## Concerns
+
+1. **HIGH — Matcher-mediated authorization removals still have lossy, edge-triggered delivery.**
+
+   LLP 0053 §Three mechanisms says a connected matcher result is delivered over a persistent obligation, but §Acceptance says ordinary writes—including `public → private` and hierarchy reparenting—fire no obligation. The implementation makes this contradiction exploitable:
+
+   1. A client holds a document because `public = true`.
+   2. An ordinary write changes it to private.
+   3. The matcher correctly re-queries and produces a result without the document.
+   4. The server updates its captured dependency state before enqueueing the replacement (`src/local.rs:3368-3403`). The delta path likewise updates server membership before enqueueing (`src/local.rs:3491-3537`).
+   5. HTTP polling destructively removes the frame before the response is confirmed (`src/ephemeral.rs:910-923`; `src/server.rs:2461-2475`).
+   6. If that response is lost, the next poll returns an empty queue. The client does not set `needsResubscribe`; a later successful empty poll looks healthy while retaining the old rows (`demos/_kit/client.mjs:953-990`).
+
+   No epoch moved, no obligation exists, no reconnect occurs, and §The lease only covers retained/offline data, not the live in-memory result. The disclosure is unbounded.
+
+   *Resolves with:* Create acknowledged persistent result-supersession state for every auth-scoped authoritative result shrink/removal—or conservatively every auth-scoped delivery. Its witness must include a causal database/delivery generation, and acknowledgement must occur only after the final client boundary and durable store transaction commit. Add lost-HTTP-response tests for `public → private`, hierarchy reparenting, and a DK-3 `remove` while the connection remains usable.
+
+2. **HIGH — The proposed `ResyncObligation` is not yet a complete fail-closed state machine.**
+
+   Several state transitions are unsafe or underspecified:
+
+   - `outbox_overflow` and fan-out retry are assigned `retain`, even though either may have swallowed the only authorization-removing update. Overflow clears the backlog and replaces it with a sentinel; further pushes while overflowed are dropped (`src/ephemeral.rs:760-786,884-892`). A failed re-query similarly leaves the prior result while emitting a recovery resync (`src/local.rs:3573-3604`). “Keep showing current rows meanwhile” is unsafe for an auth-scoped result.
+   - `(incarnation, epoch)` cannot order matcher-mediated writes or repeated overflow episodes because those deliberately do not advance the epoch. A delayed acknowledgement for snapshot A can discharge a later obligation B with the same witness.
+   - §Discharge says acknowledgement is required, but §Dispositions releases quarantine on a snapshot. If a newer event arrives while the older snapshot is in flight, publishing that snapshot before a server-side compare-and-discharge can reopen access.
+   - §GC says an obligation dies with its subscription/connection, while acceptance requires survival across mid-batch WebSocket failure and reset. Current teardown destroys both subscriptions and outboxes (`src/local.rs:2717-2754`; `src/ephemeral.rs:1601-1611`).
+   - No stable `client` identity is defined. Current connections and subscriptions are process-memory identities, and default Contract connection labels are regenerated per surface mount.
+   - Persistence alone is not level-triggering: every later drain/open must consult or synthesize outstanding state. Current drains intentionally bypass SQLite and operate only on the in-memory queue.
+
+   *Resolves with:* Define a durable logical key such as client-instance plus query identity, along with `{authorizationVersion, resultGeneration, obligationRevision, maxDisposition}`. Every drain, connection open, and subscribe must observe it. Acknowledgement must compare-and-discharge the exact revision after client commit; stale acknowledgements must fail. GC only after acknowledgement or enforceable lease expiry. For scalability, prefer a compact global generation plus lazy per-client/query acknowledgement watermarks over O(number-of-clients) writes inside every permission transaction.
+
+3. **HIGH — The online-only fallback does not close the writeless-event universe.**
+
+   LLP 0053 §The authorization-event universe correctly observes that a clock predicate can leave a connected client authorized indefinitely because the matcher has no deadline wake. It then makes the query “online-only,” but LLP 0008 §§Subscription Contract and Reactivity explicitly allow non-retained queries to remain live through replace/resnapshot mode.
+
+   A live query using `expiresAt > ctx.runtime.now()` therefore remains stale with no write. The runtime exposes `ctx.runtime.now()` (`packages/snapback-harness/ctx-bootstrap.js:287-293`; `src/runtime.rs:734`), while matcher evaluation has no clock (`src/live_matcher.rs:428-442`). Opaque process, policy-provider, or other external dependencies have the same defect.
+
+   Thus the closure argument “undeclarable ⇒ non-retainable ⇒ online-only ⇒ mechanism 1” is false: non-retainability removes durable bytes but creates neither a matcher wake nor removal of live memory. Natural session expiry and other authority transitions also need an explicit boundary assignment to LLP 0039 rather than being ambiguously mixed with this RFC’s four events.
+
+   *Resolves with:* Define clock-dependent and undeclarable authorization queries as one-shot, non-subscribable reads and enforce that at manifest load, or implement deadline/event wakes, periodic revalidation, or a short server-renewed connected lease. Define `auth-scoped` and `auth-resyncable` as conservative manifest predicates; unknown authenticated queries must not escape because their dependencies are opaque.
+
+4. **HIGH — “Machine-enforced retainability” currently proves declaration presence, not declaration truth.**
+
+   The invariant in §The authorization-event universe allows `authScopeField`, declared `permissionDependencies`, and explicit `authorityIndependent`. These remain author assertions unless a verifier proves their completeness.
+
+   The RFC itself notes that Ibex receives `ctx.auth` as a materialized input invisible to capture. In current code it is a plain object (`packages/snapback-harness/ctx-bootstrap.js:267-294`), and the runtime records a user auth dependency whenever an input user exists, regardless of whether or how the program uses it (`src/runtime.rs:1821-1839`). A loader cannot prove that an opaque handler marked `authorityIndependent` does not inspect auth, or that a `permissionDependencies`/`permissionFields` declaration is complete.
+
+   Consequently, `authScopeField` is not the only false-negative-capable declaration. A false `authorityIndependent`, incomplete permission dependency, or incomplete field list can also suppress a required event. An acceptance-suite convergence assertion samples behavior; it is not a structural proof.
+
+   *Resolves with:* Restrict retainability to a proof-carrying subset: closed declarative IR, compiler-proved taint/effect analysis, or a runtime capability design in which opaque code cannot access raw auth or untracked external facts. `authorityIndependent` must be derived or capability-enforced, never a free-form escape hatch. Until field completeness is proved, whole `permissionBacking` tables should bump and `permissionFields` narrowing should remain shadow-only.
+
+5. **HIGH — “Reconnect” and the lease do not cover every loss-of-continuity path or every materialized copy.**
+
+   Mandatory resnapshot is stated as a transport event, but continuity is not defined machine-readably:
+
+   - Pure HTTP polling has no freshness budget (`demos/_kit/client.mjs:37-44`). After the 120-second server reaper removes its subscription (`src/server.rs:1477-1518`; `src/local.rs:2717-2754`), a later poll of the absent outbox returns `[]`; only WebSocket-registered clients receive the reaper resync sentinel.
+   - Public `resume_live` can move a subscription to another connection and return `mode: "retained"` when epochs match (`src/local.rs:1747-1826`), precisely the comparison that cannot witness matcher-only visibility changes.
+   - A paused handle stops transport but leaves `handle.rows` renderable (`demos/_kit/client.mjs:1134-1146`).
+   - Contract connection changes re-emit the previous cell rather than blocking it (`packages/snapback-contract/index.mjs:464-471`).
+   - The RFC simultaneously requires resnapshot on every reconnect and says an ordinary restart does not force retained subscriptions to resnapshot. LLP 0039 §Permission dependencies pins the same no-resnapshot-on-restart rule. A server restart necessarily destroys connection continuity.
+
+   The `authorizedUntil` text applies only to retained data, so these live in-memory copies can survive beyond the lease without calling the retained store.
+
+   *Resolves with:* Define a server-issued connection/subscription generation. Unknown, reaped, restarted, or rebound generations must return a typed resnapshot requirement rather than an empty healthy drain. Auth-scoped `resume_live` must always resnapshot or be forbidden. Poll gaps, background resume, pause/resume, and missed freshness budgets must quarantine before rendering. Apply the lease/read gate to every auth-scoped materialization: live handles, rendered boundaries, optimistic overlays, and durable bytes. Clarify that incarnation persistence avoids an unsolicited offline wipe, but any eventual post-restart reconnect still snapshots.
+
+6. **HIGH — An adversarial client clock defeats the claimed lease bound.**
+
+   §The lease calls `authorizedUntil` the security boundary and says the exposure window is at most the lease. That is not true without a trusted verifier clock. A client can roll its wall clock backward; the shipped freshness budget itself uses `Date.now()` (`demos/_kit/client.mjs:1418-1428`). A user controlling the client can also patch the check or copy already-delivered plaintext. The certificate analogy assumes that the relying verifier and its clock are trusted; here the holder is the verifier.
+
+   The proposed fence compounds this: lease expiry changes neither `(incarnation, epoch)` component, so a stale same-fence retained write can repopulate data after expiry unless a separate local generation participates in the atomic check.
+
+   *Resolves with:* State the threat model explicitly. For conforming clients, define server issuance time, maximum skew, remaining-TTL transport, monotonic-timer anchoring, wall-clock rollback detection, suspend/reboot behavior, persistent time high-water marks, and fail-closed behavior when elapsed time cannot be proved. State the bound as lease plus tolerated skew and cap it by session/grant expiry. If a hostile device or user is in scope, acknowledge that software alone cannot force forgetting plaintext; trusted secure time/hardware with sealed encryption—or online-only access—is required.
+
+7. **MEDIUM — Event production semantics are incomplete across field filtering and non-database activation.**
+
+   `permissionFields` is underspecified for inserts, deletes, and unknown changed-field sets. Shipped deletes carry the preimage but `changed_fields: []` (`src/storage.rs:817-840,1250-1269`); journal-reconstructed changes also have unknown fields (`src/storage.rs:2261-2298`). A simple intersection would miss deletion of `gameMembers`, the canonical kick.
+
+   Event 2 also promises atomic activation of schema/functions/auth metadata with the authorization event, but current function activation is an in-memory swap rather than part of a database transaction (`src/local.rs:942-988`). Schema activation, seed, reset, HostPlan, and Ibex use different transaction boundaries. A generic commit hook cannot alone make code activation, version advancement, and obligations atomic.
+
+   *Resolves with:* Specify that inserts and deletes on permission-backing tables always fire; only updates may use field intersection, and empty/unknown fields fire conservatively. Define a durable staged activation record, crash recovery/roll-forward rules, and pointer-swap ordering for function/schema bundles. Add crash-cut tests for every writer and activation path.
+
+8. **HIGH — The client quarantine/fence contract needs a local transactional generation, not only an authorization pair.**
+
+   Current code validates the RFC’s race diagnosis but cannot implement the proposed guarantee as stated: `putRetainedQuery` overwrites unconditionally, the localStorage backend has no CAS, and `writeServerRows` starts the retained write before checking disposal (`client-store.mjs:147-150,227-246`; `packages/snapback-contract/index.mjs:418-443`).
+
+   A fence containing only `(incarnation, epoch)` cannot order lease expiry, local quarantine/delete, repeated same-epoch matcher deliveries, or renewal. The disposition semantics are also inconsistent: quarantine says keep bytes for possible release, while §Client fences says remove overlays and queues. Under the global epoch, unrelated membership churn could therefore destroy every client’s pending offline edits even when the coarse event was a false positive. Finally, a subject-matched event is listed as “proof” for deletion, but subject targeting alone does not prove revocation; the event could grant access or change a non-revoking role.
+
+   *Resolves with:* Extend the DK-9 store interface with atomic compare-and-transition operations over a persistent local disposition generation plus the server witness. Persist non-overwritable quarantine/delete tombstones and serialize across tabs. Specify dispositions independently for live rows, retained rows, overlays, and pending mutations; quarantine should preserve but disable queued work until revalidation. Delete only after a semantic revocation proof or authoritative snapshot, never merely a subject match.
+
+9. **MEDIUM — The governing corpus currently contains contradictory authority.**
+
+   LLP 0053 says LLP 0011 wins, but changes ratified contracts recorded in LLP 0011 §Local-First and Realtime Implications and LLP 0000’s decision ledger: permission-affecting writes advance epochs, and reconnect compares epochs rather than resnapshotting unconditionally. LLP 0039 says ordinary restarts should not force retained resnapshot, while this RFC’s central reconnect rule requires it. LLP 0043 still permits offline reads when the stored epoch is merely “not known-stale,” without a lease.
+
+   These may be intentional refinements, but the corpus presently leaves an implementer with incompatible instructions.
+
+   *Resolves with:* Make acceptance of LLP 0053 explicitly supersede and amend the affected clauses in LLP 0000, 0008, 0011, 0020, 0039, and 0043 in the same change. Distinguish “restart does not itself delete offline data” from “a connection established after restart must obtain a fresh snapshot.”
+
+## Suggestions
+
+- Separate the design into two durable cursors:
+
+  - an authorization generation for coarse/writeless events and dispositions;
+  - a result-delivery generation or database version for reliable supersession of every auth-scoped result.
+
+  Queue frames then become hints; the client is current only when its acknowledged cursor satisfies both.
+
+- Make the authorization event enumeration a promptness optimization rather than the only safety boundary. A short connected revalidation lease plus a separately chosen offline lease would bound unknown writeless dependencies, subject to the explicit trusted-clock limitation.
+
+- Keep both `permissionFields` suppression and subject-scoped suppression in shadow mode initially. Whole-table permission events are a safer v1 baseline.
+
+- Label the mine-or-public, card-game, roster, hierarchy, and mixed-table rows as required fixtures rather than shipped evidence. Current HostPlan supports flat conjunctive filters, not OR or joins, so these proofs need explicit Ibex implementations and captured-read assertions.
+
+- Model-check the obligation/acknowledgement protocol or property-test a small executable state machine. Include delayed acknowledgements, duplicate acknowledgements, two same-epoch removals, reset, response loss, callback failure, overflow, restart, and cross-tab stale writes.
+
+- Put a quantitative acceptance threshold on global authorization churn. “Measure and record” is insufficient when every membership join/leave can quarantine every auth-scoped view.
+
+- Bump the client-store version or namespace when lease/disposition records land. Handshake gating cannot protect an offline downgraded client that opens a newer store without contacting the server.
+
+## Open questions
+
+- What exact adversary is the lease intended to constrain: a conforming app with an inaccurate clock, or a user controlling the device and client code?
+
+- What manifest-derived predicate makes a query `auth-scoped`? Do unknown or opaque authenticated queries conservatively count as auth-scoped?
+
+- Does “online-only” mean one-shot and non-subscribable, or can it still be a long-lived live-replace query?
+
+- What stable client/device/query identity owns an obligation across connection loss, process restart, multiple tabs, session rotation, and user switch?
+
+- Must every auth-scoped result delivery be acknowledged, or only deliveries that shrink membership? If only shrinking deliveries, how is that determined safely for query errors and opaque handlers?
+
+- Which writeless authority transitions belong to LLP 0039 rather than this event universe—natural session expiry, auth-mode transition, account/provider changes—and what is the formal handoff?
+
+- Can local SQLite and the Cloudflare coordinator both implement the same atomic activation, obligation observation, and acknowledgement contracts without blocking their delivery lanes?
+
+- Who owns the 24-hour default, what risk class is it suitable for, and must applications such as finance or private messaging choose materially shorter ceilings?
+
+## Readiness verdict
+
+Verdict: NOT READY
+
+The proposal has a promising computational reframe, but a concrete ordinary `public → private` removal can still be lost permanently while the client remains connected, leaving forbidden data visible with no epoch, obligation, reconnect, or applicable lease. The online-only closure argument, obligation state machine, retainability proof, continuity boundary, and clock threat model also contain unresolved material correctness and safety gaps.
+
+## Round 4 — 2026-07-13 (focused audit of the current enforcement fixes)
+
+**Reviewed:** `llp/0053-authorization-invalidation.rfc.md`, current
+working-tree revision (sha256
+`e64dcb731745776511a8c85a571802548012a0f102554108f89a25da6c308cd7`).
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1 (`codex exec --ephemeral`),
+model `gpt-5.6-sol`, reasoning effort `xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24592-auth-review`. Fresh session
+`019f5b00-7c7e-7802-8e71-54a249a0a695`.
+**Date:** 2026-07-13
+**Redacted:** Same as earlier rounds.
+**Method:** Focused ENG-24592 gate review of the current unreviewed
+enforcement fixes. This review was explicitly informed by all prior
+`0053-authorization-invalidation.*.md` artifacts (not blind), LLP 0039 at the
+ownership seam, and direct source verification. The reviewer was instructed
+not to reopen the settled architecture or accept on the author's behalf.
+
+### Review body (verbatim)
+
+## Overall assessment
+
+**NOT READY.** The architecture remains sound and settled; no seventh design is warranted. LLP 0039 draws the ownership seam correctly and blocks landing item 6 pending review.
+
+The enforcement fixes are **not safe to implement as written**. The commit-version and denial corrections appear in explanatory prose, but operative state, fence, disposition, and acceptance text still permits the two fail-open traces those corrections were meant to eliminate. The remaining issues are local protocol and consistency corrections.
+
+## Strengths with exact sections
+
+- **Removal security is framed correctly.** [LLP 0053 §Negative deltas, lines 172–206](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:172) correctly treats removals and denied re-queries as obligation-backed negative outcomes.
+
+- **The fail-closed definition of auth-scoped is correct.** [LLP 0053 lines 210–215](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:210) makes every subscription auth-scoped unless explicitly `authorityIndependent`. This closes the opaque-handler hole without reopening the architecture.
+
+- **The corrected closure reasoning is logically sound.** [LLP 0053 lines 378–402](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:378) correctly states that online-only confinement protects retained data but does not create a matcher wake for connected views.
+
+- **Per-scope durability identifies the right crash argument.** [LLP 0053 lines 460–474](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:460) correctly recognizes that matcher removals are discovered post-commit and that process death closes their live-scope crash window through mandatory resnapshot.
+
+- **Commit-version witnessing is implementable with the shipped primitives.** Query and mutation outputs already carry versions ([manifest lines 1647–1657](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/manifest.rs:1647)); `live_delta` obtains the causing commit version ([local.rs lines 4038–4061](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:4038)); and retained storage already rejects lower versions within a stream ([client-store.mjs lines 567–585](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-contract/client-store.mjs:567)).
+
+- **The 0039 seam and landing order are substantially correct.** Ownership is separated at [LLP 0039 lines 988–1080](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:988), and item 6 remains explicitly blocked at [lines 1256–1273](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1256).
+
+## Findings
+
+### HIGH
+
+#### 1. The commit-version fix is not present in the normative obligation record, client fence, or acceptance criteria
+
+**Evidence.** The corrected discharge prose requires a snapshot at or after the causing commit ([0053 lines 475–489](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:475)). But the record still defines `witness: (incarnation, epoch)` ([lines 447–452](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:447)); merging only raises disposition and says nothing about a maximum data-version floor ([lines 455–459](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:455)); the retained fence is still only `(incarnation, epoch)` ([lines 585–599](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:585)); and acceptance still discharges under a satisfying pair ([lines 699–706](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:699)). Status nevertheless claims both mechanisms are now commit-version witnessed ([lines 776–784](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:776)).
+
+The client baseline is also stale: 0053 says retained writes overwrite unconditionally ([lines 587–590](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:587)), while writes are now serialized ([index.mjs lines 462–489](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-contract/index.mjs:462)) and version-CASed. That CAS still lacks an authorization/removal tombstone, so it does not close the fence race after quarantine or deletion.
+
+**Failure trace.** A removal commits at version 100 without changing the authorization pair. A racing version-99 snapshot is acknowledged later and satisfies the record and acceptance’s unchanged pair, discharging the obligation. Alternatively, quarantine deletes the retained record, after which a delayed version-99 callback finds no newer record to compare against and repopulates the store under the unchanged pair. Repeated removals at versions 100 and 105 also have no specified merge rule preserving 105.
+
+**Resolves with.** Define a composite obligation/fence containing the authorization pair, version stream, and minimum commit version. Merge takes the maximum minimum version within the same stream and the maximum disposition; authorization-pair/stream changes dominate data-version comparison. Equal-pair writes must be version-nondecreasing, including against a persisted quarantine/delete tombstone. An acknowledgement must conditionally clear only the current obligation whose composite witness it satisfies. Update the record, fence section, Acceptance, and Status together.
+
+#### 2. Denial/error remains normatively routable to `retain`
+
+**Evidence.** The new rule correctly says any re-query error or denial on an auth-scoped subscription is obligation-backed with disposition at least `quarantine`, never `retain` ([0053 lines 196–206](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:196)). The dispositions table still maps unqualified “fan-out retry” to `retain` ([lines 511–517](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:511)) and has no error/denial producer. Acceptance has no denial case.
+
+The shipped path makes this ambiguity concrete: a re-query error enters `fail_subscription_fanout` ([local.rs lines 3953–3960](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:3953)), which emits a generic recovery resync ([lines 4158–4189](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:4158)). The existing fan-out test proves that an untyped handler throw becomes `live_refresh_failed` ([local_v0.rs lines 3366–3420](/Users/ccheever/projects/snapback-eng-24592-auth-review/tests/local_v0.rs:3366)).
+
+**Failure trace.** A membership change wakes a query whose function-level authorization now throws. The generic fan-out failure is interpreted through the table as `retain`; the client continues showing its old rows while resubscribing. Every resnapshot throws, so “meanwhile” is permanent. No successful snapshot can repair the view.
+
+**Resolves with.** Make the producer table explicit: every `Err` or denial from an auth-scoped re-query produces at least `quarantine`; retry may continue while the rows are hidden, but may never retain them. Reserve recovery `retain` for `authorityIndependent` subscriptions or a path proven not to represent an authorization-negative result. Add acceptance for typed denial, untyped error, repeated failed resnapshots, lost/overflowed quarantine delivery, and substitute-resync disposition inheritance.
+
+### MEDIUM
+
+#### 3. The per-scope durability model has the right idea but an inconsistent identity and linearization contract
+
+**Evidence.** The record contains only a scope category, not a scope identifier ([0053 lines 447–452](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:447)). Identity is described as one `(client, scope)` obligation “keyed durably” ([lines 455–459](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:455)), while subscription- and connection-scoped obligations are then explicitly non-durable ([lines 460–474](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:460)). “Enumerated-event obligations are written transactionally” also does not say how a cause transaction enumerates in-memory connections or offline retained clients.
+
+**Failure trace.** An implementation keys an obligation by a transient subscription ID. Resubscription allocates a new ID, the old scope is collected, and a retained query loses the durable quarantine it still needs. Alternatively, an enumerated event commits, but its per-client obligations are materialized post-commit despite the transactional claim; a crash then leaves no specified durable object from which client obligations are reconstructed.
+
+**Resolves with.** Add an event-by-scope matrix: identify the transactionally durable cause, the post-commit live projection, and the durable retained client/query state. Define the actual scope discriminator and its behavior across resubscribe, reconnect, restart, and GC. Clarify whether the durable authorization version is the authoritative cause from which per-client obligations are projected, or whether durable per-client rows are required.
+
+#### 4. Acknowledgement and level-triggered re-fire are required but have no protocol contract
+
+**Evidence.** Discharge requires delivery and acknowledgement, and an unacknowledged obligation “re-fires on the next wakeup” ([0053 lines 475–479](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:475)); “wakeup” is undefined. The client-to-server socket protocol has no snapshot or obligation acknowledgement variant ([live_wire.rs lines 135–177](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/live_wire.rs:135)). LLP 0039 assigns 0053 ownership of its wire vocabulary ([0039 lines 1228–1235](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1228)), but its deferred protocol obligations do not name the item-6 acknowledgement.
+
+The server already has usable triggers: the outbox drain is destructive ([ephemeral.rs lines 1189–1219](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/ephemeral.rs:1189)), and WebSockets have a 30-second safety-net wake ([server.rs lines 2973–2983](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/server.rs:2973)).
+
+**Failure trace.** The sole removal hint is lost on a quiet connection. The obligation persists, but no defined actor rereads it, so the row remains indefinitely. A naïvely delayed acknowledgement can also race a later merged obligation unless clearing is a conditional comparison against the current composite witness. An ack-incapable session client accumulates obligations forever.
+
+**Resolves with.** Pin that every drain and live heartbeat projects current obligations, with a stated promptness bound. Specify what an acknowledgement names—scope/generation, authorization pair, version stream, snapshot version, and disposition—and require conditional discharge. Gate all session-mode auth-scoped live subscriptions on acknowledgement/disposition capability, not only retained reads. Exact encoding may remain in an implementation spec.
+
+#### 5. Acceptance and the 0039 seam still contradict delivery obligations and mandatory resnapshot
+
+**Evidence.** Design requires an obligation for any removal, including ordinary deletes ([0053 lines 188–195](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:188)). Acceptance instead says ordinary writes fire no obligation and cause no resnapshot beyond shipped behavior ([lines 673–684](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:673)). Design explicitly includes process restart and every non-live resume in mandatory resnapshot ([lines 230–245](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:230)); Acceptance says an ordinary restart does not force retained subscriptions to resnapshot ([lines 713–718](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:713)).
+
+The 0039 seam similarly says ordinary writes “do not resync” ([0039 lines 1017–1027](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1017)) and that ordinary restart must not force every retained subscription to resnapshot ([lines 1012–1015](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1012)).
+
+**Failure trace.** An implementer follows Acceptance and writes a test asserting zero obligations for a `public → private` ordinary update. The implementation passes the gate while recreating the permanent lost-removal defect. A restarted auth-scoped retained view may likewise render without the mandatory revalidation required by Design.
+
+**Resolves with.** Distinguish **delivery obligations** from coarse authorization-event obligations. Ordinary writes cause no epoch advance, no global quarantine, and no unrelated resync amplification, but a result-removing delivery still creates an obligation. Qualify restart language: preserving the incarnation does not itself invalidate every query, but every auth-scoped non-live resume still resnapshots; `authorityIndependent` is the exemption. Mirror those formulations in 0039.
+
+#### 6. The corrected closure argument names the wrong clock residual and Acceptance overclaims refusal
+
+**Evidence.** The logical correction is sound, but [0053 lines 390–402](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:390) and Status ([lines 793–797](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:793)) claim JavaScript `Date.now()` remains reachable and undetectable. Current codegen rejects `Date.now`/`new Date` ([codegen lines 1890–1907](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-codegen/index.mjs:1890)); the deterministic Ibex runtime also denies them ([runtime.rs lines 1731–1779](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/runtime.rs:1731)), with a direct query test ([ctx_ledger_v0.rs lines 404–430](/Users/ccheever/projects/snapback-eng-24592-auth-review/tests/ctx_ledger_v0.rs:404)).
+
+The actual opaque clock surface is `ctx.runtime.now()` ([ctx-bootstrap lines 495–501](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-harness/ctx-bootstrap.js:495)), which the host permits ([runtime.rs lines 744–749](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/runtime.rs:744)). Acceptance nevertheless says any clock-dependent authorization query is refused at manifest load ([0053 lines 693–697](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:693)).
+
+**Failure trace.** The RFC’s proposed `Date.now()` residual test fails at codegen or runtime, so it cannot demonstrate the claimed behavior. Conversely, an opaque handler can call `ctx.runtime.now()`, publish a time-limited result, and receive no write or deadline wake when time passes; the connected view remains stale despite Acceptance’s blanket manifest-refusal claim.
+
+**Resolves with.** Keep the corrected logical closure argument, but name the actual clock surfaces and enforcement stages: declarable `RuntimeNow` authorization is load-rejected; ambient `Date` clocks are codegen/runtime-denied; opaque `ctx.runtime.now()` authorization is the current connected-view residual unless a load-time declaration rule covers it. Update Summary, Acceptance, Status, the expiry oracle, and Open Question 2 consistently.
+
+#### 7. Detecting a shrinking `live_replace` is not pinned for general Ibex output
+
+**Evidence.** The rule depends on knowing that a row the client holds was removed ([0053 lines 188–195](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:188)). The current subscription record stores input and captured read dependencies, not the previously delivered logical result ([local.rs lines 1123–1130](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:1123)). HostPlan deltas can compare captured membership IDs ([lines 4011–4028](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:4011)), but the Ibex `live_replace` path moves the new rows into the envelope and retains only new dependencies ([lines 3953–3987](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:3953)). Raw dependency rows need not equal projected or synthesized output rows.
+
+**Failure trace.** An Ibex query projects, aggregates, or synthesizes output. A re-query at version 100 omits an output row previously delivered, but captured raw dependency membership cannot identify that output removal. No obligation is raised; if the replacement frame is lost, the forbidden row remains.
+
+**Resolves with.** Pin one implementation predicate before coding: retain each subscription’s last potentially delivered logical membership/version, with defined output identity, or conservatively obligation-back every auth-scoped `live_replace`. This is an enforcement detail, not a new architecture.
+
+### LOW
+
+#### 8. The fail-closed auth-scoped rule lacks an explicit acceptance row
+
+**Evidence.** The normative definition is clear at [0053 lines 210–215](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:210), but Acceptance never tests undeclared functions or the `authorityIndependent` opt-out.
+
+**Failure trace.** A test suite can pass while an implementation applies obligations only to functions with declared authorization dependencies, recreating the opaque-handler lost-removal hole.
+
+**Resolves with.** Add fixtures proving undeclared means auth-scoped and only explicit `authorityIndependent` suppresses removal obligations.
+
+#### 9. `permissionFields` still lacks the conservative unknown-fields rule
+
+**Evidence.** The declaration is defined at [0053 lines 282–304](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:282), but no rule covers empty/unknown `changed_fields`. Journal reconstruction deliberately produces an empty list ([storage.rs lines 3305–3340](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/storage.rs:3305)); the matcher correctly treats empty as unknown and therefore affected ([live_matcher.rs lines 352–365](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/live_matcher.rs:352)).
+
+**Failure trace.** A journal-reconstructed permission-table update has no field list. An implementation treats the empty intersection as irrelevant and suppresses the authorization event.
+
+**Resolves with.** State that empty or unavailable `changed_fields` means “may include every field” and fires the event.
+
+#### 10. LLP 0039 retains stale open-question vocabulary
+
+**Evidence.** The seam says 0053 rejected classification and pins the retained lease ([0039 lines 50–55](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:50), [lines 1271–1273](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1271)), while its Open Questions still move a possible fifth classification class and the lease default to 0053 ([lines 1519–1523](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1519)).
+
+**Failure trace.** A landing planner can incorrectly treat rejected classification work or the settled 24-hour default as an unresolved prerequisite.
+
+**Resolves with.** Replace the stale paragraph with 0053’s actual remaining questions.
+
+## Open questions
+
+1. What stable identity names subscription-, connection-, and retained client/query-scoped obligations across resubscription, reconnect, multiple tabs, and process restart?
+
+2. What exact composite value does an acknowledgement name, and which implementing protocol document owns its wire schema and conditional-discharge transaction?
+
+3. Is opaque `ctx.runtime.now()` authorization deliberately admitted as the named connected-view residual, or must retainable/auth-resyncable admission reject any handler that can call it?
+
+4. For arbitrary Ibex output, will shrinking-result detection retain logical output membership, or will all auth-scoped `live_replace` deliveries be conservatively obligation-backed?
+
+## Recommended next step
+
+Revise LLP 0053 in place; do not reopen the architecture. Correct the obligation record, composite fence, merge/discharge semantics, denial disposition table, per-scope identity/durability matrix, acknowledgement/re-fire obligation, clock wording, and Acceptance/Status rows. Reconcile the narrow 0039 seam wording in the same revision, then run one focused independent review of that diff while keeping landing item 6 blocked.
+
+**As written, the enforcement fixes are not safe to implement. After the HIGH and MEDIUM corrections above are made—and the LOW safety pins are incorporated into acceptance—they are safe to implement without a seventh design. This review does not accept the RFC on the author’s behalf.**
+
+
+## Round 5 — 2026-07-13 (paired blind confirmation of the revised enforcement gate)
+
+**Reviewed:** `llp/0053-authorization-invalidation.rfc.md` at SHA-256
+`fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592`.
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1
+(`codex exec --ephemeral`), model `gpt-5.6-sol`, reasoning effort
+`xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24592-auth-review`.
+Fresh thread `019f5b3c-ad45-7a11-8b63-b6a3123f0bdd`.
+**Date:** 2026-07-13
+**Review-body SHA-256:**
+`9aa894c592ea50cb697b9c3127e9b4dbc6a9c03fa64e8a26b8a40b73ff616369`.
+**Redacted:** no
+**Method:** Independent adversarial confirmation of the exact frozen candidate.
+The reviewer was forbidden from reading prior review artifacts and had read-only
+access to the RFC, governing LLPs, and source tree. Nothing was edited.
+
+### Review body (verbatim)
+
+# Review of Snapback LLP 0053
+
+**Digest reviewed:** `fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592`
+
+**Verdict: NOT READY**
+
+The core architecture is sound: composite authorization/data witnesses, scope-local revisions, connection-root children, level-triggered obligations, terminal-delete proofs, ACK-after-commit, query/queue generations, mandatory resnapshot, and capability refusal form a coherent direction. The frozen text still has three blocking specification defects and two bounded protocol gaps.
+
+## HIGH
+
+1. **The RFC contradicts its governing, ratified authorization contract.**
+
+   Anchors: [§Summary, line 78](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:78), [§Authorization-event universe, lines 345–353](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:345), [§Worked classifications, lines 881–884](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:881), [§Acceptance, lines 912–919](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:912).
+
+   LLP 0053 says LLP 0011 wins where it pins a contract, while LLP 0011 requires every permission-affecting write to advance an authorization epoch and emit server-directed resync ([LLP 0011 lines 232–249](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0011-auth-and-permissions.rfc.md:232)); LLP 0008 repeats that requirement ([lines 455–462](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0008-local-first-sync-and-realtime.rfc.md:455)). LLP 0053 instead requires `public → private` and similar row-mediated authorization changes to advance no epoch. Both contracts cannot be implemented simultaneously.
+
+   **Bounded resolution:** make acceptance of 0053 explicitly supersede the cited LLP 0011/0008 clauses, and land the corresponding dated amendments/root-ledger reconciliation before item 6 begins.
+
+2. **A known mutable query input remains outside machine-enforced admission.**
+
+   Anchors: [§Authorization-event universe, lines 429–449](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:429), [§Open Question 2, lines 1064–1069](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:1064).
+
+   The text correctly admits that online-only confinement does not wake a connected query, but leaves enforcement open. This is already concrete: `ctx.runtime.id()` is exposed to queries ([ctx-bootstrap.js lines 495–501](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-harness/ctx-bootstrap.js:495)) and produces a fresh host ID ([runtime.rs lines 568–607](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/runtime.rs:568)). An auth-scoped handler can branch visibility on it without a database write, epoch event, or matcher wake. The connected result can therefore remain authorization-stale indefinitely.
+
+   **Bounded resolution:** refuse `ctx.runtime.id()` and every other non-database mutable host input while establishing or rerunning auth-scoped subscriptions and retainable queries, or define an exhaustive machine-enforced allowlist. Add initial-run and rerun acceptance on every runtime profile.
+
+3. **The lease does not yet substantiate its bounded-exposure guarantee.**
+
+   Anchors: [§The lease, lines 698–736](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:698), especially [lines 708–715](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:708), and [lines 739–742](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:739).
+
+   The lease is the only claimed bound for an unreachable honest client, but the RFC does not pin the issuer/time basis, rollback behavior, atomic binding to the accepted composite witness, renewal linearization, or the actual configurable ceiling. An honest wall-clock rollback can extend `authorizedUntil` beyond the promised lease, and a renewal racing invalidation can persist a fresh-looking lease against stale rows.
+
+   **Bounded resolution:** make `authorizedUntil` a server-issued absolute expiry bound to the snapshot proof and composite witness; commit it atomically with snapshot/fence state before ACK; fail closed on missing expiry or detected clock rollback; state the default and maximum explicitly; and add expiry-while-closed, rollback, renewal/invalidation-race, and delete-before-render tests.
+
+## MEDIUM
+
+1. **Extinct-scope retirement and tombstone GC are incomplete across server failure and long-term churn.**
+
+   Anchors: [§Invalidation obligations, lines 554–585](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:554), [§GC, lines 633–640](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:633), [§Client fences, lines 786–793](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:786), [§Acceptance, lines 986–994](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:986).
+
+   Server live-scope state is intentionally non-durable, while client pending scopes are durable. The RFC does not define how a new process proves an old scope extinct if the old process died before issuing retirement proof. It also requires per-scope high-water state to survive indefinitely, yielding unbounded durable growth under repeated subscription churn.
+
+   **Bounded resolution:** add an authenticated server boot/connection-issuer generation that can retire every prior-generation scope after a satisfying snapshot; define safe query-instance rotation or a fail-closed cap for compacting retired high-waters; test crash-before-retirement and sustained churn.
+
+2. **The bounded denial/error retry contract has no specified state owner.**
+
+   Anchors: [§Negative deltas, lines 221–236](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:221), [obligation record, lines 501–511](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:501), [client pending state, lines 773–778](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:773), [§Acceptance, lines 996–1004](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:996).
+
+   Exactly two retries within one non-resettable 15-second budget are required, but neither normative state representation records attempts or budget origin, and ownership across retransmission is unspecified.
+
+   **Bounded resolution:** assign retry state to the server obligation revision, with monotonic `first_failure_at` and attempt count; state its behavior under duplicate re-fire, newer revisions, reconnect, and process loss; add boundary-time fault tests.
+
+## LOW
+
+None.
+
+**Architecture sound:** Yes—the architectural direction is sound. These findings require closing contracts and enforcement edges, not redesigning the matcher/obligation/fence model.
+
+**May items 6 and 8 unblock on this text?** No. Item 6 remains blocked by the governing-contract conflict, mutable-input admission hole, and retirement/retry gaps. Item 8 additionally remains blocked by the incomplete lease contract.
+
+
+## Round 6 — 2026-07-13 (final paired blind confirmation of the operative gate)
+
+**Reviewed operative corpus:**
+
+- `llp/0000-snapback.explainer.md` at SHA-256
+  `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03`
+- `llp/0008-local-first-sync-and-realtime.rfc.md` at SHA-256
+  `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac`
+- `llp/0011-auth-and-permissions.rfc.md` at SHA-256
+  `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1`
+- `llp/0013-ephemeral-realtime-state.rfc.md` at SHA-256
+  `7c6bd5b4642153e75a684b1f4632b4187effcaa21630ded4e8a82bd753ae4177`
+- `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+  `33b71fbc229d61c793fafca867b8cb18c9186356722d101f0696a3fa84e84e0b`
+- `llp/0053-authorization-invalidation.rfc.md` at SHA-256
+  `98f286826e4cf0fb283648747ba209fbed99f8f09519a1e1498f18b86136bf8f`
+
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1
+(`codex exec --ephemeral`), model `gpt-5.6-sol`, reasoning effort
+`xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24592-auth-review`.
+Fresh thread `019f5b7a-fd5e-7aa2-84f6-d8c2038aff2a`.
+**Date:** 2026-07-13
+**Review-body SHA-256:**
+`0c9a6653eb0ccd39f7b901534932549375e162cec6091064332a1a2fc66e5a57`.
+**Redacted:** no
+**Method:** Blind adversarial confirmation of the exact operative corpus. The
+reviewer was forbidden from reading prior review artifacts, verified all six
+hashes, inspected governing LLPs and source, ran the reference checker, and
+edited nothing.
+
+### Review body (verbatim)
+
+# Verdict: NOT READY — High severity
+
+The architecture remains sound, but the enforcement contract has one blocking identity/GC inconsistency. This is a bounded protocol correction, not a seventh design.
+
+The two independent blind reviews initially returned READY. During final synthesis, the issue below surfaced; both reviewers then independently confirmed it as a High blocker. No review artifact was read and no file was edited.
+
+## Hash gate
+
+All operative SHA-256 values matched exactly:
+
+| LLP | Verified hash |
+|---|---|
+| 0000 | `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03` |
+| 0008 | `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac` |
+| 0011 | `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1` |
+| 0013 | `7c6bd5b4642153e75a684b1f4632b4187effcaa21630ded4e8a82bd753ae4177` |
+| 0039 | `33b71fbc229d61c793fafca867b8cb18c9186356722d101f0696a3fa84e84e0b` |
+| 0053 | `98f286826e4cf0fb283648747ba209fbed99f8f09519a1e1498f18b86136bf8f` |
+
+`./ref-check --verbose` also completed with 0 errors.
+
+## Blocking finding
+
+High — `ClientQuery` scope identity cannot simultaneously provide anti-replay and bounded retirement.
+
+Exact evidence:
+
+- A live `Subscription` scope includes `query_instance_id`, but `ClientQuery` includes only `{client_store_id, query_key}`: [LLP 0053:637](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:637).
+- Revision high-water must survive discharge until authenticated retirement: [LLP 0053:703](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:703).
+- The only two authenticated retirement forms require issuer/scope-sequence fields that `ClientQuery` lacks: [LLP 0053:752](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:752).
+- GC nevertheless claims that a new `query_instance_id` lets the former namespace disappear and prevents old-instance frames from allocating state: [LLP 0053:879](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:879), [LLP 0053:1206](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:1206).
+- The existing store’s canonical retained key is only function plus arguments, reinforcing that the missing discriminator must be explicitly added: [client-store.mjs:34](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-contract/client-store.mjs:34).
+
+Failure trace:
+
+1. Retained query `Q` uses instance `I1` and receives a `ClientQuery` obligation at revision `R`.
+2. It is discharged and compacted; `Q` is recreated as never-reused instance `I2`.
+3. Both lifecycles nevertheless have the identical wire scope `{store, Q}`.
+4. If the old revision state is compacted, delayed `I1` obligations cannot be distinguished from `I2`; coincident revision/witness/proof tuples also undermine stale-ACK rejection.
+5. If the high-water is retained forever to prevent reuse, unique query-key churn grows permanent per-key state, contradicting bounded GC.
+
+Composite witnesses mitigate some stale ACK schedules, but they cannot supply the missing instance discriminator or resolve the storage-bound contradiction.
+
+Bounded resolution:
+
+1. Define `ClientQuery { client_store_id, query_key, query_instance_id }`.
+2. Bind that ID into obligations, resolution/ACK tokens, full-scope comparison, and old-frame rejection.
+3. Specify client-query instance retirement: apply the maximum pending disposition, advance query and queue generations, retire the exact instance, then permit its revision state to be removed. Missing state must reject frames without allocating state.
+4. Add an adversarial `I1 → compact → I2` test with delayed obligation/proof/ACK frames, plus million-key churn proving bounded state.
+
+## Confirmed portions
+
+No other blocker was found:
+
+- Corpus precedence and dated amendments are coherent and acceptance-gated: [0000:336](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0000-snapback.explainer.md:336), [0008:465](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0008-local-first-sync-and-realtime.rfc.md:465), [0011:261](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0011-auth-and-permissions.rfc.md:261).
+- Protected-query admission is closed/default-deny.
+- Composite witnesses, dispositions, denial/error handling, durable retry episodes, and ACK-after-commit are enforceable.
+- AuthorizedLease atomic head/auth/activation proof, rollback handling, renewal, clamps, and expiry are complete.
+- Room invalidation covers registration, snapshot, mutation, enqueue, drain, and final send with precommit barriers.
+- LLP 0039 and 0053 carry the same item 5/6/7/8 activation matrix: [0039:1325](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1325).
+- Existing source provides concrete implementation seams for destructive drain, delta removal, room locking, commit guards, fresh VMs, and Web-Locked retained storage.
+
+## Gate consequences
+
+- Architecture sound: **Yes**.
+- Item 6 may unblock on this candidate: **No**.
+- Item 8 may unblock on this candidate: **No**; it additionally retains LLP 0039’s items 5/6/7 prerequisites.
+- ENG-24592 can close: **No**. It can close after the bounded correction is incorporated and independently confirmed.
+
+This is a readiness recommendation only; it does not accept LLP 0053 on the author’s behalf.

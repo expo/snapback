@@ -10,8 +10,12 @@ artifact/auth tuple including v1-dev refusal, pinned the actual-predecessor
 diagnostic proof, made privileged provisioning the explicit `MODE_PENDING`
 recovery branch, and corrected the LLP 0053 ownership seam; one focused exact
 confirmation completed READY by both reviewer families — see §Status and
-§Changelog); 2026-07-12 (super-refine rounds 1–6; loop stopped on a structural
-finding — see §Status and §Changelog, and
+§Changelog); 2026-07-13 (paired LLP 0053 seam reconciliation plus the ENG-24592
+local-audit activation closure: sessions may activate after item 5, but every
+auth-scoped live surface stays refused until item 6; item 7 remains independent
+and proves only finite-invocation isolation until then); 2026-07-12 (super-refine
+rounds 1–6; loop stopped on a structural finding — see §Status and §Changelog,
+and
 `reviews/0039-auth-vertical-slice.{fable,codex}.md`)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0017, LLP 0020, LLP 0024, LLP 0026, LLP 0030, LLP 0031, LLP 0032, LLP 0034, LLP 0036, LLP 0038, LLP 0042, LLP 0043, LLP 0045, LLP 0046, LLP 0047, LLP 0051, LLP 0053
 
@@ -55,11 +59,11 @@ The slice is:
 
 **Authorization invalidation is [LLP 0053](./0053-authorization-invalidation.rfc.md)'s**
 — the authorization-event universe, invalidation obligations, dispositions, and
-the retained/offline lease all live there. (What *moved* at the split was a
-classification model and a `resync_required` disposition; 0053 has since rejected
-both. This document names 0053's outcomes, never its internals — precisely because
-its internals keep changing.) This document remains the umbrella and owns the landing
-order for both.
+the retained/offline lease all live there. What *moved* at the split included an
+early classification proposal and generic `resync_required` shape; 0053 replaced
+them with orthogonal declarations and composite witnessed obligations. This
+document names that RFC's cross-boundary outcomes without re-owning its protocol.
+It remains the umbrella and owns the landing order for both.
 
 **Target scope.** This slice binds the **local Rust server target**.
 `auth.mode` is a **must-understand** manifest field — an explicit carve-out
@@ -215,9 +219,13 @@ no offline retained reads** until landing item 8. The first closed-IR,
 single-query M1/M2 slice in
 [LLP 0043](./0043-offline-replay-retention.rfc.md) shipped retained stale boot,
 but that capability is disabled under `auth.mode: "sessions"` until LLP 0053's
-reviewed fail-closed retained-authorization contract lands; in-memory clearing
-alone is not fail-closed across a restart. Adopting auth therefore trades offline
-reads away temporarily, and that trade is stated here rather than discovered.
+reviewed fail-closed retained-authorization contract and durable client fence
+land; in-memory clearing alone is not fail-closed across a restart. Adopting auth
+therefore trades offline reads away temporarily, and that trade is stated here
+rather than discovered. It also temporarily refuses every **auth-scoped live**
+surface: items 1–5 may activate sessions for finite request/response work and
+explicitly `authorityIndependent` live behavior, but item 6 must land before an
+auth-scoped durable subscription or protected ephemeral room can register.
 Session-enabled apps refuse plaintext non-loopback binds. Three contracts
 this slice depends on are **unowned today** and are named rather than
 implied: hosted deployment security (TLS termination, trusted-proxy source
@@ -347,9 +355,9 @@ refused**:
   the exception could not be honored pre-bind anyway.
 - **Bootstrap handshake:** `GET /auth/session` returns
   `{ activeMode, desiredMode, modeState }`, the client protocol/DTO version,
-  retained-read availability, queued-replay availability, the minimum
-  disposition/fence-aware client protocol, and the caller's projection. It is
-  **exempt from
+  separate auth-scoped-live, retained-read, and queued-replay availability, the
+  minimum invalidation- and disposition/fence-aware client protocols, and the
+  caller's projection. It is **exempt from
   the dev-mode `/auth/*` refusal** (it is the discovery endpoint, not a
   provider operation) and it serves during `MODE_PENDING` (that is how the
   state is diagnosable). The kit must complete it before any **online**
@@ -1035,7 +1043,8 @@ durable delete**, and only then exposes state or resubscribes.
 
 **The epoch check guards every write into client state, not just failures.** A
 delayed *success* — a late query response, a subscription callback, an
-optimistic reconciliation, a fire-and-forget retained write — can repopulate
+optimistic reconciliation, a retained write queued before the authority
+transition — can repopulate
 user A's data after an A→B wipe just as surely as a late error can clear B's.
 So every success, failure, callback, queue mutation, optimistic
 reconciliation, and durable-store write is an authority-epoch
@@ -1071,9 +1080,14 @@ Under sessions the operation's identity is the connection's bound authority.
 Two closures, not one:
 
 - Collections whose `AccessPolicy` requires room permissions are a **declared
-  capability gap** — they fail closed with `AUTH_PERMISSION_DENIED` until the
-  [LLP 0013](./0013-ephemeral-realtime-state.rfc.md)/0026 integration derives
-  room grants from durable data.
+  capability gap** — before item 6 their registration fails closed with
+  `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`; after item 6 a fresh authorization
+  denial is `SNAPBACK_AUTH_PERMISSION_DENIED`. The
+  [LLP 0013](./0013-ephemeral-realtime-state.rfc.md)/0053 item-6 integration
+  derives room grants from durable `permissionBacking` data and projects every
+  relevant authorization event into room-authority suspension plus fresh
+  snapshot reauthorization. This is an item-6 deliverable, not an unowned later
+  gap.
 - **`KeyMode::Custom` is rejected at manifest load under sessions.** Key mode
   is independent of `AccessPolicy` today. ENG-24353 already made the local
   baseline connection-owned: once one connection creates a custom key, another
@@ -1113,7 +1127,11 @@ Two closures, not one:
   the cross-user overwrite and delete negatives on **every** permitted key mode,
   not just `Custom`.
 
-The "private rooms" claim of this slice is therefore about durable data.
+Through item 5 the "private rooms" claim is limited to finite request/response
+data. Auth-scoped durable live and protected room collections stay
+capability-refused. Item 6 adds the live-obligation and commit-ordered room-
+authority invalidation contracts; only then may either live surface claim that a
+membership kick stops delivery.
 
 ### Permission dependencies — owned by LLP 0053
 
@@ -1166,6 +1184,20 @@ What this slice depends on from 0053, and must not contradict:
   ironically, **the design 0053 rejected as its first failed attempt** (it is the
   resync storm). 0053 has redesigned this mechanism six times; any mechanism this
   document names will go stale again. It names none.
+- **Protected ephemeral rooms reauthorize under the same item-6 event.** A
+  permission-backing membership change installs a dependency-indexed pending
+  registry fence atomically with affected-room enumeration, installs and
+  quiesces each room sink barrier before commit, then fresh-snapshots durable
+  membership and either rebuilds the room authority or unregisters the denied
+  subscriber. LLP 0013 owns the room state machine; 0053 owns the event
+  projection/obligation and the registration/snapshot/publish/enqueue/drain/send
+  linearization. Until item 6, the capability stays refused rather than claiming
+  partial private-room support.
+- **Auth-scoped live is admission-refused until item 6.** Items 1–5 may activate
+  sessions for finite request/response work and explicitly
+  `authorityIndependent` live surfaces. The server creates no auth-scoped live
+  boundary until item 6 advertises the invalidation protocol and the client
+  negotiates it; item 7 does not relax this gate.
 - **Invalidation carries a disposition, not a boolean** (`retain < quarantine
   < delete`), and the client `AuthCoordinator` specified in §Authority
   transitions is what *executes* it. **Ownership is split the same way as the
@@ -1196,12 +1228,14 @@ What this slice depends on from 0053, and must not contradict:
   *requiring* deletion here — that attribution was stale and is withdrawn.)
 - **Retained/offline reads are disabled under session mode** until item 8 lands
   0053's reviewed fail-closed retained-authorization outcome, its durable client
-  fence, and the minimum disposition-aware client protocol. The bootstrap
-  handshake reports both availability and that minimum; an older or unknown
-  client is refused. This is why landing item 8 is last — and the product
-  consequence is stated plainly in §Summary rather than buried: **adopting
-  sessions temporarily removes the retained stale-boot capability shipped by LLP
-  0043's first closed-IR, single-query slice**.
+  fence, its `AuthorizedLease`/store capability over the query-scoped
+  quarantine/delete primitive and stored `(incarnation, epoch)`, and the minimum
+  disposition-aware client protocol. The bootstrap handshake reports retained
+  availability and that minimum separately from item 6's auth-scoped-live
+  availability; an older or unknown client is refused. This is why landing item
+  8 is last — and the product consequence is stated plainly in §Summary rather
+  than buried: **adopting sessions temporarily removes the retained stale-boot
+  capability shipped by LLP 0043's first closed-IR, single-query slice**.
 
 The auth-variable expression half already ships and is unchanged by the split:
 `authUserId()` / `ValueExpr::AuthUserId` with fail-closed evaluation via
@@ -1210,8 +1244,8 @@ session-derived contexts (§Acceptance).
 
 **This document names 0053's outcomes, never its internals.** 0053's model has
 already been redesigned twice under review, so any vocabulary this document
-copied would go stale — as it did. The seam is therefore stated only as the four
-invariants above, and 0053 owns every declaration name, diagnostic code, and
+copied would go stale — as it did. The seam is therefore stated only as the
+outcome invariants above, and 0053 owns every declaration name, diagnostic code, and
 manifest/wire vocabulary that implements them. If an implementer needs those
 names, they read 0053.
 
@@ -1299,7 +1333,8 @@ broader milestone).
 | `SNAPBACK_AUTH_SESSION_EXPIRED` | A well-formed credential is expired or revoked | 401 | auth-error frame, then close; grant invalidated | after re-auth |
 | `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` | Ordinary request presented a superseded family token past the grace window; the session is healthy | 401 | n/a (bound sockets present only the connection token) | reload custody, retry once |
 | `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` | Legacy body auth presented under sessions (regardless of any valid bearer) | 400 | typed auth-error frame | remove body auth |
-| `SNAPBACK_AUTH_PERMISSION_DENIED` | Authenticated but not authorized (handler deny; capability-gapped ephemeral rooms) | 403 | typed auth-error frame | no |
+| `SNAPBACK_AUTH_PERMISSION_DENIED` | Authenticated but not authorized (handler deny; item-6 protected-room reauthorization deny) | 403 | typed auth-error frame | no |
+| `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | The server can enforce sessions but item 6's auth-scoped-live invalidation protocol is not installed; refusal occurs before registration/materialization | 503 | subscribe/resume refusal before a live boundary exists | after item 6 lands |
 | `SNAPBACK_AUTH_THROTTLED` | Rate limit (per-address code requests; per-source connection opens) | 429 | n/a | after window |
 | `SNAPBACK_AUTH_CODE_INVALID` | Wrong, unknown, expired, consumed, or superseded challenge/code — one non-enumerating outcome | 401 | n/a | new challenge |
 | `SNAPBACK_AUTH_CODE_LOCKED` | Attempt limit exhausted; challenge dead | 403 | n/a | new challenge |
@@ -1387,7 +1422,8 @@ the closed tuple rule prevents treating the two arrays as a Cartesian product);
 the
 bootstrap handshake and gated runtime-state surface report the effective app
 facts — active/desired `authMode`, providers, enabled transports,
-`writeAuthorization: "handler"`, retained-read and queued-replay availability,
+`writeAuthorization: "handler"`, `authScopedLiveAvailable`, retained-read and
+queued-replay availability,
 and the minimum disposition/fence-aware client protocol. Registration is
 partitioned by the owning registry: **LLP 0012** owns the `SNAPBACK_AUTH_*`
 diagnostic family, capability/runtime-state auth facts, and the must-understand
@@ -1435,7 +1471,8 @@ The lands-before edges:
    `AuthCoordinator`/custody/clearing** — requires 3–4; owns the
    `app.reset` → `ConnectionRegistry` wiring.
 6. **Authorization invalidation** (**LLP 0053**: declarations, the
-   authorization-event universe, epochs, obligations, dispositions) — requires
+   authorization-event universe, epochs, obligations, dispositions, protected-
+   query admission, and room-authority reauthorization) — requires
    **5**, which supplies the `AuthCoordinator`, disposition execution, serialized
    clear barrier, and durable incarnation. LLP 0053 supplies and owns its own
    item-6 authorization-invalidation fence; this document asserts no queue-fence
@@ -1450,9 +1487,10 @@ The lands-before edges:
    (this document) — requires 3 and item 5's kit work; independent of 6.
 8. **Retained reads under sessions** (**LLP 0053**) — requires 5, 6, and 7; lands
    last. It requires 0053's accepted fail-closed retained-authorization contract,
-   durable client fence, and a disposition-aware client. The lease mechanism and
-   its product-owned numeric default remain 0053's; this seam names only the
-   required outcome.
+   durable client fence, a disposition-aware client, and the full
+   `AuthorizedLease` contract. LLP 0053 pins the 24-hour default and hard
+   maximum, rollback clocks, and session/provider clamps; this seam names only
+   the required outcome.
 
 **Activation gate, pinned:** `auth.mode: "sessions"` is not enableable until
 items **1–5** are present. Items 1–4 alone would allow sessions with
@@ -1472,15 +1510,28 @@ Item 7 enables queued replay only when the two-axis store is migrated and every
 `clientMutationId` carries a descriptor enforced on first delivery and duplicate
 settlement.
 
+**Session activation matrix (identical in LLP 0039 and LLP 0053):**
+
+| Landed items | Session-mode admission |
+|---|---|
+| **1–5** | `auth.mode: "sessions"` may activate. Ordinary online request/response and explicitly `authorityIndependent` live surfaces are allowed. Every auth-scoped live surface (durable subscribe/resume or protected ephemeral-room registration) is refused server-side with `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`; retained/offline reads remain refused. |
+| **+6** | Auth-scoped live surfaces unlock only when server and client negotiate `authInvalidationProtocol: 1`; retained/offline reads remain refused. |
+| **+7** | No admission change. The authority descriptor is an optional additional equality axis and item 7 may land before item 6. |
+| **+8** | Retained/offline reads unlock only when the item-8 lease/store capability is also negotiated. |
+
 Because items 6 and 8 are 0053's, and items 1–5 and 7 depend on **no 0053
 deliverable** (the incarnation having moved here — §Permission dependencies), the
 settled core can land and be proven while 0053 is in review. That separation is
 the point of the split, and it only holds because the incarnation moved.
 
-**What the proving demo proves at item 7, stated honestly:** the card game's
-hidden-state mechanic — two clients, same query, different authorized results —
-is provable at item 7. Its *revocation* mechanic is **not**: a removed player
-keeps receiving the game until item 6 lands. Say so in the acceptance and in the
+**What item 7 proves while item 6 is still blocked, stated honestly:** two users
+receive different authorized results through fresh finite invocations, and the
+authority descriptor/two-axis queue rejects cross-authority replay. It proves no
+auth-scoped live behavior: subscribe/resume is still admission-refused. Item 7
+remains implementation-independent of item 6. The card game's full subscribed
+hidden-state and kick proof runs only after **both** items 6 and 7: item 6 supplies
+witnessed durable invalidation and commit-ordered room-authority reauthorization;
+item 7 supplies the replay/storage equality axis. Say so in acceptance and the
 LLP 0016 diary rather than discovering it when the demo ships.
 
 Companion obligations: the **0031 revision** (item 1); the **0017 and 0034
@@ -1489,13 +1540,16 @@ amendments** (item 2); the **0051 amendment** (descriptor channel; reconcile
 the **0043 amendment** (its first closed-IR, single-query M1/M2 slice adopts the
 descriptor here and item-8 invalidation outcome); the **0012 registrations** (§Observability,
 including the must-understand carve-out; 0053 registers its own manifest and
-wire vocabulary); the **0011 dated addendum** (write-authorization interim
-narrowing; explicit sign-out-clearing ratification); the **0024 amendment**
+wire vocabulary); the **0000/0008/0011 dated authorization-invalidation
+amendments** (0053 precedence without weakening fail-closed/fresh-snapshot
+fundamentals); the **0013 room-authority amendment**; the remaining **0011
+dated addendum** (write-authorization interim narrowing; explicit sign-out-
+clearing ratification); the **0024 amendment**
 (`session` authority mode; `auth.mintSession` verb); the **0045 handoff**
 (capture mailbox **and** the ephemeral-payload seam keeping codes out of durable
 intents); the **0004 example alignment** (0053's, since it turns on the
 analyzable filter forms); and **LLP 0020 §Remaining Phase 4** closes when 0053
-lands. The proving demo lands with or immediately after item 7.
+lands. The full subscribed proving demo lands only after both items 6 and 7.
 
 ## Protocol obligations deferred to implementation
 
@@ -1590,6 +1644,15 @@ They are recorded so they cannot be quietly lost:
    remainder is refused rather than partially leaked. Expiry and table scope are
    checked atomically with admission. Console custody is memory-only and tested
    against every persistence adapter.
+10. **Protected-room sink linearization** (item 6). LLP 0053's implementing spec
+   must install a unique dependency-indexed registry ticket atomically with
+   affected-room enumeration, interlock protected-room registration/initial
+   snapshot installation with that ticket, install and quiesce each pending
+   room-authority barrier before an authorization-changing commit,
+   finalize/compare-rollback by exact ticket, and generation-check atomically
+   with room mutation, fanout enqueue, destructive drain, and final send. A
+   post-commit callback, enumerate-then-register gap, or loose validate-then-act
+   check is not sufficient while those sinks bypass the global write mutex.
 
 ## Non-goals
 
@@ -1604,9 +1667,9 @@ They are recorded so they cannot be quietly lost:
   rejects, reports it (`writeAuthorization: "handler"`), proves the substitute
   per write class in §Acceptance, and records the interim in the 0011
   addendum.
-- Ephemeral room-permission integration, and custom ephemeral keys under
-  sessions (both fail closed until key/room authorization derives from durable
-  data).
+- Custom ephemeral keys under sessions (still fail closed until generated
+  key-level authorization exists). Room-permission invalidation is no longer a
+  non-goal: LLP 0053 item 6 owns it.
 - Automatic mirroring of `_auth_*` facts into app tables.
 - Identity-subject (email) change or rename, and built-in user deletion —
   both will eventually press on the `(provider, subject)` uniqueness model;
@@ -1755,9 +1818,18 @@ slice owns, and they must hold jointly with 0053's no-regression pin):
 
 - Unauthenticated subscribe to an auth-filtered query fails closed rather than
   receiving all rows.
-- Two clients subscribed to the same logical query receive different authorized
-  results — 0011's sharpest partial-sync proof, and the card game's core
-  mechanic.
+- With only items 1–5 — including when independent item 7 has also landed — an
+  authenticated auth-scoped subscribe/resume or protected-room registration is
+  refused before registration with `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`.
+  Finite request/response and explicitly `authorityIndependent` live surfaces
+  remain available.
+- Item 7 proves two users receive different authorized results through fresh
+  finite invocations and that its authority descriptor/two-axis queue rejects
+  cross-authority replay. It makes no auth-scoped live claim.
+- After item 6, two protocol-1 clients subscribed to the same logical query
+  receive different authorized results — 0011's sharpest partial-sync proof and
+  the card game's core mechanic. A missing/older client is refused before
+  registration, and a legacy connected client is closed.
 - `SNAPBACK_AUTH_USER_MISSING` behavior is unchanged for session-derived
   contexts (regression pin on the shipped fail-closed evaluation).
 - Retained/offline reads are disabled under session mode until item 8's reviewed
@@ -1778,6 +1850,16 @@ slice owns, and they must hold jointly with 0053's no-regression pin):
   same `AuthCoordinator` barrier as a permission-epoch change — the two paths
   share one client mechanism, so a session invalidation cannot leave rows a
   permission invalidation would have cleared.
+- Item 6's card-game kick closes both carriers: the durable board follows 0053's
+  witnessed disposition/ACK path, while the `gameMembers` permission-backing
+  event installs its dependency-indexed registry ticket atomically with
+  enumeration, makes racing registration/snapshot publication either precede and
+  join that set or observe pending, installs and quiesces each exact-ticket room
+  barrier before commit, and generation-checks room mutation, enqueue, drain,
+  and final send atomically with each act. It then fresh-snapshots membership and
+  unregisters the denied player. Before item 6 the room capability remains
+  refused; after item 6 no trace permits a kicked player to receive opponent room
+  state.
 
 **Sessions, connections, clearing:** expiry and logout produce
 `SESSION_EXPIRED` on both paths (typed frame then close; reconnect suppressed;
@@ -1826,8 +1908,9 @@ HTTP-200 exception.
 
 The proving demo is the card game — the slice LLP 0038 names as blocked on auth
 — whose hidden-state mechanic is exactly the two-clients-different-results
-acceptance; landing them together converts the sharpest claim into
-[LLP 0016](./0016-diary-driven-change-program.plan.md) diary evidence.
+acceptance. Item 7 may land and prove the finite form independently; the full
+subscribed hidden-state and kick diary evidence lands only after both items 6
+and 7.
 
 ## Open Questions
 
@@ -1846,8 +1929,9 @@ acceptance; landing them together converts the sharpest claim into
 - When cookies return, what is the full issuance/rotation/deletion and
   Origin/CSRF contract, including credential-establishing requests and
   absent-Origin rules?
-- When does the ephemeral room-permission gap close, and what does key-level
-  authorization for `KeyMode::Custom` look like?
+- What does key-level authorization for `KeyMode::Custom` look like? Protected
+  room-permission invalidation now closes with LLP 0053 item 6; custom entry
+  ownership remains separate.
 - Does email canonicalization need an IDNA/Unicode policy beyond
   trim/NFC/lowercase/length?
 - Can the thief-vs-shared-custody ambiguity in refresh supersession be closed
@@ -1856,11 +1940,10 @@ acceptance; landing them together converts the sharpest claim into
   DPoP/RFC 9449 shape, which is also the named trajectory for the unowned
   client-XSS posture)?
 
-The invalidation questions — structural proof for subject-scoped suppression,
-which other opaque mutable inputs need a wake/admission refusal, non-user scope
-algebra, ownership of the pinned 24-hour lease number, and hosted-coordinator
-parity — live in [LLP 0053](./0053-authorization-invalidation.rfc.md) §Open
-Questions.
+The remaining invalidation questions — structural proof for subject-scoped
+suppression, non-user scope algebra, and hosted-coordinator parity — live in
+[LLP 0053](./0053-authorization-invalidation.rfc.md) §Open Questions. Mutable
+protected inputs and the 24-hour lease default/hard maximum are pinned, not open.
 
 ## Status
 
@@ -1899,6 +1982,11 @@ and their emitted code, the HTTP mapper baseline, and the current SHA-256 versus
 legacy-FNV fingerprint split; it also found bounded Custom-key and scope/citation
 edits.
 
+The subsequent LLP 0053 seam reconciliation — including the shared activation
+matrix and protected-room sink obligation — changes no 0039-owned authority
+architecture. It remains subject to ENG-24592's focused exact confirmation and
+does not thaw this Draft or authorize implementation of 0053 by itself.
+
 The final bounded review then found four propagation defects in the operative
 documents, not a new design: the separate capability dimensions accidentally left
 v1-dev admissible; the actual-predecessor proof omitted its provisioning-allowed
@@ -1921,6 +2009,10 @@ paired with LLP 0012 SHA-256
 reviewers confirmed the four closures above, found no blocking issue, and said
 ENG-24593 can close. Their reports are archived verbatim in
 `reviews/0039-auth-vertical-slice.{codex,fable}.md`.
+
+The former unnamed enforcement window is now closed explicitly: item 5 makes
+sessions enableable while refusing auth-scoped live surfaces; item 6 unlocks
+those surfaces; item 7 changes no admission state and remains independent.
 
 The previously reviewed corrections remain intact: sessions schema **and**
 function artifacts use the raw-value-disjoint `snapback.v1` discriminator; LLP
@@ -1999,6 +2091,33 @@ made by this RFC.
   revision assigns rescue and ephemeral closure to landing items 3/4, adds the
   all-impersonation credential non-substitutability matrix, and corrects the
   hosted initialization-order and `SchemaManifest` serde claims.
+- **2026-07-13 (independent local-audit correction; still FROZEN).** Closed the
+  item-5/item-7 enforcement-window contradiction with the shared activation
+  matrix: sessions may activate after item 5, auth-scoped live remains refused
+  until item 6, item 7 changes no admission state, and retained/offline reads
+  wait for item 8. Recast item 7's independent proof as finite invocation plus
+  replay isolation and deferred the subscribed card-game proof until both items
+  6 and 7. Mirrored 0053's exact-ticket, precommit protected-room barrier and
+  dependency-indexed registration/snapshot/mutation/enqueue/drain/send sink
+  requirement. These fixes are unreviewed; no status transition.
+- **2026-07-13 (LLP 0053 paired-confirmation seam only).** Reflected the
+  bounded post-review contract without changing 0039-owned authority/session
+  architecture: item 6 now includes `permissionBacking` projection into
+  protected-room suspension and fresh membership reauthorization; the proving
+  demo's kick must close both durable and ephemeral carriers; root/0008/0011/
+  0013 dated amendments are companion obligations; the stale mutable-input and
+  lease-number questions are removed; AuthorizedLease now has a 24-hour default
+  and hard maximum; authenticated boot/retry details remain 0053's; and item 7's
+  authority descriptor is only an optional additional equality axis for item 6.
+  Both RFCs remain Draft/FROZEN.
+- **2026-07-13 (LLP 0053 gate seam only).** Mirrored the gate's precise
+  distinction between ordinary-write delivery obligations and coarse
+  authorization-event resync, and reconciled restart wording: incarnation
+  persistence avoids an unsolicited retained-data clear, while a later live
+  resumption still fresh-snapshots. Updated item 6 from "unreviewed fixes" to the
+  actual NOT READY gate plus pending confirmation, and removed rejected
+  classification/pinned-lease questions from the hand-off. No 0039-owned auth
+  architecture changed.
 - **2026-07-13 (rounds 11–12; FROZEN).** Three consecutive rounds at **zero HIGH**.
   Round 12's findings were two-thirds *the previous round's own debris*, which is
   what identified the asymptote and ended the loop. Fixed: a **factual error** —

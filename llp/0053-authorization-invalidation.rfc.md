@@ -2,17 +2,22 @@
 
 **Type:** RFC
 **Status:** Draft
-**Systems:** Sync, Auth, Storage, API, Client integration, Testing
+**Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-12 (attempt six, after three rounds of the dual-model loop —
-six designs, five rejected, **every defect found by independent review and none by
-the author**. See §Motivation for the full failure history and §Changelog for what
-each round changed; artifacts in
+**Revised:** 2026-07-13 (ENG-24592 bounded enforcement-gate revision after the
+paired Codex round 5 and Fable round 6 confirmation both returned NOT READY
+while preserving the architecture, plus the independent local-audit closure:
+commit-ordered room barriers, data-head-linearized lease issuance, the item-5/
+item-6 activation matrix, and bounded fail-closed retry-episode storage. It
+then records the final paired gate's one bounded ClientQuery identity/retirement
+correction; it remains Draft/FROZEN pending focused exact confirmation. See
+§Motivation for the full
+failure history and §Changelog; artifacts in
 `reviews/0053-authorization-invalidation.{fable,codex}.md`. Split out of
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) §Permission dependencies on
 2026-07-12.)
-**Related:** LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051
 
 ## Summary
 
@@ -33,10 +38,11 @@ this mechanism took to find:
 > Epochs exist for exactly what the matcher *cannot* observe: **staleness across
 > a disconnection**, **destruction of retained/offline data**, and
 > **authorization events that involve no write the matcher sees** (a policy
-> reload, an import, a reset). Note what is *not* on that list: a grant expiring
-> on the clock. Nothing here observes that for a connected client, and
-> §The authorization-event universe names it as a residual rather than pretending
-> otherwise.
+> reload, an import, a reset). A grant expiring on the clock is *not* made into
+> an epoch event: v1 instead gives every protected query a machine-enforced,
+> default-deny input profile. Any mutable input that cannot produce a matcher
+> wake or an enumerated activation event is refused, as §The
+> authorization-event universe pins.
 
 The reframe alone is not enough, and two further attempts were needed to see why.
 **Computing the right answer is not the same as the client being unable to see the
@@ -55,24 +61,40 @@ This RFC owns:
   dependence — replacing the exclusive classification that could never be made
   exhaustive;
 - a **closed, enumerated authorization-event universe**, with a conservative
-  fallback (anything unenumerable or opaque makes a query online-only, LLP
-  0008's sanctioned escape hatch) rather than a taxonomy that must cover every
-  app shape;
+  fallback (anything unenumerable, ambient, or mutable is denied for a protected
+  query; opaque undeclared functions cannot retain) rather than a taxonomy that
+  must cover every app shape;
 - a durable **authorization epoch**, advanced in the same transaction as its
   cause through **one commit hook used by every writer**, and paired with the
   authorization-stream incarnation LLP 0039 owns;
-- **persistent, level-triggered invalidation obligations** — not queue messages,
-  which the shipped queue can destroy or drop;
-- **per-query client fences**, so a callback in flight cannot repopulate what an
-  invalidation just destroyed;
+- **persistent, level-triggered invalidation obligations** with a composite
+  authorization-and-data witness — not queue messages, which the shipped queue
+  can destroy or drop;
+- **per-query client fences and durable tombstones**, so a callback in flight
+  cannot repopulate what an invalidation just destroyed;
+- a **default-deny protected-query input profile**, so clock, id, module-state,
+  ambient, and future mutable inputs cannot strand a connected result;
+- projection of authorization changes into **ephemeral room authorities**, so
+  a membership kick suspends room delivery and reauthorizes from a fresh
+  durable snapshot instead of protecting only durable rows;
 - a **mandatory resnapshot on reconnect** for every auth-scoped subscription;
-- an **`authorizedUntil` lease** — the only mechanism that can bound a client the
-  server cannot reach.
+- an exact, server-issued **`AuthorizedLease`** with rollback-checked time,
+  atomic snapshot binding, and a 24-hour default and hard maximum — the only
+  mechanism that can bound a client the server cannot reach.
 
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) is the umbrella (authority,
 sessions, transport, and the client coordinator that *executes* what this
 document defines). [LLP 0011](./0011-auth-and-permissions.rfc.md) is the parent
-design; where it pins a contract, it wins. This RFC also closes
+design. **On acceptance, this RFC is the controlling narrow refinement of LLP
+0008 §Authorization-Aware Sync / §Realtime Delivery and LLP 0011 §Local-First
+and Realtime Implications for authorization-invalidation mechanics.** Their
+server-authoritative authorization, fail-closed stale-result handling,
+user-switch wipe, and fresh-authorized-snapshot fundamentals remain ratified;
+the superseded clauses are only the claims that every permission-affecting
+write advances an epoch, every invalidation is a generic `resync_required`, and
+every reconnect may trust epoch equality. The dated companion amendments and
+the root ratification ledger record that precedence now, while item 6 remains
+blocked until this RFC is Accepted. This RFC also closes
 [LLP 0020](./0020-core-authoring-surface.plan.md) §Remaining Phase 4
 ("dependency vocabulary and auth epochs"), the corpus's long-standing owner-less
 thread.
@@ -172,9 +194,9 @@ So does this document.
 ### Negative deltas are obligations; positive deltas are best-effort
 
 This is the rule attempt five was missing, and its absence was a permanent false
-negative: a `public → private` flip is an *ordinary write*, so it rides the
-matcher, raises no epoch, and creates no obligation — yet its delivery goes over
-the **same destructive-drain outbox that can lose a message**. The client stays
+negative: under that attempt a `public → private` flip was an *ordinary write*,
+so it rode the matcher, raised no epoch, and created no obligation — yet its
+delivery went over the **same destructive-drain outbox that can lose a message**. The client stays
 connected (so no reconnect resnapshot) and is online (so no lease applies).
 **Nothing in the system would ever have corrected it.** The forbidden row stays
 on screen forever.
@@ -185,14 +207,36 @@ The principle was already stated and then not applied where it mattered most:
 > Positive information self-heals — the next snapshot re-adds it. Negative
 > information does not.
 
+Two obligation sources must not be conflated:
+
+- a **delivery obligation** is per live scope, is raised whenever a result may
+  have shrunk, carries the causing data version, and advances no authorization
+  epoch; and
+- an **authorization-event obligation** is the projection of an enumerated
+  event and carries the authorization version. Ordinary coarse permission,
+  activation, and out-of-band revocation events start at `quarantine`;
+  reset/import/declared-restore boundaries start at `delete`.
+
+They use the same merge, acknowledgement, and fencing protocol below. The
+distinction matters because an ordinary write can create the first while
+correctly creating none of the second.
+
 So, for an **auth-scoped subscription**, the *shrinking of the result set is the
 security event*, and it does not matter **why** a row left — an ACL write, a
 re-parented folder, a visibility flip, or an ordinary delete:
 
 - A live delivery that **removes** any row the client is known to hold is
-  **obligation-backed**: durable, level-triggered, and discharged only when the
-  client **acknowledges** a snapshot computed at or after the causing commit
-  version.
+  **delivery-obligation-backed**: persistent until discharge within its scope,
+  level-triggered, and discharged only when the client **acknowledges** a
+  snapshot computed at or after the causing commit version.
+- The shipped HostPlan delta path identifies `remove` exactly. General Ibex
+  `live_replace` does not retain the last delivered *logical output* — captured
+  database rows are not equivalent to projected, aggregated, or synthesized
+  output — so v1 takes the conservative predicate: **every auth-scoped
+  `live_replace` is delivery-obligation-backed as potentially shrinking**.
+  `authorityIndependent` replaces and delta deliveries proved to contain only
+  adds/updates remain best-effort. Retaining logical output membership may later
+  narrow this without changing the protocol.
 - **A re-query that ERRORS or DENIES is also a negative delta.** LLP 0011's
   *first* authorization layer is "function-level checks inside queries," and the
   natural authoring shape is a handler that throws when a membership lookup comes
@@ -202,10 +246,15 @@ re-parented folder, a visibility flip, or an ordinary delete:
   throws too (still denied), so **"meanwhile" never ends**: forbidden rows persist
   on a connected client behind a failing resubscribe loop, with no epoch, no
   reconnect, and no lease. That is fail-open, and it is why denial is a third
-  delivery class: an error or denial outcome on an auth-scoped subscription is
-  obligation-backed with disposition **≥ `quarantine`**, never `retain`.
-- A delivery that only **adds or updates** rows stays best-effort. Losing one is
-  staleness, and the next successful delivery repairs it.
+  delivery class. A typed `SNAPBACK_AUTH_PERMISSION_DENIED` is proof for the affected
+  query and produces `delete`. Any other error immediately produces
+  `quarantine`, then permits at most **two automatic retries after the initial
+  failure** in the server-owned retry episode, all within 15 seconds of the first
+  failure. Re-fire, a newer obligation revision, reconnect, or restart does not
+  reset that episode. If both retries fail, the query remains quarantined until
+  an explicit authority-checked manual retry; it never falls back to `retain`.
+- A delivery **proved** to only add or update rows stays best-effort. Losing one
+  is staleness, and the next successful delivery repairs it.
 
 **"Auth-scoped" is defined fail-closed**, because the whole rule hangs on it:
 **every subscription is auth-scoped unless its function is explicitly declared
@@ -247,25 +296,23 @@ fences; it does not get a fresh, unfenced view.
 **The epoch was never a coherence protocol.** Attempts one through four all
 failed by treating it as one.
 
-**Safe by default.** The matcher is conservative — when it cannot prove a change
-irrelevant, it re-queries (LLP 0008). The one precision opt-in is the
-disjointness skip, and it is opt-in precisely because it is the only way to
-*lose* a wake:
+**Safe by default means a full re-query or an equivalence-proved delta, not
+"the static read table always wakes."** The shipped matcher consults captured
+`Row`, `MissingRow`, and `Query` dependencies first; their proved-disjoint
+verdict may skip a write. A HostPlan predicate can likewise prove a skip, and an
+eligible unordered HostPlan query can apply a DK-3 delta without re-querying.
+Only when capture cannot decide does Ibex fall back to the static read summary
+and its currently `userId`-only `authScopeField` refinement.
 
-- A query may declare `authScopeField` to claim its rows are user-disjoint, and
-  the matcher will then skip other-users' changes. **This is the only
-  declaration in the system that can cause a false negative**, so it is
-  opt-in, it is checked (below), and it is never inferred.
-- Honest note on what ships: the matcher honors `authScopeField` **only when it
-  is literally `"userId"`**, and only as a *fallback* — captured read
-  dependencies are consulted first and their verdict wins. Generalizing the
-  field is this document's deliverable; the fallback-vs-captured precedence is
-  pinned as an invariant: **class metadata may never override a captured
-  dependency's verdict.**
-- Because a lying `authScopeField` is the one unnetted false-negative channel, it
-  carries an LLP 0008 L4-style convergence assertion (matcher verdict vs. full
-  re-query) in test and dev profiles, and a query that declares it is
-  **retainable only if the assertion is enabled in its acceptance suite**.
+Every one of those skip paths is load-bearing. Captured dependencies must be
+complete before a snapshot is published; missing, empty, unknown, or
+unanalyzable facts fall back to re-query/replace. Test and dev profiles run an
+LLP 0008 L4-style convergence assertion for **every authorization-sensitive
+skip or delta proof** — captured predicate, point read, HostPlan delta, and
+`authScopeField` — against a full re-query. Class metadata may never override a
+captured dependency's affected verdict. `authScopeField` remains an explicit,
+never-inferred disjointness claim and a retainable query that uses it must carry
+the convergence fixture, but it is not the matcher's only skip proof.
 
 ### Two orthogonal declarations
 
@@ -276,7 +323,9 @@ two independent questions. They are now separate, and **a table may be both**:
 Declared by the read summary the system already computes, plus at most one
 optional refinement:
 
-- default: **conservative** — any change to a read table wakes the subscription;
+- default: **conservative** — captured dependencies and analyzable predicates
+  may prove a change disjoint; otherwise a change to a read table wakes the
+  subscription;
 - optional: `authScopeField` — the disjointness skip above.
 
 **2. Authorization dependence** — whether a table's changes can alter *who may
@@ -290,6 +339,18 @@ see what*, independent of any result:
   matcher already consumes it, so this is cheap and it defuses the common
   mixed-table shape.)
 
+`permissionFields` narrows **known updates only**. Inserts and deletes on a
+`permissionBacking` table always fire. An update whose `changed_fields` is
+absent, empty, reconstructed from the journal, or otherwise unknown also fires;
+empty means "may include every field," not "changed nothing." Only a known,
+non-empty field set proved disjoint from `permissionFields` suppresses the event.
+
+The fail-closed subscription opt-out is a separate function-level manifest field,
+`authorityIndependent: true`. It is an explicit trusted assertion that the
+function's result is invariant under every caller-authority dimension; omission
+means auth-scoped. It is mutually exclusive with declared authorization inputs
+or permission dependencies and is never inferred from an anonymous invocation.
+
 `gameMembers` is now simply *both*: it is in the roster query's read set (result
 dependence) **and** `permissionBacking` (authorization dependence). No conflict,
 no precedence rule, nothing to be exhaustive about.
@@ -300,8 +361,8 @@ An **authorization event** advances the authorization version. The universe is
 **enumerated, not derived** — this is the substantive replacement for the
 taxonomy, and its closure is what makes the safety claim checkable:
 
-1. A committed write to a `permissionBacking` table (restricted to
-   `permissionFields` when declared).
+1. A committed write to a `permissionBacking` table (restricted only for a
+   known update proved disjoint from `permissionFields`, under the rule above).
 2. **Activation** of new schema, functions, or authorization metadata — a hot
    reload can narrow an auth filter and strand already-published rows with no
    data write at all. Auth-relevant metadata stages and validates as one bundle,
@@ -321,88 +382,202 @@ this document's *coarse-event → quarantine* path and contradicted 0039's delet
 Two different things that sound alike: one ends an identity, the other narrows a
 permission.)
 
-**What is deliberately excluded, and how it stays safe:**
+**Protected-query admission closes the non-database-input perimeter.** The
+previous revision correctly observed that online-only confinement does not wake
+a connected query, then incorrectly left other mutable inputs as an open
+perimeter. V1 instead defines a **protected query** as every auth-scoped live
+subscription and every retainable query, including an `authorityIndependent`
+retainable query. Establishing it and every matcher/error/explicit rerun use the
+same machine-enforced profile on **dev, test, demo, and prod**:
 
-- **Clock-dependent authorization is forbidden in retainable and
-  auth-resyncable queries.** `RuntimeNow` is expressible in filters today while
-  the matcher has no clock or deadline wake, so an `expiresAt > now` membership
-  would expire with zero writes and a live client would keep access
-  indefinitely. Rather than build a deadline scheduler in v1, a query whose
-  authorization depends on the clock is **online-only**:
-  non-retainable, non-auth-resyncable, refused at manifest load with
-  `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`. Apps expressing time-limited
-  grants materialize expiry as a *write* (a sweep flipping `active`), which is
-  event 1.
-- **Opaque authorization dependence is online-only.** An Ibex handler that reads
-  `ctx.auth` in JavaScript and filters in code declares nothing the lint can see
-  (`ctx.auth` is a materialized input, not a host call, so it is invisible to
-  capture). Such a function is not classified and **cannot be retainable** —
-  which is LLP 0008's already-sanctioned escape hatch, and it is pinned here as a
-  load-bearing invariant:
+1. **Allowed inputs are closed.** A protected result may depend only on:
+   canonical immutable query arguments; the exact sealed `ctx.auth` projection
+   below; database reads whose complete capture/read summary contributes to the
+   snapshot's data witness; and activation-pinned bundle/manifest facts whose
+   change is event 2. Changing arguments creates a new query instance. Changing
+   authority is LLP 0039's fenced authority transition. Neither mutates a live
+   invocation behind the matcher.
+2. **Declarative IR is walked recursively, default-deny.** `RuntimeNow` and
+   `RuntimeId` are refused wherever they occur — filter, value, binding,
+   projection, return expression, or any current/future nested expression — not
+   only when a shallow visitor labels a predicate "authorization relevant."
+   `RuntimeNow` reports `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`;
+   `RuntimeId` and any other mutable expression report
+   `SNAPBACK_AUTH_MUTABLE_INPUT_DENIED` with a typed `inputKind`. A newly added
+   expression kind is denied for protected queries until this profile classifies
+   it.
+3. **`ctx.auth` is a sealed mode-specific value, not ambient application
+   state.** The shared invocation gate creates a fresh, null-prototype,
+   data-property-only, recursively frozen record on every invocation. Sessions
+   project exactly anonymous
+   `{userId:null, sessionId:null, isAuthenticated:false}` or authenticated
+   `{userId, sessionId, isAuthenticated:true, provider, roles:[]}`. Dev
+   impersonation projects exactly `{userId, sessionId:null,
+   isAuthenticated:true, roles:[...]}` with a copied/frozen roles array.
+   `adminBypass` and `system` receive the anonymous handler projection; audit
+   authority remains outside `ctx.auth`. Extra keys, accessors, proxies, mutable
+   backing objects, caller wire objects, and profile-dependent fallthrough are
+   impossible. The current authority is sealed before module evaluation and is
+   identical for initial run and rerun.
+4. **Every runtime host operation has one admission class.** The exhaustive v1
+   registry is:
 
-  > **Retainable ⇒ declared authorization dependence ⇒ enumerated events.**
+   | Host-op class | Protected-query rule |
+   |---|---|
+   | `DatabaseCaptured` | allowed only when the returned fact is represented in the complete read/capture set and bound to the snapshot version |
+   | `ActivationPinned` | allowed only when the returned immutable fact is bound to the active bundle/manifest hash, whose replacement is event 2 |
+   | `TerminalAuthorization` | the host-owned typed denial operation is allowed but returns no application value |
+   | `EffectOnlyConstant` | diagnostics/logging only; allowed only with a specified constant return that cannot influence visibility through mutable output |
+   | `MutableNonDatabase` | denied |
 
-  **This invariant is machine-enforced, not an honor system.** Attempt four
-  asserted it and left it to authors, which made the whole online-only
-  confinement — and therefore the whole safety argument — defeasible by a single
-  omission. Retainability is instead a **manifest-load property**: a function is
-  retainable **only if** its authorization dependence is fully expressed in
-  declarable form (auth-variable filters, `authScopeField`, declared
-  `permissionDependencies`, or an explicit `authorityIndependent`) *and* its read
-  summary is complete. Anything else — an Ibex handler that reads `ctx.auth` in
-  JavaScript, an empty read summary (which the matcher treats as "all tables"), a
-  clock-dependent predicate — is **not retainable**, and marking it retainable is
-  a load error (`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`), not a warning. Opting
-  into retention is opting into declaration.
+   `ctx.runtime.now()` and `ctx.runtime.id()` are
+   `MutableNonDatabase`; the first reports the clock diagnostic and the second
+   reports the general mutable-input diagnostic. Network/action results,
+   secrets, non-activation-pinned config/provider state, and every unknown or
+   future host op are also denied by default. Load-time analysis rejects a
+   statically visible call; the host gate rejects a dynamically reached call.
+   Both gates run on initial execution and every rerun, so a data-dependent
+   branch cannot hide the call at load or first execution.
+5. **Ambient engine inputs are absent or denied.** `Date.now()` and zero-argument
+   `new Date()` retain their shipped codegen/runtime denial. The protected realm
+   additionally exposes no mutable clock, randomness/id source, timer,
+   locale/time-zone/environment lookup, network, process state, or future
+   ambient capability unless it is explicitly admitted into the registry above.
+   `Math.random`, random UUID/bytes, `performance.now`, and equivalent aliases
+   are named negative fixtures; aliases and computed property access are tested,
+   not accepted as a static-scanner limitation.
+6. **Module state is fresh or reset-equivalent.** Each protected invocation uses
+   a fresh realm/module graph, or a reset proven to recreate **all** module
+   lexical state, imported singleton state, globals, intrinsics, pending jobs,
+   and host namespaces to the post-load baseline. The shipped DK-4 sweep does
+   not reset module lexical closures and therefore does **not** qualify; protected
+   queries take the fresh-VM path until a reset-equivalence proof exists. A
+   module counter, cached random/id, or mutation left by another invocation can
+   never decide a protected result.
 
-  **What this enforcement does and does not prove.** It proves a declaration is
-  **present**; it cannot prove the declaration is **true**. An author who declares
-  `authorityIndependent` on a table that is not, or an `authScopeField` that is not
-  user-disjoint, passes the load check and gets a false negative. That residual is
-  real and is not papered over:
+The profile is a capability allowlist, not a scanner heuristic. A statically
+unknown construct fails load when the compiler cannot prove it stays inside the
+profile; a dynamically reached unknown fails the host invocation before a row
+can publish. Apps expressing time-limited grants or provider/config decisions
+materialize them as database writes (event 1) or activation-pinned metadata
+(event 2). V1 builds no deadline scheduler.
 
-  - the **disjointness** claim (the only declaration that can *lose* a matcher
-    wake) is truth-checked by the LLP 0008 L4-style convergence assertion —
-    matcher verdict vs. full re-query — required in test and dev profiles for any
-    query that declares it and is retainable;
-  - the remaining declarations are **trusted assertions**, mitigated by the
-    reference oracle (§Acceptance) and the doctor, not by proof;
-  - so the honest formulation is: **declaration is enforced; truth is tested.**
+The retainability invariant remains separately load-bearing:
 
-  The honest perimeter, stated rather than overclaimed: this document does **not**
-  claim unclassified auth dependence is impossible. It claims that anything
-  unclassified is **structurally confined to the online path**, where the
-  conservative matcher is the safety net — and that the confinement is enforced at
-  load, not assumed.
+> **Retainable ⇒ declared authorization dependence ⇒ enumerated events.**
 
-**The event universe is closed for RETAINED data, and not for connected views.
-Stated exactly, because the earlier version of this argument was a non sequitur.**
+A function is retainable only if its authorization dependence is fully
+expressed in declarable form (auth-variable filters, `authScopeField`,
+permission-backing tables reached through its complete read summary, or
+`authorityIndependent`) and its read summary is complete. Opaque JavaScript use
+of `ctx.auth`, an empty/unknown read summary, or any protected-profile denial
+makes retention a load error (`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`), not a
+warning. Declaration presence is enforced; declaration truth is still tested:
+the disjointness claim runs the LLP 0008 L4 convergence assertion in test/dev,
+and other trusted assertions run the reference oracle and doctor.
 
-An unenumerated event source affects a query either (a) through data the query
-reads — the matcher wakes it, mechanism 1, correct; or (b) through something the
-query does **not** read. The earlier draft concluded (b) was safe because
-undeclarable ⇒ non-retainable ⇒ online-only ⇒ "mechanism 1 again." **That last
-step is false.** Mechanism 1 wakes on changes to data the query *reads*; a source
-that acts through something it does not read never wakes the matcher, online or
-not. Being online-only confines the *retained/offline* damage — which is real and
-valuable — but it does **not** summon the matcher for a connected view.
+The resulting closure claim is now exact for supported protected queries, live
+and retained: every mutable input either produces a database matcher wake,
+produces enumerated activation, crosses LLP 0039's authority fence, or is
+refused. There is no residual category of admitted ambient/future input and no
+open question asking implementers to discover one after the fact.
 
-So the honest scope of the closure claim: **an unenumerated event source cannot
-corrupt retained data, and can leave a connected view stale.** The clock is the
-concrete instance, and it is a **named residual, not a solved problem**: a
-JavaScript `Date.now()`-mediated authorization predicate is undetectable at load
-(`ctx.auth` is a materialized input, not a host call, and a JS clock read leaves
-no trace), so it cannot be refused; and a connected client holding rows whose
-grant expired keeps them **indefinitely** — no write, no wake, no reconnect. The
-`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` refusal catches only the *declarable*
-form (`RuntimeNow` in an IR predicate). The remedy for the undeclarable form is
-authoring guidance — **materialize expiry as a write** — plus a doctor
-diagnostic, and it is guidance, not a guarantee. Apps that need
-time-limited grants must sweep them into `active` flags; this document cannot
-enforce that, and says so rather than pretending the closure argument covers it.
+### Ephemeral room authority invalidation
 
-(The Summary's earlier phrasing listed "a grant expiring on the clock" among the
-things epochs exist *for*; it is not, and that has been corrected.)
+Item 6 owns the authorization-invalidation half of ephemeral rooms too. LLP
+0013 owns room storage, TTL, coalescing, and snapshot registration; LLP 0039
+owns server-resolved connection authority and mode-specific DTOs. This RFC owns
+what happens when the durable facts backing a room permission change.
+
+An ephemeral collection with a room permission declares the durable
+`permissionBacking` tables/fields its membership projection reads. Unknown
+fields, incomplete dependency metadata, or an un-targetable subject target
+conservatively every live protected room subscription whose declaration may
+depend on the cause. This protocol does **not** advance the room's sequencing
+`scopeEpoch`; it advances a separate room-authority generation.
+
+**The room boundary is commit-ordered, not merely a post-commit callback.** A
+post-commit `RoomAuthorityResync` alone leaves a real leak window: the database
+commit can return, then an off-write-lane publish, outbox drain, or socket send
+can act under the old room authority before the callback installs the new
+generation. Every writer that may commit events 1–4 therefore performs this
+two-phase room transition:
+
+1. **Prepare before commit.** Under the dependency-indexed protected-room
+   registry admission gate, install a unique
+   `RoomDependencyPending { ticket, selector, expected_authorization }`. In the
+   same short critical section, derive the conservative existing affected-room
+   set and install a matching
+   `RoomAuthorityPending { ticket, expected_authorization }` barrier in each
+   affected room authority. Protected-room registration and initial snapshot
+   installation use that same admission gate: they either complete and become
+   registry-visible before the dependency ticket, in which case enumeration
+   includes and quiesces them, or observe the ticket and publish no room
+   authority/snapshot until it resolves. There is no enumerate-then-register
+   gap. After releasing the registry gate, wait for every already-admitted
+   `RoomAuthorityPermit` to quiesce. The durable commit may begin only after all
+   targeted barriers report quiescent. If targeting, dependency-ticket or room-
+   barrier installation, or quiescence cannot be established, the write does
+   not commit.
+2. **Commit without a room lock.** The dependency ticket and room barriers are
+   level-triggered state; no registry, room, outbox, projection, or sender mutex
+   is held across the database commit, and the room fast path never takes the
+   global write mutex. The fail-closed cost is temporary suspension, not lock
+   inversion.
+3. **Finalize by exact ticket.** On rollback, compare-and-remove only that
+   operation's registry and room tickets; another overlapping pending ticket
+   keeps admission and the affected barrier closed. On commit, finalize the
+   dependency ticket and room tickets to
+   `RoomAuthorityResync { authorization, min_commit_version,
+   room_authority_generation }`, purge or strand old-generation frames, and
+   keep affected subscribers and blocked new registrations suspended until
+   reauthorization completes at or after `min_commit_version`. A
+   commit result that is ambiguous leaves that exact ticket pending and every
+   sink closed until reconciliation proves the durable transaction committed or
+   definitely rolled back; only committed proof finalizes, and only definite
+   rollback compare-removes. Timeout never guesses rollback. A crash after
+   commit destroys the process-local room; the next registration
+   fresh-authorizes, so the unobserved finalization cannot reopen continuity.
+
+Every ephemeral effect sink participates in the same gate. Protected-room
+registration and initial snapshot installation interlock atomically with the
+dependency ticket through registry admission. Publish/room mutation,
+fanout/enqueue, destructive outbox drain, and the final WebSocket/HTTP send each
+acquire a single-use `RoomAuthorityPermit` and compare the captured room-
+authority generation with the current non-pending generation **atomically with
+that sink's act**. Envelopes carry the generation. Drain drops a stale generation
+under the outbox lock; send checks again under the serialized sender gate, so a
+frame drained before the barrier but not yet sent cannot escape after the commit.
+The registry interlock and prepare-phase permit wait make registration and every
+already-entered sink linearize before the durable commit; every later act
+observes the pending/new generation and refuses. A check performed before
+registration, snapshot publication, enqueue, drain, or send and released before
+the act is explicitly non-conforming.
+
+After commit, the room authority completes the existing reauthorization
+transition:
+
+1. take a fresh durable permission snapshot at or after the causing commit and
+   re-resolve the connection-bound authority;
+2. atomically rebuild the subscriber's `authContext`/`visibleKeys` and emit a
+   fresh room snapshot if still authorized, or unregister it, delete its
+   connection-owned entries, and emit the trusted typed permission denial if
+   not; and
+3. acknowledge the room obligation and reopen the new generation only after the
+   snapshot/removal boundary commits.
+
+The obligation re-fires on the room heartbeat until acknowledged. Process death
+needs no durable room tombstone: it destroys the process-local room and every
+later subscriber enters through LLP 0013's fresh snapshot/register transaction.
+An adapter that preserves rooms across process/hibernation boundaries must
+preserve this authority obligation too or report the room capability
+unsupported. An auth-changing write therefore cannot leave a kicked player
+streaming presence/cursors while the durable board has already quarantined.
+
+This reintroduces LLP 0013's formerly ownerless `AuthChanged` resync and
+`AuthRevoked` removal meanings with an owner and a producer. It does not make
+custom ephemeral keys safe; LLP 0039's key-level authorization gap remains
+fail-closed and separate.
 
 ### The authorization version
 
@@ -420,13 +595,17 @@ A single durable `AuthorizationVersion { incarnation, epoch }`:
   already needs it for `app.reset` fencing and its restore procedure. (Keeping it
   here would have made 0039's landing items 3–5 secretly depend on this document,
   destroying the point of the split.) This document pairs it with its epoch as
-  `(incarnation, epoch)` and requires only that a **missing incarnation forces
-  resnapshot**.
-- Comparisons — resume and retained reads — match `(incarnation, epoch)`; a
-  **missing incarnation forces resnapshot**. (The shipped resume compares bare
-  `u64`s with `!=`, so the naive `0 → 1 → reset → 0` sequence is already caught;
-  the real ABA needs re-advancement to a previously recorded value —
-  `0 → 1 → reset → 0 → 1` — which the incarnation closes.)
+  `(incarnation, epoch)`. A missing persisted authorization witness is not proof
+  of continuity: retained/offline state is deleted before a fresh snapshot.
+- A live resume never treats an equal authorization pair as proof that a cached
+  result is still authorized: session-mode auth-scoped scopes resnapshot before
+  becoming visible. Retained boot uses `(incarnation, epoch)` only as the
+  authorization component of its composite witness; a missing incarnation, an
+  incarnation mismatch, or a version-stream mismatch forces `delete`, while an
+  equal incarnation with a newer epoch starts `quarantine`. (The shipped resume
+  compares bare `u64`s with `!=`, so the naive `0 → 1 → reset → 0` sequence is
+  already caught; the real ABA needs re-advancement to a previously recorded
+  value — `0 → 1 → reset → 0 → 1` — which the incarnation closes.)
 - **v1 has exactly one epoch: the global one.** Subject-scoped epochs are
   computed in shadow mode only (below). This deliberately moots the scope-key
   collision design, the coalescing design, and the old/new subject derivation —
@@ -441,67 +620,333 @@ pops every message, HTTP drain is destructive, and once a connection is
 a `delete` that *arrives while overflowed* is dropped outright, and a lost HTTP
 response carrying the sole `delete` loses it **permanently**.
 
-So invalidation is **level-triggered, persistent server state**, not an event in
-a queue:
+So invalidation is **level-triggered state with a composite witness**, not an
+event in a queue:
 
 ```
+IssuerId {
+  authorization_incarnation,
+  boot_sequence,      // durable monotone reservation; never reused
+  boot_nonce,         // 128-bit CSPRNG value
+}
+
+AuthenticatedBootIssuer {
+  issuer_id: IssuerId,
+  key_id,
+  mac,                // server protocol-key MAC over issuer_id + target/app
+}
+
+ScopeId =
+    Subscription {
+      issuer_id,
+      namespace: { client_store_id, query_key, query_instance_id },
+      scope_sequence,
+      connection_generation,
+      subscription_id,
+    }
+  | Connection   { issuer_id, connection_generation }
+  | ClientQuery  { client_store_id, query_key, query_instance_id }
+
+CompositeWitness {
+  authorization: { incarnation, epoch },
+  data: Option<{ version_stream, min_commit_version }>,
+}
+
 ResyncObligation {
-  scope: subscription | connection | client,
-  max_disposition: retain | quarantine | delete,   // monotone, only ever raised
-  witness: (incarnation, epoch),                    // what authorization demanded it
+  scope_id: ScopeId,
+  revision: u64,                                  // monotone; never reused
+  max_disposition: retain | quarantine | delete, // monotone
+  witness: CompositeWitness,
+  retry_episode_id: Option<OpaqueId>,
+}
+
+RetryEpisode {
+  episode_id: OpaqueId,
+  authority_subject,
+  client_store_id,
+  query_key,
+  witness_floor: CompositeWitness,
+  first_attempt_reserved_at_ms,
+  first_failure_at_ms: Option<u64>,
+  attempts_reserved: u8,                         // includes initial attempt
+  deadline_ms: Option<u64>,                       // first failure + 15_000
+  manual_retry_id: Option<OpaqueId>,
 }
 ```
 
+`query_key` is the canonical function-plus-arguments retained-store key; the
+store-owned `client_store_id` is shared by tabs that share those bytes, and the
+store allocates `query_instance_id` as §Client fences pins. Both the
+`Subscription.namespace` and `ClientQuery` scope carry that exact instance id.
+The server binds the complete namespace into the scope and issues the issuer,
+scope sequence, connection generation, and subscription id. Before binding a listener, it transactionally
+increments a durable boot counter, generates the nonce, and authenticates the
+descriptor with a stable protocol key. Failure to reserve or authenticate the
+issuer prevents app-data bind. Connection generations and per-namespace scope
+sequences are monotone reservations within that issuer; a reservation is
+consumed before the operation that can publish its scope, and crash never makes
+it available again. The full live `ScopeId` is therefore never reused across
+restart, restore, or churn. A `ClientQuery` scope is likewise never reused: its
+store-wide allocator survives payload compaction and allocates a new id after
+terminal retirement even when `client_store_id` and `query_key` are unchanged.
+These fields are discriminators, not authorization claims: every server
+operation still uses LLP 0039's connection-bound authority, and a client accepts
+an issuer only through the authenticated bootstrap/connection expectation.
+
 **State machine, specified where the shipped queue failed:**
 
-- **Identity.** One obligation per `(client, scope)`, keyed durably — not one per
-  event. Repeated events **merge** into it (raising `max_disposition`), so a
-  storm of membership writes produces one obligation, not a queue of them.
-- **Durability — per scope, because one rule cannot cover all three.** The earlier
-  blanket claim ("stored in the same transaction as the event that raised it") is
-  *impossible* for the matcher path, whose removals are discovered **post-commit**
-  in the fan-out. Instead:
-  - **enumerated-event obligations** are written transactionally with their cause;
-  - **matcher-path delivery obligations** are raised post-commit, and their crash
-    window is closed by a *different* mechanism, which is now stated rather than
-    assumed: a crash kills the connections, and every reconnect forces a mandatory
-    resnapshot;
-  - **client-scoped obligations against retained data** are genuinely durable —
-    they must survive restart, because the data does.
+| Constant | v1 value | Meaning |
+|---|---:|---|
+| `AUTH_INVALIDATION_REFIRE_MAX_MS` | `5_000` | maximum healthy-session heartbeat/poll interval while an obligation is pending |
+| `AUTH_ERROR_RETRY_WINDOW_MS` | `15_000` | non-resettable automatic retry window measured from the first failure |
+| `AUTH_ERROR_ATTEMPTS_TOTAL` | `3` | initial attempt plus at most two automatic retries |
+| `AUTH_RETRY_EPISODE_MAX_GLOBAL` | `10_000` | hard cap on durable current/exhausted retry episodes for one app |
+| `AUTH_RETRY_EPISODE_MAX_PER_AUTH_STORE` | `1_024` | hard cap for one `(authority_subject, client_store_id)` |
+| `AUTH_LEASE_DEFAULT_MS` | `86_400_000` | 24-hour default retained-read authorization lease |
+| `AUTH_LEASE_HARD_MAX_MS` | `86_400_000` | 24-hour absolute ceiling before session/provider clamps |
 
-  Subscription- and connection-scoped obligations die with their scope at restart
-  anyway, so durably storing them buys nothing and would put a durable write on the
-  fan-out hot path for no benefit.
-- **Discharge — the only way out, and it is versioned by DATA, not by epoch.** A
-  successful **superseding snapshot**, delivered *and acknowledged*, computed at a
-  **commit version ≥ the version that caused the removal**. Not by having been
-  sent; not by a drain; not by a timeout. An unacknowledged obligation persists and
-  re-fires on the next wakeup.
+- **Identity and revision.** There is at most one current obligation per
+  `scope_id`, not one queue entry per event. Each distinct semantic cause
+  allocates the next revision; duplicate projection of the same cause is
+  idempotent, and retransmitting a revision does not advance it. A live
+  `Subscription`/`Connection` revision high-water survives discharge until
+  authenticated scope/issuer retirement folds it into a monotone frontier. A
+  `ClientQuery` revision high-water survives until that exact instance's
+  terminal retirement finalizes. A delayed acknowledgement can therefore never
+  clear a later obligation. The issuer/sequence rules make live-scope reuse
+  impossible, while the store allocator makes client-query-scope reuse
+  impossible, rather than either being merely improbable.
+- **Merge and currentness.** Revisions compare only within an identical
+  `scope_id`; records from different scopes coexist and are never ordered by
+  revision. Within an equal authorization pair and version stream, merge takes
+  the greatest `min_commit_version` and `max_disposition`; `data: None` never
+  weakens an existing `Some` in that stream. Within one incarnation, the greater
+  epoch is current and a delayed lower-epoch record is stale. A different
+  incarnation or version stream becomes current only when the authenticated
+  bootstrap/connection expectation names it — never because its frame arrived
+  last. Moving to that authenticated expectation applies the old record's
+  disposition before replacement and requires new proof before release. A
+  delayed old-pair/old-stream frame is ignored and cannot increment a client
+  generation. An authorization-only change preserves any same-stream data floor.
+  A substitute resync inherits the full witness and disposition of what it
+  replaces.
+- **Scope and durability — one matrix, rather than a contradictory blanket
+  rule:**
 
-  > **This is the correction that makes obligations mean anything.** An earlier
-  > draft witnessed discharge with `(incarnation, epoch)` — which, by this
-  > document's own design, **never moves for a matcher-path removal**. So a
-  > snapshot computed *before* the removal (a racing resubscribe at version 99,
-  > for a removal committed at 100) would "satisfy" the unchanged pair, discharge
-  > the obligation, and leave the forbidden row permanently on a connected client:
-  > the exact failure obligations were introduced to prevent, reproduced one level
-  > up. The witness must be the **commit version**, because that is the only thing
-  > that actually moves when a row leaves a result set.
-- **Escalation.** `max_disposition` only ever **rises**. This fixes both orderings
-  the shipped queue breaks: a `delete` arriving **while the connection is already
-  overflowed** raises the parked obligation instead of being dropped (the shipped
-  `overflowed` flag makes later pushes no-ops), and a resync emitted as a
-  *substitute* for another — the fan-out failure path — inherits the disposition
-  of what it replaced.
-- **Wakeups are not the obligation.** Outbox frames become hints that an
-  obligation exists. Losing one costs a round trip; it cannot cost the
-  consequence. This is the level-triggered/edge-triggered distinction, and it is
-  the reason the shipped destructive drain (`pop_front` before the send is
-  confirmed) is not a safe substrate for a security signal.
-- **GC.** An obligation dies with its subscription/connection scope, or on
-  discharge. A client that never returns leaves an obligation until its lease
-  expires and its retained data is unreadable anyway — at which point the
-  obligation is moot and collected.
+  | Cause | Durable authority | Live projection | Retained projection / lifecycle |
+  |---|---|---|---|
+  | matcher removal or potentially shrinking `live_replace` | the causing database commit | post-commit `Subscription` obligation, in memory | connection death destroys the live scope and mandatory fresh subscribe resnapshots |
+  | connection overflow or lost delivery | existing subscription obligations plus a `Connection` projection root | in memory, expanded into one child `Subscription` obligation per auth-scoped subscription on the connection | cannot weaken an existing query tombstone |
+  | enumerated authorization event | the `AuthorizationVersion` advanced transactionally with the cause — **not O(number of clients) rows in that transaction** | live query obligations project post-commit; protected rooms install and quiesce their pending sink barriers before commit, then finalize the obligation/generation post-commit | each connected client persists a tombstone for the exact `ClientQuery` instance; a reachable client discovers the durable version mismatch at boot/reconnect before read, while a truly offline client has only its lease |
+  | reset/import/declared restore | new durable incarnation | connection scopes terminate | incarnation mismatch is `delete`, never quarantine-and-release |
+  | lease expiry | lease carried by the retained record | n/a | durable delete tombstone for the exact `ClientQuery` instance; it cannot target a later instance at the same canonical key |
+
+  Thus subscription/connection state is persistent until discharge but
+  deliberately not disk-durable. Its crash window closes because process death
+  kills continuity and every subsequent live subscribe resnapshots. Client-query
+  tombstones are genuinely durable because the retained bytes survive restart.
+  A coarse event does not enumerate offline clients in its transaction; the
+  durable authorization version is the authoritative cause from which their
+  obligations are projected on boot/reconnect.
+- **Connection roots have query-sized children.** A `Connection` obligation is
+  a server-side projection root, not a client-ACK target. For its current
+  revision the server creates or merges a child `Subscription` obligation for
+  every current auth-scoped subscription, records the child set, and adds a
+  child before admitting a new subscription while the root remains live. A
+  query snapshot can discharge only its child. The root clears only after every
+  current child is exactly discharged or its subscription continuity ends; if
+  the connection dies, the root dies with it and every later subscription
+  fresh-snapshots. One arbitrary query ACK can never clear an N-query overflow.
+- **Authenticated retirement closes extinct scopes and server boots without
+  unbounded history.** Retirement is neither an ACK nor release proof. Two
+  authenticated forms exist:
+
+  - `ScopeRetirement { issuer_id, namespace, retire_through_scope_sequence,
+    authorization_expectation, mac }` retires a **contiguous** prefix for one
+    current-issuer query namespace. The server cannot advance the prefix across
+    a live or unresolved scope. Exact active entries above it are bounded by the
+    connection/subscription caps.
+  - `IssuerRetirement { current_issuer, retire_through_boot_sequence,
+    authorization_expectation, mac }` proves every older server boot is extinct.
+    A new process may issue it even when the old process crashed before an exact
+    retirement, because the boot counter reservation proves the old issuer can
+    never return. It cannot release bytes by itself.
+
+  Client-query lifecycle retirement is deliberately separate from those two
+  server-authenticated prefix proofs. Payload or tombstone-body compaction is
+  **not** retirement: it retains the minimal `QueryAuthorizationState`, exact
+  `query_instance_id`, and revision high-waters. Retirement is a serialized,
+  terminal, destructive transition for the exact current `ClientQuery` instance:
+
+  1. atomically change `query_lifecycle` from `active` to `retiring`, advance
+     both `query_generation` and `queue_generation`, apply the maximum pending
+     disposition, destroy the instance's payload, lease and lease-request
+     reservation, accepted snapshot, optimistic overlays, and live boundaries,
+     and make dependent queue custody discard-only;
+  2. keep the crash-recoverable `retiring` marker, exact pending token state,
+     and each token's owner-continuity id. A scope already discharged before
+     retirement is complete. An already-issued terminal-delete token may be
+     ACKed idempotently only after the destructive retirement commit has applied
+     its delete. Snapshot/quarantine resolution is never ACKed by retirement;
+     its authenticated exact owner continuity must end. Retirement never
+     synthesizes an ACK, release proof, or permission proof;
+  3. only then remove the per-instance maps, fences, and marker while preserving
+     the store-wide allocator high-water. A crash before this transition leaves
+     the old state to resume; a crash during it resumes `retiring` and cannot
+     render, replay, or expose bytes.
+
+  A later explicit initialization of the same canonical key allocates a new
+  `query_instance_id` and must fresh-snapshot before render. Missing or
+  mismatched state rejects an incoming frame before map lookup and cannot be
+  created by that frame. While `retiring`, every obligation, snapshot, callback,
+  render/materialization, and queue frame is rejected; the only accepted inputs
+  are idempotent completion of an already-issued terminal-delete ACK and
+  authenticated retirement of an exact recorded owner continuity. Thus
+  old-instance obligations, proofs, ACKs, callbacks, and leases cannot address
+  the recreated instance.
+
+  Before accepting either proof, the serialized coordinator advances the shared
+  `query_generation` **and** `queue_generation`, applies the maximum pending
+  disposition for the retired scopes, and rejects every callback, render,
+  resume, frame, or queue act captured by an old scope/issuer. It then requires a
+  fresh snapshot under the authenticated current issuer whose composite witness
+  satisfies **every** retired pending witness. `delete` is committed before the
+  fresh snapshot installs; quarantine remains hidden until install. Only after
+  that transition may it fold exact entries into the durable frontier and
+  recompute the aggregate. A crash before the snapshot leaves the frontier
+  unchanged; the next boot repeats the same fail-closed sequence. A returning
+  tab always receives a new issuer/scope and fresh-snapshots before render.
+- **Resolution ticket and acknowledgement.** A successful superseding snapshot
+  is evaluated at one coherent point and carries its authorization pair, version
+  stream, and snapshot commit version. A typed
+  `SNAPBACK_AUTH_PERMISSION_DENIED` instead yields a terminal-delete proof at a
+  coherent authorization/data witness; its observed commit version must satisfy
+  the obligation floor even though it carries no rows. Reset/import/restore and
+  authenticated incarnation/stream mismatch may likewise issue a terminal
+  boundary-delete proof. The server binds an opaque acknowledgement token to
+  `(scope_id, revision, witness, max_disposition, resolution proof)`. The client
+  acknowledges a snapshot only **after** its serialized coordinator atomically
+  applies the disposition/snapshot, and acknowledges a terminal proof only after
+  the live boundary is destroyed and the durable delete/fence commits. Exact
+  wire encoding belongs to this RFC's LLP 0051 D4-registered vocabulary; these
+  fields are the semantic minimum.
+- **Compare-and-discharge — the only way out.** The server clears only if the
+  acknowledgement names the *current* full scope and revision. For a
+  `ClientQuery`, that comparison includes `query_instance_id`; a token for a
+  retired instance is stale even when store, key, revision, and witness happen
+  to match a recreated instance. A snapshot proof must
+  use the current authorization incarnation/epoch and version stream and have a
+  commit version at least `min_commit_version`. A terminal-delete proof must be
+  current, token-bound, authorized for that producer, and evaluated at the same
+  floor. Pair/stream changes or a later merged revision make either proof stale.
+  Sent, drained, timed-out, and stale acknowledgements do not discharge.
+  Duplicate acknowledgement after a successful discharge is idempotent.
+
+  > **This is the correction that makes obligations mean anything.** The
+  > authorization epoch deliberately does not move for a matcher-path removal.
+  > A version-99 snapshot therefore cannot discharge a removal committed at 100,
+  > and an acknowledgement for revision R cannot discharge a second removal
+  > merged as R+1 at 105. The authorization pair answers "under which policy?";
+  > the data witness answers "after which row change?"; neither substitutes for
+  > the other.
+- **Error retries are durable server-owned episodes, not timers attached to a
+  frame.** Before every obligation-resolution invocation, the server
+  transactionally reserves the next attempt in auth-control state. The initial
+  invocation is attempt 1; at most attempts 2 and 3 are automatic. On its first
+  untyped failure the server records rollback-checked `first_failure_at_ms` and
+  fixes `deadline_ms = first_failure_at_ms + 15_000`; if the process dies after
+  reservation but before recording an outcome, the reservation is consumed and
+  its earlier reservation time becomes the conservative failure origin. A
+  reservation crash therefore shortens, never extends, the window.
+
+  The episode key is the authority subject plus canonical client-store/query key
+  and the unresolved composite witness floor — **not** scope id or obligation
+  revision. A newer revision merges into and raises that floor; duplicate
+  re-fire, reconnect, scope replacement, and server restart reattach the same
+  durable episode and cannot reset attempts or time. Revision change alone does
+  not create an automatic attempt. Query-instance retirement or recreation also
+  reattaches the same canonical-key/witness episode and cannot erase or reset an
+  unresolved or exhausted budget. Any old-instance resolution must be
+  reprojected through the current full scope; its proof or ACK token never
+  transfers directly. A satisfying snapshot or trusted typed denial
+  closes the episode. After exhaustion/deadline, the query remains quarantined.
+  A new episode requires an explicit, authority-checked manual retry carrying a
+  fresh idempotency id; ordinary subscribe/reconnect is not manual retry. Server
+  clock rollback (under the shared auth clock high-water below) consumes no extra
+  invocation and closes automatic retry fail-closed at quarantine rather than
+  reopening or extending the window.
+
+  **Retry storage is hard-capped and never safety-evicted.** Global and
+  per-`(authority_subject, client_store_id)` counters are maintained in the same
+  auth-control transaction as episode insert/replace/delete. Creating a new
+  episode at either cap returns
+  `SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY`, leaves the query quarantined, and runs
+  **no** handler attempt; repeated re-fire/reconnect/restart performs the same
+  capacity check and cannot turn refusal into an implicit retry. No unresolved
+  or exhausted episode is evicted to admit a different key, because forgetting
+  it would reset the three-attempt limit. A satisfying snapshot or trusted
+  denial may remove the episode only after its durable resolution proof has
+  been transferred to the still-live obligation; an exact idempotent manual
+  retry replaces the same key rather than briefly doubling its records.
+  Incarnation retirement may delete episodes whose witness can never be current
+  again. Missing/malformed counters are rebuilt from the bounded table before
+  admission; an already-over-cap database admits no new episode while allowing
+  resolution/deletion to reduce it. This consciously trades availability for a
+  finite fail-closed store under unique-query churn.
+- **Level-triggered re-fire and promptness.** Raise performs an immediate delivery
+  wake. Connection open, subscribe/resume, every HTTP drain, and every live
+  heartbeat consult current obligations and project them again. Session-mode
+  heartbeat and poll cadences are capped at **5 seconds**, so a healthy connected
+  client sees an undischarged obligation within five seconds even if the first
+  edge or response is lost. An unknown/reaped subscription or drain is a typed
+  resnapshot-required boundary, never an empty healthy result. Wakeup frames are
+  hints; the obligation record is truth.
+- **Capability gate.** The bootstrap/connection handshake advertises a
+  must-understand `authInvalidationProtocol: 1`, covering dispositions, composite
+  witnesses, authenticated boot issuers and retirement frontiers, tombstones,
+  exact query-instance scope identity, revision-bound acknowledgement, durable
+  retry episodes, room-authority invalidation, and ACK-after-commit. Item 8 separately advertises
+  `authorizedLeaseProtocol: 1` plus the lease facts below; its absence keeps
+  retained reads disabled but does not block item-6 live invalidation.
+  Every session-mode auth-scoped live subscription — not only retained reads —
+  requires it. A missing/older client is refused with
+  `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`; an already-connected legacy
+  session client is closed and must upgrade. The boolean `clear_retained` is a
+  versioned compatibility projection for dev/authority-independent paths, never
+  a session-mode security carrier.
+
+  **Session activation matrix (identical in LLP 0039 and LLP 0053):**
+
+  | Landed items | Session-mode admission |
+  |---|---|
+  | **1–5** | `auth.mode: "sessions"` may activate. Ordinary online request/response and explicitly `authorityIndependent` live surfaces are allowed. Every auth-scoped live surface (durable subscribe/resume or protected ephemeral-room registration) is refused server-side with `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`; retained/offline reads remain refused. |
+  | **+6** | Auth-scoped live surfaces unlock only when server and client negotiate `authInvalidationProtocol: 1`; retained/offline reads remain refused. |
+  | **+7** | No admission change. The authority descriptor is an optional additional equality axis and item 7 may land before item 6. |
+  | **+8** | Retained/offline reads unlock only when the item-8 lease/store capability is also negotiated. |
+
+- **Obligation/tombstone GC is monotone and bounded by live state, not lifetime churn.** A
+  subscription/connection obligation dies on exact discharge or continuity
+  loss (whose replacement must resnapshot). A client-query payload and bulky
+  tombstone body may compact after exact discharge, or after lease expiry has
+  made the bytes unreadable and deletion has committed, but that compaction
+  retains the minimal current-instance fence. Only the terminal retirement
+  transition above removes per-instance state. Durable safety reduces to: one
+  store-wide monotone `query_instance_id` allocator; one minimal state per
+  extant query; one retired
+  boot-sequence frontier per authorization incarnation; one retired scope-
+  sequence frontier per current live query instance/issuer; and exact entries
+  only for bounded active/unresolved scopes above those frontiers. Once terminal
+  retirement finalizes, its former per-instance state can disappear. No
+  historical query-instance set or per-key frontier is retained: an absent key
+  rejects frames without allocation, while a recreated key has a different id
+  and rejects the old full scope before lookup. Frames at or below a live-scope
+  frontier are likewise ignored before lookup. Lease expiry is not tab
+  death and does not advance a frontier by itself. Thus one million
+  subscribe/unsubscribe or compact/retire/recreate cycles and boot crashes grow
+  scalar high-waters plus current/bounded state, not one durable row per
+  historical scope or query key. `RetryEpisode` records are not hidden inside
+  this frontier argument: their separate hard caps and fail-closed admission are
+  the boundedness proof for unique canonical-query churn.
 - This **supersedes LLP 0032 P4's** decision that destructive drain needs no
   acknowledgement because a later snapshot recovers it. That reasoning holds for
   *data* — positive information self-heals. It does not hold for a *revocation*:
@@ -512,9 +957,23 @@ ResyncObligation {
 
 | Disposition | Producer | Client obligation |
 |---|---|---|
-| `retain` | ordinary recovery resync (`outbox_overflow`, fan-out retry) | resnapshot; keep showing current rows meanwhile |
-| `quarantine` | **every coarse authorization event** — live views *and* retained slices | hide from render immediately and **block reads**; keep bytes; **release on a superseding snapshot that proves continued access**, or escalate to `delete` if it proves the access is gone |
-| `delete` | **proof**: a resnapshot showing the rows are no longer authorized; a subject-matched event (once shadow mode graduates); `reset`; declared restore; lease expiry with no successful revalidation | destroy in-memory rows, optimistic overlays, and durable retained bytes |
+| `retain` | recovery proved not authorization-negative: an `authorityIndependent` subscription, or overflow/fan-out recovery with no pending auth-scoped shrink/error obligation | resnapshot; current rows may remain visible; never substitutes for or weakens a stronger obligation |
+| `quarantine` | every ordinary coarse permission/activation/out-of-band revocation event; every known/potential auth-scoped result shrink until its superseding snapshot is atomically applied and acknowledged; every untyped re-query error, including exhausted bounded retries | hide from render immediately and **block reads**; preserve state in suspended form; release only on a satisfying superseding snapshot, or escalate on proof |
+| `delete` | **proof**: typed `SNAPBACK_AUTH_PERMISSION_DENIED`; a superseding snapshot proving access is gone; `reset`, import, declared restore, or version-stream/incarnation mismatch; lease expiry without revalidation | destroy affected live/retained data and leave the fence tombstone; authority loss additionally follows LLP 0039's client-wide delete |
+
+`SNAPBACK_AUTH_PERMISSION_DENIED` is a trusted invocation outcome, not an
+application-chosen error string. Its only v1 producers are: the declarative
+read/RLS permission evaluator; the room-authority reauthorization gate above;
+and the shared invocation gate's host-owned terminal
+`ctx.permissions.deny()` operation. That operation records an unforgeable host
+brand and terminates the invocation even if JavaScript catches a local
+exception; subsequent handler rows are discarded. A thrown object, returned
+envelope, adapter string, or forged `{code: ...}` is untyped and therefore
+quarantines. LLP 0011/LLP 0004 own the app-facing permission-denial API; LLP
+0039's shared gate owns trusted production and redaction; this RFC owns only the
+`delete` disposition and proof/ACK semantics. The terminal producer must report
+the coherent authorization/data witness but never echo private permission facts
+to the client.
 
 **Coarse events quarantine; only proof deletes.** This is a correction to attempt
 four, which mapped every coarse event to an unconditional `delete` on retained
@@ -527,24 +986,212 @@ releases the data (you still have access; the coarse event was a false positive,
 which is exactly what a coarse event mostly is) or escalates to `delete` (you
 don't). Cost is a hidden view and a re-query, not a destroyed cache.
 
-This also resolves the divergence from the parent honestly: **LLP 0011's ratified
-rule clears "*for sensitive retained slices*"** — not everything, and not on
-suspicion. Quarantine-then-prove is the faithful reading.
+The client transition is disposition-specific; "clear" is not one operation:
+
+| Disposition | Live rows | Retained bytes | Optimistic overlays | Pending mutations |
+|---|---|---|---|---|
+| `retain` | remain renderable while resnapshot runs | remain readable under their lease | continue | continue |
+| `quarantine` | hidden and read-blocked before resnapshot | kept but read-blocked | hidden and suspended; no reconciliation may publish | suspended; release on proof of continued authority, otherwise strand as redacted discard-only records |
+| `delete` | destroyed | destroyed; durable tombstone remains | destroyed in the affected scope | destroy affected entries; if independence cannot be proved, the current AuthCoordinator custody queue is the conservative scope |
+
+An authority transition under LLP 0039 always uses client-wide `delete`. A
+coarse permission event uses query-scoped quarantine and therefore does **not**
+destroy queues and overlays on what is usually a false positive. The serialized
+barrier is: persist the fence/tombstone and hide or destroy the specified state,
+then resnapshot; no callback or replay runs between those steps.
+
+Pending mutations do not borrow a query fence. Item 5's AuthCoordinator custody
+owns a separate `QueueAuthorizationState { authority_generation,
+queue_generation, pending_by_scope }`. Because v1 has no mechanically proved
+mutation-to-query mapping, every auth-scoped query quarantine conservatively adds
+a suspension root to the current custody: queue execution/replay pauses, entries
+remain redacted and non-executable, and releasing one query does not resume the
+queue while any other root remains. Continued-authority proof removes only its
+exact root. A `delete` root strands that custody's queue as explicit discard-only
+records unless independence is proved. Every enqueue, settlement, replay, and
+discard captures `(authority_generation, queue_generation)` and
+compare-and-commits it independently of `query_generation`. Item 7's
+`authority_instance_id`, once present, is an additional replay/storage equality
+axis; its absence is valid here and item 6 does not depend on it.
+
+The dated LLP 0011 amendment ratifies this narrow refinement explicitly:
+"clear" means immediate read/render denial; `quarantine` satisfies it while
+authority is uncertain, and `delete` follows proof. It preserves 0011's
+fail-closed outcome without pretending its earlier generic verb pinned this
+state machine.
 
 ### The lease: the only mechanism for the unreachable client
 
 A revoked credential cannot reach an offline device. No obligation, no epoch, no
-disposition helps — the device is not listening. So retained auth-scoped data
-carries an **`authorizedUntil` lease**, and reading it past that instant is
-**refused** until a successful revalidation renews it.
+disposition helps — the device is not listening. So every retained auth-scoped
+snapshot carries this exact server-issued envelope:
 
-This is a **required v1 mechanism, not an open question** — attempt four deferred
-it, which left the offline exposure window *unbounded*, i.e. the one case that
-cannot be fixed later without a compatibility event was the one left open. The
-default is deliberately conservative (**24 hours**), it is reported in the
-capability/runtime-state facts so an app can see it, and an app may shorten it.
-Lengthening it past a pinned ceiling requires an explicit, documented opt-in,
-because the lease *is* the security boundary for every offline device.
+```
+AuthorizedLease {
+  protocol_version: 1,
+  lease_id: OpaqueId,
+  lease_request_id: OpaqueId,
+  issuer_id: IssuerId,
+  client_store_id,
+  query_key,
+  query_instance_id,
+  principal_id,
+  session_id_at_issue: Option<OpaqueId>,
+  provider_key: Option<String>,
+  authorization: { incarnation, epoch },
+  data: { version_stream, snapshot_commit_version },
+  activation_hash, // exact active bundle + manifest identity
+  issued_at_server_ms,
+  authorized_until_server_ms,
+  session_not_after_ms: Option<u64>,
+  provider_not_after_ms: Option<u64>,
+  authority_instance_id: Option<OpaqueId>,
+  key_id,
+  mac,
+}
+```
+
+The MAC covers every field plus target/app identity. Its domain-separated
+verification key survives ordinary server restart; retired verify-only keys stay
+available for at least the 24-hour hard maximum, and an unknown key fails closed.
+`issuer_id` authenticates issuance provenance but boot retirement applies only
+to live ScopeIds: an ordinary restart does not by itself expire an otherwise
+valid offline lease, while any transition back to live still fresh-snapshots.
+`authority_instance_id` is an **optional additional equality axis** when item 7
+is available; its absence is valid and item 6 does not depend on it. The
+mandatory authority binding is the server-resolved principal plus authorization
+pair. Retainability is already restricted to `userId`-only result dependence, so
+session/provider identity is recorded for clamp and audit rather than smuggled
+in as a new result axis.
+
+`query_instance_id` isolates lease effects as strictly as obligation effects.
+A lease issued for instance A cannot install into, renew, quarantine, or delete
+a later instance B at the same `(client_store_id, query_key)`. A stale A record
+is destroyed only in A's identity domain and is otherwise ignored by B. If the
+record that claims to be current B contains a missing, malformed, or mismatched
+B lease, B still takes the ordinary fail-closed delete-before-read transition.
+Terminal query-instance retirement always destroys that instance's lease and
+lease-request reservation before its minimal state can be removed.
+
+The constants are not product-owner TODOs: v1 defaults to **24 hours** and has a
+**24-hour hard maximum**. An app may configure a shorter duration only. At
+issuance:
+
+```
+authorized_until_server_ms = min(
+  issued_at_server_ms + configured_duration_ms, // configured <= 86_400_000
+  issued_at_server_ms + 86_400_000,
+  session_not_after_ms if present,
+  provider_not_after_ms if the provider assertion has one,
+)
+```
+
+A missing required session expiry, an already-expired clamp, an overflowing
+addition, or a provider claim that cannot be normalized fails issuance closed.
+No target/provider may advertise a larger value as a capability. This is a
+**required v1 mechanism**: without it the unreachable-client exposure is
+unbounded.
+
+**One revalidation, one atomic proof.** The server evaluates the full query,
+authorization version, and active bundle/manifest identity at one coherent
+database snapshot. Lease issuance then enters the same commit-order gate used by
+app-data writers, authorization-version advances, and activation swaps, and in
+one short serialized transaction proves all of the following before reserving
+the lease:
+
+1. the current version stream is the captured stream and the **current app-data
+   head equals `snapshot_commit_version` exactly** (v1 deliberately chooses the
+   conservative head check rather than a captured-dependency optimization);
+2. the current authorization pair and server-resolved authority/session equal
+   the captured pair and authority;
+3. the exact active bundle/manifest hash equals `activation_hash`; and
+4. no query-, connection-, or authorization-event obligation capable of
+   quarantining/deleting this query is pending.
+
+The issuance reservation and those comparisons are one linearization point. A
+data/auth/activation writer either commits first and makes the proof stale, or
+the lease reservation wins first and the later writer raises its ordinary
+obligation against an already-issued lease; no ordering can attach a fresh
+expiry to pre-commit rows. A mismatch discards the captured rows and requires a
+new full revalidation — issuance never retries against the old snapshot. A
+snapshot that is itself resolving an obligation carries no renewed lease: the
+client first applies and ACKs that exact obligation, then a later full
+revalidation may issue a lease once the pending set is empty. This keeps
+"no-pending-obligation" literal rather than letting the lease bypass the state it
+is supposed to fence.
+
+The lease binds the accepted snapshot's exact composite witness and activation
+hash. The client, under its serialized coordinator, first durably reserves
+`lease_request_id` with
+`lease_request_started_client_ms` after advancing its clock high-water. The
+server binds that request id into the MAC. On response the client derives, without
+assuming its wall clock agrees with the server's:
+
+```
+lease_duration_ms = authorized_until_server_ms - issued_at_server_ms
+client_deadline_ms = lease_request_started_client_ms + lease_duration_ms
+```
+
+Starting the client interval before server issuance makes network/server delay
+shorten validity, never extend it. The client atomically commits the disposition,
+snapshot, composite fence, full lease, lease hash, derived client deadline, and
+client clock high-water **before render and before ACK**. A fault can leave the
+old lease or the new atomic tuple, never new rows under an old lease. The ACK
+token binds the lease hash whenever a lease-bearing snapshot is its resolution
+proof.
+
+**Renewal is never ambient.** Heartbeat, delta, reconnect, ACK, successful
+mutation, session refresh, or presentation of the old lease does not extend it.
+Renewal requires a fresh full authorization revalidation and full snapshot under
+the then-current witness, followed by the same atomic server head/auth/
+activation/empty-obligation proof and atomic client commit. The server cannot
+mint a replacement while any invalidation or stronger disposition is unresolved.
+This makes a renewal/data-write/invalidation race choose one linear order rather
+than combining a fresh expiry with stale rows.
+
+**Both clocks have durable rollback high-waters.** Item 6 establishes one durable
+`auth_clock_high_water_ms` in server auth-control metadata for retry episodes;
+item 8 reuses it for leases. Before issuing, renewing,
+or accepting a lease for any revalidation-free service, it compares the current
+wall clock with that high-water and advances the high-water transactionally. A
+backward sample — including after restart — returns
+`SNAPBACK_AUTH_CLOCK_ROLLBACK`, issues no lease, performs no automatic retry,
+and treats presented leases as expired until time catches up or an explicit
+audited clock-recovery operation establishes a later high-water.
+
+Each client store likewise keeps a durable `lease_clock_high_water_ms`. Before
+every retained read/render and while installing a lease, the serialized store
+first selects the exact current query instance, then compares its wall clock and
+advances the high-water in the same transaction. A record or lease naming
+another `query_instance_id` is discarded in that old identity domain and cannot
+mutate the current instance. Within the exact current instance, a backward
+sample, missing/malformed lease or request reservation, timestamp
+underflow/overflow, duration above the hard maximum, identity/query/witness
+mismatch, or `client_now_ms >= client_deadline_ms` commits that instance's
+`ClientQuery` delete tombstone before any read or render. Absolute client/server clock skew
+does not affect the bound, and changing the client wall clock cannot extend
+already observed validity. This is a guarantee for an honest client; a hostile
+client can alter code or bytes, as below.
+
+The bootstrap capability/runtime facts report:
+
+```
+authorizedLease: {
+  protocolVersion: 1,
+  defaultMs: 86400000,
+  hardMaxMs: 86400000,
+  configuredMs,
+  clamps: ["session", "provider"],
+  renewal: "full-revalidation",
+  timeBasis: "server-absolute+client-request-elapsed",
+  clockRollback: "delete-before-read",
+}
+```
+
+The server-side half is independently enforced: an expired, rollback-tainted,
+wrong-principal, wrong-query, wrong-witness, wrong-target, wrong-activation, or
+invalid-MAC lease cannot obtain revalidation-free service and must take a fresh
+full snapshot.
 
 **What the lease actually defends against — stated precisely, because an earlier
 draft overclaimed it.** The lease is enforced by the client, against the client's
@@ -567,36 +1214,115 @@ threat model includes a hostile client **must not enable retained reads** until
 that question is answered; the capability facts report retention so the app can
 make that choice knowingly.
 
-The **server-side half is enforceable and is enforced**: a client presenting an
-expired lease is refused revalidation-free service and must resnapshot under
-current authority. That is the half that does not depend on trusting the client.
-
 Stated plainly, because it is the price of local-first auth and every design that
 pretends otherwise is lying: **an honest offline device may read data it is no
 longer authorized to see, for up to the lease.** That window is the product
 decision. The mechanisms above make it the *only* window for an honest client —
 and they make no promise at all about a dishonest one.
 
-The boolean `clear_retained` remains a compatibility projection
-(`>= quarantine`). Rollout is pinned: an old client that ignores dispositions is
-**not permitted to enable session-mode retained reads** — the minimum client
-capability is part of the handshake LLP 0039 defines.
+The boolean `clear_retained` remains a versioned compatibility projection
+(`>= quarantine`) only where the capability rule above permits compatibility.
+Current overflow emits it as `true` unconditionally and the shipped kit ignores
+it; implementing this RFC deliberately changes that wire behavior. Session mode
+never relies on the boolean: all auth-scoped live and retained use requires
+`authInvalidationProtocol: 1`.
 
 ### Client fences
 
 A disposition is worthless if a callback in flight repopulates what it just
-destroyed — and the shipped client would: retained writes are fire-and-forget,
-`writeServerRows` begins its retained write before checking disposal, and
-`putRetainedQuery` overwrites unconditionally.
+destroyed. The shipped client now serializes retained writes per surface/query
+and `putRetainedQuery` rejects a lower version in the same stream under a Web
+Lock. That is useful but insufficient: the CAS has no invalidation generation,
+an equal-or-higher delayed write can still win, deletion removes the record it
+would compare against, and `writeServerRows` schedules retention before its
+disposed/boundary check.
 
-So each retained query carries a durable **authorization fence** — the
-`(incarnation, epoch)` it was authorized under — persisted atomically with the
-quarantine/delete. Every snapshot application, subscription callback, optimistic
-reconciliation, and durable store write **carries its expected fence and fails
-closed if stale**. The clear barrier is a serialized async coordinator step (LLP
-0039's `AuthCoordinator`): hide live rows → remove overlays and queues → commit
-the durable transition → *then* permit resubscription. `void resubscribe(...)`
-racing an unawaited clear is exactly the bug this forbids.
+Every auth-scoped live materialization has this state. Live-only queries keep it
+in memory; retainable queries persist it independently of their payload so tabs
+and workers sharing a store share the same fence:
+
+```
+QueryAuthorizationState {
+  query_instance_id: OpaqueId, // allocated explicitly; never reused
+  query_lifecycle: active | retiring,
+  authority_generation: u64, // LLP 0039 AuthCoordinator generation
+  query_generation: u64,     // monotone within query_instance_id
+  authority_instance_id: Option<OpaqueId>, // item 7, optional extra axis
+  expected_boot_issuer: AuthenticatedBootIssuer,
+  expected_authorization: { incarnation, epoch, version_stream },
+  effective_disposition: retain | quarantine | delete,
+  accepted: Option<{
+    witness: CompositeWitness,
+    authorized_lease_hash: Option<Digest>,
+  }>,
+  retired_issuer_frontier: { incarnation, boot_sequence },
+  retired_scope_frontier: Option<{ issuer_id, scope_sequence }>,
+  pending_by_scope: Map<ScopeId, {
+    witness: CompositeWitness,
+    obligation_revision: u64,
+    max_disposition: retain | quarantine | delete,
+    owner_continuity: OpaqueId, // cleanup ownership; not scope/revision identity
+    resolution: Option<{ proof, acknowledgement_token }>,
+  }>,
+  scope_state: Map<ScopeId, {
+    revision_high_water: u64,
+    lifecycle: active | retired,
+  }>,
+}
+```
+
+`query_instance_id` is the next value from one store-wide durable monotone
+allocator whenever a retained key initializes, and from a never-reused process
+allocator for live-only state. A
+missing state is not permission for an ordinary write to create one: only an
+explicit subscribe/retention initialization allocates an instance. Re-creating a
+terminally retired query gets a new id, so an old tab cannot match generation
+zero again.
+While an instance remains initialized, its durable id plus issuer/scope frontiers
+survive payload and tombstone-body compaction as §GC requires; exact retired
+entries fold into those frontiers. Only the terminal `active → retiring →
+removed` transition above may remove the minimal state. No old owner can turn a
+retiring instance active again. `authority_instance_id` is compared when present
+on both authenticated capability surfaces, but absence remains valid until item
+7 and never weakens the mandatory generation/witness/issuer checks.
+
+Receiving an obligation is one serialized transition. It first validates the
+witness and boot issuer against the authenticated current expectation. Before
+frontier or map lookup, every incoming `Subscription` namespace and
+`ClientQuery` scope must name the exact current `query_instance_id`; missing,
+absent, or mismatched state rejects the frame without allocation or any
+disposition/generation change. `retiring` applies the narrower terminal-cleanup
+rule above and rejects every other input. It then drops
+any issuer/scope at or below a retired frontier before map lookup and looks up the
+**full `scope_id`**, compares revision only with that scope's high-water, and
+adds/replaces that entry in `pending_by_scope`; different scopes coexist even
+when one says R5 and another says R1. Duplicate or stale entries do not increment
+`query_generation`. A current new entry increments it, persists the fence, and
+sets `effective_disposition` to the maximum across all pending scopes before any
+resnapshot starts. Every snapshot application, live-only or retained
+subscription callback, optimistic reconciliation, and durable query write
+captures `(query_instance_id, authority_generation, query_generation)` and
+compare-and-commits only if all remain exact. Queue work uses the separate queue
+fence above. Under an equal authorization pair and version stream, accepted
+commit versions are nondecreasing **against both payload records and the durable
+fence**. Pair/stream mismatch is never made comparable by a numeric version.
+
+A satisfying snapshot or terminal-delete proof transitions against the current
+query instance and each exact pending scope it satisfies. One snapshot witness
+may be eligible for several tickets, but resolution remains per scope and every
+token is retained. A `Subscription` token is ACKed only after **that owning live
+boundary** applies the transition; a shared durable-store commit in tab A cannot
+ACK tab B's live scope. A `ClientQuery` token is ACKed only after the shared
+durable transition. An unsatisfied, unapplied, or stronger scope remains pending,
+so effective disposition cannot fall below it. Each transition increments the
+generation again. A terminal proof follows the same rule after destruction
+rather than snapshot install. Ordinary `delete` and body compaction remove
+payload bytes but keep the minimal current-instance fence/high-water, so a
+delayed callback cannot recreate the record. Only terminal query-instance
+retirement may remove that fence after its destructive transition and pending
+continuities complete.
+`void resubscribe(...)` racing an unawaited transition is exactly the bug this
+forbids.
 
 ### Retained and offline authorization
 
@@ -604,18 +1330,26 @@ racing an unawaited clear is exactly the bug this forbids.
   deliverable; LLP 0043's shipped M1/M2 specifies stored epochs and
   whole-context wiping, not a per-query primitive, so 0043 adopts this one.
 - **Retained/offline reads stay disabled under session mode** until the
-  primitive, the stored `(incarnation, epoch)`, and the fences land.
+  primitive, composite witness, durable tombstone, and capability gate land.
 - **Retainable ⇒ `userId`-only authority dependence.** Retained rows are scoped
   by `userId`, but `ctx.auth` also exposes `sessionId` and `provider`, so a
   result whose visibility depended on those could survive into a non-equivalent
   authority. Retainable functions must declare `userId`-only dependence.
 - **Unobserved offline revocation is physics.** A revoked credential cannot erase
   an offline device's copy until it reconnects. Bounding that exposure needs an
-  `authorizedUntil` lease, and the decision must be made **before** retained
-  reads re-enable — defaults are cheap while nobody depends on them.
+  `AuthorizedLease`; retained reads do not re-enable until its exact binding,
+  atomic commit, rollback high-waters, clamps, and 24-hour hard maximum ship.
 - The offline/boot path has no `resync_required` message to carry a disposition,
-  so it is pinned directly: a stored-`(incarnation, epoch)` mismatch discovered at
-  boot or reconnect is **quarantine-before-read**, then resnapshot-and-release.
+  so it is pinned directly. An equal incarnation/stream with a newer epoch is
+  **quarantine-before-read**, then satisfying resnapshot-and-release. A missing
+  witness, pruned/unknown disposition history, incarnation mismatch, or version-
+  stream mismatch is **delete-before-read**; a later snapshot installs fresh data
+  but never releases bytes that the boundary required destroyed.
+- An ordinary process restart preserves the incarnation and does not itself
+  quarantine or delete retained data. A conforming client may render it offline
+  only under an unexpired lease. Any later transition back to a live subscription
+  is still a non-live resume and therefore fresh-snapshots before live render;
+  incarnation persistence is not permission to resume live from the pair alone.
 
 ### Shadow-mode targeting (the graduation path)
 
@@ -630,71 +1364,152 @@ would let a membership change invalidate one user instead of all — is
 - promote to *suppressing* the coarse event only when subject completeness is
   **proved**, which is the central open question below.
 
-Shadow mode is also how the old/new-row derivation problem gets solved before it
-is depended on: the `_snapback_changes` journal stores full `row_json`, so prior
-values are readable in-transaction — but journal pruning can remove them, so
-derivation must degrade to coarse, which v1 already pays. Nothing regresses if
-the derivation is imperfect, because nothing depends on it yet.
+Shadow mode is also where the old/new-row derivation problem must be solved
+before anything depends on it. The shipped `_snapback_changes` journal is **not**
+a preimage source: inserts/updates record the postimage and deletes record no
+`row_json`. Graduation therefore requires transactional preimage capture or a
+journal extension, and pruning/unknown history must degrade to coarse. Nothing
+regresses while derivation is imperfect because v1 suppression depends on none
+of it.
 
 ### Worked classifications
 
-Carried **in the document**, because attempt 2 and attempt 3 both died on shapes
-that prose said were fine. Every row is the *whole* declaration for that query:
+Carried **as required implementation fixtures**, because attempt 2 and attempt 3
+both died on shapes that prose said were fine. Of the named shapes below, only
+todo and todo-v2 exist in the current demo corpus; the other rows are acceptance
+work, not shipped evidence. Every row is the whole declaration for that query:
 
-| App shape | Query reads | Result dependence | Authorization dependence | Behavior on an ordinary write | Behavior on an authorization event |
+| App shape | Query reads | Result dependence | Authorization-event dependence | Behavior on an ordinary write | Behavior on an authorization event |
 |---|---|---|---|---|---|
-| **todo** (`listTodos`) | `todos` | `authScopeField: userId` (disjointness opt-in; L4 assertion on) | none | other users' todos skipped; own todos → `live_replace` (Ibex/ordered) | n/a — no ACL |
-| **todo-v2** | `todos` | `authUserId()` equality predicate | none | as above | n/a |
-| **mine-OR-public** | `docs` | **conservative** (no `authScopeField` — rows are *not* user-disjoint) | none | any doc write wakes; re-query re-applies `owner = me OR public` | n/a — a `public → private` flip is an ordinary write whose replace removes the rows |
-| **card game** (`board`) | `moves`, `gameMembers` | conservative | `gameMembers: permissionBacking` | a move wakes and re-queries; **no epoch, no clear** | a kick advances the global epoch → quarantine + resnapshot; the kicked player's re-query returns nothing |
+| **todo** (`listTodos`) | `todos` | captured `userId` predicate normally decides first; `authScopeField: userId` is the checked fallback | none | captured predicate may skip another user; own ordered Ibex result → obligation-backed `live_replace` | n/a — no ACL |
+| **todo-v2** | `todos` | HostPlan `authUserId()` equality predicate | none | the predicate may prove another user disjoint without `authScopeField`; a remove is obligation-backed | n/a |
+| **mine-OR-public** | `docs` | concrete Ibex fixture, no `authScopeField`; captured facts may skip only with convergence proof | none | re-query applies `owner = me OR public`; every auth-scoped replace is obligation-backed, including `public → private` | n/a — the flip is an ordinary write, not a coarse event |
+| **card game** (`board` + presence room) | `moves`, `gameMembers`; room permission reads `gameMembers` | captured dependencies, conservative fallback | `gameMembers: permissionBacking` for the durable query and room authority | a move follows the proved matcher path; **no epoch or coarse quarantine**, but a potentially shrinking replace still has a delivery obligation | a kick advances the global epoch → durable quarantine/resnapshot **and** room-authority suspension/fresh membership snapshot; denial deletes/unregisters |
 | **roster** (ACL *is* the result) | `gameMembers` | conservative | `gameMembers: permissionBacking` | — (every write here is an authorization event) | same table, both roles, no conflict |
-| **hierarchy** (`docs`/`folders`/`orgMembers`) | all three (the query joins them) | conservative | `orgMembers: permissionBacking` | **re-parenting a doc wakes the subscription** — `docs` is in the read set; the re-query re-applies the join. This is the shape attempt 3 missed entirely | an org membership change advances the epoch |
-| **mixed table** (`users.role` beside `users.displayName`) | `users` | conservative | `permissionBacking` + `permissionFields: ['role']` | an avatar change is an ordinary write — **no** authorization event | a role change is |
+| **hierarchy** (`docs`/`folders`/`orgMembers`) | all three (the query joins them) | fixture proves captured dependencies for visible→hidden and hidden→visible | `orgMembers: permissionBacking` | re-parenting re-evaluates the join and the shrinking delivery is obligated | an org membership change advances the epoch |
+| **mixed table** (`users.role` beside `users.displayName`) | `users` | conservative | `permissionBacking` + `permissionFields: ['role']` | known avatar-only update fires no event; inserts, deletes, role updates, and unknown fields do | role change and conservative cases advance the epoch |
 
-The hierarchy row is the proof of the reframe: the shape that had no expressible
-class needs **no declaration beyond its read set**, because the matcher and the
-re-query already do the work.
+The hierarchy fixture is the proof of the reframe: the shape that had no
+expressible class needs no coarse declaration beyond the permission-backing
+table, because captured dependencies plus re-query handle row movement and the
+delivery obligation makes the shrinking result reliable.
 
 ## Non-goals
 
 - Universal incremental permission re-evaluation with precise live `remove`
   deltas — LLP 0011's ratified v1 answer is server-directed resubscribe.
 - Subject-scoped *narrowing or suppression* in v1 (shadow mode only).
-- A clock/deadline scheduler for time-limited grants (forbidden in retainable
-  queries instead; materialize expiry as a write).
+- A clock/deadline scheduler or mutable ambient-input wake system (the protected
+  profile refuses those inputs instead; materialize change as a write or
+  activation).
 - Non-user subjects (groups, orgs, roles) as epoch scopes — such writes stay
   coarse, permanently, until the scope algebra exists. Named as a limitation, not
   solved.
 - Declarative write-side row-level rules (LLP 0011's later surface).
 - Encryption at rest for retained data (LLP 0043).
+- Custom ephemeral-key authorization (LLP 0039 keeps that capability
+  fail-closed; this RFC owns room membership invalidation only).
 - The authority/session/transport core and the client coordinator itself
   (LLP 0039).
 
 ## Acceptance
 
-**No regression.** An ordinary write by one user advances **no** authorization
-version, fires **no** obligation, and clears **no** other client's rows — in
-todo, todo-v2, mine-OR-public, the hierarchy, and the card game. Other-user
-writes are skipped only where a disjointness opt-in was declared; everywhere else
-the matcher wakes and the re-query is the authorization check. Steady-state
-authorization-resync amplification under sustained ordinary writes is **zero**.
-(Stated precisely: the demos' queries are Ibex and/or ordered, so they deliver by
-`live_replace`, not DK-3 deltas; the pin is *no epoch, no obligation, no
-resnapshot beyond what ships*. A genuinely unordered HostPlan fixture carries the
-delta-path assertion.)
+**No coarse regression; delivery obligations remain required.** An ordinary
+write advances no authorization version, creates no authorization-event/global
+quarantine obligation, and clears no unrelated client's rows. A result-removing
+ordinary write does create the affected subscription's delivery obligation; an
+auth-scoped `live_replace` conservatively creates one whether or not shrinkage is
+observable. Steady-state **authorization-event** resync amplification under
+ordinary writes is zero. Delivery acknowledgements are measured separately and
+never optimized away by calling them authorization events.
 
-**The shapes that killed the earlier attempts.** Each is exercised end to end:
+**Matcher proof paths.** Todo proves the captured dependency wins before the
+`authScopeField` fallback; todo-v2 proves an analyzable HostPlan predicate can
+skip without that field; the unordered HostPlan fixture proves add/update/remove
+delta equivalence; and the Ibex fixture proves every auth-scoped `live_replace`
+is obligated. Every authorization-sensitive skip and delta path passes the
+matcher-versus-full-requery convergence oracle with point reads, missing rows,
+unknown fields, and incomplete capture falling back conservatively.
+
+**Fail-closed admission.** A function with no authorization declaration is
+auth-scoped and its replace/removal is obligated. Only a function-level
+`authorityIndependent: true` fixture opts out. A deliberately false or
+contradictory fixture must produce oracle/doctor evidence, but those diagnostics
+do not prove every trusted assertion true. Retainable functions with
+undeclared/opaque authority dependence fail manifest load. Every protected
+profile runs at initial execution and rerun on dev/test/demo/prod. The recursive
+IR corpus hides `RuntimeNow` and `RuntimeId` under each expression/binding/
+projection shape and proves rejection. Dynamic branches call both host ops on
+first run and only on rerun and prove host-gate rejection. Unknown/future host-op
+and expression sentinels default-deny. Alias/computed-access fixtures cover
+`Date`, `Math.random`, random UUID/bytes, `performance.now`, timers, locale/time
+zone, environment, config/provider state, and network. A warm-module counter and
+imported singleton attempt to change visibility across invocations; protected
+queries always observe fresh/reset-equivalent state while an unprotected DK-4
+positive control proves the VM pool really was warm.
+
+Mode fixtures assert the exact sealed `ctx.auth` own-key/descriptors and deep
+immutability for anonymous sessions, authenticated sessions, dev impersonation,
+admin bypass, and system execution; injected keys/getters/proxies and post-seal
+mutation fail, and initial/rerun projections match. `permissionFields`
+acceptance covers: insert always fires; delete always fires; known intersecting
+update fires; known disjoint update does not; empty/unknown/journal-reconstructed
+fields fire. The cases run through HostPlan, Ibex, seed, admin edit, import, and
+rollback paths.
+
+**The shapes that killed the earlier attempts.** The required (not
+already-shipped) fixtures are exercised end to end:
 re-parenting a document across folders removes it from the losing org's
 subscribers and adds it to the winner's; a `public → private` flip removes the
 row from other users' views; a roster table that is both ACL and result behaves
 correctly in both roles; an avatar write to a mixed `users` table fires no
-authorization event while a role write does.
+authorization event while role/insert/delete/unknown-field writes do.
 
 **Writeless authorization events.** Hot-reloading a narrower auth filter fires an
 authorization event and strands no previously published rows. Import, reset, and
-declared restore each rotate the incarnation and force resnapshot. A query whose
-authorization depends on the clock is refused at manifest load
-(`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`).
+declared restore each rotate the incarnation. Activation-pinned config changes
+fire event 2; non-pinned config/provider inputs are rejected by the protected
+profile. The expiry fixture materializes its deadline as a write and follows
+event 1. An `authorityIndependent` live-only control may use capabilities outside
+the protected profile only when it is also non-retainable; it cannot accidentally
+weaken the protected fixtures above.
+
+**Ephemeral-room kick trace.** Player A and B subscribe to the durable card-game
+board and its protected presence room. A kick deletes A's `gameMembers` row. The
+unique dependency ticket is installed atomically with affected-room enumeration,
+each room ticket is installed, and every old-generation sink permit is quiescent
+**before** the delete may commit; after commit, both the durable query obligation
+and finalized `RoomAuthorityResync` name the causing version. A's
+old-generation cursor/presence frames are refused at room mutation, enqueue,
+drain, and send; its room subscription is suspended, and a fresh durable
+membership snapshot denies it. The room unregisters A, removes A-owned entries,
+commits the new generation, and only then emits the typed kick. B sees the
+removal/fresh snapshot. Dropped resync/ACK re-fires; a server crash clears the
+room and forces fresh subscribe/authorization. At no point after the kick commit
+may A receive board rows or ephemeral opponent state. An unrelated membership
+change may conservatively resync but never leak; custom-key access remains
+refused.
+
+Adversarial schedules pause A (a) after preliminary authority lookup but before
+room mutation, (b) after frame construction but before enqueue, (c) after
+enqueue but before destructive drain, and (d) after drain but before final send,
+then race the kick's prepare/commit/finalize phases through each pause. A fifth
+schedule races a new protected-room registration and initial snapshot against
+dependency-ticket installation: admission either completes first, becomes
+registry-visible, and is included/quiesced, or observes pending, publishes no
+authority/snapshot, and fresh-authorizes only at or after the committed boundary.
+Every act either completes under a permit before the durable commit or observes
+pending/new generation and refuses; no validate-then-act schedule crosses the
+commit.
+Old queued generations are discarded. A rollback compare-clears only its exact
+ticket and safely reopens the old generation; two overlapping room-changing
+writes prove that one rollback cannot clear the other's barrier. An ambiguous
+commit result leaves its ticket pending and every sink closed until durable
+reconciliation proves commit or definite rollback; timeout never reopens the old
+generation. Dependency-ticket, barrier-install, or quiescence failure aborts the
+write. L9 tests simultaneously prove unrelated rooms still register,
+publish/drain while the affected room is pending, and no registry or room mutex
+is held across the commit.
 
 **Obligation durability — the tests the shipped queue would fail.** A lost HTTP
 drain response carrying the sole `delete` still results in the rows being
@@ -702,106 +1517,337 @@ destroyed (the obligation survives and re-fires). A mid-batch WebSocket send
 failure does the same. A `delete` arriving **while the connection is already
 overflowed** raises the parked obligation rather than being dropped. A resync
 emitted as a substitute for a failed authorization resync inherits its
-disposition. An obligation is discharged only by a superseding snapshot under a
-satisfying `(incarnation, epoch)`, never merely by having been sent.
+full composite witness and disposition. Every open, subscribe/resume, drain, and
+heartbeat reprojects the current obligation; dropping the first hint or ACK
+response still produces another within the five-second connected bound. An
+unknown/reaped subscription produces typed resnapshot-required, not `[]`.
 
-**Fences.** A callback that began before an invalidation cannot repopulate the
-query after deletion (fails closed on a stale fence). A restart during a failed
-resubscribe leaves no formerly authorized rows readable. Resubscription cannot
-begin before the durable clear commits.
+Composite interleavings are explicit: a version-99 snapshot cannot discharge a
+removal at 100; removals at 100 (R) and 105 (R+1) are not discharged by R's
+version-102 ACK; quarantine R followed by delete R+1 cannot be downgraded by R;
+an authorization-pair or version-stream change invalidates the old ACK; duplicate
+ACK after discharge is idempotent. A fault after client apply but before ACK
+leaves the obligation live and the client can idempotently apply/ACK its retry.
+
+Revision domains are tested independently: old connection scope A at R5 and a
+new connection scope B at R1 coexist without numeric comparison; two tabs may
+each hold an independent R1 and each tab must apply its own live boundary before
+ACK (a shared-store write cannot ACK its peer); and an N-query connection-overflow
+root survives until all N derived subscription children discharge (or their
+continuity ends), never until the first query ACK. A late lower epoch is ignored;
+an incarnation/stream change is accepted only from authenticated bootstrap
+expectation; a late old-stream obligation cannot replace it; `data: None` cannot
+erase a same-stream version floor; and an auth-only change preserves that floor.
+
+Client-query lifecycle identity is tested independently. Query key Q initializes
+as instance I1, receives an obligation, and then terminally retires: the
+transaction enters `retiring`, advances query and queue generations, destroys
+payload/lease/overlays/live boundaries, and makes dependent custody discard-only.
+A crash before, during, or after each step resumes either active I1 or
+non-renderable `retiring` I1 and never reuses its id. After pending tokens
+discharge or their continuities end, finalization removes I1's maps while keeping
+the allocator high-water; explicit recreation allocates I2 and fresh-snapshots.
+Both cleanup branches are pinned: an already-issued terminal-delete token is
+ACKed idempotently only after the destructive retirement commit, while a pending
+snapshot/quarantine token is never ACKed by retirement and finalization waits
+for its recorded owner continuity to end. A crash before or after delete/ACK and
+before or after continuity retirement resumes the same branch without exposing
+bytes or inventing proof. Every other delayed I1 obligation, resolution, ACK,
+callback, render, and queue operation is rejected before map lookup and cannot
+allocate state or mutate I2. Two
+tabs sharing I1 both fail their old captures after the generation transition.
+One million unique-key and same-key compact/retire/recreate cycles retain only
+the allocator scalar plus extant/bounded state, never one row per historical key
+or instance.
+
+Extinct-scope retirement is adversarially covered: tabs A and B persist
+independent R1 scopes; B dies before applying its live boundary; A applies and
+ACKs its R1 snapshot; and an authenticated retirement proof for B first advances
+the shared query/queue generations. B's suspended callback, render, resume, and
+queue work then fail their old captures. Because A's accepted snapshot is fresh
+and satisfies B's witness, the exact retired B entry and suspension root can be
+removed without ACK, aggregate quarantine can release, and the queue does not
+wedge forever. If that snapshot is absent or stale, neither releases. Returning B
+gets new continuity and must fresh-snapshot before rendering.
+
+Boot continuity is tested separately. The server crashes after projecting an
+obligation but before exact retirement; the next process reserves a strictly
+new authenticated boot issuer even when its boot-local connection/subscription
+counters restart at the same numeric values. A forged/replayed issuer or
+retirement MAC is rejected. The new issuer cannot release old pending state
+until a fresh snapshot satisfies it; after the atomic transition, issuer
+retirement advances the old-boot frontier and delayed frames/ACKs from every old
+scope are ignored. A second crash before that transition advances no frontier
+and the third boot repeats fail-closed. One million scope churn operations mixed
+with crashes, delayed frames, query compact/retire/recreate cycles, and numeric counter
+reuse leave storage bounded by the scalar issuer/query/scope frontiers plus the
+configured maximum active/unresolved scopes — not by historical churn.
+
+**Denial and error.** Typed `SNAPBACK_AUTH_PERMISSION_DENIED` produces a
+token-bound terminal-delete proof at a coherent composite witness and immediately
+deletes the affected query state. Its ACK is sent only after render and durable
+deletion; a fault after apply but before ACK re-delivers the proof and the client
+idempotently deletes/ACKs it. The declarative evaluator,
+`ctx.permissions.deny()`, and room authority are positive trusted producers; a
+forged code/plain throw is a negative producer fixture and quarantines. An
+untyped throw immediately quarantines. Server state reserves attempts 1, 2, and
+3 before invoke; attempt 4 never runs, and every automatic attempt lies within
+15 seconds of the first failure. Duplicate re-fire, a newer revision, reconnect,
+restart, query-instance retirement, and same-key recreation retain the same
+canonical-key/witness attempt count/deadline. An old-instance resolution or ACK
+cannot transfer; resolution must be reprojected through the current full scope.
+Crash after reservation
+consumes the attempt; server-clock rollback exhausts automatic retry
+fail-closed. An explicit authority-checked/idempotent manual retry is the only
+way to open another episode. A repeated failing resnapshot never maps to
+`retain`. Lost/overflowed denial delivery re-fires, and any substitute resync
+inherits `quarantine`/`delete`.
+
+Unique-failing-query churn is a separate bound test. With test-overridden small
+limits, distinct canonical argument sets fill the per-authority-store cap and
+distinct stores fill the global cap. Each admitted key invokes at most three
+times and retains one current/exhausted record; N+1 returns
+`SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY` before handler invocation and remains
+quarantined across re-fire, reconnect, revision changes, and restart. Crashes on
+both sides of episode/counter insertion observe both changes or neither. No
+exhausted key is evicted to admit a new one. Transferring a satisfying resolution
+proof and removing its episode in one transaction frees exactly one slot; an
+already-over-cap store admits only resolution/deletion until it is back within
+bounds. Record count never exceeds the two configured hard caps.
+
+**Fences and tombstones.** A callback or retained write begun before invalidation
+cannot repopulate after quarantine/delete even at an equal or higher data
+version, because its authority/query generation is stale. This is proven across
+live-only state, two tabs sharing the Web-Locked store, and payload/tombstone-body
+compaction, which retains the current instance's minimal high-water. Terminal
+retirement/recreation instead gets a never-reused id and rejects every old frame
+before lookup. A newer obligation racing an
+older snapshot prevents release; resubscription starts only after the disposition
+transition commits, and ACK is observed only after both durable store and render
+boundary commit.
+
+The retained boot matrix explicitly covers missing witness, pruned disposition
+history, unknown disposition value, unknown version stream, and malformed
+frontier. Each commits `delete` and its minimal tombstone **before the first
+read/render**, then permits only a fresh snapshot to install new bytes. No case
+falls through to `retain` or treats absent history as permission.
+
+**Queue fence.** Two independent query quarantines create two AuthCoordinator-
+custody queue suspension roots. Releasing one does not execute or replay work
+while the other remains. Every enqueue/settle/replay/discard operation fails its
+CAS after the separate `queue_generation` advances, and a delete root strands the
+queue as explicit discard-only state unless independence is proved. The item-7
+authority descriptor, when available, adds another equality check; this test and
+item 6 remain valid without it.
+
+**Protocol rollout.** With only items 1–5, the session mode itself may activate,
+but the server refuses every auth-scoped live subscribe/resume and protected
+room registration with `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`; ordinary online
+request/response and explicitly `authorityIndependent` live remain available.
+Once item 6 is installed, a client with no `authInvalidationProtocol: 1` still
+cannot open any session-mode auth-scoped live surface and a legacy connected
+client is closed. A capable client proves all three dispositions and
+revision-bound ACK, authenticated issuer/frontier validation, durable retry
+episodes, and room-authority reauthorization. A client without
+`authorizedLeaseProtocol: 1` sees retained reads disabled; a capable item-8
+client proves the full AuthorizedLease facts. Item 7 can land before item 6 and
+its authority descriptor is negotiated only as an optional additional axis; its
+presence unlocks neither live nor retained admission. The compatibility boolean
+is never the session-mode proof.
+
+**AuthorizedLease.** Exact-field/MAC binding is tested against changes to app,
+principal, store, query key/instance, authorization pair, version stream,
+snapshot version, activation hash, issuer, times, and optional authority
+descriptor. A valid or malformed lease belonging to
+retired instance I1 cannot install into, renew, quarantine, or delete recreated
+I2; it is removed only in I1's identity domain. A missing/corrupt/mismatched
+lease on the record that claims to be current I2 still deletes I2 before read.
+Retirement destroys I1's lease and request reservation at the same terminal
+transition. Default and hard maximum both report `86_400_000`; larger
+configuration is rejected, and
+session/provider earlier expiries clamp the result. A closed client renders only
+while its lease/request reservation, derived local deadline, and durable clock
+high-water are valid, deletes-before-render at expiry/equality, and cannot revive
+bytes by rolling its wall clock backward. Deliberate client/server wall-clock
+skew and delayed responses only shorten the request-started client interval.
+Server rollback across restart returns `SNAPBACK_AUTH_CLOCK_ROLLBACK` and neither
+issues nor honors a lease. Missing/malformed lease deletes before read. Heartbeat,
+delta, session refresh, reconnect, and ACK do not renew. Only a fresh full
+revalidation/snapshot renews. The ordinary-write race is pinned explicitly:
+renewal captures a public row at data head 99, pauses, and a `public → private`
+write commits head 100 without advancing the authorization epoch. Renewal must
+then fail its atomic head comparison, mint no lease, discard the v99 rows, and
+full-revalidate at or after 100. The converse schedule reserves the v99 lease
+first; the v100 commit then raises the normal obligation, whose query fence
+quarantines the connected result. Auth-pair equality alone never accepts the
+v99 proof. Membership removal and a provably unrelated app-data write exercise
+the same conservative head mismatch; v1 retries both. Manifest activation and a pending obligation are equivalent losing
+comparisons. A snapshot resolving an obligation carries no lease; only a later
+full revalidation after discharge can renew. A crash at each boundary observes
+either the old tuple or the complete new tuple, never a new expiry on stale
+rows. The server refuses expired/wrong-bound/wrong-activation/invalid-MAC
+revalidation-free service.
 
 **Version durability.** A crash between the causing write and any post-commit
-work cannot lose the authorization event (same transaction, one hook — proven
-across HostPlan, Ibex, seed, admin edit, import, reset, and rollback). An
-**ordinary restart preserves the incarnation** and does **not** force retained
-subscriptions to resnapshot; reset/import/declared-restore do. The full ABA cycle
+work cannot lose an enumerated authorization event because the version advances
+in the same transaction. A matcher-path crash kills the live scope; the next
+subscribe resnapshots rather than trusting an absent obligation. Both are proven
+across HostPlan, Ibex, seed, admin edit, activation, import, reset, and rollback.
+An **ordinary restart preserves the incarnation** and does not itself quarantine
+or delete lease-valid retained bytes; offline read may continue under the lease,
+but every later auth-scoped live resumption fresh-snapshots. Reset/import/declared
+restore rotate the incarnation and delete before read. The full ABA cycle
 (`0 → 1 → reset → 0 → 1`) is caught.
 
 **Blast radius, measured not asserted.** Under the card game's membership-churn
 workload (joins/leaves/kicks as routine lobby traffic), the disruption to
-*unrelated* subscriptions is measured and bounded, and the result is recorded —
-`quarantine` hides and resnapshots; it does not destroy live views. If the
-measured cost is unacceptable, that is a finding about the shadow-mode
-graduation's priority, not something to discover in production.
+*unrelated* subscriptions is bounded to one merged quarantine/resnapshot/ACK per
+auth-scoped query per outstanding event revision. The report records hidden-view
+time, resnapshot traffic, durable tombstone writes, retained-byte deletion,
+suspended pending mutations, and recovery time under adversarial churn. A coarse
+event destroys **zero** unrelated retained bytes, overlays, or pending mutations;
+quarantine suspends them. If the measured availability cost is unacceptable,
+that is a finding about shadow-mode graduation priority, not something to
+discover in production.
 
 **Oracle.** A reference "full re-query plus full authorization re-evaluation"
 oracle is property-tested against randomized writes, deployments, expiry,
-overflow, disconnect, response loss, restart, and stale-callback interleavings.
+overflow, disconnect, response/ACK loss, restart, stale callbacks, cross-tab
+writes, and disposition escalation. Its receipt reports the proof path, composite
+witness, scope/revision, and why the disposition was selected.
 
 ## Open Questions
 
 1. **What proof lets a subject declaration narrow — and later suppress — the
    coarse event?** The central question, and the one the shadow mode exists to
-   answer. Candidates: N clean observations against the oracle per
-   `(mutation, backing table)`; or mechanical derivation from `permissionFields`
-   over old/new rows as the *only* sanctioned form.
-2. **Is the enumerated event universe actually closed?** It is the safety claim's
-   load-bearing assumption, and the previous three attempts all died of
-   incompleteness. What is the argument — or the test — that no fifth event
-   source exists? (Candidate answer: the online-only fallback means an unenumerated
-   source can only cost retainability, never correctness. That argument needs
-   scrutiny, not assertion.)
-3. **Non-user subjects.** Group/org/role grants have no expressible subject, so
+   answer. N clean oracle observations are diagnostic evidence, not proof;
+   suppression needs a structural derivation over transactional old/new rows or
+   an equivalently closed source.
+2. **Non-user subjects.** Group/org/role grants have no expressible subject, so
    those writes are coarse forever. Is that an accepted permanent cost, or does
    the scope algebra need to exist before graduation?
-4. **Is the 24-hour lease default right?** It is now a pinned mechanism with a
-   default rather than an open question — but the *number* is a product decision,
-   and it is the exposure window for every offline device. A shorter default costs
-   offline usability; a longer one costs security. Someone must own the number.
-5. **Does the Cloudflare coordinator support the same atomic authorization-version
+3. **Does the Cloudflare coordinator support the same atomic authorization-version
    and persistent-obligation contracts?** It rebuilds subscriptions on deploy and
    has no auth machinery today.
-6. Is the classification obligation scoped to subscribable/retainable queries
-   only, or to every function including mutations? (v1 says the former —
-   classification has operative meaning only for subscriptions.)
 
 ## Status
 
-**Draft — FROZEN, by the author's instruction, 2026-07-12.** Not because it is
-finished, but because further unreviewed iteration by its author has negative
+**Draft — FROZEN, by the author's instruction, reaffirmed 2026-07-13.** Not
+because it is finished, but because unreviewed enforcement iteration has negative
 expected value. Read this section before implementing anything here.
 
 **What the loop established.** Six designs; five rejected. **Every single defect
 was found by an independent reviewer, and not one by the author.** That record is
 the most reliable fact in this document, and it is why the freeze exists.
 
-**What is settled.** The round-4 review put it plainly: *"The architecture —
-matcher-carried live correctness, two orthogonal declarations, an enumerated event
-universe with machine-enforced online-only confinement, obligations for negative
-deltas, mandatory resnapshot, quarantine-then-prove, and an honestly-scoped lease
-— is sound, and nothing I found requires reopening it; after five failed designs,
-that is the headline."* No reviewer has produced an app shape this model cannot
-express since the reframe landed.
+**What is settled.** Every subsequent review has preserved matcher-carried live
+correctness, two orthogonal declarations, the enumerated event universe,
+obligations for negative deltas, mandatory resnapshot, quarantine-then-prove,
+and a bounded offline lease. No reviewer has produced an app shape this model
+cannot express since the reframe landed; the failures have been enforcement
+contracts inside that architecture.
 
-**What is NOT reviewed — read this before building.** The final round found two
-material defects, and the fixes now in the text are **transcriptions of that
-reviewer's own prescribed resolutions**. They have **not themselves been
-reviewed**, and this document's history says that is exactly when it is wrong:
+**What the paired confirmation established.** Codex round 5 and Fable round 6
+independently reviewed SHA-256
+`fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592`
+and returned **NOT READY** while again preserving the architecture. Their union
+found: narrow conflict with ratified LLP 0008/0011 clauses; a default-allow
+mutable-input perimeter (`ctx.runtime.id()` was the concrete witness); an
+underspecified lease; server-boot ScopeId ABA/unbounded high-waters; unowned
+retry state; unowned ephemeral-room invalidation; and missing constant,
+typed-denial, and pruned-history acceptance pins.
 
-1. **Obligation discharge and the client fence were epoch-witnessed** — and the
-   epoch never moves for a matcher-path removal, so both were satisfiable by stale
-   state on precisely the class obligations exist to protect. Now witnessed by
-   **commit version**. *Unreviewed.*
-2. **A denied re-query was routed to `retain`** ("keep showing current rows
-   meanwhile") — and since the resnapshot is also denied, "meanwhile" never ended:
-   forbidden rows persisted on a connected client forever. Denial is now a
-   negative delta, obligation-backed, disposition ≥ `quarantine`. *Unreviewed.*
+**What the final paired gate established.** Codex round 6 and Fable round 7
+reviewed the exact six-file operative corpus ending in LLP 0053 SHA-256
+`98f286826e4cf0fb283648747ba209fbed99f8f09519a1e1498f18b86136bf8f`.
+Fable returned READY with two non-blocking LOW observations. Codex confirmed the
+same enforcement areas but returned NOT READY on one HIGH, bounded inconsistency:
+`ClientQuery` omitted the already-required never-reused `query_instance_id`, so
+delayed old-instance obligations/ACKs and bounded GC could not both be correct.
+Both reviews again preserved the architecture.
 
-Also unreviewed: per-scope obligation durability, the fail-closed definition of
-"auth-scoped", and the corrected closure argument.
+**What is NOT reviewed — read this before building.** This revision changes only
+that identity/GC seam. The full `ClientQuery` scope now carries
+`query_instance_id`; revision, obligation, resolution, ACK, lease, and map
+comparisons bind it; payload compaction remains distinct from a crash-recoverable
+destructive terminal retirement; incoming missing/retiring/mismatched frames
+cannot allocate state; canonical retry budgets cannot reset across recreation;
+and acceptance covers I1→retire→I2 delayed frames, leases, crashes, two tabs, and
+million-key churn. These bounded edits have **not** received focused independent
+confirmation on their new SHA. The document therefore remains Draft/FROZEN, and
+items 6 and 8 remain blocked.
 
-**Known residual, not a defect to be fixed later — a property.** A connected
-client whose authorization depends on a JavaScript clock read keeps its rows past
-expiry, indefinitely. That form is undetectable at load, so it cannot be refused;
-the remedy is authoring guidance (materialize expiry as a write) plus a doctor
-diagnostic. This document does not pretend the closure argument covers it.
-
-**The next action on this document is a review of these fixes — not a new design.**
-Whoever picks it up: the architecture is not the risk. The enforcement primitives
-are, and they have failed review twice in a row at exactly this layer.
+**The next action is focused exact confirmation of that bounded correction — not
+a new design and not implementation.** The architecture is not the risk. The
+corrected lifecycle identity must confirm before the author decides the
+ENG-24592-authorized Draft→Review→Accepted transition.
 
 ## Changelog
 
+- **2026-07-13 (final paired-gate ClientQuery correction; still FROZEN).** Codex
+  round 6 returned NOT READY and Fable round 7 returned READY on the exact
+  six-file operative corpus; both preserved the architecture. Closed Codex's one
+  HIGH by carrying the store-wide never-reused `query_instance_id` in every
+  `ClientQuery` scope and therefore every revision/tombstone/resolution/ACK
+  identity. Separated bulky compaction from a crash-recoverable destructive
+  terminal instance retirement, rejected missing/retiring/mismatched frames
+  before allocation, preserved canonical retry budgets across recreation,
+  isolated old-instance leases, and added ABA/crash/two-tab/million-churn
+  acceptance. Pending focused exact confirmation; no status transition.
+- **2026-07-13 (independent local-audit correction; still FROZEN).** Closed four
+  enforcement gaps without changing the settled architecture: protected-room
+  authority now installs a dependency-indexed registry ticket atomically with
+  enumeration, interlocks registration/snapshot installation, and quiesces
+  exact-ticket room barriers before the causing commit; mutation, enqueue,
+  destructive drain, and final send generation-check atomically with each act;
+  lease issue/renewal proves the exact
+  app-data head, authorization pair, activation identity, and empty pending set
+  at one commit-ordered linearization point; retry episodes have transactional
+  per-authority-store/global hard caps and fail closed under unique-query churn;
+  and the activation matrix now permits sessions after item 5 while refusing
+  auth-scoped live until item 6 and retained/offline reads until item 8, with
+  item 7 admission-independent. Added adversarial acceptance for every boundary.
+  These corrections require focused confirmation; no status transition.
+- **2026-07-13 (paired confirmation revision; still FROZEN).** Codex round 5
+  and Fable round 6 returned NOT READY on
+  `fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592`
+  while preserving the architecture. Applied their bounded union: explicit
+  acceptance-time precedence over the narrow conflicting LLP 0008/0011
+  invalidation clauses, with root/companion amendments; a machine-enforced
+  protected-query allowlist that recursively denies `RuntimeNow`/`RuntimeId`,
+  seals mode-specific `ctx.auth`, classifies host ops default-deny, and requires
+  fresh/reset-equivalent module state; exact AuthorizedLease fields, atomic
+  witness binding, server/client clock high-waters, session/provider clamps, and
+  a 24-hour default/hard max; authenticated durable boot issuers, never-reused
+  ScopeIds, crash-safe issuer retirement, and bounded monotone frontiers;
+  durable server-owned three-attempt/15-second retry episodes; enumerated event
+  projection into ephemeral room reauthorization; trusted typed-denial
+  producers; pinned constants; optional-only item-7 descriptor; and the full
+  lease/churn/crash/kick/pruned-history acceptance. Pending focused confirmation;
+  no status transition.
+- **2026-07-13 (ENG-24592 enforcement-gate revision; still FROZEN).** GPT round
+  4 and Claude round 5 independently returned NOT READY on the frozen text while
+  preserving its architecture. Applied their shared protocol corrections across
+  the operative record, tables, client state, acceptance, and 0039 seam: a
+  composite `(authorization pair, version stream, minimum commit version)`
+  witness; monotone non-reused obligation revision and conditional ACK;
+  explicit live-vs-retained scope/durability projection; prompt level-triggered
+  re-fire and must-understand client capability; durable client tombstones and
+  two-generation CAS; exact denial/error producers and bounded retry; delivery
+  obligations distinguished from coarse authorization-event obligations;
+  conservative obligation-backing of every auth-scoped `live_replace`;
+  disposition-specific live/retained/overlay/queue transitions; conservative
+  `permissionFields`; restart semantics; and corrected retained-store, journal,
+  fixture, matcher, and clock source facts. Chose the gate's safe branches:
+  typed permission denial deletes, untyped errors quarantine immediately with
+  two retries, and `ctx.runtime.now()` is runtime-denied for auth-scoped
+  subscription/retention. A local adversarial preflight then found and this text
+  corrected: independent `pending_by_scope` revision/token domains and
+  connection-root children; live-only fences plus non-reused durable high-water;
+  terminal-denial proof/ACK; a separate item-5 AuthCoordinator-custody queue
+  fence (with item 7 only an optional later equality axis); authenticated
+  extinct-scope retirement; and authenticated witness-currentness rules. Pending
+  focused confirmation; no status transition.
 - **2026-07-12 (round 4 → FROZEN).** Final round: architecture confirmed sound
   and not reopened; two material enforcement defects found and their prescribed
   fixes transcribed (see §Status — they are **unreviewed**). (a) Obligation
