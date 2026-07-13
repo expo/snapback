@@ -1936,3 +1936,358 @@ what unreviewed author fixes are worth.
 
 **Final tally, both documents:** across ~24 reviews, every material defect in either
 RFC was found by an independent reviewer. **None was found by the author.**
+
+## Round 13 — 2026-07-13 (ENG-24593 focused gate review)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md`, current working-tree
+revision (sha256
+`437a5324317f48b7b737524bcbf8d3eea2c97d5de4541e0f2ac45eede8fc28b9`).
+**Reviewer family:** Claude (Anthropic)
+**Provider / runtime:** Claude Code CLI 2.1.207 headless (`claude -p`), model
+`claude-fable-5` (invoked as `claude-fable-5[1m]`), effort `max`; only
+Read/Grep/Glob/Bash tools allowed, editing tools disallowed, and session
+persistence disabled. Fresh session
+`40a1335c-14fe-4ed7-88b4-f61a3c541229`, 38 turns, in worktree
+`/Users/ccheever/projects/snapback-eng-24593-auth-review`.
+**Date:** 2026-07-13
+**Redacted:** No credentials or secret material were supplied in the brief or
+returned in the review. External Claude-family review was explicitly
+authorized by the user's LLP 0005 multi-model request.
+**Method:** Focused ENG-24593 review of the final unreviewed fixes and five
+carried residuals. This review was explicitly informed by all prior 0039
+review artifacts (not blind), LLP 0053 at the seam, and direct source checks.
+The reviewer was instructed to judge at the author-ratified RFC altitude and
+not accept on the author's behalf.
+
+### Review body (verbatim)
+
+All verification is complete. Everything I need is in hand: the four unreviewed fixes checked against code and cited LLPs, all five residuals confirmed with exact locations, and one dropped codex round-8 finding re-verified against the current tree. Here is the structured review.
+
+---
+
+# Review: LLP 0039 — Auth vertical slice (ENG-24593 gate review)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md` at the current worktree revision (branch `eng-24593-auth-review`, 37d25a6), 1754 lines; `llp/0053-authorization-invalidation.rfc.md` in full for the seam; all three prior artifacts (`reviews/0039-auth-vertical-slice.{claude,codex,fable}.md`, including fable rounds 10–12 and codex round 8 in full).
+**Reviewer family:** Claude (Anthropic), Fable 5, independent session for the LLP 0005 loop.
+**Method:** Verified the unreviewed final revision's claims directly against shipped code (`src/storage.rs`, `src/server.rs`, `src/ephemeral.rs`, `src/manifest.rs`, `cloudflare/deploy.sh`, `cloudflare/wrangler*.jsonc`, `cloudflare/src/{coordinator.js,handler-worker.js}`, `packages/snapback-harness/workerd/handler-server.mjs`, `packages/snapback-admin-client/index.mjs`) and against the cited LLPs (0011, 0017, 0030, 0031, 0043, 0051, 0053). Judged at the author-ratified RFC altitude; §Protocol obligations deferrals were respected, not re-litigated.
+
+## Overall assessment
+
+The frozen document is architecturally sound and the four post-round-12 MEDIUM fixes are **substantively correct where they were applied** — but two of the four propagated incompletely, leaving the document asserting things about itself that are no longer true, and one load-bearing factual claim outside the residual list is wrong against the current tree. Specifically: the PublicInspect correction and the LAN/proxy residual are accurate to the code and to 0030's exact text; the collision-rescue redesign and the console short-lived-token deliverable are right in their home sections but left stale contradicting prose elsewhere (an acceptance row that still tests the recovery the document now proves impossible; a promised acceptance negative that does not exist). Separately, gate 2's Cloudflare "one artifact" argument is factually false at this revision — the app bundle ships in *two* worker artifacts deployed sequentially, handler first — which re-opens codex round 8's concern 1 as a first-party residual the text currently attributes only to third-party forks. All five carried LOW residuals are real and closable with bounded edits; none requires reopening a settled contract. Zero HIGH. The ephemeral field-rejection pin is verified complete against the shipped wire types. The 0053 seam is drawn correctly on both sides, including the retained-scope and handshake-duty details the polish residual concerns.
+
+## Strengths (exact sections)
+
+- **§Existing surfaces under sessions — the PublicInspect correction is exactly right.** `/` and `/inspect` are registered `(AppData, Public)` at `src/server.rs:1367,1369`, and `/inspect` returns the full `Json<PublicInspect>` (`src/server.rs:2374`) carrying `recentDiagnostics`. The corrected text ("tokenless on **any** bind, not merely loopback, and not gated at all") is precise, and the "worse than `AdminRead`" framing is honest about the earlier draft's error.
+- **§Protected identity core — the rescue-verb reconciliation is the only executable design.** The absolute reservation genuinely forecloses any manifest that declares both the colliding table and its successor; `auth.rescueCollidingTable` reading below `ctx.db` and manifest validation is the correct and only escape, and recording the withdrawn recovery as a contradiction ("An earlier draft prescribed precisely that recovery; it was unexecutable") is the document's characteristic honesty.
+- **§Built-in first provider — the console read-token deliverable replaces unfollowable advice with structure.** The analysis (localStorage-persisted token at `packages/snapback-admin-client/index.mjs:24-25,114`, one origin always, `src/cli.rs`) is code-true, the short-lived derived token is the right shape, and the surviving residual ("still a read capability for its lifetime") is stated rather than hidden.
+- **§Authority resolution, mode table — the LAN/proxy residual is named with an exact citation.** The quoted 0030 warning ("can still expose the read surface and the token-gated lane to the network") appears verbatim at 0030 lines 636–640, and "the fence protects un-proxied defaults, not proxied opt-ins" is the honest scope statement round 12 asked for.
+- **§Ephemeral rooms — the field-rejection pin is complete against the shipped wire types.** `PublishRequest`/`DeleteRequest` carry exactly `session_id`, `user_id`, `custom_key` as identity siblings plus a *required* (non-`Option`) `auth`; `SubscribeRequest` carries only `auth` (`src/ephemeral.rs:442-471`). The pinned rejection list `{session_id, user_id, custom_key, auth}` therefore covers every identity-deciding field; `connection_id` is addressing, guarded by the shipped ConnectionAuth token. The ENG-24566 characterization is exact: `resolved_identity` requires an authenticated identity and rejects a disagreeing claim, and the RFC is right that this closes the inconsistency but not the forgery while `request.auth` is client-supplied.
+- **§Replay parity — the 0051 facts check out.** `CtxAnswerLedger.auth_fingerprint` is a deserializable `Option<String>` (`src/manifest.rs:1473`), the duplicate-settlement-only check is at `src/manifest.rs:1569-1570`, and 0051's landed D1 note ("fingerprint channel stays server-side") plus its Q7 ("the ledger's wire split is no longer open — D1 pins it") support "D1 pins that split as settled and landed."
+- **§Permission dependencies / the 0053 seam** — verified against 0053's current text: outcomes-only, the incarnation and disposition-enum ownership moves mirrored on 0053's side, session-loss-deletes matching 0053's deliberate carve-out, and item 6's FROZEN characterization matching 0053 §Status exactly.
+- **§Status** — the five-item residual list is accurate: every item on it is real in the text, none is already fixed, and nothing on it is mis-rated upward.
+
+## Findings
+
+### HIGH
+
+None.
+
+### MEDIUM
+
+**M1 — correctness (factual error in a load-bearing gate argument): gate 2's Cloudflare "one artifact" claim is false at this revision; the mixed-version deploy window is a first-party channel, not only a third-party-fork residual.** §Target scope gate 2 (lines 85–93) claims "a bundle and its coordinator are **one artifact**. There is therefore no channel through this repo's deploy path by which a sessions bundle can reach a session-unaware coordinator," bounding the residual to "a third-party fork vendoring a stale coordinator." Against the current tree: the app bundle is compiled into **both** workers (`cloudflare/wrangler.jsonc:18` *and* `cloudflare/wrangler.handler.jsonc:12` alias `snapback-app`; `cloudflare/src/handler-worker.js:15-16` imports it — the comment reads "the same bundle the coordinator compiled in"); `cloudflare/deploy.sh` deploys the **handler isolate first** (lines 337–339) and the gateway+coordinator **after** (lines 349–351, plus activation-lag probes of 8×5 s and a corrective-redeploy path); and the coordinator invokes the handler **by function name** with hardcoded empty auth (`coordinator.js:2363-2371`, `authJson: JSON.stringify({})`), so the executing code is the handler's own compiled-in bundle. During any deploy that ships a sessions bundle alongside the first session-aware coordinator, requests in the window execute **new (sessions) handler code under the old session-unaware coordinator's empty auth** — precisely the unscoped-empty-auth failure this section calls "worse than impersonation," through this repo's own deploy path. This is codex round 8 concern 1's second half, which the round-7-era rewrite did not absorb and rounds 9–12 verified only against the gateway config. *Why not HIGH:* the slice binds the local target; gate 1 (`scripts/cf-check-compat`, verified present) refuses shipping a sessions bundle to a target whose capability manifest lacks session support, so no exploitable path exists until Cloudflare session support is actually built — the defect is in the argument and the residual's scoping, not in a reachable deployment today. *Resolves with (bounded edits):* (a) correct the sentence — one *tree*, not one *artifact*: the bundle ships in the gateway and handler workers, deployed sequentially, handler first; (b) name the first-party deploy-window residual beside the third-party-fork one; (c) pin the closing mechanism as part of the (already-deferred) §Protocol obligations item 8 or the companion — either the sessions bundle refuses handler invocation absent a session-mode marker asserted by the invoking coordinator (gate 3's spirit applied to the invoke seam), or gate 1 must evaluate against the **currently live** target manifest so a session-aware coordinator must be fully deployed before any sessions bundle may ship.
+
+**M2 — coherence (an unreviewed fix asserting an acceptance row that does not exist): the console-credential deliverable is not registered in landing item 2 and its promised negative is absent from §Acceptance.** §Built-in first provider (lines 751–757) pins "the console credential change is a **landing-item-2 deliverable**" and states "§Acceptance carries the negative: an app-origin script holding whatever the console persists **cannot** bulk-read `/_snapback/api/data/{table}` under sessions." Neither propagated: landing item 2 (lines 1246–1249) still reads "`/_snapback/api/data/{table}` under `AdminSecretRead`; `/app/ensure` match-only" with no console-credential deliverable (and no response-sensitivity audit, which §Existing surfaces separately makes "a prerequisite of sessions becoming enableable"), and §Acceptance's existing-surface block (lines 1394–1398) contains no such negative — its only related row says raw-row reads "succeed with the token," which is the exact pre-fix framing. A document claiming its acceptance suite tests a mitigation it rates "comparable in confidentiality impact to … its worst security error" when the suite does not is the same defect class round 12 rated MEDIUM. *Resolves with:* (a) landing item 2 parenthetical → "…(`/_snapback/api/data/{table}` under `AdminSecretRead`; `/app/ensure` match-only; **the response-sensitivity audit; the console short-lived derived token replacing the persisted `localStorage` read key**) with the LLP 0017/0034 amendments…"; (b) add to §Acceptance (existing-surface block): "under sessions, no `AdminSecretRead`-satisfying credential is persisted in origin-readable storage on an app-serving origin, and an app-origin script holding whatever the console persists cannot bulk-read `/_snapback/api/data/{table}`; a hostile-origin read of `/inspect` and `/` under sessions returns no app-derived or identity-derived content (`recentDiagnostics` sentinel)."
+
+**M3 — coherence (the collision-rescue fix left the document prescribing its withdrawn recovery in two places).** §Protected identity core now correctly proves app-level rename-and-copy impossible and pins `auth.rescueCollidingTable` — but the dev→sessions transition bullet (line 295) still directs operators to "the sanctioned recovery (**dev-mode rename-and-copy**, §Protected identity core)," and §Acceptance (line 1434) still tests "the collision recovery (**dev-mode rename-copy** + `--drop-orphaned-auth-tables`) succeeds end to end." An implementer following either builds the recovery the document itself proves unexecutable; the acceptance row as written can never pass. *Resolves with:* line 295 → "…while the sanctioned recovery (`auth.rescueCollidingTable`, §Protected identity core) is still reachable"; line 1434 → "the collision recovery succeeds end to end on a colliding database (`auth.rescueCollidingTable` copies the foreign rows into an operator-named app table, drops the orphan, and the staged transition then consumes; `--drop-orphaned-auth-tables` remains the destructive alternative)."
+
+### LOW
+
+**L1 — the 5→7 enforcement window (§Status residual 1), verified real.** Sessions become enableable at item 5; the descriptor predicate lands at item 7. In the window the shipped replay-authority guard is inert under sessions: the retained fingerprint is computed from wire body auth (`auth_fingerprint(&input.auth)`, `src/storage.rs:207`, `src/manifest.rs:1598`), which session-mode ingress rejects, so every stored fingerprint is the constant empty-tuple value and never mismatches; there is no first-delivery guard at all. The activation-gate paragraph (lines 1275–1284) argues 1–4-without-5 carefully and is silent on 5-without-7. *Resolves with* one sentence after the activation gate: "Between items 5 and 7, sessions are enableable while the descriptor predicate is unenforced: body auth is rejected, so the shipped fingerprint guard compares constant empty-tuple values and never fires, and there is no first-delivery guard. Queue-authority consistency in that window rests entirely on item 5's client barrier (`compareAndClear` strands old-session queues locally). The descriptor is a consistency input, never authentication (§Replay parity), so this is an accepted consistency gap, not a security hole — named here rather than discovered."
+
+**L2 — diagnostics/route-table debris (§Status residual 2), six concrete instances.** (a) Diagnostics table pins `SNAPBACK_AUTH_MODE_DEV` at **404** (line 1167) while route-table prose says "a typed refusal … **not a 404**" (lines 1215–1216) — reword the prose: "return a typed refusal (`SNAPBACK_AUTH_MODE_DEV`) rather than a bare route-miss 404 — an agent probing them learns why" (keeps the table's status pin; no new semantics). (b) `app.reset` → `ConnectionRegistry` wiring owned by "landing item 4" in §Protected identity core (line 549) but by item 5 in §Session transport (line 855) and §Landing order (line 1258) — change line 549 to "item 5." (c) Dangling "(§Durable clearing)" (line 928) — replace with "(§Permission dependencies)", where the disabled-until-item-8 pin lives. (d) `auth.mintSession` parenthetical says "(dev/test/demo only, **admin token**, …)" (line 343) two sentences after pinning that all impersonation requires the `ImpersonationCapability`; align with the route table: "(dev/test/demo only, `ImpersonationCapability` in addition to the route's `AdminWrite`, audit-marked `issuedBy: admin`, refused on `prod`)." (e) §Protocol obligations item 1 lists "outbox **enqueue** and drain" among atomic-with-act sinks (line 1327), contradicting the drain-not-enqueue effect boundary — drop "enqueue and," optionally noting the enqueue side carries the fencing generation per §Session transport. (f) The mailbox route-table Policy cell (line 1210) puts the effect capability where a route policy belongs, against the document's own route-gates-vs-effect-gates distinction; mirror the `mintSession` row: Policy = "`AdminSecretRead` on the route, **`ImpersonationCapability` on the effect** — the browser-held console token satisfies the route class and must still fail the read (§Built-in first provider)." Additionally, same family: (g) §Acceptance line 1480 "the bootstrap handshake precedes any retained render or connection open" contradicts §Auth mode's deliberate offline-cold-boot exemption (lines 270–278) — qualify to "precedes any **online** interaction (first connection open, auth-bearing request, or resubscribe); offline cold boot renders retained data with staleness marked per §Auth mode"; (h) `MODE_PENDING` sits under "Startup/load-time" (line 1170) though its table row pins it request-path — annotate "(request-path; also raised as the startup diagnostic on consume failure)"; (i) the §Summary closure bullet (line 33) names two bypasses where §Existing surfaces closes three — add the direct function runner; (j) the existing-route × mode matrix enumeration (line 459) says "inspect twin," which is the *gated* twin's vocabulary — name the Public `/inspect` and `/` routes explicitly now that they are the worst channel.
+
+**L3 — retained-scope seam polish against 0053 (§Status residual 3), three instances, all verified against 0053's current text.** (a) §Authority transitions' retained-scope caveat (lines 923–932) ends "That decision belongs with the `authorizedUntil` decision, before item 8 lands" — but 0053 §Retained and offline authorization already pins "**Retainable ⇒ `userId`-only authority dependence**" as a requirement; reword: "0053 pins the first option — retainable functions declare `userId`-only dependence — and item 8 adopts it; this caveat records why the restriction exists." (b) Landing item 8's parenthetical (lines 1272–1273) names 0053 internals (`authorizedUntil`, "24-hour default") against this document's own names-outcomes rule, and "no longer gated on an open decision" slightly overstates — 0053's Open Question 4 still asks who owns the number; reword: "(0053 pins the offline-exposure bound as a required v1 mechanism with a shipped default — the default's *owner* is 0053's open question 4 — so this item is gated on 0053's review, not on an open design decision.)" (c) 0053 assigns 0039's handshake a gating duty ("an old client that ignores dispositions is not permitted to enable session-mode retained reads — the minimum client capability is part of the handshake LLP 0039 defines") that the handshake enumeration (§Auth mode) does not carry; add to the handshake bullet: "It also carries the minimum-client-capability check 0053 assigns: a client that cannot execute dispositions is not granted session-mode retained reads (operative at item 8)."
+
+**L4 — citation precision (§Status residual 4), verified against the cited texts; one of round 12's three nits was itself overdrawn.** (a) "an LLP 0031 D3-style sentinel test" (line 1193) in the *redaction* paragraph: 0031's D3 is the public-`/inspect` trim decision, and its sentinel (ENG-23441) is a whole-payload *source*-sentinel proving gated-vs-public payload separation — a stretched provenance for a secrets-never-in-logs test; cite the technique: "an ENG-23441-style planted-sentinel assertion (LLP 0031 D3's whole-payload source sentinel, applied here to tokens, codes, and keyring values across logs, diagnostics, and public payloads)." (b) "M1/M2 has shipped" (lines 1146, 1296; also "M1/M2 already shipped," line 1114, and "M1/M2 retained-stale-boot capability," line 136): 0043 §Status says "the **first closed-IR single-query M1/M2 slice** implemented by ENG-23965" at Draft — the behaviors 0039 relies on (retained stale boot, queued replay) did ship, but the unqualified phrasing overstates; tighten each to "0043's first M1/M2 slice (ENG-23965)." (c) The 0051 sentence (lines 1143–1146) is **substantively correct as written** — I verified 0051's D1 design prose does place the resolved auth context inside the wire-supplied ledger ("captured at first execution and re-supplied on replay," lines 246–260) while its landed note pins the fingerprint channel server-side, so an internal 0051 tension exists exactly as 0039 says; round 12's characterization ("0051's prose is not stale as characterized") was the imprecise one. Optionally sharpen rather than retract: name the concrete conflict — 0051's design bullet puts the resolved-auth entry *in* the client-supplied ledger, which 0039 explicitly forbids ("never inside the client-supplied ledger"), while both refuse on mismatch with the same `AUTH_STALE_RESULT` code — so the amendment reconciles the *carrier*, not the outcome.
+
+**L5 — the relocate-and-poison backstop has no acceptance row (§Status residual 5), and the downgrade path's key handling is unpinned.** The mechanism's premise is verified at the current revision: `Storage::open` runs `load_schema_manifest()?.unwrap_or_default()` (`src/storage.rs:344`), so a present-but-unparseable legacy key fails closed via `?` propagation while a *missing* key boots fresh — poisoning, not mere relocation, is load-bearing, exactly as designed. But §Acceptance's mode block (lines 1427–1438) covers only gates 1 and 3, and `--allow-auth-downgrade`'s effect on the relocated/poisoned key is unstated (round 12 open question 4). *Resolves with:* one acceptance row — "after sessions activation, the legacy manifest key holds a deliberately unparseable sentinel: a pre-slice-shaped open of the database fails closed at manifest parse (no bind, no serving under legacy authority), while a capability-aware binary reads the relocated key and opens; after `--allow-auth-downgrade`, the legacy key is **restored** and a pre-slice binary can open the database again" — plus one design sentence pinning that downgrade behavior with its rationale (the audit-logged override has already revoked every durable session and returned the database to dev-mode trust, so leaving the poison would be a wedge with no security payoff; restoring the key completes the downgrade). If the author prefers leave-it-poisoned, pin that instead — either is defensible; the row must say which.
+
+## Closure checklist (five residuals → exact edits)
+
+| # | Residual (§Status) | Exact closing edits |
+|---|---|---|
+| 1 | Unnamed 5→7 enforcement window | One paragraph after the activation gate (§Landing order, after line 1284) naming the window, the inert fingerprint guard, the client-barrier-only interim, and its acceptance as a consistency (not security) gap — text in **L1** |
+| 2 | Diagnostics/route-table debris | Ten bounded edits, all enumerated with locations and replacement text in **L2** (a–j): the `MODE_DEV` prose reword, item-4→5 wiring, `§Durable clearing`→`§Permission dependencies`, `mintSession` parenthetical, obligation-1 sink list, mailbox Policy cell, offline-cold-boot acceptance qualifier, `MODE_PENDING` annotation, three-surface Summary bullet, matrix naming of Public `/inspect` + `/` |
+| 3 | Retained-scope seam polish vs 0053 | Three alignment sentences in **L3** (a–c): caveat adopts 0053's pinned `userId`-only rule; item-8 parenthetical restated as outcome with the default-owner caveat; handshake bullet gains the minimum-client-capability duty |
+| 4 | Citation precision | Edits in **L4**: ENG-23441 sentinel citation; four "M1/M2" phrasings tightened to "first M1/M2 slice (ENG-23965)"; 0051 sentence optionally sharpened (it is not wrong) to name the ledger-carrier conflict |
+| 5 | Relocate-and-poison acceptance row | One acceptance row + one downgrade-key-handling pin, text in **L5**; premise already code-verified (`src/storage.rs:344`) |
+
+Items **M2** and **M3** must land in the same pass — they are the incomplete halves of two of the four already-applied fixes, and residuals 2/5 partially overlap them (the acceptance edits should be written once, coherently).
+
+## Open questions
+
+1. **Gate 2 / M1:** should the Cloudflare closing mechanism be receiver-side (sessions handler refuses invocation absent a coordinator session-mode marker on `/invoke`) or sender-side (gate 1 evaluates the *live* target manifest, forcing coordinator-precedes-bundle ordering)? The receiver-side form survives operator error and forks; the sender-side form is a one-line tooling change. Pinning one belongs with §Protocol obligations item 8's constructor work.
+2. **Downgrade key handling (L5):** restore-on-downgrade is recommended above; if the author instead wants downgraded databases permanently requiring session-aware binaries, the acceptance row and the `--allow-auth-downgrade` prose need the opposite pin. Either way, say which.
+3. **Console token acceptance (M2):** should the negative row also assert the *server* refuses to serve the console shell with a persisted durable token under sessions (structure), or only that the console client no longer persists one (behavior)? The former is testable without the console.
+4. Does the response-sensitivity audit's registry axis get CI enforcement (a new tokenless route without a sensitivity classification fails the build)? Round 11 asked this; it remains unanswered and is what keeps the audit's conclusion true after item 2.
+
+## Recommended next step
+
+**Apply one focused editing pass — the three MEDIUMs and the five-item checklist — then run a single confirmation review scoped to the edited passages only, and only then consider moving the status.** The loop's own measured record (author fixes land ~80% and introduce ~20% defects; both documents' history of unreviewed fixes being wrong) is borne out again here: of the four unreviewed post-round-12 fixes, two are fully correct and two left the document contradicting itself. A confirmation review is therefore warranted, but it should be narrow — the edited sections, the gate-2 rewrite, and the acceptance rows — not a thirteenth full round; the architecture, the seam, and the factual base outside gate 2 have now been independently verified three times and do not need re-reading. Status stays **Draft (FROZEN)** until then; this review does not accept the RFC, and acceptance remains the author's call under LLP 0005.
+
+
+## Round 14 — 2026-07-13 (blind confirmation of corrected exact revision)
+
+**Family:** Anthropic Claude (Fable)
+**Provider/runtime:** Claude Code CLI 2.1.207 · `claude-fable-5[1m]` · max effort
+**Date:** 2026-07-13
+**Redacted:** no
+**Method:** cli-runner — fresh non-interactive read-only confirmation; Read/Grep/Glob only; no background tasks; prior review artifacts forbidden (the reviewer disclosed that two early broad greps surfaced a few matching review-file lines before it narrowed scope, but it did not open those artifacts)
+**Session:** `203f7662-c0ef-42bd-aa26-3285d62a154c`
+**Reviewed SHA-256:** `6a801ed0bee048b681a69b7aff0001a69e0a11db4e2e516c767bcb6e172c650a`
+**Transcript body SHA-256:** `02c5631ed686297c23eb15f90b14dd75c6352d191477e4545d66f814d0836d55`
+
+All verification is complete. Here is my confirmation review.
+
+---
+
+# Blind confirmation review — LLP 0039 (`llp/0039-auth-vertical-slice.rfc.md`), ENG-24593
+
+## Process attestation
+
+- **Digest:** I was instructed to review the revision with SHA-256 `6a801ed0bee048b681a69b7aff0001a69e0a11db4e2e516c767bcb6e172c650a`. Bash is unavailable in this session, so I could not recompute the hash; per instructions I verified by reading the file in full instead. I read **all 1975 lines** (three sequential reads covering 1–862, 863–1422, 1423–1975), and at the end of the run re-read four widely separated sections (lines 846–861, 1004–1015, 1145–1162, 1244–1257) — all identical to the first pass. **No content change was observed during the run.**
+- **Blindness:** I did not read any file under `llp/reviews/`. Caveat, stated for honesty: two early repo-wide greps returned a few matching *lines* from `llp/reviews/*` in their result listings before I narrowed scopes. I did not open those files, and every finding and strength below is evidenced from source code and non-review LLPs only.
+- I made no edits and used no background tasks.
+
+## Verified strengths (each checked against source or the governing LLP)
+
+**The corrected Cloudflare story is now exactly right.** The coordinator hardcodes empty auth on every handler invocation (`authJson: JSON.stringify({})`, `cloudflare/src/coordinator.js:2371`); `initializeSchema()` creates `_snapback_meta` first (line 171), then validates (173), then runs `ensureCurrentSchema()`/subscription migration (194); `validateDeploymentMetadata()` iterates only the expected keys, so unknown metadata is silently ignored and the refusal it can raise is a 409 on hash mismatch (`coordinator.js:691–716`, 409 at line 808); `deploy.sh` deploys handler first, then gateway/coordinator (lines 337→349), from one tree into two Workers. Every element of §Target scope items 2–3 and protocol obligation 8 matches the tree.
+
+**The local relocate-and-poison backstop is grounded.** `SchemaManifest` has no `deny_unknown_fields` (src/manifest.rs:78); database open deserializes the stored manifest with `?` propagation (src/storage.rs:344) and a parse failure is exactly `SNAPBACK_SCHEMA_PARSE_FAILED` (src/storage.rs:1968) — the precise code the acceptance names. A JSON-string sentinel cannot deserialize into the struct, and `create_infra()` is IF-NOT-EXISTS/additive (storage.rs:1831+), so "a pinned actual pre-slice binary … performs no logical or durable mutation" is satisfiable as written.
+
+**The ephemeral reconciliation is exact.** `PublishRequest`/`DeleteRequest` carry `session_id`, `user_id`, `custom_key` as siblings of a *required* `auth`; `SubscribeRequest` carries `auth` only (src/ephemeral.rs:442–471). `resolved_identity` requires an authenticated identity and rejects a disagreeing claim (ephemeral.rs:3458–3480) — and the RFC's sharpest sentence here ("closes the inconsistency, **not the forgery**, because `request.auth` is itself client-supplied") is exactly correct.
+
+**The ownership-guard analysis is a verified code fact.** The resume and unsubscribe guards short-circuit verbatim as quoted — `if (owner.principal.is_some() || owner.user_id.is_some()) && …` (src/local.rs:2220–2221, 2294–2295) — and supersede-on-resubscribe really does use positive owner equality *plus* same-connection (local.rs:2064–2072), so the RFC's replacement-predicate pin addresses a real deletion hazard.
+
+**The three "decorative sessions" surfaces are real, as described.** `data/{table}` is `AdminRead` (server.rs:1421) with tokenless loopback reads (admin.rs:2152–2164) behind a CORS layer that echoes any localhost origin and allowlists the admin header (server.rs:2306–2340); `/app/ensure` is Public (server.rs:1374); the direct runner classifies a query as a read and accepts body `HandlerInput.auth` (admin.rs:1119–1151, comment at 1136). `PublicInspect` is served on Public `/` and `/inspect` (server.rs:1367/1369) and `PublicDiagnostic` retains only code/severity/subsystem via exhaustive destructuring (src/diagnostic.rs:35–55); receipts are `AdminRead` with verbatim correlation echo (manifest.rs:1358–1363).
+
+**The privilege-escalation analysis is grounded.** The console persists its token in `localStorage` (packages/snapback-admin-client/index.mjs:21–31, restored at 112–118) and calls the API at `location.origin` (admin-ui/main.ts:24–29); either admin header is accepted today with bearer precedence (admin.rs:741–761). The credential non-substitutability matrix covers all four impersonation effects consistently across the design text, the route table, obligation 7, and acceptance; host-ops today carries only `user_id` (host_ops.rs:544–548), so "`--as-role` 0024-specified and unbuilt" is right, and 0024's `devUser`/`devAdminBypass`/"emit or retain" all check out (0024:238–245).
+
+**Landing/acceptance propagation is complete.** Collision rescue is owned by item 3 and the full ephemeral closure by item 4, each with an incompleteness clause matching its acceptance paragraph; the activation gate (items 1–5) and the item-5→7 online-only window are stated consistently in §Landing order, the handshake description, and §Acceptance.
+
+**The 0053 seam is drawn against 0053's actual text.** FROZEN Draft with unreviewed enforcement fixes and "failed review twice" (0053:758–801); classification rejected (0053:109–111) and the resync storm as failed attempt 1 (0053:94–96); the incarnation is 0039-owned and consumed as `(incarnation, epoch)` with missing-incarnation-forces-resnapshot (0053:63, 409–429); `Retainable ⇒ userId-only` exists in both documents (0053:608–611); the three moved open questions are present in 0053 §Open Questions (733–750).
+
+**Nearly every other citation resolves exactly**: 0011 (`roles` in the minimum shape :113, Argon2 outside-the-lock :86, transactional first login :84–85, ratified resubscribe/user-switch wipe :8/:305, "largely answered" :322, `UserDeleted` :216); 0012's ignore-unknown evolution policy (:96–101); 0030's proxy warning verbatim (:639–640); 0031's small-lock pin (:515) and app-routes-trust (:93); 0034's ENG-23426 quote verbatim (:491); 0036 ("carry live keys" :444, non-secret fail-closed :85); 0038 (Part 3 ceiling ~1,050–1,280 :164; Part 4 #6 :505–518, now `ConnectionAuth` in the registry); 0043's "first closed-IR single-query M1/M2 slice" (:250–251); 0045's durable intents; 0051 D1's wire split (:288–293, "no longer open — D1 pins it" :1122) and D4; 0017 §Security Defaults; `cf-check-compat` REFUSED; the ENG-23443 0600 keyring pattern (cli.rs:550); L9 labeled "LLP 0032 L9" in code (server.rs:223); `authRequirement` hardcoded in codegen (index.mjs:1822) with no runtime consumer; the `?connection_token=` fallback (server.rs:1136–1140); reset never touching the `ConnectionRegistry` (server.rs:2643–2653); and the profile enum with loopback-default-Dev and env-selectable demo on any bind (admin.rs:88–92, 196–202).
+
+## Findings
+
+No HIGH findings. I found no architectural defect, no fail-open, and no contradiction in the design decisions themselves. All findings are stale statements of *what ships today* in normative sections — the exact class this confirmation pass gates on, and the class the document's own Status claims this revision closed ("0031/0043/0051 citations say exactly what landed").
+
+### MEDIUM 1 — §Grant bounds misdescribes both LLP 0031 and the shipped registry, and attributes a quotation 0031 does not contain
+
+**Evidence.** llp/0039 lines 849–856 claim: 0031 "accepted process-lifetime unreaped grants … with an explicit 'revisit if grants ever carry more than two small strings' — this slice triggers it. Grants gain idle expiry (anonymous), … and per-source and global open caps … `SNAPBACK_OVERLOADED` for global capacity exhaustion (the local status mapper gains its mapping …)". Against this tree: the quoted phrase appears nowhere in `llp/0031-server-route-taxonomy.spec.md` (nor anywhere in `llp/` outside reviews); 0031 instead documents an already-bounded local registry — "The local registry is fixed-cap. At pressure it first evicts grants never used …; it may retire a used grant only after its idle lease, and refuses 429 while every used grant is current" (0031:542–549). The code agrees: `admit_slot` enforces `MAX_CONNECTION_GRANTS` (16,384) with idle-TTL retirement and a typed, reachable refusal `SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED` on the open path (src/server.rs:902–928, called at 1003). And the local status mapper *already* maps `SNAPBACK_OVERLOADED` → 503 (server.rs:3566); what is true is only that nothing local *produces* it (it is minted in `cloudflare/src/platform-errors.js:44`). Finally, mapping grant-capacity exhaustion to `SNAPBACK_OVERLOADED` silently replaces the shipped emitted code `SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED` — the kind of emitted-code change the document itself treats as an LLP 0012 compatibility event two sections later.
+
+**Resolution.** Rewrite the paragraph against the actual baseline: the local registry is already capped with pressure eviction and idle-lease retirement and a typed capacity refusal; the slice's genuinely new work is authority binding, session-deadline expiry for bound grants, per-source throttling (`AUTH_THROTTLED`), and — if `SNAPBACK_OVERLOADED` is to replace `SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED` — an explicit adopt-or-register decision under the 0012 discipline. Delete the "two small strings" quotation or date it to the 0031 revision that contained it. (Some of this drift may be from parallel sessions landing 0031/registry work; either way the frozen text is wrong against the tree it will be implemented in.)
+
+### MEDIUM 2 — The status-mapper claim is false twice, and it hides a wire-visible status change for a shipped code
+
+**Evidence.** llp/0039 lines 1247–1249: "the HTTP status mapper knows none of the `AUTH_*` codes today (they fall through to 400)". Against this tree: the mapper deliberately allow-lists exactly the two shipped codes — `SNAPBACK_AUTH_STALE_RESULT` and `SNAPBACK_AUTH_USER_MISSING` → 400 (src/server.rs:3585–3586) — the same two codes the immediately preceding paragraph says "already ship and are adopted"; and unknown codes do not fall through to 400 — the default is a deliberate 500 ("the default below remains a truthful 500", server.rs:3575–3578, 3700). Consequence: the RFC's diagnostics table pins `AUTH_STALE_RESULT` at **409** (line 1228) while it ships at **400** — a wire-visible status change for an existing emitted code that the document never acknowledges, even though the adjacent sentence invokes LLP 0012 compatibility discipline as the reason for *adopting* the code in the first place.
+
+**Resolution.** State the real baseline (two shipped codes mapped at 400; unknown codes default 500), and either keep `AUTH_STALE_RESULT` at 400 or explicitly declare the 400→409 transition as part of the 0012 registration work.
+
+### MEDIUM 3 — "What ships today, precisely" names the wrong fingerprint algorithm and misses its two-format refusal split
+
+**Evidence.** llp/0039 lines 1149–1152: "the server computes an **FNV-1a** fingerprint over the `(principal, session_id, user_id)` wire tuple and retains it per settled client mutation; duplicate settlement under a changed retained fingerprint is refused with the shipped `SNAPBACK_AUTH_STALE_RESULT`." Against this tree: the shipped fingerprint is a domain-separated, length-delimited **SHA-256** (`sha256:` prefix; doc comment "Stable cross-language fingerprint", src/manifest.rs:1598–1612), retained at settlement (src/storage.rs:207). FNV-1a survives only as `legacy_auth_fingerprint`, "kept only as a deletion alias" (manifest.rs:1614–1638), and a mismatch against a legacy `fnv1a:` row is refused with `SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED`, not `AUTH_STALE_RESULT` (storage.rs:616–629). This matters to an implementer of protocol obligation 5, whose "legacy/null-settlement migration" must handle exactly this two-format reality.
+
+**Resolution.** Correct the sentence to the shipped SHA-256 construction, note the FNV-1a legacy alias and its distinct quarantine refusal, and let obligation 5 name both retained formats. (The design conclusion — the opaque `authorityInstanceId` — is unaffected.)
+
+### LOW 1 — The `KeyMode::Custom` rationale describes a fail-open that ENG-24353 already closed
+
+**Evidence.** llp/0039 lines 1008–1012 claim "an `AllowAll` collection with custom keys lets any caller overwrite or delete another caller's key — which LLP 0013 §Scope and keys already forbids (a custom key requires generated auth …)". Against this tree: custom-key entries are **connection-owned** — `KeyMode::Custom → EntryOwner::Connection` on publish and delete, with the in-code comment "another connection cannot replace/delete it even if it guesses the key" (src/ephemeral.rs:3380–3383, 3440–3441) — and current 0013 §Scope and keys says exactly that: "the local baseline treats an arbitrary custom key as connection-owned: only the connection that created it may replace or delete it (ENG-24353)" (llp/0013:155–158). The overwrite/delete hole is closed; the surviving residuals are first-writer key squatting and ownership that derives from the connection rather than durable authority.
+
+**Resolution.** Keep the pin (reject `Custom` under sessions until key-level authorization exists — still correct), but restate its motivation on the true residuals and cite 0013's current interim rule rather than the pre-ENG-24353 state.
+
+### Editorial nits (no design effect)
+
+- §Protected identity core says the existing reserved-prefix checks are "codegen: table names" — codegen also validates **index** names against `_snapback` (packages/snapback-codegen/index.mjs:384 and 417); say "table and index names" so the mirrored `_auth_*` checks cover the same scope.
+- In §Existing surfaces, "Both are amendments to their owning documents" follows a four-bullet list; "both" refers to the 0017/0034 amendments but reads ambiguously.
+- The validator summary "compares stored `schema_hash`/`bundle_hash`" omits the third expected key, `inputs_hash` (coordinator.js:655–660) — harmless to the argument.
+
+## Verdict
+
+The architecture, the composition matrix, the staged activation and poison mechanics, the two-phase revocation and custody state machines, the landing order, and the 0053 seam all survived adversarial checking, and the two source-fact corrections this revision claims (hosted initialization order; `SchemaManifest` serde) are verified correct. But three MEDIUM stale-source-fact defects remain in normative "what ships today" text — one of them a quotation its cited document does not contain, two of them concealing unacknowledged emitted-code/status compatibility events — and this is precisely the defect class an exact-revision confirmation exists to gate. The fixes are bounded text corrections that reopen no design decision, after which this document should confirm cleanly.
+
+NOT READY
+
+
+## Round 15 — 2026-07-13 (final blind confirmation of the exact gate candidate)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+`9a2be519160ff4f1d43dc3795c842140bae175519b4c08f46acd6bf55d1ad1ad`
+and `llp/0012-headless-integration-contract.spec.md` at SHA-256
+`a740d9da6fe4f309caf4fc18a37b237267f3ff5a54c54a7bae2e9a71e97611ec`.
+**Reviewer family:** Claude
+**Provider / runtime:** Claude Code 2.1.207, requested
+`claude-fable-5[1m]`, effort `max`; the recorded model usage includes
+`claude-fable-5` and `claude-opus-4-8`; read-only tools.
+**Method:** Fresh foreground-only session, blind final confirmation. Prior
+review artifacts were forbidden. The reviewer read the candidate, governing
+LLPs, and source and edited nothing.
+**Session id:** `CBCC39E1-4067-42D5-903E-552BD717410B`
+**Review-body SHA-256:**
+`4e3687975dc65748a0af9fb96d34fced49b18b6036fb66268d617940ec060fe2`
+**Redacted:** no
+
+### Review body (verbatim)
+
+I've completed the verification. Writing up the review now — no further tool calls needed.
+
+---
+
+# Final adversarial confirmation — LLP 0039 + LLP 0012 (ENG-24593)
+
+## Verdict: **READY**
+
+The architecture remains sound and I did not reopen it. No material blocker remains. ENG-24593 can close on this exact pair. I report readiness only — I do not accept on the author's behalf.
+
+Four findings survive, all bounded and non-blocking: one MEDIUM specification gap and three LOW precision/traceability defects. None is a safety defect, none reopens a settled contract, and each has a one-to-two-sentence resolution.
+
+## Scope and the limitation you asked me to state precisely
+
+I had **no Bash access in this session, so I could not recompute either SHA-256 digest.** I therefore treat the two digests in the gate request as the runner-verified identity of the files at `llp/0039-auth-vertical-slice.rfc.md` and `llp/0012-headless-integration-contract.spec.md`, and I reviewed those two files as they exist on disk in this worktree. My review is sound only under that assumption: if the runner's digest binding is wrong, this confirmation does not apply to the intended candidate. Everything else below — every source claim — I verified by reading the files directly, which needs no shell.
+
+I read both candidates end to end, plus LLP 0053, 0011, 0031, 0030, 0036, 0043, 0051, 0009, 0017, 0024, and the implementing source in `src/manifest.rs`, `src/local.rs`, `src/storage.rs`, `src/server.rs`, `src/admin.rs`, `src/ephemeral.rs`, `src/value_expr.rs`, `packages/snapback-codegen/index.mjs`, `cloudflare/src/coordinator.js`, and `cloudflare/deploy.sh`. I read nothing under `llp/reviews/`, and I edited nothing.
+
+## The headline correction holds against source
+
+The load-bearing claim of this revision is that a fresh v1 sessions artifact cannot slip past a pre-auth binary through the `/app/ensure` hash shortcut. I traced it end to end and it is correct.
+
+The hazard is real and exactly as the RFC describes it. `LocalSnapback::ensure_app` (`src/local.rs:1373-1397`) compares the posted `schemaHash`/`bundleHash` against the loaded values and returns `"matched"` **without ever calling `validate_artifact()`**. The version check lives only inside `apply_schema` (`src/local.rs:1191`) and `load_functions` (`src/local.rs:1206`) — that is, only on the provisioning path, downstream of the shortcut. So a same-content payload really can be reported `matched` before any artifact-header validation.
+
+The fix defeats it structurally. `validate_artifact_header` (`src/manifest.rs:2070-2086`) rejects any `schemaVersion != "snapback.v0"` (`src/manifest.rs:8`) with `SNAPBACK_STALE_{SCHEMA,FUNCTION}_ARTIFACT_VERSION`. The shipped v0 emitter produces identity strings of the form `sha256:<16 hex>` (`packages/snapback-codegen/index.mjs:865-866`), which can never equal a `snapback.v1:sessions:…`-prefixed string. So on a pre-auth predecessor holding identical v0-dev content, the posted v1 hash is unequal to the loaded v0 hash, the shortcut fails, control falls into the provisioning branch, and `apply_schema`'s **first statement** is `manifest.validate_artifact()?` — before `self.db.apply_schema()` runs any DDL. The refusal therefore lands with the database byte-for-byte unchanged. `load_functions` behaves the same way: it validates the header and returns early, before `self.functions = manifest` or `advance_app_generation()` (`src/local.rs:1205-1227`).
+
+The attack path the acceptance models is also real, not hypothetical: `EnsureAppInput` (`src/local.rs:585-593`) does not deny unknown fields, so a v1 union payload deserializes on a predecessor with `intent`/`requestedMode` silently dropped and the v1 manifests still reaching the version check.
+
+The separate post-activation defense is independently sound. `SchemaManifest` carries no auth field and no `deny_unknown_fields` (`src/manifest.rs:78-120`), which is precisely why a new field cannot bind an old receiver — the RFC's own argument. Relocate-and-poison works because `load_schema_manifest` maps a `serde_json::from_str` failure to `SNAPBACK_SCHEMA_PARSE_FAILED` (`src/storage.rs:1954-1976`) and `LocalDatabase::open` propagates it with `?` (`src/storage.rs:344`), so a pre-slice binary refuses to open before binding a listener. A bare JSON string at the legacy key cannot deserialize into a struct, so the proposed sentinel does exactly what the document claims.
+
+## The other focus areas
+
+**Domain-separated identities before hash short-circuits.** Both manifests already carry `appId` and `inputsHash` (`src/manifest.rs:92-99`, `280-285`), and codegen emits the same `inputsHash` on both halves (`index.mjs:873, 886`), so 0012's pair-consistency rule is implementable against fields that exist today. The serde defaults are the trap here — `app_id` defaults to `"local-app"` and the hashes default to `None` — and 0012 anticipates it correctly by requiring non-empty `appId`/`schemaHash`/`bundleHash`/`inputsHash` for v1 explicitly rather than relying on deserialization to enforce it.
+
+**Public non-mutating attest vs. privileged provisioning.** The `attest` DTO returns only pair identity (`schemaVersion`, `appId`, `schemaHash`, `bundleHash`, `inputsHash`), all of which are already public through `PublicSchemaManifest` on the tokenless `/` and `/inspect` routes, so the branch opens no new read channel and provides no enumeration oracle. The privilege gate evaluated against `(requested, active, desired)` mode closes the staging hole correctly — and 0012's blanket "the `provision` branch requires `AdminWrite`" is the stricter of the two statements, so an implementation following the Spec satisfies the RFC.
+
+**Optional additive capability facts.** `supportedArtifactVersions` and `supportedAuthModes` are registered as additive optional v0 fields with "absent or empty means unsupported," mandatory emission for auth-aware targets, and an explicit prohibition on inferring them from the target profile. That is fail-closed in the direction that matters: the Cloudflare coordinator, which hardcodes `authJson: JSON.stringify({})` (`cloudflare/src/coordinator.js:2371`), reports neither fact and is therefore refused a sessions bundle by the sender-side gate. The registration composes cleanly with the existing server-declared manifest and its drift gate.
+
+**The LLP 0053 seam.** It holds. 0053 independently confirms that the incarnation is 0039's and that 0053 merely consumes it (`llp/0053:416-424`), and confirms that session revocation is an authority transition rather than one of its authorization events (`llp/0053:313-319`) — which is exactly what makes 0039's "session loss deletes, and this document owns that decision" correct rather than a stale attribution. 0053 contains no reference to the authority descriptor at all, which independently corroborates 0039's claim that item 6 is independent of item 7. Items 1–5 and 7 depend on no 0053 deliverable.
+
+**The five previously-low residuals** are all closed in the current text and none of the closures introduced debris: the item-5→7 window is pinned online-only with queued replay disabled and a matching acceptance row; `MODE_DEV` is a typed 404 with the handshake exemption stated consistently in all three places it appears; the six route-registry axes are listed identically in §Authority resolution and §Route table; `Retainable ⇒ userId-only` is categorical and matches 0053's own rule; and the 0031/0043/0051 provenance now distinguishes code facts from document statements correctly.
+
+**Source-fact audit.** Every code-grounded claim I checked is accurate, including the ones a previous round found stale: the 16,384-entry grant cap and its 429 code (`src/server.rs:1105, 922, 3550`); both shipped auth codes at 400 with unknown codes defaulting to 500 (`src/server.rs:3585-3586, 3699-3700`); the tagged SHA-256 fingerprint with FNV as a deletion-only quarantined alias (`src/manifest.rs:1598-1638`, `src/storage.rs:615-629`); the live-subscription ownership guard's short-circuit on empty owners versus supersede's positive-equality-plus-same-connection gate (`src/local.rs:2220-2222, 2064-2072`); the ephemeral sibling identity fields and `resolved_identity`'s closes-the-inconsistency-not-the-forgery status (`src/ephemeral.rs:442-471, 3458-3480`); `_auth_*` being unreserved today because both checks match only `_snapback` (`index.mjs:384, 417`; `src/storage.rs:3906`); and all four Cloudflare facts — the empty auth object, the key-iterating validator that fails open on unknown metadata, the metadata-table-before-validation ordering, and handler-first-then-gateway deploy (`coordinator.js:169-197, 691-715`; `deploy.sh:337-351`).
+
+---
+
+## Findings
+
+### 1. MEDIUM (non-blocking) — the `(v1, dev)` cell of the version × auth-mode matrix is undefined
+
+**Evidence.** LLP 0012 defines identity namespaces only for v1-*sessions* (`snapback.v1:sessions:schema|function|inputs:sha256:<digest>`) and reserves the `snapback.v1:` prefix for exactly those three values. But its receiver rule says an auth-aware receiver "accepts a v0-dev pair and a v1 pair when v1 is explicitly supported," and its rejection list enumerates only "v0-sessions, mixed schema/function versions, absent required halves on first sessions deployment, and unknown versions." A v1 pair declaring `auth.mode: "dev"` is in neither list. LLP 0039's protocol obligation 3 matrix has the same shape: "v0-dev, v1-sessions, v0-sessions, mixed and unknown versions, a missing initial half, unsupported target facts, insufficient privilege, malformed/cross-variant intent, and matching-hash negatives" — no v1-dev case. And `dev` is a *supported* auth mode (`supportedAuthModes: ["dev", "sessions"]`), so the "unsupported auth modes" rejection does not catch it either.
+
+**Failure trace.** A third-party or hand-built emitter produces `schemaVersion: "snapback.v1"` with `auth.mode: "dev"`. The auth-aware receiver runs its preflight: artifact version is in `supportedArtifactVersions` → pass. Effective mode is `dev`, which is in `supportedAuthModes` → pass. Pair versions match → pass. Nothing rejects it, so the receiver accepts a v1 artifact whose identity-string encoding the Spec never defines — the `snapback.v1:sessions:` namespace does not apply, and no `snapback.v1:dev:` namespace exists. The receiver must then compare hashes it has no canonical form for.
+
+This is not a privilege escalation: the artifact declares `dev` explicitly, dev-mode fences still apply, and a pre-auth predecessor rejects it anyway (its check is `!= "snapback.v0"`, which catches every v1 artifact regardless of mode). The defect is an undefined cell in the exact matrix this gate exists to pin, and an implementer will hit it the moment they write the preflight.
+
+**Bounded resolution.** One clause in LLP 0012's compatibility exception: "`snapback.v1` is reserved for sessions deployments; a v1 pair declaring `dev` mode is rejected as an unsupported version/mode pair." Add the `(v1, dev)` negative to 0039's protocol-obligation-3 matrix and to 0012's Validation Requirements list. The safe default is already implied by the reserved-prefix sentence — it just is not stated as a rule.
+
+### 2. LOW — the predecessor no-change proof is silently conditional on the predecessor's server profile
+
+**Evidence.** `ensure_app`'s schema branch is a three-way: `matched` / `else if provisioning_allowed { apply_schema()? }` / `else { "gated" }` (`src/local.rs:1373-1390`). `validate_artifact()` — the non-v0 refusal — is reachable **only** through the middle arm. `allows_provisioning()` is `!matches!(self, Self::Prod)` (`src/admin.rs:105-106`). LLP 0039's acceptance says a complete v1 payload "is refused by its existing non-v0 artifact check in both cases" (fresh and identical-content-provisioned) but never pins the predecessor's profile.
+
+**Failure trace.** The acceptance suite instantiates the pinned pre-auth predecessor with `SNAPBACK_PROFILE=prod` (or on a non-loopback bind, where `resolve_profile` fails closed to `Prod`). The v1 sessions payload arrives. Hashes differ (disjoint namespaces), so the shortcut is skipped — but `provisioning_allowed` is false, so the branch falls to `"gated"`: **HTTP 200, no error, no version diagnostic, no mutation.** A test asserting "no request-attributable change" passes; a test asserting the non-v0 artifact refusal fired does not — or worse, a weakly-written test goes green while the mechanism under proof never executed. The safety property survives on both profiles (no mutation either way), so this is a proof-precision defect, not a hole.
+
+**Bounded resolution.** One clause in 0039's acceptance: run the pinned predecessor under a provisioning-allowed profile (`dev`/`demo`/`test`, which is also the loopback default) so the refusal is the artifact-version check rather than the profile gate, and assert the emitted `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` code — not merely the absence of mutation.
+
+### 3. LOW — `MODE_PENDING` versus the new `{ intent: "provision" }` branch is unspecified
+
+**Evidence.** LLP 0039 states that during `MODE_PENDING` "app-data is refused but the **admin/host-ops schema-apply surface remains available**… (Ordinary `/app/ensure` is app-data and is refused…)", and that the operator's recovery is to "fix the schema and re-stage, or unstage explicitly." That sentence predates the intent-union split. LLP 0012 now routes staging through `/app/ensure` `{ intent: "provision" }` ("Any request that would provision or stage sessions… uses this branch"), and `/app/ensure` is registered `AppData` in the route registry (`src/server.rs:1374`). Whether the *privileged* provision branch of an app-data route is subject to the `MODE_PENDING` app-data refusal is stated nowhere.
+
+**Failure trace.** A consume failure quarantines the desired mode; the server boots in the still-active mode with app-data refused. The operator fixes the schema and re-stages via `/app/ensure` `{ intent: "provision", requestedMode: "sessions" }` with `AdminWrite`. Implementer A treats `/app/ensure` as app-data and returns `SNAPBACK_AUTH_MODE_PENDING` — the documented recovery path is closed, and the operator must discover the host-ops schema-apply surface instead. Implementer B exempts the privileged branch and the re-stage succeeds. Both readings are defensible from the text; both are safe; they are not the same product.
+
+**Bounded resolution.** One sentence in 0039's transition section stating whether the `AdminWrite` `provision` branch is exempt from the `MODE_PENDING` refusal, and naming explicitly which surface performs a re-stage during `MODE_PENDING`.
+
+### 4. LOW — 0039's cross-reference to LLP 0053's §Status does not resolve against the committed 0053
+
+**Evidence.** LLP 0039 landing item 6 states: "**0053 is currently FROZEN at Draft: its ENG-24592 gate reviews returned NOT READY on the prior enforcement text, and the resulting composite-protocol revision awaits focused confirmation (see its §Status).**" The committed `llp/0053-authorization-invalidation.rfc.md` contains no occurrence of "ENG-24592," "NOT READY," or "composite" anywhere in the document. Its §Status (dated 2026-07-12) describes a round-4 freeze whose two material enforcement fixes were transcribed from a reviewer's prescribed resolutions and are themselves *unreviewed*, and states "the next action on this document is a review of these fixes."
+
+**Failure trace.** An implementer picking up item 6 follows 0039's "(see its §Status)" pointer expecting to find an ENG-24592 gate outcome and a composite-protocol revision awaiting confirmation. They find instead a round-4 freeze with two unreviewed transcriptions. The provenance does not reconcile, and the implementer cannot tell whether they are looking at the revision 0039 describes or a stale one.
+
+The direction of the error is safe: 0039 still blocks item 6 until 0053 reaches Accepted, and the substantive characterization ("0053's architecture is settled, but its enforcement primitives have repeatedly failed review") is true of the committed 0053 either way. This costs traceability, not correctness. Note that I could not distinguish "0039 describes a 0053 revision that has not landed in this worktree" from "0039's provenance sentence is inaccurate," because the review artifacts that would settle it are under `llp/reviews/`, which I was instructed not to read.
+
+**Bounded resolution.** Either land the 0053 status revision 0039 describes, or restate 0039's sentence to match 0053's actual §Status (FROZEN at Draft; enforcement fixes transcribed but unreviewed; next action is a review of those fixes). The item-6 blocking rule needs no change.
+
+---
+
+## Closing assessment
+
+**Architecture:** sound. Nothing I found requires reopening it, and I did not propose an alternative.
+
+**Material blocker:** none. The first-install discriminator — the HIGH that the previous confirmation round found — is genuinely closed, and closed against the *actual* predecessor code path rather than an assumed one. The relocate-and-poison defense remains correctly scoped as the separate post-activation reopen/rollback protection, and the two defenses do not depend on each other. The public attestation branch is genuinely non-mutating and opens no new read surface. The capability-fact registration is additive and fails closed on every target that does not emit it. The 0053 seam is drawn correctly against 0053's actual text, and items 1–5 and 7 depend on no 0053 deliverable — the landing-independence claim survives.
+
+**ENG-24593 can close.** The four findings above are editorial and specification-completion items, not defects in the settled core: two are one-clause additions to a matrix and an acceptance row, one is a single sentence about an interaction the split introduced, and one is a cross-reference repair. They can be folded into this revision or carried as named residuals without re-reviewing the architecture. My recommendation is to fold in Finding 1 (it lives in the exact contract this gate exists to pin, and an implementer must resolve it before writing the preflight) and Finding 2 (it makes the headline proof actually prove what it claims), and to treat Findings 3 and 4 as bounded follow-ups.
+
+The author decides acceptance; this is a readiness report only.
+
+
+## Round 16 — 2026-07-13 (focused exact confirmation after bounded closure)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+`8ba5becada849cb1d074b17a5858134de807abe103d3f086047cfac751b893fc`
+and `llp/0012-headless-integration-contract.spec.md` at SHA-256
+`ade9da47881828342fd591ff4d1bb1c0bff643c2f67b9fb086a987b56bf51170`.
+**Reviewer family:** Claude
+**Provider / runtime:** Claude Code 2.1.207, requested
+`claude-fable-5[1m]`, effort `max`; recorded model usage was
+`claude-fable-5`; read-only tools.
+**Method:** Fresh foreground-only session, blind focused confirmation. Prior
+review artifacts were forbidden. The reviewer read the candidate, governing
+LLPs, and source and edited nothing.
+**Session id:** `639F4449-8BF1-43CE-AB36-89F21028836B`
+**Review-body SHA-256:**
+`6156cf7ff64960ffdea541e687ca13d39eddf6ab35598449e63e619af4cf4231`
+**Redacted:** no
+
+### Review body (verbatim)
+
+# Verdict: READY
+
+All four bounded post-review corrections are confirmed as written, grounded in the governing corpus and the shipped source. No blocking findings. ENG-24593 can close from the review side; per the no-self-acceptance rule I report readiness only — the status transitions out of Draft/FROZEN remain the author's call.
+
+**Protocol statement.** I cannot run Bash, so I did not compute hashes; the SHA-256 values for the immutable pair (`8ba5be…93fc` for LLP 0039, `ade9da…1170` for LLP 0012) are **runner-supplied and runner-verified**, and I reviewed the working-tree bytes at those paths. Files I read: `llp/0039-auth-vertical-slice.rfc.md` (all 2,166 lines), `llp/0012-headless-integration-contract.spec.md` (all 780 lines), `llp/0053-authorization-invalidation.rfc.md` (all 892 lines), and targeted source context in `src/manifest.rs`, `src/local.rs`, `src/server.rs`, `src/admin.rs`, and `packages/snapback-codegen/index.mjs`. Nothing under `llp/reviews/` was opened (one repo-wide filename search listed paths there; no contents were read), and I edited nothing.
+
+## Closure 1 — closed tuple set, v1-dev rejected before hashes/effects: CONFIRMED
+
+LLP 0012 states the closed set normatively with an explicit four-row accept/reject table — `(v0, dev)` accept, `(v0, sessions)` reject, `(v1, dev)` **reject**, `(v1, sessions)` accept — and pins "every other tuple … is rejected before hash comparison or any durable/runtime effect" (`llp/0012:126-138`). The same rule recurs, with v1-dev named in every negative list, at the receiver bullets (`:166-172`), the ingress preflight ordering — intent/branch authorization → closed tuple → pair consistency → target support, "only then may it report `matched`, run DDL, persist a desired mode, replace functions, or seed" (`:181-189`) — the Versioning hard-stops (`:646-658`), and validation requirements (`:706-709`). The capability arrays are explicitly non-Cartesian at both registration sites (`:260-262`, `:327-331`). LLP 0039 mirrors it identically: the closed set with v1-dev named (`llp/0039:134-139`), the non-Cartesian arrays (`:165-168`), protocol obligation 3's matrix (`:1533-1536`), and acceptance (`:1706-1712`). I found no counter-statement in either document that would let a hash match, capability advertisement, or legacy form readmit v1-dev.
+
+## Closure 2 — predecessor proof in a provisioning-allowed profile, exact diagnostic: CONFIRMED
+
+Both documents pin the actual, unmodified pre-auth predecessor running in its **provisioning-allowed `dev` profile** and asserting exactly `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` in addition to the no-mutation proof (`llp/0012:173-175`, `:710-720`; `llp/0039:148-152`, `:1537-1542`, `:1693-1706`). Source verifies every link in that chain:
+
+- The predecessor's validator accepts only v0: `SNAPBACK_SCHEMA_VERSION = "snapback.v0"` (`src/manifest.rs:8`), and `validate_artifact_header` refuses any other version with the format-built code `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` (`src/manifest.rs:2070-2086`).
+- Validation precedes effects: `apply_schema` calls `validate_artifact()?` before DDL (`src/local.rs:1190-1195`); `load_functions` validates before replacing the generation (`src/local.rs:1205-1210`); in `ensure_app` the schema half errors first, so the full v1 payload yields the schema-version code with functions and seed never reached (`src/local.rs:1373-1442`).
+- The hazard the disjoint `snapback.v1:` identities defeat is real: `ensure_app` reports `"matched"` on raw `schemaHash`/`bundleHash` equality **without** ever validating (`src/local.rs:1377`, `:1396`), and today's framed-SHA-256 domains (`snapback-codegen/schema-content-hash/v1` etc., `packages/snapback-codegen/index.mjs:850-866`) are exactly the "existing length-framed encoding" the v1 domains extend.
+- The profile pin is load-bearing, not decorative: `allows_provisioning()` is `!Prod` (`src/admin.rs:105-106`), and in a non-provisioning profile every half returns `"gated"` without validating — a `prod`-profile run would pass the no-mutation assertion while never producing the diagnostic. The correction closes a genuine hole in the earlier acceptance wording.
+
+## Closure 3 — MODE_PENDING sole privileged recovery branch: CONFIRMED
+
+Both documents say the same thing at every site: during `MODE_PENDING`, ordinary app-data and Public `{ intent: "attest" }` are refused with `SNAPBACK_AUTH_MODE_PENDING`; the **sole** schema-apply exception is `{ intent: "provision" }` under `AdminWrite` or pre-bind startup authority, which may correct or re-stage the candidate pair but still runs branch authorization and the complete closed-tuple/pair/capability preflight before hashes or effects; there is no generic admin/host-ops bypass and no fallback from a denied ordinary request (`llp/0039:337-341`, `:394-401`, diagnostics row `:1310`, route table `:1368-1369`, obligation 3 `:1545-1547`, acceptance `:1683-1687`; `llp/0012:241-248`, `:656-658`, `:725-728`). The surfaces that still serve — health, identity, the `GET /auth/session` handshake — are discovery/diagnosis endpoints, not app-data or schema-apply, so they don't dilute "sole"; `--clear-desired-auth-mode` remains the distinct pre-bind operator unstage in both documents.
+
+## Closure 4 — LLP 0053 seam ownership: CONFIRMED
+
+Landing item 6 now states that item 5 supplies exactly the `AuthCoordinator`, disposition execution, serialized clear barrier, and durable incarnation, that "LLP 0053 supplies and owns its own item-6 authorization-invalidation fence," and that "this document asserts no queue-fence keying to item-5 custody or generation" (`llp/0039:1436-1447`, restated in Status `:1911-1913` and Changelog `:1956-1958`). Each named item-5 deliverable is supported by 0053's actual text: the serialized coordinator clear barrier (`llp/0053:594-599`), the consumed incarnation paired as `(incarnation, epoch)` (`llp/0053:416-424`), and the identical `retain < quarantine < delete` disposition enum whose producers/escalation 0053 owns (`llp/0053:448-452`, `:511-517`) against 0039's ownership of the enum itself (`llp/0039:1168-1182`). The disclaimer matches 0053's reality — its fence witnesses are `(incarnation, epoch)`/commit-version, never session custody or generation. A fence-vocabulary sweep of 0039 confirms the only queue-fence mention is the disclaimer itself; every other fence reference is either 0039-owned machinery (loopback fence, revocation markers, custody fencing token) or an outcome-level reference 0053 directly supports ("durable client fence," the handshake's "minimum disposition/fence-aware client protocol" ↔ `llp/0053:580-583`). LLP 0012 carries no 0053 vocabulary at all — the partition is clean.
+
+## Non-blocking observations
+
+- LLP 0053 itself still has an internal tension (§Client fences describes an `(incarnation, epoch)` fence while its §Status/§Changelog record the unreviewed round-4 move to commit-version witnesses). That is exactly the flux 0039's corrected seam is designed to be immune to — it names no fence internals — and it is gated behind ENG-24592/item 6, not this confirmation.
+- 0039 asserts "LLP 0053 remains Draft/FROZEN until ENG-24592 closes"; 0053's own Status confirms Draft/FROZEN with "the next action … is a review of these fixes." I verified the corpus state, not the Linear issue number itself; a wrong issue ID would be a cosmetic fix, not a readiness blocker.
+- Both Status sections accurately record "one focused exact confirmation pending" and claim no acceptance on a reviewer's behalf — consistent with this being that confirmation.
+
+**Bottom line:** the four bounded corrections are internally consistent across both documents, consistent with LLP 0053's actual text, and grounded in shipped source at every point where they claim a source fact. **READY** — ENG-24593 can close once the author records this confirmation and makes their own acceptance/status decision.

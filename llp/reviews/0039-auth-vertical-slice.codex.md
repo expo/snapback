@@ -2001,3 +2001,446 @@ schemas; 0053 its own).
 Remaining GPT-family concerns (revocation multi-operation representation, client
 cross-context fence, replay descriptor authority classes, refresh-family carrier,
 staged-bundle durable state machine) are substantive and carried into round 9.
+
+## Round 9 — 2026-07-13 (focused audit of the final unreviewed fixes)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md`, current working-tree
+revision (sha256
+`437a5324317f48b7b737524bcbf8d3eea2c97d5de4541e0f2ac45eede8fc28b9`).
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1 (`codex exec --ephemeral`),
+model `gpt-5.6-sol`, reasoning effort `xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24593-auth-review`. Fresh session
+`019f5b00-7c7e-7fb3-bb39-77fc3ef2a7a1`.
+**Date:** 2026-07-13
+**Redacted:** Same as earlier rounds.
+**Method:** Focused ENG-24593 gate review of the five residuals and the final
+unreviewed corrections. This review was explicitly informed by all prior
+`0039-auth-vertical-slice.*.md` artifacts (not blind), LLP 0053 at the seam,
+and direct source verification. The reviewer was instructed to judge at the
+author-ratified RFC altitude and not accept on the author's behalf.
+
+### Review body (verbatim)
+
+## Overall assessment
+
+**Not ready for author acceptance.** No HIGH architectural defect emerged: the core authorization model remains coherent and implementable at the author-ratified RFC altitude. However, the final unreviewed revision contains two MEDIUM normative contradictions and several LOW source/citation inconsistencies.
+
+The PublicInspect correction and LAN/proxy residual are sound. The console-token and collision-rescue fixes express the right intent but were not propagated consistently into the route table, transition prose, and acceptance suite. Status should remain Draft pending bounded edits.
+
+## Strengths with exact sections
+
+- **PublicInspect correction is verified.** §Existing surfaces correctly identifies `/` and `/inspect` as `Public`, not loopback-tokenless `AdminRead` ([0039:384](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:384); [route registry](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/server.rs:1367)). The current `PublicDiagnostic` projection also structurally removes free-form `message` and `details` ([diagnostic.rs:31](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/diagnostic.rs:31)), supporting the RFC’s typed-projection remedy.
+
+- **The console threat model is now honest.** §Built-in first provider recognizes that the shipped console stores one token in `localStorage`, uses it for raw table scans, and shares the app origin ([0039:737](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:737); [admin client:13](/Users/ccheever/projects/snapback-eng-24593-auth-review/packages/snapback-admin-client/index.mjs:13); [admin UI:24](/Users/ccheever/projects/snapback-eng-24593-auth-review/admin-ui/main.ts:24)). Making a scoped, expiring credential an item-2 deliverable is the correct direction.
+
+- **The principal collision-rescue design is executable at RFC altitude.** §Protected identity core correctly concludes that app-level rename-and-copy is impossible under an absolute reservation and introduces a storage-layer operator verb below `ctx.db` and manifest validation ([0039:501](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:501)).
+
+- **The local rollback backstop is technically valid.** A present-but-unparseable legacy manifest value fails with `SNAPBACK_SCHEMA_PARSE_FAILED`, propagated from database open; merely removing the key would fall open to the default manifest ([storage.rs:344](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/storage.rs:344); [storage.rs:1954](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/storage.rs:1954)). Relocate-and-poison is therefore the correct structural mechanism.
+
+- **The LAN/proxy residual is accurately stated.** The final mode-table text admits that an explicitly LAN-bound Vite proxy re-exposes client-asserted dev authority and that the fence protects only unproxied defaults ([0039:283](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:283)). This now matches LLP 0030’s warning that non-loopback Vite may expose both read and token-gated surfaces ([0030:629](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0030-managed-snapback-vite-dev.rfc.md:629)).
+
+- **The intended ephemeral replacement predicate is complete.** §Authority transitions explicitly rejects `auth`, `session_id`, `user_id`, and `custom_key`, including explicit nulls, and derives identity solely from bound connection authority ([0039:942](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:942)). The current source confirms why this is necessary: publish/delete carry the sibling key fields, and `resolved_identity` only compares them with an `auth` value that is itself currently client-supplied ([ephemeral.rs:441](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/ephemeral.rs:441); [ephemeral.rs:3458](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/ephemeral.rs:3458)).
+
+## Findings
+
+### HIGH
+
+None.
+
+### MEDIUM
+
+1. **The short-lived console-token deliverable is not yet a coherent authorization contract.**
+
+   Evidence: §Built-in first provider says whatever the console persists cannot bulk-read raw data ([0039:750](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:750)), but the route table still grants `AdminSecretRead` using “admin token” ([0039:1211](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1211)), and acceptance still says raw reads fail without and succeed with that token ([0039:1394](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1394)). The shipped client uses the same stored token for every request, including `scanTable`.
+
+   This is security-significant: implementing the table preserves the app-XSS bulk-read capability, while implementing the prose leaves the console’s raw-data workflow undefined.
+
+   Concrete resolution:
+
+   - Pin that the console-persisted credential never satisfies `AdminSecretRead`.
+   - Pin a separate, operator-minted, short-lived `AdminSecretRead` lease held in memory only, scoped to named table(s), bounded rows/bytes, and without a wildcard scope.
+   - Change the route-table credential cell to that lease, not “admin token.”
+   - Replace the acceptance row with: persisted console credential and durable admin token both fail raw scans; a live lease reads only its named table and bounded extent; the same lease fails another table and fails after expiry; no persisted browser value grants bulk reads.
+   - Amend the standing residual to say that an in-memory lease remains stealable for its remaining TTL and granted scope.
+
+2. **The collision-rescue correction remains contradicted by transition and acceptance prose.**
+
+   Evidence: the governing section says app rename-and-copy is impossible and requires `auth.rescueCollidingTable` ([0039:501](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:501)), but the transition section still calls “dev-mode rename-and-copy” sanctioned recovery ([0039:293](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:293)), and acceptance still requires “dev-mode rename-copy” ([0039:1427](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1427)). The impersonation-capability carrier obligation also omits the rescue verb.
+
+   Concrete resolution:
+
+   - Replace both rename-copy references with `auth.rescueCollidingTable`; retain `--drop-orphaned-auth-tables` only as the separately tested destructive fallback.
+   - Change “only code permitted to read a reserved-prefix table” to “only recovery code permitted to read a foreign/unowned reserved-prefix table”; the auth subsystem necessarily reads catalog-owned `_auth_*` tables.
+   - Add the rescue verb to the route/effect-gate table and §Protocol obligations item 7.
+   - Add this acceptance row:
+
+     > Given a dev/test database containing an unowned physical `_auth_*` table, staging sessions fails pre-DDL with `SNAPBACK_AUTH_TABLE_COLLISION`. Without `ImpersonationCapability`, and on `prod`, rescue is refused without mutation. With the capability, `auth.rescueCollidingTable` transactionally copies schema and rows into an operator-named non-reserved app table, drops only the source after successful copy, and leaves the source intact on any failure. The subsequent collision check and sessions activation succeed.
+
+### LOW
+
+1. **The item-5-to-item-7 enforcement window remains unnamed and avoidable.**
+
+   Sessions become enableable after items 1–5 ([0039:1275](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1275)), while first-delivery descriptor enforcement and the two-axis store arrive in item 7 ([0039:1269](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1269)). During that window queue-authority consistency is client-only. This remains a consistency risk rather than an authentication bypass because the descriptor grants no authority.
+
+   Concrete resolution: change the activation gate to require **items 1–5 and 7**. Acceptance should prove that a build lacking the descriptor capability refuses sessions activation with `SNAPBACK_CAPABILITY_UNSUPPORTED`, while health and the bootstrap handshake remain available.
+
+2. **The diagnostics and route-table editorial pass is incomplete.**
+
+   Precise contradictions and edits:
+
+   - Change `auth.mintSession` at [0039:343](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:343) from “admin token” to “route `AdminWrite` plus `ImpersonationCapability`.”
+   - Reconcile `MODE_DEV`: keep the table’s typed HTTP 404 and change [0039:1215](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1215) to “a typed 404, not an untyped missing-route response.”
+   - Replace “token-gated mailbox” at [0039:1191](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1191) and in provider acceptance with `ImpersonationCapability`-gated; explicitly test that an ordinary admin token is insufficient.
+   - Express mailbox/mint/rescue rows as `AdminWrite` route policy plus an `ImpersonationCapability` effect gate; do not place the effect capability in the path-policy column.
+   - Give `/app/ensure` credential resolution as “none for attestation; `AdminWrite` or pre-bind authority for mutation,” replacing the dash.
+   - Move `app.reset → ConnectionRegistry` ownership at [0039:546](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:546) from item 4 to item 5.
+   - Replace the dead `§Durable clearing` link at [0039:923](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:923).
+   - Assign mode-dependent wire DTOs consistently to LLP 0051 D4, not LLP 0012.
+   - In §Protocol obligations, make outbox **drain** the atomic effect boundary; enqueue stamps the generation but is not the effect boundary ([0039:1320](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1320)).
+   - Change “handshake precedes any retained render” to “handshake precedes online retained-data promotion/release and connection open,” preserving the explicitly allowed offline stale render.
+
+3. **The retained-scope seam still presents a settled 0053 decision as open.**
+
+   Evidence: 0039 offers either `userId`-only dependence or widening retained scope as a future choice ([0039:923](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:923)); 0053 already pins `Retainable ⇒ userId-only authority dependence` ([0053:603](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:603)). In addition, item 8 names `authorizedUntil` and “its 24-hour default” despite the outcome-only seam and 0053 still treating the number as an author-owned product question.
+
+   Concrete resolution:
+
+   - State categorically that v1 retainable functions declare `userId`-only authority dependence; widening retained scope is a future protocol change, not an item-8 alternative.
+   - Add to the handshake: the minimum disposition-aware client protocol is reported and both server and kit refuse session-mode retained subscriptions from older/unknown clients, matching [0053:580](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:580).
+   - Rewrite item 8 in outcome terms: it requires items 5–7, 0053’s accepted invalidation contract, and a disposition-aware client. Leave lease mechanism and numeric default to 0053.
+
+4. **Citation precision remains below the RFC’s own provenance standard.**
+
+   Concrete corrections:
+
+   - `PublicInspect` is public, but its current `PublicDiagnostic` projection already strips messages/details. Say that explicitly instead of implying raw handler messages currently escape; retain the response-sensitivity audit as a regression gate.
+   - Replace “LLP 0031 D3-style sentinel test” with “a field-level public-vs-gated projection sentinel following 0031 D3, plus a separate secret-redaction test.” D3 is the projection decision, not a general log-secrecy test.
+   - Replace every unqualified “M1/M2 has shipped” with “the first closed-IR, single-query M1/M2 slice shipped,” matching LLP 0043’s own revision record ([0043:8](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0043-offline-replay-retention.rfc.md:8)).
+   - Replace the claim that 0051 merely has stale “auth replayed from the ledger” prose with the exact semantic conflict: 0051 D1 freezes the server-retained handler-observed identity for replay ([0051:250](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0051-language-neutral-data-tier.rfc.md:250)), while 0039 requires current credential resolution and descriptor mismatch refusal before execution. The 0051 amendment must make retained auth evidence/fingerprint, not replay execution authority.
+
+5. **The relocate-and-poison backstop still lacks acceptance and downgrade semantics.**
+
+   Concrete acceptance row:
+
+   > After sessions activation, the capability-aware binary reads the relocated manifest key and the legacy key remains present with a sentinel that fails typed manifest deserialization. A pre-slice binary fails database open with `SNAPBACK_SCHEMA_PARSE_FAILED`, binds no listener, and performs no mutation. A missing legacy key is separately shown not to satisfy the backstop. The capability-aware binary continues to open normally.
+
+   Add a normative downgrade sentence. Recommended pin:
+
+   > `--allow-auth-downgrade` leaves the legacy key poisoned and the manifest relocated; it authorizes dev mode in a capability-aware binary, not rollback to a pre-slice binary.
+
+6. **The complete-ephemeral-field explanation contains one source-fact error.**
+
+   `PublishRequest` and `DeleteRequest` carry `session_id`, `user_id`, `custom_key`, and `auth`; `SubscribeRequest` carries only `auth` ([ephemeral.rs:441](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/ephemeral.rs:441)). The current sentence says all three request types carry all sibling fields.
+
+   Concrete resolution: describe the field set per operation. Add acceptance proving, over both HTTP and WebSocket:
+
+   - Publish/delete reject `auth`, `session_id`, `user_id`, and `custom_key`, including explicit null.
+   - Subscribe/unsubscribe reject `auth`; their closed session DTOs also reject injected unknown identity fields.
+   - Every permitted key mode derives only from bound authority.
+   - Missing required authority dimensions fail explicitly.
+   - Cross-user replace and delete fail for every permitted key mode.
+
+## Five-item closure checklist
+
+1. **Enforcement window:** require items 1–5 **and 7** before sessions activation; add missing-capability and first-delivery acceptance.
+
+2. **Diagnostics/route debris:** perform the bounded consistency edits for `MODE_DEV`, impersonation gates, console `AdminSecretRead`, mailbox acceptance, `/app/ensure`, item ownership, DTO registry ownership, drain semantics, offline handshake wording, and both stale collision-recovery references.
+
+3. **0053 retained seam:** replace the open choice with pinned `userId`-only retainability; add the minimum disposition-aware client capability to the handshake; rewrite item 8 in outcome-only terms.
+
+4. **Citation precision:** qualify PublicInspect’s existing typed projection, split the D3 projection and redaction tests, narrow the 0043 shipped claim, state the actual 0051 replay-semantic conflict, and correct the per-operation ephemeral source description.
+
+5. **Relocate-and-poison:** add the old-binary/current-binary fixture row and pin that authorized downgrade leaves the legacy key poisoned.
+
+## Open questions
+
+- Is the recommended console split authoritative: persisted non-secret-read console credential plus an in-memory, table-scoped `AdminSecretRead` lease? The current text needs one concrete capability model.
+- Will the author gate sessions on item 7, as recommended, or explicitly accept client-only queue enforcement between items 5 and 7?
+- Is typed HTTP 404 the intended `SNAPBACK_AUTH_MODE_DEV` status? If not, both the diagnostics table and prose need one replacement status.
+- Will `--allow-auth-downgrade` deliberately preserve the poison fence? Restoring the legacy key would require a substantially larger security and migration argument.
+
+## Recommended next step
+
+Apply one bounded correction pass covering the edits above while retaining Draft status. A **focused confirmation review is required** afterward, limited to:
+
+- console credential and route-table coherence;
+- collision-rescue transition and acceptance;
+- activation gating;
+- 0053 handshake/retainability alignment;
+- ephemeral per-operation rejection;
+- poison-fence acceptance and downgrade behavior;
+- the enumerated citation/debris replacements.
+
+A new broad twelve-round refinement loop is unnecessary, but confirmation should occur before any author acceptance decision.
+
+## Round 10 — 2026-07-13 (blind confirmation of the focused correction)
+
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** Codex CLI 0.144.1, `gpt-5.6-sol`, reasoning effort `xhigh`
+**Method:** CLI runner, fresh ephemeral thread, read-only sandbox; reviewer was forbidden from reading `llp/reviews/`
+**Session id:** `019f5b19-c0b2-7490-9d2d-d50796508cff`
+**Reviewed SHA-256:** `33d4522e1fc8966aa51a4d4abbe761e316551b12af82b98b6099f8e2d036462b`
+**Redacted:** no
+
+Digest `33d4522e…36462b` matches. I read all 1,945 lines, inspected only necessary source/LLPs, did not read `llp/reviews/`, and made no edits. `./ref-check --verbose` passes with zero errors.
+
+### Verified strengths
+
+- Cloudflare’s handler-first split deployment and current empty `authJson` are accurately identified; the invocation marker is the right receiver-side protection. See [deploy.sh](/Users/ccheever/projects/snapback-eng-24593-auth-review/cloudflare/deploy.sh:337), [coordinator.js](/Users/ccheever/projects/snapback-eng-24593-auth-review/cloudflare/src/coordinator.js:2363), and [LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:90).
+- Admin, secret-read lease, root minting authority, and impersonation authority are conceptually separated; the root never enters browser memory. This correctly addresses the shipped console’s `localStorage` credential behavior in [snapback-admin-client](/Users/ccheever/projects/snapback-eng-24593-auth-review/packages/snapback-admin-client/index.mjs:13).
+- Relocate-and-poison now has permanent-downgrade, crash-boundary, missing-key, and actual-predecessor acceptance. Collision rescue is executable below manifest/`ctx.db` validation and transactionally specified.
+- Item 5→7 queued replay is explicitly disabled in design, handshake behavior, landing order, acceptance, status, and changelog.
+- Route policy, credential resolution, invocation authority, legacy-body acceptance, effect policy, response sensitivity, and mode overlay are separated. `MODE_DEV` is consistently a typed HTTP 404.
+- `Retainable ⇒ userId-only` matches [LLP 0053](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:601), including the legacy-client retained-read gate.
+- The per-operation ephemeral field sets match the shipped DTOs in [ephemeral.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/ephemeral.rs:441) and are carried into acceptance.
+- `PublicInspect` is now described correctly. `PublicDiagnostic` structurally drops message/details, and `PublicInspect` uses exhaustive projection, matching LLP 0031 D3 and the source in [diagnostic.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/diagnostic.rs:31) and [local.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/local.rs:215).
+
+### Defects
+
+No HIGH defects.
+
+MEDIUM
+
+1. Landing ownership is still incomplete.
+
+   Evidence: landing item 3 names only the collision check, not `auth.rescueCollidingTable`; item 4 names generic body-auth rejection but not the corrected per-operation sibling-field rejection, closed session DTOs, `KeyMode::Custom` prohibition, or permission-policy failure ([LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1320)). Those obligations appear in design and acceptance at lines 562 and 1639, but no numbered landing item owns them. Because activation is defined solely as completion of items 1–5, this is a real sequencing gap.
+
+   Resolution: assign collision rescue explicitly to item 3, and assign the complete session-mode ephemeral DTO/key/policy closure explicitly to item 4; state that neither item is complete without its corresponding acceptance cases.
+
+2. Acceptance does not prove credential non-substitutability across every impersonation path.
+
+   Evidence: design correctly says the mailbox, `auth.mintSession`, and legacy `function.run --as-user/--as-role` all require `ImpersonationCapability` ([LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:377)); the route matrix repeats that at lines 1282–1290. But §Acceptance explicitly tests only mailbox carrier separation at lines 1518–1523. Its registry sweep covers `AppAuth`/`ConnectionAuth` and the direct runner, not the host-ops impersonation verbs.
+
+   Resolution: add an acceptance matrix proving that ordinary admin, persisted console credential, `AdminSecretRead`, and the secret-read root authority cannot invoke any impersonation effect; cover mailbox, `auth.mintSession`, rescue, and `function.run --as-user/--as-role`, including production refusal.
+
+LOW
+
+1. The Cloudflare current-state description is stale.
+
+   Evidence: the RFC says deployment validation currently runs after system-table/subscription migration and that `ensureSchema()` performs destructive migration before validation ([LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:146), lines 1452–1456). Current `initializeSchema()` validates deployment metadata before `ensureCurrentSchema()` and subscription migration; only `_snapback_meta` creation precedes validation ([coordinator.js](/Users/ccheever/projects/snapback-eng-24593-auth-review/cloudflare/src/coordinator.js:164)).
+
+   Resolution: state the exact current order. Preserve the byte-for-byte requirement by requiring session preflight before even the metadata-table DDL, without claiming destructive migration currently precedes validation.
+
+2. “No struct in the repo uses `deny_unknown_fields`” is false.
+
+   Evidence: `SchemaManifest` does omit it, which supports the downgrade argument ([manifest.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/manifest.rs:78)); other structs do use it, such as `OpenConnectionRequest` ([server.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/server.rs:959)).
+
+   Resolution: change the sentence to “`SchemaManifest` does not use `deny_unknown_fields`.” The relocate-and-poison argument remains valid.
+
+### Final verdict
+
+NOT READY
+
+## Round 11 — 2026-07-13 (second blind confirmation)
+
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** Codex CLI 0.144.1, `gpt-5.6-sol`, reasoning effort `xhigh`
+**Method:** CLI runner, fresh ephemeral thread, read-only sandbox; reviewer was forbidden from reading `llp/reviews/`
+**Session id:** `019f5b24-8410-76d1-aa11-8ed4c8624e94`
+**Reviewed SHA-256:** `6a801ed0bee048b681a69b7aff0001a69e0a11db4e2e516c767bcb6e172c650a`
+**Transcript SHA-256:** `0166296861ed5c494f2744a684a3b5a0ca167a448be54a94376890f9ab978cfb`
+**Redacted:** no
+
+## Verified strengths
+
+- Collision rescue is owned by landing item 3, while the complete session-mode ephemeral closure is owned by item 4, with corresponding acceptance coverage.
+- Credential non-substitutability covers all four impersonation effects: mailbox, session minting, collision rescue, and host-ops impersonation.
+- Cloudflare facts match source: `_snapback_meta` is created before deployment validation, schema reconciliation follows validation, handler invocations currently receive empty auth, and deployment is handler-first then gateway/coordinator.
+- The relocate-and-poison design includes actual-predecessor, missing-key, crash-boundary, permanent-poison, and downgrade acceptance cases.
+- The item-5→7 window, `userId`-only retention, client capability gating, per-operation ephemeral fields, and `PublicInspect` projection are propagated through design, acceptance, status, and changelog.
+
+## Findings
+
+### HIGH
+
+1. The local legacy-receiver backstop protects rollback after activation, but not first installation onto a pre-slice binary.
+
+The RFC correctly states that sender checks are insufficient because a bundle outside first-party tooling would fail open ([RFC 0039:71](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:71)). But its local structural mechanism is installed only “on sessions activation” ([RFC 0039:121](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:121)).
+
+A fresh sessions manifest sent directly to a pre-slice local binary therefore remains unprotected:
+
+- `SchemaManifest` has no `deny_unknown_fields`, so `auth.mode` is discarded ([manifest.rs:78](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/manifest.rs:78)).
+- The apply path validates only the existing artifact header ([local.rs:1190](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/local.rs:1190)).
+- Existing binaries reject a different `schemaVersion`, but the RFC mandates no version/discriminator change for sessions bundles ([manifest.rs:2044](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/manifest.rs:2044)).
+- The typed manifest is then reserialized without the unknown field and persisted ([storage.rs:784](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/storage.rs:784)).
+
+Thus a sessions-oriented bundle reaching an old local receiver can be accepted and served under legacy client-supplied body authority—the exact must-understand failure the section claims to close.
+
+Concrete resolution: require sessions deployments to carry a discriminator that pre-slice local binaries already reject, most naturally a new schema/deployment artifact version. A session-aware binary may accept both legacy-dev and new-sessions versions; an old binary must reject the sessions version before applying schema, functions, or seed. Add acceptance using a pinned pre-slice binary and a fresh database—not an already activated/poisoned database—proving the complete sessions `/app/ensure` deployment leaves schema, bundle, seed, and database unchanged. Keep relocate-and-poison for rollback protection.
+
+### MEDIUM
+
+None.
+
+### LOW
+
+None substantive.
+
+Editorial nit: [RFC 0039:62](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:62) says the `auth.mode` carve-out is “registered” in LLP 0012, while [RFC 0039:1397](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1397) correctly lists that registration as a future companion obligation, and LLP 0012 currently contains no such entry. Change the former to “must be registered.”
+
+## Verification
+
+- SHA-256 verified unchanged: `6a801ed0bee048b681a69b7aff0001a69e0a11db4e2e516c767bcb6e172c650a`.
+- Read all 1,974 lines.
+- Did not read any file under `llp/reviews/`.
+- `./ref-check --verbose` passed: 54 LLPs, 553 references, 0 errors, 8 informational unchecked shorthands.
+- No edits made.
+
+NOT READY
+
+
+## Round 12 — 2026-07-13 (final blind confirmation of the exact gate candidate)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+`9a2be519160ff4f1d43dc3795c842140bae175519b4c08f46acd6bf55d1ad1ad`
+and `llp/0012-headless-integration-contract.spec.md` at SHA-256
+`a740d9da6fe4f309caf4fc18a37b237267f3ff5a54c54a7bae2e9a71e97611ec`.
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1
+(`codex exec --ephemeral`), model `gpt-5.6-sol`, reasoning effort
+`xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24593-auth-review`.
+Fresh thread `019f5b6c-a7c3-72f0-9664-8225215f39d9`.
+**Date:** 2026-07-13
+**Review-body SHA-256:**
+`53494f47d4019b084e843e66bbe46e606e11ca46b8df4826a49a55d3af549597`.
+**Redacted:** no
+**Method:** Blind final confirmation of the exact immutable pair. The reviewer
+was forbidden from reading prior review artifacts, verified both hashes,
+inspected governing LLPs and source, and edited nothing.
+
+### Review body (verbatim)
+
+# Verdict: NOT READY
+
+Both immutable-candidate hashes match:
+
+- `0039`: `9a2be519160ff4f1d43dc3795c842140bae175519b4c08f46acd6bf55d1ad1ad`
+- `0012`: `a740d9da6fe4f309caf4fc18a37b237267f3ff5a54c54a7bae2e9a71e97611ec`
+
+I found one security-contract blocker and one cross-document enforceability defect. Neither requires reopening the architecture.
+
+## Finding 1 — HIGH: the allowed version/auth-mode relation is not closed
+
+Evidence:
+
+- LLP 0012 says dev may use v0 and sessions must use v1, but later says the receiver accepts “a v1 pair when v1 is explicitly supported.” It rejects `v0-sessions` but never rejects `v1-dev`. [LLP 0012](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:117), [acceptance rule](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:143)
+- Target support is represented by two independent arrays—versions and modes—whose natural interpretation is a cross-product. [LLP 0012 capabilities](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:214)
+- “Pair consistency” checks equal version, `appId`, and `inputsHash`, but does not explicitly validate the tuple `(schemaVersion, effectiveMode)`. [LLP 0012 preflight](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:153)
+- Both acceptance matrices omit `v1-dev`. [LLP 0012 acceptance](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:665), [LLP 0039 obligation](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1513), [LLP 0039 acceptance](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1684)
+- This is not harmless extensibility: v1 identities are explicitly domain-separated under a `sessions` namespace. [LLP 0012 identity contract](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:124)
+
+Concrete failure trace:
+
+1. The target advertises `["snapback.v0","snapback.v1"]` and `["dev","sessions"]`.
+2. A provision request supplies two internally consistent v1 manifests but resolves effective mode to `dev`.
+3. A literal implementation finds the version supported, the mode supported, and all cross-artifact fields equal.
+4. Nothing enumerated requires rejection, so the v1 artifact—whose identity asserts `sessions`—can execute under legacy dev authority.
+5. The must-understand discriminator no longer uniquely identifies the authority boundary it is intended to protect.
+
+Bounded resolution:
+
+Explicitly define the current admissible set as exactly:
+
+- `(snapback.v0, dev)`
+- `(snapback.v1, sessions)`
+
+Reject every other tuple, including `(snapback.v1, dev)`, before hashes or effects. Add `v1-dev` to the negative matrices in both LLPs. This is a small contract closure, not an architectural change.
+
+## Finding 2 — MEDIUM: the claimed LLP 0053 queue-fence dependency is not source-grounded
+
+Evidence:
+
+- LLP 0039 claims item 6’s “queue fence” keys item 5’s `AuthCoordinator` custody/generation, with item 7’s descriptor optional. [LLP 0039 landing order](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1423). The status repeats that this is the “final LLP 0053 seam.” [LLP 0039 status](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1894)
+- LLP 0053 contains no such queue-fence contract. Its actual client fence is `(incarnation, epoch)`. [LLP 0053 client fences](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:585)
+- LLP 0053 then says its final correction changed both obligation discharge and the client fence to commit-version witnesses, but the normative client-fence section still says epoch, and acceptance still permits epoch-witnessed discharge. [design correction](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:475), [stale acceptance](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:699), [status](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:776)
+- Its acceptance also says ordinary restart does not force retained subscriptions to resnapshot, contradicting the mandatory resnapshot rule for every non-live resumption. [normative rule](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:230), [contradictory acceptance](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:713)
+
+Concrete failure trace:
+
+1. An item-6 implementer follows LLP 0039 and looks for a custody/generation queue fence.
+2. An LLP 0053 implementer follows its normative section and uses `(incarnation, epoch)`, or follows its status and uses commit version.
+3. A matcher-mediated removal does not advance the epoch.
+4. Under the stale epoch-witnessed text, a snapshot computed before the removal can pass the fence or discharge its obligation—the precise stale-row failure LLP 0053’s correction describes.
+5. Different implementers therefore cannot derive one enforceable item-6 protocol from the governing documents.
+
+The existing item-6 gate contains this defect: LLP 0039 correctly forbids item 6 from starting before LLP 0053 is accepted. It is therefore not an immediately exploitable partial-landing hole.
+
+Bounded resolution:
+
+Remove the unsupported custody/generation queue-fence assertion from LLP 0039 and retain only the established dependency: item 5 supplies the coordinator, disposition execution, clear serialization, and incarnation. Reconcile LLP 0053’s normative and acceptance text to its already-selected commit-version and mandatory-resnapshot rules before its separate acceptance gate. No new mechanism is needed.
+
+## Confirmed areas
+
+The five previously low residuals are closed:
+
+- Queued replay is explicitly unavailable between items 5 and 7. [LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1450)
+- `MODE_DEV` is a typed HTTP 404. [LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1282)
+- Route policy, credentials, invocation authority, effect policy, body-auth, and response sensitivity are separate axes. [LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:280)
+- `Retainable ⇒ userId-only` is categorical. [LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1034)
+- The 0031/0043/0051 provenance claims agree with the governing documents and shipped source.
+
+The predecessor proof is source-grounded:
+
+- The predecessor accepts only `snapback.v0`. [manifest validator](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/manifest.rs:2044)
+- Its current ensure path compares raw hashes before validation. [ensure implementation](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/local.rs:1367)
+- A nonmatching schema reaches artifact validation before database application. [apply_schema](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/local.rs:1190)
+- The specified v1 serialized namespaces are disjoint from the current v0 hash encodings, so valid generated v1 artifacts cannot take the predecessor’s equality shortcut.
+- Consequently, the fresh and identical-content provisioned-v0 matrices are implementable as written.
+
+The public attestation/privileged provisioning split is clean and effect-ordered. [LLP 0012 attest](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:191), [provision](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:200)
+
+The capability additions are correctly optional for historical v0 artifacts, absent/empty means unsupported, and auth-aware emitters must provide both facts. [LLP 0012 capability registration](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:283)
+
+## Bottom line
+
+- Architecture remains sound: **yes**.
+- Material blocker remains: **yes**, the unclosed `v1-dev` tuple; the false LLP 0053 seam statement is an additional bounded enforceability defect.
+- ENG-24593 can close: **no**, not for this exact immutable pair.
+- Required work is limited to contract/matrix closure and cross-document reconciliation; it does not require a new auth architecture.
+
+No files were edited, and no file under `llp/reviews/` was read. This reports readiness only and does not accept either LLP on the author’s behalf.
+
+
+## Round 13 — 2026-07-13 (focused exact confirmation after bounded closure)
+
+**Reviewed:** `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+`8ba5becada849cb1d074b17a5858134de807abe103d3f086047cfac751b893fc`
+and `llp/0012-headless-integration-contract.spec.md` at SHA-256
+`ade9da47881828342fd591ff4d1bb1c0bff643c2f67b9fb086a987b56bf51170`.
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1
+(`codex exec --ephemeral`), model `gpt-5.6-sol`, reasoning effort
+`xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24593-auth-review`.
+Fresh thread `019f5b7a-fd59-7d11-b837-c3e65237db34`.
+**Date:** 2026-07-13
+**Review-body SHA-256:**
+`0f80fc9187b98d57d72de9e93bae1bffc65b1aa31892f197e3a7ac8877dca01b`.
+**Redacted:** no
+**Method:** Blind focused confirmation of the exact immutable pair after the
+Round 12 bounded corrections. The reviewer was forbidden from reading prior
+review artifacts, verified both hashes, inspected governing LLPs and source,
+and edited nothing.
+
+### Review body (verbatim)
+
+# READY
+
+Both immutable hashes match:
+
+- LLP 0039: `8ba5becada849cb1d074b17a5858134de807abe103d3f086047cfac751b893fc`
+- LLP 0012: `ade9da47881828342fd591ff4d1bb1c0bff643c2f67b9fb086a987b56bf51170`
+
+All four closures are complete:
+
+1. The admissible set is exactly `(snapback.v0, dev)` and `(snapback.v1, sessions)`. V1-dev is rejected before hashes or effects throughout tuple definition, versioning, implementation obligations, and acceptance matrices ([LLP 0012](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:126), [LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:129)).
+
+2. The predecessor proof explicitly runs the actual unmodified predecessor under `dev` and asserts `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` for fresh and provisioned-v0 snapshots ([LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1537), [LLP 0012](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:710)). Source corroborates that `dev` permits provisioning, the existing ensure path has the cited hash shortcut, and the v0 validator emits that exact diagnostic ([admin.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/admin.rs:105), [local.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/local.rs:1373), [manifest.rs](/Users/ccheever/projects/snapback-eng-24593-auth-review/src/manifest.rs:2070)).
+
+3. During `MODE_PENDING`, ordinary app-data and Public attestation are refused. Only the explicitly privileged `provision` branch—`AdminWrite` or pre-bind startup authority—may correct or re-stage, after full preflight; no generic admin bypass exists ([LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:394), [LLP 0012](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0012-headless-integration-contract.spec.md:241)).
+
+4. The LLP 0053 seam attributes to item 5 only the `AuthCoordinator`, disposition execution, serialized clear barrier, and durable incarnation. LLP 0053 owns its item-6 authorization-invalidation fence; no transient queue-fence keying to item-5 custody or generation is asserted ([LLP 0039](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0039-auth-vertical-slice.rfc.md:1433), [LLP 0053](/Users/ccheever/projects/snapback-eng-24593-auth-review/llp/0053-authorization-invalidation.rfc.md:52)).
+
+No blocking findings. **ENG-24593 can close.** This is a readiness verdict only—not acceptance, ratification, or a status transition on the author’s behalf. I made no edits and did not read any file under `llp/reviews/`.

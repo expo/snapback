@@ -2,11 +2,21 @@
 
 **Type:** Spec
 **Status:** Draft
-**Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync
+**Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24572: function artifacts are whole-manifest semantic units and reject atomically before replacing a known-good generation); 2026-07-02 (LLP 0032 X1: DK-2 cursor pin — versions are per-app-stream opaque `(stream, version)` resume tokens, no cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030
+**Revised:** 2026-07-13 (ENG-24593 post-review bounded corrections: closed the
+artifact/auth tuple to exactly v0-dev and v1-sessions, pinned the predecessor
+diagnostic proof, and made privileged provisioning the sole `MODE_PENDING`
+recovery branch; focused exact confirmation completed READY by both reviewer
+families); 2026-07-12 (ENG-24572:
+function artifacts are whole-manifest semantic units and reject atomically before
+replacing a known-good generation); 2026-07-02 (LLP 0032 X1: DK-2 cursor pin —
+versions are per-app-stream opaque `(stream, version)` resume tokens, no
+cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
+added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
+LLP 0030 for Contract/Exact preview server lifecycle)
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0039
 
 ## Summary
 
@@ -90,7 +100,7 @@ the headless contract has not actually shipped.
 
 Ratified on 2026-06-26: v0 pins the logical artifact schemas below for the
 first local implementation. The filenames may move while packages settle, but
-each artifact must declare `schemaVersion: "snapback.v0"` and `artifactKind`, and
+each v0 artifact must declare `schemaVersion: "snapback.v0"` and `artifactKind`, and
 diagnostics must report version mismatches rather than letting adapters infer.
 
 **Evolution policy — the pin is a floor, not a ceiling.** During v0, *adding* a
@@ -107,6 +117,152 @@ counters and [LLP 0017](./0017-admin-console-inspection-surface.rfc.md)'s admin
 facts (host, port, uptime, admin-write capability) — so `artifactKind` and
 `schemaVersion` let a doctor or adapter detect a field set it does not yet
 understand instead of guessing.
+
+**Must-understand auth-mode compatibility exception (ENG-24593).** The
+ignore-unknown rule above is unsafe for a field that changes who supplies
+invocation authority: a pre-auth binary would ignore `auth.mode: "sessions"`
+and execute the deployment under legacy client-asserted dev authority. Auth
+mode therefore has an exact structural compatibility rule:
+
+The admissible artifact/auth tuple set is closed and contains **exactly** these
+two pairs:
+
+| Schema and function `schemaVersion` | Candidate auth mode | Result |
+|---|---|---|
+| `snapback.v0` | `dev` | accept |
+| `snapback.v0` | `sessions` | reject |
+| `snapback.v1` | `dev` | reject |
+| `snapback.v1` | `sessions` | accept |
+
+Every other tuple — including an unknown version or mode — is rejected before
+hash comparison or any durable/runtime effect. The two capability arrays below
+do not create a Cartesian product of acceptable tuples.
+
+- a dev deployment uses the legacy pair of schema and function manifests at
+  `schemaVersion: "snapback.v0"`; absent `auth.mode` means `dev`, and an
+  auth-aware receiver also accepts an explicit `dev` spelling;
+- every sessions deployment uses `schemaVersion: "snapback.v1"` on **both**
+  the schema manifest and the function manifest. The mode is declared by the
+  schema manifest, but the function artifact carries the same version so an
+  executable bundle cannot cross the authority boundary as a v0 half;
+- the three v1-sessions identity strings occupy raw-value namespaces disjoint
+  from v0: `snapback.v1:sessions:schema:sha256:<digest>` for `schemaHash`,
+  `snapback.v1:sessions:function:sha256:<digest>` for `bundleHash`, and
+  `snapback.v1:sessions:inputs:sha256:<digest>` for the shared `inputsHash`.
+  The `snapback.v1:` prefix is reserved for these values; v0 emitters retain
+  their existing encodings and must not emit that prefix.
+  `<digest>` is the 64-character lowercase SHA-256 result of the existing
+  length-framed encoding. Its domain is respectively
+  `snapback-codegen/schema-content-hash/snapback.v1/sessions`,
+  `snapback-codegen/bundle-content-hash/snapback.v1/sessions`, or
+  `snapback-codegen/inputs-hash/snapback.v1/sessions`; the first framed items
+  are the artifact kind (`schemaManifest`, `functionManifest`, or
+  `schemaFunctionPair`), `snapback.v1`, `sessions`, and `appId`, followed by
+  that hash's canonical content or input items. Both manifests carry the same
+  pair-level `inputsHash`. The serialized namespace is part of the
+  discriminator, not decoration: no v1-sessions identity may equal a v0
+  identity even when the app sources and canonical content are otherwise
+  identical. This forces a predecessor past its raw hash-equality shortcut and
+  into its existing non-v0 rejection;
+- an auth-aware receiver accepts only the closed v0-dev and v1-sessions pairs.
+  It rejects v0-sessions, **v1-dev**, mixed schema/function versions, absent
+  required halves on first sessions deployment, and unknown versions. Adding a
+  later version requires revising this closed tuple contract; listing dimensions
+  separately in target capabilities is not enough. For a later one-half update,
+  the unposted half is the currently loaded, attested artifact and must satisfy
+  the same pair rule;
+- a pre-auth receiver's existing v0 artifact validator rejects the v1
+  discriminator with `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`. The acceptance
+  proof runs the actual unmodified predecessor in its provisioning-allowed
+  `dev` profile and asserts that exact diagnostic; LLP 0039's
+  relocate-and-poison rule is a separate defense against reopening or rolling
+  back a database after sessions has activated;
+- every artifact-ingress path constructs and preflights the complete candidate
+  pair before trusting a hash match or taking an effect. It first resolves the
+  explicit operation intent and that branch's authorization, then checks the
+  closed `(schemaVersion, candidate auth mode)` tuple, artifact kind, and pair
+  consistency (equal
+  `schemaVersion`, `appId`, and `inputsHash` across the schema and function
+  manifests, with non-empty `appId`, `schemaHash`, `bundleHash`, and
+  `inputsHash` required for v1), and target support. Only then may it report
+  `matched`, run DDL, persist a desired mode, replace functions, or seed data.
+  A matching `schemaHash`, `bundleHash`, or `inputsHash` is attestation
+  evidence, never permission to skip this preflight.
+
+For v1 sessions, `/app/ensure` is a closed, explicitly discriminated request
+union; missing/unknown `intent` and fields outside the selected variant are
+rejected:
+
+```json
+{
+  "intent": "attest",
+  "requestedMode": "sessions",
+  "pair": {
+    "schema": {
+      "artifactKind": "schemaManifest",
+      "schemaVersion": "snapback.v1",
+      "appId": "<non-empty>",
+      "schemaHash": "<non-empty>",
+      "inputsHash": "<non-empty>"
+    },
+    "functions": {
+      "artifactKind": "functionManifest",
+      "schemaVersion": "snapback.v1",
+      "appId": "<same appId>",
+      "bundleHash": "<non-empty>",
+      "inputsHash": "<same inputsHash>"
+    }
+  }
+}
+```
+
+The `attest` variant is the Public, non-mutating branch. Its exact DTO contains
+only the pair identity above: full table/function manifests, seed data, desired
+mode writes, and any other provisioning material are invalid fields. After
+Public route authorization and version/mode/pair/target-support validation, it
+may compare the identity to the already-loaded, previously accepted pair. It
+returns only a typed `{ intent: "attest", matched: boolean, active: {
+schemaVersion, appId, schemaHash, bundleHash, inputsHash } }` identity
+projection and cannot stage, provision, seed, or replace runtime state.
+
+The `provision` variant is a closed object whose required fields are
+`intent: "provision"` and `requestedMode`; its only optional fields are
+`schema` (a full schema manifest), `functions` (a full function manifest), and
+`seed`, with at least one effect-bearing field required. A first sessions
+deployment requires both manifest fields; a later one-half update may omit one
+only when the loaded, attested sibling completes the pair. This branch requires
+`AdminWrite` or pre-bind startup authority before any hash comparison or
+effect. Any request that would provision or stage sessions, and every
+provisioning request while the desired mode is sessions, uses this branch. The
+server never infers intent from whether hashes match and never falls back from a
+denied `provision` request to Public `attest`. Legacy untagged ensure input
+remains only a v0-dev compatibility form; it cannot request, stage, attest, or
+operate while desired/active mode is sessions.
+
+During `MODE_PENDING`, ordinary app-data and the Public `{ intent: "attest" }`
+branch are refused with `SNAPBACK_AUTH_MODE_PENDING`. The sole schema-apply
+recovery exception is the same privileged `{ intent: "provision" }` branch,
+authorized by `AdminWrite` or pre-bind startup authority, so an operator can
+correct or re-stage the candidate pair. Its branch authorization and complete
+tuple/pair/capability preflight still run before hashes or effects. It is not a
+fallback for an ordinary request; explicit unstage remains the separate pre-bind
+operator action LLP 0039 defines.
+
+The capability manifest registers `supportedArtifactVersions` (an array of
+closed artifact-version strings) and `supportedAuthModes` (an array drawn from
+`dev | sessions`) as target-declared facts. The auth-aware local target reports
+`["snapback.v0", "snapback.v1"]` and `["dev", "sessions"]`. On an older target,
+an absent fact means unsupported; a sender never infers sessions support from
+the target profile or another capability. Sender-side codegen/deploy gates and
+receiver-side preflight both consume the facts; either side alone is
+insufficient. The bootstrap handshake reports the app's active and desired
+modes separately — target support is not evidence that a
+particular app has activated sessions.
+These arrays advertise supported dimensions only. They never authorize their
+Cartesian product: the receiver and sender still enforce the closed pair set
+`{ (snapback.v0, dev), (snapback.v1, sessions) }`.
+[LLP 0039](./0039-auth-vertical-slice.rfc.md) owns the staged transition and its
+predecessor fresh/provisioned-v0 acceptance matrix.
 
 ### V0 Schema Manifest
 
@@ -163,6 +319,17 @@ Required fields:
 - supported query forms;
 - portability opt-outs;
 - resource limits, each marked `enforced`, `advisory`, or `missing`.
+
+Registered optional additive fields:
+
+- `supportedArtifactVersions`;
+- `supportedAuthModes`.
+
+Historical v0 capability manifests remain valid when either field is absent.
+For auth compatibility, absent or empty means unsupported; an auth-aware target
+MUST emit both fields, and a sender MUST NOT infer either fact from the target
+profile or another capability. This is an additive v0 registration, not a
+retroactive new required field for every v0 manifest.
 
 Missing features are data, not prose. Adapters and acceptance tests assert the
 reported gap.
@@ -288,6 +455,8 @@ The capability manifest reports what the current target can do. It should cover:
 - optimistic replay;
 - mutation isolation mode: read-set validation, retry, reject-only, or another
   named strategy;
+- supported artifact versions (`supportedArtifactVersions`);
+- supported auth modes (`supportedAuthModes`);
 - auth provider and impersonation support;
 - permission diagnostics;
 - asset upload;
@@ -476,6 +645,19 @@ A version mismatch can be a *warning* that allows the connection to continue, or
 hard stop — Valet chose "continue with a warning"; pick deliberately and report it
 either way rather than failing opaquely at runtime.
 
+The auth-mode exception above makes that choice for schema/function deployment
+artifacts: only `(snapback.v0, dev)` and `(snapback.v1, sessions)` are compatible.
+V0-sessions, **v1-dev**, mixed artifacts, and unknown tuples are hard stops. The
+receiver resolves the explicit ensure intent and its branch authorization, then
+performs the complete closed-tuple/pair/capability preflight before any
+matching-hash shortcut or durable/runtime effect. This rule applies equally to
+initial provisioning, one-half updates evaluated against the loaded sibling,
+startup provisioning, and attestation-only `/app/ensure`; an attestation response
+must not say `matched` unless its identity-only pair is compatible and equals the
+loaded pair previously accepted by provisioning preflight. During
+`MODE_PENDING`, that Public attestation branch is refused; only the explicitly
+privileged provisioning branch may correct or re-stage the candidate pair.
+
 **Enforced (LLP 0032 P3, landed 2026-07-02).** The single-source +
 drift-gate demand above is now CI-checked end to end: the Rust types
 generate committed JSON Schemas (`schemas/*.schema.json`, per
@@ -522,6 +704,29 @@ least two surfaces. The first validation should prove:
   adapter is not presented as local-first;
 - a CI drift check fails when the shared manifest/protocol schema diverges between
   codegen and runtime.
+- an auth-aware receiver accepts exactly v0-dev and v1-sessions, while rejecting
+  v0-sessions, **v1-dev**, mixed/unknown versions, unsupported auth modes, and
+  insufficient privilege before hashes, schema, functions, desired mode, or seed
+  can change;
+- the actual unmodified pinned pre-auth predecessor runs in its
+  provisioning-allowed `dev` profile and rejects a v1-sessions schema/function
+  pair on both a fresh database and a database already provisioned with the
+  identical app content as v0-dev. Each refusal asserts
+  `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`, not merely an absence of mutation.
+  The latter case asserts all three v1 identity strings differ from their v0
+  counterparts and proves the predecessor cannot return `matched` before its
+  non-v0 check; relative to each pre-request snapshot, both cases also prove no
+  request-attributable byte or logical change. Together they prove the structural
+  first-install discriminator independently of LLP 0039's post-activation
+  relocate-and-poison defense;
+- a Public v1 `attest` request can only compare the exact identity DTO and
+  rejects smuggled manifests, seed, or mode-stage material, while the same
+  caller cannot use `provision`; `AdminWrite` or pre-bind startup authority can
+  provision, and neither branch is selected by hash equality;
+- in `MODE_PENDING`, ordinary app-data and Public `attest` are refused, while
+  only an explicitly privileged `provision` request may correct or re-stage the
+  candidate pair; that recovery request still completes authorization and the
+  closed-tuple/pair/capability preflight before hashes or effects.
 
 This validation can use minimal UI. It is testing the contract boundary, not the
 polish of either adapter.
@@ -553,3 +758,26 @@ Integration") holds reviewed adapter design — package API, headless boot
 mine into this Spec and [LLP 0021](./0021-contract-exact-integration-hardening.plan.md)
 as the adapter is built; Exact 0265 still references 0088 and should repoint to the
 Snapback corpus.
+
+The ENG-24593 auth-mode compatibility exception is registered normatively even
+while LLP 0039 remains Draft/FROZEN. The post-review bounded corrections above
+received blind focused READY verdicts from both GPT and Claude on the exact pair
+recorded in LLP 0039's Status. Implementations may not claim sessions support
+without the closed-tuple paired-artifact preflight, the exact predecessor
+diagnostic proof, and the `MODE_PENDING` recovery gate. This broader Spec remains
+Draft; ENG-24593 authorized no status transition.
+
+## Changelog
+
+- **2026-07-13 (ENG-24593 post-review bounded corrections; focused exact
+  confirmation complete).** Closed artifact/auth compatibility to exactly
+  `(snapback.v0, dev)` and `(snapback.v1, sessions)`, added v1-dev to every
+  negative and acceptance matrix, and made the separate capability arrays
+  explicitly non-Cartesian. Pinned the actual unmodified predecessor to its
+  provisioning-allowed `dev` profile and required the exact
+  `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` refusal in addition to the existing
+  no-mutation proof. Made privileged `{ intent: "provision" }` the sole
+  schema-apply correction/re-stage branch during `MODE_PENDING`; ordinary
+  attestation and app-data remain refused. The exact operative pair received
+  independent READY verdicts from GPT and Claude with no blocking findings.
+  Status remains Draft; the gate authorized no acceptance transition.
