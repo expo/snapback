@@ -64,6 +64,10 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 // Kit receipt ring bound — mirrors the server-side retention cap (LLP 0034 §3).
 const RECEIPT_RING_CAP = 256;
+// A subscription registers its lane consumer before dispatching the snapshot
+// request, then buffers deltas until that snapshot arrives. Keep a hung request
+// from turning the temporary queue into an unbounded client-memory sink.
+const EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP = 1_024;
 // Generated function/collection identifiers are URL path components on the
 // app-data plane. Keep this grammar in lockstep with codegen's IDENT so a
 // caller-supplied reference cannot acquire authority through URL parsing.
@@ -439,12 +443,29 @@ export class SnapbackClient {
 
   async subscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
     const collection = collectionName(ref);
-    return this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/subscribe', {
-      collection,
-      scope,
-      connection_id: grant.id,
-      auth: SnapbackClient.auth(userId, { permissions }),
-    }, connectionTokenHeader(grant))).then((snapshot) => new EphemeralOverlay(this, ref, { connectionId, scope, userId, permissions, snapshot }));
+    // @ref LLP 0012#runtime-state — register before the snapshot request so a
+    // shared socket cannot destructively drain and discard a post-snapshot
+    // delta while the HTTP response is still in flight. The overlay buffers
+    // that interval and applies it only after the authoritative snapshot.
+    let overlay = null;
+    try {
+      const snapshot = await this.#withGrant(connectionId, (grant) => {
+        // Start buffering immediately before the request is dispatched. Grant
+        // acquisition itself cannot create a server-side room registration.
+        overlay ??= new EphemeralOverlay(this, ref, { connectionId, scope, userId, permissions });
+        return this.#req('POST', '/ephemeral/subscribe', {
+          collection,
+          scope,
+          connection_id: grant.id,
+          auth: SnapbackClient.auth(userId, { permissions }),
+        }, connectionTokenHeader(grant));
+      });
+      overlay.applyInitialSnapshot(snapshot);
+      return overlay;
+    } catch (error) {
+      overlay?.dispose();
+      throw error;
+    }
   }
 
   async publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
@@ -2084,6 +2105,8 @@ export class EphemeralOverlay {
     this.tombstones = new Map();
     this.needsResync = false;
     this.room = null; // captured from OUR subscribe snapshot (room identity)
+    this.__preSnapshotEnvelopes = [];
+    this.__preSnapshotOverflowed = false;
     this.__drainCaptures = new Set();
     this.__changeListeners = new Set();
     // Cross-lane routing (LLP 0034 §10.1 / ENG-22478): the overlay is this
@@ -2093,10 +2116,55 @@ export class EphemeralOverlay {
     // consumers symmetrically). The same registry receives socket-delivered
     // ephemeral frames when a live stream owns the connection's outbox.
     this.__unregister = client.registerEphemeralConsumer(connectionId, (envelope) => {
-      const result = this.apply(envelope);
-      for (const capture of this.__drainCaptures) capture.push(result);
+      if (this.__preSnapshotEnvelopes !== null) {
+        if (this.__preSnapshotEnvelopes.length >= EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP) {
+          this.__preSnapshotOverflowed = true;
+          return;
+        }
+        this.__preSnapshotEnvelopes.push(envelope);
+        return;
+      }
+      this.#consume(envelope);
     });
-    if (snapshot) this.apply(snapshot);
+    if (snapshot) this.applyInitialSnapshot(snapshot);
+  }
+
+  #consume(envelope) {
+    const result = this.apply(envelope);
+    for (const capture of this.__drainCaptures) capture.push(result);
+    return result;
+  }
+
+  /// Establish the snapshot boundary, then replay every delta the shared
+  /// connection delivered after server registration but before the response
+  /// reached this client. JavaScript runs this transition synchronously, so a
+  /// newly arriving frame observes the post-snapshot path and cannot overtake
+  /// the buffered batch.
+  applyInitialSnapshot(snapshot) {
+    if (this.__preSnapshotEnvelopes === null) {
+      throw new TypeError('Snapback ephemeral overlay already has an initial snapshot');
+    }
+    const buffered = this.__preSnapshotEnvelopes;
+    const overflowed = this.__preSnapshotOverflowed;
+    this.__preSnapshotEnvelopes = null;
+    this.__preSnapshotOverflowed = false;
+    const snapshotResult = this.apply(snapshot);
+    for (const envelope of buffered) this.#consume(envelope);
+    if (overflowed) {
+      this.entries.clear();
+      this.tombstones.clear();
+      this.highWaterVersion = 0;
+      this.needsResync = true;
+      const error = new Error(
+        `SNAPBACK_EPHEMERAL_SUBSCRIBE_BUFFER_OVERFLOW: more than ${EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP} deltas arrived before the initial snapshot`,
+      );
+      error.diagnostic = {
+        code: 'SNAPBACK_EPHEMERAL_SUBSCRIBE_BUFFER_OVERFLOW',
+        message: `more than ${EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP} ephemeral deltas arrived before the initial snapshot`,
+      };
+      throw error;
+    }
+    return snapshotResult;
   }
 
   /// Detach from the connection's lane router.

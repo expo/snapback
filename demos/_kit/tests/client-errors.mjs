@@ -105,10 +105,15 @@ const acknowledgePing = (ws, ping) => {
 };
 const encodedValue = (value) => [...new TextEncoder().encode(JSON.stringify(value))];
 const overlayRoom = { collection: 'presence', routing_key: '4:room=1:a' };
-const snapshot = (scopeEpoch, entries = []) => ({
+const snapshot = (
+  scopeEpoch,
+  entries = [],
+  highWaterVersion = entries.reduce((max, entry) => Math.max(max, entry.version), 0),
+) => ({
   Snapshot: {
     room: overlayRoom,
     scope_epoch: scopeEpoch,
+    high_water_version: highWaterVersion,
     entries: entries.map(({ key, version, value }) => ({
       key,
       value: encodedValue(value),
@@ -1241,6 +1246,102 @@ try {
     assertEqual(overlay.apply(snapshot(3, [])), 'applied', 'newer epoch snapshot is a resubscribe boundary');
     assertEqual(overlay.currentEntries({ prune: false }), [], 'newer epoch snapshot replaces the map');
     return { epoch: overlay.scopeEpoch };
+  });
+
+  await suite.check('eng_24566: a shared-socket delta between snapshot capture and response is buffered', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    const connectionId = 'conn_ephemeral_snapshot_race';
+    let subscribeStarted = false;
+    let releaseSubscribe;
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/connection/open') {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({
+            connectionId,
+            connectionToken: 'sct_snapshot_race',
+          }),
+        };
+      }
+      if (path === '/ephemeral/subscribe') {
+        subscribeStarted = true;
+        return new Promise((resolve) => {
+          releaseSubscribe = (body) => resolve({
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify(body),
+          });
+        });
+      }
+      throw new Error(`unexpected request in snapshot race test: ${url}`);
+    };
+
+    const db = new SnapbackClient('http://stub');
+    const manager = db.liveStreamManager(connectionId, {
+      heartbeatIntervalMs: 5_000,
+      freshnessBudgetMs: 20_000,
+    });
+    const before = FakeWebSocket.instances.length;
+    const stopDemand = manager.onState(() => {});
+    let overlay;
+    try {
+      const ws = await nextSocket(before);
+      ws.dispatch('open', {});
+      const subscribing = db.subscribeEphemeral('presence', {
+        connectionId,
+        scope: { room: 'a' },
+      });
+      await waitFor(() => subscribeStarted, 'ephemeral subscribe request');
+
+      // The server has already registered this subscriber and captured the
+      // version-5 snapshot, but its HTTP response is deliberately held. The
+      // shared live socket drains the version-6 remove during that interval.
+      ws.dispatch('message', {
+        data: JSON.stringify({
+          kind: 'ephemeral',
+          message: {
+            Remove: {
+              room: overlayRoom,
+              key: 'cursor_a',
+              scope_epoch: 2,
+              entry_version: 6,
+              reason: 'explicit',
+            },
+          },
+        }),
+      });
+      await sleep(0);
+      releaseSubscribe(snapshot(2, [{ key: 'cursor_a', version: 5, value: { x: 5 } }], 5));
+      overlay = await subscribing;
+
+      assertEqual(overlay.currentEntries({ prune: false }), [], 'buffered remove applies after the snapshot');
+      assertEqual(overlay.highWaterVersion, 6, 'buffered delta advances the authoritative high-water');
+      assertEqual(
+        overlay.apply({
+          Upsert: {
+            room: overlayRoom,
+            entry: {
+              key: 'cursor_a',
+              value: encodedValue({ x: 5 }),
+              received_at_ms: 105,
+              expires_at_ms: 10_000,
+              scope_epoch: 2,
+              entry_version: 5,
+            },
+          },
+        }),
+        'ignored_stale',
+        'the delayed pre-remove upsert cannot resurrect the deleted entry',
+      );
+      assertEqual(overlay.currentEntries({ prune: false }), [], 'stale resurrection remains absent');
+      return { highWaterVersion: overlay.highWaterVersion };
+    } finally {
+      overlay?.dispose();
+      stopDemand();
+      manager.close();
+    }
   });
 } finally {
   globalThis.fetch = originalFetch;
