@@ -5,7 +5,8 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (ENG-24596: registered LLP 0054's implemented
+**Revised:** 2026-07-13 (ENG-24597: registered LLP 0055's staged-mode,
+invocation-gate, startup, and capability-refusal diagnostic classes); 2026-07-13 (ENG-24596: registered LLP 0054's implemented
 auth-provider diagnostic family and deliberate HTTP status classes while
 preserving the `hostOpsResult` transport projection); 2026-07-13 (ENG-24594: registered the adapter-visible
 `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` refusal and the temporary pre-staged-mode
@@ -21,7 +22,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0054
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0054, LLP 0055
 
 ## Summary
 
@@ -544,12 +545,12 @@ Auth-boundary refusals use the same adapter-visible dialect. In particular,
 `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` is a 400 request error when any legacy
 client-authority field is present under the sessions overlay, including an
 explicit `null`; a valid bearer never makes that body shape acceptable.
-`SNAPBACK_AUTH_POLICY_UNAVAILABLE` is a 503 implementation-order backstop used
-only before the staged mode/provider resolver exists: a route or operation
-whose effective policy requires `SessionAuth`, `AdminSecretRead`, or an
-uninstalled effect gate refuses instead of falling through to a weaker
-credential. LLP 0031 owns the policy matrix and LLP 0039 replaces this temporary
-backstop with the real resolvers before sessions can become active.
+`SNAPBACK_AUTH_POLICY_UNAVAILABLE` is a 503 implementation-order or negotiated-
+capability backstop: a route or operation whose effective policy requires an
+uninstalled later-item authority, coordinator, descriptor, or retained-read
+contract refuses instead of falling through to a weaker credential. LLP 0031
+owns the policy matrix; LLP 0055 owns item 4's exact activation and admission
+fences.
 
 ENG-24596 adds the following stable item-3 status classes from
 [LLP 0054](./0054-auth-provider-protocol.spec.md). These mappings apply when a
@@ -571,6 +572,22 @@ the operation failure through `ok: false` plus `diagnostics[]`.
 The mapper allow-lists these codes; an unrecognized diagnostic remains a 500.
 No status or structured detail may reveal an email address, challenge code,
 session token or digest, key identifier/material, or impersonation capability.
+
+ENG-24597 adds LLP 0055's item-4 classes. `SNAPBACK_AUTH_MODE_PENDING`,
+`SNAPBACK_AUTH_POLICY_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`,
+`SNAPBACK_CAPABILITY_UNSUPPORTED`, and
+`SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` are HTTP 503 when they are the
+top-level served refusal. `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` remains the 400
+presence error registered above. The following are pre-bind startup/CLI
+diagnostics and imply no HTTP response:
+`SNAPBACK_AUTH_MODE_DOWNGRADE`, `SNAPBACK_AUTH_MODE_STATE_CORRUPT`,
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED`,
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, and
+`SNAPBACK_AUTH_TRANSPORT_INSECURE`. Adapters may display only LLP 0055's closed
+safe details: versions, modes, public identity hashes, capability ids,
+transition generation, and blocker names. Artifact source/body/seed, carrier
+paths, credentials, identity addresses, provider secrets, and key material are
+forbidden.
 
 ## Runtime State
 
