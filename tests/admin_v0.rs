@@ -10,11 +10,13 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
+use snapback::auth::keyring::AuthKeyringStore;
 use snapback::auth::mode::{
     AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
     AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
     SCHEMA_V1_PREFIX,
 };
+use snapback::auth::provider::{AuthProvider, AuthProviderProfile};
 use snapback::ephemeral::{AuthContext, EphemeralCollection, KeyMode, Scope};
 use snapback::local::{LiveSubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION};
 use snapback::manifest::{
@@ -25,6 +27,7 @@ use snapback::manifest::{
 };
 use snapback::server::{ErrorResponse, MutationResponse, PolicyAuthMode};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -1616,7 +1619,14 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     // Production refuses ordinary app data while durable auth is still dev.
     // Install exact future item-5 readiness so this assertion continues to
     // isolate the profile's caller-selected-id behavior.
-    let prod = snapback::server::app(sessions_runtime(prod_state));
+    let provider = Arc::new(
+        AuthProvider::new(
+            AuthProviderProfile::Prod,
+            Arc::new(AuthKeyringStore::in_memory()),
+        )
+        .expect("production connection-open fixture provider"),
+    );
+    let prod = snapback::server::app(sessions_runtime(prod_state.with_auth_provider(provider)));
     let minted = json(
         prod.oneshot(
             Request::builder()

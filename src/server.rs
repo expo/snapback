@@ -1649,6 +1649,37 @@ impl ConnectionRegistry {
         }
     }
 
+    /// Detached/test embeddings may intentionally run active Dev without the
+    /// pre-bind AuthRuntime composition used by the CLI. Keep that legacy
+    /// posture anonymous-only while still applying the same coarse throttle;
+    /// Sessions mode never enters this seam.
+    fn prepare_unmanaged_dev_open(
+        &self,
+        presented: PresentedSessionBearer<'_>,
+        monotonic_now: Instant,
+    ) -> Result<PreparedConnectionOpenAuthority, ApiError> {
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        self.consume_anonymous_open(&incarnation, monotonic_now)?;
+        match presented {
+            PresentedSessionBearer::Absent => Ok(PreparedConnectionOpenAuthority {
+                resolved: ResolvedAppAuthority::Anonymous,
+                managed_authority: false,
+                bound: BoundGrantAuthority::Anonymous {
+                    authorization_stream_incarnation: incarnation,
+                    publication,
+                },
+            }),
+            PresentedSessionBearer::Malformed | PresentedSessionBearer::Candidate(_) => {
+                Err(ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_REQUIRED",
+                    "auth",
+                    "session credentials are unavailable while auth mode is dev",
+                )))
+            }
+        }
+    }
+
     fn consume_anonymous_open(
         &self,
         incarnation: &str,
@@ -4285,7 +4316,7 @@ async fn enforce_registered_route_policy(
                         connection_id,
                         presented.as_deref(),
                         runtime.auth_coordinator.as_deref(),
-                        policy_mode == PolicyAuthMode::Dev,
+                        runtime.auth_mode_state().active == AuthMode::Dev,
                         epoch_now_ms,
                         monotonic_now,
                     )
@@ -4381,12 +4412,10 @@ async fn enforce_registered_route_policy(
                 // exact closed source bucket. Only a throttle replaces the
                 // already-selected shape error; every other credential result
                 // stays private on this rejected request.
-                if let Some(presented) = connection_open_bearer.as_ref()
-                    && let Ok(coordinator) = installed_auth_coordinator(&runtime)
-                {
+                if let Some(presented) = connection_open_bearer.as_ref() {
                     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-                    if let Err(accounting_error) = runtime.connections.prepare_open_authority(
-                        coordinator.as_ref(),
+                    if let Err(accounting_error) = prepare_connection_open_authority(
+                        &runtime,
                         presented.as_presented(),
                         epoch_now_ms,
                         monotonic_now,
@@ -4409,14 +4438,14 @@ async fn enforce_registered_route_policy(
             }
         }
     }
-    if let Some(presented) = connection_open_bearer.as_ref()
-        && let Some(protocol_error) =
-            session_online_protocol_refusal(spec, &runtime, request.headers())
-    {
-        if let Ok(coordinator) = installed_auth_coordinator(&runtime) {
+    let connection_open_protocol_error = connection_open_bearer
+        .as_ref()
+        .and_then(|_| session_online_protocol_refusal(spec, &runtime, request.headers()));
+    let prepared_connection_open = if let Some(presented) = connection_open_bearer.as_ref() {
+        if connection_open_protocol_error.is_some() {
             let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            if let Err(accounting_error) = runtime.connections.prepare_open_authority(
-                coordinator.as_ref(),
+            if let Err(accounting_error) = prepare_connection_open_authority(
+                &runtime,
                 presented.as_presented(),
                 epoch_now_ms,
                 monotonic_now,
@@ -4429,41 +4458,24 @@ async fn enforce_registered_route_policy(
                     None,
                 );
             }
-        }
-        return finish_registered_response(
-            effective,
-            ApiError::from(protocol_error).into_response(),
-            route_admission.as_ref(),
-            None,
-        );
-    }
-    let prepared_connection_open = if let Some(presented) = connection_open_bearer.as_ref() {
-        let coordinator = match installed_auth_coordinator(&runtime) {
-            Ok(coordinator) => coordinator,
-            Err(error) => {
-                return finish_registered_response(
-                    effective,
-                    error.into_response(),
-                    route_admission.as_ref(),
-                    None,
-                );
-            }
-        };
-        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-        match runtime.connections.prepare_open_authority(
-            coordinator.as_ref(),
-            presented.as_presented(),
-            epoch_now_ms,
-            monotonic_now,
-        ) {
-            Ok(prepared) => Some(prepared),
-            Err(error) => {
-                return finish_registered_response(
-                    effective,
-                    error.into_response(),
-                    route_admission.as_ref(),
-                    None,
-                );
+            None
+        } else {
+            let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+            match prepare_connection_open_authority(
+                &runtime,
+                presented.as_presented(),
+                epoch_now_ms,
+                monotonic_now,
+            ) {
+                Ok(prepared) => Some(prepared),
+                Err(error) => {
+                    return finish_registered_response(
+                        effective,
+                        error.into_response(),
+                        route_admission.as_ref(),
+                        None,
+                    );
+                }
             }
         }
     } else {
@@ -4475,6 +4487,14 @@ async fn enforce_registered_route_policy(
         return finish_registered_response(
             effective,
             body_auth_unsupported(field).into_response(),
+            route_admission.as_ref(),
+            None,
+        );
+    }
+    if let Some(protocol_error) = connection_open_protocol_error {
+        return finish_registered_response(
+            effective,
+            ApiError::from(protocol_error).into_response(),
             route_admission.as_ref(),
             None,
         );
@@ -4719,12 +4739,13 @@ async fn enforce_registered_route_policy(
                 connection_id,
                 presented_connection_token.as_deref(),
                 runtime.auth_coordinator.as_deref(),
-                policy_mode == PolicyAuthMode::Dev,
+                runtime.auth_mode_state().active == AuthMode::Dev,
                 epoch_now_ms,
                 monotonic_now,
             ),
-            // Invalid JSON/missing fields are left to the closed typed
-            // extractor, after the presented bearer was authenticated above.
+            _ if connection_id_in_body && policy_body.is_none() => Err(
+                ApiError::request_json_invalid("connection request body was empty or malformed"),
+            ),
             _ => prepared_connection_act.clone().ok_or_else(|| {
                 connection_auth_error(
                     "SNAPBACK_CONNECTION_TOKEN_INVALID",
@@ -4980,6 +5001,30 @@ fn installed_auth_coordinator(runtime: &AppState) -> Result<Arc<AuthCoordinator>
             "authentication projection is unavailable",
         ))
     })
+}
+
+fn prepare_connection_open_authority(
+    runtime: &AppState,
+    presented: PresentedSessionBearer<'_>,
+    epoch_now_ms: u64,
+    monotonic_now: Instant,
+) -> Result<PreparedConnectionOpenAuthority, ApiError> {
+    match runtime.auth_coordinator.as_deref() {
+        Some(coordinator) => runtime.connections.prepare_open_authority(
+            coordinator,
+            presented,
+            epoch_now_ms,
+            monotonic_now,
+        ),
+        None if runtime.auth_mode_state().active == AuthMode::Dev => runtime
+            .connections
+            .prepare_unmanaged_dev_open(presented, monotonic_now),
+        None => Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        ))),
+    }
 }
 
 fn auth_runtime_now(runtime: &AppState) -> (u64, Instant) {
@@ -7735,7 +7780,14 @@ async fn host_ops_handler(
             impersonation.as_ref().map(|Extension(verified)| verified),
         )?;
 
-        let outcome = coordinated_app_reset(&runtime, &route_admission, request.seed.clone()).await;
+        let outcome = match crate::admin::require_operation_profile(
+            &ctx,
+            &request.operation,
+            request.user_id.is_some(),
+        ) {
+            Ok(()) => coordinated_app_reset(&runtime, &route_admission, request.seed.clone()).await,
+            Err(error) => Err(error.0),
+        };
         let result = with_snapback(&state, move |snapback| {
             crate::host_ops::coordinated_reset_result(
                 snapback, &request, server_url, profile, outcome,
@@ -7893,8 +7945,10 @@ async fn coordinated_app_reset(
     route_admission: &AdmissionLease,
     seed: Option<SeedData>,
 ) -> SnapbackResult<Option<crate::manifest::MutationOutput>> {
-    #[cfg(test)]
-    if runtime.auth_provider.is_none() || runtime.auth_coordinator.is_none() {
+    if runtime.auth_mode_state().active == AuthMode::Dev
+        && runtime.auth_provider.is_none()
+        && runtime.auth_coordinator.is_none()
+    {
         let effect_admission = route_admission.clone();
         return with_snapback(&runtime.snapback, move |snapback| {
             let _effect = effect_admission.effect_guard("app reset transaction")?;
@@ -13803,10 +13857,10 @@ globalThis.__snapbackHandlers = {
             .oneshot(missing_protocol)
             .await
             .expect("missing-protocol open response");
-        assert_eq!(missing_protocol.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(missing_protocol.status(), StatusCode::BAD_REQUEST);
         assert_eq!(
             response_json(missing_protocol).await["diagnostic"]["code"],
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+            "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED"
         );
         for attempt in 1..super::CONNECTION_OPEN_SESSION_LIMIT {
             let response = router
