@@ -125,6 +125,13 @@
     "schemaVersion": {
       "type": "string"
     },
+    "secretReadRootFile": {
+      "description": "Owner-only root used exclusively by ready-file CLI tooling to produce\none-shot secret-read mint proofs. The descriptor carries only this\nmechanically validated sibling path, never the root bytes.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "serverUrl": {
       "type": "string"
     },
