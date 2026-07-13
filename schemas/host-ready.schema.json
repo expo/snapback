@@ -108,6 +108,13 @@
     "host": {
       "type": "string"
     },
+    "impersonationCapabilityFile": {
+      "description": "Mechanically derived owner-only per-process impersonation bearer\nsibling. Consumers accept this path only when it exactly equals\n`<ready-file>.impersonation` and the live startup nonce still matches.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "pid": {
       "format": "uint32",
       "minimum": 0,

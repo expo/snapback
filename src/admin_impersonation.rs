@@ -47,6 +47,7 @@ pub struct ImpersonationOperator {
 
 /// Proof installed by middleware after a successful constant-time comparison.
 /// The zero-sized witness cannot be constructed outside this module.
+#[derive(Clone, Copy)]
 pub struct VerifiedImpersonationCapability {
     _private: (),
 }
@@ -229,7 +230,7 @@ pub fn parse_impersonation_capability_file(
     parsed
 }
 
-fn impersonation_required() -> SnapbackError {
+pub(crate) fn impersonation_required() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
         "auth-impersonation",

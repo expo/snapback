@@ -24,7 +24,7 @@ use crate::manifest::{
 use crate::runtime::{CapabilityState, IbexActionHost};
 use axum::extract::rejection::{BytesRejection, JsonRejection};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path, Query, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -1184,6 +1184,12 @@ fn header_secret_read_lease(headers: &HeaderMap) -> Option<&str> {
         .and_then(|value| value.to_str().ok())
         .map(str::trim)
         .filter(|value| !value.is_empty())
+}
+
+fn single_header_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    let mut values = headers.get_all(name).iter();
+    let value = values.next()?.to_str().ok()?;
+    values.next().is_none().then_some(value)
 }
 
 fn subprotocol_connection_token(headers: &HeaderMap) -> Option<String> {
@@ -2789,7 +2795,7 @@ async fn enforce_registered_route_policy(
                         )
                     })
                 } else {
-                    authorize_operation_spec_with_secret_reads(
+                    authorize_operation_path_spec_with_secret_reads(
                         &runtime.server,
                         request.headers(),
                         operation,
@@ -2827,25 +2833,22 @@ async fn enforce_registered_route_policy(
     } else {
         Ok(())
     };
-    let response_policy = selected_operation
-        .map(|(_, operation_policy)| {
-            if matches!(
-                effective.response_sensitivity,
-                ResponseSensitivity::StaticPublic | ResponseSensitivity::PublicProjection
-            ) {
-                operation_policy
-            } else {
-                EffectiveRoutePolicy {
-                    response_sensitivity: effective.response_sensitivity,
-                    ..operation_policy
-                }
-            }
-        })
+    let selected_policy = selected_operation
+        .map(|(_, operation_policy)| operation_policy)
         .unwrap_or(effective);
-    let authorization = if matches!(
-        effective.effect_policy,
-        EffectPolicy::Unavailable | EffectPolicy::ImpersonationCapability
-    ) {
+    let response_policy = if selected_operation.is_some()
+        && !matches!(
+            effective.response_sensitivity,
+            ResponseSensitivity::StaticPublic | ResponseSensitivity::PublicProjection
+        ) {
+        EffectiveRoutePolicy {
+            response_sensitivity: effective.response_sensitivity,
+            ..selected_policy
+        }
+    } else {
+        selected_policy
+    };
+    let authorization = if selected_policy.effect_policy == EffectPolicy::Unavailable {
         Err(SnapbackError::error(
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
             "auth",
@@ -2883,7 +2886,42 @@ async fn enforce_registered_route_policy(
     if let Err(error) = authorization {
         return apply_registered_response_controls(response_policy, error.into_response());
     }
-    if effective.effect_policy == EffectPolicy::SecretReadMintProof {
+    if selected_policy.effect_policy == EffectPolicy::ImpersonationCapability {
+        if !runtime.server.profile.allows_provisioning() {
+            let diagnostic = crate::admin::operation_profile_diagnostic(
+                runtime.server.profile,
+                "auth impersonation",
+                crate::admin::OperationProfileRequirement::NonProd,
+            )
+            .expect("prod is the only profile that forbids impersonation");
+            return apply_registered_response_controls(
+                response_policy,
+                ApiError::from(SnapbackError::new(diagnostic)).into_response(),
+            );
+        }
+        let verified = runtime
+            .impersonation_capabilities
+            .as_ref()
+            .ok_or_else(crate::admin_impersonation::impersonation_required)
+            .and_then(|registry| {
+                registry.authorize(single_header_value(
+                    request.headers(),
+                    crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+                ))
+            });
+        match verified {
+            Ok(verified) => {
+                request.extensions_mut().insert(verified);
+            }
+            Err(error) => {
+                return apply_registered_response_controls(
+                    response_policy,
+                    ApiError::from(error).into_response(),
+                );
+            }
+        }
+    }
+    if selected_policy.effect_policy == EffectPolicy::SecretReadMintProof {
         let Some(bridge) = runtime.secret_read_mint.as_ref() else {
             return apply_registered_response_controls(
                 response_policy,
@@ -3331,6 +3369,32 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::NONE,
         ),
+        operation(
+            "host_ops.auth.mintSession",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::ImpersonationCapability,
+            ResponseSensitivity::CredentialSecret,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.auth.rescueCollidingTable",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::ImpersonationCapability,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         host(
             "host_ops.function.run.query",
             RoutePolicy::AdminRead,
@@ -3392,14 +3456,14 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             CredentialResolution::AdminCredential,
             InvocationAuthority::DevImpersonation,
             LegacyBodyPolicy::NotApplicable,
-            EffectPolicy::None,
+            EffectPolicy::ImpersonationCapability,
             ResponseSensitivity::SensitiveApplicationData,
             SessionModeOverlay {
                 path_policy: None,
                 credential_resolution: None,
                 invocation_authority: None,
                 legacy_body_policy: None,
-                effect_policy: Some(EffectPolicy::ImpersonationCapability),
+                effect_policy: None,
                 response_sensitivity: None,
             },
         ),
@@ -3426,6 +3490,17 @@ pub fn operation_registry() -> Vec<OperationSpec> {
     operations
 }
 
+/// Startup uses the same compiled metadata the gate consumes. A process mints
+/// no independent bearer unless at least one route or selected operation is
+/// actually enabled with the impersonation effect in the active auth mode.
+pub(crate) fn impersonation_registry_enabled(mode: PolicyAuthMode) -> bool {
+    route_registry().into_iter().any(|route| {
+        route.effective_for(mode).effect_policy == EffectPolicy::ImpersonationCapability
+    }) || operation_registry().into_iter().any(|operation| {
+        operation.effective_for(mode).effect_policy == EffectPolicy::ImpersonationCapability
+    })
+}
+
 fn operation_by_name(name: &str) -> Option<OperationSpec> {
     operation_registry()
         .into_iter()
@@ -3441,18 +3516,17 @@ pub(crate) fn authorize_operation_spec(
     spec: OperationSpec,
     mode: PolicyAuthMode,
 ) -> Result<(), ApiError> {
+    authorize_operation_path_spec(ctx, headers, spec, mode)?;
+    authorize_operation_effect(spec.effective_for(mode), None)
+}
+
+fn authorize_operation_path_spec(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    spec: OperationSpec,
+    mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
     let effective = spec.effective_for(mode);
-    if matches!(
-        effective.effect_policy,
-        EffectPolicy::Unavailable | EffectPolicy::ImpersonationCapability
-    ) {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-            "auth",
-            "this operation requires auth enforcement that is not installed yet",
-        )
-        .into());
-    }
     match effective.path_policy {
         RoutePolicy::AdminRead => crate::admin::authorize_for_mode(ctx, headers, false, mode),
         RoutePolicy::AdminWrite => crate::admin::authorize_for_mode(ctx, headers, true, mode),
@@ -3476,22 +3550,52 @@ pub(crate) fn authorize_operation_spec_with_secret_reads(
     mode: PolicyAuthMode,
     secret_reads: &SecretReadLeaseRegistry,
 ) -> Result<(), ApiError> {
+    authorize_operation_path_spec_with_secret_reads(ctx, headers, spec, mode, secret_reads)?;
+    authorize_operation_effect(spec.effective_for(mode), None)
+}
+
+fn authorize_operation_path_spec_with_secret_reads(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    spec: OperationSpec,
+    mode: PolicyAuthMode,
+    secret_reads: &SecretReadLeaseRegistry,
+) -> Result<(), ApiError> {
     let effective = spec.effective_for(mode);
-    if matches!(
-        effective.effect_policy,
-        EffectPolicy::Unavailable | EffectPolicy::ImpersonationCapability
-    ) {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-            "auth",
-            "this operation requires auth enforcement that is not installed yet",
-        )
-        .into());
-    }
     match effective.path_policy {
         RoutePolicy::AdminSecretRead => authorize_secret_read(secret_reads, headers),
-        _ => authorize_operation_spec(ctx, headers, spec, mode),
+        _ => authorize_operation_path_spec(ctx, headers, spec, mode),
     }
+}
+
+fn authorize_operation_effect(
+    effective: EffectiveRoutePolicy,
+    impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
+) -> Result<(), ApiError> {
+    match effective.effect_policy {
+        EffectPolicy::Unavailable => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "this operation is unavailable under the active auth policy",
+        )
+        .into()),
+        EffectPolicy::ImpersonationCapability if impersonation.is_none() => {
+            Err(crate::admin_impersonation::impersonation_required().into())
+        }
+        _ => Ok(()),
+    }
+}
+
+pub(crate) fn authorize_operation_spec_with_secret_reads_and_impersonation(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    spec: OperationSpec,
+    mode: PolicyAuthMode,
+    secret_reads: &SecretReadLeaseRegistry,
+    impersonation: &crate::admin_impersonation::VerifiedImpersonationCapability,
+) -> Result<(), ApiError> {
+    authorize_operation_path_spec_with_secret_reads(ctx, headers, spec, mode, secret_reads)?;
+    authorize_operation_effect(spec.effective_for(mode), Some(impersonation))
 }
 
 fn authorize_secret_read(
@@ -3530,6 +3634,8 @@ pub(crate) fn host_ops_operation_spec(
         "app.reset" => "host_ops.app.reset",
         "schema.load" => "host_ops.schema.load",
         "functions.load" => "host_ops.functions.load",
+        "auth.mintSession" => "host_ops.auth.mintSession",
+        "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
         "function.explain" if impersonated => "host_ops.function.explain.impersonated",
         "function.explain" => "host_ops.function.explain",
         "function.run" if impersonated => "host_ops.function.run.impersonated",
@@ -4692,6 +4798,7 @@ async fn host_ops_handler(
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
     State(secret_reads): State<SecretReadLeaseRegistry>,
+    impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
     headers: HeaderMap,
     Json(mut request): Json<crate::host_ops::HostOpsRequest>,
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
@@ -4714,6 +4821,7 @@ async fn host_ops_handler(
             request.user_id.is_some(),
             policy_mode,
             &secret_reads_for_gate,
+            impersonation.as_ref().map(|Extension(verified)| verified),
         )?;
         if policy_mode == PolicyAuthMode::Sessions {
             let mut scopes = std::collections::BTreeSet::new();

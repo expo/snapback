@@ -25,13 +25,15 @@ pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
 pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 6] = [
+pub const SERVED_HOST_OPS: [&str; 8] = [
     "app.inspect",
     "app.reset",
     "schema.load",
     "functions.load",
     "function.run",
     "function.explain",
+    "auth.mintSession",
+    "auth.rescueCollidingTable",
 ];
 
 /// Pinned by LLP 0024 but process-lifecycle verbs: the CLI owns them (a
@@ -186,6 +188,15 @@ pub struct HostReadyDescriptor {
         skip_serializing_if = "Option::is_none"
     )]
     pub secret_read_root_file: Option<String>,
+    /// Mechanically derived owner-only per-process impersonation bearer
+    /// sibling. Consumers accept this path only when it exactly equals
+    /// `<ready-file>.impersonation` and the live startup nonce still matches.
+    #[serde(
+        rename = "impersonationCapabilityFile",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub impersonation_capability_file: Option<String>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -498,6 +509,17 @@ pub fn execute_host_op_with_profile(
         }
         "function.run" => run_function(snapback, &request, envelope),
         "function.explain" => explain_function(snapback, &request, envelope),
+        "auth.mintSession" | "auth.rescueCollidingTable" => envelope(
+            snapback,
+            false,
+            authority_none(),
+            Value::Object(Default::default()),
+            vec![host_op_diagnostic(
+                "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                &operation,
+                "the injected auth operator service is unavailable",
+            )],
+        ),
         cli_only if CLI_ONLY_HOST_OPS.contains(&cli_only) => envelope(
             snapback,
             false,

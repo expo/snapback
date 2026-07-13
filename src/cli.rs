@@ -317,10 +317,54 @@ fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
-#[derive(Eq, PartialEq)]
+fn emit_impersonation_capability_to_writer(
+    operator: crate::admin_impersonation::ImpersonationOperator,
+    writer: &mut impl std::io::Write,
+) -> std::io::Result<()> {
+    operator.emit_once_to_terminal(|bearer| {
+        writer.write_all(b"impersonation capability: ")?;
+        writer.write_all(bearer.as_bytes())?;
+        writer.write_all(b"\n")?;
+        writer.flush()
+    })
+}
+
+/// No-ready-file fallback. Write the process bearer directly to the
+/// controlling terminal: never stdout/stderr, tracing, or a generic inherited
+/// file descriptor that a launcher may capture into logs.
+#[cfg(unix)]
+fn emit_impersonation_capability_to_controlling_terminal(
+    operator: crate::admin_impersonation::ImpersonationOperator,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::{FileTypeExt as _, OpenOptionsExt as _};
+
+    let mut terminal = std::fs::OpenOptions::new()
+        .write(true)
+        .custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW)
+        .open("/dev/tty")?;
+    if !terminal.metadata()?.file_type().is_char_device() {
+        return Err(std::io::Error::new(
+            ErrorKind::PermissionDenied,
+            "controlling-terminal capability is not a character device",
+        ));
+    }
+    emit_impersonation_capability_to_writer(operator, &mut terminal)
+}
+
+#[cfg(not(unix))]
+fn emit_impersonation_capability_to_controlling_terminal(
+    _operator: crate::admin_impersonation::ImpersonationOperator,
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        ErrorKind::Unsupported,
+        "direct controlling-terminal capability emission is unavailable on this host",
+    ))
+}
+
 struct ResolvedHttpTarget {
     server_url: String,
     minted_token: Option<String>,
+    impersonation_capability: Option<crate::auth::crypto::ImpersonationBearer>,
 }
 
 impl std::fmt::Debug for ResolvedHttpTarget {
@@ -332,19 +376,46 @@ impl std::fmt::Debug for ResolvedHttpTarget {
                 "minted_token",
                 &self.minted_token.as_ref().map(|_| "[REDACTED]"),
             )
+            .field(
+                "impersonation_capability",
+                &self.impersonation_capability.as_ref().map(|_| "[REDACTED]"),
+            )
             .finish()
     }
 }
 
+#[cfg(test)]
 fn resolve_http_target(target: &TargetArgs) -> anyhow::Result<ResolvedHttpTarget> {
+    resolve_http_target_for_operation(target, false)
+}
+
+fn resolve_http_target_for_operation(
+    target: &TargetArgs,
+    requires_impersonation: bool,
+) -> anyhow::Result<ResolvedHttpTarget> {
     if let Some(url) = &target.url {
         return Ok(ResolvedHttpTarget {
             server_url: url.trim_end_matches('/').to_owned(),
             minted_token: None,
+            // A network-supplied URL never selects a local capability file.
+            // Impersonation attach authority exists only through a trusted
+            // ready-file descriptor naming its mechanical sibling.
+            impersonation_capability: None,
         });
     }
     if let Some(path) = &target.ready_file {
-        let value = read_trusted_json_file(path)?;
+        // Pin the existing parent before reading any bytes. The descriptor,
+        // token, and impersonation sibling below are all opened relative to
+        // this one directory capability, so swapping a symlinked parent after
+        // the health check cannot splice a different local secret into the
+        // already-validated descriptor snapshot.
+        let ready_target = ReadyFileTarget::open_existing(path)?;
+        let canonical_ready = ready_target.pinned_path().to_path_buf();
+        let descriptor_bytes = ready_target
+            .read_owner_only_sibling(&canonical_ready)
+            .with_context(|| format!("failed to read trusted ready file {}", path.display()))?;
+        let value: Value = serde_json::from_slice(&descriptor_bytes)
+            .with_context(|| format!("{} is not valid JSON", path.display()))?;
         let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
             anyhow::anyhow!(
                 "{} is not a valid readiness descriptor: {}",
@@ -352,13 +423,70 @@ fn resolve_http_target(target: &TargetArgs) -> anyhow::Result<ResolvedHttpTarget
                 problems.join("; ")
             )
         })?;
-        let minted_token = discover_minted_token(path, &descriptor);
+        let impersonation_capability = if requires_impersonation {
+            let health = fetch_health(&descriptor.server_url);
+            verify_live_descriptor_identity(&descriptor, &health, "auth impersonation").map_err(
+                |diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message),
+            )?;
+            let advertised = descriptor
+                .impersonation_capability_file
+                .as_deref()
+                .map(Path::new)
+                .context("readiness descriptor has no impersonationCapabilityFile")?;
+            let sidecar = crate::admin_impersonation::validate_impersonation_capability_path(
+                &canonical_ready,
+                advertised,
+            )?;
+            let bytes = ready_target
+                .read_strict_owner_only_sibling(
+                    &sidecar,
+                    crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES,
+                )
+                .with_context(|| {
+                    format!(
+                        "failed to read owner-only impersonation capability {}",
+                        sidecar.display()
+                    )
+                })?;
+            Some(
+                crate::admin_impersonation::parse_impersonation_capability_file(
+                    zeroize::Zeroizing::new(bytes),
+                )
+                .map_err(anyhow::Error::new)?,
+            )
+        } else {
+            None
+        };
+        // For capability-bearing operations the branch above has verified the
+        // live startup nonce before either local sibling is read. Ordinary
+        // host operations retain the established ready-file admin-token flow.
+        let minted_token =
+            discover_minted_token_pinned(&ready_target, &canonical_ready, &descriptor);
         return Ok(ResolvedHttpTarget {
             server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
             minted_token,
+            impersonation_capability,
         });
     }
     anyhow::bail!("no target: pass --url or --ready-file")
+}
+
+/// Derive capability attachment from the same registered operation metadata
+/// the server gate consumes. Merely possessing or advertising the sidecar can
+/// never add the header to an ordinary/browser-compatible request.
+fn request_requires_impersonation(request: &Value) -> bool {
+    let Some(operation) = request.get("operation").and_then(Value::as_str) else {
+        return false;
+    };
+    let impersonated = request
+        .get("userId")
+        .and_then(Value::as_str)
+        .is_some_and(|user_id| !user_id.is_empty());
+    crate::server::host_ops_operation_spec(operation, None, impersonated).is_some_and(|spec| {
+        spec.effective_for(crate::server::PolicyAuthMode::Dev)
+            .effect_policy
+            == crate::server::EffectPolicy::ImpersonationCapability
+    })
 }
 
 /// POST one host operation and project the envelope to stdout + exit code
@@ -376,7 +504,8 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     // descriptor snapshot. Reading the path once for the URL and again for the
     // token would let a rename between reads combine an attacker's URL with a
     // trusted descriptor's token handoff (ENG-24338).
-    let resolved = resolve_http_target(target)?;
+    let requires_impersonation = request_requires_impersonation(&request);
+    let resolved = resolve_http_target_for_operation(target, requires_impersonation)?;
     let token = target
         .token
         .clone()
@@ -386,6 +515,12 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     let mut http = ureq::post(&format!("{}/_snapback/api/host-ops", resolved.server_url));
     if let Some(token) = token.filter(|token| !token.is_empty()) {
         http = http.set("x-snapback-admin-token", &token);
+    }
+    if requires_impersonation && let Some(capability) = resolved.impersonation_capability.as_ref() {
+        http = http.set(
+            crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+            capability.expose_secret(),
+        );
     }
     match http.send_json(request) {
         Ok(response) => Ok(response
@@ -415,6 +550,21 @@ fn discover_minted_token(ready_file: &Path, descriptor: &HostReadyDescriptor) ->
         return None;
     }
     let token = String::from_utf8(crate::secure_file::read_owner_only(&declared).ok()?).ok()?;
+    let token = token.trim();
+    (!token.is_empty()).then(|| token.to_owned())
+}
+
+fn discover_minted_token_pinned(
+    target: &ReadyFileTarget,
+    ready_file: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> Option<String> {
+    let declared = PathBuf::from(descriptor.admin_token_file.as_deref()?);
+    let expected = crate::admin::admin_token_sibling(ready_file);
+    if declared != expected {
+        return None;
+    }
+    let token = String::from_utf8(target.read_owner_only_sibling(&declared).ok()?).ok()?;
     let token = token.trim();
     (!token.is_empty()).then(|| token.to_owned())
 }
@@ -687,6 +837,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
+    let provisional_impersonation_temp = args
+        .ready_file
+        .as_deref()
+        .map(crate::admin_impersonation::impersonation_capability_sibling)
+        .transpose()?
+        .as_deref()
+        .map(ready_file_temp_path)
+        .transpose()?;
     let mut provisional_paths = managed_startup_paths(
         prepared_database_path.as_deref(),
         args.ready_file.as_deref(),
@@ -694,6 +852,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if let Some(path) = provisional_ready_temp {
         provisional_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
+            path,
+        });
+    }
+    if let Some(path) = provisional_impersonation_temp {
+        provisional_paths.push(ManagedPath {
+            label: "impersonation capability temporary artifact",
             path,
         });
     }
@@ -709,10 +873,23 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .transpose()?;
     let ready_path = ready_target.as_ref().map(ReadyFileTarget::pinned_path);
     let ready_temp_path = ready_path.map(ready_file_temp_path).transpose()?;
+    let impersonation_capability_file = ready_path
+        .map(crate::admin_impersonation::impersonation_capability_sibling)
+        .transpose()?;
+    let impersonation_temp_path = impersonation_capability_file
+        .as_deref()
+        .map(ready_file_temp_path)
+        .transpose()?;
     let mut managed_paths = managed_startup_paths(prepared_database_path.as_deref(), ready_path)?;
     if let Some(path) = &ready_temp_path {
         managed_paths.push(ManagedPath {
             label: "ready-file temporary artifact",
+            path: path.clone(),
+        });
+    }
+    if let Some(path) = &impersonation_temp_path {
+        managed_paths.push(ManagedPath {
+            label: "impersonation capability temporary artifact",
             path: path.clone(),
         });
     }
@@ -788,6 +965,20 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .as_ref()
         .map(|path| path.display().to_string());
     let startup_nonce = crate::identity::binary_identity().startup_nonce;
+    let (impersonation_capabilities, impersonation_operator) =
+        if server_context.profile.allows_provisioning()
+            && server::impersonation_registry_enabled(crate::server::PolicyAuthMode::Dev)
+        {
+            let (registry, operator) =
+                crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                    startup_nonce.clone(),
+                    &crate::auth::crypto::OsRandom,
+                )
+                .context("failed to generate the process-bound impersonation capability")?;
+            (Some(registry), Some(operator))
+        } else {
+            (None, None)
+        };
     let secret_read_root_file = ready_path.map(secret_read_root_sibling);
     let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
         (Some(target), Some(path)) => Some(
@@ -811,9 +1002,41 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         )),
         None => app_state,
     };
+    let app_state = match impersonation_capabilities {
+        Some(registry) => app_state.with_impersonation_capabilities(registry),
+        None => app_state,
+    };
     let app = server::app(app_state);
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
+    }
+
+    let mut impersonation_capability_file_display = None;
+    if let Some(operator) = impersonation_operator {
+        if let Some(target) = ready_target.as_mut() {
+            let ready_file = target.pinned_path().to_path_buf();
+            let temporary = impersonation_temp_path
+                .as_deref()
+                .context("impersonation sidecar temporary path was not allocated")?;
+            let path = operator
+                .publish_with(&ready_file, |path, bytes| {
+                    target.publish_owner_only_sibling_atomic(path, temporary, bytes)
+                })
+                .with_context(|| {
+                    format!(
+                        "failed to publish owner-only impersonation capability for {}",
+                        ready_file.display()
+                    )
+                })?;
+            anyhow::ensure!(
+                impersonation_capability_file.as_deref() == Some(path.as_path()),
+                "impersonation publisher returned a non-mechanical sidecar path"
+            );
+            impersonation_capability_file_display = Some(path.display().to_string());
+        } else {
+            emit_impersonation_capability_to_controlling_terminal(operator)
+                .context("failed to emit impersonation capability to the controlling terminal")?;
+        }
     }
 
     // @ref LLP 0030#readiness-and-port-discovery — the readiness file is
@@ -854,6 +1077,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             secret_read_root_file: secret_read_root_file
                 .as_ref()
                 .map(|path| path.display().to_string()),
+            impersonation_capability_file: impersonation_capability_file_display.clone(),
             diagnostics: Vec::new(),
         };
         target
@@ -919,6 +1143,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     maintenance_worker.abort();
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
+        let _ = target.remove_impersonation_capability();
         let _ = target.remove_published();
     }
     // An in-memory instance's minted token dies with the process; remove the
@@ -1014,6 +1239,10 @@ fn managed_startup_paths(
         paths.push(ManagedPath {
             label: "secret-read root",
             path: secret_read_root_sibling(ready_file),
+        });
+        paths.push(ManagedPath {
+            label: "impersonation capability",
+            path: crate::admin_impersonation::impersonation_capability_sibling(ready_file)?,
         });
     }
     Ok(paths)
@@ -1141,12 +1370,23 @@ struct ReadyFileTarget {
     file_name: OsString,
     published_identity: Option<(u64, u64)>,
     parent_identity: Option<(u64, u64)>,
+    impersonation_identity: Option<(PathBuf, (u64, u64))>,
     #[cfg(unix)]
     parent: std::fs::File,
 }
 
 impl ReadyFileTarget {
     fn open(path: &Path) -> anyhow::Result<Self> {
+        Self::open_with_parent_policy(path, true)
+    }
+
+    /// Attach-side variant: resolving an existing trusted descriptor must
+    /// never create a caller-controlled parent as a side effect.
+    fn open_existing(path: &Path) -> anyhow::Result<Self> {
+        Self::open_with_parent_policy(path, false)
+    }
+
+    fn open_with_parent_policy(path: &Path, create_parent: bool) -> anyhow::Result<Self> {
         let file_name = path
             .file_name()
             .context("ready file path must include a file name")?
@@ -1159,9 +1399,11 @@ impl ReadyFileTarget {
             Some(parent) => std::env::current_dir()?.join(parent),
             None => std::env::current_dir()?,
         };
-        std::fs::create_dir_all(&parent).with_context(|| {
-            format!("failed to create ready-file directory {}", parent.display())
-        })?;
+        if create_parent {
+            std::fs::create_dir_all(&parent).with_context(|| {
+                format!("failed to create ready-file directory {}", parent.display())
+            })?;
+        }
         let canonical_parent = std::fs::canonicalize(&parent).with_context(|| {
             format!(
                 "failed to resolve ready-file directory {}",
@@ -1194,6 +1436,7 @@ impl ReadyFileTarget {
             file_name,
             published_identity: None,
             parent_identity,
+            impersonation_identity: None,
             #[cfg(unix)]
             parent,
         })
@@ -1320,6 +1563,81 @@ impl ReadyFileTarget {
         file.sync_all()
     }
 
+    /// Strict attach-side read through the already-pinned ready-file parent.
+    /// Unlike the legacy admin-token helper this never repairs permissions and
+    /// refuses hard links, replacement during the read, and oversized data.
+    #[cfg(unix)]
+    fn read_strict_owner_only_sibling(
+        &self,
+        path: &Path,
+        maximum_bytes: usize,
+    ) -> std::io::Result<Vec<u8>> {
+        use std::ffi::CString;
+        use std::io::Read as _;
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+        use zeroize::{Zeroize as _, Zeroizing};
+
+        self.ensure_parent_path_identity()?;
+        let sibling = self.sibling_name(path)?;
+        let name = CString::new(sibling.as_bytes())
+            .map_err(|_| std::io::Error::new(ErrorKind::InvalidInput, "sibling contains NUL"))?;
+        // SAFETY: the single-component name is resolved beneath the live
+        // directory capability and O_NOFOLLOW refuses a symlink entry.
+        let fd = unsafe {
+            libc::openat(
+                self.parent.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // SAFETY: openat returned this owned descriptor exactly once.
+        let file = unsafe { std::fs::File::from_raw_fd(fd) };
+        let before = file.metadata()?;
+        // SAFETY: geteuid has no preconditions and reads process identity.
+        let effective_uid = unsafe { libc::geteuid() };
+        if !before.file_type().is_file()
+            || before.uid() != effective_uid
+            || before.permissions().mode() & 0o777 != 0o600
+            || before.nlink() != 1
+            || before.len() > maximum_bytes as u64
+        {
+            return Err(std::io::Error::new(
+                ErrorKind::PermissionDenied,
+                "strict ready-file sibling invariants are not satisfied",
+            ));
+        }
+        let identity = (before.dev(), before.ino());
+        let mut bytes = Zeroizing::new(Vec::with_capacity(before.len() as usize));
+        if let Err(error) = (&file)
+            .take(maximum_bytes as u64 + 1)
+            .read_to_end(&mut bytes)
+        {
+            bytes.zeroize();
+            return Err(error);
+        }
+        let after = file.metadata()?;
+        if bytes.len() > maximum_bytes
+            || after.len() != bytes.len() as u64
+            || after.uid() != effective_uid
+            || after.permissions().mode() & 0o777 != 0o600
+            || after.nlink() != 1
+            || (after.dev(), after.ino()) != identity
+            || self.identity_at(sibling)? != Some(identity)
+        {
+            bytes.zeroize();
+            return Err(std::io::Error::new(
+                ErrorKind::PermissionDenied,
+                "strict ready-file sibling changed while it was read",
+            ));
+        }
+        Ok(std::mem::take(&mut *bytes))
+    }
+
     #[cfg(not(unix))]
     fn read_owner_only_sibling(&self, path: &Path) -> std::io::Result<Vec<u8>> {
         self.ensure_parent_path_identity()?;
@@ -1330,6 +1648,210 @@ impl ReadyFileTarget {
     fn write_owner_only_sibling(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         self.ensure_parent_path_identity()?;
         crate::secure_file::write_owner_only(path, bytes)
+    }
+
+    #[cfg(not(unix))]
+    fn read_strict_owner_only_sibling(
+        &self,
+        _path: &Path,
+        _maximum_bytes: usize,
+    ) -> std::io::Result<Vec<u8>> {
+        Err(std::io::Error::new(
+            ErrorKind::Unsupported,
+            "strict descriptor-relative capability reads are unavailable on this host",
+        ))
+    }
+
+    #[cfg(unix)]
+    fn publish_owner_only_sibling_atomic(
+        &mut self,
+        path: &Path,
+        temporary_path: &Path,
+        bytes: &[u8],
+    ) -> std::io::Result<()> {
+        use std::ffi::CString;
+        use std::io::Write as _;
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+        self.ensure_parent_path_identity()?;
+        let final_name = CString::new(self.sibling_name(path)?.as_bytes()).map_err(|_| {
+            std::io::Error::new(ErrorKind::InvalidInput, "managed sibling contains NUL")
+        })?;
+        let temporary_name =
+            CString::new(self.sibling_name(temporary_path)?.as_bytes()).map_err(|_| {
+                std::io::Error::new(ErrorKind::InvalidInput, "temporary sibling contains NUL")
+            })?;
+        let parent_fd = self.parent.as_raw_fd();
+        let prior_identity = self.validated_impersonation_destination(path)?;
+        // SAFETY: the temporary name is one component relative to the pinned
+        // directory. O_EXCL and O_NOFOLLOW refuse every pre-created/racing
+        // inode instead of truncating it.
+        let fd = unsafe {
+            libc::openat(
+                parent_fd,
+                temporary_name.as_ptr(),
+                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // SAFETY: openat returned this owned descriptor exactly once.
+        let mut temporary = unsafe { std::fs::File::from_raw_fd(fd) };
+        let created_metadata = temporary.metadata()?;
+        let created_identity = (created_metadata.dev(), created_metadata.ino());
+        let mut published_identity = None;
+        let result = (|| -> std::io::Result<(u64, u64)> {
+            temporary.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+            temporary.write_all(bytes)?;
+            temporary.sync_all()?;
+            let metadata = temporary.metadata()?;
+            let identity = (metadata.dev(), metadata.ino());
+            if identity != created_identity {
+                return Err(std::io::Error::new(
+                    ErrorKind::PermissionDenied,
+                    "impersonation sidecar temporary inode changed during publication",
+                ));
+            }
+            if let Some(prior_identity) = prior_identity {
+                // Exchange is one atomic directory operation: if the final
+                // entry changed after validation, the displaced entry's inode
+                // exposes that race and we swap back instead of accepting it.
+                renameat_exchange(parent_fd, &temporary_name, &final_name)?;
+                // From this point the canonical path may contain the new
+                // process bearer. Track it before every fallible verification
+                // or rollback step so outer failure cleanup can remove it by
+                // inode even if an attempted exchange-back also fails.
+                published_identity = Some(identity);
+                let final_after = self.identity_at(self.sibling_name(path)?)?;
+                let displaced = self.identity_at(self.sibling_name(temporary_path)?)?;
+                if final_after != Some(identity) || displaced != Some(prior_identity) {
+                    let _ = renameat_exchange(parent_fd, &temporary_name, &final_name);
+                    return Err(std::io::Error::new(
+                        ErrorKind::PermissionDenied,
+                        "impersonation sidecar destination changed during atomic replacement",
+                    ));
+                }
+                if let Err(error) = self.remove_sibling_if_identity(temporary_path, prior_identity)
+                {
+                    let _ = renameat_exchange(parent_fd, &temporary_name, &final_name);
+                    return Err(error);
+                }
+                if self
+                    .identity_at(self.sibling_name(temporary_path)?)?
+                    .is_some()
+                {
+                    return Err(std::io::Error::new(
+                        ErrorKind::PermissionDenied,
+                        "displaced impersonation sidecar could not be removed safely",
+                    ));
+                }
+            } else {
+                renameat_no_replace(parent_fd, &temporary_name, &final_name)?;
+                published_identity = Some(identity);
+            }
+            if self.identity_at(self.sibling_name(path)?)? != Some(identity) {
+                return Err(std::io::Error::new(
+                    ErrorKind::PermissionDenied,
+                    "published owner-only sibling identity changed during publication",
+                ));
+            }
+            self.parent.sync_all()?;
+            Ok(identity)
+        })();
+        if result.is_err() {
+            let _ = self.remove_sibling_if_identity(temporary_path, created_identity);
+            if let Some(identity) = published_identity {
+                let _ = self.remove_sibling_if_identity(path, identity);
+            }
+            let _ = self.parent.sync_all();
+        }
+        let identity = result?;
+        self.impersonation_identity = Some((path.to_path_buf(), identity));
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn validated_impersonation_destination(
+        &self,
+        path: &Path,
+    ) -> std::io::Result<Option<(u64, u64)>> {
+        use std::ffi::CString;
+        use std::io::Read as _;
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+        let name = CString::new(self.sibling_name(path)?.as_bytes()).map_err(|_| {
+            std::io::Error::new(ErrorKind::InvalidInput, "managed sibling contains NUL")
+        })?;
+        // SAFETY: one component relative to the pinned directory; O_NOFOLLOW
+        // refuses a stale or attacker-installed symlink.
+        let fd = unsafe {
+            libc::openat(
+                self.parent.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            let error = std::io::Error::last_os_error();
+            return if error.kind() == ErrorKind::NotFound {
+                Ok(None)
+            } else {
+                Err(error)
+            };
+        }
+        // SAFETY: openat returned this owned descriptor exactly once.
+        let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
+        let metadata = file.metadata()?;
+        if !metadata.file_type().is_file()
+            || metadata.file_type().is_symlink()
+            || metadata.permissions().mode() & 0o777 != 0o600
+            || metadata.uid() != unsafe { libc::geteuid() }
+            || metadata.nlink() != 1
+            || metadata.len()
+                > crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES as u64
+        {
+            return Err(std::io::Error::new(
+                ErrorKind::PermissionDenied,
+                "existing impersonation sidecar is not a strict owner-only regular file",
+            ));
+        }
+        let mut bytes = zeroize::Zeroizing::new(Vec::new());
+        file.by_ref()
+            .take(crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)?;
+        crate::admin_impersonation::parse_impersonation_capability_file(bytes).map_err(|_| {
+            std::io::Error::new(
+                ErrorKind::InvalidData,
+                "existing impersonation sidecar is not a canonical process bearer",
+            )
+        })?;
+        Ok(Some((metadata.dev(), metadata.ino())))
+    }
+
+    #[cfg(not(unix))]
+    fn publish_owner_only_sibling_atomic(
+        &mut self,
+        _path: &Path,
+        _temporary_path: &Path,
+        _bytes: &[u8],
+    ) -> std::io::Result<()> {
+        Err(std::io::Error::new(
+            ErrorKind::Unsupported,
+            "atomic owner-only sibling publication is unavailable on this host",
+        ))
+    }
+
+    fn remove_impersonation_capability(&self) -> std::io::Result<()> {
+        let Some((path, identity)) = self.impersonation_identity.as_ref() else {
+            return Ok(());
+        };
+        self.remove_sibling_if_identity(path, *identity)
     }
 
     fn write_atomic_protected(
@@ -1522,6 +2044,130 @@ impl ReadyFileTarget {
     }
 }
 
+impl Drop for ReadyFileTarget {
+    fn drop(&mut self) {
+        let _ = self.remove_impersonation_capability();
+    }
+}
+
+#[cfg(target_vendor = "apple")]
+fn renameat_no_replace(
+    parent_fd: std::os::fd::RawFd,
+    source: &std::ffi::CStr,
+    destination: &std::ffi::CStr,
+) -> std::io::Result<()> {
+    // SAFETY: both names are NUL-terminated components relative to the live
+    // pinned directory descriptor, and the OS retains neither pointer.
+    let result = unsafe {
+        libc::renameatx_np(
+            parent_fd,
+            source.as_ptr(),
+            parent_fd,
+            destination.as_ptr(),
+            libc::RENAME_EXCL,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn renameat_no_replace(
+    parent_fd: std::os::fd::RawFd,
+    source: &std::ffi::CStr,
+    destination: &std::ffi::CStr,
+) -> std::io::Result<()> {
+    // SAFETY: as above; RENAME_NOREPLACE makes a racing destination fail.
+    let result = unsafe {
+        libc::renameat2(
+            parent_fd,
+            source.as_ptr(),
+            parent_fd,
+            destination.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_vendor = "apple")]
+fn renameat_exchange(
+    parent_fd: std::os::fd::RawFd,
+    source: &std::ffi::CStr,
+    destination: &std::ffi::CStr,
+) -> std::io::Result<()> {
+    // SAFETY: both names are NUL-terminated components relative to the live
+    // pinned directory; RENAME_SWAP replaces neither inode non-atomically.
+    let result = unsafe {
+        libc::renameatx_np(
+            parent_fd,
+            source.as_ptr(),
+            parent_fd,
+            destination.as_ptr(),
+            libc::RENAME_SWAP,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn renameat_exchange(
+    parent_fd: std::os::fd::RawFd,
+    source: &std::ffi::CStr,
+    destination: &std::ffi::CStr,
+) -> std::io::Result<()> {
+    // SAFETY: as above; RENAME_EXCHANGE is the Linux atomic swap primitive.
+    let result = unsafe {
+        libc::renameat2(
+            parent_fd,
+            source.as_ptr(),
+            parent_fd,
+            destination.as_ptr(),
+            libc::RENAME_EXCHANGE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(all(unix, not(any(target_vendor = "apple", target_os = "linux"))))]
+fn renameat_no_replace(
+    _parent_fd: std::os::fd::RawFd,
+    _source: &std::ffi::CStr,
+    _destination: &std::ffi::CStr,
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        ErrorKind::Unsupported,
+        "descriptor-relative no-replace rename is unavailable on this host",
+    ))
+}
+
+#[cfg(all(unix, not(any(target_vendor = "apple", target_os = "linux"))))]
+fn renameat_exchange(
+    _parent_fd: std::os::fd::RawFd,
+    _source: &std::ffi::CStr,
+    _destination: &std::ffi::CStr,
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        ErrorKind::Unsupported,
+        "descriptor-relative atomic exchange is unavailable on this host",
+    ))
+}
+
 #[cfg(test)]
 fn write_ready_file_atomic(path: &Path, content: &str) -> anyhow::Result<()> {
     let tmp_path = ready_file_temp_path(path)?;
@@ -1665,7 +2311,9 @@ mod tests {
     };
     use clap::Parser;
     use serde_json::json;
-    use std::path::PathBuf;
+    use std::io::{Read as _, Write as _};
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
     use tokio::net::TcpListener;
 
     fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDescriptor {
@@ -1693,12 +2341,58 @@ mod tests {
             admin_gated: false,
             admin_token_file: None,
             secret_read_root_file: None,
+            impersonation_capability_file: None,
             diagnostics: Vec::new(),
         }
     }
 
     fn health_with_nonce(nonce: &str) -> serde_json::Value {
         json!({ "ok": true, "binary": { "startupNonce": nonce } })
+    }
+
+    fn read_http_request(stream: &mut std::net::TcpStream) -> String {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let mut bytes = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        loop {
+            let count = stream.read(&mut chunk).expect("read HTTP request");
+            if count == 0 {
+                break;
+            }
+            bytes.extend_from_slice(&chunk[..count]);
+            let Some(header_end) = bytes.windows(4).position(|part| part == b"\r\n\r\n") else {
+                assert!(bytes.len() < 64 * 1024);
+                continue;
+            };
+            let header_len = header_end + 4;
+            let headers = String::from_utf8_lossy(&bytes[..header_len]);
+            let content_len = headers
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("content-length")
+                        .then(|| value.trim().parse::<usize>().ok())
+                        .flatten()
+                })
+                .unwrap_or(0);
+            if bytes.len() >= header_len + content_len {
+                break;
+            }
+        }
+        String::from_utf8(bytes).expect("HTTP request is UTF-8")
+    }
+
+    fn write_http_json(stream: &mut std::net::TcpStream, body: &serde_json::Value) {
+        let body = body.to_string();
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        )
+        .unwrap();
     }
 
     #[test]
@@ -2062,6 +2756,7 @@ mod tests {
         let resolved = ResolvedHttpTarget {
             server_url: "http://127.0.0.1:4287".to_owned(),
             minted_token: Some(SENTINEL.to_owned()),
+            impersonation_capability: None,
         };
         let resolved_debug = format!("{resolved:?}");
         assert!(!resolved_debug.contains(SENTINEL), "{resolved_debug}");
@@ -2120,17 +2815,21 @@ mod tests {
         validate_path_disjointness(&managed_startup_paths(Some(&db), Some(&distinct)).unwrap())
             .unwrap();
 
-        let colliding_db = dir.path().join("operator.ready.secret-read-root");
-        let colliding_ready = dir.path().join("operator.ready");
-        let error = validate_path_disjointness(
-            &managed_startup_paths(Some(&colliding_db), Some(&colliding_ready)).unwrap(),
-        )
-        .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
-        );
+        for colliding_db in [
+            dir.path().join("operator.ready.secret-read-root"),
+            dir.path().join("operator.ready.impersonation"),
+        ] {
+            let colliding_ready = dir.path().join("operator.ready");
+            let error = validate_path_disjointness(
+                &managed_startup_paths(Some(&colliding_db), Some(&colliding_ready)).unwrap(),
+            )
+            .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("SNAPBACK_READY_FILE_PATH_COLLISION")
+            );
+        }
     }
 
     #[test]
@@ -2245,6 +2944,67 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn attach_parent_swap_cannot_splice_a_different_impersonation_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let trusted_parent = dir.path().join("trusted");
+        let attacker_parent = dir.path().join("attacker");
+        std::fs::create_dir(&trusted_parent).unwrap();
+        std::fs::create_dir(&attacker_parent).unwrap();
+        let trusted_ready = std::fs::canonicalize(&trusted_parent)
+            .unwrap()
+            .join("server.ready.json");
+        let attacker_ready = std::fs::canonicalize(&attacker_parent)
+            .unwrap()
+            .join("server.ready.json");
+        crate::secure_file::write_owner_only(&trusted_ready, b"trusted-descriptor").unwrap();
+        crate::secure_file::write_owner_only(&attacker_ready, b"attacker-descriptor").unwrap();
+
+        let publish = |ready: &Path, nonce: &str| {
+            let (_registry, operator) =
+                crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                    nonce.to_owned(),
+                    &crate::auth::crypto::OsRandom,
+                )
+                .unwrap();
+            let path = operator
+                .publish_with(ready, |path, bytes| {
+                    crate::secure_file::write_owner_only(path, bytes)
+                })
+                .unwrap();
+            (path.clone(), std::fs::read(path).unwrap())
+        };
+        let (trusted_sidecar, trusted_bytes) = publish(&trusted_ready, "trusted");
+        let (_attacker_sidecar, attacker_bytes) = publish(&attacker_ready, "attacker");
+        assert_ne!(trusted_bytes, attacker_bytes);
+
+        let mutable_parent = dir.path().join("mutable");
+        std::os::unix::fs::symlink(&trusted_parent, &mutable_parent).unwrap();
+        let target = ReadyFileTarget::open_existing(&mutable_parent.join("server.ready.json"))
+            .expect("pin trusted attach parent");
+        assert_eq!(
+            target
+                .read_owner_only_sibling(target.pinned_path())
+                .unwrap(),
+            b"trusted-descriptor"
+        );
+
+        std::fs::remove_file(&mutable_parent).unwrap();
+        std::os::unix::fs::symlink(&attacker_parent, &mutable_parent).unwrap();
+        assert_eq!(target.pinned_path(), trusted_ready);
+        assert_eq!(
+            target
+                .read_strict_owner_only_sibling(
+                    &trusted_sidecar,
+                    crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES,
+                )
+                .unwrap(),
+            trusted_bytes,
+            "the attach must keep reading beneath the parent pinned before descriptor validation"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn replaced_canonical_ready_parent_cannot_split_the_token_handoff() {
         use std::os::unix::fs::PermissionsExt as _;
 
@@ -2305,6 +3065,151 @@ mod tests {
             .expect_err("an existing temp inode must never be opened or truncated");
         assert_eq!(std::fs::read(managed).unwrap(), b"do-not-touch");
         assert!(!ready.exists());
+    }
+
+    #[test]
+    fn terminal_emission_seam_consumes_one_operator_and_frames_one_line() {
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-terminal".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        let mut output = Vec::new();
+        super::emit_impersonation_capability_to_writer(operator, &mut output).unwrap();
+        let output = String::from_utf8(output).unwrap();
+        assert!(output.starts_with("impersonation capability: sbic_"));
+        assert_eq!(output.lines().count(), 1);
+        assert!(output.ends_with('\n'));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn impersonation_sidecar_is_exact_owner_only_and_replaces_a_valid_crash_remnant() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("server.ready.json");
+        let mut target = ReadyFileTarget::open(&ready).unwrap();
+        let pinned_ready = target.pinned_path().to_path_buf();
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&pinned_ready).unwrap();
+        let temporary = super::ready_file_temp_path(&sidecar).unwrap();
+
+        let (_old_registry, old_operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-old".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        old_operator
+            .publish_with(&pinned_ready, |path, bytes| {
+                crate::secure_file::write_owner_only(path, bytes)
+            })
+            .unwrap();
+        let old_bytes = std::fs::read(&sidecar).unwrap();
+
+        let (_new_registry, new_operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-new".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        let published = new_operator
+            .publish_with(&pinned_ready, |path, bytes| {
+                target.publish_owner_only_sibling_atomic(path, &temporary, bytes)
+            })
+            .unwrap();
+        let new_bytes = std::fs::read(&published).unwrap();
+
+        assert_ne!(
+            new_bytes, old_bytes,
+            "restart must replace the stale bearer"
+        );
+        assert!(!new_bytes.contains(&b'\n'));
+        assert_eq!(
+            std::fs::metadata(&published).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert!(!temporary.exists());
+        drop(target);
+        assert!(!sidecar.exists(), "the process-owned sidecar is cleaned up");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn impersonation_sidecar_refuses_symlink_and_hardlink_destinations() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        for hard_link in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let ready = dir.path().join("server.ready.json");
+            let mut target = ReadyFileTarget::open(&ready).unwrap();
+            let pinned_ready = target.pinned_path().to_path_buf();
+            let sidecar =
+                crate::admin_impersonation::impersonation_capability_sibling(&pinned_ready)
+                    .unwrap();
+            let temporary = super::ready_file_temp_path(&sidecar).unwrap();
+            let sentinel = dir.path().join("attacker-owned");
+            std::fs::write(&sentinel, b"do-not-touch").unwrap();
+            std::fs::set_permissions(&sentinel, std::fs::Permissions::from_mode(0o600)).unwrap();
+            if hard_link {
+                std::fs::hard_link(&sentinel, &sidecar).unwrap();
+            } else {
+                std::os::unix::fs::symlink(&sentinel, &sidecar).unwrap();
+            }
+            let (_registry, operator) =
+                crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                    "nonce".to_owned(),
+                    &crate::auth::crypto::OsRandom,
+                )
+                .unwrap();
+            operator
+                .publish_with(&pinned_ready, |path, bytes| {
+                    target.publish_owner_only_sibling_atomic(path, &temporary, bytes)
+                })
+                .expect_err("an aliasing destination must be refused");
+            assert_eq!(std::fs::read(&sentinel).unwrap(), b"do-not-touch");
+            assert!(!temporary.exists());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn descriptor_publication_failure_rolls_back_the_published_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("server.ready.json");
+        let mut target = ReadyFileTarget::open(&ready).unwrap();
+        let pinned_ready = target.pinned_path().to_path_buf();
+        let descriptor_temp = super::ready_file_temp_path(&pinned_ready).unwrap();
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&pinned_ready).unwrap();
+        let sidecar_temp = super::ready_file_temp_path(&sidecar).unwrap();
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        operator
+            .publish_with(&pinned_ready, |path, bytes| {
+                target.publish_owner_only_sibling_atomic(path, &sidecar_temp, bytes)
+            })
+            .unwrap();
+        assert!(sidecar.exists());
+
+        std::fs::write(&descriptor_temp, b"attacker-temp").unwrap();
+        let protected = managed_startup_paths(None, Some(&pinned_ready)).unwrap();
+        target
+            .write_atomic_protected("descriptor", &protected, &descriptor_temp)
+            .expect_err("pre-created descriptor temporary must fail publication");
+        drop(target);
+
+        assert!(
+            !sidecar.exists(),
+            "sidecar must not outlive failed readiness"
+        );
+        assert_eq!(std::fs::read(&descriptor_temp).unwrap(), b"attacker-temp");
     }
 
     #[cfg(unix)]
@@ -2430,6 +3335,148 @@ mod tests {
         let resolved = resolve_http_target(&target).expect("resolve remote target");
         assert_eq!(resolved.minted_token, None);
         assert_eq!(resolved.server_url, "http://127.0.0.1:4400");
+    }
+
+    #[test]
+    fn ordinary_ready_file_host_op_never_reads_or_attaches_impersonation_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let canonical_ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json");
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&canonical_ready).unwrap();
+        // If the ordinary path accidentally tries discovery this deliberately
+        // invalid content will fail before the request reaches the server.
+        std::fs::write(&sidecar, b"attacker-chosen-not-a-capability").unwrap();
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_http_request(&mut stream);
+            write_http_json(&mut stream, &json!({"ok": true}));
+            request
+        });
+
+        let mut descriptor = stop_descriptor(Some("nonce-unused"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.target.server_url = Some(descriptor.server_url.clone());
+        descriptor.impersonation_capability_file = Some(sidecar.display().to_string());
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
+        let target = TargetArgs {
+            url: None,
+            ready_file: Some(ready),
+            token: None,
+        };
+        let response = super::post_host_op(&target, json!({"operation": "app.inspect"})).unwrap();
+        assert_eq!(response["ok"], json!(true));
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /_snapback/api/host-ops "));
+        assert!(
+            !request
+                .to_ascii_lowercase()
+                .contains(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER),
+            "ordinary operations must not attach the independent effect capability"
+        );
+    }
+
+    #[test]
+    fn registered_impersonation_host_op_live_checks_then_attaches_exact_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let canonical_ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json");
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&canonical_ready).unwrap();
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-live".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        operator
+            .publish_with(&canonical_ready, |path, bytes| {
+                crate::secure_file::write_owner_only(path, bytes)
+            })
+            .unwrap();
+        let expected = std::fs::read_to_string(&sidecar).unwrap();
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let request = read_http_request(&mut stream);
+                let body = if index == 0 {
+                    health_with_nonce("nonce-live")
+                } else {
+                    json!({"ok": true})
+                };
+                write_http_json(&mut stream, &body);
+                requests.push(request);
+            }
+            requests
+        });
+
+        let mut descriptor = stop_descriptor(Some("nonce-live"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.target.server_url = Some(descriptor.server_url.clone());
+        descriptor.impersonation_capability_file = Some(sidecar.display().to_string());
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
+        let target = TargetArgs {
+            url: None,
+            ready_file: Some(ready),
+            token: None,
+        };
+        super::post_host_op(
+            &target,
+            json!({"operation": "auth.mintSession", "args": {}}),
+        )
+        .unwrap();
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("GET /health "));
+        assert!(requests[1].starts_with("POST /_snapback/api/host-ops "));
+        assert!(requests[1].lines().any(|line| {
+            let Some((name, value)) = line.split_once(':') else {
+                return false;
+            };
+            name.eq_ignore_ascii_case(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER)
+                && value.trim() == expected
+        }));
+    }
+
+    #[test]
+    fn remote_url_impersonation_request_never_selects_a_local_sidecar() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_http_request(&mut stream);
+            write_http_json(&mut stream, &json!({"ok": false}));
+            request
+        });
+        let target = TargetArgs {
+            url: Some(format!("http://{address}")),
+            ready_file: None,
+            token: None,
+        };
+        super::post_host_op(
+            &target,
+            json!({"operation": "auth.mintSession", "args": {}}),
+        )
+        .unwrap();
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /_snapback/api/host-ops "));
+        assert!(
+            !request
+                .to_ascii_lowercase()
+                .contains(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER)
+        );
     }
 
     #[test]
@@ -2597,7 +3644,10 @@ mod tests {
     fn ready_file_token_discovery_accepts_only_its_owner_only_sibling() {
         let dir = tempfile::tempdir().unwrap();
         let ready = dir.path().join("ready.json");
-        let sibling = crate::admin::admin_token_sibling(&ready);
+        let canonical_ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json");
+        let sibling = crate::admin::admin_token_sibling(&canonical_ready);
         let arbitrary = dir.path().join("arbitrary-secret");
         std::fs::write(&sibling, b"sbat_expected\n").unwrap();
         std::fs::write(&arbitrary, b"sbat_attacker_chosen\n").unwrap();

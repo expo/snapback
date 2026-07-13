@@ -6,6 +6,7 @@
 //! @ref LLP 0017#headless-admin-contract — the admin facts extend the inspect
 //! state rather than forking a parallel schema; the console is one consumer.
 
+use crate::admin_impersonation::ImpersonationCapabilityRegistry;
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
     SecretReadScope, VerifiedSecretReadMint,
@@ -166,7 +167,9 @@ pub(crate) fn operation_profile_requirement(
         // The direct and multiplexed runners are developer/operator bypass
         // surfaces even when they project an anonymous handler input. Hosted
         // production invocation goes through the ordinary app-data gate.
-        "function.run" => OperationProfileRequirement::NonProd,
+        "function.run" | "auth.mintSession" | "auth.rescueCollidingTable" => {
+            OperationProfileRequirement::NonProd
+        }
         "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
         _ => OperationProfileRequirement::Any,
     }
@@ -600,6 +603,10 @@ pub struct AppState {
     /// must refuse sessions when it is absent rather than enabling decorative,
     /// unmintable secret-read authority (owned by item 4).
     pub(crate) secret_read_mint: Option<Arc<SecretReadMintBridge>>,
+    /// Digest-only request-side half of the per-process impersonation
+    /// capability. The non-cloneable raw operator half never enters router
+    /// state and is consumed by readiness/terminal publication.
+    pub(crate) impersonation_capabilities: Option<ImpersonationCapabilityRegistry>,
 }
 
 impl AppState {
@@ -633,6 +640,7 @@ impl AppState {
                 desired_policy_auth_mode: PolicyAuthMode::Dev,
                 secret_reads,
                 secret_read_mint: None,
+                impersonation_capabilities: None,
             },
             operator,
         )
@@ -640,6 +648,16 @@ impl AppState {
 
     pub(crate) fn with_secret_read_mint_bridge(mut self, bridge: SecretReadMintBridge) -> Self {
         self.secret_read_mint = Some(Arc::new(bridge));
+        self
+    }
+
+    /// Install only the digest-bearing request-side registry. Startup keeps
+    /// and consumes the separate operator half before serving requests.
+    pub fn with_impersonation_capabilities(
+        mut self,
+        registry: ImpersonationCapabilityRegistry,
+    ) -> Self {
+        self.impersonation_capabilities = Some(registry);
         self
     }
 
@@ -949,6 +967,7 @@ pub(crate) fn authorize_operation(
     authorize(ctx, headers, write)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn authorize_host_operation(
     ctx: &ServerContext,
     headers: &HeaderMap,
@@ -957,6 +976,7 @@ pub(crate) fn authorize_host_operation(
     impersonated: bool,
     mode: PolicyAuthMode,
     secret_reads: &SecretReadLeaseRegistry,
+    impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
 ) -> Result<(), crate::server::ApiError> {
     let Some(spec) = crate::server::host_ops_operation_spec(operation, function_kind, impersonated)
     else {
@@ -970,13 +990,25 @@ pub(crate) fn authorize_host_operation(
         )
         .into());
     };
-    crate::server::authorize_operation_spec_with_secret_reads(
-        ctx,
-        headers,
-        spec,
-        mode,
-        secret_reads,
-    )
+    match impersonation {
+        Some(verified) => {
+            crate::server::authorize_operation_spec_with_secret_reads_and_impersonation(
+                ctx,
+                headers,
+                spec,
+                mode,
+                secret_reads,
+                verified,
+            )
+        }
+        None => crate::server::authorize_operation_spec_with_secret_reads(
+            ctx,
+            headers,
+            spec,
+            mode,
+            secret_reads,
+        ),
+    }
 }
 
 pub(crate) fn authorize_direct_runner(

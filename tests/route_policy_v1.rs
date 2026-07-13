@@ -661,6 +661,8 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
         BTreeSet::from([
             "host_ops.app.inspect",
             "host_ops.app.reset",
+            "host_ops.auth.mintSession",
+            "host_ops.auth.rescueCollidingTable",
             "host_ops.function.explain",
             "host_ops.function.explain.impersonated",
             "host_ops.function.run.action",
@@ -673,6 +675,176 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
         ]),
         "host-op authority branches must remain explicit"
     );
+}
+
+fn impersonation_state(profile: ServerProfile) -> (AppState, String) {
+    let (registry, operator) =
+        snapback::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+            "nonce-policy".to_owned(),
+            &snapback::auth::crypto::OsRandom,
+        )
+        .expect("generate policy capability");
+    let mut bearer = None;
+    operator
+        .emit_once_to_terminal(|value| {
+            bearer = Some(value.to_owned());
+            Ok(())
+        })
+        .expect("capture test capability");
+    let mut context = exposed_context("sekrit");
+    context.profile = profile;
+    (
+        AppState::from_snapback(runner_fixture(), context)
+            .with_impersonation_capabilities(registry),
+        bearer.expect("captured capability"),
+    )
+}
+
+async fn impersonation_host_request(
+    router: &axum::Router,
+    body: Value,
+    admin: Option<&str>,
+    capabilities: &[&str],
+) -> axum::response::Response {
+    let mut request = request("POST", "/_snapback/api/host-ops", Some(body));
+    if let Some(admin) = admin {
+        request.headers_mut().insert(
+            "x-snapback-admin-token",
+            admin.parse().expect("admin header"),
+        );
+    }
+    for capability in capabilities {
+        request.headers_mut().append(
+            snapback::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+            capability.parse().expect("impersonation header"),
+        );
+    }
+    router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("impersonation host request")
+}
+
+/// LLP 0054#impersonationcapability-carrier — the selected operation's
+/// AdminWrite and independent effect axes are both mandatory and cannot
+/// substitute for each other or leak into an ordinary selected operation.
+#[tokio::test]
+async fn impersonation_effect_is_selected_exactly_and_non_substitutable() {
+    let (state, bearer) = impersonation_state(ServerProfile::Dev);
+    let router = app(state);
+    let mint = || json!({"operation": "auth.mintSession", "args": {}});
+
+    let missing_admin = impersonation_host_request(&router, mint(), None, &[bearer.as_str()]).await;
+    assert_eq!(missing_admin.status(), StatusCode::FORBIDDEN);
+    assert_ne!(
+        diagnostic_code(missing_admin).await,
+        "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+        "effect authority must not replace the ordinary path credential"
+    );
+
+    for capabilities in [
+        vec![],
+        vec!["sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ad"],
+        vec!["sbrl_not_sbic"],
+    ] {
+        let denied =
+            impersonation_host_request(&router, mint(), Some("sekrit"), &capabilities).await;
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            diagnostic_code(denied).await,
+            "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+        );
+    }
+    let duplicate = impersonation_host_request(
+        &router,
+        mint(),
+        Some("sekrit"),
+        &[bearer.as_str(), bearer.as_str()],
+    )
+    .await;
+    assert_eq!(duplicate.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        diagnostic_code(duplicate).await,
+        "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+    );
+
+    let admitted =
+        impersonation_host_request(&router, mint(), Some("sekrit"), &[bearer.as_str()]).await;
+    assert_eq!(
+        admitted.status(),
+        StatusCode::OK,
+        "both independent authorities must reach the structurally gated handler"
+    );
+
+    let ordinary = impersonation_host_request(
+        &router,
+        json!({"operation": "app.reset"}),
+        Some("sekrit"),
+        &[bearer.as_str()],
+    )
+    .await;
+    assert_eq!(ordinary.status(), StatusCode::OK);
+    let ordinary_without_admin = impersonation_host_request(
+        &router,
+        json!({"operation": "app.reset"}),
+        None,
+        &[bearer.as_str()],
+    )
+    .await;
+    assert_ne!(ordinary_without_admin.status(), StatusCode::OK);
+
+    let run_without_effect = impersonation_host_request(
+        &router,
+        json!({
+            "operation": "function.run",
+            "function": "policy_query",
+            "args": {},
+            "userId": "user_test"
+        }),
+        Some("sekrit"),
+        &[],
+    )
+    .await;
+    assert_eq!(run_without_effect.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        diagnostic_code(run_without_effect).await,
+        "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+        "dev function.run impersonation must require the effect capability"
+    );
+}
+
+#[tokio::test]
+async fn impersonation_capability_is_process_bound_and_forbidden_in_prod() {
+    let (stale_state, stale_bearer) = impersonation_state(ServerProfile::Dev);
+    drop(stale_state);
+    let (live_state, live_bearer) = impersonation_state(ServerProfile::Dev);
+    let live_router = app(live_state);
+    let body = json!({"operation": "auth.rescueCollidingTable", "args": {}});
+    let stale = impersonation_host_request(
+        &live_router,
+        body.clone(),
+        Some("sekrit"),
+        &[stale_bearer.as_str()],
+    )
+    .await;
+    assert_eq!(stale.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        diagnostic_code(stale).await,
+        "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+    );
+    assert_ne!(stale_bearer, live_bearer);
+
+    let (prod_state, prod_bearer) = impersonation_state(ServerProfile::Prod);
+    let prod = impersonation_host_request(
+        &app(prod_state),
+        body,
+        Some("sekrit"),
+        &[prod_bearer.as_str()],
+    )
+    .await;
+    assert_eq!(prod.status(), StatusCode::FORBIDDEN);
+    assert_eq!(prod.headers()[header::CACHE_CONTROL], "no-store, private");
 }
 
 /// LLP 0039#authority-resolution — every socket operation and direct runner
@@ -824,6 +996,8 @@ fn session_overlay_closes_every_host_ops_branch() {
         "host_ops.app.reset",
         "host_ops.schema.load",
         "host_ops.functions.load",
+        "host_ops.auth.mintSession",
+        "host_ops.auth.rescueCollidingTable",
         "host_ops.function.run.mutation",
         "host_ops.function.run.action",
     ] {
