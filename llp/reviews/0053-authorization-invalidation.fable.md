@@ -852,3 +852,92 @@ Blindness held: nothing under `llp/reviews/` was read, and nothing was edited. S
 - **Can ENG-24592 close?** Yes, contingent on two things this report cannot supply: concurrence of the paired blind confirmation's other half, and the author's own status decision. The gate's ask — focused independent confirmation of the bounded revision on its exact bytes — is satisfied by this half with a READY result and no blockers.
 
 Per the review protocol, this is a readiness report only: I do not accept LLP 0053 on the author's behalf, and I wrote no artifact and made no edit anywhere in the tree.
+
+
+## Round 8 — 2026-07-13 (focused exact confirmation of the ClientQuery correction)
+
+**Reviewed operative corpus:**
+
+- `llp/0000-snapback.explainer.md` at SHA-256
+  `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03`
+- `llp/0008-local-first-sync-and-realtime.rfc.md` at SHA-256
+  `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac`
+- `llp/0011-auth-and-permissions.rfc.md` at SHA-256
+  `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1`
+- `llp/0013-ephemeral-realtime-state.rfc.md` at SHA-256
+  `7447ed8b282e3ddda17663230903a2420c0394842cfcc2c3cb5039ff521630bb`
+- `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+  `869c32c1d99c29bad14df40c7a6014e509b4b86c630cdf0f2881e3dfc4ad7824`
+- `llp/0053-authorization-invalidation.rfc.md` at SHA-256
+  `eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568`
+
+**Reviewer family:** Claude
+**Provider / runtime:** Claude Code 2.1.207, requested
+`claude-fable-5[1m]`, effort `max`; recorded model usage was
+`claude-fable-5`; read-only tools. 29 input tokens, 407,933 cache-creation
+tokens, 2,087,610 cache-read tokens, and 46,336 output tokens.
+**Session id:** `f0c83579-ad40-42ab-b020-08e99e70e773`
+**Date:** 2026-07-13
+**Review-body SHA-256:**
+`8f01ca0e9136f75be88f0fb594f1b34bd58b353d319ab19df431c6f13131b660`
+**Redacted:** no
+**Method:** Fresh blind focused confirmation of the exact operative corpus.
+Prior review artifacts and secret material were forbidden; the reviewer read the
+candidate and relevant source with read-only tools and edited nothing. An earlier
+run against superseded hashes was interrupted before verdict and is not recorded
+as a review.
+
+### Review body (verbatim)
+
+# ENG-24592 — Independent final focused review: LLP 0053 ClientQuery identity/retirement correction and companion seam
+
+**Reviewer basis.** Read-only review of the exact operative corpus in this working tree. This session has no shell access, so per the review charter I did not attempt to recompute digests; the following SHA-256 values are asserted by the orchestrator for the files I reviewed:
+
+| File (read in full or at cited sections) | Asserted SHA-256 |
+|---|---|
+| `llp/0000-snapback.explainer.md` | `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03` |
+| `llp/0008-local-first-sync-and-realtime.rfc.md` | `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac` |
+| `llp/0011-auth-and-permissions.rfc.md` | `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1` |
+| `llp/0013-ephemeral-realtime-state.rfc.md` | `7447ed8b282e3ddda17663230903a2420c0394842cfcc2c3cb5039ff521630bb` |
+| `llp/0039-auth-vertical-slice.rfc.md` | `869c32c1d99c29bad14df40c7a6014e509b4b86c630cdf0f2881e3dfc4ad7824` |
+| `llp/0053-authorization-invalidation.rfc.md` | `eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568` |
+
+LLP 0039 (2,301 lines), 0053 (1,938 lines), and 0013 (894 lines) were read end to end; 0000/0008/0011 were read at their authorization-invalidation amendment sections plus surrounding context. Implementation source inspected for factual enforceability: `src/ephemeral.rs`, `src/local.rs`, `src/storage.rs`, `packages/snapback-contract/client-store.mjs`. Nothing under `llp/reviews/` was opened and no file was edited.
+
+## Verification of the nine gate points
+
+**1. `query_instance_id` carried coherently — CONFIRMED.** Both `Subscription.namespace` and the `ClientQuery` scope carry the exact instance id (0053 ~640–694), allocated from a store-wide durable monotone allocator for retained keys and a never-reused process allocator for live-only state (~1274–1281). It is bound into: revision high-waters (a `ClientQuery` high-water survives until that exact instance's terminal retirement, ~715–717); tombstones (the scope/durability matrix pins "the exact `ClientQuery` instance" for both authorization events and lease expiry, and the lease-expiry tombstone "cannot target a later instance at the same canonical key", ~740–742); compare-and-discharge (explicitly includes `query_instance_id` for `ClientQuery`; a retired-instance token is stale even when store, key, revision, and witness match a recreated instance, ~834–842); leases (a dedicated field plus the isolation paragraph, ~1037/1067–1074); every callback/write (captures `(query_instance_id, authority_generation, query_generation)` and compare-and-commits all three, ~1303–1306); and store state (`QueryAuthorizationState` carries the id and `active | retiring` lifecycle, ~1244–1271). The identity-domain rule in the client lease-clock path (~1162–1174) selects the exact current instance before any comparison. No residual two-field `ClientQuery` reference remains.
+
+**2. Terminal retirement is crash-safe and non-forging — CONFIRMED.** The `active → retiring → finalized` transition (~779–818) is: (i) one atomic step that advances both `query_generation` and `queue_generation`, applies the maximum pending disposition, destroys payload/lease/lease-request/accepted snapshot/overlays/live boundaries, and makes queue custody discard-only; (ii) a crash-recoverable `retiring` marker retaining exact pending token state and owner-continuity ids; (iii) map/fence removal only after already-issued terminal-delete tokens complete idempotently and recorded owner continuities end, preserving the allocator high-water. Crash before/during each step resumes the correct branch without rendering, replaying, or exposing bytes. Retirement "never synthesizes an ACK, release proof, or permission proof"; snapshot/quarantine resolution "is never ACKed by retirement." A recreated key gets a new id, old-instance obligations/proofs/ACKs/callbacks/leases are rejected before lookup, and "no old owner can turn a retiring instance active again" (~1283–1286). Server-side staleness of retired-instance tokens (point 1) closes the other direction.
+
+**3. Missing/mismatched/retiring/delayed frames fail closed pre-allocation — CONFIRMED.** Missing, absent, or mismatched instance state rejects the frame "without allocation or any disposition/generation change" before frontier or map lookup; only explicit subscribe/retention initialization allocates (~1289–1296, 1275–1277). `retiring` accepts exactly two enumerated inputs (~800–806). Delayed frames at or below retired issuer/scope frontiers drop before lookup; delayed old-pair/old-stream frames are ignored and cannot increment a generation (~727–731); an absent key rejects without allocation and a recreated key rejects the old full scope before lookup (~940–943).
+
+**4. RetryEpisode identity survives same-key recreation without extra attempts — CONFIRMED, and deliberately so.** The episode key is authority subject + canonical client-store/query key + witness floor — explicitly *not* scope id, revision, or instance id (~866–869). "Query-instance retirement or recreation also reattaches the same canonical-key/witness episode and cannot erase or reset an unresolved or exhausted budget"; old-instance resolutions must reproject through the current full scope and their tokens never transfer (~871–875). Attempts are transactionally reserved (3 total within 15 s of first failure), re-fire/reconnect/restart/revision changes create no attempt, a reservation crash shortens the window, clock rollback fail-closes at quarantine, and only an explicit authority-checked manual retry with a fresh idempotency id opens a new episode. Acceptance pins retirement and same-key recreation retaining the same attempt count/deadline (~1595–1598).
+
+**5. GC bounded across million-key churn — CONFIRMED.** Durable safety reduces to one store-wide monotone allocator scalar, one minimal state per extant query, one boot-sequence frontier per incarnation, one scope-sequence frontier per current live instance/issuer, and exact entries only for bounded active/unresolved scopes; tombstone-body compaction retains only the minimal current-instance fence, terminal retirement removes per-instance state, and no historical instance set or per-key frontier is retained — identity-based rejection (never-reused ids) is what makes dropping per-key high-waters safe against delayed frames, which is precisely the incompatibility the Codex HIGH named (~927–949). `RetryEpisode` storage is excluded from the frontier argument and separately bounded by transactional hard caps (10,000 global / 1,024 per `(authority_subject, client_store_id)`), never safety-evicted, with fail-closed `SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY` admission that runs no handler attempt (~879–895).
+
+**6. Acceptance coverage — CONFIRMED.** The lifecycle-identity block (~1542–1561) covers I1 → retire → I2 with crashes before/during/after each step and both cleanup branches (idempotent terminal-delete ACK only after the destructive commit; snapshot/quarantine never ACKed by retirement, finalization waiting on owner continuity); two tabs sharing I1 failing old captures; delayed I1 obligations/resolutions/ACKs/callbacks/renders/queue ops rejected before lookup and unable to mutate I2; and one million unique-key and same-key cycles bounded to allocator-scalar-plus-extant state. Extinct-scope owner continuity is adversarially covered (tabs A/B, ~1563–1571), boot continuity with forged-MAC rejection and double-crash (~1573–1584), delayed leases and old-lease isolation in the AuthorizedLease matrix — an I1 lease cannot install into/renew/quarantine/delete I2, a missing/corrupt current-I2 lease deletes before read, and retirement destroys lease plus request reservation at the terminal transition (~1658–1670).
+
+**7. Activation matrix and ownership boundaries — CONFIRMED.** The four-row session-activation matrix is word-identical in 0039 (lines 1515–1523) and 0053 (~918–925), both self-labeled as identical: 1–5 activate with auth-scoped live refused (`SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`), +6 unlocks live via `authInvalidationProtocol: 1`, +7 changes no admission, +8 unlocks retained/offline via the lease/store capability. 0039's landing item 6 now reads "LLP 0053 supplies and owns its own item-6 authorization-invalidation fence; this document asserts no queue-fence keying to item-5 custody or generation" — the stale attribution is gone, consistently through §Status and §Changelog. 0053 keeps the item-6 query fence (`query_generation`) separate from item 5's `QueueAuthorizationState` custody, which item-6 quarantine only adds suspension roots to, with the queue CAS "independently of `query_generation`" and item 7 an optional extra axis (~1003–1015). The corrected companion sentence — item 6 owns the live quarantine outcome, item 8 extends it to retained/offline through `AuthorizedLease`/store — is present in 0039 §Permission dependencies (~1226–1230) and matches 0053. The dated amendments in 0000 (ratification ledger, lines 336–349), 0008 (§Authorization-invalidation amendment, lines 465–493), and 0011 (ratified narrow addendum, lines 261–293) all pin 0053 precedence *on acceptance*, preserve the fail-closed/fresh-snapshot fundamentals, and keep items 6/8 blocked while 0053 is Draft/FROZEN.
+
+**8. LLP 0013 mirrors the pre-commit room barrier — CONFIRMED.** The 2026-07-13 amendment (0013 lines 538–574) mirrors 0053 §Ephemeral room authority invalidation exactly: unique dependency-indexed registry ticket installed before the authorization-changing commit; protected-room registration/initial-snapshot interlock with that ticket; matching room-authority barriers and quiescence of every already-admitted sink permit, with abort on targeting/install/quiescence failure; no registry or room lock across the commit; rollback compare-removing only the exact ticket; ambiguous commit leaving barriers pending until durable reconciliation; commit finalizing to level-triggered `RoomAuthorityResync` with cause version and generation; and room mutation, publish/fanout enqueue, destructive drain, and final HTTP/WebSocket send each generation-checked atomically with the act ("a check released before the act is non-conforming"). Fresh durable snapshot + LLP 0039 authority re-resolution, atomic rebuild-or-unregister, ACK-after-boundary-commit, heartbeat re-fire, process-death fresh authorization, the preserving-adapter obligation, and continued `KeyMode::Custom` refusal all match. The validation-requirements list carries the kick fixture and the conservative unknown-dependency/crash/adapter proofs (lines 829–837), and §Status keeps capability refusal required until item 6 is accepted and implemented.
+
+**9. No merge debris or stale current-state contradiction — CONFIRMED.** No conflict markers anywhere under `llp/`. Status/changelog claims are current and honest: both RFCs remain Draft/FROZEN, 0053 states its bounded ClientQuery edits are pending exactly this focused confirmation, and no document claims acceptance or authorizes implementation. Every as-shipped code claim I spot-checked matched source:
+
+- Destructive `drain()` resets the sticky `overflowed` flag; pushes while overflowed early-return without enqueueing; overflow emits `clear_retained: true` unconditionally (`src/ephemeral.rs:1005–1219`) — the shipped-queue facts the obligation design is built against.
+- Resume compares bare `u64` permission epochs with `!=` (`src/local.rs:4285–4305`), matching 0053's ABA claim, and the code/wire vocabulary is "permission epoch" as the naming note says.
+- The live resume/unsubscribe ownership guard short-circuits when the stored owner is empty (`src/local.rs:2293–2305`), as 0039 asserts.
+- `PublishRequest`/`DeleteRequest` carry `session_id`/`user_id`/`custom_key` as siblings of a required `auth`; `SubscribeRequest` carries required `auth` only (`src/ephemeral.rs:442–471`).
+- `ChangedRow.changed_fields` exists and is populated (`src/storage.rs:159` ff.); `fail_subscription_fanout` is the shipped failing-requery recovery path (`src/local.rs:4164`).
+- The client store serializes through `navigator.locks` and fails closed without it, and `putRetainedQuery` rejects only a strictly-lower same-stream version with no invalidation generation (`packages/snapback-contract/client-store.mjs:469, 567–587, 747–754`) — exactly the "useful but insufficient" baseline 0053 describes.
+
+## LOW residuals (nonblocking)
+
+1. **LLP 0013 amendment wording:** "no declaration may suppress the event in v1" could, read in isolation, be taken to conflict with 0053's event 1, where a known update proved disjoint from `permissionFields` does not fire. In its room-targeting context (the room's own declaration cannot opt out of projection; unknowns target coarsely) it is consistent, 0053 owns the producer contract, and any misreading errs conservative (extra reauthorization, never a leak).
+2. **Casing drift in the mirrored resync record:** 0013 spells `minCommitVersion`/`roomAuthorityGeneration` where 0053 spells `min_commit_version`/`room_authority_generation`; both defer exact wire encoding to the LLP 0051 D4 registration, so this is cosmetic.
+
+## Conclusion
+
+The single remaining GPT/Codex blocker — `ClientQuery` lacking a never-reused `query_instance_id`, making delayed old-instance frames and bounded GC incompatible — is closed coherently end to end: identity is carried through every scope, comparison, lease, callback, and store structure; the retirement lifecycle is crash-safe and cannot forge ACKs or reach a recreated instance; frames fail closed before allocation; retry budgets survive recreation without granting attempts; and GC reduces to scalars plus current bounded state, with acceptance pinning each of these adversarially. The two corrected companion sentences and the rebased LLP 0013 seam are in place and consistent across 0039, 0013, 0053, and the 0000/0008/0011 amendments. No material correctness, security, internal-coherence, or implementability blocker remains. Status transitions remain the author's alone; nothing here accepts either RFC on the author's behalf.
+
+**READY**

@@ -336,17 +336,17 @@ corpus does not rely on scattered "pending Charlie" notes.
 - **2026-07-13:** the 2026-07-02 v1 auth/sync direction is **narrowly refined,
   not reversed**. Server-resolved authorization, fail-closed stale-result
   handling, user-switch full wipe, and a fresh authorized snapshot before live
-  release remain ratified. Once [LLP 0053](./0053-authorization-invalidation.rfc.md)
-  is Accepted, it is the controlling contract for the narrower invalidation
+  release remain ratified. [LLP 0053](./0053-authorization-invalidation.rfc.md)
+  is now Accepted and is the controlling contract for the narrower invalidation
   mechanism: ordinary matcher-observed row changes do not all advance a coarse
   authorization epoch; result shrinkage is carried by witnessed delivery
   obligations; enumerated writeless/permission-backing events use the
   authorization version; every non-live auth-scoped resume fresh-snapshots;
   protected mutable inputs fail closed; ephemeral room membership reauthorizes;
   and retained reads use the bounded `AuthorizedLease`. The dated LLP 0008 and
-  LLP 0011 amendments record the same precedence. LLP 0053 remains Draft/FROZEN,
-  so this ratification does **not** unblock auth landing items 6 or 8; it removes
-  corpus ambiguity for the implementation that may start only after acceptance.
+  LLP 0011 amendments record the same precedence. ENG-24592's review gate is
+  closed; acceptance removes that blocker without claiming implementation.
+  Landing item 6 still follows item 5, and item 8 still follows items 5–7.
 
 ## Who Snapback is for
 

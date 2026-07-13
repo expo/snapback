@@ -5,7 +5,10 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (ENG-24593 post-review bounded corrections: closed the
+**Revised:** 2026-07-13 (ENG-24592 focused exact confirmation completed READY
+by both reviewer families on the final ClientQuery/room-seam corpus; the
+author-authorized LLP 0053 transition to Accepted is complete while this umbrella
+RFC remains Draft/FROZEN); 2026-07-13 (ENG-24593 post-review bounded corrections: closed the
 artifact/auth tuple including v1-dev refusal, pinned the actual-predecessor
 diagnostic proof, made privileged provisioning the explicit `MODE_PENDING`
 recovery branch, and corrected the LLP 0053 ownership seam; one focused exact
@@ -1222,10 +1225,12 @@ What this slice depends on from 0053, and must not contradict:
   and — critically — it keeps landing item 5 free of 0053's *query-scoped quarantine/delete* primitive,
   which lands at item 6. If item 5's barrier needed quarantine, item 5 would depend
   on 0053 and the split's landing independence would be fiction.
-  (0053's quarantine-then-prove is the **item-8 refinement** for
+  (0053's quarantine-then-prove is the **item-6 live outcome** for
   *permission*-change invalidation, which is a different transition and a cheaper
-  one; it is not what happens when a session ends. An earlier draft cited 0053 as
-  *requiring* deletion here — that attribution was stale and is withdrawn.)
+  one; item 8 extends that outcome to retained/offline state through the
+  `AuthorizedLease`/store capability. Neither is what happens when a session
+  ends. An earlier draft cited 0053 as *requiring* deletion here — that
+  attribution was stale and is withdrawn.)
 - **Retained/offline reads are disabled under session mode** until item 8 lands
   0053's reviewed fail-closed retained-authorization outcome, its durable client
   fence, its `AuthorizedLease`/store capability over the query-scoped
@@ -1477,12 +1482,10 @@ The lands-before edges:
    clear barrier, and durable incarnation. LLP 0053 supplies and owns its own
    item-6 authorization-invalidation fence; this document asserts no queue-fence
    keying to item-5 custody or generation. Item 7's authority descriptor is only
-   an additional equality axis once available. **LLP 0053 remains Draft/FROZEN
-   until ENG-24592 closes; this item remains blocked until that gate closes.**
-   That is the honest state, not a formality: 0053's architecture is settled, but
-   its enforcement primitives have repeatedly failed review. **0053 must reach
-   Accepted before this item starts** — it is the one contract this program has not settled, and building
-   it twice is how the corpus would learn that the hard way.
+   an additional equality axis once available. **LLP 0053 is Accepted and
+   ENG-24592's review blocker is closed.** Item 6 still requires item 5 and starts
+   only in its ordered landing slot; acceptance settles the contract rather than
+   claiming its implementation exists.
 7. **Authority descriptor + two-axis store + first-delivery enforcement**
    (this document) — requires 3 and item 5's kit work; independent of 6.
 8. **Retained reads under sessions** (**LLP 0053**) — requires 5, 6, and 7; lands
@@ -1984,8 +1987,9 @@ edits.
 
 The subsequent LLP 0053 seam reconciliation — including the shared activation
 matrix and protected-room sink obligation — changes no 0039-owned authority
-architecture. It remains subject to ENG-24592's focused exact confirmation and
-does not thaw this Draft or authorize implementation of 0053 by itself.
+architecture. ENG-24592's focused exact confirmation completed READY in both
+reviewer families and the author accepted LLP 0053; that separate transition does
+not thaw this umbrella Draft.
 
 The final bounded review then found four propagation defects in the operative
 documents, not a new design: the separate capability dimensions accidentally left
@@ -1999,7 +2003,7 @@ hashes or effects. The predecessor proof runs the actual unmodified binary in it
 `{ intent: "provision" }` is the sole pending-mode correction/re-stage branch;
 ordinary attestation and app-data remain refused. Item 5 supplies the coordinator,
 disposition execution, serialized clear barrier, and incarnation; LLP 0053 owns
-its own item-6 fence. LLP 0053 remains Draft/FROZEN until ENG-24592 closes.
+its own item-6 fence. LLP 0053 is now Accepted after ENG-24592.
 
 The exact post-review candidate — LLP 0039 SHA-256
 `8ba5becada849cb1d074b17a5858134de807abe103d3f086047cfac751b893fc`
@@ -2029,8 +2033,9 @@ reserved-prefix/Cloudflare/amendment wording matches source.
 The document remains **Draft / FROZEN by the author** after the review gate.
 ENG-24593 did not authorize an acceptance transition, and neither reviewer
 accepted on the author's behalf. The completed gate removes the five LOW
-residuals and their bounded propagation defects; it does not thaw this broader
-RFC or authorize implementation of LLP 0053 while ENG-24592 remains open.
+residuals and their bounded propagation defects. ENG-24592 subsequently accepted
+LLP 0053 after its separate two-family gate; that does not change 0039's own
+Draft/FROZEN status.
 
 **Standing residuals — properties, not bugs to be fixed later.** An active
 app-page XSS can steal an in-memory `AdminSecretRead` lease for its remaining TTL,
@@ -2041,6 +2046,14 @@ made by this RFC.
 
 ## Changelog
 
+- **2026-07-13 (ENG-24592 focused exact confirmation; LLP 0053 Accepted).**
+  Rebased the already-reviewed ENG-24593 corpus with the final 0053 enforcement
+  seam, corrected live item-6 quarantine versus item-8 retained/offline scope,
+  and mirrored the precommit protected-room ticket/barrier/quiescence contract
+  into LLP 0013. Codex round 7 and Fable round 8 independently returned READY on
+  the exact operative hashes with no blocker. Under ENG-24592's explicit author
+  authorization, LLP 0053 moved Draft → Review → Accepted. This umbrella remains
+  Draft/FROZEN; only the item-6/item-8 review blocker was removed.
 - **2026-07-13 (ENG-24593 post-review bounded corrections; focused exact
   confirmation complete).** Closed the clean-confirmation first-install HIGH by
   requiring raw-value-disjoint, domain-separated `snapback.v1` identities on

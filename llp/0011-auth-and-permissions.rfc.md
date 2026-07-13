@@ -258,11 +258,11 @@ Precise live `remove` deltas remain a later optimization for analyzable
 single-table or membership-filter cases, using the LLP 0008 membership matcher
 when the dependency graph is known.
 
-**Ratified narrow addendum (2026-07-13): LLP 0053 controls invalidation on
-acceptance.** The root ledger refines the mechanism above without weakening its
+**Ratified narrow addendum (2026-07-13): Accepted LLP 0053 controls
+invalidation.** The root ledger refines the mechanism above without weakening its
 security outcome. Server-resolved authorization, immediate fail-closed handling,
 a fresh authorized snapshot before release, and user-switch wipe remain this
-RFC's requirements. Once LLP 0053 is Accepted:
+RFC's requirements. Under the now-Accepted LLP 0053:
 
 - an ordinary matcher-observed row change does not automatically advance a
   coarse authorization epoch; a potential/result shrink is instead a persistent
@@ -280,8 +280,8 @@ The older verb "clear" is now exact: **clear means deny read and render before
 reauthorization**. `quarantine` is a conforming immediate clear while authority
 is uncertain (bytes remain suspended and unreadable); trusted denial or boundary
 proof escalates to `delete`. This is the ratification 0053 previously inferred
-but did not own. LLP 0053 remains Draft/FROZEN, so the addendum resolves corpus
-precedence but does not unblock item 6 or 8 before acceptance.
+but did not own. LLP 0053 is Accepted, so its review gate no longer blocks items
+6 or 8; their remaining dependency and implementation gates still apply.
 
 Function-level checks also gain one trusted failure surface. LLP 0004 owns the
 generated spelling and this RFC owns the semantic API:
@@ -377,14 +377,15 @@ it. The ratified call: **server-directed resubscribe on permission change**
 — rules declare their auth dependencies, clients fail closed, and release
 only through a fresh authorized snapshot — plus the **user-switch full wipe**
 of local data, queues, and subscriptions. The 2026-07-13 ratified addendum makes
-LLP 0053 the controlling narrow mechanism on acceptance: witnessed
+Accepted LLP 0053 the controlling narrow mechanism: witnessed
 shrinking-delivery obligations for ordinary writes, authorization versions for
 enumerated events, query/room reauthorization, quarantine-as-immediate-clear,
 and unconditional fresh snapshot on non-live resume. The older universal
 epoch/generic-`resync_required` wording is historical, not a second protocol.
-LLP 0053 remains Draft/FROZEN and items 6/8 remain blocked. The auth *surface* —
-providers, `ctx.auth`, RLS rules — remains unbuilt, so this RFC itself stays
-Draft. Ledgered in [LLP 0000](./0000-snapback.explainer.md).
+LLP 0053 is Accepted; its review gate is closed, while items 6/8 still await
+their ordered implementation prerequisites. The auth *surface* — providers,
+`ctx.auth`, RLS rules — remains unbuilt, so this RFC itself stays Draft. Ledgered
+in [LLP 0000](./0000-snapback.explainer.md).
 
 Earlier: Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))
 is folded in — the stable-principal + identity-link model, write-side fail-closed

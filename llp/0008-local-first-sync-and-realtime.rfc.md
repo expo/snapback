@@ -465,10 +465,11 @@ behavior while avoiding a global resync for every permission-shaped row write.
 ### Authorization-invalidation amendment — 2026-07-13
 
 The paragraph above records the 2026-07-02 direction, but its universal
-mechanism is too coarse. The root ratification ledger now authorizes this narrow
-precedence rule: **when LLP 0053 reaches Accepted, LLP 0053 controls this RFC's
-authorization-invalidation mechanics.** Until then auth landing items 6 and 8
-remain blocked; this amendment is not permission to implement a Draft protocol.
+mechanism is too coarse. The root ratification ledger authorizes this narrow
+precedence rule: **LLP 0053 is Accepted and now controls this RFC's
+authorization-invalidation mechanics.** ENG-24592's review blocker is closed;
+items 6 and 8 still obey the dependency order and implementation gates in LLP
+0039.
 
 What remains ratified here: authorization is server-side; initial/live data is
 filtered before delivery; stale or uncertain authority fails closed; a
@@ -706,6 +707,6 @@ contracts above are grounded in a shipped system rather than proposed cold. This
 RFC should be revised again after the first local prototype measures subscription
 matching, retention, reconnect, and offline replay — especially the fan-out ceiling,
 which remains the key unmeasured unknown. The 2026-07-13 authorization amendment
-is ratified at the root but intentionally acceptance-gated: it removes the
-conflict now, while LLP 0053 stays Draft/FROZEN and implementation items 6/8 stay
-blocked until that RFC is Accepted.
+is ratified at the root and active now that LLP 0053 is Accepted. That closes the
+review gate without claiming items 6/8 are implemented; their LLP 0039
+prerequisites and capability gates remain.

@@ -1049,3 +1049,76 @@ No other blocker was found:
 - ENG-24592 can close: **No**. It can close after the bounded correction is incorporated and independently confirmed.
 
 This is a readiness recommendation only; it does not accept LLP 0053 on the author’s behalf.
+
+
+## Round 7 — 2026-07-13 (focused exact confirmation of the ClientQuery correction)
+
+**Reviewed operative corpus:**
+
+- `llp/0000-snapback.explainer.md` at SHA-256
+  `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03`
+- `llp/0008-local-first-sync-and-realtime.rfc.md` at SHA-256
+  `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac`
+- `llp/0011-auth-and-permissions.rfc.md` at SHA-256
+  `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1`
+- `llp/0013-ephemeral-realtime-state.rfc.md` at SHA-256
+  `7447ed8b282e3ddda17663230903a2420c0394842cfcc2c3cb5039ff521630bb`
+- `llp/0039-auth-vertical-slice.rfc.md` at SHA-256
+  `869c32c1d99c29bad14df40c7a6014e509b4b86c630cdf0f2881e3dfc4ad7824`
+- `llp/0053-authorization-invalidation.rfc.md` at SHA-256
+  `eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568`
+
+**Reviewer family:** GPT (OpenAI)
+**Provider / runtime:** OpenAI Codex CLI v0.144.1
+(`codex exec --ephemeral`), model `gpt-5.6-sol`, reasoning effort
+`xhigh`, sandbox `read-only`, workdir
+`/Users/ccheever/projects/snapback-eng-24592-auth-review`.
+Fresh thread `019f5b9e-36f1-7591-85ac-e1852780e494`; 3,542,430 input
+tokens (3,327,488 cached), 13,239 output tokens, including 7,777 reasoning
+tokens.
+**Date:** 2026-07-13
+**Review-body SHA-256:**
+`63b346bb2cf00838cff4649d382472a67c41c6b6caf4871ff76f84ef8fc7b50a`
+**Redacted:** no
+**Method:** Fresh blind focused confirmation of the exact operative corpus. The
+reviewer was forbidden from reading prior review artifacts, verified all six
+hashes, inspected governing LLPs and relevant source, ran the reference checker,
+and edited nothing. An earlier run against superseded hashes was interrupted
+before verdict and is not recorded as a review.
+
+### Review body (verbatim)
+
+No material correctness, security, coherence, or implementability blocker remains. The correction closes the prior `ClientQuery` identity/GC conflict without reopening the agreed architecture.
+
+Operative corpus verified against the requested hashes:
+
+- `llp/0000-snapback.explainer.md` — `7957a27102d55ae3197e55d90553980c0d0fd0275f7df80547d7670501bcda03`
+- `llp/0008-local-first-sync-and-realtime.rfc.md` — `f101a489c1e3d477b5f9c0322b6336827d8600930db67294d35dd32bb3b0b1ac`
+- `llp/0011-auth-and-permissions.rfc.md` — `0045e02cec94cf101cfbb459edd180b1985ebe4f5d06dfcc95484730829623b1`
+- `llp/0013-ephemeral-realtime-state.rfc.md` — `7447ed8b282e3ddda17663230903a2420c0394842cfcc2c3cb5039ff521630bb`
+- `llp/0039-auth-vertical-slice.rfc.md` — `869c32c1d99c29bad14df40c7a6014e509b4b86c630cdf0f2881e3dfc4ad7824`
+- `llp/0053-authorization-invalidation.rfc.md` — `eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568`
+
+Focused confirmation:
+
+1. `query_instance_id` is coherent throughout [LLP 0053](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:639): both subscription namespaces and `ClientQuery` scopes carry it; obligation revision, tombstone, resolution and ACK identity inherit it through the full `ScopeId`; compare-and-discharge checks it explicitly; leases, client store state, callbacks, and durable-write CAS tuples carry it.
+
+2. Terminal destruction is crash-safe. The atomic `active → retiring` transition advances query and queue generations, applies the strongest disposition, and destroys payload, leases, overlays, boundaries, and executable queue custody. The durable `retiring` marker preserves exact tokens and owner continuity. Retirement cannot synthesize snapshot/quarantine ACK or permission proof, while an already-issued terminal-delete ACK is permitted only after deletion committed. Final removal preserves the allocator high-water, and recreation obtains a new id.
+
+3. Missing state, mismatched instance identity, retired-frontier frames, and ordinary frames received while `retiring` are rejected before map lookup or allocation. The only retiring-state inputs are the narrowly defined terminal-delete completion and authenticated exact-owner retirement.
+
+4. `RetryEpisode` intentionally uses authority subject, store, canonical query key, and unresolved witness floor—not query instance, scope, or revision. Re-fire, reconnect, restart, retirement, and same-key recreation reattach the existing episode without restoring its three-attempt/15-second automatic budget. Only an explicit authority-checked manual retry can open another episode.
+
+5. GC is bounded by scalar high-waters and current/configured state: one store-wide instance allocator, issuer and scope frontiers, one minimal state per extant query, bounded active/unresolved scope entries, and retry caps of 10,000 globally and 1,024 per authority/store. No historical key or query-instance set is retained. Million-key and same-key churn are explicitly covered.
+
+6. Acceptance covers I1 retirement and I2 recreation, crashes throughout retirement and ACK paths, two shared-store tabs, delayed I1 frames/callbacks/ACKs/resolutions, owner-continuity retirement, server-boot isolation, stale leases, and old-lease inability to mutate I2.
+
+7. The activation matrices in [LLP 0039](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0039-auth-vertical-slice.rfc.md:1515) and [LLP 0053](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0053-authorization-invalidation.rfc.md:918) are identical: item 5 enables finite online sessions, item 6 unlocks negotiated auth-scoped live behavior, item 7 changes no admission state, and item 8 unlocks retained/offline reads. LLP 0039 correctly attributes coordinator/disposition execution, clear serialization, and incarnation to item 5 while assigning the invalidation fence itself to item 6. It now correctly describes quarantine as the item-6 live outcome and item 8 as its retained/offline extension.
+
+8. [LLP 0013](/Users/ccheever/projects/snapback-eng-24592-auth-review/llp/0013-ephemeral-realtime-state.rfc.md:538) mirrors the complete pre-commit room contract: dependency ticket, registration/snapshot interlock, exact room barriers, admitted-permit quiescence, abort-on-prepare failure, exact-ticket rollback/finalization, ambiguous-commit suspension, and atomic generation checks at mutation, enqueue, destructive drain, and final send.
+
+9. No stale current-state claim creates an implementation contradiction. The inspected implementation confirms the stated baseline gaps: destructive/sticky-overflow outboxes in [ephemeral.rs](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/ephemeral.rs:943), current fanout/error-resync behavior in [local.rs](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/local.rs:3869), retention scheduled before the disposed-boundary check in [index.mjs](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-contract/index.mjs:462), current stream/version-only client-store CAS and Web Lock serialization in [client-store.mjs](/Users/ccheever/projects/snapback-eng-24592-auth-review/packages/snapback-contract/client-store.mjs:457), connection-registry bounds in [server.rs](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/server.rs:850), and the current SHA-256/legacy-FNV replay split in [storage.rs](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/storage.rs:172) and [manifest.rs](/Users/ccheever/projects/snapback-eng-24592-auth-review/src/manifest.rs:1450).
+
+`./ref-check --verbose` passed with 0 errors. The six files have no conflict markers, and `git diff --check` is clean. No files were edited; neither `.agent-local-secrets.md` nor `llp/reviews` was inspected. Status remains the author’s decision.
+
+READY

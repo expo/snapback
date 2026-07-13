@@ -1,19 +1,20 @@
 # LLP 0053: Authorization invalidation
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-13 (ENG-24592 bounded enforcement-gate revision after the
-paired Codex round 5 and Fable round 6 confirmation both returned NOT READY
-while preserving the architecture, plus the independent local-audit closure:
-commit-ordered room barriers, data-head-linearized lease issuance, the item-5/
-item-6 activation matrix, and bounded fail-closed retry-episode storage. It
-then records the final paired gate's one bounded ClientQuery identity/retirement
-correction; it remains Draft/FROZEN pending focused exact confirmation. See
-§Motivation for the full
-failure history and §Changelog; artifacts in
+**Revised:** 2026-07-13 (ENG-24592 focused exact confirmation completed READY
+by Codex round 7 and Fable round 8 on the operative corpus ending in this
+document's SHA-256
+`eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568`;
+the author-authorized Draft → Review → Accepted transition is complete. The
+accepted enforcement contract includes commit-ordered room barriers,
+data-head-linearized lease issuance, the item-5/item-6 activation matrix,
+bounded fail-closed retry episodes, and the never-reused `ClientQuery`
+identity/terminal-retirement correction. See §Motivation for the full failure
+history and §Changelog; artifacts in
 `reviews/0053-authorization-invalidation.{fable,codex}.md`. Split out of
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) §Permission dependencies on
 2026-07-12.)
@@ -1732,68 +1733,69 @@ witness, scope/revision, and why the disposition was selected.
 
 ## Status
 
-**Draft — FROZEN, by the author's instruction, reaffirmed 2026-07-13.** Not
-because it is finished, but because unreviewed enforcement iteration has negative
-expected value. Read this section before implementing anything here.
+**Accepted — author transition completed 2026-07-13 under ENG-24592.** The issue
+explicitly authorized Draft → Review → Accepted if the focused multi-family gate
+converged. It did. This status is the author's decision following the recorded
+reviews; no reviewer accepted on the author's behalf.
 
-**What the loop established.** Six designs; five rejected. **Every single defect
-was found by an independent reviewer, and not one by the author.** That record is
-the most reliable fact in this document, and it is why the freeze exists.
+**What the loop established.** Six designs; five rejected. Every material defect
+was found by an independent reviewer rather than the authoring session. The
+architecture that survived is now settled: matcher-carried live correctness, two
+orthogonal declarations, the enumerated event universe, obligations for negative
+deltas, mandatory non-live resnapshot, quarantine-then-prove, and the bounded
+offline lease. The later failures were enforcement contracts inside that frame,
+not evidence for a seventh design.
 
-**What is settled.** Every subsequent review has preserved matcher-carried live
-correctness, two orthogonal declarations, the enumerated event universe,
-obligations for negative deltas, mandatory resnapshot, quarantine-then-prove,
-and a bounded offline lease. No reviewer has produced an app shape this model
-cannot express since the reframe landed; the failures have been enforcement
-contracts inside that architecture.
+**What closed the gate.** Codex round 6 and Fable round 7 reviewed the prior exact
+six-file corpus and isolated one final bounded inconsistency: `ClientQuery`
+lacked the never-reused `query_instance_id` required to reject delayed
+old-instance frames without retaining unbounded per-key history. The corrected
+corpus carried that identity through scope, revision, tombstone, resolution, ACK,
+lease, callback, and store state; separated compaction from crash-recoverable
+destructive terminal retirement; preserved canonical retry budgets across
+recreation; and added I1→retire→I2, crash, two-tab, old-lease, owner-continuity,
+and million-key-churn acceptance.
 
-**What the paired confirmation established.** Codex round 5 and Fable round 6
-independently reviewed SHA-256
-`fd0499240ede7a67d71edd86a13bd930de5620e8c1467da7c7160cbccd6a6592`
-and returned **NOT READY** while again preserving the architecture. Their union
-found: narrow conflict with ratified LLP 0008/0011 clauses; a default-allow
-mutable-input perimeter (`ctx.runtime.id()` was the concrete witness); an
-underspecified lease; server-boot ScopeId ABA/unbounded high-waters; unowned
-retry state; unowned ephemeral-room invalidation; and missing constant,
-typed-denial, and pruned-history acceptance pins.
+Codex round 7 and Fable round 8 then independently reviewed the exact operative
+corpus ending in LLP 0013 SHA-256
+`7447ed8b282e3ddda17663230903a2420c0394842cfcc2c3cb5039ff521630bb`,
+LLP 0039 SHA-256
+`869c32c1d99c29bad14df40c7a6014e509b4b86c630cdf0f2881e3dfc4ad7824`,
+and this document SHA-256
+`eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568`.
+Both returned **READY** with no blocking correctness, security, coherence, or
+implementability finding. Their verbatim reports and provenance are archived in
+`reviews/0053-authorization-invalidation.{codex,fable}.md`.
 
-**What the final paired gate established.** Codex round 6 and Fable round 7
-reviewed the exact six-file operative corpus ending in LLP 0053 SHA-256
-`98f286826e4cf0fb283648747ba209fbed99f8f09519a1e1498f18b86136bf8f`.
-Fable returned READY with two non-blocking LOW observations. Codex confirmed the
-same enforcement areas but returned NOT READY on one HIGH, bounded inconsistency:
-`ClientQuery` omitted the already-required never-reused `query_instance_id`, so
-delayed old-instance obligations/ACKs and bounded GC could not both be correct.
-Both reviews again preserved the architecture.
+**Effect of acceptance.** This RFC now controls the narrow invalidation mechanism
+under the dated LLP 0000/0008/0011/0013 amendments. ENG-24592 no longer blocks
+landing items 6 and 8. Their dependency order remains unchanged: item 6 starts
+only after item 5; item 8 starts only after items 5, 6, and 7 and unlocks only
+with the lease/store capability negotiated. Acceptance settles the contract; it
+does not claim the implementation already exists.
 
-**What is NOT reviewed — read this before building.** This revision changes only
-that identity/GC seam. The full `ClientQuery` scope now carries
-`query_instance_id`; revision, obligation, resolution, ACK, lease, and map
-comparisons bind it; payload compaction remains distinct from a crash-recoverable
-destructive terminal retirement; incoming missing/retiring/mismatched frames
-cannot allocate state; canonical retry budgets cannot reset across recreation;
-and acceptance covers I1→retire→I2 delayed frames, leases, crashes, two tabs, and
-million-key churn. These bounded edits have **not** received focused independent
-confirmation on their new SHA. The document therefore remains Draft/FROZEN, and
-items 6 and 8 remain blocked.
-
-**The next action is focused exact confirmation of that bounded correction — not
-a new design and not implementation.** The architecture is not the risk. The
-corrected lifecycle identity must confirm before the author decides the
-ENG-24592-authorized Draft→Review→Accepted transition.
+**Non-blocking review notes.** Fable recorded two LOW editorial observations:
+LLP 0013's conservative “no declaration may suppress” wording can be misread
+outside its room-targeting context, and its mirrored conceptual record uses
+camelCase while this RFC uses snake_case before LLP 0051 D4 fixes the wire
+encoding. Neither changes behavior or blocks implementation; the implementing
+spec must use the owning 0053 semantics and the registered wire spelling.
 
 ## Changelog
 
-- **2026-07-13 (final paired-gate ClientQuery correction; still FROZEN).** Codex
-  round 6 returned NOT READY and Fable round 7 returned READY on the exact
-  six-file operative corpus; both preserved the architecture. Closed Codex's one
-  HIGH by carrying the store-wide never-reused `query_instance_id` in every
-  `ClientQuery` scope and therefore every revision/tombstone/resolution/ACK
-  identity. Separated bulky compaction from a crash-recoverable destructive
-  terminal instance retirement, rejected missing/retiring/mismatched frames
-  before allocation, preserved canonical retry budgets across recreation,
-  isolated old-instance leases, and added ABA/crash/two-tab/million-churn
-  acceptance. Pending focused exact confirmation; no status transition.
+- **2026-07-13 (focused exact confirmation complete; Accepted).** Codex round 6
+  returned NOT READY and Fable round 7 returned READY on the prior exact corpus;
+  both preserved the architecture. Closed Codex's one HIGH by carrying the
+  store-wide never-reused `query_instance_id` in every `ClientQuery` scope and
+  therefore every revision/tombstone/resolution/ACK identity. Separated bulky
+  compaction from crash-recoverable destructive terminal retirement, rejected
+  missing/retiring/mismatched frames before allocation, preserved canonical retry
+  budgets across recreation, isolated old-instance leases, and added
+  ABA/crash/two-tab/million-churn acceptance. The final rebase also corrected the
+  0039 item-6/item-8 quarantine seam and mirrored 0053's precommit room barrier
+  into 0013. Codex round 7 and Fable round 8 then independently returned READY on
+  the exact operative corpus, with no blocker. Under ENG-24592's explicit author
+  authorization, the Draft → Review → Accepted transition completed.
 - **2026-07-13 (independent local-audit correction; still FROZEN).** Closed four
   enforcement gaps without changing the settled architecture: protected-room
   authority now installs a dependency-indexed registry ticket atomically with

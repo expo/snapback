@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 projects permission-backing/enumerated events into level-triggered room-authority resync, suspends fanout before fresh durable membership reauthorization, and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Revised:** 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room-authority barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053
 
 ## Summary
@@ -538,17 +538,27 @@ user is actively collaborating: board, document, channel, game, or room.
 **Authorization-invalidation amendment (2026-07-13).** LLP 0053 item 6 owns
 the producer/ordering contract that this section previously left aspirational.
 A protected room collection declares the durable `permissionBacking`
-tables/fields used to derive its room permission. A committed backing-table
-change or another enumerated authorization event projects a level-triggered
-`RoomAuthorityResync { authorization, minCommitVersion }` into every possibly
-affected live room authority. Unknown fields/dependencies/subjects project
-coarsely; no declaration may suppress the event in v1.
+tables/fields used to derive its room permission. Unknown
+fields/dependencies/subjects target coarsely; no declaration may suppress the
+event in v1. Before an affected backing-table change or another enumerated
+authorization event may commit, the writer installs a unique dependency-indexed
+registry ticket, interlocks protected-room registration and initial snapshot
+publication with that ticket, installs the matching room-authority barriers, and
+waits for every already-admitted sink permit to quiesce. Failure to target,
+install, or quiesce aborts the write. No registry or room lock is held across the
+durable commit.
 
-Before another publish/fanout, the room authority advances a separate
-authorization generation, suspends affected subscribers, and rejects every
-old-generation queued frame at the send boundary. It then takes a fresh durable
-permission snapshot at or after the cause, re-resolves the connection-bound
-authority from LLP 0039, and atomically either:
+Rollback compare-removes only its exact ticket; ambiguous commit leaves the
+barriers pending until durable reconciliation. Commit finalizes the exact ticket
+to a level-triggered
+`RoomAuthorityResync { authorization, minCommitVersion,
+roomAuthorityGeneration }`, suspends affected subscribers and racing
+registrations, and strands or purges old-generation frames. Room mutation,
+publish/fanout enqueue, destructive drain, and final HTTP/WebSocket send each
+compare the captured non-pending generation **atomically with that sink's act**;
+a check released before the act is non-conforming. The room then takes a fresh
+durable permission snapshot at or after the cause, re-resolves the
+connection-bound authority from LLP 0039, and atomically either:
 
 - rebuilds `authContext`/`visibleKeys`, installs a fresh room snapshot, and
   resumes; or
@@ -878,6 +888,6 @@ without reopening the accepted product boundary: ephemeral state is typed,
 lossy, TTL-bound realtime authority rather than durable table sync or a raw
 cache protocol. The 2026-07-13 amendment adds the previously missing
 authorization-invalidation owner: LLP 0053 item 6 must land before a
-room-permission collection may claim live revocation under sessions. LLP 0053
-remains Draft/FROZEN, so current fail-closed capability refusal remains required
-until that item is accepted and implemented.
+room-permission collection may claim live revocation under sessions. LLP 0053 is
+Accepted, but current fail-closed capability refusal remains required until item
+6 is implemented and its protocol capability is negotiated.
