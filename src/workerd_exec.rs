@@ -94,6 +94,7 @@ const RESPONSE_TOKEN_HEADER: &str = "x-snapback-response-token";
 thread_local! {
     static WALL_CLOCK_OVERRIDE_MS: Cell<Option<u64>> = const { Cell::new(None) };
     static INVOKE_AUTH_TEST_MODE: Cell<Option<InvokeAuthTestMode>> = const { Cell::new(None) };
+    static HOST_CALL_TEST_MODE: Cell<Option<HostCallTestMode>> = const { Cell::new(None) };
 }
 
 /// Adversarial test seam for the local workerd `/invoke` capability.
@@ -110,6 +111,24 @@ pub fn with_invoke_auth_test_mode<T>(mode: InvokeAuthTestMode, f: impl FnOnce() 
     let previous = INVOKE_AUTH_TEST_MODE.with(|slot| slot.replace(Some(mode)));
     let result = f();
     INVOKE_AUTH_TEST_MODE.with(|slot| slot.set(previous));
+    result
+}
+
+/// Adversarial test seam for a HOST service call that accepts the connection
+/// but never produces a response. This deterministically exercises the
+/// harness's detached-call quiescence deadline instead of relying on a slow
+/// database operation or network timing.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HostCallTestMode {
+    NeverRespond,
+}
+
+#[doc(hidden)]
+pub fn with_host_call_test_mode<T>(mode: HostCallTestMode, f: impl FnOnce() -> T) -> T {
+    let previous = HOST_CALL_TEST_MODE.with(|slot| slot.replace(Some(mode)));
+    let result = f();
+    HOST_CALL_TEST_MODE.with(|slot| slot.set(previous));
     result
 }
 
@@ -408,6 +427,8 @@ struct InvokeResponse {
     envelope: Option<String>,
     #[serde(default, rename = "didNotSettle")]
     did_not_settle: bool,
+    #[serde(default, rename = "deadlinePhase")]
+    deadline_phase: Option<String>,
     #[serde(default, rename = "unhandledRejections")]
     unhandled_rejections: Vec<String>,
     #[serde(default, rename = "rejectionDetectionSupported")]
@@ -582,6 +603,18 @@ pub(crate) fn run_handler_workerd(
 
     // The blocking invoke request rides a helper thread; this thread serves
     // host calls until the response (or the deadline) arrives.
+    // Hand the harness only the outer invocation budget that remains after
+    // process startup/readiness, with a response margin for the authenticated
+    // transport. The JS settlement + quiescence timer must never extend the
+    // process-level deadline it is nested inside.
+    let remaining_timeout_ms = u64::try_from(
+        deadline
+            .saturating_duration_since(Instant::now())
+            .as_millis(),
+    )
+    .unwrap_or(u64::MAX)
+    .saturating_sub(250)
+    .max(1);
     let mut invoke_body = json!({
         "export": module.export,
         "argsJson": serde_json::to_string(&invocation.input().args).unwrap_or_else(|_| "{}".into()),
@@ -590,7 +623,7 @@ pub(crate) fn run_handler_workerd(
         "runJson": Value::Null,
         "secretsJson": Value::Null,
         "epoch": invocation.epoch().to_string(),
-        "settlementTimeoutMs": timeout_ms.saturating_sub(250).max(1),
+        "settlementTimeoutMs": remaining_timeout_ms,
     })
     .to_string();
     let invoke_url = format!("http://{worker_addr}/invoke");
@@ -650,6 +683,8 @@ pub(crate) fn run_handler_workerd(
             json!({ "error": error.to_string() }),
         )
     })?;
+    let host_call_test_mode = HOST_CALL_TEST_MODE.with(|slot| slot.get());
+    let mut held_host_call_connections = Vec::new();
 
     let body = loop {
         match done_rx.try_recv() {
@@ -698,7 +733,15 @@ pub(crate) fn run_handler_workerd(
         }
         match host_listener.accept() {
             Ok((stream, _)) => {
-                serve_host_call_connection(stream, invocation, &host_token);
+                if host_call_test_mode == Some(HostCallTestMode::NeverRespond) {
+                    // Keep the TCP stream alive without reading or replying:
+                    // Workerd's service-binding fetch remains pending until
+                    // the harness's private AbortSignal fires at the shared
+                    // invocation deadline.
+                    held_host_call_connections.push(stream);
+                } else {
+                    serve_host_call_connection(stream, invocation, &host_token);
+                }
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::sleep(Duration::from_millis(2));
@@ -726,17 +769,29 @@ pub(crate) fn run_handler_workerd(
         ));
     }
     if response.did_not_settle {
-        return Err(SnapbackError::error(
-            "SNAPBACK_HANDLER_DID_NOT_SETTLE",
-            "runtime",
-            "handler promise did not settle before the harness deadline — the invocation \
-             produced no result and committed no writes",
-        )
-        .with_details(json!({
-            "function": module.export,
-            "engine": "workerd-v8",
-            "signal": "structured harness settlement deadline",
-        })));
+        let phase = response.deadline_phase.as_deref().unwrap_or("settlement");
+        let (message, signal) = if phase == "quiescence" {
+            (
+                "handler invocation did not reach detached-work quiescence before the harness \
+                 deadline — the invocation produced no result and committed no writes",
+                "structured harness quiescence deadline",
+            )
+        } else {
+            (
+                "handler promise did not settle before the harness deadline — the invocation \
+                 produced no result and committed no writes",
+                "structured harness settlement deadline",
+            )
+        };
+        return Err(
+            SnapbackError::error("SNAPBACK_HANDLER_DID_NOT_SETTLE", "runtime", message)
+                .with_details(json!({
+                    "function": module.export,
+                    "engine": "workerd-v8",
+                    "phase": phase,
+                    "signal": signal,
+                })),
+        );
     }
     if !response.unhandled_rejections.is_empty() {
         return Err(unhandled_rejection_error(

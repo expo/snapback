@@ -74,6 +74,76 @@ globalThis.__snapbackHandlers = {
     Promise.resolve().then(function() { throw new Error("action-boom"); });
     return {};
   },
+  async rejectionHookSurfaceProbe(ctx) {
+    var instance = Promise.resolve("surface-probe");
+    var Species = Promise[Symbol.species];
+    var speciesInstance = new Species(function(resolve) { resolve("species-probe"); });
+    var candidates = [
+      globalThis.__OriginalPromise,
+      Promise.prototype.constructor,
+      Promise[Symbol.species],
+      instance.constructor
+    ];
+    var NativePromise = Promise.prototype.constructor;
+    var hookBDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_B");
+    var hookCDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_C");
+    var thenDescriptor = Object.getOwnPropertyDescriptor(NativePromise.prototype, "then");
+    var nativeConstructorPathsAgree = true;
+    for (var i = 0; i < candidates.length; i++) {
+      var candidate = candidates[i];
+      if (i > 0) nativeConstructorPathsAgree =
+        nativeConstructorPathsAgree && candidate === NativePromise;
+    }
+    return [{
+      originalAliasIsPublic: globalThis.__OriginalPromise === Promise,
+      publicAliasIsHookFree:
+        typeof globalThis.__OriginalPromise._B !== "function" &&
+        typeof globalThis.__OriginalPromise._C !== "function",
+      nativeConstructorPathsAgree: nativeConstructorPathsAgree,
+      speciesResultUsesNativeConstructor: speciesInstance.constructor === NativePromise,
+      hookBIsSealedMediator:
+        !!hookBDescriptor && typeof hookBDescriptor.value === "function" &&
+        hookBDescriptor.configurable === false && hookBDescriptor.writable === false,
+      hookCIsSealedMediator:
+        !!hookCDescriptor && typeof hookCDescriptor.value === "function" &&
+        hookCDescriptor.configurable === false && hookCDescriptor.writable === false,
+      thenIsSealedMediator:
+        !!thenDescriptor && typeof thenDescriptor.value === "function" &&
+        thenDescriptor.configurable === false && thenDescriptor.writable === false
+    }];
+  },
+  async rejectionHookBypassProbe(ctx) {
+    var rejected = Promise.reject(new Error("hook-bypass-must-remain-visible"));
+    var candidates = [
+      globalThis.__OriginalPromise,
+      Promise.prototype.constructor,
+      Promise[Symbol.species],
+      rejected.constructor
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var candidate = candidates[i];
+      if (candidate && typeof candidate._C === "function") {
+        candidate._C(rejected, new Error("forged-hook-rejection"));
+      }
+      if (candidate && typeof candidate._B === "function") {
+        candidate._B(rejected);
+      }
+    }
+    return {};
+  },
+  async rejectionHookConstructorPoison(ctx) {
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    Object.defineProperty(rejected, "constructor", {
+      configurable: false,
+      get: function() { throw new Error("poisoned promise constructor"); }
+    });
+    rejectLater(new Error("constructor-poison-must-remain-visible"));
+    var NativePromise = Promise.prototype.constructor;
+    NativePromise._C(rejected, new Error("forged-after-constructor-poison"));
+    NativePromise._B(rejected);
+    return {};
+  },
   async insertOne(ctx, args) {
     await ctx.db.insert('items', { n: args.n });
     return {};
@@ -121,6 +191,9 @@ fn functions() -> FunctionManifest {
             define("rejectionPreHandled", FunctionKind::Mutation),
             define("detachedRejectionQuery", FunctionKind::Query),
             define("detachedRejectionAction", FunctionKind::Action),
+            define("rejectionHookSurfaceProbe", FunctionKind::Query),
+            define("rejectionHookBypassProbe", FunctionKind::Mutation),
+            define("rejectionHookConstructorPoison", FunctionKind::Mutation),
             define("insertOne", FunctionKind::Mutation),
             define("listItems", FunctionKind::Query),
         ],
@@ -284,6 +357,61 @@ fn detached_rejection_fails_actions_too() {
     assert_eq!(record.outcome, CronRunOutcome::Failed);
     let diagnostic = record.diagnostic.expect("failed run carries a diagnostic");
     assert_eq!(diagnostic.code, "SNAPBACK_HANDLER_UNHANDLED_REJECTION");
+}
+
+#[test]
+fn exact_promise_rejection_hooks_are_sealed_mediators() {
+    let snapback = configured();
+    let rows = snapback
+        .invoke_query("rejectionHookSurfaceProbe", input(json!({})))
+        .expect("rejection hook surface probe")
+        .rows;
+    assert_eq!(
+        rows,
+        vec![json!({
+            "originalAliasIsPublic": true,
+            "publicAliasIsHookFree": true,
+            "nativeConstructorPathsAgree": true,
+            "speciesResultUsesNativeConstructor": true,
+            "hookBIsSealedMediator": true,
+            "hookCIsSealedMediator": true,
+            "thenIsSealedMediator": true,
+        })],
+        "every native constructor path must terminate at the same sealed rejection-hook mediators"
+    );
+}
+
+#[test]
+fn exact_promise_rejection_hooks_cannot_clear_the_ledger() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("rejectionHookBypassProbe", input(json!({})))
+        .expect_err("handler code must not be able to call _B/_C and hide its rejection");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["hook-bypass-must-remain-visible"]),
+        "the handler must neither forge the rejection reason through _C nor delete it through _B"
+    );
+}
+
+#[test]
+fn exact_promise_rejection_hook_fails_closed_on_constructor_poisoning() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("rejectionHookConstructorPoison", input(json!({})))
+        .expect_err("a poisoned promise constructor must not blind rejection detection");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["constructor-poison-must-remain-visible"])
+    );
 }
 
 #[test]

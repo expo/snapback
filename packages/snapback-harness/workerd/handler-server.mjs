@@ -170,6 +170,98 @@ function promiseRecord(key, value) {
   return record;
 }
 
+// One timer starts before the handler runs and remains armed through the
+// detached-work drain. Reusing that same promise makes every later await
+// consume the invocation's REMAINING budget instead of accidentally granting
+// a fresh full timeout after the handler promise settles. The private abort
+// signal also cancels HOST fetches when the budget expires, so a deployed
+// isolate does not retain a transport that the invocation has abandoned.
+function createInvocationDeadline(timeoutMs) {
+  const deadline = kept.objectCreate(null);
+  deadline.expired = false;
+  deadline.timer = null;
+  deadline.timeout = null;
+  deadline.controller = null;
+  deadline.signal = null;
+  if (!(timeoutMs > 0) || !kept.setTimeout) return deadline;
+
+  if (
+    kept.AbortController &&
+    kept.abortControllerAbort &&
+    kept.abortControllerSignalGetter
+  ) {
+    deadline.controller = new kept.AbortController();
+    deadline.signal = kept.reflectApply(
+      kept.abortControllerSignalGetter,
+      deadline.controller,
+      []
+    );
+  }
+  deadline.timeout = new kept.Promise((resolve) => {
+    deadline.timer = kept.setTimeout(() => {
+      deadline.expired = true;
+      // Resolve the private deadline race first, then abort transport I/O.
+      // Both effects happen in this task; this ordering makes the timeout
+      // verdict deterministic even if abort rejection settles a tracked call.
+      resolve();
+      if (deadline.controller) {
+        try {
+          kept.reflectApply(
+            kept.abortControllerAbort,
+            deadline.controller,
+            []
+          );
+        } catch (_) {}
+      }
+    }, timeoutMs);
+  });
+  return deadline;
+}
+
+function cancelInvocationDeadline(deadline) {
+  if (deadline.timer !== null && kept.clearTimeout) {
+    kept.clearTimeout(deadline.timer);
+  }
+  deadline.timer = null;
+}
+
+function withinInvocationDeadline(promise, deadline, resultKey) {
+  // Always return a genuine harness-owned Promise. The source promise and the
+  // shared deadline race only through captured native then, never mutable
+  // Promise.race/species machinery.
+  return new kept.Promise((resolve, reject) => {
+    let completed = false;
+    trustedThen(
+      promise,
+      (value) => {
+        if (completed) return;
+        completed = true;
+        resolve(
+          deadline.expired
+            ? promiseRecord("didNotSettle", true)
+            : promiseRecord(resultKey, value)
+        );
+      },
+      (error) => {
+        if (completed) return;
+        completed = true;
+        if (deadline.expired) {
+          resolve(promiseRecord("didNotSettle", true));
+        } else {
+          reject(error);
+        }
+      }
+    );
+    if (deadline.timeout) {
+      trustedThen(deadline.timeout, () => {
+        if (completed) return;
+        completed = true;
+        resolve(promiseRecord("didNotSettle", true));
+      });
+    }
+  });
+}
+
 function json(status, value, responseToken) {
   // The application can mutate Object/Array prototypes. Copy internal
   // response data onto prototype-free containers and use the pre-handler
@@ -327,6 +419,24 @@ async function invoke(body, env, responseToken) {
   // may have settled into the isolate-global ledger since. They are not this
   // invocation's rejections — discard them before running (ENG-23585).
   takeUnhandledRejections();
+  const deadline = createInvocationDeadline(
+    kept.Number(body.settlementTimeoutMs || 0)
+  );
+  if (!deadline.timeout || !deadline.signal) {
+    cancelInvocationDeadline(deadline);
+    return json(200, {
+      fatal: "invocation deadline or HOST abort capability unavailable",
+    }, responseToken);
+  }
+  const deadlineResponse = (phase) => {
+    cancelInvocationDeadline(deadline);
+    return json(200, {
+      didNotSettle: true,
+      deadlinePhase: phase,
+      unhandledRejections: [],
+      rejectionDetectionSupported: true,
+    }, responseToken);
+  };
   const token = kept.String(env.SNAPBACK_HOST_TOKEN || body.token || "");
   const hostHeaders =
     body.hostHeaders && typeof body.hostHeaders === "object"
@@ -358,6 +468,7 @@ async function invoke(body, env, responseToken) {
     hostOptions.method = "POST";
     hostOptions.headers = headers;
     hostOptions.body = kept.jsonStringify(hostBody);
+    if (deadline.signal) hostOptions.signal = deadline.signal;
     const fetched = env.HOST.fetch("http://snapback-host/host-call", hostOptions);
     const decoded = trustedThen(fetched, (response) =>
       kept.reflectApply(kept.responseJson, response, [])
@@ -387,7 +498,7 @@ async function invoke(body, env, responseToken) {
     return call;
   };
 
-  const settled = await withSettlementDeadline(
+  const settled = await withinInvocationDeadline(
     globalThis.__snapbackSettle(
       body.export,
       body.argsJson,
@@ -398,14 +509,11 @@ async function invoke(body, env, responseToken) {
       body.epoch,
       hostCall
     ),
-    kept.Number(body.settlementTimeoutMs || 0)
+    deadline,
+    "envelope"
   );
   if (settled.didNotSettle) {
-    return json(200, {
-      didNotSettle: true,
-      unhandledRejections: [],
-      rejectionDetectionSupported: true,
-    }, responseToken);
+    return deadlineResponse("settlement");
   }
   const envelope = settled.envelope;
 
@@ -426,72 +534,48 @@ async function invoke(body, env, responseToken) {
       : trustedResolve();
   const rejections = [];
   let supported = true;
-  let rounds = 0;
   for (;;) {
-    while (setSize(inFlight) > 0 && rounds < 1024) {
-      rounds++;
+    while (setSize(inFlight) > 0) {
       // Every host call was started already; awaiting the snapshot by index
       // preserves concurrency without Promise.allSettled's dynamic constructor
       // and Array-iterator lookups, both mutable by handler code.
       const pending = setValues(inFlight);
-      for (let i = 0; i < pending.length; i++) await pending[i];
+      for (let i = 0; i < pending.length; i++) {
+        const waited = await withinInvocationDeadline(
+          pending[i],
+          deadline,
+          "value"
+        );
+        if (waited.didNotSettle) return deadlineResponse("quiescence");
+      }
       for (let i = 0; i < 32; i++) {
         await trustedResolve();
       }
+      if (deadline.expired) return deadlineResponse("quiescence");
     }
     // A real task boundary, so deferred unhandledrejection events dispatch.
-    await macrotask();
+    const yielded = await withinInvocationDeadline(
+      macrotask(),
+      deadline,
+      "value"
+    );
+    if (yielded.didNotSettle) return deadlineResponse("quiescence");
     for (let i = 0; i < 32; i++) {
       await trustedResolve();
     }
+    if (deadline.expired) return deadlineResponse("quiescence");
     const sweep = takeUnhandledRejections();
     supported = sweep.supported;
     for (let i = 0; i < sweep.rejections.length; i++) {
       rejections[rejections.length] = sweep.rejections[i];
     }
     if (sweep.rejections.length === 0 && setSize(inFlight) === 0) break;
-    if (++rounds > 1024) {
-      // A detached chain issuing work forever; stop waiting and report what
-      // exists rather than hanging the invocation.
-      break;
-    }
   }
 
+  cancelInvocationDeadline(deadline);
   return json(200, {
     envelope,
     unhandledRejections: rejections,
     rejectionDetectionSupported: supported,
   }, responseToken);
-}
-
-function withSettlementDeadline(promise, timeoutMs) {
-  if (!(timeoutMs > 0) || !kept.setTimeout) {
-    // Always return a genuine harness-owned Promise. Returning the direct
-    // result of Promise.prototype.then would expose this control channel to
-    // its dynamic species constructor on engines that lack timers.
-    return new kept.Promise((resolve, reject) => {
-      trustedThen(
-        promise,
-        (envelope) => resolve(promiseRecord("envelope", envelope)),
-        reject
-      );
-    });
-  }
-  return new kept.Promise((resolve, reject) => {
-    const timer = kept.setTimeout(
-      () => resolve(promiseRecord("didNotSettle", true)),
-      timeoutMs
-    );
-    trustedThen(
-      promise,
-      (envelope) => {
-        if (kept.clearTimeout) kept.clearTimeout(timer);
-        resolve(promiseRecord("envelope", envelope));
-      },
-      (error) => {
-        if (kept.clearTimeout) kept.clearTimeout(timer);
-        reject(error);
-      }
-    );
-  });
 }

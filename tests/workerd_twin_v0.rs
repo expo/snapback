@@ -19,8 +19,9 @@ use snapback::manifest::{
     FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
 };
 use snapback::workerd_exec::{
-    HandlerBackend, InvokeAuthTestMode, detect_workerd_binary, with_forced_backend,
-    with_invoke_auth_test_mode, with_wall_clock_timeout_ms,
+    HandlerBackend, HostCallTestMode, InvokeAuthTestMode, detect_workerd_binary,
+    with_forced_backend, with_host_call_test_mode, with_invoke_auth_test_mode,
+    with_wall_clock_timeout_ms,
 };
 
 const TWIN_MODULE_SOURCE: &str = include_str!("conformance/twin-corpus.handlers.js");
@@ -861,6 +862,47 @@ fn detached_success_after_host_call_commits_on_both_engines() {
             "{backend:?}: got {rows:?}"
         );
     }
+}
+
+/// A detached HOST fetch that never returns must consume only the invocation's
+/// remaining settlement budget. The harness must abort that transport and
+/// report its structured fail-closed verdict before Rust's outer process-kill
+/// deadline fires; otherwise this would surface WALL_CLOCK_EXCEEDED instead.
+#[test]
+fn detached_host_call_drain_is_bounded_by_the_remaining_invocation_deadline() {
+    require_workerd!();
+    let mut snapback = configured();
+    let error = with_wall_clock_timeout_ms(1_500, || {
+        with_host_call_test_mode(HostCallTestMode::NeverRespond, || {
+            on_v8(|| {
+                snapback.invoke_mutation(
+                    "detachedHostCallSuccess",
+                    input(json!({ "label": "must-not-commit", "rank": 88 })),
+                )
+            })
+        })
+    })
+    .expect_err("a never-returning detached host call must fail at the harness deadline");
+    assert_eq!(
+        error.diagnostic.code, "SNAPBACK_HANDLER_DID_NOT_SETTLE",
+        "the shared harness deadline must win before the outer process kill: {error}"
+    );
+    assert_eq!(
+        error.diagnostic.details.get("signal"),
+        Some(&json!("structured harness quiescence deadline"))
+    );
+    assert_eq!(
+        error.diagnostic.details.get("phase"),
+        Some(&json!("quiescence"))
+    );
+    let rows = snapback
+        .invoke_query("listItems", input(json!({})))
+        .expect("query after bounded detached-host-call failure")
+        .rows;
+    assert!(
+        rows.is_empty(),
+        "a detached host call abandoned at the invocation deadline must commit nothing"
+    );
 }
 
 /// ENG-23593: TextDecoder must agree byte-for-byte across engines on view

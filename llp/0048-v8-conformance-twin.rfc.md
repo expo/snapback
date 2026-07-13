@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (whole-codebase security follow-up: trusted strip state is one-shot and consumed before handler evaluation; the rejection ledger/drain is closure-private rather than importable; Promise-channel records, Response thenability, and Promise species resist inherited-then forgery; independent invoke/host/response capabilities close the worker-port bind race; readiness/invoke response bodies and sanitized stderr tails are bounded); 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
+**Revised:** 2026-07-13 (audit blocker: the Workerd settlement and detached-host-call drain consume one shared invocation deadline; expiry aborts HOST fetches and reports the quiescence phase before the outer kill deadline); 2026-07-13 (whole-codebase security follow-up: trusted strip state is one-shot and consumed before handler evaluation; the rejection ledger/drain is closure-private rather than importable; Promise-channel records, Response thenability, and Promise species resist inherited-then forgery; independent invoke/host/response capabilities close the worker-port bind race; readiness/invoke response bodies and sanitized stderr tails are bounded); 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
 forgiving-base64 padding validation, the complete UTF-8 label table with exact
 ASCII-whitespace/Web-IDL conversion, and streaming UTF-8 decoder state;
 ENG-24339: adversarial twin coverage pins sealed invoke/settle globals,
@@ -451,8 +451,15 @@ all are fixed and gated by the twin suites and the conformance corpus:
   replaced by a quiescence contract — wait for this invocation's in-flight
   host calls, then yield real tasks (workerd defers `unhandledrejection`
   dispatch to task boundaries) until a full round adds no ledger entries.
-  Corpus case `unhandled-detached-rejection-after-host-call` gates it on
-  both engines.
+  Settlement and this entire drain share one timer started before handler
+  execution, so the drain receives only the invocation's remaining budget;
+  expiry wins every pending await, aborts all HOST fetches through a private
+  `AbortSignal`, and returns a no-commit did-not-settle response tagged with
+  phase `quiescence`; a missing timer or abort capability rejects the invoke
+  before application code runs. Corpus case
+  `unhandled-detached-rejection-after-host-call` gates ordinary quiescence on
+  both engines, and a deterministic never-responding HOST transport regression
+  gates the deadline/abort path on Workerd.
 - **Strip self-check** (ENG-23590): the V8 init probe covers the full
   `bannedEverywhere` set (plus the twin-pinned `stripProbes` subset), and
   the Ibex denier gained a symmetric post-install probe that fails the

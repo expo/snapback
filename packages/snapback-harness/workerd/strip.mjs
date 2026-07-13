@@ -97,6 +97,18 @@ let capturedIntrinsics = {
   ),
   TextDecoder: globalThis.TextDecoder,
   textDecoderDecode: globalThis.TextDecoder.prototype.decode,
+  AbortController:
+    typeof globalThis.AbortController === "function"
+      ? globalThis.AbortController
+      : null,
+  abortControllerAbort:
+    typeof globalThis.AbortController === "function"
+      ? inheritedMethod(globalThis.AbortController.prototype, "abort")
+      : null,
+  abortControllerSignalGetter:
+    typeof globalThis.AbortController === "function"
+      ? inheritedGetter(globalThis.AbortController.prototype, "signal")
+      : null,
   addEventListener:
     typeof globalThis.addEventListener === "function"
       ? globalThis.addEventListener.bind(globalThis)

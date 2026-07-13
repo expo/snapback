@@ -5,6 +5,7 @@
   // host's success/failure envelope or blind rejection detection.
   var TrustedError = Error;
   var TrustedMap = Map;
+  var TrustedWeakSet = WeakSet;
   var trustedString = String;
   var trustedJsonStringify = JSON.stringify;
   var trustedDefineProperty = Object.defineProperty;
@@ -13,13 +14,12 @@
   var trustedReflectApply = Reflect.apply;
   var trustedMapSet = TrustedMap && TrustedMap.prototype.set;
   var trustedMapDelete = TrustedMap && TrustedMap.prototype.delete;
-  var trustedMapGet = TrustedMap && TrustedMap.prototype.get;
-  var trustedMapHas = TrustedMap && TrustedMap.prototype.has;
   var trustedMapForEach = TrustedMap && TrustedMap.prototype.forEach;
+  var trustedWeakSetAdd = TrustedWeakSet && TrustedWeakSet.prototype.add;
+  var trustedWeakSetHas = TrustedWeakSet && TrustedWeakSet.prototype.has;
   var trustedArrayJoin = Array.prototype.join;
   var trustedStringCharCodeAt = String.prototype.charCodeAt;
   var trustedStringCharAt = String.prototype.charAt;
-
   function snapbackError(code, message) {
     var error = new TrustedError(code + ": " + message);
     try { trustedDefineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
@@ -150,20 +150,24 @@
     };
   }
   // Unhandled-rejection ledger (ENG-23361). The vendored eval loop drains
-  // every microtask before the host reads the invocation result, but the
-  // only promise anything observes is the invoke IIFE's own — a rejection
-  // in a detached chain the handler spawned (forEach(async ...) is the
-  // classic shape) is observed by nobody, so its earlier ctx.db.* writes
-  // stayed buffered while its later ones were silently skipped, and the
-  // invocation still reported success. The vendored polyfill exposes
-  // then/promise's internal hook slots on __OriginalPromise: _C fires on
-  // every rejection, _B whenever a handler is attached or dispatched
-  // (handlers attached before the rejection re-enter handle() during
-  // finale, so they clear their entry too). A promise still in the ledger
-  // after the final drain therefore rejected with no handler at completion.
-  // The host inspects the ledger after every successful eval and fails the
-  // invocation if entries remain. Inspection never clears: a VM with a
-  // rejection is burned, which keeps the handler-visible bridge harmless.
+  // every microtask before the host reads the invocation result, but the only
+  // promise anything observes is the invoke IIFE's own. A rejection in a
+  // detached chain the handler spawned (forEach(async ...) is the classic
+  // shape) could therefore leave earlier ctx.db.* writes buffered while later
+  // work silently stopped, and the invocation still reported success.
+  //
+  // Hermes' internal Promise bytecode exposes its rejection and handle hooks
+  // as constructor properties. Constructor identity cannot be replaced:
+  // Promise.prototype.then deliberately branches on that exact identity.
+  // Instead, install sealed mediator hooks. `_C` ignores its caller-supplied
+  // reason and observes the promise through the captured pre-application
+  // `then`; `_B` is inert. A sealed wrapper around `then` is the only path that
+  // marks a promise handled, and does so only after the real method succeeds.
+  // Calling the reachable hook functions therefore cannot turn a real
+  // unhandled rejection into success or replace its first diagnostic; an
+  // invalid direct call can at worst fail the caller's own invocation closed.
+  // The host inspects the ledger after every successful eval and burns a VM
+  // with any remaining rejection.
   //
   // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
   // Obligation 3: settlement of the invocation promise does not prove the
@@ -171,45 +175,140 @@
   (function installRejectionLedger() {
     var OriginalPromise = g.__OriginalPromise;
     // V8/workerd owns a closure-private event ledger in handler-server.mjs.
-    // This pinned then/promise hook mechanism is Hermes-only.
+    // This mediated then/promise hook mechanism is Hermes-only.
     if (!OriginalPromise) return;
-    var ledger = OriginalPromise && typeof TrustedMap === "function" ? new TrustedMap() : null;
-    if (!ledger) {
-      throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "rejection ledger Map unavailable");
+    var ledger = typeof TrustedMap === "function" ? new TrustedMap() : null;
+    var handledPromises = typeof TrustedWeakSet === "function" ? new TrustedWeakSet() : null;
+    var observedPromises = typeof TrustedWeakSet === "function" ? new TrustedWeakSet() : null;
+    var trustedPromiseThen = OriginalPromise.prototype.then;
+    if (
+      !ledger ||
+      !handledPromises ||
+      !observedPromises ||
+      typeof trustedPromiseThen !== "function"
+    ) {
+      throw snapbackError(
+        "SNAPBACK_HANDLER_HARNESS_INIT_FAILED",
+        "rejection ledger primitives unavailable"
+      );
     }
-    if (ledger) {
-      var rejected = function(promise, reason) {
-        trustedReflectApply(trustedMapSet, ledger, [promise, reason]);
-      };
-      var handled = function(promise) {
-        trustedReflectApply(trustedMapDelete, ledger, [promise]);
-      };
+
+    function weakHas(set, value) {
+      return trustedReflectApply(trustedWeakSetHas, set, [value]);
+    }
+    function weakAdd(set, value) {
+      trustedReflectApply(trustedWeakSetAdd, set, [value]);
+    }
+    var handled = function() {
+      // Hermes calls this hook whenever a reaction is attached, but the hook
+      // is also reachable through retained native-constructor paths. Trust
+      // only the sealed `then` wrapper below, which can prove the underlying
+      // attachment succeeded; direct `_B` calls intentionally do nothing.
+    };
+    var rejected = function(promise, claimedReason) {
+      if (!promise || (typeof promise !== "object" && typeof promise !== "function")) return;
       try {
-        trustedDefineProperty(OriginalPromise, "_C", {
-          value: rejected, configurable: false, writable: false
-        });
-        trustedDefineProperty(OriginalPromise, "_B", {
-          value: handled, configurable: false, writable: false
-        });
+        if (weakHas(handledPromises, promise) || weakHas(observedPromises, promise)) return;
+        // Never trust `_C`'s reason argument: handler code can call this
+        // reachable hook directly. The captured native chain yields the real
+        // rejection reason, so calls on fulfilled/non-Promise values cannot
+        // forge a ledger entry.
+        trustedReflectApply(trustedPromiseThen, promise, [undefined, function(actualReason) {
+          if (!weakHas(handledPromises, promise)) {
+            trustedReflectApply(trustedMapSet, ledger, [promise, actualReason]);
+          }
+        }]);
+        weakAdd(observedPromises, promise);
       } catch (_) {
-        throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "rejection ledger hooks could not be sealed");
+        // A handler can give a real promise a non-configurable throwing
+        // `constructor` before it rejects, which prevents even the captured
+        // native `then` from observing it. Fail closed with the hook's reason
+        // in that exceptional case. First write wins, so a direct hook call
+        // after the engine callback cannot replace the real diagnostic.
+        trustedReflectApply(trustedMapSet, ledger, [promise, claimedReason]);
+        weakAdd(observedPromises, promise);
       }
-      // Self-check: if a vendored-runtime upgrade moves the pinned hook
-      // slots, disable detection (reverting to rejections going unseen)
-      // rather than misreport; tests/unhandled_rejection_v0.rs pins that
-      // detection works on the vendored runtime, so an upgrade that breaks
-      // this fails CI instead of shipping silently.
-      var working = false;
-      try {
-        var probe = new OriginalPromise(function(_, rej) { rej("snapback-ledger-probe"); });
-        working = trustedReflectApply(trustedMapGet, ledger, [probe]) === "snapback-ledger-probe";
-        var trustedPromiseThen = OriginalPromise.prototype.then;
-        trustedReflectApply(trustedPromiseThen, probe, [undefined, function() {}]);
-        working = working && !trustedReflectApply(trustedMapHas, ledger, [probe]);
-      } catch (_) { working = false; }
-      if (!working) {
-        throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "rejection ledger self-check failed");
+    };
+    var mediatedThen = function(onFulfilled, onRejected) {
+      var promise = this;
+      var child = trustedReflectApply(trustedPromiseThen, promise, [onFulfilled, onRejected]);
+      // Mark handled only after the real Promise method returned. A hostile
+      // receiver/constructor getter that makes it throw cannot clear a prior
+      // rejection by merely attempting `.then()`.
+      if (promise && (typeof promise === "object" || typeof promise === "function")) {
+        weakAdd(handledPromises, promise);
+        trustedReflectApply(trustedMapDelete, ledger, [promise]);
       }
+      return child;
+    };
+    try {
+      // @ref LLP 0009#harness-control-plane-boundary — rejection-ledger
+      // mutation is a host control-plane power. Reachable then/promise hooks
+      // mediate real promise state; they do not accept handler assertions.
+      trustedDefineProperty(OriginalPromise, "_C", {
+        value: rejected, configurable: false, writable: false
+      });
+      trustedDefineProperty(OriginalPromise, "_B", {
+        value: handled, configurable: false, writable: false
+      });
+      trustedDefineProperty(OriginalPromise.prototype, "then", {
+        value: mediatedThen,
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
+      trustedDefineProperty(OriginalPromise.prototype, "constructor", {
+        value: OriginalPromise,
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
+      trustedDefineProperty(g, "__OriginalPromise", {
+        value: g.Promise,
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
+    } catch (_) {
+      throw snapbackError(
+        "SNAPBACK_HANDLER_HARNESS_INIT_FAILED",
+        "rejection hook mediators could not be sealed"
+      );
+    }
+    var hookBDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise, "_B");
+    var hookCDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise, "_C");
+    var thenDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise.prototype, "then");
+    var constructorDescriptor = trustedGetOwnPropertyDescriptor(
+      OriginalPromise.prototype,
+      "constructor"
+    );
+    var originalAliasDescriptor = trustedGetOwnPropertyDescriptor(g, "__OriginalPromise");
+    if (
+      !hookBDescriptor ||
+      hookBDescriptor.value !== handled ||
+      hookBDescriptor.configurable ||
+      hookBDescriptor.writable ||
+      !hookCDescriptor ||
+      hookCDescriptor.value !== rejected ||
+      hookCDescriptor.configurable ||
+      hookCDescriptor.writable ||
+      !thenDescriptor ||
+      thenDescriptor.value !== mediatedThen ||
+      thenDescriptor.configurable ||
+      thenDescriptor.writable ||
+      !constructorDescriptor ||
+      constructorDescriptor.value !== OriginalPromise ||
+      constructorDescriptor.configurable ||
+      constructorDescriptor.writable ||
+      !originalAliasDescriptor ||
+      originalAliasDescriptor.value !== g.Promise ||
+      originalAliasDescriptor.configurable ||
+      originalAliasDescriptor.writable
+    ) {
+      throw snapbackError(
+        "SNAPBACK_HANDLER_HARNESS_INIT_FAILED",
+        "rejection hook mediators were not sealed"
+      );
     }
     function describeReason(reason) {
       try {
