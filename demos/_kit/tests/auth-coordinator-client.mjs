@@ -67,6 +67,11 @@ const handshake = (authority = anonymous) => ({
   authority: authority.kind === 'session'
     ? { userId: authority.userId, sessionId: authority.sessionId, isAuthenticated: true }
     : { userId: null, sessionId: null, isAuthenticated: false },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: authority.kind === 'session' ? authority.sessionId : INCARNATION,
+    sessionGeneration: authority.kind === 'session' ? 1 : 0,
+  },
 });
 
 const credential = (token, authority, refreshAfter = 20_000) => ({
@@ -80,6 +85,11 @@ const credential = (token, authority, refreshAfter = 20_000) => ({
     createdAt: 1,
     expiresAt: 2,
     absoluteExpiresAt: 3,
+  },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: authority.sessionId,
+    sessionGeneration: 1,
   },
 });
 

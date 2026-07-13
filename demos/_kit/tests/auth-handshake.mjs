@@ -5,6 +5,7 @@ import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
 const suite = createSuite('_kit auth handshake', { expectedChecks: 4 });
 const originalFetch = globalThis.fetch;
+const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 
 const response = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -49,6 +50,11 @@ const handshake = ({
   provider: { key: 'email-code', available: activeMode === 'sessions' },
   transports: ['bearer'],
   authority: { userId: null, sessionId: null, isAuthenticated: false },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: AUTHORITY,
+    sessionGeneration: activeMode === 'sessions' ? 1 : 0,
+  },
 });
 
 try {
@@ -104,6 +110,7 @@ try {
     const body = JSON.parse(request.init.body);
     assert(!Object.hasOwn(body, 'auth'), 'sessions mutation omitted body auth');
     assert(!Object.hasOwn(body.ctx_ledger, 'auth_fingerprint'), 'sessions ledger omitted legacy fingerprint');
+    assertEqual(body.authorityDescriptor.authorityInstanceId, AUTHORITY);
     return { bodyKeys: Object.keys(body).sort() };
   });
 

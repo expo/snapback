@@ -807,6 +807,8 @@ export class AuthCoordinator {
         nextAuthorityKey: successorKey,
         reason,
         disposition: 'delete',
+        previousAuthority: clone(current.authority),
+        nextAuthority: clone(normalized.authority),
       });
     });
   }
@@ -862,6 +864,8 @@ export class AuthCoordinator {
       reason,
       disposition: 'delete',
       recovery: true,
+      previousAuthority: null,
+      nextAuthority: clone(clearing.pendingAuthority),
     });
   }
 
@@ -880,6 +884,8 @@ export class AuthCoordinator {
       reason: context.reason,
       disposition: context.disposition,
       recovery: context.recovery === true,
+      previousAuthority: clone(context.previousAuthority),
+      nextAuthority: clone(context.nextAuthority),
     });
     try {
       await this.#runAwaitedPhase('quiesce', barrier);
@@ -938,6 +944,8 @@ export class AuthCoordinator {
       reason: 'peer_transition',
       disposition: 'delete',
       recovery: true,
+      previousAuthority: clone(previous?.authority ?? null),
+      nextAuthority: clone(record.authority),
     });
     this.#activeBarrier = { phase: 'peer_transition', context };
     try {

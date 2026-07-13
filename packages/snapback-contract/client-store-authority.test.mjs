@@ -1,4 +1,4 @@
-// LLP 0056 format-3 authority epoch/key tests.
+// Composed format-5 principal/data + authority-instance/queue tests.
 
 import assert from 'node:assert/strict';
 
@@ -17,6 +17,8 @@ const APP = 'snapback.test/store-authority';
 const INCARNATION = '018f0d90-7b21-7a22-8c33-445566778899';
 const SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
 const USER = '018f0d90-7b23-7a22-8c33-445566778899';
+const AUTHORITY_1 = '018f0d90-7b24-7a22-8c33-445566778899';
+const AUTHORITY_2 = '018f0d90-7b25-7a22-8c33-445566778899';
 const anonymous = {
   kind: 'anonymous',
   authMode: 'sessions',
@@ -31,10 +33,100 @@ const authenticated = {
 };
 const key0 = canonicalAuthorityKey(APP, anonymous);
 const key1 = canonicalAuthorityKey(APP, authenticated);
+const principal = {
+  authMode: 'sessions',
+  authorizationStreamIncarnation: INCARNATION,
+  userId: USER,
+};
+const descriptor = (authorityInstanceId, sessionGeneration = 1) => ({
+  descriptorVersion: 1,
+  authorityInstanceId,
+  sessionGeneration,
+});
 
 const expectCode = async (code, operation) => {
   await assert.rejects(operation, (error) => error?.code === code);
 };
+
+// Format 3 did not possess a server-issued queue authority. Fully validate,
+// delete retained rows, and quarantine queued bytes as never replayable.
+{
+  const legacy = {
+    version: 3,
+    origin: 'legacy-v3-origin',
+    generation: 4,
+    authorityEpoch: null,
+    authorityKey: null,
+    authFingerprint: null,
+    artifactScope: null,
+    nextSequence: 2,
+    retained: { q: { rows: [{ private: true }] } },
+    pending: [{ id: 'cm_v3', function: 'write', sequence: 1, status: 'pending' }],
+    failed: [],
+    acknowledged: [],
+    stranded: [],
+    legacyV2Stranded: [],
+  };
+  const migrated = await createMemorySnapbackClientStore({ state: legacy }).snapshot();
+  assert.equal(migrated.version, SNAPBACK_CLIENT_STORE_VERSION);
+  assert.deepEqual(migrated.retained, {});
+  assert.deepEqual(migrated.pending, []);
+  assert.equal(migrated.legacyV3Stranded[0].id, 'cm_v3');
+  assert.equal(migrated.legacyV3Stranded[0].replayable, false);
+}
+
+// The principal axis preserves rows across a new session. The independent
+// authority-instance axis strands (and never silently retags) queued writes.
+{
+  const twoAxis = createMemorySnapbackClientStore();
+  await twoAxis.scopeAuthorization({
+    principalScope: principal,
+    authorityDescriptor: descriptor(AUTHORITY_1),
+    queryAuthorization: {},
+  });
+  await twoAxis.putRetainedQuery('private', { rows: [{ card: 'ace' }] });
+  await twoAxis.enqueueMutation({
+    id: 'cm_authority_1',
+    function: 'playCard',
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  });
+
+  // Refresh changes generation only: both axes remain usable.
+  await twoAxis.scopeAuthorization({
+    principalScope: principal,
+    authorityDescriptor: descriptor(AUTHORITY_1, 2),
+  });
+  assert.equal((await twoAxis.pendingMutations()).length, 1);
+
+  // New session, same user: rows survive; old queue is explicitly stranded.
+  await twoAxis.scopeAuthorization({
+    principalScope: principal,
+    authorityDescriptor: descriptor(AUTHORITY_2),
+  });
+  assert.deepEqual((await twoAxis.getRetainedQuery('private')).rows, [{ card: 'ace' }]);
+  assert.deepEqual(await twoAxis.pendingMutations(), []);
+  const stranded = await twoAxis.strandedMutations();
+  assert.equal(stranded[0].id, 'cm_authority_1');
+  assert.equal(stranded[0].replayable, false);
+  assert.equal(stranded[0].reason, 'authority_instance_changed');
+  await twoAxis.discardStranded();
+  assert.deepEqual(await twoAxis.strandedMutations(), []);
+
+  // Different principal owns a different retained-data namespace.
+  await twoAxis.scopeAuthorization({
+    principalScope: { ...principal, userId: 'another-user' },
+    authorityDescriptor: descriptor(AUTHORITY_2),
+  });
+  assert.equal(await twoAxis.getRetainedQuery('private'), null);
+  await assert.rejects(
+    twoAxis.scopeAuthorization({
+      principalScope: principal,
+      authorityDescriptor: descriptor(AUTHORITY_2),
+      queryAuthorization: { lease: 'not-item-7' },
+    }),
+    /queryAuthorization is reserved/,
+  );
+}
 
 // v2 validates without treating its generation/fingerprint as server
 // authority. Fingerprint-bearing private state is delete-only; explicitly

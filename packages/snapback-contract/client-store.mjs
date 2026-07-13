@@ -15,7 +15,7 @@ import {
   validateResyncObligation,
 } from './auth-invalidation.mjs';
 
-export const SNAPBACK_CLIENT_STORE_VERSION = 4;
+export const SNAPBACK_CLIENT_STORE_VERSION = 5;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
 const SNAPBACK_CTX_LEDGER_VERSION = 1;
 const REPLAY_OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
@@ -28,6 +28,7 @@ const ARTIFACT_SCOPE_FIELDS = [
   'versionStreamId',
 ];
 const AUTHORITY_KEY_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const UUID_V7_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const RECORD_IDENTITY_FIELDS = ['authFingerprint', 'authorityKey', ...ARTIFACT_SCOPE_FIELDS];
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -167,6 +168,11 @@ const freshState = () => ({
     queueGeneration: 0,
     pendingByScope: {},
   },
+  principalScope: null,
+  authorityDescriptor: null,
+  // Reserved for item 8. Format 5 owns and validates the namespace but gives
+  // it no lease/invalidation semantics.
+  queryAuthorization: {},
   authFingerprint: null,
   artifactScope: null,
   nextSequence: 1,
@@ -176,6 +182,8 @@ const freshState = () => ({
   acknowledged: [],
   stranded: [],
   legacyV2Stranded: [],
+  legacyV3Stranded: [],
+  legacyV4Stranded: [],
 });
 
 function clientStoreStateError(code, message, details = {}) {
@@ -237,6 +245,45 @@ function assertQueueAuthorizationState(queue, path, authorityEpoch) {
   }
 }
 
+function assertPrincipalScope(scope, path) {
+  assertStateField(isRecord(scope), path);
+  assertStateField(
+    Object.keys(scope).sort().join(',')
+      === 'authMode,authorizationStreamIncarnation,userId',
+    path,
+  );
+  assertStateField(scope.authMode === 'dev' || scope.authMode === 'sessions', `${path}.authMode`);
+  assertStateField(
+    typeof scope.authorizationStreamIncarnation === 'string'
+      && UUID_V7_PATTERN.test(scope.authorizationStreamIncarnation),
+    `${path}.authorizationStreamIncarnation`,
+  );
+  assertStateField(
+    scope.userId === null || (typeof scope.userId === 'string' && scope.userId.length > 0),
+    `${path}.userId`,
+  );
+}
+
+function assertAuthorityDescriptor(descriptor, path) {
+  assertStateField(isRecord(descriptor), path);
+  assertStateField(
+    Object.keys(descriptor).sort().join(',')
+      === 'authorityInstanceId,descriptorVersion,sessionGeneration',
+    path,
+  );
+  assertStateField(descriptor.descriptorVersion === 1, `${path}.descriptorVersion`);
+  assertStateField(
+    typeof descriptor.authorityInstanceId === 'string'
+      && UUID_V7_PATTERN.test(descriptor.authorityInstanceId),
+    `${path}.authorityInstanceId`,
+  );
+  assertStateField(
+    Number.isSafeInteger(descriptor.sessionGeneration)
+      && descriptor.sessionGeneration >= 0,
+    `${path}.sessionGeneration`,
+  );
+}
+
 function assertOptionalRecordIdentity(record, path) {
   for (const field of RECORD_IDENTITY_FIELDS) {
     assertStateField(
@@ -282,6 +329,9 @@ function assertMutationRecord(entry, path, expectedStatus) {
     `${path}.sequence`,
   );
   assertStateField(entry.status === expectedStatus, `${path}.status`);
+  if (entry.authorityDescriptor !== undefined && entry.authorityDescriptor !== null) {
+    assertAuthorityDescriptor(entry.authorityDescriptor, `${path}.authorityDescriptor`);
+  }
   if (entry.baseVersion !== undefined && entry.baseVersion !== null) {
     assertStateField(
       Number.isSafeInteger(entry.baseVersion) && entry.baseVersion >= 0,
@@ -326,10 +376,23 @@ function assertMutationRecord(entry, path, expectedStatus) {
   }
 }
 
-function assertMatchesCurrentScope(record, path, state) {
-  if (state.authorityEpoch !== null) {
+function assertMatchesCurrentScope(record, path, state, { queued = false } = {}) {
+  if (queued && state.authorityEpoch !== null) {
     assertStateField(record.authorityEpoch === state.authorityEpoch, `${path}.authorityEpoch`);
     assertStateField(record.authorityKey === state.authorityKey, `${path}.authorityKey`);
+  }
+  if (queued && state.authorityDescriptor !== null) {
+    assertStateField(
+      record.authorityDescriptor?.authorityInstanceId
+        === state.authorityDescriptor.authorityInstanceId,
+      `${path}.authorityDescriptor.authorityInstanceId`,
+    );
+  }
+  if (!queued && state.principalScope !== null) {
+    assertStateField(
+      stableJson(record.principalScope) === stableJson(state.principalScope),
+      `${path}.principalScope`,
+    );
   }
   if (state.authFingerprint) {
     assertStateField(record.authFingerprint === state.authFingerprint, `${path}.authFingerprint`);
@@ -357,7 +420,13 @@ const normalizeState = (state) => {
   const legacyV1 = state.version === 1;
   const legacyV2 = state.version === 2;
   const legacyV3 = state.version === 3;
-  if (legacyV1 || legacyV2 || legacyV3) {
+  const legacyV4 = state.version === 4;
+  const legacyV4HadQueueAuthorization = legacyV4
+    && Object.hasOwn(state, 'queueAuthorization');
+  const legacyV4HadAuthorityDescriptor = legacyV4
+    && state.authorityDescriptor !== null
+    && state.authorityDescriptor !== undefined;
+  if (legacyV1 || legacyV2 || legacyV3 || legacyV4) {
     // v2 changed acknowledgements from ambiguous bare ids to auth-tagged
     // records and replaces the collision-prone FNV scope with SHA-256. A v1
     // store retained only the 64-bit alias, not the canonical auth tuple, so
@@ -395,7 +464,7 @@ const normalizeState = (state) => {
   if (!Object.hasOwn(state, 'authorityEpoch')) state.authorityEpoch = null;
   if (!Object.hasOwn(state, 'authorityKey')) state.authorityKey = null;
   if (!Object.hasOwn(state, 'queueAuthorization')) {
-    if (!legacyV1 && !legacyV2 && !legacyV3) {
+    if (!legacyV1 && !legacyV2 && !legacyV3 && !legacyV4) {
       assertStateField(false, 'queueAuthorization');
     }
     state.queueAuthorization = {
@@ -406,6 +475,11 @@ const normalizeState = (state) => {
   }
   if (!Object.hasOwn(state, 'stranded')) state.stranded = [];
   if (!Object.hasOwn(state, 'legacyV2Stranded')) state.legacyV2Stranded = [];
+  if (!Object.hasOwn(state, 'legacyV3Stranded')) state.legacyV3Stranded = [];
+  if (!Object.hasOwn(state, 'legacyV4Stranded')) state.legacyV4Stranded = [];
+  if (!Object.hasOwn(state, 'principalScope')) state.principalScope = null;
+  if (!Object.hasOwn(state, 'authorityDescriptor')) state.authorityDescriptor = null;
+  if (!Object.hasOwn(state, 'queryAuthorization')) state.queryAuthorization = {};
   // Early v1 stores persisted acknowledgement ids as bare strings. Attribute
   // them only when the enclosing store already had a known auth scope; an
   // unscoped id cannot safely be sent under a newly supplied identity.
@@ -421,6 +495,15 @@ const normalizeState = (state) => {
     state.authorityEpoch === null
       || (Number.isSafeInteger(state.authorityEpoch) && state.authorityEpoch >= 0),
     'authorityEpoch',
+  );
+  if (state.principalScope !== null) assertPrincipalScope(state.principalScope, 'principalScope');
+  if (state.authorityDescriptor !== null) {
+    assertAuthorityDescriptor(state.authorityDescriptor, 'authorityDescriptor');
+  }
+  assertStateField(
+    isRecord(state.queryAuthorization)
+      && Object.keys(state.queryAuthorization).length === 0,
+    'queryAuthorization',
   );
   assertStateField(
     state.authorityKey === null
@@ -464,6 +547,8 @@ const normalizeState = (state) => {
   assertStateField(Array.isArray(state.failed), 'failed');
   assertStateField(Array.isArray(state.stranded), 'stranded');
   assertStateField(Array.isArray(state.legacyV2Stranded), 'legacyV2Stranded');
+  assertStateField(Array.isArray(state.legacyV3Stranded), 'legacyV3Stranded');
+  assertStateField(Array.isArray(state.legacyV4Stranded), 'legacyV4Stranded');
   assertStateField(
     Array.isArray(state.acknowledged)
       && state.acknowledged.every((entry) => (
@@ -531,7 +616,7 @@ const normalizeState = (state) => {
   state.pending.forEach((entry, index) => {
     const path = `pending.${index}`;
     assertMutationRecord(entry, path, 'pending');
-    assertMatchesCurrentScope(entry, path, state);
+    assertMatchesCurrentScope(entry, path, state, { queued: true });
     assertMutationIdentity(entry, path);
   });
   state.failed.forEach((entry, index) => {
@@ -554,6 +639,20 @@ const normalizeState = (state) => {
     assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
     assertStateField(Number.isSafeInteger(entry.sequence) && entry.sequence >= 1, `${path}.sequence`);
   });
+  state.legacyV3Stranded.forEach((entry, index) => {
+    const path = `legacyV3Stranded.${index}`;
+    assertStateField(isRecord(entry), path);
+    assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
+    assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
+    assertStateField(Number.isSafeInteger(entry.sequence) && entry.sequence >= 1, `${path}.sequence`);
+  });
+  state.legacyV4Stranded.forEach((entry, index) => {
+    const path = `legacyV4Stranded.${index}`;
+    assertStateField(isRecord(entry), path);
+    assertStateField(typeof entry.id === 'string' && entry.id.length > 0, `${path}.id`);
+    assertStateField(typeof entry.function === 'string' && entry.function.length > 0, `${path}.function`);
+    assertStateField(Number.isSafeInteger(entry.sequence) && entry.sequence >= 1, `${path}.sequence`);
+  });
   assertStateField(state.nextSequence > highestSequence, 'nextSequence');
   if (legacyV1) {
     // Fail closed at the v1 authority boundary. Retained rows, queued/failed
@@ -569,6 +668,38 @@ const normalizeState = (state) => {
     state.acknowledged = [];
     state.stranded = [];
     state.legacyV2Stranded = [];
+  }
+  if (legacyV3) {
+    // Format 3 had no server-issued authority-instance axis. Its queued bytes
+    // are inspectable for explicit discard only and can never be replayed.
+    state.legacyV3Stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
+      ...clone(entry),
+      legacyFormat: 3,
+      replayable: false,
+    })));
+    state.retained = {};
+    state.pending = [];
+    state.failed = [];
+    state.acknowledged = [];
+    state.principalScope = null;
+    state.authorityDescriptor = null;
+    state.queryAuthorization = {};
+  }
+  if (legacyV4 && !legacyV4HadAuthorityDescriptor) {
+    // Format 4 was independently occupied by item 6's invalidation queue and
+    // item 7's two-axis authority store. The item-6 shape has no server-issued
+    // authority instance, so its queued bytes are inspectable/discardable but
+    // can never be rebound for replay in the composed format 5 store.
+    state.legacyV4Stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
+      ...clone(entry),
+      legacyFormat: 4,
+      legacyShape: legacyV4HadQueueAuthorization ? 'invalidation' : 'unknown',
+      replayable: false,
+    })));
+    state.pending = [];
+    state.failed = [];
+    state.acknowledged = [];
+    state.authorityDescriptor = null;
   }
   return state;
 };
@@ -589,12 +720,24 @@ const recordMatchesArtifacts = (record, expected = {}) => (
   && (!expected.versionStreamId || record.cursor?.stream === expected.versionStreamId)
 );
 
-const recordMatchesCurrentScope = (state, record) => recordMatchesArtifacts(record, {
+const recordMatchesCurrentRetainedScope = (state, record) => recordMatchesArtifacts(record, {
+  authFingerprint: state.authFingerprint,
+  ...(state.artifactScope ?? {}),
+}) && (
+  state.principalScope === null
+  || stableJson(record.principalScope) === stableJson(state.principalScope)
+);
+
+const recordMatchesCurrentQueueScope = (state, record) => recordMatchesArtifacts(record, {
   authorityEpoch: state.authorityEpoch,
   authorityKey: state.authorityKey,
   authFingerprint: state.authFingerprint,
   ...(state.artifactScope ?? {}),
-});
+}) && (
+  state.authorityDescriptor === null
+  || record.authorityDescriptor?.authorityInstanceId
+    === state.authorityDescriptor.authorityInstanceId
+);
 
 function staleStoreScopeError(operation) {
   const error = new Error(`${operation} belongs to a stale client-store auth/artifact stream scope`);
@@ -794,6 +937,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       nextAuthorityKey,
       disposition = 'delete',
       strandQueued = false,
+      nextPrincipalScope = null,
     }) {
       if (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0) {
         throw new TypeError('transitionAuthority requires a safe expectedEpoch');
@@ -811,6 +955,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           { disposition },
         );
       }
+      if (nextPrincipalScope !== null) {
+        assertPrincipalScope(nextPrincipalScope, 'nextPrincipalScope');
+      }
       return transact((state, commit) => {
         if (state.authorityEpoch === nextEpoch && state.authorityKey === nextAuthorityKey) {
           return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
@@ -821,16 +968,18 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         advanceQueueGeneration(state, nextEpoch);
         state.queueAuthorization.pendingByScope = {};
         if (strandQueued) {
-          strandCurrentQueue(state, 'authority_transition', disposition);
+          strandCurrentQueue(state, 'authority_instance_changed', disposition);
         }
-        // Item 5 admits no retained private reads or queued replay. Even a
-        // same-user/new-session transition blanks and requires a fresh online
-        // snapshot; preservation becomes observable only under item 8.
-        state.retained = {};
+        const samePrincipal = state.principalScope !== null
+          && nextPrincipalScope !== null
+          && stableJson(state.principalScope) === stableJson(nextPrincipalScope);
+        if (!samePrincipal) state.retained = {};
         state.pending = [];
         state.failed = [];
         state.acknowledged = [];
-        state.authFingerprint = null;
+        if (!samePrincipal) state.authFingerprint = null;
+        state.principalScope = clone(nextPrincipalScope);
+        state.authorityDescriptor = null;
         state.authorityEpoch = nextEpoch;
         state.authorityKey = nextAuthorityKey;
         commit(state);
@@ -928,6 +1077,55 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       });
     },
 
+    /// Install the two independent format-5 axes from one authenticated
+    /// handshake. Principal identity owns retained rows; the opaque authority
+    /// instance owns queued mutations. `queryAuthorization` is reserved and
+    /// deliberately empty until item 8 supplies lease semantics.
+    async scopeAuthorization({
+      principalScope,
+      authorityDescriptor,
+      queryAuthorization = {},
+    }, expected = {}) {
+      assertPrincipalScope(principalScope, 'principalScope');
+      assertAuthorityDescriptor(authorityDescriptor, 'authorityDescriptor');
+      if (!isRecord(queryAuthorization) || Object.keys(queryAuthorization).length !== 0) {
+        throw new TypeError('queryAuthorization is reserved and must be an empty object');
+      }
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'authorization scope change');
+        const principalChanged = state.principalScope !== null
+          && stableJson(state.principalScope) !== stableJson(principalScope);
+        const unknownPrincipal = state.principalScope === null
+          && Object.keys(state.retained).length > 0;
+        if (principalChanged || unknownPrincipal) state.retained = {};
+
+        const authorityChanged = state.authorityDescriptor !== null
+          && state.authorityDescriptor.authorityInstanceId
+            !== authorityDescriptor.authorityInstanceId;
+        const unknownAuthority = state.authorityDescriptor === null
+          && (state.pending.length > 0 || state.failed.length > 0);
+        if (authorityChanged || unknownAuthority) {
+          state.stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
+            ...clone(entry),
+            replayable: false,
+            reason: authorityChanged ? 'authority_instance_changed' : 'authority_unknown',
+          })));
+          state.pending = [];
+          state.failed = [];
+          state.acknowledged = [];
+        }
+        state.principalScope = clone(principalScope);
+        state.authorityDescriptor = clone(authorityDescriptor);
+        state.queryAuthorization = {};
+        commit(state);
+        return clone({
+          principalScope: state.principalScope,
+          authorityDescriptor: state.authorityDescriptor,
+          queryAuthorization: state.queryAuthorization,
+        });
+      });
+    },
+
     async resolveMutationQueueObligation(resolutionValue, expected = {}) {
       const resolution = validateResolutionTicket(resolutionValue);
       return transact((state, commit) => {
@@ -1003,6 +1201,17 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           effectiveDisposition: effectiveDisposition(
             state.queueAuthorization.pendingByScope,
           ),
+        });
+      });
+    },
+
+    async authorizationScope(expected = {}) {
+      return transact((state) => {
+        assertExpectedAuthority(state, expected, 'authorization scope read');
+        return clone({
+          principalScope: state.principalScope,
+          authorityDescriptor: state.authorityDescriptor,
+          queryAuthorization: state.queryAuthorization,
         });
       });
     },
@@ -1126,21 +1335,24 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async putRetainedQuery(key, record) {
       return transact((state, commit) => {
         assertExpectedAuthority(state, record, 'retained query write');
-        if (!recordMatchesCurrentScope(state, record)) {
+        const scopedRecord = state.principalScope === null
+          ? record
+          : { ...record, principalScope: clone(state.principalScope) };
+        if (!recordMatchesCurrentRetainedScope(state, scopedRecord)) {
           throw staleStoreScopeError('retained query write');
         }
         const current = state.retained[key];
         if (
           current
-          && current.versionStreamId === record.versionStreamId
-          && current.cursor?.stream === record.cursor?.stream
+          && current.versionStreamId === scopedRecord.versionStreamId
+          && current.cursor?.stream === scopedRecord.cursor?.stream
           && Number.isFinite(current.version)
-          && Number.isFinite(record.version)
-          && current.version > record.version
+          && Number.isFinite(scopedRecord.version)
+          && current.version > scopedRecord.version
         ) {
           return clone(current);
         }
-        state.retained[key] = clone({ ...record, stale: false });
+        state.retained[key] = clone({ ...scopedRecord, stale: false });
         commit(state);
         return clone(state.retained[key]);
       });
@@ -1151,7 +1363,16 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         assertExpectedAuthority(state, record, 'queued mutation write');
         assertExpectedQueue(state, record, 'queued mutation write');
         assertQueueRunnable(state, 'mutation enqueue');
-        if (!recordMatchesCurrentScope(state, record)) {
+        if (state.authorityDescriptor !== null) {
+          if (record.authorityDescriptor === undefined) {
+            throw clientStoreStateError(
+              'SNAPBACK_AUTHORITY_DESCRIPTOR_REQUIRED',
+              'queued mutation must capture the current authority descriptor',
+            );
+          }
+          assertAuthorityDescriptor(record.authorityDescriptor, 'record.authorityDescriptor');
+        }
+        if (!recordMatchesCurrentQueueScope(state, record)) {
           throw staleStoreScopeError('queued mutation write');
         }
         let sequence = Number.isSafeInteger(record.sequence)
@@ -1397,7 +1618,7 @@ export function createSnapbackClientStoreAuthParticipant(store, {
   strandQueued = () => false,
 } = {}) {
   if (!store || typeof store.transitionAuthority !== 'function') {
-    throw new TypeError('client-store auth participant requires a format-4 store');
+    throw new TypeError('client-store auth participant requires a format-5 store');
   }
   return Object.freeze({
     name,
@@ -1411,6 +1632,16 @@ export function createSnapbackClientStoreAuthParticipant(store, {
         nextAuthorityKey: context.nextAuthorityKey,
         disposition: context.disposition,
         strandQueued: strandQueued(context) === true,
+        nextPrincipalScope: context.nextAuthority
+          ? {
+              authMode: context.nextAuthority.authMode,
+              authorizationStreamIncarnation:
+                context.nextAuthority.authorizationStreamIncarnation,
+              userId: context.nextAuthority.kind === 'session'
+                ? context.nextAuthority.userId
+                : null,
+            }
+          : null,
       });
     },
     async resume() {},

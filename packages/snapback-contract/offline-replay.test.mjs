@@ -15,6 +15,8 @@ import {
 } from './client-store.mjs';
 
 const USER = 'user_offline';
+const AUTH_STREAM = '018f0d90-7b21-7a22-8c33-445566778899';
+const AUTHORITY_INSTANCE = '018f0d90-7b24-7a22-8c33-445566778899';
 assert.equal(
   snapbackAuthFingerprint(USER),
   'sha256:86461827557b6998a5a62a63791d835495afd03cb573055d83bd5be048cc082a',
@@ -164,6 +166,21 @@ function makeClient() {
   };
   return {
     state,
+    async currentAuthorizationScope({ devUserId = null } = {}) {
+      return {
+        principalScope: {
+          authMode: 'dev',
+          authorizationStreamIncarnation: AUTH_STREAM,
+          userId: devUserId,
+        },
+        authorityDescriptor: {
+          descriptorVersion: 1,
+          authorityInstanceId: AUTHORITY_INSTANCE,
+          sessionGeneration: 0,
+        },
+        queryAuthorization: {},
+      };
+    },
     async query() {
       if (!state.online) offline();
       return snapshot();
@@ -209,7 +226,12 @@ function makeClient() {
       const id = request.clientMutationId;
       assert.ok(id, 'replayed mutation must carry clientMutationId');
       assert.ok(request.ctxLedger, 'replayed mutation must carry ctxLedger');
-      state.deliveries.push({ name, id });
+      assert.equal(
+        request.authorityDescriptor?.authorityInstanceId,
+        AUTHORITY_INSTANCE,
+        'replayed mutation must preserve its authority descriptor',
+      );
+      state.deliveries.push({ name, id, authorityDescriptor: request.authorityDescriptor });
       if (state.settlements.has(id)) return state.settlements.get(id);
 
       if (name === 'createTodo') {
@@ -359,6 +381,11 @@ const consumedBefore502 = await ambiguousStore.enqueueMutation({
   versionStreamId: retainedSurfaceIdentity.retainedIdentity.versionStreamId,
   cursor: { stream: retainedSurfaceIdentity.retainedIdentity.versionStreamId, version: 0 },
   baseVersion: 0,
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: AUTHORITY_INSTANCE,
+    sessionGeneration: 0,
+  },
 });
 await ambiguousStore.settleMutation(consumedBefore502.id, {
   status: 'confirmed',

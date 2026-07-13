@@ -606,11 +606,23 @@ export async function createSnapbackContractSurface({
           }
         : {}),
     };
+    const storeAuthorityCapture = {
+      ...(Number.isSafeInteger(storeExpectation.authorityEpoch)
+        ? {
+            authorityEpoch: storeExpectation.authorityEpoch,
+            authorityKey: storeExpectation.authorityKey,
+          }
+        : {}),
+    };
+    const storeAuthorization = offlineReplayEnabled
+      && typeof client.currentAuthorizationScope === 'function'
+      ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
+      : null;
     if (clientStore) {
-      await clientStore.scopeToAuth(storeAuthFingerprint, {
-        authorityEpoch: storeExpectation.authorityEpoch,
-        authorityKey: storeExpectation.authorityKey,
-      });
+      if (storeAuthorization && typeof clientStore.scopeAuthorization === 'function') {
+        await clientStore.scopeAuthorization(storeAuthorization, storeAuthorityCapture);
+      }
+      await clientStore.scopeToAuth(storeAuthFingerprint, storeAuthorityCapture);
       await clientStore.scopeToArtifacts({
         schemaHash: storeExpectation.schemaHash,
         inputsHash: storeExpectation.inputsHash,
@@ -618,10 +630,7 @@ export async function createSnapbackContractSurface({
         appId: storeExpectation.appId,
         databaseId: storeExpectation.databaseId,
         versionStreamId: storeExpectation.versionStreamId,
-      }, {
-        authorityEpoch: storeExpectation.authorityEpoch,
-        authorityKey: storeExpectation.authorityKey,
-      });
+      }, storeAuthorityCapture);
     }
     let durablePendingCount = 0;
     let retainedOffline = false;
@@ -1114,6 +1123,9 @@ export async function createSnapbackContractSurface({
               stream: expectation.versionStreamId,
               version: optimisticOp.baseVersion,
             },
+            ...(storeAuthorization
+              ? { authorityDescriptor: storeAuthorization.authorityDescriptor }
+              : {}),
           });
           durablePendingCount += 1;
         }
@@ -1140,6 +1152,7 @@ export async function createSnapbackContractSurface({
           clientMutationId: queued?.id ?? null,
           acknowledgedClientMutationIds: sentAcknowledgements,
           ctxLedger: queued?.ctxLedger ?? null,
+          authorityDescriptor: queued?.authorityDescriptor ?? null,
         });
         const resultCapture = captureForTransportValue(client, capture, output);
         await commitCurrent(resultCapture, () => {
@@ -1666,6 +1679,7 @@ export async function createSnapbackContractSurface({
             clientMutationId: record.id,
             acknowledgedClientMutationIds: sentAcknowledgements,
             ctxLedger: record.ctxLedger,
+            authorityDescriptor: record.authorityDescriptor ?? null,
           });
           const resultCapture = captureForTransportValue(client, resyncCapture, output);
           await commitCurrent(resultCapture, () => undefined);

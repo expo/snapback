@@ -145,6 +145,31 @@ const allocatorForClientStore = (clientStoreId) => {
   return allocator;
 };
 
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+const authorityDescriptorIsValid = (descriptor) => (
+  descriptor !== null
+  && typeof descriptor === 'object'
+  && !Array.isArray(descriptor)
+  && Object.keys(descriptor).sort().join(',')
+    === 'authorityInstanceId,descriptorVersion,sessionGeneration'
+  && descriptor.descriptorVersion === 1
+  && typeof descriptor.authorityInstanceId === 'string'
+  && UUID_V7.test(descriptor.authorityInstanceId)
+  && Number.isSafeInteger(descriptor.sessionGeneration)
+  && descriptor.sessionGeneration >= 0
+);
+
+const requireAuthorityDescriptor = (descriptor, code = 'SNAPBACK_AUTH_HANDSHAKE_INVALID') => {
+  if (authorityDescriptorIsValid(descriptor)) {
+    return Object.freeze({ ...descriptor });
+  }
+  const error = new Error(`${code}: authority descriptor is missing or malformed`);
+  error.code = code;
+  error.diagnostic = { code, message: 'authority descriptor is missing or malformed' };
+  throw error;
+};
+
 const markAuthorityCapture = (value, capture) => {
   if (!capture || value === null || typeof value !== 'object') return value;
   try {
@@ -322,7 +347,7 @@ export class SnapbackClient {
     bearerToken = null,
     authClientProtocol = 1,
     authInvalidationProtocol = null,
-    authorityDescriptorProtocol = null,
+    authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
     authCoordinator = null,
     clientStoreId = processClientStoreId,
@@ -475,6 +500,8 @@ export class SnapbackClient {
   }
 
   #validateAuthSession(session) {
+    const descriptorRequired = session?.clientProtocols?.authorityDescriptor === 1
+      || session?.availability?.queuedReplay?.minimumAuthorityDescriptorProtocol === 1;
     const valid = session
       && session.protocolVersion === 1
       && typeof session.serverStartupNonce === 'string'
@@ -485,6 +512,8 @@ export class SnapbackClient {
       && (session.desiredMode === 'dev' || session.desiredMode === 'sessions')
       && session.availability
       && session.authority;
+    const descriptorValid = !descriptorRequired
+      || authorityDescriptorIsValid(session?.authorityDescriptor);
     const coordinatedValid = !this.authCoordinator || (
       typeof session.authorizationStreamIncarnation === 'string'
       && session.authorizationStreamIncarnation.length > 0
@@ -497,7 +526,7 @@ export class SnapbackClient {
         )
       )
     );
-    if (valid && coordinatedValid) return;
+    if (valid && coordinatedValid && descriptorValid) return;
     const diagnostic = {
       code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
       message: 'GET /auth/session returned an invalid protocol-v1 response',
@@ -524,6 +553,37 @@ export class SnapbackClient {
       ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
       : null;
     return pending;
+  }
+
+  async currentAuthorityDescriptor() {
+    const session = await this.authSession();
+    return requireAuthorityDescriptor(session?.authorityDescriptor);
+  }
+
+  async currentAuthorizationScope({ devUserId = null } = {}) {
+    const session = await this.authSession();
+    const authorityDescriptor = requireAuthorityDescriptor(session?.authorityDescriptor);
+    const authorizationStreamIncarnation = session?.authorizationStreamIncarnation
+      ?? (session?.activeMode === 'dev' ? authorityDescriptor.authorityInstanceId : null);
+    if (!UUID_V7.test(authorizationStreamIncarnation ?? '')) {
+      const error = new Error(
+        'SNAPBACK_AUTH_HANDSHAKE_INVALID: authorization stream incarnation is missing',
+      );
+      error.code = 'SNAPBACK_AUTH_HANDSHAKE_INVALID';
+      throw error;
+    }
+    const userId = session.activeMode === 'sessions'
+      ? (session.authority?.isAuthenticated ? session.authority.userId : null)
+      : devUserId;
+    return Object.freeze({
+      principalScope: Object.freeze({
+        authMode: session.activeMode,
+        authorizationStreamIncarnation,
+        userId: userId ?? null,
+      }),
+      authorityDescriptor,
+      queryAuthorization: Object.freeze({}),
+    });
   }
 
   async #fetchAuthSessionWithBearer(bearer) {
@@ -612,7 +672,8 @@ export class SnapbackClient {
       && Number.isSafeInteger(response.refreshAfter)
       && response.session
       && typeof response.session.id === 'string'
-      && typeof response.session.userId === 'string';
+      && typeof response.session.userId === 'string'
+      && authorityDescriptorIsValid(response.authorityDescriptor);
     if (valid) return response;
     const error = new Error(
       'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid credential response',
@@ -810,12 +871,33 @@ export class SnapbackClient {
       }
 
       const sessionsMode = session?.activeMode === 'sessions';
-      const wireBody = sessionsMode ? sessionWireBody(path, body) : body;
+      let requestBody = body;
+      if (path.startsWith('/mutation/') && body?.clientMutationId) {
+        const queuedAvailability = session?.availability?.queuedReplay;
+        if (session && queuedAvailability?.available !== true) {
+          const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
+          const error = new Error(`${code}: queued mutation replay is unavailable`);
+          error.code = code;
+          error.diagnostic = { code, message: 'queued mutation replay is unavailable' };
+          throw error;
+        }
+        const descriptor = body.authorityDescriptor ?? session?.authorityDescriptor ?? null;
+        if (descriptor !== null || sessionsMode) {
+          requestBody = {
+            ...body,
+            authorityDescriptor: requireAuthorityDescriptor(
+              descriptor,
+              'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+            ),
+          };
+        }
+      }
+      const wireBody = sessionsMode ? sessionWireBody(path, requestBody) : requestBody;
       const merged = {
         ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
         ...(sessionsMode ? this.#sessionRequestHeaders(
           path,
-          body,
+          requestBody,
           this.authCoordinator ? bearerUsed : undefined,
         ) : {}),
         ...(headers ?? {}),
@@ -991,6 +1073,7 @@ export class SnapbackClient {
       tokenType: response.tokenType,
       refreshAfter: response.refreshAfter,
       session: response.session,
+      authorityDescriptor: { ...response.authorityDescriptor },
     };
   }
 
@@ -998,7 +1081,9 @@ export class SnapbackClient {
     if (!this.authCoordinator) {
       throw new TypeError('authRefresh requires AuthCoordinator custody');
     }
-    await this.authSession();
+    const currentDescriptor = requireAuthorityDescriptor(
+      (await this.authSession()).authorityDescriptor,
+    );
     const capture = this.authCoordinator.capture();
     const suspect = this.authCoordinator.credentialFor(capture).bearer;
     try {
@@ -1023,6 +1108,16 @@ export class SnapbackClient {
             error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
             throw error;
           }
+          if (
+            response.authorityDescriptor.authorityInstanceId
+            !== currentDescriptor.authorityInstanceId
+          ) {
+            const error = new Error(
+              'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: refresh changed authority instance',
+            );
+            error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+            throw error;
+          }
           return {
             bearer: response.token,
             refreshAfterMs: response.refreshAfter,
@@ -1030,6 +1125,7 @@ export class SnapbackClient {
               tokenType: response.tokenType,
               refreshAfter: response.refreshAfter,
               session: response.session,
+              authorityDescriptor: { ...response.authorityDescriptor },
             },
           };
         },
@@ -1150,6 +1246,7 @@ export class SnapbackClient {
     clientMutationId = null,
     acknowledgedClientMutationIds = [],
     ctxLedger = null,
+    authorityDescriptor = null,
   } = {}) {
     const name = functionName(ref);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
@@ -1161,6 +1258,12 @@ export class SnapbackClient {
     // id atomically with data changes and returns the original result on a
     // duplicate delivery.
     if (clientMutationId) body.clientMutationId = clientMutationId;
+    if (authorityDescriptor) {
+      body.authorityDescriptor = requireAuthorityDescriptor(
+        authorityDescriptor,
+        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+      );
+    }
     if (acknowledgedClientMutationIds.length > 0) {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
