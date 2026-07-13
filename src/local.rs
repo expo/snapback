@@ -1680,6 +1680,14 @@ impl LocalSnapback {
             )
         }));
 
+        // Startup constructs an empty process-local ephemeral backend, so the
+        // already-validated committed schema cannot conflict with a live room.
+        // Network staging uses the admission barrier instead of this pre-bind
+        // publication seam.
+        self.ephemeral
+            .replace_collections(self.db.schema().ephemeral_collections.clone())
+            .expect("pre-bind validated ephemeral definitions publish infallibly");
+
         self.functions = manifest;
         self.functions_loaded = true;
         self.advance_app_generation();
