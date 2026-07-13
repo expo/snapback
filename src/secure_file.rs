@@ -301,6 +301,100 @@ pub(crate) fn open_strict_owner_only(path: &Path) -> io::Result<File> {
     Ok(file)
 }
 
+/// Read an operator-selected executable artifact through one pinned inode.
+///
+/// Startup manifests are not credentials, so they may be group/world-readable,
+/// but another principal must not be able to replace or modify the authority
+/// they carry. The opened object must therefore be a single-link regular file
+/// owned by the effective user, have no group/other write bit or extended ACL,
+/// and remain the path's exact inode and size through the bounded read.
+// @ref LLP 0055#cold-startup-artifact-carrier — executable deployment authority is read once through a stable, non-writable inode.
+#[cfg(unix)]
+pub(crate) fn read_trusted_executable_artifact(
+    path: &Path,
+    maximum_bytes: usize,
+) -> io::Result<Vec<u8>> {
+    use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
+
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)?;
+    validate_trusted_executable_descriptor(&file)?;
+    let before = file.metadata()?;
+    if before.len() > maximum_bytes as u64 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "executable artifact exceeds its size limit",
+        ));
+    }
+
+    let mut bytes = Vec::with_capacity(before.len() as usize);
+    (&mut file)
+        .take(maximum_bytes as u64 + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() > maximum_bytes {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "executable artifact exceeds its size limit",
+        ));
+    }
+
+    validate_trusted_executable_descriptor(&file)?;
+    let after = file.metadata()?;
+    let current = std::fs::symlink_metadata(path)?;
+    if !current.file_type().is_file()
+        || current.dev() != before.dev()
+        || current.ino() != before.ino()
+        || after.dev() != before.dev()
+        || after.ino() != before.ino()
+        || after.len() != before.len()
+        || bytes.len() as u64 != before.len()
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "executable artifact changed while it was being read",
+        ));
+    }
+    Ok(bytes)
+}
+
+#[cfg(unix)]
+fn validate_trusted_executable_descriptor(file: &File) -> io::Result<()> {
+    use std::os::unix::fs::MetadataExt as _;
+
+    let metadata = file.metadata()?;
+    if !metadata.file_type().is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "executable artifact is not a regular file",
+        ));
+    }
+    // SAFETY: geteuid has no preconditions and reads process identity only.
+    if metadata.uid() != unsafe { libc::geteuid() } {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "executable artifact is not owned by the effective user",
+        ));
+    }
+    if metadata.mode() & 0o022 != 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "executable artifact is writable by group or other",
+        ));
+    }
+    if metadata.nlink() != 1 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "executable artifact must have exactly one hard link",
+        ));
+    }
+    // Conservatively reject every persisted access ACL. That is stronger than
+    // attempting to interpret platform-specific write grants and prevents an
+    // unrecognized ACL form from becoming executable authority.
+    validate_no_extended_acl(file)
+}
+
 #[cfg(not(unix))]
 pub(crate) fn read_strict_owner_only(_path: &Path, _maximum_bytes: usize) -> io::Result<Vec<u8>> {
     Err(io::Error::new(
@@ -314,6 +408,17 @@ pub(crate) fn open_strict_owner_only(_path: &Path) -> io::Result<File> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "strict owner-only capability-file validation is not implemented on this host",
+    ))
+}
+
+#[cfg(not(unix))]
+pub(crate) fn read_trusted_executable_artifact(
+    _path: &Path,
+    _maximum_bytes: usize,
+) -> io::Result<Vec<u8>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "trusted executable-artifact validation is not implemented on this host",
     ))
 }
 
@@ -618,6 +723,60 @@ mod tests {
         assert!(read_owner_only(&link).is_err());
         assert!(write_owner_only(&link, b"replacement").is_err());
         assert_eq!(std::fs::read(target).unwrap(), b"do-not-touch");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trusted_executable_artifact_accepts_readable_but_non_writable_file() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("deployment.json");
+        std::fs::write(&path, br#"{"formatVersion":1}"#).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        assert_eq!(
+            read_trusted_executable_artifact(&path, 1_024).unwrap(),
+            br#"{"formatVersion":1}"#
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trusted_executable_artifact_refuses_writable_link_or_oversize_input() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("deployment.json");
+        std::fs::write(&path, b"authority").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o664)).unwrap();
+        assert_eq!(
+            read_trusted_executable_artifact(&path, 1_024)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
+
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(
+            read_trusted_executable_artifact(&path, 4)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::InvalidData
+        );
+
+        let link = dir.path().join("deployment-link.json");
+        std::os::unix::fs::symlink(&path, &link).unwrap();
+        assert!(read_trusted_executable_artifact(&link, 1_024).is_err());
+
+        let hardlink = dir.path().join("deployment-hardlink.json");
+        std::fs::hard_link(&path, &hardlink).unwrap();
+        assert_eq!(
+            read_trusted_executable_artifact(&path, 1_024)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
     }
 
     #[cfg(unix)]

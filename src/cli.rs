@@ -6,10 +6,11 @@ use crate::admin_secret_read::{
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::LocalSnapback;
-use crate::manifest::SNAPBACK_SCHEMA_VERSION;
+use crate::manifest::{FunctionManifest, SNAPBACK_SCHEMA_VERSION, SchemaManifest};
 use crate::server;
 use anyhow::Context;
 use clap::Parser;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::io::ErrorKind;
@@ -23,6 +24,51 @@ use uuid::Uuid;
 
 const DEFAULT_PORT_RANGE_START: u16 = 4287;
 const DEFAULT_PORT_RANGE_END: u16 = 4387;
+const STARTUP_ARTIFACT_MAX_BYTES: usize = 32 * 1024 * 1024;
+
+/// The one-file cold-start carrier for a complete deployment pair. Keeping
+/// the outer DTO closed prevents a second, unvalidated authority channel from
+/// being smuggled beside the exact schema/functions/seed tuple.
+// @ref LLP 0055#cold-startup-artifact-carrier — one trusted file carries the complete deployment generation.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AuthStartupArtifacts {
+    #[serde(rename = "formatVersion")]
+    pub format_version: u64,
+    pub schema: SchemaManifest,
+    pub functions: FunctionManifest,
+    #[serde(default)]
+    pub seed: Option<Value>,
+}
+
+impl AuthStartupArtifacts {
+    pub(crate) fn read(path: &Path) -> anyhow::Result<Self> {
+        let bytes =
+            crate::secure_file::read_trusted_executable_artifact(path, STARTUP_ARTIFACT_MAX_BYTES)
+                .map_err(|_| {
+                    anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                        "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
+                        "auth-mode",
+                        "the startup artifact carrier could not be read safely",
+                    ))
+                })?;
+        let carrier: Self = serde_json::from_slice(&bytes).map_err(|_| {
+            anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+                "auth-mode",
+                "the startup artifact carrier is not the closed version-1 shape",
+            ))
+        })?;
+        if carrier.format_version != 1 {
+            return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+                "auth-mode",
+                "the startup artifact carrier version is unsupported",
+            )));
+        }
+        Ok(carrier)
+    }
+}
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(about = "Run the Snapback local development server")]
@@ -3150,6 +3196,46 @@ mod tests {
             ])
             .is_err(),
             "unstage and downgrade-consume authority are mutually exclusive"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn startup_artifact_carrier_is_bounded_closed_and_versioned() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("deployment.auth.json");
+        let valid = json!({
+            "formatVersion": 1,
+            "schema": crate::manifest::SchemaManifest::default(),
+            "functions": crate::manifest::FunctionManifest::default(),
+            "seed": null,
+        });
+        std::fs::write(&path, serde_json::to_vec(&valid).unwrap()).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let parsed = super::AuthStartupArtifacts::read(&path).unwrap();
+        assert_eq!(parsed.format_version, 1);
+        assert!(parsed.seed.is_none());
+
+        let mut unknown = valid.clone();
+        unknown["secondCarrier"] = json!(true);
+        std::fs::write(&path, serde_json::to_vec(&unknown).unwrap()).unwrap();
+        let error = super::AuthStartupArtifacts::read(&path).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH")
+        );
+
+        let mut unsupported = valid;
+        unsupported["formatVersion"] = json!(2);
+        std::fs::write(&path, serde_json::to_vec(&unsupported).unwrap()).unwrap();
+        let error = super::AuthStartupArtifacts::read(&path).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH")
         );
     }
 
