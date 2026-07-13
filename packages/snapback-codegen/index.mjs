@@ -48,6 +48,12 @@ const HEADER = generatedByHeader();
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+// @ref LLP 0054#reservation — SQLite folds ASCII identifier case, so every
+// spelling of the protected auth namespace is rejected at authoring time.
+const isAuthReservedIdentifier = (name) => {
+  const folded = name.toLowerCase();
+  return folded === '_auth' || folded.startsWith('_auth_');
+};
 const MAX_EPHEMERAL_COLLECTION_NAME_BYTES = 64;
 const MAX_EPHEMERAL_SCOPE_FIELDS = 16;
 const MAX_EPHEMERAL_SCOPE_KEY_BYTES = 64;
@@ -381,7 +387,7 @@ export async function generateInProcess(backendDir) {
   const tables = dict();
   const seenTables = new Set();
   for (const [name, table] of Object.entries(schemaDef.tables)) {
-    if (!IDENT.test(name) || name.startsWith('_snapback')) {
+    if (!IDENT.test(name) || name.startsWith('_snapback') || isAuthReservedIdentifier(name)) {
       err('SCHEMA_INVALID_IDENTIFIER', 'schema', `invalid table identifier ${name}`, { table: name });
       continue;
     }
@@ -414,7 +420,7 @@ export async function generateInProcess(backendDir) {
     const indexes = [];
     const seenIndexes = new Set();
     for (const index of table.indexes) {
-      if (!IDENT.test(index.name) || index.name.startsWith('_snapback')) {
+      if (!IDENT.test(index.name) || index.name.startsWith('_snapback') || isAuthReservedIdentifier(index.name)) {
         err('SCHEMA_INVALID_IDENTIFIER', 'schema', `invalid index identifier ${name}.${index.name}`, { table: name, index: index.name });
       }
       if (seenIndexes.has(index.name)) {

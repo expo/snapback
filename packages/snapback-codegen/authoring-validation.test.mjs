@@ -61,6 +61,35 @@ export default defineSchema({ todos: defineTable({ title: v.string() }).index('b
   assert(diagnostics.some((d) => d.code === 'SCHEMA_INVALID_IDENTIFIER' && d.index === 'bad-name'));
 }
 
+// LLP 0054 reservation is ASCII-case-insensitive at both codegen scopes.
+for (const table of ['_auth', '_auth_users', '_AUTH_USERS', '_AuTh_Users']) {
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${JSON.stringify(table)}: defineTable({ title: v.string() }) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((d) => d.code === 'SCHEMA_INVALID_IDENTIFIER' && d.table === table),
+    `expected protected auth table ${table} to be rejected`,
+  );
+}
+
+for (const index of ['_auth', '_auth_lookup', '_AUTH_LOOKUP', '_AuTh_Lookup']) {
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ todos: defineTable({ title: v.string() }).index(${JSON.stringify(index)}, ['title']) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((d) => d.code === 'SCHEMA_INVALID_IDENTIFIER' && d.index === index),
+    `expected protected auth index ${index} to be rejected`,
+  );
+}
+
 {
   const diagnostics = await invalidCase({
     functions: `

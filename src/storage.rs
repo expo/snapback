@@ -21,6 +21,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+// The item-3 provider integration consumes these crate-private seams after this
+// catalog lane lands; keep the catalog module narrow without making unfinished
+// provider routes part of the public storage API in this commit.
+#[allow(dead_code)]
+#[path = "storage/auth.rs"]
+pub(crate) mod auth;
+
 #[cfg(test)]
 type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
 
@@ -333,6 +340,15 @@ impl LocalDatabase {
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
         let path = path.as_ref().to_path_buf();
         let conn = Connection::open(&path)?;
+        // @ref LLP 0054#reservation — a stored manifest is an admission
+        // boundary on every reopen, not only when a new schema is applied.
+        // Probe and validate it before WAL configuration or any additive infra
+        // migration so a reserved-name database reaches the collision-recovery
+        // caller without a request-attributable storage mutation.
+        let stored_schema = load_schema_manifest_from_connection(&conn)?;
+        if let Some(manifest) = &stored_schema {
+            validate_schema(manifest)?;
+        }
         let mut db = Self {
             conn,
             path: Some(path.clone()),
@@ -341,7 +357,7 @@ impl LocalDatabase {
         };
         db.configure(true)?;
         db.create_infra()?;
-        db.schema = db.load_schema_manifest()?.unwrap_or_default();
+        db.schema = stored_schema.unwrap_or_default();
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
@@ -379,6 +395,14 @@ impl LocalDatabase {
 
     pub fn schema(&self) -> &SchemaManifest {
         &self.schema
+    }
+
+    /// File-backed databases publish their canonical storage path to sibling
+    /// system stores (notably the auth keyring); memory databases return None.
+    /// This does not expose the SQLite connection or an app-data escape hatch.
+    #[allow(dead_code)] // Consumed by the ENG-24596 keyring integration lane.
+    pub(crate) fn database_path(&self) -> Option<&Path> {
+        self.path.as_deref()
     }
 
     pub fn info(&self) -> SnapbackResult<StorageInfo> {
@@ -769,10 +793,11 @@ impl LocalDatabase {
     /// query, so a test can assert it uses the `(table_name, version)` index
     /// rather than scanning. @ref LLP 0032 L3.
     pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
+        let table = schema_table(&self.schema, table)?;
         let mut statement = self.conn.prepare(
             "EXPLAIN QUERY PLAN SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1",
         )?;
-        let rows = statement.query_map(params![table], |row| row.get::<_, String>(3))?;
+        let rows = statement.query_map(params![table.name], |row| row.get::<_, String>(3))?;
         let mut detail = String::new();
         for row in rows {
             detail.push_str(&row?);
@@ -831,6 +856,10 @@ impl LocalDatabase {
     ) -> SnapbackResult<Option<MutationOutput>> {
         let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
+        // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state is
+        // deleted in dependency order inside the same transaction as app reset,
+        // while the protected catalog DDL and marker remain installed.
+        auth::reset_auth_catalog_in(&tx)?;
         // Schema evolution preserves removed physical tables for rollback.
         // Reset is a stronger, app-wide destruction boundary: clear every
         // physical user table, including one absent from the current manifest,
@@ -1950,30 +1979,43 @@ impl LocalDatabase {
         tx.commit()?;
         Ok(())
     }
+}
 
-    fn load_schema_manifest(&self) -> SnapbackResult<Option<SchemaManifest>> {
-        let value: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_SCHEMA_MANIFEST],
-                |row| row.get(0),
-            )
-            .optional()?;
-
-        value
-            .map(|value| {
-                serde_json::from_str(&value).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_SCHEMA_PARSE_FAILED",
-                        "schema",
-                        "stored schema manifest could not be parsed",
-                    )
-                    .with_detail("error", error.to_string())
-                })
-            })
-            .transpose()
+fn load_schema_manifest_from_connection(
+    conn: &Connection,
+) -> SnapbackResult<Option<SchemaManifest>> {
+    let has_meta = conn
+        .query_row(
+            "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_snapback_meta'",
+            [],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !has_meta {
+        return Ok(None);
     }
+
+    let value: Option<String> = conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![META_SCHEMA_MANIFEST],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    value
+        .map(|value| {
+            serde_json::from_str(&value).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_SCHEMA_PARSE_FAILED",
+                    "schema",
+                    "stored schema manifest could not be parsed",
+                )
+                .with_detail("error", error.to_string())
+            })
+        })
+        .transpose()
 }
 
 /// Read a query plan against any connection: shared by the write lane (the
@@ -2823,13 +2865,19 @@ fn physical_user_tables(conn: &Connection) -> SnapbackResult<Vec<String>> {
         "SELECT name
          FROM sqlite_schema
          WHERE type = 'table'
-           AND name NOT GLOB '_snapback_*'
            AND name NOT GLOB 'sqlite_*'
          ORDER BY name",
     )?;
-    Ok(statement
+    let tables = statement
         .query_map([], |row| row.get(0))?
-        .collect::<Result<Vec<_>, _>>()?)
+        .collect::<Result<Vec<String>, _>>()?;
+    Ok(tables
+        .into_iter()
+        .filter(|name| {
+            let folded = name.to_ascii_lowercase();
+            !folded.starts_with("_snapback") && !is_auth_reserved_identifier(name)
+        })
+        .collect())
 }
 
 fn physical_columns(
@@ -2865,6 +2913,7 @@ fn validate_query_index(table: &TableManifest, plan: &QueryPlan) -> SnapbackResu
     let Some(index_name) = &plan.indexed_by else {
         return Ok(());
     };
+    validate_user_identifier("index", index_name)?;
     if table.indexes.iter().any(|index| &index.name == index_name) {
         return Ok(());
     }
@@ -3842,6 +3891,7 @@ fn type_error(expected: &str, value: &Value) -> SnapbackError {
 }
 
 fn schema_table<'a>(schema: &'a SchemaManifest, table: &str) -> SnapbackResult<&'a TableManifest> {
+    validate_user_identifier("table", table)?;
     schema.table(table).ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_UNKNOWN_TABLE",
@@ -3852,6 +3902,7 @@ fn schema_table<'a>(schema: &'a SchemaManifest, table: &str) -> SnapbackResult<&
 }
 
 fn ensure_field<'a>(table: &'a TableManifest, field: &str) -> SnapbackResult<&'a FieldManifest> {
+    validate_user_identifier("field", field)?;
     table.field(field).ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_UNKNOWN_FIELD",
@@ -3903,7 +3954,8 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
 }
 
 fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
-    if !is_identifier(value) || value.starts_with("_snapback") {
+    if !is_identifier(value) || value.starts_with("_snapback") || is_auth_reserved_identifier(value)
+    {
         return Err(SnapbackError::error(
             "SNAPBACK_INVALID_IDENTIFIER",
             "schema",
@@ -3911,6 +3963,16 @@ fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
         ));
     }
     Ok(())
+}
+
+/// `_auth` is a complete namespace root, and SQLite folds ASCII identifier
+/// case. Keep this predicate shared by manifest and runtime name resolvers so
+/// no casing variant becomes an alternate path into the protected catalog.
+///
+/// @ref LLP 0054#reservation — absolute ASCII-case-insensitive reservation.
+pub(crate) fn is_auth_reserved_identifier(value: &str) -> bool {
+    let folded = value.to_ascii_lowercase();
+    folded == "_auth" || folded.starts_with("_auth_")
 }
 
 fn quote_ident(value: &str) -> SnapbackResult<String> {
