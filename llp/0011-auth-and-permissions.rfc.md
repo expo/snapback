@@ -5,8 +5,8 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
-**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032, LLP 0039, LLP 0053
+**Revised:** 2026-07-13 (ENG-24596: record LLP 0054's implemented local auth catalog/provider/session core and its item-4/item-5 activation fence; earlier: narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
+**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032, LLP 0039, LLP 0053, LLP 0054
 
 ## Summary
 
@@ -27,6 +27,24 @@ requiring universal precise live permission evaluation. LLP 0053, once
 Accepted, owns whether a cause uses a matcher delivery obligation or the
 authorization version; the earlier universal-epoch/generic-resync wording is
 not a competing implementation contract.
+
+> **Implementation status (2026-07-13 — ENG-24596).** The local provider core
+> specified by [LLP 0054](./0054-auth-provider-protocol.spec.md) is built: the
+> protected v1 auth catalog and namespace reservation, owner-only keyring,
+> email-code challenge/exchange state machine, session-token families,
+> capture mailbox, provider lifecycle/GC, process-bound impersonation carrier,
+> collision rescue, and quiesced database-plus-keyring backup/declared restore.
+> Its provider routes, closed DTOs, generated schemas, diagnostics, and the
+> `auth.mintSession` / `auth.rescueCollidingTable` operator projections are
+> implemented as well. The provider is deliberately **activation-fenced**:
+> normal startup remains `dev`, public provider routes refuse with
+> `SNAPBACK_AUTH_MODE_DEV`, and session minting refuses with
+> `SNAPBACK_AUTH_POLICY_UNAVAILABLE` until item 4 installs staged mode and the
+> shared invocation gate. Sessions remain non-enableable until item 5 installs
+> connection binding, revocation projection, and the `AuthCoordinator`.
+> Collision rescue is the narrow non-production exception needed to repair a
+> catalog-name collision. `ctx.auth`, permission rules, authorized sync, and
+> the hosted provider boundary remain later work, so this RFC stays Draft.
 
 ## Motivation
 
@@ -383,9 +401,11 @@ enumerated events, query/room reauthorization, quarantine-as-immediate-clear,
 and unconditional fresh snapshot on non-live resume. The older universal
 epoch/generic-`resync_required` wording is historical, not a second protocol.
 LLP 0053 is Accepted; its review gate is closed, while items 6/8 still await
-their ordered implementation prerequisites. The auth *surface* — providers,
-`ctx.auth`, RLS rules — remains unbuilt, so this RFC itself stays Draft. Ledgered
-in [LLP 0000](./0000-snapback.explainer.md).
+their ordered implementation prerequisites. LLP 0054's provider core is built
+but activation-fenced; the shared `ctx.auth` invocation gate, connection-bound
+session authority, RLS rules, and authorized sync remain unbuilt, so this RFC
+itself stays Draft. Ledgered in
+[LLP 0000](./0000-snapback.explainer.md).
 
 Earlier: Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))
 is folded in — the stable-principal + identity-link model, write-side fail-closed

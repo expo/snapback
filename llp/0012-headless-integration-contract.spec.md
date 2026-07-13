@@ -5,7 +5,9 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (ENG-24594: registered the adapter-visible
+**Revised:** 2026-07-13 (ENG-24596: registered LLP 0054's implemented
+auth-provider diagnostic family and deliberate HTTP status classes while
+preserving the `hostOpsResult` transport projection); 2026-07-13 (ENG-24594: registered the adapter-visible
 `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` refusal and the temporary pre-staged-mode
 `SNAPBACK_AUTH_POLICY_UNAVAILABLE` backstop in the shared diagnostic contract);
 2026-07-13 (ENG-24593 post-review bounded corrections: closed the
@@ -19,7 +21,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0054
 
 ## Summary
 
@@ -353,11 +355,14 @@ Required fields:
 - suggested next checks when safe to infer.
 
 The first stable code families are `SCHEMA_*`, `FUNCTION_*`, `QUERY_*`,
-`CAPABILITY_*`, `BUNDLE_*`, `RUNTIME_*`, `HANDLER_*`, `MUTATION_CONFLICT`, and
-`STALE_*`. Exact code names can grow during implementation, but changing an
-emitted code is a compatibility event. `HANDLER_*` covers normalized JavaScript
-handler failures such as ambient capability denial and arbitrary handler throws,
-so adapters never receive raw runtime errors as the integration contract.
+`CAPABILITY_*`, `BUNDLE_*`, `RUNTIME_*`, `HANDLER_*`, `SNAPBACK_AUTH_*`,
+`MUTATION_CONFLICT`, and `STALE_*`. Exact code names can grow during
+implementation, but changing an emitted code is a compatibility event.
+`HANDLER_*` covers normalized JavaScript handler failures such as ambient
+capability denial and arbitrary handler throws, so adapters never receive raw
+runtime errors as the integration contract. LLP 0054 owns the item-3
+`SNAPBACK_AUTH_*` spellings and secret-safe detail boundaries; later auth items
+extend that family rather than inventing an adapter-specific dialect.
 
 ### V0 Runtime State
 
@@ -545,6 +550,27 @@ whose effective policy requires `SessionAuth`, `AdminSecretRead`, or an
 uninstalled effect gate refuses instead of falling through to a weaker
 credential. LLP 0031 owns the policy matrix and LLP 0039 replaces this temporary
 backstop with the real resolvers before sessions can become active.
+
+ENG-24596 adds the following stable item-3 status classes from
+[LLP 0054](./0054-auth-provider-protocol.spec.md). These mappings apply when a
+diagnostic is the top-level served HTTP error. A core host operation that ran
+still returns HTTP 200 with the ordinary `hostOpsResult` envelope and expresses
+the operation failure through `ok: false` plus `diagnostics[]`.
+
+| HTTP / locus | Item-3 auth diagnostics |
+| --- | --- |
+| 400 | `SNAPBACK_AUTH_REQUEST_INVALID`, `SNAPBACK_AUTH_RESCUE_INVALID`, `SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED` |
+| 401 | `SNAPBACK_AUTH_REQUIRED`, `SNAPBACK_AUTH_SESSION_EXPIRED`, `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED`, `SNAPBACK_AUTH_CODE_INVALID` |
+| 403 | `SNAPBACK_AUTH_CODE_LOCKED`, `SNAPBACK_AUTH_IMPERSONATION_REQUIRED` |
+| 404 | `SNAPBACK_AUTH_MODE_DEV`, `SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND` |
+| 409 | `SNAPBACK_AUTH_REFRESH_SUPERSEDED`, `SNAPBACK_AUTH_TABLE_COLLISION`, `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` |
+| 429 | `SNAPBACK_AUTH_THROTTLED` |
+| 503 | `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`, `SNAPBACK_AUTH_CATALOG_CORRUPT`, `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` |
+| startup / CLI | the catalog diagnostics above plus `SNAPBACK_AUTH_BACKUP_INVALID`; no HTTP status is implied when no HTTP response exists |
+
+The mapper allow-lists these codes; an unrecognized diagnostic remains a 500.
+No status or structured detail may reveal an email address, challenge code,
+session token or digest, key identifier/material, or impersonation capability.
 
 ## Runtime State
 
@@ -780,6 +806,11 @@ recorded in LLP 0039's Status. Implementations may not claim sessions support
 without the closed-tuple paired-artifact preflight, the exact predecessor
 diagnostic proof, and the `MODE_PENDING` recovery gate. This broader Spec remains
 Draft; ENG-24593 authorized no status transition.
+
+ENG-24596 likewise makes no status transition. It implements the LLP 0054
+provider core and registers its adapter-visible diagnostics, but provider
+activation still depends on the item-4 staged mode/shared invocation gate and
+the item-5 connection/revocation coordinator.
 
 ## Changelog
 

@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-13 (ENG-24561: operation profile and AdminRead/AdminWrite requirements are centralized across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023
+**Revised:** 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0054
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
 > built).** The `snapback` CLI and the host-ops HTTP endpoint
@@ -25,6 +25,13 @@
 >   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
 >   `functions.load`, `function.run` (queries and mutations; never actions)
 >   — each as CLI verb + HTTP operation, tested in `tests/host_ops_v0.rs`.
+> - **Built in ENG-24596:** `auth.rescueCollidingTable`, and
+>   `auth.mintSession` behind its deliberate sessions-mode activation fence.
+>   Both use the shared HTTP `hostOpsResult` projection, require a
+>   non-production profile plus `AdminWrite` plus the independent process-bound
+>   `ImpersonationCapability`, and use closed generated DTOs. Rescue remains
+>   reachable in `dev`; mint fails closed there until item 4 activates
+>   `sessions`. LLP 0054 owns their exact provider and rescue semantics.
 > - **Pinned, not built:** `host.restart`, `schema.reload`,
 >   `functions.reload`, `function.explain`, `acceptance.run` — requested
 >   over HTTP they return a structured `SNAPBACK_HOST_OP_UNIMPLEMENTED`
@@ -123,6 +130,8 @@ inside result envelopes, logs, HTTP requests, and MCP metadata.
 | `function.run` | Run one generated query or mutation by function id. | return value or mutation commit facts, read/write summaries when available, diagnostics. |
 | `function.explain` | Explain query plans, permission decisions, capability gaps, or mutation denial/dry-run facts without committing. | explanation kind, decision, read/write predictions where available, diagnostics. |
 | `acceptance.run` | Run the local acceptance suite or a named profile. | profile id, passed/failed/skipped counts, diagnostics, artifact paths. |
+| `auth.mintSession` | Provision the canonical email identity/user if needed and issue a session credential for an operator-selected address. | flat credential payload: `tokenType`, `token`, `refreshAfter`, and public `session`; no identity subject, digest, generation, or authority-instance id. |
+| `auth.rescueCollidingTable` | Transactionally move one legacy auth-reserved table to an ordinary app-table name. | exactly `source`, `target`, `copiedRowCount`, `copiedExplicitIndexCount`, `manifestUpdated`, and `catalogCollisionCleared`; never rows. |
 
 `host.restart` may be implemented as a composition of `host.stop` and
 `host.start`, but it must return one envelope with one request id so an agent can
@@ -264,6 +273,25 @@ Anonymous identity inspection uses the typed root `/inspect` projection.
 Unknown operations fail closed at `AdminWrite`. The multiplexed endpoint and
 dedicated aliases resolve this table against the same installed function kind,
 so selecting a transport cannot change the token requirement (ENG-24561).
+
+The two LLP 0054 operator operations add a second, independent effect gate.
+`auth.mintSession` and `auth.rescueCollidingTable` require all of:
+
+1. a non-production operation profile;
+2. the ordinary `AdminWrite` credential; and
+3. the process-bound `ImpersonationCapability` carried only in
+   `x-snapback-impersonation-capability`.
+
+None of those authorities substitutes for another. The session bearer, admin
+token, console credential, secret-read lease, or raw keyring material cannot
+satisfy the impersonation comparison. Both operations use closed `args` and the
+normal envelope. `auth.mintSession` returns `CredentialSecret`, applies
+`Cache-Control: no-store`, and is unavailable in active `dev` until item 4;
+its success envelope records `authority.reason: "issuedBy: admin"`.
+`auth.rescueCollidingTable` returns only operator metadata and remains available
+in `dev` so an operator can repair a dormant collision without enabling
+sessions. Stored-manifest collisions that prevent normal open use LLP 0054's
+separate loopback recovery posture and still require restart after rescue.
 
 ## CLI Projection
 
