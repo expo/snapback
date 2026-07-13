@@ -98,14 +98,12 @@ impl fmt::Debug for HostOpsResult {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("HostOpsResult")
-            .field("schema_version", &self.schema_version)
-            .field("result_kind", &self.result_kind)
-            .field("request_id", &self.request_id)
-            .field("operation", &self.operation)
             .field("ok", &self.ok)
-            .field("target", &self.target)
-            .field("authority", &self.authority)
-            .field("artifacts", &self.artifacts)
+            .field("request_id", &"[REDACTED]")
+            .field("operation", &"[REDACTED]")
+            .field("target", &"[REDACTED]")
+            .field("authority", &"[REDACTED]")
+            .field("artifacts", &"[REDACTED]")
             .field("data", &"[REDACTED]")
             .field("diagnostic_count", &self.diagnostics.len())
             .field("next_count", &self.next.len())
@@ -416,15 +414,18 @@ impl fmt::Debug for HostOpsRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("HostOpsRequest")
-            .field("operation", &self.operation)
-            .field("request_id", &self.request_id)
-            .field("schema", &self.schema.as_ref().map(|_| "[..]"))
-            .field("functions", &self.functions.as_ref().map(|_| "[..]"))
-            .field("seed", &self.seed.as_ref().map(|_| "[REDACTED]"))
-            .field("function", &self.function)
+            .field("operation", &"[REDACTED]")
+            .field(
+                "request_id",
+                &self.request_id.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("has_schema", &self.schema.is_some())
+            .field("has_functions", &self.functions.is_some())
+            .field("has_seed", &self.seed.is_some())
+            .field("function", &self.function.as_ref().map(|_| "[REDACTED]"))
             .field("args", &self.args.as_ref().map(|_| "[REDACTED]"))
             .field("user_id", &self.user_id.as_ref().map(|_| "[REDACTED]"))
-            .field("kind", &self.kind)
+            .field("kind", &self.kind.as_ref().map(|_| "[REDACTED]"))
             .finish()
     }
 }
@@ -1251,6 +1252,14 @@ fn explain_function(
 }
 
 fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic {
+    let operation = if SERVED_HOST_OPS.contains(&operation)
+        || CLI_ONLY_HOST_OPS.contains(&operation)
+        || PINNED_UNBUILT_HOST_OPS.contains(&operation)
+    {
+        operation
+    } else {
+        "unrecognized"
+    };
     Diagnostic::error(code, "host-ops", message).with_details(json!({ "operation": operation }))
 }
 
@@ -1264,12 +1273,17 @@ mod tests {
         const TOKEN_SENTINEL: &str = "sbs_DEBUG_CREDENTIAL_SENTINEL";
 
         let request: HostOpsRequest = serde_json::from_value(json!({
-            "operation": "auth.mintSession",
+            "operation": TOKEN_SENTINEL,
+            "requestId": EMAIL_SENTINEL,
+            "function": TOKEN_SENTINEL,
             "args": { "email": EMAIL_SENTINEL },
+            "userId": TOKEN_SENTINEL,
+            "kind": EMAIL_SENTINEL,
         }))
         .expect("parse auth host operation");
         let request_debug = format!("{request:?}");
         assert!(!request_debug.contains(EMAIL_SENTINEL), "{request_debug}");
+        assert!(!request_debug.contains(TOKEN_SENTINEL), "{request_debug}");
         assert!(request_debug.contains("[REDACTED]"), "{request_debug}");
 
         let snapback = LocalSnapback::memory().expect("memory host-ops debug fixture");
@@ -1285,6 +1299,7 @@ mod tests {
         );
         let result_debug = format!("{result:?}");
         assert!(!result_debug.contains(TOKEN_SENTINEL), "{result_debug}");
+        assert!(!result_debug.contains(EMAIL_SENTINEL), "{result_debug}");
         assert!(result_debug.contains("[REDACTED]"), "{result_debug}");
     }
 
@@ -1298,5 +1313,14 @@ mod tests {
             error.to_string().contains("duplicate field `email`"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn unknown_operation_diagnostic_does_not_echo_caller_bytes() {
+        const SENTINEL: &str = "sbs_DIAGNOSTIC_SMUGGLING_SENTINEL";
+        let diagnostic = host_op_diagnostic("SNAPBACK_HOST_OP_UNKNOWN", SENTINEL, "unknown");
+        let serialized = serde_json::to_string(&diagnostic).unwrap();
+        assert!(!serialized.contains(SENTINEL), "{serialized}");
+        assert_eq!(diagnostic.details["operation"], "unrecognized");
     }
 }

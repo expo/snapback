@@ -596,9 +596,15 @@ fn request_requires_impersonation(request: &Value) -> bool {
         .and_then(Value::as_str)
         .is_some_and(|user_id| !user_id.is_empty());
     crate::server::host_ops_operation_spec(operation, None, impersonated).is_some_and(|spec| {
-        spec.effective_for(crate::server::PolicyAuthMode::Dev)
-            .effect_policy
-            == crate::server::EffectPolicy::ImpersonationCapability
+        [
+            crate::server::PolicyAuthMode::Dev,
+            crate::server::PolicyAuthMode::Sessions,
+        ]
+        .into_iter()
+        .any(|mode| {
+            spec.effective_for(mode).effect_policy
+                == crate::server::EffectPolicy::ImpersonationCapability
+        })
     })
 }
 
