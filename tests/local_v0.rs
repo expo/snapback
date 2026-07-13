@@ -2733,6 +2733,8 @@ fn todo_schema() -> SchemaManifest {
                 fields: vec!["userId".to_owned()],
             }],
             syncable: true,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..SchemaManifest::default()
     }
@@ -4629,6 +4631,8 @@ fn l3_prune_preserves_cold_table_validation_version() {
         }],
         indexes: Vec::new(),
         syncable: false,
+        permission_backing: false,
+        permission_fields: None,
     });
     snapback
         .apply_schema(schema)
@@ -4706,6 +4710,8 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         }],
         indexes: Vec::new(),
         syncable: false,
+        permission_backing: false,
+        permission_fields: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
     db.apply_schema(schema).unwrap();
@@ -5332,6 +5338,8 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
                 fields: vec![field.to_owned()],
             }],
             syncable: false,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..SchemaManifest::default()
     }

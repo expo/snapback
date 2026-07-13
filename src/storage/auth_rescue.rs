@@ -835,6 +835,8 @@ mod tests {
                     fields: vec!["id".to_owned()],
                 }],
                 syncable: false,
+                permission_backing: false,
+                permission_fields: None,
             }],
             ..SchemaManifest::default()
         }

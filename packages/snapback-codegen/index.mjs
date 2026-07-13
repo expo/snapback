@@ -540,7 +540,33 @@ export async function generateInProcess(backendDir) {
       indexes.push({ name: index.name, fields: index.fields });
     }
 
-    tables[name] = { name, fields, indexes, syncable: table.syncable };
+    if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
+      err('SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING', 'schema', `table ${name} declares permissionFields without permissionBacking`, { table: name });
+    }
+    if (table.permissionFields !== undefined && !Array.isArray(table.permissionFields)) {
+      err('SCHEMA_PERMISSION_FIELDS_INVALID', 'schema', `table ${name} permissionFields must be an array`, { table: name });
+    }
+    if (Array.isArray(table.permissionFields)) {
+      const seenPermissionFields = new Set();
+      for (const field of table.permissionFields) {
+        if (!seenFields.has(field)) {
+          err('SCHEMA_PERMISSION_FIELD_UNKNOWN', 'schema', `table ${name} permissionFields references unknown field ${field}`, { table: name, field });
+        }
+        if (seenPermissionFields.has(field)) {
+          err('SCHEMA_PERMISSION_FIELD_DUPLICATE', 'schema', `table ${name} permissionFields repeats field ${field}`, { table: name, field });
+        }
+        seenPermissionFields.add(field);
+      }
+    }
+
+    tables[name] = {
+      name,
+      fields,
+      indexes,
+      syncable: table.syncable,
+      ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
+      ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
+    };
   }
 
   // --- Build + validate functions --------------------------------------------
@@ -601,6 +627,7 @@ export async function generateInProcess(backendDir) {
       continue;
     }
     validateFunctionAuthDefinition(name, def, err);
+    validateProtectedDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
 
     // Recursive fail-closed validation of the closed v1 expression profile
@@ -649,7 +676,27 @@ export async function generateInProcess(backendDir) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown read table ${table}`, { function: name, table });
         }
       }
+      if (def.js.authScopeField != null) {
+        const primaryTable = readTables[0];
+        if (!primaryTable || !isKnownField(primaryTable, def.js.authScopeField)) {
+          err('FUNCTION_UNKNOWN_FIELD', 'function', `${name}: authScopeField references unknown field ${primaryTable ?? '<missing>'}.${def.js.authScopeField}`, {
+            function: name,
+            table: primaryTable ?? null,
+            field: def.js.authScopeField,
+          });
+        }
+      }
       const handlerSource = loadHandlerSource(def.js.source, name);
+      if (handlerSource && isProtectedQueryDefinition(def)) {
+        for (const problem of scanProtectedHandlerSource(handlerSource)) {
+          err(problem.code, 'auth', `${name}: ${problem.message}`, {
+            function: name,
+            inputKind: problem.inputKind,
+            line: problem.line,
+            column: problem.column,
+          });
+        }
+      }
       functions.push({
         name,
         kind: def.__kind,
@@ -679,6 +726,9 @@ export async function generateInProcess(backendDir) {
       if (!tables[t]) {
         err('QUERY_UNKNOWN_TABLE', 'function', `${name}: unknown table ${t}`, { function: name, table: t });
       } else {
+        if (def.authScopeField != null && !isKnownField(t, def.authScopeField)) {
+          err('QUERY_UNKNOWN_FIELD', 'function', `${name}: authScopeField references unknown field ${t}.${def.authScopeField}`, { function: name, table: t, field: def.authScopeField });
+        }
         for (const filter of def.plan.filters) {
           if (!isKnownField(t, filter.field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: filter on unknown field ${t}.${filter.field}`, { function: name, table: t, field: filter.field });
           checkExpr(filter.value, `filter ${filter.field}`);
@@ -697,6 +747,7 @@ export async function generateInProcess(backendDir) {
         runtime: { HostPlan: { Query: serializeQueryPlan(def.plan) } },
         declaredReads: [t],
         declaredWrites: [],
+        authScopeField: def.authScopeField ?? null,
         syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
       });
       contractQueries[name] = {
@@ -1962,6 +2013,44 @@ function authoredFunctionManifestFields(def) {
   };
 }
 
+function isProtectedQueryDefinition(def) {
+  return def.__kind === 'LiveQuery' && def.authorityIndependent !== true;
+}
+
+function visitAuthoredExpr(expr, visit) {
+  if (!expr || typeof expr !== 'object') return;
+  visit(expr);
+  if ('Field' in expr) visitAuthoredExpr(expr.Field.base, visit);
+  if ('Binary' in expr) {
+    visitAuthoredExpr(expr.Binary.left, visit);
+    visitAuthoredExpr(expr.Binary.right, visit);
+  }
+  if ('Unary' in expr) visitAuthoredExpr(expr.Unary.expr, visit);
+  if ('If' in expr) {
+    visitAuthoredExpr(expr.If.cond, visit);
+    visitAuthoredExpr(expr.If.then, visit);
+    visitAuthoredExpr(expr.If.else, visit);
+  }
+  if ('Concat' in expr) for (const value of expr.Concat) visitAuthoredExpr(value, visit);
+  if ('Call' in expr) for (const value of expr.Call.args) visitAuthoredExpr(value, visit);
+  if ('Record' in expr) for (const value of Object.values(expr.Record.fields)) visitAuthoredExpr(value, visit);
+}
+
+function validateProtectedDefinition(name, def, err) {
+  if (isProtectedQueryDefinition(def) && def.plan) {
+    for (const filter of def.plan.filters ?? []) {
+      visitAuthoredExpr(filter.value, (expr) => {
+        if (expr.kind === 'RuntimeNow') {
+          err('SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY', 'auth', `${name}: protected result depends on RuntimeNow`, { function: name, inputKind: 'RuntimeNow' });
+        } else if (expr.kind === 'RuntimeId') {
+          err('SNAPBACK_AUTH_MUTABLE_INPUT_DENIED', 'auth', `${name}: protected result depends on RuntimeId`, { function: name, inputKind: 'RuntimeId' });
+        }
+      });
+    }
+  }
+
+}
+
 function authoredExprUsesAuthorityOrAmbientInput(expr) {
   if (!expr || typeof expr !== 'object') return false;
   if (expr.kind === 'AuthUserId' || expr.kind === 'RuntimeId' || expr.kind === 'RuntimeNow') return true;
@@ -2105,6 +2194,34 @@ function scanUnsupportedHandlerSource(source) {
       const match = pattern.exec(searchable);
       if (!match) return null;
       return { code, token, message: `unsupported ambient dependency ${token}`, ...sourcePosition(source, match.index) };
+    })
+    .filter(Boolean);
+}
+
+function scanProtectedHandlerSource(source) {
+  const searchable = maskCommentsAndStrings(source);
+  const checks = [
+    [
+      'SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY',
+      /\bctx\s*\.\s*runtime\s*\.\s*now\s*\(/u,
+      'RuntimeNow',
+    ],
+    [
+      'SNAPBACK_AUTH_MUTABLE_INPUT_DENIED',
+      /\bctx\s*\.\s*runtime\s*\.\s*id\s*\(/u,
+      'RuntimeId',
+    ],
+  ];
+  return checks
+    .map(([code, pattern, inputKind]) => {
+      const match = pattern.exec(searchable);
+      if (!match) return null;
+      return {
+        code,
+        inputKind,
+        message: `protected result depends on denied mutable input ${inputKind}`,
+        ...sourcePosition(source, match.index),
+      };
     })
     .filter(Boolean);
 }

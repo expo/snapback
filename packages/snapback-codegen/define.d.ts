@@ -176,6 +176,8 @@ export interface HostPlanQuerySpec extends QueryAuthOptions {
   limit?: number;
   index?: string;
   defaultLive?: boolean;
+  /** Explicit userId disjointness declaration; never inferred. */
+  authScopeField?: string;
 }
 
 export interface JsQuerySpec extends QueryAuthOptions {
@@ -220,7 +222,13 @@ export interface JsActionSpec extends FunctionAuthOptions {
   uses?: string[];
 }
 
-export declare function defineTable(fields: Record<string, Validator>): unknown;
+export interface TableBuilder {
+  index(name: string, fields: string[]): TableBuilder;
+  sync(): TableBuilder;
+  permissionBacking(fields?: string[]): TableBuilder;
+}
+
+export declare function defineTable(fields: Record<string, Validator>): TableBuilder;
 export declare function defineSchema(
   tables: Record<string, unknown>,
   options?: {

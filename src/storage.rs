@@ -2399,6 +2399,48 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             }
         }
 
+        if table.permission_fields.is_some() && !table.permission_backing {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING",
+                "schema",
+                format!(
+                    "table {} declares permissionFields without permissionBacking",
+                    table.name
+                ),
+            )
+            .with_detail("table", table.name.clone()));
+        }
+        if let Some(permission_fields) = &table.permission_fields {
+            let mut seen_permission_fields = BTreeSet::new();
+            for field in permission_fields {
+                validate_user_identifier("permission field", field)?;
+                if !fields.contains(field) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN",
+                        "schema",
+                        format!(
+                            "table {} permissionFields references unknown field {}",
+                            table.name, field
+                        ),
+                    )
+                    .with_detail("table", table.name.clone())
+                    .with_detail("field", field.clone()));
+                }
+                if !seen_permission_fields.insert(field.clone()) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE",
+                        "schema",
+                        format!(
+                            "table {} permissionFields repeats field {}",
+                            table.name, field
+                        ),
+                    )
+                    .with_detail("table", table.name.clone())
+                    .with_detail("field", field.clone()));
+                }
+            }
+        }
+
         let mut indexes = BTreeSet::new();
         for index in &table.indexes {
             validate_user_identifier("index", &index.name)?;
@@ -4434,6 +4476,8 @@ mod guarded_commit_tests {
                 ],
                 indexes: Vec::new(),
                 syncable: true,
+                permission_backing: false,
+                permission_fields: None,
             }],
             ..SchemaManifest::default()
         }

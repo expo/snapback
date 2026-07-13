@@ -6341,6 +6341,23 @@ fn validate_function_schema_references(
         {
             table(dependency)?;
         }
+        if let Some(auth_scope_field) = &function.read_set_summary.auth_scope_field {
+            let primary_table = function
+                .read_set_summary
+                .primary_table
+                .as_deref()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                        "runtime",
+                        format!(
+                            "function {} declares authScopeField without a primary read table",
+                            function.name
+                        ),
+                    )
+                })?;
+            field(primary_table, auth_scope_field)?;
+        }
     }
     Ok(())
 }
@@ -6381,12 +6398,18 @@ fn execute_query_invocation(
             })
         }
         (FunctionKind::Query | FunctionKind::LiveQuery, FunctionRuntime::IbexModule(module)) => {
+            let protected_query_profile = function.is_protected_query();
             let run = crate::runtime::run_ibex_query_with_reads_prepared(
                 module,
                 input.clone(),
                 prepared,
                 db,
-                warm_vms,
+                if protected_query_profile {
+                    None
+                } else {
+                    warm_vms
+                },
+                protected_query_profile,
             )?;
             let mut read_dependencies = run.read_dependencies;
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
@@ -7248,6 +7271,8 @@ globalThis.__snapbackHandlers = {
             fields,
             indexes: Vec::new(),
             syncable: true,
+            permission_backing: false,
+            permission_fields: None,
         }];
         if include_extra {
             tables.push(TableManifest {
@@ -7259,6 +7284,8 @@ globalThis.__snapbackHandlers = {
                 }],
                 indexes: Vec::new(),
                 syncable: true,
+                permission_backing: false,
+                permission_fields: None,
             });
         }
         SchemaManifest {
@@ -7342,6 +7369,8 @@ globalThis.__snapbackHandlers = {
                         fields: vec!["value".to_owned()],
                     }],
                     syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
                 }],
                 ..SchemaManifest::default()
             })

@@ -266,6 +266,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     prepared: &PreparedInvocation,
     db: DbRead<'_>,
     pool: Option<&WarmVmPool>,
+    protected_query_profile: bool,
 ) -> SnapbackResult<IbexQueryRun> {
     prepared.validate_admission("ibex query execution")?;
     let mut invocation = IbexHostContext::new_with_projection(
@@ -275,6 +276,14 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         prepared.admission_lease().clone(),
         false,
     )?;
+    invocation.protected_query_profile = protected_query_profile;
+    // The shipped DK-4 reset does not restore module lexical/imported state.
+    // Protected queries therefore take a fresh realm even if a caller
+    // accidentally supplies the warm pool.
+    //
+    // @ref LLP 0053#the-authorization-event-universe-closed — protected
+    //   module state must be fresh or reset-equivalent.
+    let pool = if protected_query_profile { None } else { pool };
     let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
@@ -487,6 +496,18 @@ fn action_db_denied(op: &str) -> SnapbackError {
     )
 }
 
+fn protected_host_input_error(code: &str, input_kind: &str, op: &str) -> SnapbackError {
+    SnapbackError::error(
+        code,
+        "auth",
+        format!("protected query attempted denied mutable input {input_kind}"),
+    )
+    .with_details(json!({
+        "inputKind": input_kind,
+        "hostOp": op,
+    }))
+}
+
 /// Validate a supplied replay ledger before the invocation runs (LLP 0051
 /// D1): the format version must be known, and when the ledger carries an auth
 /// fingerprint it must match the invocation's resolved auth context — a
@@ -511,6 +532,9 @@ pub(crate) struct IbexHostContext<'a> {
     handler_auth: HandlerAuthProjection,
     admission: AdmissionLease,
     mode: IbexInvocationMode,
+    /// Default-deny input registry for auth-scoped live and retained queries.
+    /// This bit is host-owned and cannot be changed by handler code.
+    protected_query_profile: bool,
     writes: Vec<BufferedWrite>,
     reads: Vec<CapturedReadDependency>,
     read_keys: HashSet<String>,
@@ -567,6 +591,7 @@ impl<'a> IbexHostContext<'a> {
             } else {
                 IbexInvocationMode::Query
             },
+            protected_query_profile: false,
             writes: Vec::new(),
             reads,
             read_keys,
@@ -616,6 +641,7 @@ impl<'a> IbexHostContext<'a> {
             handler_auth,
             admission,
             mode: IbexInvocationMode::Action,
+            protected_query_profile: false,
             writes: Vec::new(),
             reads,
             read_keys,
@@ -726,6 +752,40 @@ impl<'a> IbexHostContext<'a> {
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
         self.admission.validate("runtime host call")?;
+        if self.protected_query_profile {
+            match op {
+                // Closed v1 allowlist: database reads carry captured witnesses;
+                // log has a specified constant null result and cannot affect
+                // visibility through mutable output.
+                "db.query" | "db.get" | "runtime.log" => {}
+                "runtime.now" => {
+                    return Err(protected_host_input_error(
+                        "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
+                        "RuntimeNow",
+                        op,
+                    ));
+                }
+                "runtime.id" => {
+                    return Err(protected_host_input_error(
+                        "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
+                        "RuntimeId",
+                        op,
+                    ));
+                }
+                // Keep the established query-write diagnostic for the three
+                // known database mutation calls. Every other current/future
+                // host operation is a denied mutable non-database input until
+                // the registry explicitly classifies it.
+                "db.insert" | "db.patch" | "db.delete" => {}
+                _ => {
+                    return Err(protected_host_input_error(
+                        "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
+                        &format!("HostOp:{op}"),
+                        op,
+                    ));
+                }
+            }
+        }
         if self.mode == IbexInvocationMode::Action {
             self.action_host
                 .as_deref_mut()
@@ -2065,6 +2125,8 @@ fn handler_envelope_code(code: &str) -> &str {
         // runMutation requirement failure keeps its typed auth code inside
         // the ordinary FunctionRunResult envelope.
         | "SNAPBACK_AUTH_REQUIRED"
+        | "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY"
+        | "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED"
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_ACTION_TIMEOUT"

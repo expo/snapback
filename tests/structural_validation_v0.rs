@@ -99,6 +99,8 @@ fn schema(corpus: &Corpus) -> SchemaManifest {
                 fields: vec!["boardId".to_owned()],
             }],
             syncable: true,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..SchemaManifest::default()
     }
@@ -123,6 +125,8 @@ fn edge_schema() -> SchemaManifest {
             ],
             indexes: vec![],
             syncable: true,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..SchemaManifest::default()
     }
@@ -387,6 +391,8 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
                 }],
                 indexes: vec![],
                 syncable: true,
+                permission_backing: false,
+                permission_fields: None,
             }],
             ..SchemaManifest::default()
         })

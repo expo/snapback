@@ -1673,6 +1673,8 @@ mod tests {
                         fields: Vec::new(),
                         indexes: Vec::new(),
                         syncable: false,
+                        permission_backing: false,
+                        permission_fields: None,
                     }],
                     ..SchemaManifest::default()
                 },
@@ -1689,6 +1691,8 @@ mod tests {
                         }],
                         indexes: Vec::new(),
                         syncable: false,
+                        permission_backing: false,
+                        permission_fields: None,
                     }],
                     ..SchemaManifest::default()
                 },
@@ -1708,6 +1712,8 @@ mod tests {
                             fields: vec!["value".to_owned()],
                         }],
                         syncable: false,
+                        permission_backing: false,
+                        permission_fields: None,
                     }],
                     ..SchemaManifest::default()
                 },

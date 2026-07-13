@@ -396,6 +396,28 @@ pub struct TableManifest {
     pub indexes: Vec<IndexManifest>,
     #[serde(default)]
     pub syncable: bool,
+    /// This table contains facts that grant or revoke authority. This axis is
+    /// independent of query/result dependence and of function-level
+    /// `authorityIndependent` declarations.
+    ///
+    /// @ref LLP 0053#two-orthogonal-declarations — permission-backing data is
+    ///   an explicit table property, not inferred from function reads.
+    #[serde(
+        default,
+        rename = "permissionBacking",
+        alias = "permission_backing",
+        skip_serializing_if = "is_false"
+    )]
+    pub permission_backing: bool,
+    /// Optional narrowing for known updates. Inserts, deletes, and updates
+    /// with absent/empty/unknown changed-field metadata remain conservative.
+    #[serde(
+        default,
+        rename = "permissionFields",
+        alias = "permission_fields",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub permission_fields: Option<Vec<String>>,
 }
 
 impl TableManifest {
@@ -562,6 +584,7 @@ impl FunctionManifest {
                 }
             }
 
+            validate_protected_query_profile(function)?;
             validate_authority_independent(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
@@ -778,6 +801,76 @@ fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
     }
 }
 
+fn protected_input_error(function: &FunctionDefinition, input_kind: &str) -> SnapbackError {
+    let code = if input_kind == "RuntimeNow" {
+        "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY"
+    } else {
+        "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED"
+    };
+    SnapbackError::error(
+        code,
+        "auth",
+        format!(
+            "protected query {} depends on denied mutable input {input_kind}",
+            function.name
+        ),
+    )
+    .with_details(serde_json::json!({
+        "function": function.name,
+        "inputKind": input_kind,
+    }))
+}
+
+fn validate_protected_value_expr(
+    function: &FunctionDefinition,
+    value: &ValueExpr,
+) -> SnapbackResult<()> {
+    match value {
+        ValueExpr::RuntimeNow => Err(protected_input_error(function, "RuntimeNow")),
+        ValueExpr::RuntimeId => Err(protected_input_error(function, "RuntimeId")),
+        ValueExpr::Arg(_)
+        | ValueExpr::Args
+        | ValueExpr::AuthUserId
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_) => Ok(()),
+        ValueExpr::Field { base, .. } => validate_protected_value_expr(function, base),
+        ValueExpr::Binary { left, right, .. } => {
+            validate_protected_value_expr(function, left)?;
+            validate_protected_value_expr(function, right)
+        }
+        ValueExpr::Unary { expr, .. } => validate_protected_value_expr(function, expr),
+        ValueExpr::If { cond, then, r#else } => {
+            validate_protected_value_expr(function, cond)?;
+            validate_protected_value_expr(function, then)?;
+            validate_protected_value_expr(function, r#else)
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                validate_protected_value_expr(function, value)?;
+            }
+            Ok(())
+        }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                validate_protected_value_expr(function, value)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn validate_protected_query_profile(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !function.is_protected_query() {
+        return Ok(());
+    }
+    if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime {
+        for filter in &plan.filters {
+            validate_protected_value_expr(function, &filter.value)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
     // @ref LLP 0007#query-semantics — every direct artifact must enter the
     // same bounded portable expression profile before it can be installed.
@@ -920,6 +1013,11 @@ impl FunctionDefinition {
     pub fn effective_auth_requirement(&self) -> AuthRequirement {
         self.auth_requirement
             .unwrap_or(AuthRequirement::OptionalUser)
+    }
+
+    /// Every auth-scoped live query uses the default-deny input profile.
+    pub fn is_protected_query(&self) -> bool {
+        self.kind == FunctionKind::LiveQuery && !self.authority_independent
     }
 }
 

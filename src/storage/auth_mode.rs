@@ -1123,6 +1123,8 @@ mod tests {
             }],
             indexes: Vec::new(),
             syncable: false,
+            permission_backing: false,
+            permission_fields: None,
         }
     }
 

@@ -31,6 +31,8 @@ fn probe_schema() -> SchemaManifest {
             }],
             indexes: vec![],
             syncable: false,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..Default::default()
     }

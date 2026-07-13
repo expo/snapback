@@ -350,6 +350,8 @@ fn seeded_snapback() -> LocalSnapback {
                 }],
                 indexes: Vec::new(),
                 syncable: true,
+                permission_backing: false,
+                permission_fields: None,
             }],
             ..SchemaManifest::default()
         })

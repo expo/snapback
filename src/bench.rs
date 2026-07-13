@@ -242,12 +242,16 @@ fn schema() -> SchemaManifest {
                 ],
                 indexes: Vec::new(),
                 syncable: true,
+                permission_backing: false,
+                permission_fields: None,
             },
             TableManifest {
                 name: "others".to_owned(),
                 fields: vec![string_field("label")],
                 indexes: Vec::new(),
                 syncable: true,
+                permission_backing: false,
+                permission_fields: None,
             },
         ],
         ..SchemaManifest::default()

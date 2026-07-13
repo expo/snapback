@@ -51,6 +51,13 @@ function authoredFunctionAuth(spec, kind) {
   return fields;
 }
 
+function assertKnownSpecFields(spec, kind, allowed) {
+  assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${kind} expects a spec object`);
+  for (const field of Object.keys(spec)) {
+    assert(allowed.has(field), `${kind} has unknown field ${field}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Validators (field + arg types). The vocabulary maps 1:1 onto the server's
 // FieldType enum and the Contract DataTypeDescriptor primitive names.
@@ -105,6 +112,23 @@ class TableBuilder {
    *  tables back the restricted syncable-live subset. */
   sync() {
     this.syncable = true;
+    return this;
+  }
+
+  /** Declare that this table contains authorization-granting facts. An
+   * optional field list narrows only known updates; insert/delete and unknown
+   * changed-field sets remain conservative.
+   * @ref LLP 0053#two-orthogonal-declarations */
+  permissionBacking(fields) {
+    assert(!this.permissionBackingDeclared, 'permissionBacking() may be declared only once per table');
+    if (fields !== undefined) {
+      assert(Array.isArray(fields), 'permissionBacking() fields must be an array');
+      for (const field of fields) {
+        assert(typeof field === 'string', 'permissionBacking() fields must be strings');
+      }
+      this.permissionFields = [...fields];
+    }
+    this.permissionBackingDeclared = true;
     return this;
   }
 }
@@ -316,7 +340,17 @@ export const asc = (field) => ({ field, direction: 'Asc' });
 export const desc = (field) => ({ field, direction: 'Desc' });
 
 function queryDef(kind, spec) {
+  assertKnownSpecFields(spec, kind, new Set([
+    'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
+    'auth', 'authorityIndependent', 'authScopeField',
+  ]));
   assert(spec.table, `${kind} requires a table`);
+  if (spec.authScopeField !== undefined) {
+    assert(
+      typeof spec.authScopeField === 'string' && spec.authScopeField.length > 0,
+      `${kind} authScopeField must be a non-empty string`,
+    );
+  }
   return {
     [FN]: true,
     __kind: kind, // 'Query' | 'LiveQuery'
@@ -325,6 +359,7 @@ function queryDef(kind, spec) {
     // LLP 0034 D3 (Exact LLP 0284 §2.4): a chatty/expensive LiveQuery may opt
     // out of binding live by default; livePush capability is unaffected.
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
+    ...(spec.authScopeField !== undefined ? { authScopeField: spec.authScopeField } : {}),
     plan: {
       table: spec.table,
       filters: spec.filter ?? [],
@@ -341,9 +376,19 @@ export const defineLiveQuery = (spec) => queryDef('LiveQuery', spec);
 export const defineQuery = (spec) => queryDef('Query', spec);
 
 function jsQueryDef(kind, spec) {
+  assertKnownSpecFields(spec, kind, new Set([
+    'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
+    'defaultLive', 'auth', 'authorityIndependent',
+  ]));
   assert(spec.source, `${kind} requires a handler source file`);
   assert(spec.exportName, `${kind} requires exportName`);
   assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);
+  if (spec.authScopeField !== undefined) {
+    assert(
+      typeof spec.authScopeField === 'string' && spec.authScopeField.length > 0,
+      `${kind} authScopeField must be a non-empty string`,
+    );
+  }
   if (spec.result !== undefined) {
     // LLP 0032 P3: a JS handler can return any shape, so its result rows are
     // typed only when declared. `result` describes the app fields of each

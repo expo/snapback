@@ -166,6 +166,8 @@ fn watchdog_schema() -> SchemaManifest {
             ],
             indexes: Vec::new(),
             syncable: true,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..SchemaManifest::default()
     }

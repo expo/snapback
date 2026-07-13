@@ -2407,6 +2407,8 @@ fn todo_schema() -> SchemaManifest {
                 fields: vec!["userId".to_owned()],
             }],
             syncable: true,
+            permission_backing: false,
+            permission_fields: None,
         }],
         ..SchemaManifest::default()
     }
