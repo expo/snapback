@@ -1939,9 +1939,7 @@ fn mint_uuid_v7(random: &dyn RandomSource, now_ms: u64) -> ProviderResult<String
         return Err(provider_unavailable());
     }
     let mut random_bytes = [0_u8; 10];
-    random
-        .fill(&mut random_bytes)
-        .map_err(|_| provider_unavailable())?;
+    fill_random_or_unavailable(random, &mut random_bytes)?;
     let id = uuid::Builder::from_unix_timestamp_millis(now_ms, &random_bytes)
         .into_uuid()
         .hyphenated()
@@ -1954,7 +1952,7 @@ fn uniform_alarm_jitter(random: &dyn RandomSource) -> ProviderResult<u64> {
     const ACCEPT_BELOW: u8 = 252;
     loop {
         let mut byte = [0_u8; 1];
-        random.fill(&mut byte).map_err(|_| provider_unavailable())?;
+        fill_random_or_unavailable(random, &mut byte)?;
         if byte[0] < ACCEPT_BELOW {
             let jitter = u64::from(byte[0] % (AUTH_FAMILY_ALARM_JITTER_MAXIMUM_MS as u8 + 1));
             byte.zeroize();
@@ -1962,6 +1960,17 @@ fn uniform_alarm_jitter(random: &dyn RandomSource) -> ProviderResult<u64> {
         }
         byte.zeroize();
     }
+}
+
+fn fill_random_or_unavailable(
+    random: &dyn RandomSource,
+    destination: &mut [u8],
+) -> ProviderResult<()> {
+    if random.fill(destination).is_err() {
+        destination.zeroize();
+        return Err(provider_unavailable());
+    }
+    Ok(())
 }
 
 fn request_invalid() -> ProviderError {
@@ -2156,6 +2165,28 @@ mod tests {
             destination.fill(self.byte);
             Ok(())
         }
+    }
+
+    struct PartialFailureRandom;
+
+    impl RandomSource for PartialFailureRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), super::super::crypto::CryptoError> {
+            let partial = destination.len().div_ceil(2);
+            destination[..partial].fill(0xa5);
+            Err(super::super::crypto::CryptoError::RandomUnavailable)
+        }
+    }
+
+    #[test]
+    fn partial_rng_failure_zeroizes_the_candidate_buffer() {
+        let mut candidate = [0x5a; 10];
+        let error = fill_random_or_unavailable(&PartialFailureRandom, &mut candidate)
+            .expect_err("partial fill must fail closed");
+        assert_eq!(
+            error.diagnostic().code,
+            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        );
+        assert_eq!(candidate, [0_u8; 10]);
     }
 
     struct ManualClock {

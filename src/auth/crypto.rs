@@ -385,10 +385,10 @@ fn mint_bearer(random: &dyn RandomSource, prefix: &str) -> Result<String, Crypto
         bytes.zeroize();
         return Err(error);
     }
-    let encoded = encode_base64url(&bytes);
+    let encoded = Zeroizing::new(encode_base64url(&bytes));
     let checksum = crc32fast::hash(&bytes);
     bytes.zeroize();
-    Ok(format!("{prefix}{encoded}.{checksum:08x}"))
+    Ok(format!("{prefix}{}.{checksum:08x}", encoded.as_str()))
 }
 
 fn parse_bearer(input: &str, prefix: &str) -> Result<String, CryptoError> {
@@ -441,7 +441,8 @@ pub(crate) fn decode_canonical_base64url<const N: usize>(
     let mut decoded = URL_SAFE_NO_PAD
         .decode(encoded)
         .map_err(|_| CryptoError::InvalidBearer)?;
-    if decoded.len() != N || encode_base64url(&decoded) != encoded {
+    let canonical = Zeroizing::new(encode_base64url(&decoded));
+    if decoded.len() != N || canonical.as_str() != encoded {
         decoded.zeroize();
         return Err(CryptoError::InvalidBearer);
     }

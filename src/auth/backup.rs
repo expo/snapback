@@ -20,6 +20,7 @@ use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use zeroize::Zeroize as _;
 
 pub(crate) const BACKUP_DATABASE_FILE: &str = "database.sqlite3";
 pub(crate) const BACKUP_KEYRING_FILE: &str = "auth-keyring.json";
@@ -425,10 +426,14 @@ impl TemporaryDirectory {
         let parent = PinnedDirectory::open(parent_path)?;
         for _ in 0..TEMP_CANDIDATE_ATTEMPTS {
             let mut entropy = [0_u8; 16];
-            random
-                .fill(&mut entropy)
-                .map_err(|_| backup_invalid("temporary artifact name could not be generated"))?;
+            if random.fill(&mut entropy).is_err() {
+                entropy.zeroize();
+                return Err(backup_invalid(
+                    "temporary artifact name could not be generated",
+                ));
+            }
             let suffix = encode_base64url(&entropy);
+            entropy.zeroize();
             let name = OsString::from(format!(".snapback-auth-{operation}-{suffix}.tmp"));
             let candidate = parent_path.join(&name);
             match create_owner_only_directory(&candidate) {

@@ -416,7 +416,7 @@ fn recovery_unavailable(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_TABLE_COLLISION", "auth-recovery", message)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RecoveryHostOpsRequest {
     operation: String,
@@ -426,13 +426,43 @@ struct RecoveryHostOpsRequest {
     args: Option<RecoveryRescueArgs>,
 }
 
-#[derive(Debug, Deserialize)]
+impl fmt::Debug for RecoveryHostOpsRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RecoveryHostOpsRequest")
+            .field("operation", &"[REDACTED]")
+            .field(
+                "request_id",
+                &self.request_id.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("has_args", &self.args.is_some())
+            .finish()
+    }
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RecoveryRescueArgs {
     #[serde(default)]
     source_table: Option<String>,
     #[serde(default)]
     target_table: Option<String>,
+}
+
+impl fmt::Debug for RecoveryRescueArgs {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RecoveryRescueArgs")
+            .field(
+                "source_table",
+                &self.source_table.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "target_table",
+                &self.target_table.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 #[cfg(test)]
@@ -455,6 +485,25 @@ mod tests {
             destination.fill(self.0);
             Ok(())
         }
+    }
+
+    #[test]
+    fn recovery_request_debug_redacts_every_caller_controlled_string() {
+        const SENTINEL: &str = "sbs_RECOVERY_DEBUG_SENTINEL";
+        let request = RecoveryHostOpsRequest {
+            operation: SENTINEL.to_owned(),
+            request_id: Some(SENTINEL.to_owned()),
+            args: Some(RecoveryRescueArgs {
+                source_table: Some(SENTINEL.to_owned()),
+                target_table: Some(SENTINEL.to_owned()),
+            }),
+        };
+        let request_debug = format!("{request:?}");
+        let args_debug = format!("{:?}", request.args.as_ref().unwrap());
+        assert!(!request_debug.contains(SENTINEL), "{request_debug}");
+        assert!(!args_debug.contains(SENTINEL), "{args_debug}");
+        assert!(request_debug.contains("[REDACTED]"), "{request_debug}");
+        assert!(args_debug.contains("[REDACTED]"), "{args_debug}");
     }
 
     struct CollisionFixture {

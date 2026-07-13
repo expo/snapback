@@ -1045,8 +1045,9 @@ pub(crate) fn authorize_host_operation(
         return Err(SnapbackError::error(
             "SNAPBACK_HOST_OP_UNKNOWN",
             "host-ops",
-            format!("unknown or unregistered host operation {operation}"),
+            "unknown or unregistered host operation",
         )
+        .with_details(serde_json::json!({ "operation": "unrecognized" }))
         .into());
     };
     match impersonation {

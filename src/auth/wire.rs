@@ -11,8 +11,9 @@
 use crate::auth::crypto::{SessionBearer, VerificationCode};
 use schemars::JsonSchema;
 use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
+use zeroize::Zeroizing;
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -40,7 +41,8 @@ pub struct RequestCodeResponse {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ExchangeRequest {
     pub challenge_id: String,
-    pub code: String,
+    #[schemars(with = "String")]
+    pub(crate) code: SecretInput,
 }
 
 impl fmt::Debug for ExchangeRequest {
@@ -50,6 +52,36 @@ impl fmt::Debug for ExchangeRequest {
             .field("challenge_id", &self.challenge_id)
             .field("code", &"[REDACTED]")
             .finish()
+    }
+}
+
+/// Owned request plaintext that may contain a verification code or bearer.
+/// It deliberately supports neither cloning, display, nor serialization, and
+/// its allocation is wiped when the last owner drops it.
+pub(crate) struct SecretInput(Zeroizing<String>);
+
+impl SecretInput {
+    pub(crate) fn new(value: String) -> Self {
+        Self(Zeroizing::new(value))
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl<'de> Deserialize<'de> for SecretInput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer).map(Self::new)
+    }
+}
+
+impl fmt::Debug for SecretInput {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SecretInput([REDACTED])")
     }
 }
 
@@ -269,6 +301,7 @@ mod tests {
         let debug = format!("{request:?}");
         assert!(debug.contains("sbc_public"));
         assert!(!debug.contains("987654"));
+        assert_eq!(format!("{:?}", request.code), "SecretInput([REDACTED])");
     }
 
     #[test]

@@ -825,7 +825,7 @@ fn run_function(
             vec![host_op_diagnostic(
                 "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN",
                 "function.run",
-                &format!("{function} is not in the loaded function manifest"),
+                "the requested function is not in the loaded function manifest",
             )],
         );
     };
@@ -1098,27 +1098,30 @@ fn explain_function(
         );
     };
     if kind != "mutationDryRun" {
-        let (code, message) = if EXPLAIN_KINDS.contains(&kind.as_str()) {
+        let recognized = EXPLAIN_KINDS.contains(&kind.as_str());
+        let (code, message) = if recognized {
             (
                 "SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED",
-                format!(
-                    "explain kind {kind} is pinned by LLP 0024 but not built yet (mutationDryRun is served)"
-                ),
+                "the requested explain kind is pinned by LLP 0024 but not built yet (mutationDryRun is served)",
             )
         } else {
             (
                 "SNAPBACK_EXPLAIN_KIND_UNKNOWN",
-                format!("unknown explain kind {kind}"),
+                "the requested explain kind is unknown",
             )
         };
+        let diagnostic_kind = recognized
+            .then_some(kind.as_str())
+            .unwrap_or("unrecognized");
         return envelope(
             snapback,
             false,
             authority,
             Value::Object(Default::default()),
             vec![
-                Diagnostic::error(code, "host-ops", &message)
-                    .with_details(json!({ "operation": "function.explain", "kind": kind })),
+                Diagnostic::error(code, "host-ops", message).with_details(
+                    json!({ "operation": "function.explain", "kind": diagnostic_kind }),
+                ),
             ],
         );
     }
@@ -1322,5 +1325,28 @@ mod tests {
         let serialized = serde_json::to_string(&diagnostic).unwrap();
         assert!(!serialized.contains(SENTINEL), "{serialized}");
         assert_eq!(diagnostic.details["operation"], "unrecognized");
+    }
+
+    #[test]
+    fn unknown_function_and_explain_kind_diagnostics_do_not_echo_caller_bytes() {
+        const SENTINEL: &str = "sbs_SELECTOR_SMUGGLING_SENTINEL";
+        let mut snapback = LocalSnapback::memory().expect("memory diagnostic fixture");
+
+        for request in [
+            HostOpsRequest {
+                operation: "function.run".to_owned(),
+                function: Some(SENTINEL.to_owned()),
+                ..HostOpsRequest::default()
+            },
+            HostOpsRequest {
+                operation: "function.explain".to_owned(),
+                kind: Some(SENTINEL.to_owned()),
+                ..HostOpsRequest::default()
+            },
+        ] {
+            let result = execute_host_op(&mut snapback, request, None);
+            let serialized = serde_json::to_string(&result.diagnostics).unwrap();
+            assert!(!serialized.contains(SENTINEL), "{serialized}");
+        }
     }
 }

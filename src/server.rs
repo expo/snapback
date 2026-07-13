@@ -6,7 +6,7 @@ use crate::auth::provider::{AuthProvider, ProviderError};
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
-    RescueCollidingTableRequest,
+    RescueCollidingTableRequest, SecretInput,
 };
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
@@ -2490,7 +2490,7 @@ async fn peek_policy_json_body(
 
 enum HttpOperationSelection {
     Selected(OperationSpec),
-    UnknownHost(String),
+    UnknownHost,
     Indeterminate,
 }
 
@@ -2600,7 +2600,7 @@ async fn select_http_operation(
                 .is_some_and(|value| !value.is_null());
             match host_ops_operation_spec(operation, kind.as_ref(), impersonated) {
                 Some(spec) => HttpOperationSelection::Selected(spec),
-                None => HttpOperationSelection::UnknownHost(operation.to_owned()),
+                None => HttpOperationSelection::UnknownHost,
             }
         }
         _ => HttpOperationSelection::Indeterminate,
@@ -2827,7 +2827,7 @@ async fn enforce_registered_route_policy(
                     )
                 }
             }
-            HttpOperationSelection::UnknownHost(operation) => {
+            HttpOperationSelection::UnknownHost => {
                 match crate::admin::authorize_for_mode(
                     &runtime.server,
                     request.headers(),
@@ -2837,8 +2837,9 @@ async fn enforce_registered_route_policy(
                     Ok(()) => Err(SnapbackError::error(
                         "SNAPBACK_HOST_OP_UNKNOWN",
                         "host-ops",
-                        format!("unknown or unregistered host operation {operation}"),
+                        "unknown or unregistered host operation",
                     )
+                    .with_details(serde_json::json!({ "operation": "unrecognized" }))
                     .into()),
                     Err(error) => Err(error),
                 }
@@ -3166,7 +3167,7 @@ async fn auth_refresh(
 ) -> Result<Json<CredentialResponse>, ApiError> {
     let provider = installed_auth_provider(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
-    let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+    let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
     let issue = with_snapback(&runtime.snapback, move |snapback| {
@@ -3197,7 +3198,7 @@ async fn auth_logout(
 ) -> Result<StatusCode, ApiError> {
     let provider = installed_auth_provider(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
-    let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+    let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
     let _committed_revocation = with_snapback(&runtime.snapback, move |snapback| {
@@ -3221,7 +3222,7 @@ async fn auth_family_alarm(
 ) -> Result<(StatusCode, Json<FamilyAlarmResponse>), ApiError> {
     let provider = installed_auth_provider(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
-    let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+    let bearer = SecretInput::new(auth_bearer(&headers).unwrap_or_default().to_owned());
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
     let outcome = with_snapback(&runtime.snapback, move |snapback| {
@@ -7233,6 +7234,31 @@ mod tests {
                 .challenge_id,
             rejected_challenge
         );
+    }
+
+    #[tokio::test]
+    async fn unknown_host_operation_middleware_does_not_echo_caller_bytes() {
+        const SENTINEL: &str = "sbs_HTTP_DIAGNOSTIC_SMUGGLING_SENTINEL";
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let response = router
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&serde_json::json!({ "operation": SENTINEL })).unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .unwrap();
+        let payload = response_json(response).await;
+        let serialized = serde_json::to_string(&payload).unwrap();
+        assert_eq!(payload["diagnostic"]["code"], "SNAPBACK_HOST_OP_UNKNOWN");
+        assert_eq!(
+            payload["diagnostic"]["details"]["operation"],
+            "unrecognized"
+        );
+        assert!(!serialized.contains(SENTINEL), "{serialized}");
     }
 
     #[tokio::test]
