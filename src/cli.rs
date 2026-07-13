@@ -128,13 +128,13 @@ async fn compose_auth_mode_startup(
                         "settled sessions mode requires --startup-artifacts on every start",
                     )
                 })?;
+                snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
                 let expected = snapshot.state.active_deployment.as_ref().ok_or_else(|| {
                     crate::auth::mode::mode_corrupt(
                         "settled sessions mode lacks an active deployment",
                     )
                 })?;
                 carrier.require_deployment(expected)?;
-                snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
                         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
@@ -248,7 +248,11 @@ async fn compose_auth_mode_startup(
                 Ok(result) => result.state,
                 Err(error) => {
                     snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
-                    return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
+                    let state = snapback.auth_database_mut().auth_mode_snapshot()?.state;
+                    if state.mode_state == AuthModeStatus::Quarantined {
+                        return Ok(state);
+                    }
+                    return Err(error);
                 }
             };
             auth_runtime
