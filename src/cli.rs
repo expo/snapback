@@ -147,7 +147,11 @@ async fn compose_auth_mode_startup(
                         "this binary cannot admit an already-settled sessions deployment",
                     ));
                 }
-                snapback.publish_preflighted_functions(carrier.functions.clone());
+                let publication_generation = snapback.reserve_function_publication_generation()?;
+                snapback.publish_preflighted_functions(
+                    carrier.functions.clone(),
+                    publication_generation,
+                );
                 return Ok(snapshot.state);
             }
             AuthMode::Dev => {
@@ -157,12 +161,17 @@ async fn compose_auth_mode_startup(
                 let requested_mode = carrier.schema.effective_auth_mode();
                 let deployment = snapback.preflight_auth_artifacts(carrier, requested_mode)?;
                 if requested_mode == AuthMode::Dev {
+                    let publication_generation =
+                        snapback.reserve_function_publication_generation()?;
                     snapback.auth_database_mut().apply_same_mode_deployment(
                         deployment,
                         carrier.schema.clone(),
                         carrier.seed.clone(),
                     )?;
-                    snapback.publish_preflighted_functions(carrier.functions.clone());
+                    snapback.publish_preflighted_functions(
+                        carrier.functions.clone(),
+                        publication_generation,
+                    );
                     return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
                 }
                 snapback.auth_database_mut().stage_auth_mode(
@@ -219,6 +228,7 @@ async fn compose_auth_mode_startup(
                 snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
                 return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
             }
+            let publication_generation = snapback.reserve_function_publication_generation()?;
             let provider = auth_runtime.provider();
             let maintenance = provider.exclusive_maintenance().await;
             if let Err(error) = maintenance.prepare_catalog_activation() {
@@ -237,10 +247,12 @@ async fn compose_auth_mode_startup(
             };
             auth_runtime.mark_catalog_ready_after_mode_activation();
             drop(maintenance);
-            snapback.publish_preflighted_functions(carrier.functions.clone());
+            snapback
+                .publish_preflighted_functions(carrier.functions.clone(), publication_generation);
             Ok(state)
         }
         (AuthMode::Sessions, AuthMode::Dev) => {
+            let publication_generation = snapback.reserve_function_publication_generation()?;
             let state = match snapback
                 .auth_database_mut()
                 .consume_dev_downgrade(args.allow_auth_downgrade, auth_runtime.provider().now_ms())
@@ -260,7 +272,8 @@ async fn compose_auth_mode_startup(
                 .exclusive_maintenance()
                 .await
                 .clear_mailbox_after_committed_reset();
-            snapback.publish_preflighted_functions(carrier.functions.clone());
+            snapback
+                .publish_preflighted_functions(carrier.functions.clone(), publication_generation);
             Ok(state)
         }
         _ => Err(crate::auth::mode::mode_corrupt(

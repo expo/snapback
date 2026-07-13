@@ -1887,6 +1887,7 @@ impl LocalSnapback {
     pub(crate) fn publish_preflighted_functions(
         &mut self,
         manifest: FunctionManifest,
+        generation: u64,
     ) -> Vec<Diagnostic> {
         debug_assert!(manifest.validate_artifact().is_ok());
         debug_assert!(validate_function_schema_references(&manifest, self.db.schema()).is_ok());
@@ -1907,7 +1908,7 @@ impl LocalSnapback {
 
         self.functions = manifest;
         self.functions_loaded = true;
-        self.advance_app_generation();
+        self.install_app_generation(generation);
         self.warm_vms.clear();
         let mut diagnostics = Vec::new();
         if self
@@ -1934,6 +1935,13 @@ impl LocalSnapback {
         diagnostics
     }
 
+    /// Reserve the non-reusable process generation before a durable mode cut.
+    /// A failed transaction may waste a generation, but no committed cut can
+    /// reach the otherwise-infallible publication step and discover wrap.
+    pub(crate) fn reserve_function_publication_generation(&self) -> SnapbackResult<u64> {
+        next_app_generation()
+    }
+
     /// Retain serve-time diagnostics in the same bounded ring as runtime
     /// diagnostics. The caller supplies already-redacted closed facts; this
     /// seam deliberately accepts no path or keyring error carrier.
@@ -1941,7 +1949,6 @@ impl LocalSnapback {
         self.record_diagnostics(diagnostics.to_vec());
     }
 
-    #[cfg(test)]
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.reset_with_seed(None).map(|_| ())
     }
@@ -1950,7 +1957,6 @@ impl LocalSnapback {
     /// advance the in-memory lifecycle boundary only after SQLite commits.
     /// A rejected seed therefore preserves both the old database and every
     /// subscription/runtime generation that describes it.
-    #[cfg(test)]
     pub fn reset_with_seed(
         &mut self,
         seed: Option<SeedData>,
@@ -2249,6 +2255,9 @@ impl LocalSnapback {
             .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
 
         let (seed_outcome, state) = if prepared.requested_mode == before.state.active {
+            let publication_generation = self
+                .reserve_function_publication_generation()
+                .map_err(ModeCommitFailure::RolledBack)?;
             let committed = self.db.apply_same_mode_network_deployment_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
@@ -2263,7 +2272,10 @@ impl LocalSnapback {
                     return Err(ModeCommitFailure::Uncertain(error));
                 }
             };
-            self.publish_preflighted_functions(prepared.artifacts.functions);
+            self.publish_preflighted_functions(
+                prepared.artifacts.functions,
+                publication_generation,
+            );
             (seed_outcome.as_str(), state)
         } else {
             let seeded = prepared.artifacts.seed.is_some();

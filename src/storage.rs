@@ -882,7 +882,6 @@ impl LocalDatabase {
         Ok(Vec::new())
     }
 
-    #[cfg(test)]
     pub fn reset(&mut self) -> SnapbackResult<()> {
         self.reset_and_seed(None).map(|_| ())
     }
@@ -895,7 +894,6 @@ impl LocalDatabase {
     /// @ref LLP 0003#execution-and-write-semantics — a logical mutation has
     /// one durable commit boundary; reset+seed is one operation, not a
     /// committed reset followed by a fallible second mutation.
-    #[cfg(test)]
     pub fn reset_and_seed(
         &mut self,
         seed: Option<SeedData>,
@@ -910,7 +908,6 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0056#reset-restore-and-stream-publication — the stream ticket
     /// binds the same successor written by the destructive transaction.
-    #[cfg(test)]
     pub(crate) fn reset_and_seed_with_authorization_stream(
         &mut self,
         seed: Option<SeedData>,

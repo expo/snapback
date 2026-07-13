@@ -8019,7 +8019,6 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
-        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED"
         | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
         | "SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID"
@@ -8328,7 +8327,7 @@ mod tests {
             .clone()
             .expect("installed auth provider");
         let admission = provider.admit_email(email).await.expect("admit test email");
-        let route_admission = super::test_route_admission(state).0;
+        let route_admission = test_route_admission(state).0;
         let issue = super::coordinated_mint_session(state, &provider, admission, &route_admission)
             .await
             .expect("mint test session");
@@ -10085,7 +10084,7 @@ mod tests {
             "x-snapback-admin-token",
             HeaderValue::from_static("auth-http-admin"),
         );
-        let route_admission = super::test_route_admission(&state).0;
+        let route_admission = test_route_admission(&state).0;
         let missing_effect = super::execute_auth_host_operation(
             &state,
             &admin_headers,
@@ -10560,7 +10559,6 @@ mod tests {
         "SNAPBACK_AUTH_USER_MISSING",
         "SNAPBACK_BINDING_MISSING",
         "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
-        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_CAPTURED_READ_INVALID",
         "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
