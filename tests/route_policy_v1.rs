@@ -240,7 +240,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
     }
 }
 
-/// LLP 0054#routes-operations-and-dtos — the five provider paths have closed
+/// @ref LLP 0054#routes-operations-and-dtos — the five provider paths have closed
 /// independent carrier/response classifications, and active dev mode refuses
 /// them before inspecting bearer or body shape.
 #[tokio::test]
@@ -745,17 +745,19 @@ async fn impersonation_host_request(
         .expect("impersonation host request")
 }
 
-/// LLP 0054#impersonationcapability-carrier — the selected operation's
+/// @ref LLP 0054#impersonationcapability-carrier — the selected operation's
 /// AdminWrite and independent effect axes are both mandatory and cannot
 /// substitute for each other or leak into an ordinary selected operation.
 #[tokio::test]
 async fn impersonation_effect_is_selected_exactly_and_non_substitutable() {
+    // auth.mintSession is intentionally item-3 fenced in Dev and exposes its
+    // independent impersonation effect only through the Sessions overlay.
     let (state, bearer) = impersonation_state(ServerProfile::Dev);
-    let router = app(state);
+    let router = app(state.with_policy_auth_mode(PolicyAuthMode::Sessions));
     let mint = || json!({"operation": "auth.mintSession", "args": {}});
 
     let missing_admin = impersonation_host_request(&router, mint(), None, &[bearer.as_str()]).await;
-    assert_eq!(missing_admin.status(), StatusCode::FORBIDDEN);
+    assert_eq!(missing_admin.status(), StatusCode::UNAUTHORIZED);
     assert_ne!(
         diagnostic_code(missing_admin).await,
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
@@ -795,6 +797,11 @@ async fn impersonation_effect_is_selected_exactly_and_non_substitutable() {
         StatusCode::OK,
         "both independent authorities must reach the structurally gated handler"
     );
+
+    // Keep the ordinary Dev operation assertions on the active Dev policy;
+    // Sessions gives query runners the separate AdminSecretRead path axis.
+    let (state, bearer) = impersonation_state(ServerProfile::Dev);
+    let router = app(state);
 
     let ordinary = impersonation_host_request(
         &router,
@@ -864,6 +871,19 @@ async fn impersonation_capability_is_process_bound_and_forbidden_in_prod() {
     .await;
     assert_eq!(prod.status(), StatusCode::FORBIDDEN);
     assert_eq!(prod.headers()[header::CACHE_CONTROL], "no-store, private");
+
+    // Rescue is deliberately narrower than the other local impersonation
+    // effects: frozen LLP 0039 admits it only in dev/test, never demo.
+    let (demo_state, demo_bearer) = impersonation_state(ServerProfile::Demo);
+    let demo = impersonation_host_request(
+        &app(demo_state),
+        json!({"operation": "auth.rescueCollidingTable", "args": {}}),
+        Some("sekrit"),
+        &[demo_bearer.as_str()],
+    )
+    .await;
+    assert_eq!(demo.status(), StatusCode::FORBIDDEN);
+    assert_eq!(diagnostic_code(demo).await, "SNAPBACK_PROFILE_FORBIDS");
 }
 
 /// LLP 0039#authority-resolution — every socket operation and direct runner

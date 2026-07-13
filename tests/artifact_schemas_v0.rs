@@ -199,7 +199,7 @@ fn dk7_committed_public_instances_match_rust_types() {
     }
 }
 
-/// LLP 0054's provider and operator objects are closed wire contracts. Keep a
+/// @ref LLP 0054#routes-operations-and-dtos — provider and operator objects are closed wire contracts. Keep a
 /// consumer-side fixture for every schema, not only the Rust schemars drift
 /// check, so camelCase or `additionalProperties` drift is caught here too.
 #[test]

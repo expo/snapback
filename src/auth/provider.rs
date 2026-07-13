@@ -2391,6 +2391,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn challenge_exchanges_through_its_retired_key_after_rotation() {
+        let (provider, mut database) = provider_database(0);
+        let rotation_at = super::super::keyring::AUTH_KEY_ROTATION_AGE_MS;
+        let requested_at = rotation_at - 1;
+        let (request, code) = request_and_code(
+            &provider,
+            &mut database,
+            "pre-rotation@example.com",
+            requested_at,
+        )
+        .await;
+
+        assert!(
+            provider
+                .keyring
+                .rotate_if_due(rotation_at, provider.random.as_ref())
+                .expect("rotate keyring")
+        );
+        let issue = exchange(
+            &provider,
+            &mut database,
+            &request.challenge_id,
+            &code,
+            rotation_at + 1,
+        )
+        .await
+        .expect("stored challenge key remains usable after rotation");
+        assert_eq!(issue.response().session.provider, "email-code");
+    }
+
+    #[tokio::test]
     async fn global_and_capture_budgets_hit_exact_boundaries_without_durable_overrun() {
         let (provider, mut database) = provider_database(0);
         for index in 0..AUTH_GLOBAL_REQUEST_LIMIT {

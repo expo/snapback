@@ -74,7 +74,11 @@ impl CanonicalAddress {
 
         let trimmed = input.trim_matches(char::is_whitespace);
         let normalized: String = trimmed.nfc().collect();
-        let lowered: String = normalized.chars().flat_map(char::to_lowercase).collect();
+        // `str::to_lowercase` applies Unicode's context-sensitive default
+        // mapping to the complete string (notably Greek final sigma). Mapping
+        // one `char` at a time would split canonically equivalent identities
+        // and disagree with JavaScript's `String.prototype.toLowerCase`.
+        let lowered = normalized.to_lowercase();
 
         if lowered.is_empty()
             || lowered.len() > 320
@@ -499,6 +503,11 @@ mod tests {
 
         let dotted_i = CanonicalAddress::parse("İ@EXAMPLE.COM").unwrap();
         assert_eq!(dotted_i.as_str(), "i\u{307}@example.com");
+
+        let final_sigma_upper = CanonicalAddress::parse("ΟΣ@EXAMPLE.COM").unwrap();
+        let final_sigma_lower = CanonicalAddress::parse("ος@example.com").unwrap();
+        assert_eq!(final_sigma_upper.as_str(), "ος@example.com");
+        assert_eq!(final_sigma_upper, final_sigma_lower);
 
         assert!(CanonicalAddress::parse("person\n@example.com").is_err());
         assert!(CanonicalAddress::parse("person @example.com").is_err());

@@ -6885,7 +6885,7 @@ mod tests {
         );
     }
 
-    /// LLP 0054#routes-operations-and-dtos — the HTTP projection enforces the
+    /// @ref LLP 0054#routes-operations-and-dtos — the HTTP projection enforces the
     /// exact 4 KiB ceiling and collapses every closed-DTO parse failure to the
     /// non-reflective auth diagnostic.
     #[tokio::test]
@@ -6951,7 +6951,7 @@ mod tests {
         }
     }
 
-    /// LLP 0054#email-code-provider — exercise the real request transaction,
+    /// @ref LLP 0054#email-code-provider — exercise the real request transaction,
     /// exact gated mailbox projection, and known/unknown two-pass exchange
     /// paths through the registered router.
     #[tokio::test]
@@ -7115,7 +7115,7 @@ mod tests {
         );
     }
 
-    /// LLP 0054#catalog-write-and-lifecycle-rules — the dedicated reset holds
+    /// @ref LLP 0054#catalog-write-and-lifecycle-rules — the dedicated reset holds
     /// exclusive maintenance, clears capture plaintext only after commit, and
     /// retains both catalog and keyring (proved by issuing again afterward).
     #[tokio::test]
@@ -7174,7 +7174,7 @@ mod tests {
         );
     }
 
-    /// LLP 0054#concurrency-locks-and-linearization — the multiplexed reset
+    /// @ref LLP 0054#concurrency-locks-and-linearization — the multiplexed reset
     /// projection observes the same post-commit mailbox boundary as its direct
     /// route; a negative host-op envelope is not a committed reset.
     #[tokio::test]
@@ -7344,7 +7344,7 @@ mod tests {
         assert_eq!(response_json(repaired).await["authProvider"], "available");
     }
 
-    /// LLP 0054#rotation — direct handler acceptance pins the item-3 bearer,
+    /// @ref LLP 0054#rotation — direct handler acceptance pins the item-3 bearer,
     /// body, status, and credential projection while item 4 deliberately
     /// keeps registered SessionAuth routes centrally fenced.
     #[tokio::test]
@@ -7454,7 +7454,7 @@ mod tests {
         assert_eq!(repeated.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
     }
 
-    /// LLP 0054#family-alarm-mitigation — every bearer class publishes the
+    /// @ref LLP 0054#logout-ordinary-supersession-and-family-alarm — every bearer class publishes the
     /// same delayed response, while only an attributable tombstone revokes.
     #[tokio::test]
     async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
@@ -7535,7 +7535,7 @@ mod tests {
         );
     }
 
-    /// LLP 0054#routes-operations-and-dtos — active dev refusal precedes the
+    /// @ref LLP 0054#routes-operations-and-dtos — active dev refusal precedes the
     /// installed provider, bearer, and even an over-limit malformed body.
     #[tokio::test]
     async fn auth_http_dev_refusal_precedes_provider_and_body_handling() {
@@ -7589,7 +7589,7 @@ mod tests {
         }
     }
 
-    /// LLP 0054#host-operation-dtos — mint projects the exact credential as a
+    /// @ref LLP 0054#host-operation-dtos — mint projects the exact credential as a
     /// named host-ops datum and records its administrative issue provenance;
     /// active Dev keeps the operation unavailable until item 4 activates
     /// Sessions.
@@ -7745,7 +7745,7 @@ mod tests {
         );
     }
 
-    /// LLP 0054#host-operation-dtos — ordinary dormant collisions use the
+    /// @ref LLP 0054#host-operation-dtos — ordinary dormant collisions use the
     /// shared rescue core and exact six-field metadata projection; unlike the
     /// stored-manifest recovery router, ordinary service remains live.
     #[tokio::test]

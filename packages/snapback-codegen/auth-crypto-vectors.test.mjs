@@ -28,6 +28,9 @@ const crc32 = (bytes) => {
 test("auth v1 cross-language crypto vectors remain exact", () => {
   const canonicalAddress = "CAFÉ@EXAMPLE.COM".normalize("NFC").toLowerCase();
   assert.equal(canonicalAddress, "café@example.com");
+  const finalSigmaAddress = "ΟΣ@EXAMPLE.COM".normalize("NFC").toLowerCase();
+  assert.equal(finalSigmaAddress, "ος@example.com");
+  assert.equal(finalSigmaAddress, "ος@example.com".normalize("NFC").toLowerCase());
 
   const challengeId = "sbc_AAAAAAAAAAAAAAAAAAAAAA";
   const code = "012345";

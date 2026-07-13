@@ -132,11 +132,13 @@ impl ServerProfile {
 /// alias asks this same policy before invoking the operation core.
 ///
 /// @ref LLP 0024#authority-tuple — dev-user impersonation and destructive
-/// operations are local/non-production capabilities regardless of transport.
+/// operations are profile-bounded capabilities regardless of transport;
+/// collision rescue is narrower than the ordinary non-production set.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum OperationProfileRequirement {
     Any,
     NonProd,
+    DevOrTest,
 }
 
 /// Admin half of a host operation's authority tuple. Multiplexed host-ops and
@@ -176,9 +178,10 @@ pub(crate) fn operation_profile_requirement(
         // The direct and multiplexed runners are developer/operator bypass
         // surfaces even when they project an anonymous handler input. Hosted
         // production invocation goes through the ordinary app-data gate.
-        "function.run" | "auth.mintSession" | "auth.rescueCollidingTable" => {
-            OperationProfileRequirement::NonProd
-        }
+        "function.run" | "auth.mintSession" => OperationProfileRequirement::NonProd,
+        // Frozen LLP 0039 deliberately excludes demo from the below-manifest
+        // collision-recovery authority, on both ordinary and recovery servers.
+        "auth.rescueCollidingTable" => OperationProfileRequirement::DevOrTest,
         "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
         _ => OperationProfileRequirement::Any,
     }
@@ -189,15 +192,27 @@ pub(crate) fn operation_profile_diagnostic(
     operation: &str,
     requirement: OperationProfileRequirement,
 ) -> Option<crate::diagnostic::Diagnostic> {
-    if requirement == OperationProfileRequirement::Any || profile.allows_provisioning() {
+    let allowed = match requirement {
+        OperationProfileRequirement::Any => true,
+        OperationProfileRequirement::NonProd => profile.allows_provisioning(),
+        OperationProfileRequirement::DevOrTest => {
+            matches!(profile, ServerProfile::Dev | ServerProfile::Test)
+        }
+    };
+    if allowed {
         return None;
     }
+    let allowed_profiles = match requirement {
+        OperationProfileRequirement::Any => unreachable!("allowed requirements returned above"),
+        OperationProfileRequirement::NonProd => "dev|demo|test",
+        OperationProfileRequirement::DevOrTest => "dev|test",
+    };
     Some(crate::diagnostic::Diagnostic::error(
         "SNAPBACK_PROFILE_FORBIDS",
         "admin",
         format!(
-            "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE=dev|demo|test to enable it",
-            profile.as_str()
+            "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE={allowed_profiles} to enable it",
+            profile.as_str(),
         ),
     ))
 }
