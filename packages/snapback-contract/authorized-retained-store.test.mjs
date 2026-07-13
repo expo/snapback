@@ -11,6 +11,9 @@ const USER = '018f0d90-7b13-7a22-8c33-445566778899';
 const AUTHORITY_KEY = `sha256:${'a'.repeat(64)}`;
 const QUERY_KEY = 'myHand:{"gameId":"g1"}';
 const VERSION_STREAM = 'stream_1';
+const ACTIVATION_HASH = 'sha256:active-bundle';
+const APP_ID = 'card-game';
+const TARGET_PROFILE_ID = 'local-dev-sqlite-ibex';
 const AUTHORIZATION = { incarnation: INCARNATION, epoch: 0 };
 const ISSUER = {
   authorizationIncarnation: INCARNATION,
@@ -39,7 +42,7 @@ const lease = ({ storeId, queryInstanceId, requestId, version, durationMs = 1_00
   providerKey: 'email-code',
   authorization: AUTHORIZATION,
   data: { versionStream: VERSION_STREAM, snapshotCommitVersion: version },
-  activationHash: 'sha256:active-bundle',
+  activationHash: ACTIVATION_HASH,
   issuedAtServerMs: 10_000,
   authorizedUntilServerMs: 10_000 + durationMs,
   sessionNotAfterMs: 10_000 + durationMs,
@@ -86,6 +89,11 @@ const resolution = ({ obligation: pending, kind = 'snapshot', minVersion = 101 }
 const durable = {};
 const store = createMemorySnapbackClientStore({ state: durable });
 await store.bindAuthority({ authorityEpoch: 0, authorityKey: AUTHORITY_KEY });
+await store.scopeToArtifacts({
+  appId: APP_ID,
+  targetProfileId: TARGET_PROFILE_ID,
+  versionStreamId: VERSION_STREAM,
+}, EXPECTED);
 await store.scopeAuthorization({
   principalScope: {
     authMode: 'sessions',
@@ -99,11 +107,26 @@ await store.scopeAuthorization({
   },
 }, EXPECTED);
 
+await assert.rejects(
+  () => store.initializeAuthorizedRetainedQuery(QUERY_KEY, {
+    authorization: AUTHORIZATION,
+    issuerId: ISSUER,
+    versionStream: VERSION_STREAM,
+    principalId: USER,
+    activationHash: ACTIVATION_HASH,
+    appId: 'other-app',
+    targetProfileId: TARGET_PROFILE_ID,
+  }, EXPECTED),
+  { code: 'SNAPBACK_AUTH_RETAINED_AUTHORITY_INVALID' },
+);
 const initialized = await store.initializeAuthorizedRetainedQuery(QUERY_KEY, {
   authorization: AUTHORIZATION,
   issuerId: ISSUER,
   versionStream: VERSION_STREAM,
   principalId: USER,
+  activationHash: ACTIVATION_HASH,
+  appId: APP_ID,
+  targetProfileId: TARGET_PROFILE_ID,
 }, EXPECTED);
 assert.equal(initialized.namespace.queryInstanceId, 1);
 assert.equal((await store.snapshot()).version, SNAPBACK_CLIENT_STORE_VERSION);
@@ -113,6 +136,23 @@ const firstRequest = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
   leaseRequestId: 'request_100',
   clientNowMs: 1_000,
 }, EXPECTED);
+await assert.rejects(
+  () => store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
+    fence: firstRequest.fence,
+    lease: {
+      ...lease({
+        storeId: initialized.namespace.clientStoreId,
+        queryInstanceId: initialized.namespace.queryInstanceId,
+        requestId: firstRequest.request.leaseRequestId,
+        version: 100,
+      }),
+      activationHash: 'sha256:other-bundle',
+    },
+    record: record(100),
+    clientNowMs: 1_001,
+  }, EXPECTED),
+  { code: 'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH' },
+);
 const firstSnapshot = await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
   fence: firstRequest.fence,
   lease: lease({
@@ -282,6 +322,9 @@ const recreated = await store.initializeAuthorizedRetainedQuery(QUERY_KEY, {
   issuerId: ISSUER,
   versionStream: VERSION_STREAM,
   principalId: USER,
+  activationHash: ACTIVATION_HASH,
+  appId: APP_ID,
+  targetProfileId: TARGET_PROFILE_ID,
 }, EXPECTED);
 assert.equal(recreated.namespace.queryInstanceId, 2);
 await assert.rejects(

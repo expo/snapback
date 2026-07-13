@@ -263,6 +263,7 @@ export function deriveAuthorizedLeaseCommit({ lease: leaseValue, request, expect
     'principalId',
     'authorization',
     'versionStream',
+    'activationHash',
     'authorityInstanceId',
   ], 'leaseExpectation');
   const startedClientMs = safeInteger(request.startedClientMs, 'leaseRequest.startedClientMs');
@@ -279,6 +280,7 @@ export function deriveAuthorizedLeaseCommit({ lease: leaseValue, request, expect
       validateAuthorizationVersion(expected.authorization, 'leaseExpectation.authorization'),
     )
     && lease.data.versionStream === expected.versionStream
+    && lease.activationHash === expected.activationHash
     && lease.authorityInstanceId === expected.authorityInstanceId
   );
   if (!matches) {

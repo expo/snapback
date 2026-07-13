@@ -325,8 +325,11 @@ function assertQueryAuthorizationState(query, path, state, queryKey) {
       'authorityInstanceId',
       'clientDeadlineMs',
       'effectiveDisposition',
+      'expectedActivationHash',
+      'expectedAppId',
       'expectedAuthorization',
       'expectedIssuerId',
+      'expectedTargetProfileId',
       'expectedVersionStream',
       'lease',
       'leaseRequest',
@@ -370,6 +373,12 @@ function assertQueryAuthorizationState(query, path, state, queryKey) {
       && REPLAY_OPAQUE_ID_PATTERN.test(query.expectedVersionStream),
     `${path}.expectedVersionStream`,
   );
+  for (const field of ['expectedActivationHash', 'expectedAppId', 'expectedTargetProfileId']) {
+    assertStateField(
+      typeof query[field] === 'string' && REPLAY_OPAQUE_ID_PATTERN.test(query[field]),
+      `${path}.${field}`,
+    );
+  }
   assertStateField(
     query.authorityInstanceId === null
       || (typeof query.authorityInstanceId === 'string' && UUID_V7_PATTERN.test(query.authorityInstanceId)),
@@ -1355,8 +1364,16 @@ function leaseExpectation(state, key, query) {
     principalId: query.principalId,
     authorization: query.expectedAuthorization,
     versionStream: query.expectedVersionStream,
+    activationHash: query.expectedActivationHash,
     authorityInstanceId: query.authorityInstanceId,
   };
+}
+
+function queryArtifactContextMatches(state, query) {
+  return state.artifactScope !== null
+    && state.artifactScope.appId === query.expectedAppId
+    && state.artifactScope.targetProfileId === query.expectedTargetProfileId
+    && state.artifactScope.versionStreamId === query.expectedVersionStream;
 }
 
 function invalidateQueriesForAuthorityTransition(state, { deleteRows }) {
@@ -1920,6 +1937,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       issuerId,
       versionStream,
       principalId,
+      activationHash,
+      appId,
+      targetProfileId,
     }, expected = {}) {
       if (typeof key !== 'string' || key.length === 0 || key.length > 8_192) {
         throw new TypeError('authorized retained query key must be non-empty and bounded');
@@ -1932,6 +1952,11 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       if (typeof principalId !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(principalId)) {
         throw new TypeError('authorized retained query requires a canonical principalId');
       }
+      for (const [field, value] of Object.entries({ activationHash, appId, targetProfileId })) {
+        if (typeof value !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(value)) {
+          throw new TypeError(`authorized retained query requires a canonical ${field}`);
+        }
+      }
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'authorized retained query initialization');
         if (
@@ -1940,6 +1965,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           || state.principalScope.authorizationStreamIncarnation
             !== normalizedAuthorization.incarnation
           || state.authorityEpoch === null
+          || state.artifactScope?.appId !== appId
+          || state.artifactScope?.targetProfileId !== targetProfileId
+          || state.artifactScope?.versionStreamId !== versionStream
         ) {
           throw clientStoreStateError(
             'SNAPBACK_AUTH_RETAINED_AUTHORITY_INVALID',
@@ -1956,6 +1984,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           && stableJson(current.expectedAuthorization) === stableJson(normalizedAuthorization)
           && stableJson(current.expectedIssuerId) === stableJson(normalizedIssuer)
           && current.expectedVersionStream === versionStream
+          && current.expectedActivationHash === activationHash
+          && current.expectedAppId === appId
+          && current.expectedTargetProfileId === targetProfileId
         ) {
           return clone({
             namespace: {
@@ -1979,6 +2010,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           expectedAuthorization: clone(normalizedAuthorization),
           expectedIssuerId: clone(normalizedIssuer),
           expectedVersionStream: versionStream,
+          expectedActivationHash: activationHash,
+          expectedAppId: appId,
+          expectedTargetProfileId: targetProfileId,
           effectiveDisposition: 'retain',
           accepted: null,
           pendingByScope: {},
@@ -2111,6 +2145,14 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'authorized retained snapshot');
         const query = requireQuery(state, key, fence, 'authorized retained snapshot');
+        if (!queryArtifactContextMatches(state, query)) {
+          deleteAuthorizedPayload(state, key, query);
+          commit(state);
+          throw clientStoreStateError(
+            'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
+            'authorized snapshot belongs to another app, target, or version stream',
+          );
+        }
         const rollback = updateLeaseClock(state, clientNowMs, key, query);
         if (rollback) {
           commit(state);
@@ -2162,6 +2204,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         query.effectiveDisposition = 'retain';
         const scopedRecord = {
           ...record,
+          ...(state.artifactScope ?? {}),
           principalScope: clone(state.principalScope),
           queryInstanceId: query.queryInstanceId,
           authorityGeneration: query.authorityGeneration,
@@ -2197,6 +2240,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           commit(state);
           throw rollback;
         }
+        if (!queryArtifactContextMatches(state, query)) {
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
+            'retained update belongs to another app, target, or version stream',
+          );
+        }
         if (query.effectiveDisposition !== 'retain' || Object.keys(query.pendingByScope).length > 0) {
           throw clientStoreStateError(
             'SNAPBACK_AUTH_INVALIDATION_PENDING',
@@ -2214,6 +2263,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             || currentLease.principalId !== expectation.principalId
             || stableJson(currentLease.authorization) !== stableJson(expectation.authorization)
             || currentLease.data.versionStream !== expectation.versionStream
+            || currentLease.activationHash !== expectation.activationHash
             || currentLease.authorityInstanceId !== expectation.authorityInstanceId
             || query.accepted?.authorizedLeaseHash !== authorizedLeaseHash(currentLease)
           ) {
@@ -2261,6 +2311,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         };
         state.retained[key] = clone({
           ...record,
+          ...(state.artifactScope ?? {}),
           principalScope: clone(state.principalScope),
           queryInstanceId: query.queryInstanceId,
           authorityGeneration: query.authorityGeneration,
@@ -2327,6 +2378,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           query.effectiveDisposition = remainingDisposition;
           state.retained[key] = clone({
             ...record,
+            ...(state.artifactScope ?? {}),
             principalScope: clone(state.principalScope),
             queryInstanceId: query.queryInstanceId,
             authorityGeneration: query.authorityGeneration,
@@ -2366,6 +2418,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           commit(state);
           throw rollback;
         }
+        if (!queryArtifactContextMatches(state, query)) {
+          failDelete(
+            'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH',
+            'retained query belongs to another app, target, or version stream',
+          );
+        }
         if (query.effectiveDisposition !== 'retain') {
           commit(state);
           return null;
@@ -2381,6 +2439,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             || lease.principalId !== expectation.principalId
             || stableJson(lease.authorization) !== stableJson(expectation.authorization)
             || lease.data.versionStream !== expectation.versionStream
+            || lease.activationHash !== expectation.activationHash
             || lease.authorityInstanceId !== expectation.authorityInstanceId
             || query.accepted?.authorizedLeaseHash !== authorizedLeaseHash(lease)
           ) {

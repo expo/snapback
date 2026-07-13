@@ -67,6 +67,7 @@ const expected = {
   principalId: lease.principalId,
   authorization: lease.authorization,
   versionStream: lease.data.versionStream,
+  activationHash: lease.activationHash,
   authorityInstanceId: lease.authorityInstanceId,
 };
 assert.deepEqual(deriveAuthorizedLeaseCommit({
@@ -87,6 +88,7 @@ for (const [field, value] of [
   ['principalId', 'other-user'],
   ['authorization', { incarnation: INCARNATION, epoch: 5 }],
   ['data', { versionStream: 'other-stream', snapshotCommitVersion: 99 }],
+  ['activationHash', 'sha256:other-bundle'],
   ['authorityInstanceId', null],
 ]) {
   assert.throws(
