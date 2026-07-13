@@ -110,6 +110,28 @@ const AUTH_CLIENT_PROTOCOL_HEADER = 'x-snapback-auth-client-protocol';
 const AUTH_INVALIDATION_PROTOCOL_HEADER = 'x-snapback-auth-invalidation-protocol';
 const AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER = 'x-snapback-authority-descriptor-protocol';
 const AUTHORIZED_LEASE_PROTOCOL_HEADER = 'x-snapback-authorized-lease-protocol';
+const AUTHORITY_CAPTURE = Symbol('snapback.authorityCapture');
+
+const markAuthorityCapture = (value, capture) => {
+  if (!capture || value === null || typeof value !== 'object') return value;
+  try {
+    Object.defineProperty(value, AUTHORITY_CAPTURE, {
+      value: capture,
+      configurable: false,
+      enumerable: false,
+      writable: false,
+    });
+  } catch {
+    // Frozen protocol objects remain usable; their caller must carry capture.
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) markAuthorityCapture(entry, capture);
+  }
+  if (value.receipt && typeof value.receipt === 'object') {
+    markAuthorityCapture(value.receipt, capture);
+  }
+  return value;
+};
 
 const authHandshakeRequired = (path) => !(
   path === '/health'
@@ -160,6 +182,72 @@ const authAvailabilityError = (handshake) => {
   return error;
 };
 
+const TERMINAL_AUTH_CODES = new Set([
+  'SNAPBACK_AUTH_REQUIRED',
+  'SNAPBACK_AUTH_SESSION_EXPIRED',
+  'SNAPBACK_AUTH_SESSION_REVOKED',
+  'SNAPBACK_AUTH_FAMILY_REVOKED',
+]);
+
+const SUPERSEDED_AUTH_CODES = new Set([
+  'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
+  'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
+]);
+
+const safeNextCounter = (value, code, label) => {
+  if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
+    const error = new Error(`${code}: ${label} is exhausted`);
+    error.code = code;
+    error.diagnostic = { code, message: `${label} is exhausted` };
+    throw error;
+  }
+  return value + 1;
+};
+
+const clientAuthorityFromHandshake = (session) => {
+  const base = {
+    authMode: session.activeMode,
+    authorizationStreamIncarnation: session.authorizationStreamIncarnation,
+  };
+  return session.authority?.isAuthenticated
+    ? {
+        kind: 'session',
+        ...base,
+        sessionId: session.authority.sessionId,
+        userId: session.authority.userId,
+      }
+    : { kind: 'anonymous', ...base };
+};
+
+const credentialAuthority = (response, activeMode = 'sessions', incarnation = null) => ({
+  kind: 'session',
+  authMode: activeMode,
+  authorizationStreamIncarnation: incarnation,
+  sessionId: response?.session?.id,
+  userId: response?.session?.userId,
+});
+
+const sameClientAuthority = (left, right) => (
+  left?.kind === right?.kind
+  && left?.authMode === right?.authMode
+  && left?.authorizationStreamIncarnation === right?.authorizationStreamIncarnation
+  && (left?.kind !== 'session' || (
+    left?.sessionId === right?.sessionId
+    && left?.userId === right?.userId
+  ))
+);
+
+const staleAuthorityError = () => {
+  const diagnostic = {
+    code: 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+    message: 'the operation completed under a stale client authority',
+  };
+  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  return error;
+};
+
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
@@ -168,10 +256,15 @@ export class SnapbackClient {
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = null,
     authorizedLeaseProtocol = null,
+    authCoordinator = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
+    if (authCoordinator && bearerToken !== null) {
+      throw new TypeError('bearerToken cannot bypass AuthCoordinator custody; use authExchange()');
+    }
     this.bearerToken = bearerToken;
+    this.authCoordinator = authCoordinator;
     this.authProtocols = Object.freeze({
       authClient: authClientProtocol,
       authInvalidation: authInvalidationProtocol,
@@ -191,6 +284,36 @@ export class SnapbackClient {
     this.__laneConsumers = new Map();
     // ENG-23442 connection grants: caller label -> Promise<{id, token}>.
     this.__connectionGrants = new Map();
+    this.__authControllers = new Set();
+    this.__rawLiveStreams = new Set();
+    this.__authTransportGeneration = 0;
+    this.__authSessionCapture = null;
+    this.__authParticipantUnregister = authCoordinator?.registerParticipant?.({
+      name: 'snapback-kit-transport',
+      quiesce: async () => {
+        this.__authTransportGeneration = safeNextCounter(
+          this.__authTransportGeneration,
+          'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
+          'auth transport generation',
+        );
+        for (const controller of this.__authControllers) controller.abort(staleAuthorityError());
+        for (const stream of this.__rawLiveStreams) stream.close();
+        for (const manager of this.__liveStreamManagers?.values?.() ?? []) manager.close();
+      },
+      blank: () => {},
+      clearMemory: () => {
+        this.__authSession = null;
+        this.__authSessionCapture = null;
+        this.__connectionGrants.clear();
+        this.__laneConsumers.clear();
+        this.__receiptRing.length = 0;
+        this.__liveStreamManagers?.clear?.();
+      },
+      commitDurable: async () => {},
+      resume: async (context) => {
+        await this.#resumeAuthTransport(context.capture);
+      },
+    }) ?? null;
   }
 
   /// Resolve the current server/mode/authority projection. A successful value
@@ -200,6 +323,7 @@ export class SnapbackClient {
   // @ref LLP 0055#kit-ordering — no online boundary relies on capability-manifest mode guesses.
   authSession({ force = false } = {}) {
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
+    if (this.authCoordinator) return this.#coordinatedAuthSession({ force });
     if (!force && this.__authSession) return this.__authSession;
     let pending;
     pending = this.#fetchJson(
@@ -222,6 +346,9 @@ export class SnapbackClient {
   }
 
   setBearerToken(token) {
+    if (this.authCoordinator) {
+      throw new TypeError('setBearerToken cannot bypass AuthCoordinator; use authExchange() or authRefresh()');
+    }
     if (token === this.bearerToken) return;
     this.bearerToken = token ?? null;
     this.__authSession = null;
@@ -232,7 +359,15 @@ export class SnapbackClient {
     this.__authSession = null;
   }
 
-  #authOfferHeaders(includeAll = false) {
+  captureAuthority() {
+    return this.authCoordinator?.capture?.() ?? null;
+  }
+
+  authorityCaptureFor(value) {
+    return value?.[AUTHORITY_CAPTURE] ?? null;
+  }
+
+  #authOfferHeaders(includeAll = false, bearerOverride = undefined) {
     const headers = {};
     const add = (name, version) => {
       if (version != null) headers[name] = String(version);
@@ -243,7 +378,15 @@ export class SnapbackClient {
       add(AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER, this.authProtocols.authorityDescriptor);
       add(AUTHORIZED_LEASE_PROTOCOL_HEADER, this.authProtocols.authorizedLease);
     }
-    if (this.bearerToken) headers.authorization = `Bearer ${this.bearerToken}`;
+    const bearer = bearerOverride === undefined
+      ? this.authCoordinator
+        ? (() => {
+            try { return this.authCoordinator.credentialFor(this.authCoordinator.capture()).bearer; }
+            catch { return null; }
+          })()
+        : this.bearerToken
+      : bearerOverride;
+    if (bearer) headers.authorization = `Bearer ${bearer}`;
     return headers;
   }
 
@@ -258,7 +401,19 @@ export class SnapbackClient {
       && (session.desiredMode === 'dev' || session.desiredMode === 'sessions')
       && session.availability
       && session.authority;
-    if (valid) return;
+    const coordinatedValid = !this.authCoordinator || (
+      typeof session.authorizationStreamIncarnation === 'string'
+      && session.authorizationStreamIncarnation.length > 0
+      && typeof session.authority.isAuthenticated === 'boolean'
+      && (
+        !session.authority.isAuthenticated
+        || (
+          typeof session.authority.userId === 'string'
+          && typeof session.authority.sessionId === 'string'
+        )
+      )
+    );
+    if (valid && coordinatedValid) return;
     const diagnostic = {
       code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
       message: 'GET /auth/session returned an invalid protocol-v1 response',
@@ -266,6 +421,134 @@ export class SnapbackClient {
     const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
     error.diagnostic = diagnostic;
     throw error;
+  }
+
+  async #trackedFetchJson(method, path, body, headers) {
+    const controller = new AbortController();
+    this.__authControllers.add(controller);
+    try {
+      return await this.#fetchJson(method, path, body, headers, { signal: controller.signal });
+    } finally {
+      this.__authControllers.delete(controller);
+    }
+  }
+
+  #cacheAuthSession(session, capture) {
+    const pending = Promise.resolve(session);
+    this.__authSession = pending;
+    this.__authSessionCapture = capture
+      ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
+      : null;
+    return pending;
+  }
+
+  async #fetchAuthSessionWithBearer(bearer) {
+    const session = await this.#trackedFetchJson(
+      'GET',
+      '/auth/session',
+      undefined,
+      this.#authOfferHeaders(true, bearer),
+    );
+    this.#validateAuthSession(session);
+    return session;
+  }
+
+  async #coordinatedAuthSession({ force = false, retry = true } = {}) {
+    const coordinator = this.authCoordinator;
+    await coordinator.synchronize();
+    let capture = null;
+    try { capture = coordinator.capture(); } catch { /* fresh custody boot */ }
+    if (
+      !force
+      && capture
+      && this.__authSession
+      && this.__authSessionCapture?.authorityEpoch === capture.authorityEpoch
+      && this.__authSessionCapture?.authorityKey === capture.authorityKey
+    ) return this.__authSession;
+
+    if (!capture) {
+      const session = await this.#fetchAuthSessionWithBearer(null);
+      const authority = clientAuthorityFromHandshake(session);
+      if (authority.kind !== 'anonymous') {
+        throw staleAuthorityError();
+      }
+      capture = await coordinator.establishAnonymous(authority);
+      return this.#cacheAuthSession(session, capture);
+    }
+
+    const credential = coordinator.credentialFor(capture);
+    try {
+      const session = await this.#fetchAuthSessionWithBearer(credential.bearer);
+      if (!coordinator.isCurrent(capture)) {
+        if (retry) return this.#coordinatedAuthSession({ force: true, retry: false });
+        throw staleAuthorityError();
+      }
+      const observed = clientAuthorityFromHandshake(session);
+      if (!sameClientAuthority(observed, credential.authority)) {
+        capture = await coordinator.transition(capture, {
+          authority: observed,
+          bearer: observed.kind === 'session' ? credential.bearer : null,
+          refreshAfterMs: observed.kind === 'session' ? credential.refreshAfterMs : null,
+        }, 'handshake_authority_change');
+      }
+      return this.#cacheAuthSession(session, capture);
+    } catch (error) {
+      this.__authSession = null;
+      this.__authSessionCapture = null;
+      if (!coordinator.isCurrent(capture) && retry) {
+        return this.#coordinatedAuthSession({ force: true, retry: false });
+      }
+      throw error;
+    }
+  }
+
+  async #resumeAuthTransport(capture) {
+    const credential = this.authCoordinator.credentialFor(capture);
+    const session = await this.#fetchAuthSessionWithBearer(credential.bearer);
+    const observed = clientAuthorityFromHandshake(session);
+    if (!sameClientAuthority(observed, credential.authority)) {
+      const error = new Error(
+        'SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH: resume handshake does not match settled custody',
+      );
+      error.code = 'SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH';
+      error.diagnostic = {
+        code: error.code,
+        message: 'resume handshake does not match settled custody',
+      };
+      throw error;
+    }
+    this.#cacheAuthSession(session, capture);
+  }
+
+  #validateCredentialResponse(response) {
+    const valid = response
+      && response.tokenType === 'Bearer'
+      && typeof response.token === 'string'
+      && response.token.length > 0
+      && Number.isSafeInteger(response.refreshAfter)
+      && response.session
+      && typeof response.session.id === 'string'
+      && typeof response.session.userId === 'string';
+    if (valid) return response;
+    const error = new Error(
+      'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid credential response',
+    );
+    error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+    error.diagnostic = {
+      code: error.code,
+      message: 'auth provider returned an invalid credential response',
+    };
+    throw error;
+  }
+
+  async #familyAlarmWithBearer(bearer) {
+    if (!bearer) return { accepted: false };
+    return this.#trackedFetchJson(
+      'POST',
+      '/auth/family-alarm',
+      {},
+      this.#authOfferHeaders(true, bearer),
+    );
   }
 
   // ENG-23442: connection ids are server-granted capabilities, not bare
@@ -312,7 +595,10 @@ export class SnapbackClient {
       connectionId,
       ...(previousToken ? { previousToken } : {}),
     }).then(
-      (granted) => ({ id: granted.connectionId, token: granted.connectionToken }),
+      (granted) => markAuthorityCapture(
+        { id: granted.connectionId, token: granted.connectionToken },
+        granted?.[AUTHORITY_CAPTURE] ?? null,
+      ),
       (error) => {
         // A failed open must not poison the label: drop the cached promise
         // so the next operation retries the handshake. The cache may hold
@@ -347,8 +633,11 @@ export class SnapbackClient {
   }
 
   /// Record a receipt into the bounded kit ring and notify listeners.
-  recordReceipt(receipt) {
+  recordReceipt(receipt, capture = receipt?.[AUTHORITY_CAPTURE] ?? null) {
     if (!receipt || typeof receipt !== 'object') return receipt;
+    if (this.authCoordinator && (!capture || !this.authCoordinator.isCurrent(capture))) {
+      return receipt;
+    }
     this.__receiptRing.push(receipt);
     while (this.__receiptRing.length > RECEIPT_RING_CAP) this.__receiptRing.shift();
     for (const listener of [...this.__receiptListeners]) {
@@ -402,43 +691,94 @@ export class SnapbackClient {
     return `${prefix}:${normalizedScopeKey(scope)}`;
   }
 
-  async #request(method, path, body, headers, { admin = false } = {}) {
+  async #request(method, path, body, headers, {
+    admin = false,
+    supersededRetry = true,
+  } = {}) {
     let session = null;
-    if (
-      !admin
-      && this.authProtocols.authClient != null
-      && authHandshakeRequired(path)
-    ) {
-      session = await this.authSession({ force: freshAuthHandshakeRequired(path) });
-      const unavailable = authAvailabilityError(session);
-      if (unavailable) throw unavailable;
-    }
-
-    const sessionsMode = session?.activeMode === 'sessions';
-    const wireBody = sessionsMode ? sessionWireBody(path, body) : body;
-    const merged = {
-      ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
-      ...(sessionsMode ? this.#sessionRequestHeaders(path, body) : {}),
-      ...(headers ?? {}),
-    };
+    let capture = null;
+    let bearerUsed = null;
+    const transportGeneration = this.__authTransportGeneration;
     try {
-      return await this.#fetchJson(method, path, wireBody, merged);
+      if (this.authCoordinator) {
+        await this.authCoordinator.synchronize();
+        try { capture = this.authCoordinator.capture(); } catch { /* bootstrap handshake below */ }
+      }
+      if (
+        !admin
+        && this.authProtocols.authClient != null
+        && authHandshakeRequired(path)
+      ) {
+        session = await this.authSession({ force: freshAuthHandshakeRequired(path) });
+        const unavailable = authAvailabilityError(session);
+        if (unavailable) throw unavailable;
+      }
+      if (this.authCoordinator) {
+        // authSession may have bootstrapped or transitioned custody.
+        capture = this.authCoordinator.capture();
+        bearerUsed = this.authCoordinator.credentialFor(capture).bearer;
+      }
+
+      const sessionsMode = session?.activeMode === 'sessions';
+      const wireBody = sessionsMode ? sessionWireBody(path, body) : body;
+      const merged = {
+        ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
+        ...(sessionsMode ? this.#sessionRequestHeaders(
+          path,
+          body,
+          this.authCoordinator ? bearerUsed : undefined,
+        ) : {}),
+        ...(headers ?? {}),
+      };
+      const result = await this.#trackedFetchJson(method, path, wireBody, merged);
+      if (!this.authCoordinator) return result;
+      if (
+        transportGeneration !== this.__authTransportGeneration
+        || !this.authCoordinator.isCurrent(capture)
+      ) throw staleAuthorityError();
+      const committed = await this.authCoordinator.compareAndCommit(capture, () => (
+        markAuthorityCapture(result, capture)
+      ));
+      if (!committed.committed) throw staleAuthorityError();
+      return committed.value;
     } catch (error) {
+      const code = error?.diagnostic?.code ?? error?.code;
+      if (this.authCoordinator && capture) markAuthorityCapture(error, capture);
+      if (this.authCoordinator && capture && !this.authCoordinator.isCurrent(capture)) {
+        throw staleAuthorityError();
+      }
+      if (this.authCoordinator && capture && error?.receipt) {
+        markAuthorityCapture(error.receipt, capture);
+      }
+      if (this.authCoordinator && capture && SUPERSEDED_AUTH_CODES.has(code)) {
+        const successor = await this.authCoordinator.waitForNewerRevision(capture);
+        if (successor && supersededRetry) {
+          this.__authSession = null;
+          this.__authSessionCapture = null;
+          return this.#request(method, path, body, headers, { admin, supersededRetry: false });
+        }
+        try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
+        await this.authCoordinator.compareAndClear(capture, 'credential_superseded_without_successor');
+      } else if (this.authCoordinator && capture && TERMINAL_AUTH_CODES.has(code)) {
+        await this.authCoordinator.compareAndClear(capture, code);
+      }
       if ([
         'SNAPBACK_AUTH_MODE_PENDING',
         'SNAPBACK_AUTH_REQUIRED',
         'SNAPBACK_AUTH_SESSION_EXPIRED',
+        'SNAPBACK_AUTH_SESSION_REVOKED',
         'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
         'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
-      ].includes(error?.diagnostic?.code)) {
+      ].includes(code)) {
         this.__authSession = null;
+        this.__authSessionCapture = null;
       }
       throw error;
     }
   }
 
-  #sessionRequestHeaders(path, originalBody) {
-    const headers = this.#authOfferHeaders(false);
+  #sessionRequestHeaders(path, originalBody, bearerOverride = undefined) {
+    const headers = this.#authOfferHeaders(false, bearerOverride);
     if (path.startsWith('/live/') || path.startsWith('/ephemeral/')) {
       if (this.authProtocols.authInvalidation != null) {
         headers[AUTH_INVALIDATION_PROTOCOL_HEADER] = String(this.authProtocols.authInvalidation);
@@ -454,7 +794,7 @@ export class SnapbackClient {
     return headers;
   }
 
-  async #fetchJson(method, path, body, headers) {
+  async #fetchJson(method, path, body, headers, { signal = undefined } = {}) {
     const merged = {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
@@ -463,6 +803,7 @@ export class SnapbackClient {
       method,
       headers: Object.keys(merged).length > 0 ? merged : undefined,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
     });
     const text = await res.text();
     // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
@@ -509,6 +850,142 @@ export class SnapbackClient {
 
   health() { return this.#req('GET', '/health'); }
   inspect() { return this.#req('GET', '/inspect'); }
+
+  async authRequestCode(email) {
+    if (!this.authCoordinator) return this.#req('POST', '/auth/request-code', { email });
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const response = await this.#trackedFetchJson(
+      'POST',
+      '/auth/request-code',
+      { email },
+      this.#authOfferHeaders(true, null),
+    );
+    const committed = await this.authCoordinator.compareAndCommit(capture, () => (
+      markAuthorityCapture(response, capture)
+    ));
+    if (!committed.committed) throw staleAuthorityError();
+    return committed.value;
+  }
+
+  // The provider returns a bearer, but coordinated clients never publish it
+  // to app code. Custody advances and every local participant resumes before
+  // this method exposes the non-secret session projection.
+  async authExchange({ challengeId, code }) {
+    if (!this.authCoordinator) {
+      throw new TypeError('authExchange requires AuthCoordinator custody');
+    }
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const predecessor = this.authCoordinator.credentialFor(capture);
+    if (predecessor.authority.kind !== 'anonymous') {
+      throw staleAuthorityError();
+    }
+    const response = this.#validateCredentialResponse(await this.#trackedFetchJson(
+      'POST',
+      '/auth/exchange',
+      { challengeId, code },
+      this.#authOfferHeaders(true, null),
+    ));
+    const authority = credentialAuthority(
+      response,
+      'sessions',
+      predecessor.authority.authorizationStreamIncarnation,
+    );
+    await this.authCoordinator.transition(capture, {
+      authority,
+      bearer: response.token,
+      refreshAfterMs: response.refreshAfter,
+    }, 'login');
+    return {
+      tokenType: response.tokenType,
+      refreshAfter: response.refreshAfter,
+      session: response.session,
+    };
+  }
+
+  async authRefresh() {
+    if (!this.authCoordinator) {
+      throw new TypeError('authRefresh requires AuthCoordinator custody');
+    }
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const suspect = this.authCoordinator.credentialFor(capture).bearer;
+    try {
+      const outcome = await this.authCoordinator.withCredentialRotation(
+        capture,
+        async ({ bearer, authority }) => {
+          const response = this.#validateCredentialResponse(await this.#trackedFetchJson(
+            'POST',
+            '/auth/refresh',
+            {},
+            this.#authOfferHeaders(true, bearer),
+          ));
+          const observed = credentialAuthority(
+            response,
+            'sessions',
+            authority.authorizationStreamIncarnation,
+          );
+          if (!sameClientAuthority(observed, authority)) {
+            const error = new Error(
+              'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: refresh changed session authority',
+            );
+            error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+            throw error;
+          }
+          return {
+            bearer: response.token,
+            refreshAfterMs: response.refreshAfter,
+            value: {
+              tokenType: response.tokenType,
+              refreshAfter: response.refreshAfter,
+              session: response.session,
+            },
+          };
+        },
+      );
+      if (!outcome.rotated) {
+        const successor = await this.authCoordinator.waitForNewerRevision(capture);
+        if (successor) return { superseded: true };
+        throw staleAuthorityError();
+      }
+      this.__authSession = null;
+      this.__authSessionCapture = null;
+      return outcome.value;
+    } catch (error) {
+      const errorCode = error?.diagnostic?.code ?? error?.code;
+      if (!SUPERSEDED_AUTH_CODES.has(errorCode)) throw error;
+      const successor = await this.authCoordinator.waitForNewerRevision(capture);
+      if (successor) return { superseded: true };
+      try { await this.#familyAlarmWithBearer(suspect); } catch { /* named residual */ }
+      await this.authCoordinator.compareAndClear(capture, 'refresh_superseded_without_successor');
+      throw error;
+    }
+  }
+
+  async authLogout() {
+    if (!this.authCoordinator) {
+      throw new TypeError('authLogout requires AuthCoordinator custody');
+    }
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const bearer = this.authCoordinator.credentialFor(capture).bearer;
+    const response = await this.#trackedFetchJson(
+      'POST',
+      '/auth/logout',
+      {},
+      this.#authOfferHeaders(true, bearer),
+    );
+    const cleared = await this.authCoordinator.compareAndClear(capture, 'logout');
+    if (!cleared.cleared) throw staleAuthorityError();
+    return response;
+  }
+
+  async closeAuth() {
+    for (const controller of this.__authControllers) controller.abort();
+    await this.__authParticipantUnregister?.();
+    this.__authParticipantUnregister = null;
+  }
   // @ref LLP 0031#migration-plan — system writes moved from ungated root
   //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). Per
   //   LLP 0017#security-defaults, served loopback writes now require a local
@@ -683,6 +1160,7 @@ export class SnapbackClient {
 
   async publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
     const collection = collectionName(ref);
+    const operationCapture = this.authCoordinator?.capture?.() ?? null;
     try {
       const outcome = await this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/publish', {
         collection,
@@ -705,7 +1183,7 @@ export class SnapbackClient {
         snapshotVersion: outcome.entry_version,
         snapback: { scopeEpoch: outcome.scope_epoch, key: outcome.key },
         receivedAtMs: Date.now(),
-      });
+      }, outcome?.[AUTHORITY_CAPTURE] ?? null);
       return outcome;
     } catch (error) {
       this.recordReceipt({
@@ -714,7 +1192,7 @@ export class SnapbackClient {
         outcome: 'rejected',
         rollbackReason: error?.diagnostic?.code ?? 'SNAPBACK_EPHEMERAL_PUBLISH_FAILED',
         receivedAtMs: Date.now(),
-      });
+      }, error?.[AUTHORITY_CAPTURE] ?? operationCapture);
       throw error;
     }
   }
@@ -806,6 +1284,7 @@ export class SnapbackClient {
         let update;
         try {
           update = JSON.parse(decodeDurablePayload(env.Durable.payload));
+          markAuthorityCapture(update, env[AUTHORITY_CAPTURE] ?? null);
         } catch (error) {
           decodeFailures.push({
             code: 'SNAPBACK_ENVELOPE_DECODE_FAILED',
@@ -838,6 +1317,7 @@ export class SnapbackClient {
     const waiters = [];
     let streamError = null;
     let wsRef = null;
+    let authorityCapture = null;
     const removeWaiter = (waiter) => {
       const index = waiters.indexOf(waiter);
       if (index !== -1) waiters.splice(index, 1);
@@ -877,15 +1357,22 @@ export class SnapbackClient {
       .then((session) => {
         const unavailable = authAvailabilityError(session);
         if (unavailable) throw unavailable;
+        authorityCapture = this.authCoordinator?.capture?.() ?? null;
         return this.connectionGrant(connectionId);
       })
       .then((grant) => {
+      authorityCapture = grant?.[AUTHORITY_CAPTURE] ?? authorityCapture;
       const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${grant.id}/stream`;
       const ws = new WebSocket(url, liveStreamProtocols(grant));
       wsRef = ws;
       ws.addEventListener('message', async (event) => {
         try {
           const update = JSON.parse(await websocketText(event.data));
+          if (
+            authorityCapture
+            && !this.authCoordinator?.isCurrent?.(authorityCapture)
+          ) throw staleAuthorityError();
+          markAuthorityCapture(update, authorityCapture);
           const waiter = waiters.shift();
           if (waiter) waiter.resolve(update);
           else queue.push(update);
@@ -913,9 +1400,12 @@ export class SnapbackClient {
     // a process-level unhandled rejection.
     ready.catch(() => {});
 
-    return {
+    const stream = {
       ready,
-      close: () => wsPromise.then((ws) => ws.close(), () => {}),
+      close: () => {
+        this.__rawLiveStreams.delete(stream);
+        return wsPromise.then((ws) => ws.close(), () => {});
+      },
       sendJson: (message) => {
         if (!wsRef) throw new Error('Snapback live stream is not open yet (await ready first)');
         wsRef.send(JSON.stringify(message));
@@ -926,6 +1416,8 @@ export class SnapbackClient {
         return waitForUpdate(timeoutMs);
       },
     };
+    this.__rawLiveStreams.add(stream);
+    return stream;
   }
 
   // The shared managed live socket for one connection (LLP 0034 §2.1: a
@@ -1024,6 +1516,7 @@ export class SnapbackClient {
     // only after the prior path has committed its subscription id.
     let freshSubscribeTail = Promise.resolve();
     let freshSubscribePending = 0;
+    let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
 
     const handle = {
@@ -1063,7 +1556,7 @@ export class SnapbackClient {
         receivedAtMs: Date.now(),
         ...extra,
       };
-      client.recordReceipt(receipt);
+      client.recordReceipt(receipt, handleAuthorityCapture);
       if (onSubscriptionEvent) deliverIsolated(onSubscriptionEvent, receipt);
     };
 
@@ -1107,7 +1600,11 @@ export class SnapbackClient {
     };
 
     const invalidateSubscribeLifecycle = (state) => {
-      subscribeLifecycleEpoch += 1;
+      subscribeLifecycleEpoch = safeNextCounter(
+        subscribeLifecycleEpoch,
+        'SNAPBACK_CLIENT_SUBSCRIPTION_GENERATION_EXHAUSTED',
+        'subscription lifecycle generation',
+      );
       if (!subscribeLifecycleController.signal.aborted) {
         subscribeLifecycleController.abort(subscribeLifecycleError(state));
       }
@@ -1117,7 +1614,11 @@ export class SnapbackClient {
       if (!subscribeLifecycleController.signal.aborted) {
         subscribeLifecycleController.abort(subscribeLifecycleError('paused'));
       }
-      subscribeLifecycleEpoch += 1;
+      subscribeLifecycleEpoch = safeNextCounter(
+        subscribeLifecycleEpoch,
+        'SNAPBACK_CLIENT_SUBSCRIPTION_GENERATION_EXHAUSTED',
+        'subscription lifecycle generation',
+      );
       subscribeLifecycleController = new AbortController();
     };
 
@@ -1141,6 +1642,11 @@ export class SnapbackClient {
 
     const applyDurable = (update) => {
       if (disposed || paused || !update || typeof update !== 'object') return;
+      const updateCapture = update[AUTHORITY_CAPTURE] ?? handleAuthorityCapture;
+      if (
+        client.authCoordinator
+        && (!updateCapture || !client.authCoordinator.isCurrent(updateCapture))
+      ) return;
       if (update.kind === LIVE_DURABLE_KINDS.LIVE_REPLACE) {
         // Updates for a superseded (pre-resubscribe) subscription id are
         // ignored; versions are non-decreasing per subscription (the global
@@ -1261,6 +1767,7 @@ export class SnapbackClient {
       handle.subscriptionId = sub.subscription_id;
       handle.version = sub.snapshot.version;
       handle.rows = sub.snapshot.rows;
+      handleAuthorityCapture = sub[AUTHORITY_CAPTURE] ?? null;
       return sub;
     };
 
@@ -1377,7 +1884,11 @@ export class SnapbackClient {
         // record the demand so the in-flight run loops for another fresh
         // subscribe once its POST resolves, and keep the need visible to
         // the retry/drain paths in case that run fails instead.
-        resubscribeDemandEpoch += 1;
+        resubscribeDemandEpoch = safeNextCounter(
+          resubscribeDemandEpoch,
+          'SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED',
+          'resubscribe demand generation',
+        );
         needsResubscribe = true;
         pendingResubscribeReason = reason;
         return false;
@@ -1386,7 +1897,13 @@ export class SnapbackClient {
       // that arrives while either is pending must remain visible if that
       // older snapshot was already in flight, just like a demand arriving
       // during the traditional resubscribe loop.
-      if (freshSubscribePending > 0) resubscribeDemandEpoch += 1;
+      if (freshSubscribePending > 0) {
+        resubscribeDemandEpoch = safeNextCounter(
+          resubscribeDemandEpoch,
+          'SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED',
+          'resubscribe demand generation',
+        );
+      }
       resubscribing = true;
       needsResubscribe = true;
       pendingResubscribeReason = reason;
@@ -1507,7 +2024,11 @@ export class SnapbackClient {
           // is permanent silent staleness on a destroyed outbox. (When a
           // reconnect superseded this socket server-side the generation
           // guard skips the drop; the subscribe is then merely redundant.)
-          socketLossEpoch += 1;
+          socketLossEpoch = safeNextCounter(
+            socketLossEpoch,
+            'SNAPBACK_CLIENT_SOCKET_LOSS_GENERATION_EXHAUSTED',
+            'socket-loss generation',
+          );
           needsResubscribe = true;
           pendingResubscribeReason = 'reconnect';
           if (fallbackToPoll) {
@@ -1765,6 +2286,7 @@ class LiveStreamManager {
     // Set when a socket fails WITHOUT ever opening — the signature of a
     // stale grant (restarted server): the next connect refreshes the grant.
     this.grantSuspect = false;
+    this.authorityCapture = null;
   }
 
   #demand() {
@@ -1984,15 +2506,20 @@ class LiveStreamManager {
     const grantPromise = this.client.authSession({ force: true }).then((session) => {
       const unavailable = authAvailabilityError(session);
       if (unavailable) throw unavailable;
-      return refreshGrant
+      const authorityCapture = this.client.authCoordinator?.capture?.() ?? null;
+      return (refreshGrant
         ? this.client.refreshConnectionGrant(this.connectionId)
-        : this.client.connectionGrant(this.connectionId);
+        : this.client.connectionGrant(this.connectionId))
+        .then((grant) => ({
+          grant,
+          authorityCapture: grant?.[AUTHORITY_CAPTURE] ?? authorityCapture,
+        }));
     });
     grantPromise.then(
-      (grant) => {
+      ({ grant, authorityCapture }) => {
         this.connectPending = false;
         if (this.closed) return;
-        this.#openSocket(grant);
+        this.#openSocket(grant, authorityCapture);
       },
       () => {
         this.connectPending = false;
@@ -2003,7 +2530,7 @@ class LiveStreamManager {
     );
   }
 
-  #openSocket(grant) {
+  #openSocket(grant, authorityCapture = null) {
     const url = this.#socketUrl(grant);
     let ws;
     try {
@@ -2015,7 +2542,19 @@ class LiveStreamManager {
       this.#scheduleReconnect();
       return;
     }
-    this.socketGeneration += 1;
+    try {
+      this.socketGeneration = safeNextCounter(
+        this.socketGeneration,
+        'SNAPBACK_CLIENT_SOCKET_GENERATION_EXHAUSTED',
+        'live socket generation',
+      );
+    } catch (error) {
+      this.closed = true;
+      try { ws.close(); } catch { /* fail closed */ }
+      this.#emitState('closed', { error });
+      return;
+    }
+    this.authorityCapture = authorityCapture;
     this.ws = ws;
 
     // Connect budget: a dangling upgrade (a proxy that swallows it, a dead
@@ -2050,6 +2589,14 @@ class LiveStreamManager {
       } catch {
         return;
       }
+      if (
+        this.authorityCapture
+        && !this.client.authCoordinator?.isCurrent?.(this.authorityCapture)
+      ) {
+        this.#loseSocket(ws, staleAuthorityError());
+        return;
+      }
+      markAuthorityCapture(frame, this.authorityCapture);
       this.#dispatch(frame);
     });
     const onLoss = () => {
@@ -2125,7 +2672,16 @@ class LiveStreamManager {
         this.debugCloseSocket();
         return;
       }
-      this.requestSeq += 1;
+      try {
+        this.requestSeq = safeNextCounter(
+          this.requestSeq,
+          'SNAPBACK_CLIENT_SOCKET_REQUEST_GENERATION_EXHAUSTED',
+          'socket request generation',
+        );
+      } catch (error) {
+        this.#loseSocket(this.ws, error);
+        return;
+      }
       const requestId = `ping_${this.requestSeq}`;
       const ws = this.ws;
       if (!ws) return;
@@ -2192,7 +2748,11 @@ class LiveStreamManager {
       return Promise.reject(new Error('Snapback live stream is not open'));
     }
     const ws = this.ws;
-    this.requestSeq += 1;
+    this.requestSeq = safeNextCounter(
+      this.requestSeq,
+      'SNAPBACK_CLIENT_SOCKET_REQUEST_GENERATION_EXHAUSTED',
+      'socket request generation',
+    );
     const requestId = message.requestId ?? `req_${this.requestSeq}`;
     let encoded;
     try {
@@ -2329,6 +2889,7 @@ export class EphemeralOverlay {
     this.tombstones = new Map();
     this.needsResync = false;
     this.room = null; // captured from OUR subscribe snapshot (room identity)
+    this.authorityCapture = null;
     this.__preSnapshotEnvelopes = [];
     this.__preSnapshotOverflowed = false;
     this.__drainCaptures = new Set();
@@ -2354,6 +2915,11 @@ export class EphemeralOverlay {
   }
 
   #consume(envelope) {
+    const capture = envelope?.[AUTHORITY_CAPTURE] ?? this.authorityCapture;
+    if (
+      this.client.authCoordinator
+      && (!capture || !this.client.authCoordinator.isCurrent(capture))
+    ) return 'stale_authority';
     const result = this.apply(envelope);
     for (const capture of this.__drainCaptures) capture.push(result);
     return result;
@@ -2372,6 +2938,12 @@ export class EphemeralOverlay {
     const overflowed = this.__preSnapshotOverflowed;
     this.__preSnapshotEnvelopes = null;
     this.__preSnapshotOverflowed = false;
+    const snapshotCapture = snapshot?.[AUTHORITY_CAPTURE] ?? null;
+    if (
+      this.client.authCoordinator
+      && (!snapshotCapture || !this.client.authCoordinator.isCurrent(snapshotCapture))
+    ) throw staleAuthorityError();
+    this.authorityCapture = snapshotCapture;
     const snapshotResult = this.apply(snapshot);
     for (const envelope of buffered) this.#consume(envelope);
     if (overflowed) {

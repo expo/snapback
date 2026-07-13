@@ -471,6 +471,23 @@ export class AuthCoordinator {
     });
   }
 
+  /** Narrow transport read used during the post-settle resume barrier. */
+  credentialFor(capture) {
+    this.#assertUsable();
+    if (!captureMatches(this.#appId, this.#record, capture)) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'credential capture does not name current settled custody',
+      );
+    }
+    return Object.freeze({
+      authority: clone(this.#record.authority),
+      bearer: this.#record.bearer,
+      refreshAfterMs: this.#record.refreshAfterMs,
+      revision: this.#record.revision,
+    });
+  }
+
   /** Establish a fresh store only from a successful anonymous handshake. */
   async establishAnonymous(authority) {
     this.#assertOperationAllowed();
@@ -593,6 +610,85 @@ export class AuthCoordinator {
       this.#publish(next);
       return { rotated: true, capture: captureFor(this.#appId, next) };
     });
+  }
+
+  /**
+   * Serialize refresh across contexts and keep successor plaintext private
+   * until the exact predecessor revision is durably replaced.
+   */
+  async withCredentialRotation(capture, rotate) {
+    this.#assertOperationAllowed();
+    if (typeof rotate !== 'function') throw new TypeError('withCredentialRotation requires a callback');
+    return this.#storage.withOwnership(this.#appId, async (owner) => {
+      const record = await owner.read();
+      if (!captureMatches(this.#appId, record, capture, { revision: true })) {
+        return { rotated: false };
+      }
+      const current = validateAuthCustody(record, this.#appId);
+      if (current.authority.kind !== 'session') {
+        throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'anonymous custody cannot refresh a bearer');
+      }
+      const candidate = await rotate(Object.freeze({
+        bearer: current.bearer,
+        authority: clone(current.authority),
+        refreshAfterMs: current.refreshAfterMs,
+      }));
+      if (!candidate || typeof candidate.bearer !== 'string' || candidate.bearer.length === 0) {
+        throw coordinatorError('SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID', 'refresh returned no successor bearer');
+      }
+      validateRefreshTime(candidate.refreshAfterMs, 'refreshAfterMs');
+      if (candidate.refreshAfterMs === null) {
+        throw coordinatorError('SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID', 'refresh returned no refresh schedule');
+      }
+      const next = await owner.replace(current.revision, {
+        ...current,
+        revision: nextRevision(current.revision),
+        bearer: candidate.bearer,
+        refreshAfterMs: candidate.refreshAfterMs,
+      });
+      this.#adoptSettled(next);
+      this.#publish(next);
+      return {
+        rotated: true,
+        capture: captureFor(this.#appId, next),
+        value: candidate.value,
+      };
+    });
+  }
+
+  async waitForNewerRevision(capture, {
+    timeoutMs = AUTH_CUSTODY_SUPERSEDED_WAIT_MS,
+    pollMs = 25,
+    monotonicNow = () => globalThis.performance?.now?.() ?? Date.now(),
+  } = {}) {
+    this.#assertOperationAllowed();
+    const deadline = monotonicNow() + timeoutMs;
+    for (;;) {
+      try {
+        await this.synchronize();
+      } catch {
+        // A peer may still own a clearing transition; retry until the bounded
+        // monotonic deadline and let the caller choose the family-alarm path.
+      }
+      if (
+        this.#record?.phase === 'settled'
+        && this.#record.authorityEpoch === capture.authorityEpoch
+        && canonicalAuthorityKey(this.#appId, this.#record.authority) === capture.authorityKey
+        && this.#record.revision > capture.custodyRevision
+      ) {
+        return captureFor(this.#appId, this.#record);
+      }
+      if (
+        this.#record?.phase === 'settled'
+        && (
+          this.#record.authorityEpoch !== capture.authorityEpoch
+          || canonicalAuthorityKey(this.#appId, this.#record.authority) !== capture.authorityKey
+        )
+      ) return null;
+      const remaining = deadline - monotonicNow();
+      if (remaining <= 0) return null;
+      await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, remaining)));
+    }
   }
 
   async compareAndClear(capture, reason = 'terminal_auth_error') {

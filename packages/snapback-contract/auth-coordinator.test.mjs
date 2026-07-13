@@ -316,6 +316,49 @@ for (const message of hub.messages) {
 }
 for (const bytes of hintBytes.values()) assert.equal(bytes.includes('bearer'), false);
 
+// Refresh ownership spans the network callback and exact durable replacement.
+// A second context reloads after the first settles and cannot invoke its stale
+// provider callback or overwrite the successor plaintext.
+{
+  const peer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: shared }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await peer.synchronize();
+  const capture = coordinator.capture();
+  const peerCapture = peer.capture();
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const first = coordinator.withCredentialRotation(capture, async () => {
+    enteredResolve();
+    await release;
+    return { bearer: 'serialized-successor', refreshAfterMs: 80_000, value: 'first' };
+  });
+  await entered;
+  let staleCallbackRan = false;
+  const second = peer.withCredentialRotation(peerCapture, async () => {
+    staleCallbackRan = true;
+    return { bearer: 'must-not-land', refreshAfterMs: 90_000, value: 'second' };
+  });
+  releaseResolve();
+  assert.deepEqual(await first, {
+    rotated: true,
+    capture: {
+      ...capture,
+      custodyRevision: capture.custodyRevision + 1,
+    },
+    value: 'first',
+  });
+  assert.deepEqual(await second, { rotated: false });
+  assert.equal(staleCallbackRan, false);
+  assert.equal((await peer.waitForNewerRevision(peerCapture))?.custodyRevision, capture.custodyRevision + 1);
+  await peer.close();
+}
+
 // Neither monotonic counter can wrap or silently reuse an old comparison id.
 {
   const epochState = { custody: {
