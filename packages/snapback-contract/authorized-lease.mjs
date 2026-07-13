@@ -17,6 +17,7 @@ export const SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS = 86_400_000;
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const MAC_SHA256 = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/;
+const ACTIVATION_HASH = /^snapback\.authorized-lease\.activation\.v1:sha256:[0-9a-f]{64}$/;
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
@@ -229,7 +230,13 @@ export function validateAuthorizedLease(value, path = 'authorizedLease') {
         `${path}.data.snapshotCommitVersion`,
       ),
     }),
-    activationHash: opaque(value.activationHash, `${path}.activationHash`),
+    activationHash: typeof value.activationHash === 'string' && ACTIVATION_HASH.test(value.activationHash)
+      ? value.activationHash
+      : (() => {
+          throw corrupt(`${path}.activationHash is not canonical`, {
+            field: `${path}.activationHash`,
+          });
+        })(),
     issuedAtServerMs,
     authorizedUntilServerMs,
     sessionNotAfterMs,

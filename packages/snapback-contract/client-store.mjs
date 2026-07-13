@@ -37,6 +37,7 @@ const ARTIFACT_SCOPE_FIELDS = [
   'versionStreamId',
 ];
 const AUTHORITY_KEY_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const ACTIVATION_HASH_PATTERN = /^snapback\.authorized-lease\.activation\.v1:sha256:[0-9a-f]{64}$/;
 const UUID_V7_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const RECORD_IDENTITY_FIELDS = ['authFingerprint', 'authorityKey', ...ARTIFACT_SCOPE_FIELDS];
 
@@ -373,12 +374,17 @@ function assertQueryAuthorizationState(query, path, state, queryKey) {
       && REPLAY_OPAQUE_ID_PATTERN.test(query.expectedVersionStream),
     `${path}.expectedVersionStream`,
   );
-  for (const field of ['expectedActivationHash', 'expectedAppId', 'expectedTargetProfileId']) {
+  for (const field of ['expectedAppId', 'expectedTargetProfileId']) {
     assertStateField(
       typeof query[field] === 'string' && REPLAY_OPAQUE_ID_PATTERN.test(query[field]),
       `${path}.${field}`,
     );
   }
+  assertStateField(
+    typeof query.expectedActivationHash === 'string'
+      && ACTIVATION_HASH_PATTERN.test(query.expectedActivationHash),
+    `${path}.expectedActivationHash`,
+  );
   assertStateField(
     query.authorityInstanceId === null
       || (typeof query.authorityInstanceId === 'string' && UUID_V7_PATTERN.test(query.authorityInstanceId)),
@@ -1952,7 +1958,10 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       if (typeof principalId !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(principalId)) {
         throw new TypeError('authorized retained query requires a canonical principalId');
       }
-      for (const [field, value] of Object.entries({ activationHash, appId, targetProfileId })) {
+      if (typeof activationHash !== 'string' || !ACTIVATION_HASH_PATTERN.test(activationHash)) {
+        throw new TypeError('authorized retained query requires a canonical activationHash');
+      }
+      for (const [field, value] of Object.entries({ appId, targetProfileId })) {
         if (typeof value !== 'string' || !REPLAY_OPAQUE_ID_PATTERN.test(value)) {
           throw new TypeError(`authorized retained query requires a canonical ${field}`);
         }

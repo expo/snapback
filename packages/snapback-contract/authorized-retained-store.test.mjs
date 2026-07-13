@@ -11,7 +11,7 @@ const USER = '018f0d90-7b13-7a22-8c33-445566778899';
 const AUTHORITY_KEY = `sha256:${'a'.repeat(64)}`;
 const QUERY_KEY = 'myHand:{"gameId":"g1"}';
 const VERSION_STREAM = 'stream_1';
-const ACTIVATION_HASH = 'sha256:active-bundle';
+const ACTIVATION_HASH = `snapback.authorized-lease.activation.v1:sha256:${'a'.repeat(64)}`;
 const APP_ID = 'card-game';
 const TARGET_PROFILE_ID = 'local-dev-sqlite-ibex';
 const AUTHORIZATION = { incarnation: INCARNATION, epoch: 0 };
@@ -146,7 +146,7 @@ await assert.rejects(
         requestId: firstRequest.request.leaseRequestId,
         version: 100,
       }),
-      activationHash: 'sha256:other-bundle',
+      activationHash: `snapback.authorized-lease.activation.v1:sha256:${'b'.repeat(64)}`,
     },
     record: record(100),
     clientNowMs: 1_001,

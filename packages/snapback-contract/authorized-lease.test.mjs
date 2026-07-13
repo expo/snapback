@@ -13,6 +13,7 @@ import {
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const AUTHORITY_INSTANCE = '018f0d90-7b12-7a22-8c33-445566778899';
+const ACTIVATION_HASH = `snapback.authorized-lease.activation.v1:sha256:${'a'.repeat(64)}`;
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') {
@@ -38,7 +39,7 @@ const lease = {
   providerKey: 'email-code',
   authorization: { incarnation: INCARNATION, epoch: 4 },
   data: { versionStream: 'stream_1', snapshotCommitVersion: 99 },
-  activationHash: 'sha256:active-bundle',
+  activationHash: ACTIVATION_HASH,
   issuedAtServerMs: 1_000,
   authorizedUntilServerMs: 1_000 + SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS,
   sessionNotAfterMs: 1_000 + SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS,
@@ -88,7 +89,7 @@ for (const [field, value] of [
   ['principalId', 'other-user'],
   ['authorization', { incarnation: INCARNATION, epoch: 5 }],
   ['data', { versionStream: 'other-stream', snapshotCommitVersion: 99 }],
-  ['activationHash', 'sha256:other-bundle'],
+  ['activationHash', `snapback.authorized-lease.activation.v1:sha256:${'b'.repeat(64)}`],
   ['authorityInstanceId', null],
 ]) {
   assert.throws(
