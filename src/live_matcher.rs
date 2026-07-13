@@ -1336,15 +1336,26 @@ mod delta_tests {
     }
 
     #[test]
-    fn ordered_or_limited_queries_fall_back_to_replace() {
+    fn ordered_or_full_limited_queries_fall_back_to_replace() {
         let input = input(json!({}));
         let mut limited = unfiltered_plan();
         limited.limit = Some(10);
+
+        assert!(matches!(
+            compute_live_delta(
+                &limited,
+                &input,
+                &ids(&["existing"]),
+                &[change("a", ChangeOp::Insert, Some(row("a", "u1")))]
+            ),
+            LiveDeltaOutcome::Delta(_)
+        ));
+
         assert_eq!(
             compute_live_delta(
                 &limited,
                 &input,
-                &ids(&[]),
+                &ids(&["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]),
                 &[change("a", ChangeOp::Insert, Some(row("a", "u1")))]
             ),
             LiveDeltaOutcome::Replace
