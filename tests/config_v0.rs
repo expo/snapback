@@ -153,22 +153,20 @@ fn non_secret_and_default_entries_are_rejected_fail_closed() {
     non_secret.secret = false;
     let mut with_default = entry("hasDefault");
     with_default.default = Some(json!("x"));
-    let manifest = FunctionManifest {
-        config: vec![non_secret, with_default],
-        ..Default::default()
-    };
-    let diagnostics = snapback.load_functions(manifest);
-    let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
-    assert!(
-        codes.contains(&"SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED"),
-        "{codes:?}"
-    );
-    assert!(
-        codes.contains(&"SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"),
-        "{codes:?}"
-    );
-    // Fail closed: rejected entries are not part of the effective declaration.
-    assert!(snapback.config_status().entries.is_empty());
+    for (invalid, expected_code) in [
+        (non_secret, "SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED"),
+        (with_default, "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"),
+    ] {
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            config: vec![invalid],
+            ..Default::default()
+        });
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(diagnostics[0].code, expected_code, "{diagnostics:?}");
+        // A semantically invalid artifact is rejected as one generation; no
+        // declaration from it becomes effective.
+        assert!(snapback.config_status().entries.is_empty());
+    }
 }
 
 #[test]
@@ -195,14 +193,23 @@ fn probe_validation_rejects_unknown_and_non_action_probes() {
 fn uses_naming_unknown_entries_and_missing_required_are_diagnosed() {
     let mut snapback = LocalSnapback::memory().unwrap();
     snapback.apply_schema(probe_schema()).unwrap();
-    let manifest = FunctionManifest {
+    let invalid = FunctionManifest {
         functions: vec![ibex_action("useKeys", &["neverDeclared"])],
         config: vec![entry("feedKeys")],
         ..Default::default()
     };
-    let diagnostics = snapback.load_functions(manifest);
+    let diagnostics = snapback.load_functions(invalid);
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0].code, "SNAPBACK_CONFIG_USES_UNKNOWN");
+    assert!(snapback.required_missing_config().is_empty());
+
+    // Required-missing is a status warning for a valid, installed generation;
+    // it is not appended after an invalid generation has already failed.
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        config: vec![entry("feedKeys")],
+        ..Default::default()
+    });
     let codes: Vec<&str> = diagnostics.iter().map(|d| d.code.as_str()).collect();
-    assert!(codes.contains(&"SNAPBACK_CONFIG_USES_UNKNOWN"), "{codes:?}");
     assert!(
         codes.contains(&"SNAPBACK_CONFIG_REQUIRED_MISSING"),
         "{codes:?}"
