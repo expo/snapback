@@ -5,7 +5,7 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
+**Revised:** 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: lifecycle replacement/reset now excludes old-generation operations, snapshots expose a room high-water version, coalesced drains are sorted, and whole-definition/exact-scope validation is atomic); 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
 clears only the ephemeral outbox lanes — queued durable live-query payloads
 answer subscriptions that survive the boundary and are preserved; the
 runtime reset still clears whole outboxes because it retires the durable
@@ -231,6 +231,15 @@ correctness, and sharded locks match the codebase's existing style
   by a newer one) and keeps snapshot-plus-registration atomic (LLP 0013
   §Room store model). Publisher-side admission (auth, TTL, size, rate)
   stays outside the room lock.
+- **Snapshot/delta high water.** Every snapshot carries
+  `next_entry_version - 1`, even when it contains no entries. Outbox coalescing
+  remains latest-by-key, but drain sorts room/epoch/version before delivery;
+  Rust and JS overlays combine the snapshot high-water with at most 1,024
+  delete tombstones so delayed upserts cannot resurrect removed state.
+- **Definition-generation barrier.** Definition replacement and reset take the
+  lifecycle write side; publish/delete/subscribe/unsubscribe take the read side.
+  Once a replacement returns, no operation admitted against the retired
+  definition generation can recreate its rooms or entries.
 - **Room lifecycle and epochs.** Rooms are created on demand and pruned when
   they hold no entries and no subscribers, via a retire-and-retry protocol
   (`retired` is set while holding map and room; operations that acquired a

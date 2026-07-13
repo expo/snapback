@@ -613,11 +613,29 @@ export async function createSnapbackContractSurface({
       && error?.code !== 'SNAPBACK_AUTH_STALE_RESULT'
     );
 
+    const confirmSentAcknowledgements = async (ids) => {
+      if (ids.length === 0) return;
+      try {
+        await clientStore.confirmMutationAcknowledgements(ids);
+      } catch (error) {
+        // The server response proves these acknowledgements were received.
+        // A local persistence failure must not turn that successful mutation
+        // into an apparent connectivity failure; retaining the ids simply
+        // makes the next delivery idempotently acknowledge them again.
+        publishDiagnostic(
+          'SNAPBACK_CLIENT_STORE_WRITE_FAILED',
+          error instanceof Error ? error.message : String(error),
+          { operation: 'confirmMutationAcknowledgements' },
+        );
+      }
+    };
+
     const persistMutation = async (name, args, optimisticOp = null) => {
       let queued = null;
       let mutationCommitted = false;
       let mutationOutput = null;
       let mutationDeliveryStarted = false;
+      let sentAcknowledgements = [];
       try {
         if (offlineReplayEnabled && optimisticOp?.ctxLedger) {
           queued = await clientStore.enqueueMutation({
@@ -642,6 +660,9 @@ export async function createSnapbackContractSurface({
           });
           durablePendingCount += 1;
         }
+        if (offlineReplayEnabled) {
+          sentAcknowledgements = await clientStore.pendingMutationAcknowledgements();
+        }
         mutationDeliveryStarted = true;
         // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
         // into this correlation when the runtime supplies them.
@@ -650,10 +671,12 @@ export async function createSnapbackContractSurface({
           userId,
           correlation: surfaceCorrelation,
           clientMutationId: queued?.id ?? null,
+          acknowledgedClientMutationIds: sentAcknowledgements,
           ctxLedger: queued?.ctxLedger ?? null,
         });
         mutationCommitted = true;
         mutationOutput = output;
+        await confirmSentAcknowledgements(sentAcknowledgements);
         if (queued) {
           await clientStore.settleMutation(queued.id, { status: 'confirmed', output });
           durablePendingCount = Math.max(0, durablePendingCount - 1);
@@ -956,6 +979,7 @@ export async function createSnapbackContractSurface({
       let replayed = 0;
       let failed = 0;
       for (const record of queued) {
+        const sentAcknowledgements = await clientStore.pendingMutationAcknowledgements();
         try {
           const output = await client.mutate(record.function, {
             args: record.args,
@@ -963,8 +987,10 @@ export async function createSnapbackContractSurface({
             readSet: record.readSet ?? [],
             correlation: surfaceCorrelation,
             clientMutationId: record.id,
+            acknowledgedClientMutationIds: sentAcknowledgements,
             ctxLedger: record.ctxLedger,
           });
+          await confirmSentAcknowledgements(sentAcknowledgements);
           await clientStore.settleMutation(record.id, { status: 'confirmed', output });
           durablePendingCount = Math.max(0, durablePendingCount - 1);
           replayed += 1;
@@ -973,6 +999,7 @@ export async function createSnapbackContractSurface({
             retainedOffline = true;
             throw error;
           }
+          await confirmSentAcknowledgements(sentAcknowledgements);
           await clientStore.settleMutation(record.id, {
             status: 'failed',
             diagnostic: error?.diagnostic ?? { message: error instanceof Error ? error.message : String(error) },

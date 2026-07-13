@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Revised:** 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026
 
 ## Summary
@@ -332,7 +332,8 @@ Room operations should follow this contract:
   history or a tombstone that survives a fresh snapshot.
 - `snapshot` sweeps expired entries first, evaluates subscribe authorization
   against the caller's current auth context, and returns only visible,
-  non-expired entries plus the current `scopeEpoch`.
+  non-expired entries plus the current `scopeEpoch` and the room's authoritative
+  high-water `entryVersion` (`nextEntryVersion - 1`, including an empty room).
 - `subscribe` must not have a snapshot/register race. The room authority should
   either take one room transaction that sweeps, authorizes, snapshots, and
   registers the subscriber, or use an equivalent actor message that guarantees a
@@ -365,7 +366,10 @@ or other client binding reads when rendering cursors, selections, typing
 indicators, and online participants.
 
 The overlay stores the latest visible value, expiry metadata, `scopeEpoch`,
-`entryVersion`, and subscription state. It is cleared on user/session switch,
+`entryVersion`, the snapshot high-water, a bounded set of delete tombstones,
+and subscription state. It rejects any delayed upsert at or below the room or
+key high-water so a coalesced delete cannot be followed by stale resurrection.
+It is cleared on user/session switch,
 page reload, explicit unsubscribe, reconnect that cannot prove continuity, and
 any `ephemeral_resync_required` that asks for a fresh snapshot. It may schedule
 client-local expiry pruning from server-provided TTL metadata, but it must not
@@ -433,6 +437,13 @@ Messages are idempotent at the latest-state level. Applying the same upsert
 twice should produce the same local value. Applying a stale upsert after a newer
 one should be rejected by `(scopeEpoch, entryVersion)`. A message from an unknown
 or changed `scopeEpoch` requires a fresh snapshot.
+
+Collection installation validates the entire definition set before mutation:
+portable unique names and scope/routing fields, exact scope keys, TTL/value/rate/
+dispatch/outbox budgets, key mode, and authorization prefixes. The local paved
+path rejects TTL maxima above 30 seconds. Replacement/reset is a lifecycle
+barrier: no publish, delete, subscribe, or unsubscribe admitted under an old
+definition may mutate the new generation after the barrier returns.
 
 ### Backpressure and coalescing
 

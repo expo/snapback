@@ -28,6 +28,33 @@ pub struct Diagnostic {
     pub details: Value,
 }
 
+/// Public diagnostic identity. Messages and structured details can contain
+/// source paths, handler text, arguments, or other operator-only context, so
+/// unauthenticated inspection exposes only the stable classification fields.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct PublicDiagnostic {
+    pub code: String,
+    pub severity: DiagnosticSeverity,
+    pub subsystem: String,
+}
+
+impl From<Diagnostic> for PublicDiagnostic {
+    fn from(diagnostic: Diagnostic) -> Self {
+        let Diagnostic {
+            code,
+            severity,
+            subsystem,
+            message: _,
+            details: _,
+        } = diagnostic;
+        Self {
+            code,
+            severity,
+            subsystem,
+        }
+    }
+}
+
 impl Diagnostic {
     pub fn info(
         code: impl Into<String>,

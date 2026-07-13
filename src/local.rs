@@ -1,13 +1,15 @@
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
-    LocalCronRuntime,
+    LocalCronRuntime, validate_cron_manifest,
 };
-use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
+use crate::diagnostic::{
+    Diagnostic, DiagnosticSeverity, PublicDiagnostic, SnapbackError, SnapbackResult,
+};
 use crate::ephemeral::{
     CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
     EphemeralDiagnostics, EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest,
-    RealtimeEnvelope, SubscribeRequest,
+    RealtimeEnvelope, SubscribeRequest, validate_collection_definitions,
 };
 use crate::live_matcher::{
     LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
@@ -21,10 +23,14 @@ use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, CTX_ANSWER_LEDGER_MAX_IDS,
     CapabilityManifest, CtxAnswerLedger, FunctionDefinition, FunctionKind, FunctionManifest,
     FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
-    PublicFunctionManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, ctx_ledger_version,
+    PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
+    ctx_ledger_version,
 };
-use crate::runtime::{ExecutedIbexMutation, IbexActionHost, RuntimeCapabilities, RuntimeManager};
+use crate::runtime::{
+    CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
+    IbexSubmoduleCapability, RuntimeCapabilities, RuntimeManager,
+};
 use crate::storage::{
     BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
     ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
@@ -199,14 +205,16 @@ pub struct LiveSubscriptionInfo {
 /// `/`. It is a typed allowlist: the `From<InspectState>` below destructures the
 /// full struct, so a newly-added `InspectState` (or `StorageInfo`,
 /// `LiveSubscriptionInfo`) field is a compile error here rather than a silent
-/// leak. Sensitive facts deliberately dropped to, or reduced on, the gated
-/// `/_snapback/api/inspect` twin include `subscriptions[].connection_id` (the
+/// leak. Sensitive facts are deliberately dropped and live only in the gated
+/// `/_snapback/api/inspect` twin: `subscriptions[].connection_id` (the
 /// enumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute
-/// `storage.sqlite_path` (an environment leak), and the executable handler
-/// bodies inside `functions` (`IbexModule.source` / `HandlerPlan` bodies — a
-/// source disclosure, ENG-23441; see [`PublicFunctionManifest`]). Cron state is
-/// aggregate-only and recent diagnostics omit handler-controlled message and
-/// detail fields.
+/// `storage.sqlite_path` and runtime executable/submodule paths (environment
+/// leaks), per-room ephemeral identities, mutation-retention internals, and the
+/// executable handler bodies inside `functions` (`IbexModule.source` /
+/// `HandlerPlan` bodies — a source disclosure, ENG-23441; see
+/// [`PublicFunctionManifest`]). Free-form diagnostic message/details and cron
+/// run results are also gated because producers may include source paths or
+/// application values.
 ///
 /// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.
 /// @ref LLP 0036#runtime-exposure-d5-d8 — secret-like runtime diagnostics are redacted before retention and never projected anonymously as raw text.
@@ -220,8 +228,8 @@ pub struct PublicInspect {
     pub target_profile_id: String,
     pub target: String,
     pub storage: PublicStorageInfo,
-    pub runtime: RuntimeCapabilities,
-    pub schema: SchemaManifest,
+    pub runtime: PublicRuntimeCapabilities,
+    pub schema: PublicSchemaManifest,
     pub functions: PublicFunctionManifest,
     #[serde(rename = "capabilityManifest")]
     pub capability_manifest: CapabilityManifest,
@@ -232,7 +240,7 @@ pub struct PublicInspect {
     pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
-    pub ephemeral: EphemeralDiagnostics,
+    pub ephemeral: PublicEphemeralDiagnostics,
     pub cron: PublicCronInspectState,
     #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
     pub recent_diagnostics: Vec<PublicDiagnostic>,
@@ -245,6 +253,134 @@ pub struct PublicInspect {
 pub struct PublicStorageInfo {
     pub version: u64,
     pub tables: Vec<String>,
+}
+
+/// Runtime capability posture safe for unauthenticated inspection. Absolute
+/// executable/submodule paths remain on the gated inspect endpoint.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicRuntimeCapabilities {
+    pub canonical_engine: String,
+    pub ibex_submodule: PublicIbexSubmoduleCapability,
+    pub ibex_cli: PublicIbexCliCapability,
+    pub host_plan_runtime: bool,
+    pub ibex_ctx_db_host_bridge: CapabilityState,
+    pub async_handler_completion: CapabilityState,
+    pub sqlite_lock_held_across_async: CapabilityState,
+    pub mutation_dry_run: bool,
+}
+
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicIbexSubmoduleCapability {
+    pub present: bool,
+}
+
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicIbexCliCapability {
+    pub available: bool,
+    pub version: Option<String>,
+}
+
+impl From<RuntimeCapabilities> for PublicRuntimeCapabilities {
+    fn from(runtime: RuntimeCapabilities) -> Self {
+        let RuntimeCapabilities {
+            canonical_engine,
+            ibex_submodule,
+            ibex_cli,
+            host_plan_runtime,
+            ibex_ctx_db_host_bridge,
+            async_handler_completion,
+            sqlite_lock_held_across_async,
+            mutation_dry_run,
+        } = runtime;
+        let IbexSubmoduleCapability { present, path: _ } = ibex_submodule;
+        let IbexCliCapability {
+            available,
+            path: _,
+            version,
+        } = ibex_cli;
+        Self {
+            canonical_engine,
+            ibex_submodule: PublicIbexSubmoduleCapability { present },
+            ibex_cli: PublicIbexCliCapability { available, version },
+            host_plan_runtime,
+            ibex_ctx_db_host_bridge,
+            async_handler_completion,
+            sqlite_lock_held_across_async,
+            mutation_dry_run,
+        }
+    }
+}
+
+/// Aggregate ephemeral health facts safe for unauthenticated inspection.
+/// Per-room identities, routing keys, scopes, and epochs stay on the gated
+/// admin endpoint because they can encode tenant and application data.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicEphemeralDiagnostics {
+    pub room_count: usize,
+    pub entry_count: usize,
+    pub subscriber_count: usize,
+    pub value_bytes: usize,
+    pub pending_ephemeral_keys: usize,
+    pub pending_durable_messages: usize,
+    pub pending_resync_messages: usize,
+    pub rejected_publishes: u64,
+    pub rate_limited_publishes: u64,
+    pub oversized_publishes: u64,
+    pub unauthorized_requests: u64,
+    pub expired_entries: u64,
+    pub disconnected_entries: u64,
+    pub coalesced_updates: u64,
+    pub resync_required: u64,
+    pub outbox_overflows: u64,
+    pub limit_rejections: u64,
+}
+
+impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
+    fn from(diagnostics: EphemeralDiagnostics) -> Self {
+        // Exhaustive by design: adding a diagnostic requires an explicit
+        // public/private classification here.
+        let EphemeralDiagnostics {
+            room_count,
+            entry_count,
+            subscriber_count,
+            value_bytes,
+            active_rooms: _,
+            pending_ephemeral_keys,
+            pending_durable_messages,
+            pending_resync_messages,
+            rejected_publishes,
+            rate_limited_publishes,
+            oversized_publishes,
+            unauthorized_requests,
+            expired_entries,
+            disconnected_entries,
+            coalesced_updates,
+            resync_required,
+            outbox_overflows,
+            limit_rejections,
+        } = diagnostics;
+        Self {
+            room_count,
+            entry_count,
+            subscriber_count,
+            value_bytes,
+            pending_ephemeral_keys,
+            pending_durable_messages,
+            pending_resync_messages,
+            rejected_publishes,
+            rate_limited_publishes,
+            oversized_publishes,
+            unauthorized_requests,
+            expired_entries,
+            disconnected_entries,
+            coalesced_updates,
+            resync_required,
+            outbox_overflows,
+            limit_rejections,
+        }
+    }
 }
 
 /// Public subscription facts: id and function, never the owning connection id.
@@ -294,32 +430,6 @@ impl From<CronInspectState> for PublicCronInspectState {
     }
 }
 
-/// A diagnostic safe for anonymous inspection. Handler-controlled messages
-/// and arbitrary details are intentionally absent.
-#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
-pub struct PublicDiagnostic {
-    pub code: String,
-    pub severity: DiagnosticSeverity,
-    pub subsystem: String,
-}
-
-impl From<Diagnostic> for PublicDiagnostic {
-    fn from(diagnostic: Diagnostic) -> Self {
-        let Diagnostic {
-            code,
-            severity,
-            subsystem,
-            message: _,
-            details: _,
-        } = diagnostic;
-        Self {
-            code,
-            severity,
-            subsystem,
-        }
-    }
-}
-
 impl From<InspectState> for PublicInspect {
     fn from(inspect: InspectState) -> Self {
         // Exhaustive destructures below are load-bearing: a new field on any of
@@ -347,6 +457,7 @@ impl From<InspectState> for PublicInspect {
             sqlite_path: _,
             version,
             tables,
+            client_mutation_retention: _,
         } = storage;
         PublicInspect {
             artifact_kind,
@@ -354,8 +465,8 @@ impl From<InspectState> for PublicInspect {
             target_profile_id,
             target,
             storage: PublicStorageInfo { version, tables },
-            runtime,
-            schema,
+            runtime: runtime.into(),
+            schema: schema.into(),
             functions: functions.into(),
             capability_manifest,
             subscriptions: subscriptions
@@ -371,12 +482,9 @@ impl From<InspectState> for PublicInspect {
             active_connections,
             reaped_connections,
             live_delivery,
-            ephemeral,
+            ephemeral: ephemeral.into(),
             cron: cron.into(),
-            recent_diagnostics: recent_diagnostics
-                .into_iter()
-                .map(PublicDiagnostic::from)
-                .collect(),
+            recent_diagnostics: recent_diagnostics.into_iter().map(Into::into).collect(),
             capability_gaps,
         }
     }
@@ -1055,9 +1163,13 @@ impl LocalSnapback {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
+        validate_collection_definitions(&manifest.ephemeral_collections)
+            .map_err(ephemeral_manifest_error)?;
         let ephemeral_collections = manifest.ephemeral_collections.clone();
         let diagnostics = self.db.apply_schema(manifest)?;
-        self.ephemeral.replace_collections(ephemeral_collections);
+        self.ephemeral
+            .replace_collections(ephemeral_collections)
+            .map_err(ephemeral_manifest_error)?;
         self.advance_app_generation();
         self.refresh_read_manifests();
         self.record_diagnostics(diagnostics.clone());
@@ -1071,13 +1183,26 @@ impl LocalSnapback {
             return vec![diagnostic];
         }
 
+        let mut preflight = Vec::new();
+        if let Err(error) = validate_function_schema_references(&manifest, self.db.schema()) {
+            preflight.push(error.diagnostic);
+        }
+        preflight.extend(validate_cron_manifest(&manifest));
+        if preflight
+            .iter()
+            .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        {
+            self.record_diagnostics(preflight.clone());
+            return preflight;
+        }
+
         self.functions = manifest;
         self.functions_loaded = true;
         self.advance_app_generation();
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
-        let mut diagnostics = Vec::new();
+        let mut diagnostics = preflight;
 
         if self
             .functions
@@ -1246,10 +1371,12 @@ impl LocalSnapback {
                     "matched"
                 } else if provisioning_allowed {
                     let diagnostics = self.load_functions(manifest);
-                    if let Some(error) = diagnostics
-                        .iter()
-                        .find(|diagnostic| matches!(diagnostic.severity, DiagnosticSeverity::Fatal))
-                    {
+                    if let Some(error) = diagnostics.iter().find(|diagnostic| {
+                        matches!(
+                            diagnostic.severity,
+                            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+                        )
+                    }) {
                         return Err(SnapbackError::new(error.clone()));
                     }
                     "provisioned"
@@ -1319,6 +1446,15 @@ impl LocalSnapback {
 
     pub fn durable_version(&self) -> Option<u64> {
         self.db.info().ok().map(|info| info.version)
+    }
+
+    pub fn acknowledge_client_mutations(
+        &mut self,
+        auth: &AuthInput,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
+        self.db
+            .acknowledge_client_mutations(&auth_fingerprint(auth), ids)
     }
 
     pub fn function_definition(&self, name: &str) -> Option<&FunctionDefinition> {
@@ -2964,8 +3100,11 @@ impl LocalSnapback {
             .map(|function| function.kind.clone())
     }
 
-    pub fn register_ephemeral_collection(&mut self, collection: EphemeralCollection) {
-        self.ephemeral.register_collection(collection);
+    pub fn register_ephemeral_collection(
+        &mut self,
+        collection: EphemeralCollection,
+    ) -> Result<(), crate::ephemeral::EphemeralError> {
+        self.ephemeral.register_collection(collection)
     }
 
     pub fn ensure_ephemeral_collections(
@@ -4237,6 +4376,141 @@ impl ReadLane {
             capabilities: manifests.capabilities.clone(),
         })
     }
+}
+
+fn ephemeral_manifest_error(error: crate::ephemeral::EphemeralError) -> SnapbackError {
+    SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
+}
+
+/// Whole-manifest schema-reference preflight. Invocation-time checks remain as
+/// defense in depth, but a malformed direct artifact must not replace a known
+/// good function/config/cron generation and fail only on its first call.
+fn validate_function_schema_references(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let table = |name: &str| {
+        schema.table(name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("function manifest references unknown table {name}"),
+            )
+        })
+    };
+    let field = |table_name: &str, field_name: &str| -> SnapbackResult<()> {
+        let table = table(table_name)?;
+        if matches!(field_name, "_id" | "_version" | "_createdAt" | "_updatedAt")
+            || table.field(field_name).is_some()
+        {
+            Ok(())
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("function manifest references unknown field {table_name}.{field_name}"),
+            ))
+        }
+    };
+    let query = |plan: &QueryPlan| -> SnapbackResult<()> {
+        crate::manifest::validate_query_plan_shape(plan)?;
+        let table_manifest = table(&plan.table)?;
+        if let Some(index) = &plan.indexed_by
+            && !table_manifest
+                .indexes
+                .iter()
+                .any(|candidate| &candidate.name == index)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_UNKNOWN_INDEX",
+                "runtime",
+                format!("query references unknown index {}.{index}", plan.table),
+            ));
+        }
+        for filter in &plan.filters {
+            field(&plan.table, &filter.field)?;
+        }
+        for order in &plan.order {
+            field(&plan.table, &order.field)?;
+            if table_manifest
+                .field(&order.field)
+                .is_some_and(|declared| declared.field_type == crate::manifest::FieldType::Json)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
+                    "runtime",
+                    format!(
+                        "query cannot order by Json field {}.{}",
+                        plan.table, order.field
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    };
+
+    for function in &manifest.functions {
+        match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+                for step in &plan.steps {
+                    match step {
+                        MutationStep::Insert {
+                            table: name,
+                            values,
+                            ..
+                        }
+                        | MutationStep::Patch {
+                            table: name,
+                            values,
+                            ..
+                        }
+                        | MutationStep::InsertEach {
+                            table: name,
+                            values,
+                            ..
+                        } => {
+                            table(name)?;
+                            for field_name in values.keys() {
+                                field(name, field_name)?;
+                            }
+                        }
+                        MutationStep::Delete { table: name, .. }
+                        | MutationStep::Get { table: name, .. } => {
+                            table(name)?;
+                        }
+                        MutationStep::DeleteWhere {
+                            table: name,
+                            filter: filters,
+                        } => {
+                            table(name)?;
+                            for filter in filters {
+                                field(name, &filter.field)?;
+                            }
+                        }
+                        MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
+                    }
+                }
+                if let Some(crate::manifest::ReturnValue::Document { table: name, .. }) =
+                    &plan.return_value
+                {
+                    table(name)?;
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::Action(_)) | FunctionRuntime::IbexModule(_) => {}
+        }
+        for dependency in function
+            .read_set_summary
+            .tables
+            .iter()
+            .chain(function.write_set_summary.tables.iter())
+            .chain(function.read_set_summary.primary_table.iter())
+            .chain(function.write_set_summary.primary_table.iter())
+        {
+            table(dependency)?;
+        }
+    }
+    Ok(())
 }
 
 fn read_lane_unavailable() -> SnapbackError {

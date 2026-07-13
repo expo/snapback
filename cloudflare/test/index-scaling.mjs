@@ -181,7 +181,8 @@ function executeProductionRowQuery(db, plan) {
         indexed_by: null,
       };
       const compiled = captureProductionRowQuery(plan);
-      assert.match(compiled.sql, /NULLS LAST, id ASC$/);
+      assert.match(compiled.sql, /NULLS LAST, id ASC LIMIT \?$/);
+      assert.equal(compiled.params.at(-1), 1024);
       assert.deepEqual(
         executeProductionRowQuery(db, plan).map((row) => row._id),
         expected,
@@ -206,6 +207,65 @@ function executeProductionRowQuery(db, plan) {
   } finally {
     db.close();
   }
+}
+
+// Absence of take() is still bounded, and the In budget is cumulative across
+// filters rather than a per-clause loophole.
+{
+  const rows = Array.from({ length: 1025 }, (_, index) => ({
+    _id: `row-${String(index).padStart(4, '0')}`,
+    orderIndex: index,
+  }));
+  assert.equal(applyPlan(rows, { table: table.name, filters: [], order: [], limit: null }).length, 1024);
+  assert.throws(
+    () => applyPlan(rows, {
+      table: table.name,
+      filters: [
+        { field: 'orderIndex', op: 'In', value: { Literal: Array(300).fill(1) } },
+        { field: 'orderIndex', op: 'In', value: { Literal: Array(300).fill(2) } },
+      ],
+      order: [],
+      limit: null,
+    }),
+    (error) => error?.snapbackCode === 'SNAPBACK_QUERY_IN_ITEMS_EXCEEDED',
+  );
+}
+
+// Buffered delete overfetch is exact top-N but bounded to limit + writes.
+{
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE ${physicalTable} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`);
+  db.exec('CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL)');
+  db.exec('INSERT INTO _snapback_version(id, version) VALUES (1, 1)');
+  const rows = [
+    { _id: 'a', orderIndex: 1 },
+    { _id: 'b', orderIndex: 2 },
+    { _id: 'c', orderIndex: 3 },
+  ];
+  const insert = db.prepare(`INSERT INTO ${physicalTable} (id, row_json) VALUES (?, ?)`);
+  for (const row of rows) insert.run(row._id, JSON.stringify(row));
+  const host = new HostContext({
+    sql: { exec(sql, ...params) { return db.prepare(sql).all(...params); } },
+    mode: 'mutation',
+    nowMs: 0,
+    epoch: 'bounded-buffered-query',
+    newId: () => 'unused',
+    tables: new Set([table.name]),
+    schemaTables: new Map([[table.name, table]]),
+  });
+  assert.equal(host.handle('db.delete', { table: table.name, id: 'a' }).ok, true);
+  const result = host.handle('db.query', {
+    plan: {
+      table: table.name,
+      filters: [],
+      order: [{ field: 'orderIndex', direction: 'Asc' }],
+      limit: 2,
+      indexed_by: null,
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.value.rows.map((row) => row._id), ['b', 'c']);
+  db.close();
 }
 
 // SQLite BINARY and Rust string ordering follow Unicode scalar values; JS's

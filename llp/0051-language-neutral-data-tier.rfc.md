@@ -5,7 +5,7 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Conformance, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -1008,6 +1008,12 @@ disciplines.
    reducers — the override path stays first-class). Only fully IR-derivable,
    single-query, store-configured surfaces claim `Parity`; every other adapter
    surface continues to report `Online`.
+   Settled server results remain replayable until the auth-matched client sends
+   a persisted acknowledgement on a later mutation. Per-result, aggregate-byte,
+   and record ceilings refuse new identities rather than silently evicting the
+   exact-once proof. Query evaluation is likewise finite by contract: 1,024
+   default/max materialized rows, 500 cumulative literal `In` items, 1,024
+   buffered writes, and at most 2,048 internal read-your-writes candidates.
    *Hardened 2026-07-12 (ENG-24493–ENG-24496).* Version-1 state now carries an
    additive durable generation. Corrupt/future/legacy bytes remain untouched
    behind typed diagnostics until explicit reset or migration. The web

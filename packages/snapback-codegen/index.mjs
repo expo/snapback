@@ -1129,6 +1129,8 @@ function buildEphemeralCollections(ephemeralDef, err) {
     }
     if (!isPositiveSafeInteger(def.maxTtlMs)) {
       err('EPHEMERAL_INVALID_BUDGET', 'ephemeral', `${name} maxTtlMs must be a positive integer`, { collection: name, field: 'maxTtlMs', value: def.maxTtlMs });
+    } else if (def.maxTtlMs > 30_000) {
+      err('EPHEMERAL_INVALID_BUDGET', 'ephemeral', `${name} maxTtlMs exceeds the local paved-path ceiling`, { collection: name, field: 'maxTtlMs', value: def.maxTtlMs, maximum: 30_000 });
     } else if (def.maxTtlMs < def.ttlMs) {
       err('EPHEMERAL_INVALID_TTL', 'ephemeral', `${name} maxTtlMs is below ttlMs`, { collection: name, ttlMs: def.ttlMs, maxTtlMs: def.maxTtlMs });
     }
@@ -1157,6 +1159,22 @@ function buildEphemeralCollections(ephemeralDef, err) {
     }
     if (!def.publish || !def.publish.__accessPolicy || !def.subscribe || !def.subscribe.__accessPolicy) {
       err('EPHEMERAL_MISSING_AUTH', 'ephemeral', `${name} needs explicit publish and subscribe auth policies`, { collection: name });
+    } else {
+      for (const [operation, policy] of [['publish', def.publish], ['subscribe', def.subscribe]]) {
+        if (policy.kind === 'RequireRoomPermission' && !IDENT.test(policy.prefix ?? '')) {
+          err('EPHEMERAL_INVALID_AUTH', 'ephemeral', `${name} ${operation} room-permission prefix must be a portable identifier`, {
+            collection: name,
+            operation,
+            prefix: policy.prefix,
+          });
+        } else if (policy.kind !== 'AllowAll' && policy.kind !== 'RequireRoomPermission') {
+          err('EPHEMERAL_INVALID_AUTH', 'ephemeral', `${name} ${operation} uses an unsupported access policy`, {
+            collection: name,
+            operation,
+            policyKind: policy.kind,
+          });
+        }
+      }
     }
     for (const target of def.targets ?? []) {
       if (target !== TARGET_PROFILE) {

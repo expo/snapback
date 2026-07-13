@@ -756,7 +756,9 @@ fn measure_ephemeral(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<
     let mut collection = EphemeralCollection::local_cursor("cursors", "roomId");
     collection.sustained_hz = 10_000_000;
     collection.burst = 10_000_000;
-    snapback.register_ephemeral_collection(collection);
+    snapback
+        .register_ephemeral_collection(collection)
+        .expect("valid benchmark ephemeral collection");
     let scope = Scope::from_pairs([("roomId", "room-1")]);
     // A few subscribers so publishes fan out.
     for i in 0..4 {

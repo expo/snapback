@@ -20,14 +20,14 @@ export default defineSchema({
   // Presence for the Exact provider-conformance gate (ENG-22479; Exact LLP
   // 0284 §2.5): who is looking at a list right now. Connection-keyed,
   // allow-all (the LLP 0011 permission story is exercised by the todo v1
-  // boardCursors fixture), TTL generous enough for the gate's run.
+  // boardCursors fixture), using the local paved-path TTL ceiling.
   ephemeral: defineEphemeral({
     todoPresence: ephemeral.collection({
       scope: { listId: v.string() },
       routing: ['listId'],
       key: 'connection',
       ttlMs: 20_000,
-      maxTtlMs: 60_000,
+      maxTtlMs: 30_000,
       maxValueBytes: 512,
       publishRate: { sustainedHz: 20, burst: 40 },
       delivery: { mode: 'latest', dispatchMs: 33 },

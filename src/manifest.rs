@@ -1,10 +1,23 @@
-use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::diagnostic::{Diagnostic, PublicDiagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::EphemeralCollection;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
+/// Portable query budgets shared by the local and Cloudflare evaluators. The
+/// `In` cap stays below SQLite's 999-variable compatibility floor with room
+/// for neighboring predicates; the result cap matches the existing 1,024-item
+/// bounded runtime lanes.
+pub const QUERY_MAX_LIMIT: usize = 1_024;
+pub const QUERY_DEFAULT_LIMIT: usize = QUERY_MAX_LIMIT;
+pub const QUERY_MAX_IN_ITEMS: usize = 500;
+pub const QUERY_MAX_BUFFERED_WRITES: usize = 1_024;
+pub const QUERY_INTERNAL_OVERFETCH_MAX: usize = QUERY_MAX_LIMIT + QUERY_MAX_BUFFERED_WRITES;
+/// One request may cumulatively acknowledge this many durable mutation
+/// settlements. It matches the existing 1,024-item replay-ledger budget so a
+/// hostile envelope cannot turn acknowledgement into unbounded SQLite work.
+pub const CLIENT_MUTATION_ACK_MAX_IDS: usize = 1_024;
 pub const TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX: &str = "local-dev-sqlite-ibex";
 /// The LLP 0048 conformance twin's internal profile — named to be
 /// unmistakably non-public so generated clients cannot mistake it for a
@@ -142,6 +155,72 @@ impl SchemaManifest {
     }
 }
 
+/// Public schema identity facts. The schema itself is intentionally public,
+/// but artifact diagnostics are projected to their stable classification so
+/// source paths and application values in producer-authored text stay gated.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicSchemaManifest {
+    #[serde(rename = "artifactKind")]
+    pub artifact_kind: String,
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
+    #[serde(rename = "appId")]
+    pub app_id: String,
+    pub app: Option<AppIdentity>,
+    #[serde(rename = "schemaHash")]
+    pub schema_hash: Option<String>,
+    #[serde(rename = "inputsHash")]
+    pub inputs_hash: Option<String>,
+    #[serde(rename = "generatedAt")]
+    pub generated_at: Option<u64>,
+    #[serde(rename = "sourceHash")]
+    pub source_hash: Option<String>,
+    #[serde(rename = "artifactDiagnostics")]
+    pub artifact_diagnostics: Vec<PublicDiagnostic>,
+    #[serde(rename = "targetProfile")]
+    pub target_profile: Option<String>,
+    #[serde(rename = "portabilityFlags")]
+    pub portability_flags: Vec<String>,
+    #[serde(rename = "ephemeralCollections")]
+    pub ephemeral_collections: Vec<EphemeralCollection>,
+    pub tables: Vec<TableManifest>,
+}
+
+impl From<SchemaManifest> for PublicSchemaManifest {
+    fn from(manifest: SchemaManifest) -> Self {
+        let SchemaManifest {
+            artifact_kind,
+            schema_version,
+            app_id,
+            app,
+            schema_hash,
+            inputs_hash,
+            generated_at,
+            source_hash,
+            artifact_diagnostics,
+            target_profile,
+            portability_flags,
+            ephemeral_collections,
+            tables,
+        } = manifest;
+        Self {
+            artifact_kind,
+            schema_version,
+            app_id,
+            app,
+            schema_hash,
+            inputs_hash,
+            generated_at,
+            source_hash,
+            artifact_diagnostics: artifact_diagnostics.into_iter().map(Into::into).collect(),
+            target_profile,
+            portability_flags,
+            ephemeral_collections,
+            tables,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct TableManifest {
     pub name: String,
@@ -252,8 +331,205 @@ impl FunctionManifest {
             &self.schema_version,
             self.bundle_hash.as_deref(),
             self.inputs_hash.as_deref(),
-        )
+        )?;
+        self.validate_semantics()
     }
+
+    fn validate_semantics(&self) -> SnapbackResult<()> {
+        let mut identities = BTreeMap::<String, (usize, String)>::new();
+        for (function_index, function) in self.functions.iter().enumerate() {
+            if function.name.trim().is_empty() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_IDENTITY_INVALID",
+                    "runtime",
+                    "function names must not be empty",
+                ));
+            }
+            let local_identities = std::iter::once(&function.name)
+                .chain(function.id.iter())
+                .collect::<BTreeSet<_>>();
+            for identity in local_identities {
+                if identity.trim().is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_IDENTITY_INVALID",
+                        "runtime",
+                        format!("function {} has an empty identity", function.name),
+                    ));
+                }
+                if let Some((previous_index, previous)) = identities.get(identity)
+                    && *previous_index != function_index
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_IDENTITY_COLLISION",
+                        "runtime",
+                        format!(
+                            "function identity {identity:?} is shared by {previous} and {}",
+                            function.name
+                        ),
+                    ));
+                }
+                identities.insert(identity.clone(), (function_index, function.name.clone()));
+            }
+
+            match (&function.kind, &function.runtime) {
+                (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
+                ) => validate_query_plan_shape(plan)?,
+                (
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
+                ) => crate::value_expr::validate_mutation_plan(plan)?,
+                (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(_)))
+                | (_, FunctionRuntime::IbexModule(_)) => {}
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
+                        "runtime",
+                        format!(
+                            "function {} kind {:?} does not match its host-plan runtime",
+                            function.name, function.kind
+                        ),
+                    ));
+                }
+            }
+        }
+
+        let by_name = self
+            .functions
+            .iter()
+            .map(|function| (function.name.as_str(), function))
+            .collect::<BTreeMap<_, _>>();
+        for function in &self.functions {
+            if let FunctionRuntime::HostPlan(HandlerPlan::Action(plan)) = &function.runtime {
+                for step in &plan.steps {
+                    let ActionStep::RunMutation { name, .. } = step;
+                    match self.function(name) {
+                        Some(target) if target.kind == FunctionKind::Mutation => {}
+                        _ => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
+                                "runtime",
+                                format!(
+                                    "action {} references missing or non-mutation function {name}",
+                                    function.name
+                                ),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut config_names = BTreeSet::new();
+        for entry in &self.config {
+            if entry.name.is_empty()
+                || !entry
+                    .name
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
+                || !config_names.insert(entry.name.clone())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CONFIG_ENTRY_INVALID",
+                    "config",
+                    format!("config entry {:?} is invalid or duplicated", entry.name),
+                ));
+            }
+            if !entry.secret {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CONFIG_NON_SECRET_UNIMPLEMENTED",
+                    "config",
+                    format!(
+                        "config entry {} declares secret: false, which is not implemented",
+                        entry.name
+                    ),
+                ));
+            }
+            if entry.default.is_some() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED",
+                    "config",
+                    format!(
+                        "config entry {} declares an unsupported default",
+                        entry.name
+                    ),
+                ));
+            }
+            if let Some(probe) = &entry.probe {
+                match self.function(probe) {
+                    Some(target) if target.kind == FunctionKind::Action => {}
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_CONFIG_PROBE_INVALID",
+                            "config",
+                            format!(
+                                "config entry {} references missing or non-action probe {probe}",
+                                entry.name
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        for function in by_name.values() {
+            for used in &function.uses {
+                if !config_names.contains(used) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CONFIG_USES_UNKNOWN",
+                        "config",
+                        format!(
+                            "function {} declares unknown config entry {used}",
+                            function.name
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
+    if let Some(limit) = plan.limit
+        && limit > QUERY_MAX_LIMIT
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_LIMIT_INVALID",
+            "query",
+            format!("query limit {limit} exceeds the portable cap {QUERY_MAX_LIMIT}"),
+        ));
+    }
+    let mut literal_in_items = 0_usize;
+    for filter in &plan.filters {
+        if filter.op == FilterOp::In
+            && let ValueExpr::Literal(value) = &filter.value
+        {
+            let Some(items) = value.as_array() else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+                    "query",
+                    format!("query In filter on {} expects an array", filter.field),
+                ));
+            };
+            literal_in_items = literal_in_items.saturating_add(items.len());
+            if literal_in_items > QUERY_MAX_IN_ITEMS {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
+                    "query",
+                    format!(
+                        "query In filters contain {} literal items after {}; maxInItems is {}",
+                        literal_in_items, filter.field, QUERY_MAX_IN_ITEMS
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn effective_query_limit(plan: &QueryPlan) -> usize {
+    plan.limit.unwrap_or(QUERY_DEFAULT_LIMIT)
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -379,8 +655,9 @@ pub struct IbexModule {
 /// hashes, function names/kinds/capability summaries, read/write summaries,
 /// cron and config *declarations* (never values; secrets do not ride the
 /// manifest — LLP 0036). What it drops: every executable handler body
-/// (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan` (a
-/// source-path leak). Full source stays only on the gated
+/// (`IbexModule.source`, `HandlerPlan` step bodies), every function/cron/config
+/// `sourceSpan` (a source-path leak), and free-form unsupported-dependency
+/// diagnostic message/details. Full operational context stays only on the gated
 /// `/_snapback/api/inspect` twin.
 ///
 /// @ref LLP 0031#resolved-decisions — D3: public `/inspect` is an identity
@@ -401,11 +678,53 @@ pub struct PublicFunctionManifest {
     #[serde(rename = "generatedAt")]
     pub generated_at: Option<u64>,
     #[serde(rename = "unsupportedDependencyDiagnostics")]
-    pub unsupported_dependency_diagnostics: Vec<Diagnostic>,
+    pub unsupported_dependency_diagnostics: Vec<PublicDiagnostic>,
     pub functions: Vec<PublicFunctionDefinition>,
     #[serde(rename = "cronJobs")]
-    pub cron_jobs: Vec<CronJobDefinition>,
-    pub config: Vec<ConfigEntryDefinition>,
+    pub cron_jobs: Vec<PublicCronJobDefinition>,
+    pub config: Vec<PublicConfigEntryDefinition>,
+}
+
+/// Public cron declaration: scheduling posture without its source path.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicCronJobDefinition {
+    pub name: String,
+    pub schedule: CronSchedule,
+    pub action: String,
+    pub enabled: bool,
+    pub activation: CronActivationPolicy,
+    #[serde(rename = "jitterPolicy")]
+    pub jitter_policy: CronJitterPolicy,
+    #[serde(rename = "overlapPolicy")]
+    pub overlap_policy: CronOverlapPolicy,
+    #[serde(rename = "retryPolicy")]
+    pub retry_policy: CronRetryPolicy,
+    #[serde(rename = "requiredCapabilities")]
+    pub required_capabilities: Vec<String>,
+    #[serde(rename = "targetWakeup")]
+    pub target_wakeup: Option<CronTargetWakeup>,
+}
+
+/// Public config declaration. Values never ride the manifest; the source span
+/// is additionally removed because it reveals local build paths.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+pub struct PublicConfigEntryDefinition {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
+    pub secret: bool,
+    pub required: bool,
+    pub pool: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub probe: Option<String>,
+    #[serde(rename = "howToGet", skip_serializing_if = "Option::is_none")]
+    pub how_to_get: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acquisition: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<Value>,
 }
 
 /// Public projection of [`FunctionDefinition`]: everything except the
@@ -480,10 +799,73 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             bundle_hash,
             inputs_hash,
             generated_at,
-            unsupported_dependency_diagnostics,
+            unsupported_dependency_diagnostics: unsupported_dependency_diagnostics
+                .into_iter()
+                .map(Into::into)
+                .collect(),
             functions: functions.into_iter().map(Into::into).collect(),
-            cron_jobs,
-            config,
+            cron_jobs: cron_jobs.into_iter().map(Into::into).collect(),
+            config: config.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<CronJobDefinition> for PublicCronJobDefinition {
+    fn from(job: CronJobDefinition) -> Self {
+        let CronJobDefinition {
+            name,
+            schedule,
+            action,
+            enabled,
+            activation,
+            jitter_policy,
+            overlap_policy,
+            retry_policy,
+            required_capabilities,
+            target_wakeup,
+            source_span: _,
+        } = job;
+        Self {
+            name,
+            schedule,
+            action,
+            enabled,
+            activation,
+            jitter_policy,
+            overlap_policy,
+            retry_policy,
+            required_capabilities,
+            target_wakeup,
+        }
+    }
+}
+
+impl From<ConfigEntryDefinition> for PublicConfigEntryDefinition {
+    fn from(entry: ConfigEntryDefinition) -> Self {
+        let ConfigEntryDefinition {
+            name,
+            description,
+            purpose,
+            secret,
+            required,
+            pool,
+            probe,
+            how_to_get,
+            acquisition,
+            default,
+            source_span: _,
+        } = entry;
+        Self {
+            name,
+            description,
+            purpose,
+            secret,
+            required,
+            pool,
+            probe,
+            how_to_get,
+            acquisition,
+            default,
         }
     }
 }
@@ -983,6 +1365,18 @@ pub struct MutationRequest {
         pattern(REPLAY_OPAQUE_ID_PATTERN)
     )]
     pub client_mutation_id: Option<String>,
+    /// Results the client has durably consumed and removed from its replay
+    /// queue. The server may reclaim these settlement payloads only after this
+    /// explicit acknowledgement; age alone is not proof that an offline
+    /// client cannot redeliver the id.
+    #[serde(
+        default,
+        rename = "acknowledgedClientMutationIds",
+        alias = "acknowledged_client_mutation_ids",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    #[schemars(length(max = CLIENT_MUTATION_ACK_MAX_IDS))]
+    pub acknowledged_client_mutation_ids: Vec<String>,
 }
 
 /// The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic

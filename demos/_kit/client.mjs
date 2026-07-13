@@ -378,6 +378,7 @@ export class SnapbackClient {
     readSet = [],
     correlation = null,
     clientMutationId = null,
+    acknowledgedClientMutationIds = [],
     ctxLedger = null,
   } = {}) {
     const name = functionName(ref);
@@ -390,6 +391,9 @@ export class SnapbackClient {
     // id atomically with data changes and returns the original result on a
     // duplicate delivery.
     if (clientMutationId) body.clientMutationId = clientMutationId;
+    if (acknowledgedClientMutationIds.length > 0) {
+      body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
+    }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
     try {
       const json = await this.#req('POST', `/mutation/${encodeURIComponent(name)}`, body);
@@ -2075,7 +2079,9 @@ export class EphemeralOverlay {
     this.userId = userId;
     this.permissions = permissions;
     this.scopeEpoch = null;
+    this.highWaterVersion = 0;
     this.entries = new Map();
+    this.tombstones = new Map();
     this.needsResync = false;
     this.room = null; // captured from OUR subscribe snapshot (room identity)
     this.__drainCaptures = new Set();
@@ -2174,18 +2180,29 @@ export class EphemeralOverlay {
     if (message.Snapshot) {
       if (!this.room && message.Snapshot.room) this.room = message.Snapshot.room;
       const snapshotEpoch = message.Snapshot.scope_epoch;
+      const snapshotHighWater = Number.isSafeInteger(message.Snapshot.high_water_version)
+        ? message.Snapshot.high_water_version
+        : snapshotMaxEntryVersion(message.Snapshot);
+      if ((message.Snapshot.entries ?? []).some((entry) => entry.entry_version > snapshotHighWater)) {
+        this.entries.clear();
+        this.tombstones.clear();
+        this.needsResync = true;
+        return 'needs_resync';
+      }
       if (this.scopeEpoch !== null) {
         if (snapshotEpoch < this.scopeEpoch) return 'ignored_stale';
         if (
           snapshotEpoch === this.scopeEpoch
-          && snapshotMaxEntryVersion(message.Snapshot) < entriesMaxEntryVersion(this.entries)
+          && snapshotHighWater < this.highWaterVersion
         ) {
           return 'ignored_stale';
         }
       }
       const previousEpoch = this.scopeEpoch;
       this.scopeEpoch = snapshotEpoch;
+      this.highWaterVersion = snapshotHighWater;
       this.entries.clear();
+      this.tombstones.clear();
       for (const entry of message.Snapshot.entries ?? []) {
         this.entries.set(entry.key, normalizeEntry(entry));
       }
@@ -2216,8 +2233,12 @@ export class EphemeralOverlay {
         this.needsResync = true;
         return 'needs_resync';
       }
-      const current = this.entries.get(entry.key);
-      if (current && current.entryVersion >= entry.entryVersion) return 'ignored_stale';
+      if (
+        entry.entryVersion <= this.highWaterVersion
+        || (this.tombstones.get(entry.key) ?? 0) >= entry.entryVersion
+      ) return 'ignored_stale';
+      this.highWaterVersion = entry.entryVersion;
+      this.tombstones.delete(entry.key);
       this.entries.set(entry.key, entry);
       this.#notifyChange('applied');
       return 'applied';
@@ -2228,14 +2249,29 @@ export class EphemeralOverlay {
         this.needsResync = true;
         return 'needs_resync';
       }
-      const current = this.entries.get(remove.key);
-      if (current && current.entryVersion > remove.entry_version) return 'ignored_stale';
+      if (remove.entry_version <= this.highWaterVersion) return 'ignored_stale';
+      this.highWaterVersion = remove.entry_version;
       this.entries.delete(remove.key);
+      this.tombstones.set(remove.key, remove.entry_version);
+      while (this.tombstones.size > 1024) {
+        let oldestKey = null;
+        let oldestVersion = Number.POSITIVE_INFINITY;
+        for (const [key, version] of this.tombstones) {
+          if (version < oldestVersion) {
+            oldestKey = key;
+            oldestVersion = version;
+          }
+        }
+        if (oldestKey === null) break;
+        this.tombstones.delete(oldestKey);
+      }
       this.#notifyChange('applied');
       return 'applied';
     }
     if (message.ResyncRequired) {
       this.entries.clear();
+      this.tombstones.clear();
+      this.highWaterVersion = 0;
       this.needsResync = true;
       this.#notifyChange('needs_resync');
       return 'needs_resync';

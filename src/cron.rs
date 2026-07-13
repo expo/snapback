@@ -786,6 +786,18 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
                 format!("duplicate cron job {}", job.name),
             ));
         }
+        if job.jitter_policy.enabled
+            && normalized_jitter_policy(job)
+                .max_offset_ms
+                .checked_add(1)
+                .is_none()
+        {
+            diagnostics.push(cron_error(
+                "SNAPBACK_CRON_JITTER_INVALID",
+                job,
+                format!("cron job {} jitter maxOffsetMs is too large", job.name),
+            ));
+        }
         match (&job.schedule.every_ms, &job.schedule.cron) {
             (Some(_), Some(_)) | (None, None) => diagnostics.push(cron_error(
                 "SNAPBACK_CRON_INVALID_SCHEDULE",
@@ -1127,7 +1139,12 @@ fn jitter_offset(job: &CronJobDefinition, schedule_hash: &str, seed: &str) -> u6
     if !policy.enabled || policy.max_offset_ms == 0 {
         return 0;
     }
-    stable_hash(&format!("{}\0{}\0{}", job.name, schedule_hash, seed)) % (policy.max_offset_ms + 1)
+    let Some(modulus) = policy.max_offset_ms.checked_add(1) else {
+        // Whole-manifest validation rejects this value before install. Keep
+        // the scheduler defensive if an older persisted artifact reaches it.
+        return 0;
+    };
+    stable_hash(&format!("{}\0{}\0{}", job.name, schedule_hash, seed)) % modulus
 }
 
 fn stable_hash(input: &str) -> u64 {

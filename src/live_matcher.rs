@@ -1,7 +1,7 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, HandlerInput, HandlerPlan,
-    OrderDirection, QueryOutput, QueryPlan, ValueExpr,
+    OrderDirection, QueryOutput, QueryPlan, ValueExpr, effective_query_limit,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, DbRead};
 use serde_json::{Value, json};
@@ -102,7 +102,7 @@ pub(crate) fn query_dependency_metadata(
     };
     Ok((
         order,
-        plan.limit,
+        Some(effective_query_limit(plan)),
         Some(rows.len()),
         query_boundary(plan, rows),
     ))
@@ -332,7 +332,6 @@ fn matching_limited_row_may_affect_query(
     change: &ChangedRow,
     row: &Value,
 ) -> Option<bool> {
-    plan.limit?;
     if plan.order.is_empty() {
         return None;
     }
@@ -386,7 +385,7 @@ fn field_scope_change_is_disjoint(change: &ChangedRow, field: &str, expected: &V
 }
 
 fn query_boundary(plan: &QueryPlan, rows: &[Value]) -> Option<Value> {
-    let limit = plan.limit?;
+    let limit = effective_query_limit(plan);
     if plan.order.is_empty() || rows.is_empty() {
         return None;
     }
@@ -592,7 +591,12 @@ pub(crate) fn compute_live_delta(
     // extending deltas to windowed queries (the matcher already has
     // `matching_limited_row_may_affect_query`/`query_boundary`) is future DK-3
     // work, deliberately not attempted here.
-    if plan.limit.is_some() || !plan.order.is_empty() {
+    // Every query now has a finite effective limit, including an omitted
+    // `take`. An unordered result that is still below that cap is known
+    // complete and can keep using exact row deltas; once membership reaches
+    // the cap, an unseen row may occupy the window and replacement is the
+    // only honest answer.
+    if !plan.order.is_empty() || prior_ids.len() >= effective_query_limit(plan) {
         return LiveDeltaOutcome::Replace;
     }
 

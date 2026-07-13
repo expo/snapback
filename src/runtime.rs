@@ -4,7 +4,8 @@ use crate::live_matcher::{
     compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
 };
 use crate::manifest::{
-    CtxAnswerLedger, HandlerInput, IbexModule, MutationOutput, QueryOutput, QueryPlan,
+    CtxAnswerLedger, HandlerInput, IbexModule, MutationOutput, QUERY_INTERNAL_OVERFETCH_MAX,
+    QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, effective_query_limit,
 };
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, ClientMutationIdentity, DbRead,
@@ -661,15 +662,21 @@ impl<'a> IbexHostContext<'a> {
                 // the handler reads its own writes (read-your-writes).
                 let output = if self.has_buffered_writes_for(&plan.table) {
                     let version = output.version;
-                    // With a limit, merge over the *unlimited* base so a buffered
-                    // insert can surface a row the SQL limit would have hidden.
-                    let base_rows = if plan.limit.is_some() {
-                        let mut unlimited = plan.clone();
-                        unlimited.limit = None;
-                        self.db().query(&unlimited, &self.input)?.rows
-                    } else {
-                        output.rows
-                    };
+                    // Overfetch only enough stored candidates to replace every
+                    // row this bounded invocation could delete or reorder.
+                    // The write ceiling makes this exact top-N merge bounded.
+                    let buffered = self
+                        .writes
+                        .iter()
+                        .filter(|write| write.table() == plan.table)
+                        .count();
+                    let storage_limit = effective_query_limit(&plan)
+                        .saturating_add(buffered)
+                        .min(QUERY_INTERNAL_OVERFETCH_MAX);
+                    let base_rows = self
+                        .db()
+                        .query_with_storage_limit(&plan, &self.input, storage_limit)?
+                        .rows;
                     QueryOutput {
                         version,
                         rows: self.merge_buffered_into_query(&plan, base_rows)?,
@@ -701,6 +708,7 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.insert" => {
                 self.ensure_writable("insert")?;
+                self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 let values = required_object(&args, "values")?;
                 // Row ids are host-generated entropy: they answer through the
@@ -715,6 +723,7 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.patch" => {
                 self.ensure_writable("patch")?;
+                self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
@@ -728,6 +737,7 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.delete" => {
                 self.ensure_writable("delete")?;
+                self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
                 let stored = self.db().get(&table, &id)?;
@@ -919,10 +929,19 @@ impl<'a> IbexHostContext<'a> {
                 }
             });
         }
-        if let Some(limit) = plan.limit {
-            merged.truncate(limit);
-        }
+        merged.truncate(effective_query_limit(plan));
         Ok(merged)
+    }
+
+    fn ensure_buffered_write_capacity(&self) -> SnapbackResult<()> {
+        if self.writes.len() >= QUERY_MAX_BUFFERED_WRITES {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
+                "runtime",
+                format!("one mutation may buffer at most {QUERY_MAX_BUFFERED_WRITES} writes"),
+            ));
+        }
+        Ok(())
     }
 
     fn ensure_action(&self, op: &str) -> SnapbackResult<()> {
@@ -1932,6 +1951,7 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_ACTION_TIMEOUT"
+        | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"
         // LLP 0051 D1: ledger divergence and the ledger-length limit are

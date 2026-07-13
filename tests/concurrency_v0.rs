@@ -718,7 +718,7 @@ fn l9_hot_room_publish_does_not_stall_unrelated_rooms_or_durable_drain() {
     let mut cursors = EphemeralCollection::local_cursor("cursors", "roomId");
     cursors.sustained_hz = 10_000_000;
     cursors.burst = 10_000_000;
-    backend.register_collection(cursors);
+    backend.register_collection(cursors).unwrap();
 
     let publish = |connection: &str, room: &str, value: &[u8], ttl_ms: u64, now: u64| {
         (

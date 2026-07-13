@@ -1724,10 +1724,9 @@ fn reset_signals_dropped_live_subscriptions() {
 #[test]
 fn local_snapback_reuses_in_memory_ephemeral_store() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor(
-        "boardCursors",
-        "boardId",
-    ));
+    snapback
+        .register_ephemeral_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+        .unwrap();
     let scope = Scope::from_pairs([("boardId", "board_1")]);
     let auth = AuthContext::default();
 
@@ -1773,10 +1772,9 @@ fn ephemeral_unsubscribe_removes_only_the_requester_registration() {
     // the requester). It removes ONLY the caller's own registration; published
     // entries and other observers' registrations are untouched.
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor(
-        "boardCursors",
-        "boardId",
-    ));
+    snapback
+        .register_ephemeral_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+        .unwrap();
     let scope = Scope::from_pairs([("boardId", "board_1")]);
     let auth = AuthContext::default();
     let api = snapback.ephemeral_api();
@@ -2099,6 +2097,74 @@ fn repeated_matching_schema_load_preserves_ephemeral_rooms_and_outbox() {
     assert!(
         matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.len() == 1),
         "matching schema reload should preserve active cursor rooms"
+    );
+}
+
+#[test]
+fn invalid_ephemeral_schema_is_rejected_before_durable_or_live_state_changes() {
+    let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+    let mut baseline = todo_schema();
+    baseline.ephemeral_collections = vec![collection.clone()];
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback
+        .apply_schema(baseline.clone())
+        .expect("baseline schema");
+    let scope = Scope::from_pairs([("boardId", "board_1")]);
+    snapback
+        .publish_ephemeral(
+            PublishRequest {
+                collection: "boardCursors".to_owned(),
+                scope: scope.clone(),
+                connection_id: "publisher".to_owned(),
+                session_id: None,
+                user_id: None,
+                custom_key: None,
+                value: br#"{"x":5,"y":6}"#.to_vec(),
+                ttl_ms: None,
+                auth: AuthContext::default(),
+            },
+            1_000,
+        )
+        .expect("publish cursor");
+
+    let mut invalid = baseline.clone();
+    invalid.schema_hash = Some("must-not-commit".to_owned());
+    invalid.tables[0].fields.push(FieldManifest {
+        name: "mustNotExist".to_owned(),
+        field_type: FieldType::String,
+        optional: true,
+    });
+    invalid.ephemeral_collections[0].default_ttl_ms = 0;
+
+    let error = snapback
+        .apply_schema(invalid)
+        .expect_err("invalid ephemeral definition must fail atomically");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+    );
+
+    let inspect = snapback.inspect().expect("inspect after failed apply");
+    assert_eq!(inspect.schema.schema_hash, baseline.schema_hash);
+    assert!(
+        inspect.schema.tables[0].field("mustNotExist").is_none(),
+        "durable manifest must not advance before ephemeral preflight"
+    );
+    let snapshot = snapback
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: "boardCursors".to_owned(),
+                scope,
+                connection_id: "observer".to_owned(),
+                auth: AuthContext::default(),
+            },
+            1_001,
+        )
+        .expect("existing collection remains usable");
+    assert!(
+        matches!(snapshot, EphemeralMessage::Snapshot { entries, .. } if entries.len() == 1),
+        "failed schema must preserve the existing ephemeral room"
     );
 }
 
@@ -3452,6 +3518,99 @@ fn e2_handler_reads_its_own_buffered_writes() {
 }
 
 #[test]
+fn bounded_read_your_writes_overfetch_fills_top_n_after_buffered_delete() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', { title: args.title, completed: false, userId: 'u' });
+  },
+  async deleteThenTopTwo(ctx, args) {
+    await ctx.db.delete('todos', args.id);
+    return await ctx.db.query('todos').order('_createdAt', 'asc').take(2).collect();
+  }
+};
+"#;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut functions = ibex_todo_functions(SOURCE);
+    let mut query_after_delete = FunctionDefinition::new(
+        "deleteThenTopTwo",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "deleteThenTopTwo".to_owned(),
+        }),
+    );
+    query_after_delete.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    query_after_delete.write_set_summary.tables = vec!["todos".to_owned()];
+    functions.functions.push(query_after_delete);
+    snapback.load_functions(functions);
+    let mut ids = Vec::new();
+    for title in ["one", "two", "three"] {
+        ids.push(
+            snapback
+                .invoke_mutation("createTodo", input(json!({ "title": title }), "u"))
+                .unwrap()
+                .result
+                .as_str()
+                .unwrap()
+                .to_owned(),
+        );
+    }
+    let output = snapback
+        .invoke_mutation("deleteThenTopTwo", input(json!({ "id": ids[0] }), "u"))
+        .expect("bounded overlay query");
+    let rows = output.result.as_array().expect("rows");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["title"], "two");
+    assert_eq!(rows[1]["title"], "three");
+}
+
+#[test]
+fn handler_buffered_write_ceiling_rejects_and_rolls_back() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async tooManyWrites(ctx) {
+    for (let i = 0; i < 1025; i++) {
+      await ctx.db.insert('todos', { title: 'x', completed: false, userId: 'u' });
+    }
+    return true;
+  }
+};
+"#;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut manifest = FunctionManifest::default();
+    let mut function = FunctionDefinition::new(
+        "tooManyWrites",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "tooManyWrites".to_owned(),
+        }),
+    );
+    function.required_capabilities = vec!["ibex_ctx_db_host_bridge".to_owned()];
+    function.write_set_summary.tables = vec!["todos".to_owned()];
+    manifest.functions.push(function);
+    snapback.load_functions(manifest);
+    let error = snapback
+        .invoke_mutation("tooManyWrites", input(json!({}), "u"))
+        .expect_err("1025th buffered write must reject");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
+    );
+    assert_eq!(
+        snapback.inspect().unwrap().storage.version,
+        0,
+        "rejected buffered writes must not commit"
+    );
+}
+
+#[test]
 fn repeated_handler_point_reads_are_deduped() {
     const SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
@@ -3589,26 +3748,6 @@ globalThis.__snapbackHandlers = {
 fn e5_unknown_index_fails_closed() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback.apply_schema(todo_schema()).expect("apply schema");
-    let mut manifest = FunctionManifest::default();
-    manifest.functions.push(FunctionDefinition::new(
-        "badIndex",
-        FunctionKind::LiveQuery,
-        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
-            table: "todos".to_owned(),
-            filters: Vec::new(),
-            order: Vec::new(),
-            limit: None,
-            indexed_by: Some("does_not_exist".to_owned()),
-        })),
-    ));
-    snapback.load_functions(manifest);
-
-    let error = snapback
-        .invoke_query("badIndex", input(json!({}), "user_1"))
-        .expect_err("unknown index must fail closed");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_QUERY_UNKNOWN_INDEX");
-
-    // A query that names a defined index still works.
     let mut ok_manifest = FunctionManifest::default();
     ok_manifest.functions.push(FunctionDefinition::new(
         "goodIndex",
@@ -3625,6 +3764,128 @@ fn e5_unknown_index_fails_closed() {
     snapback
         .invoke_query("goodIndex", input(json!({}), "user_1"))
         .expect("declared index resolves");
+
+    let mut manifest = FunctionManifest::default();
+    manifest.functions.push(FunctionDefinition::new(
+        "badIndex",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: Some("does_not_exist".to_owned()),
+        })),
+    ));
+    let diagnostics = snapback.load_functions(manifest);
+    assert_eq!(diagnostics[0].code, "SNAPBACK_QUERY_UNKNOWN_INDEX");
+    assert!(snapback.function_definition("badIndex").is_none());
+    snapback
+        .invoke_query("goodIndex", input(json!({}), "user_1"))
+        .expect("invalid artifact must preserve the prior generation");
+}
+
+#[test]
+fn whole_manifest_rejects_cumulative_in_budget_before_atomic_install() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions());
+
+    let filter = |field: &str| FilterExpr {
+        field: field.to_owned(),
+        op: FilterOp::In,
+        value: ValueExpr::Literal(json!(vec!["x"; 300])),
+    };
+    let mut invalid = FunctionManifest::default();
+    invalid.functions.push(FunctionDefinition::new(
+        "tooManyBindings",
+        FunctionKind::Query,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![filter("title"), filter("userId")],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        })),
+    ));
+    let diagnostics = snapback.load_functions(invalid);
+    assert_eq!(diagnostics[0].code, "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED");
+    assert!(snapback.function_definition("tooManyBindings").is_none());
+    snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("prior function generation remains installed");
+}
+
+#[test]
+fn query_without_take_uses_the_portable_default_result_cap() {
+    let mut db = LocalDatabase::memory().expect("memory db");
+    db.apply_schema(todo_schema()).expect("schema");
+    let rows = (0..1_025)
+        .map(|index| {
+            json!({
+                "_id": format!("todo-{index:04}"),
+                "title": format!("todo {index}"),
+                "completed": false,
+                "userId": "u"
+            })
+            .as_object()
+            .cloned()
+            .unwrap()
+        })
+        .collect();
+    db.seed(SeedData {
+        tables: BTreeMap::from([("todos".to_owned(), rows)]),
+    })
+    .expect("seed over-cap table");
+    let output = db
+        .query(
+            &QueryPlan {
+                table: "todos".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            },
+            &input(json!({}), "u"),
+        )
+        .expect("bounded query");
+    assert_eq!(output.rows.len(), 1_024);
+}
+
+#[test]
+fn duplicate_identity_and_overflowing_jitter_preserve_function_generation() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    snapback.load_functions(todo_functions());
+
+    let mut self_alias = todo_functions();
+    self_alias.functions[0].id = Some(self_alias.functions[0].name.clone());
+    let diagnostics = snapback.load_functions(self_alias);
+    assert!(
+        diagnostics.iter().all(
+            |diagnostic| diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+        ),
+        "an id equal to its own function name is one unambiguous identity"
+    );
+
+    let mut duplicate = todo_functions();
+    duplicate.functions.push(duplicate.functions[0].clone());
+    let diagnostics = snapback.load_functions(duplicate);
+    assert_eq!(diagnostics[0].code, "SNAPBACK_FUNCTION_IDENTITY_COLLISION");
+    assert!(snapback.function_definition("listTodos").is_some());
+
+    let mut bad_jitter = todo_functions_with_cron(false);
+    bad_jitter.cron_jobs[0].jitter_policy.enabled = true;
+    bad_jitter.cron_jobs[0].jitter_policy.max_offset_ms = u64::MAX;
+    let diagnostics = snapback.load_functions(bad_jitter);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_JITTER_INVALID")
+    );
+    snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("invalid cron metadata cannot partially replace functions");
 }
 
 /// LLP 0032 L5 — idle means idle: an instance with no armed cron work performs
@@ -3668,7 +3929,9 @@ fn l9_reap_vs_revival_subscribe_leaves_no_unreapable_zombie() {
     use std::sync::{Arc, Mutex};
 
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    snapback
+        .register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"))
+        .unwrap();
     // The off-lock ephemeral lane shares the store and the liveness map with
     // the snapback now behind the write mutex.
     let api = snapback.ephemeral_api();
@@ -3769,7 +4032,9 @@ fn l2_abandoned_connection_is_reaped_with_counters() {
 #[test]
 fn eng_23424_empty_ws_drain_is_not_liveness() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    snapback
+        .register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"))
+        .unwrap();
     let api = snapback.ephemeral_api();
 
     // No liveness entry exists for the connection (as after a reap): the
@@ -3841,7 +4106,9 @@ fn eng_23427_reap_under_open_registration_signals_resync() {
     use futures_util::FutureExt;
 
     let mut snapback = configured_ibex_snapback(TODO_HANDLER_SOURCE);
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    snapback
+        .register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"))
+        .unwrap();
     let api = snapback.ephemeral_api();
 
     // A durable live query and an ephemeral room subscription on the frozen
@@ -4424,6 +4691,195 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
     assert_eq!(error.diagnostic.details["requestedType"], "TEXT");
 }
 
+fn physical_column_not_null(path: &std::path::Path, table: &str, field: &str) -> bool {
+    let conn = rusqlite::Connection::open(path).expect("open sqlite for column inspection");
+    let mut statement = conn
+        .prepare(&format!("PRAGMA table_info(\"{table}\")"))
+        .expect("prepare table_info");
+    statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(1)?, row.get::<_, i64>(3)?))
+        })
+        .expect("query table_info")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect table_info")
+        .into_iter()
+        .find(|(name, _)| name == field)
+        .map(|(_, not_null)| not_null != 0)
+        .expect("field exists")
+}
+
+fn rank_required(mut schema: SchemaManifest) -> SchemaManifest {
+    schema
+        .tables
+        .iter_mut()
+        .find(|table| table.name == "todos")
+        .and_then(|table| table.fields.iter_mut().find(|field| field.name == "rank"))
+        .expect("rank field")
+        .optional = false;
+    schema
+}
+
+fn insert_schema_test_row(db: &mut LocalDatabase, id: &str, values: Value) {
+    db.commit_buffered_writes(
+        &input(json!({}), "u"),
+        vec![BufferedWrite::Insert {
+            table: "todos".to_owned(),
+            id: id.to_owned(),
+            values: values.as_object().cloned().expect("object values"),
+        }],
+        Vec::new(),
+        Value::Null,
+    )
+    .expect("insert schema test row");
+}
+
+#[test]
+fn required_field_tightening_rebuilds_empty_and_populated_nonnull_tables() {
+    for populated in [false, true] {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join(format!("required-{populated}.db"));
+        let mut db = LocalDatabase::open(&path).expect("open db");
+        db.apply_schema(todo_schema()).expect("optional schema");
+        if populated {
+            insert_schema_test_row(
+                &mut db,
+                "nonnull",
+                json!({
+                    "title": "preserved",
+                    "completed": false,
+                    "rank": 7,
+                    "userId": "u"
+                }),
+            );
+        }
+        db.apply_schema(rank_required(todo_schema()))
+            .expect("zero-null tightening is safe");
+        assert!(physical_column_not_null(&path, "todos", "rank"));
+        if populated {
+            assert_eq!(
+                db.get("todos", "nonnull").unwrap().unwrap()["rank"],
+                json!(7),
+                "atomic rebuild preserves row values"
+            );
+        }
+    }
+}
+
+#[test]
+fn required_field_tightening_with_nulls_rolls_back_manifest_and_rows() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("required-null.db");
+    let mut db = LocalDatabase::open(&path).expect("open db");
+    db.apply_schema(todo_schema()).expect("optional schema");
+    insert_schema_test_row(
+        &mut db,
+        "null-rank",
+        json!({ "title": "preserved", "completed": false, "userId": "u" }),
+    );
+    let error = db
+        .apply_schema(rank_required(todo_schema()))
+        .expect_err("null rows require an explicit backfill");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+    );
+    assert_eq!(error.diagnostic.details["existingNullRows"], json!(1));
+    assert!(db.schema().tables[0].field("rank").expect("rank").optional);
+    assert!(!physical_column_not_null(&path, "todos", "rank"));
+    assert_eq!(
+        db.get("todos", "null-rank").unwrap().unwrap()["title"],
+        json!("preserved")
+    );
+}
+
+#[test]
+fn schema_reapply_repairs_legacy_required_but_nullable_column() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("legacy-required.db");
+    let required = rank_required(todo_schema());
+    {
+        let mut db = LocalDatabase::open(&path).expect("open db");
+        db.apply_schema(todo_schema())
+            .expect("legacy optional physical schema");
+        insert_schema_test_row(
+            &mut db,
+            "legacy",
+            json!({ "title": "legacy", "completed": false, "rank": 9, "userId": "u" }),
+        );
+    }
+    {
+        let conn = rusqlite::Connection::open(&path).expect("open raw legacy db");
+        conn.execute(
+            "UPDATE _snapback_meta SET value = ?1 WHERE key = 'schema_manifest'",
+            [serde_json::to_string(&required).unwrap()],
+        )
+        .expect("simulate pre-fix logical required manifest");
+    }
+    assert!(!physical_column_not_null(&path, "todos", "rank"));
+    let mut reopened = LocalDatabase::open(&path).expect("reopen legacy db");
+    reopened
+        .apply_schema(required)
+        .expect("reapply repairs the physical invariant");
+    assert!(physical_column_not_null(&path, "todos", "rank"));
+    assert_eq!(
+        reopened.get("todos", "legacy").unwrap().unwrap()["rank"],
+        json!(9)
+    );
+}
+
+#[test]
+fn new_required_field_is_allowed_only_on_an_empty_table() {
+    let add_required = |mut schema: SchemaManifest| {
+        schema.tables[0].fields.push(FieldManifest {
+            name: "requiredLater".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        });
+        schema
+    };
+
+    let empty_dir = tempfile::tempdir().unwrap();
+    let empty_path = empty_dir.path().join("required-add-empty.db");
+    let mut empty = LocalDatabase::open(&empty_path).unwrap();
+    empty.apply_schema(todo_schema()).unwrap();
+    empty
+        .apply_schema(add_required(todo_schema()))
+        .expect("empty table needs no backfill");
+    assert!(physical_column_not_null(
+        &empty_path,
+        "todos",
+        "requiredLater"
+    ));
+
+    let populated_dir = tempfile::tempdir().unwrap();
+    let populated_path = populated_dir.path().join("required-add-populated.db");
+    let mut populated = LocalDatabase::open(&populated_path).unwrap();
+    populated.apply_schema(todo_schema()).unwrap();
+    insert_schema_test_row(
+        &mut populated,
+        "existing",
+        json!({ "title": "existing", "completed": false, "userId": "u" }),
+    );
+    let error = populated
+        .apply_schema(add_required(todo_schema()))
+        .expect_err("populated table requires a backfill");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+    );
+    assert_eq!(error.diagnostic.details["existingRows"], json!(1));
+    assert!(
+        populated.schema().tables[0]
+            .field("requiredLater")
+            .is_none()
+    );
+    assert_eq!(
+        populated.get("todos", "existing").unwrap().unwrap()["title"],
+        json!("existing")
+    );
+}
+
 /// The owning table and ordered column list of a physical SQLite index, read
 /// directly from the database file; `None` when no index with that name
 /// exists.
@@ -4679,7 +5135,9 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
     // The sharded room authority (LLP 0032 L9) exposes `&self` methods, so the
     // backend binding no longer needs `mut`.
     let backend = LocalEphemeralBackend::new();
-    backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
+    backend
+        .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+        .unwrap();
     let scope = Scope::from_pairs([("boardId", "board_1")]);
     let auth = AuthContext::default();
 
@@ -4724,7 +5182,7 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
     // resync boundary.
     let mut changed = EphemeralCollection::local_cursor("boardCursors", "boardId");
     changed.default_ttl_ms = 9_000;
-    backend.replace_collections(vec![changed]);
+    backend.replace_collections(vec![changed]).unwrap();
 
     let resync = backend
         .drain_outbox("observer")
@@ -4852,9 +5310,11 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
 
     let mut declared = system_todo_mutation();
     declared.name = "declaredWrites".to_owned();
+    declared.id = Some("fn:declaredWrites".to_owned());
     declared.write_set_summary.tables = vec!["todos".to_owned()];
     let mut undeclared = system_todo_mutation();
     undeclared.name = "undeclaredWrites".to_owned();
+    undeclared.id = Some("fn:undeclaredWrites".to_owned());
     // write_set_summary stays default-empty: declared-nothing.
     snapback.load_functions(FunctionManifest {
         bundle_hash: Some("d2-receipts".to_owned()),
@@ -5014,7 +5474,7 @@ fn d4_ensure_app_provisions_once_and_seeds_only_if_empty() {
 }
 
 #[test]
-fn ensure_app_with_config_errors_is_idempotent_and_still_seeds() {
+fn ensure_app_rejects_config_errors_before_loading_functions_or_seeding() {
     use snapback::local::EnsureAppInput;
 
     let mut functions = todo_functions();
@@ -5053,7 +5513,7 @@ fn ensure_app_with_config_errors_is_idempotent_and_still_seeds() {
         )]),
     };
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    let first = snapback
+    let error = snapback
         .ensure_app(
             EnsureAppInput {
                 schema: Some(todo_schema()),
@@ -5063,32 +5523,22 @@ fn ensure_app_with_config_errors_is_idempotent_and_still_seeds() {
             true,
             "dev",
         )
-        .expect("config diagnostics should not make ensure non-idempotent");
-    assert_eq!(first.functions, "provisioned");
-    assert_eq!(first.seed, "seeded");
+        .expect_err("function-manifest errors must fail provisioning");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_USES_UNKNOWN");
+
+    let inspect = snapback.inspect().expect("inspect failed provisioning");
+    assert!(inspect.functions.functions.is_empty());
+    assert_eq!(
+        inspect.storage.version, 0,
+        "seed must not run after failure"
+    );
     assert!(
-        snapback
-            .inspect()
-            .expect("inspect")
+        inspect
             .recent_diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "SNAPBACK_CONFIG_USES_UNKNOWN"),
-        "the config error is retained as a diagnostic"
+        "the rejected declaration remains diagnosable"
     );
-
-    let second = snapback
-        .ensure_app(
-            EnsureAppInput {
-                schema: Some(todo_schema()),
-                functions: Some(functions),
-                seed: Some(seed),
-            },
-            true,
-            "dev",
-        )
-        .expect("retry stays idempotent");
-    assert_eq!(second.functions, "matched");
-    assert_eq!(second.seed, "skipped-nonempty");
 }
 
 /// ENG-22527 — the profile capability gates the PROVISIONING half of ensure:
@@ -5186,6 +5636,7 @@ fn diagnostic_ring_evicts_low_severity_before_errors() {
         default: None,
         source_span: None,
     }];
+    let mut bad_functions = functions.clone();
     let mut bad_action = FunctionDefinition::new(
         "badAction",
         FunctionKind::Action,
@@ -5195,11 +5646,13 @@ fn diagnostic_ring_evicts_low_severity_before_errors() {
         })),
     );
     bad_action.uses = vec!["missingConfig".to_owned()];
-    functions.functions.push(bad_action);
+    bad_functions.functions.push(bad_action);
 
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback.apply_schema(todo_schema()).expect("schema");
     snapback.load_functions(functions);
+    let diagnostics = snapback.load_functions(bad_functions);
+    assert_eq!(diagnostics[0].code, "SNAPBACK_CONFIG_USES_UNKNOWN");
     for n in 0..140 {
         snapback
             .set_config_entry("feedKeys", vec![format!("key-{n}")], false, "test")

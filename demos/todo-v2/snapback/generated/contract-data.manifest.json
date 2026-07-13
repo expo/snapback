@@ -22,7 +22,7 @@
       "ephemeral": true,
       "keyMode": "Connection",
       "maxDeltaRateHz": 30,
-      "maxTtlMs": 60000,
+      "maxTtlMs": 30000,
       "name": "todoPresence",
       "publishBudget": {
         "burst": 40,
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "42da1cc0f400e38bc5e3702d0a15831d837e368d819332793bfdb6de6fc8e80f",
+  "inputsHash": "51bfb4c6e8e6227b6658a40320d75417eb561d6227bc20847f4e81963280728a",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {
@@ -388,7 +388,7 @@
       "livePush": true,
       "localRunnable": true,
       "maxDeltaRateHz": 30,
-      "maxTtlMs": 60000,
+      "maxTtlMs": 30000,
       "mode": "live",
       "name": "todoPresence",
       "result": {
@@ -405,6 +405,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:733d258bc5449294",
+  "schemaHash": "sha256:7ca3ed57fbd4a860",
   "schemaVersion": "snapback.v0"
 }

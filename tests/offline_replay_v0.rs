@@ -1,14 +1,17 @@
 //! LLP 0043 M1/M2 / ENG-23965: durable client mutation identity, exact
 //! ctx-ledger replay, and reconnect-safe exactly-once settlement.
 
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    AuthInput, CtxAnswerLedger, FunctionManifest, HandlerInput, PORTABLE_TIMESTAMP_MAX_MS,
-    PermissionScopeExpr, SchemaManifest, auth_fingerprint,
+    AuthInput, CtxAnswerLedger, FunctionManifest, HandlerInput, MutationRequest,
+    PORTABLE_TIMESTAMP_MAX_MS, PermissionScopeExpr, SchemaManifest, auth_fingerprint,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
+use tower::ServiceExt;
 
 const USER: &str = "user_offline";
 
@@ -73,6 +76,22 @@ fn input_for(user: &str, args: Value) -> HandlerInput {
 
 fn create_input(user: &str) -> HandlerInput {
     input_for(user, json!({ "title": "offline todo", "priority": "high" }))
+}
+
+fn post_json(path: &str, value: Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("content-type", "application/json")
+        .body(Body::from(value.to_string()))
+        .expect("request")
+}
+
+async fn response_json(response: axum::response::Response) -> Value {
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("response bytes");
+    serde_json::from_slice(&bytes).expect("response json")
 }
 
 fn epoch(snapback: &mut LocalSnapback, connection: &str) -> u64 {
@@ -232,6 +251,57 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
         .expect("reset releases the old mutation identity");
     assert_eq!(after_reset.changed_count, 1);
     assert_ne!(after_reset.result, first.result);
+}
+
+#[tokio::test]
+async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
+    let app = snapback::server::router(memory());
+    let mutation_id = "cm_overlap_1".to_owned();
+    let request = |acknowledged_client_mutation_ids| MutationRequest {
+        input: create_input(USER),
+        client_mutation_id: Some(mutation_id.clone()),
+        acknowledged_client_mutation_ids,
+    };
+
+    let first = app
+        .clone()
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(request(Vec::new())).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let first = response_json(first).await;
+
+    let overlap = app
+        .clone()
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(request(vec![mutation_id.clone()])).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(overlap.status(), StatusCode::BAD_REQUEST);
+    let overlap = response_json(overlap).await;
+    assert_eq!(
+        overlap["diagnostic"]["code"],
+        "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
+    );
+
+    let replay = app
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(request(Vec::new())).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(replay).await["result"],
+        first["result"],
+        "overlap rejection must leave the retained settlement intact"
+    );
 }
 
 #[test]

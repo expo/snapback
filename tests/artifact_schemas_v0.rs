@@ -22,28 +22,40 @@ use serde_json::{Value, json};
 use std::fs;
 use std::path::PathBuf;
 
-use snapback::cron::CronInspectState;
+use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
     DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DATA_TIER_PROFILE_FILE,
     DataTierCaseExpectation, DataTierCaseSchema, DataTierCorpusCase, DataTierCorpusCaseEntry,
     DataTierCorpusManifest, DataTierProfile,
 };
 use snapback::diagnostic::Diagnostic;
-use snapback::ephemeral::EphemeralDiagnostics;
+use snapback::ephemeral::{EphemeralDiagnostics, EphemeralRoomDiagnostics, Scope};
 use snapback::local::{
     InspectState, LiveDeliveryStats, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
     PublicInspect,
 };
 use snapback::manifest::{
-    AuthInput, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, FunctionManifest, HandlerInput,
-    MutationPlan, MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    AuthInput, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, ConfigEntryDefinition,
+    CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput, MutationPlan, MutationRequest,
+    REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
 use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
-use snapback::storage::StorageInfo;
+use snapback::storage::{ClientMutationRetentionInfo, StorageInfo};
+
+fn retention_info() -> ClientMutationRetentionInfo {
+    ClientMutationRetentionInfo {
+        records: 2,
+        bytes: 512,
+        gc_total: 3,
+        max_records: 10_000,
+        max_bytes: 67_108_864,
+        max_result_bytes: 65_536,
+    }
+}
 
 fn schemas_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas")
@@ -111,6 +123,7 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
     let base = serde_json::to_value(MutationRequest {
         input: HandlerInput::default(),
         client_mutation_id: Some("cm_valid".to_owned()),
+        acknowledged_client_mutation_ids: Vec::new(),
     })
     .unwrap();
     for invalid in [String::new(), "bad/id".to_owned(), "x".repeat(257)] {
@@ -194,16 +207,17 @@ fn representative_inspect() -> InspectState {
             sqlite_path: None,
             version: 7,
             tables: vec!["todos".to_owned()],
+            client_mutation_retention: retention_info(),
         },
         runtime: RuntimeCapabilities {
             canonical_engine: "ibex".to_owned(),
             ibex_submodule: IbexSubmoduleCapability {
                 present: true,
-                path: None,
+                path: Some(PathBuf::from("/secret/runtime/ibex-submodule")),
             },
             ibex_cli: IbexCliCapability {
                 available: false,
-                path: None,
+                path: Some(PathBuf::from("/secret/runtime/ibex-cli")),
                 version: None,
             },
             host_plan_runtime: true,
@@ -212,22 +226,126 @@ fn representative_inspect() -> InspectState {
             sqlite_lock_held_across_async: CapabilityState::NotYetWired,
             mutation_dry_run: true,
         },
-        schema: SchemaManifest::default(),
-        functions: FunctionManifest::default(),
+        schema: SchemaManifest {
+            artifact_diagnostics: vec![
+                Diagnostic::warning(
+                    "SNAPBACK_SECRET_SCHEMA_ARTIFACT",
+                    "schema",
+                    "schema artifact diagnostic secret text",
+                )
+                .with_details(json!({ "sourcePath": "/secret/schema/artifact.ts" })),
+            ],
+            ..SchemaManifest::default()
+        },
+        functions: FunctionManifest {
+            unsupported_dependency_diagnostics: vec![
+                Diagnostic::error(
+                    "SNAPBACK_SECRET_DEPENDENCY",
+                    "codegen",
+                    "raw diagnostic secret text",
+                )
+                .with_details(json!({ "sourcePath": "/secret/diagnostic/details.ts" })),
+            ],
+            cron_jobs: vec![CronJobDefinition {
+                name: "publicCron".to_owned(),
+                schedule: CronSchedule {
+                    every_ms: Some(1_000),
+                    cron: None,
+                },
+                action: "runPublicCron".to_owned(),
+                enabled: true,
+                activation: Default::default(),
+                jitter_policy: Default::default(),
+                overlap_policy: Default::default(),
+                retry_policy: Default::default(),
+                required_capabilities: vec![],
+                target_wakeup: None,
+                source_span: Some(SourceSpan {
+                    file: "/secret/source/cron.ts".to_owned(),
+                    line: 1,
+                    column: 1,
+                }),
+            }],
+            config: vec![ConfigEntryDefinition {
+                name: "PUBLIC_CONFIG_DECLARATION".to_owned(),
+                description: None,
+                purpose: None,
+                secret: true,
+                required: false,
+                pool: false,
+                probe: None,
+                how_to_get: None,
+                acquisition: None,
+                default: None,
+                source_span: Some(SourceSpan {
+                    file: "/secret/source/config.ts".to_owned(),
+                    line: 2,
+                    column: 3,
+                }),
+            }],
+            ..FunctionManifest::default()
+        },
         capability_manifest: CapabilityManifest::local_v0(vec!["postgres".to_owned()]),
         subscriptions: vec![],
         active_connections: 0,
         reaped_connections: 0,
         live_delivery: LiveDeliveryStats::default(),
-        ephemeral: EphemeralDiagnostics::default(),
+        ephemeral: EphemeralDiagnostics {
+            room_count: 1,
+            entry_count: 1,
+            subscriber_count: 1,
+            value_bytes: 12,
+            active_rooms: vec![EphemeralRoomDiagnostics {
+                collection: "secretCursors".to_owned(),
+                routing_key: "secret-routing-key".to_owned(),
+                scope: Scope::from_pairs([("secretTenantId", "tenant-secret")]),
+                scope_epoch: 9,
+                entries: 1,
+                subscribers: 1,
+                value_bytes: 12,
+            }],
+            ..EphemeralDiagnostics::default()
+        },
         cron: CronInspectState {
             artifact_kind: "cronInspectState".to_owned(),
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             jobs: vec![],
-            recent_runs: vec![],
-            diagnostics: vec![],
+            recent_runs: vec![CronRunRecord {
+                run_id: "run-public-shape".to_owned(),
+                job_name: "publicCron".to_owned(),
+                scheduled_at_ms: Some(1),
+                due_at_ms: 2,
+                started_at_ms: 3,
+                finished_at_ms: Some(4),
+                trigger: CronRunTrigger::Scheduled,
+                attempt: 1,
+                outcome: CronRunOutcome::Failed,
+                duration_ms: Some(1),
+                idempotency_key: "public-idempotency-shape".to_owned(),
+                slot_key: "public-slot-shape".to_owned(),
+                diagnostic: Some(
+                    Diagnostic::error(
+                        "SNAPBACK_SECRET_CRON_RUN",
+                        "cron",
+                        "cron run diagnostic secret text",
+                    )
+                    .with_details(json!({ "sourcePath": "/secret/cron/run.ts" })),
+                ),
+                result: Some(json!({ "applicationSecret": "cron result secret value" })),
+            }],
+            diagnostics: vec![
+                Diagnostic::warning(
+                    "SNAPBACK_SECRET_CRON_STATE",
+                    "cron",
+                    "cron state diagnostic secret text",
+                )
+                .with_details(json!({ "sourcePath": "/secret/cron/state.ts" })),
+            ],
         },
-        recent_diagnostics: vec![Diagnostic::info("SNAPBACK_READY", "server", "ready")],
+        recent_diagnostics: vec![
+            Diagnostic::info("SNAPBACK_READY", "server", "recent diagnostic secret text")
+                .with_details(json!({ "path": "/secret/recent/details.ts" })),
+        ],
         capability_gaps: vec!["postgres".to_owned()],
     }
 }
@@ -308,6 +426,7 @@ fn dk7_representative_values_validate_against_committed_schemas() {
             sqlite_path: Some(PathBuf::from("/tmp/app.sqlite")),
             version: 3,
             tables: vec!["todos".to_owned()],
+            client_mutation_retention: retention_info(),
         })
         .unwrap(),
     );
@@ -346,6 +465,77 @@ fn public_inspect_projection_drops_handler_controlled_diagnostic_text() {
         public.contains("SNAPBACK_HANDLER_FAILED"),
         "codes remain useful"
     );
+}
+
+#[test]
+fn public_inspect_drops_private_storage_and_ephemeral_room_facts() {
+    let public = serde_json::to_value(PublicInspect::from(representative_inspect())).unwrap();
+    assert!(public.pointer("/storage/clientMutationRetention").is_none());
+    assert!(public.pointer("/ephemeral/activeRooms").is_none());
+    assert!(public.pointer("/runtime/ibexSubmodule/path").is_none());
+    assert!(public.pointer("/runtime/ibexCli/path").is_none());
+    assert!(public.pointer("/functions/cronJobs/0/sourceSpan").is_none());
+    assert!(public.pointer("/functions/config/0/sourceSpan").is_none());
+    assert!(
+        public
+            .pointer("/functions/unsupportedDependencyDiagnostics/0/message")
+            .is_none()
+    );
+    assert!(
+        public
+            .pointer("/functions/unsupportedDependencyDiagnostics/0/details")
+            .is_none()
+    );
+    assert!(public.pointer("/recentDiagnostics/0/message").is_none());
+    assert!(public.pointer("/recentDiagnostics/0/details").is_none());
+    assert!(
+        public
+            .pointer("/schema/artifactDiagnostics/0/message")
+            .is_none()
+    );
+    assert!(
+        public
+            .pointer("/schema/artifactDiagnostics/0/details")
+            .is_none()
+    );
+    assert!(public.pointer("/cron/jobs").is_none());
+    assert!(public.pointer("/cron/recentRuns").is_none());
+    assert!(public.pointer("/cron/diagnostics").is_none());
+    assert_eq!(public.pointer("/cron/jobCount"), Some(&json!(0)));
+    assert_eq!(public.pointer("/cron/failedJobCount"), Some(&json!(0)));
+    assert_eq!(public.pointer("/cron/inFlightJobCount"), Some(&json!(0)));
+    assert_eq!(
+        public["functions"]["unsupportedDependencyDiagnostics"][0]["code"],
+        "SNAPBACK_SECRET_DEPENDENCY"
+    );
+
+    let encoded = serde_json::to_string(&public).unwrap();
+    for secret in [
+        "secretCursors",
+        "secret-routing-key",
+        "secretTenantId",
+        "tenant-secret",
+        "/secret/runtime/ibex-submodule",
+        "/secret/runtime/ibex-cli",
+        "/secret/source/cron.ts",
+        "/secret/source/config.ts",
+        "raw diagnostic secret text",
+        "/secret/diagnostic/details.ts",
+        "recent diagnostic secret text",
+        "/secret/recent/details.ts",
+        "schema artifact diagnostic secret text",
+        "/secret/schema/artifact.ts",
+        "cron state diagnostic secret text",
+        "/secret/cron/state.ts",
+        "cron run diagnostic secret text",
+        "/secret/cron/run.ts",
+        "cron result secret value",
+    ] {
+        assert!(
+            !encoded.contains(secret),
+            "public inspect leaked ephemeral room sentinel {secret}"
+        );
+    }
 }
 
 /// ENG-23964 publication gate: a clean consumer can trust the committed
@@ -681,6 +871,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(MutationRequest {
             input: input.clone(),
             client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
+            acknowledged_client_mutation_ids: vec!["cm_acknowledged".to_owned()],
         })
         .unwrap(),
     );

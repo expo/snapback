@@ -89,6 +89,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Client-visible mutation request envelope. The idempotency key is mutation\nonly: queries remain server-authoritative reads and are never queued or\nledgered as writes (LLP 0043 M1/M2).",
   "properties": {
+    "acknowledgedClientMutationIds": {
+      "description": "Results the client has durably consumed and removed from its replay\nqueue. The server may reclaim these settlement payloads only after this\nexplicit acknowledgement; age alone is not proof that an offline\nclient cannot redeliver the id.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 1024,
+      "type": "array"
+    },
     "args": {
       "default": null
     },

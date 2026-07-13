@@ -71,6 +71,7 @@ const freshState = () => ({
   retained: {},
   pending: [],
   failed: [],
+  acknowledged: [],
 });
 
 function clientStoreStateError(code, message, details = {}) {
@@ -211,11 +212,11 @@ const normalizeState = (state) => {
       },
     );
   }
-  // `generation` is the one additive field introduced after v1 shipped; an
-  // absent value has an explicit migration. Every other field was present in
-  // the original v1 shape, so defaulting it would turn truncated durable JSON
-  // into empty success and let the next write destroy the only copy.
+  // Additive v1 fields have explicit migrations. Every original field remains
+  // mandatory so truncated durable JSON cannot turn into empty success and
+  // let the next write destroy the only copy.
   if (!Object.hasOwn(state, 'generation')) state.generation = 0;
+  if (!Object.hasOwn(state, 'acknowledged')) state.acknowledged = [];
   assertStateField(typeof state.origin === 'string' && state.origin.length > 0, 'origin');
   assertStateField(Number.isSafeInteger(state.generation) && state.generation >= 0, 'generation');
   assertStateField(
@@ -244,6 +245,14 @@ const normalizeState = (state) => {
   );
   assertStateField(Array.isArray(state.pending), 'pending');
   assertStateField(Array.isArray(state.failed), 'failed');
+  assertStateField(
+    Array.isArray(state.acknowledged)
+      && state.acknowledged.every((id) => (
+        typeof id === 'string' && REPLAY_OPAQUE_ID_PATTERN.test(id)
+      ))
+      && new Set(state.acknowledged).size === state.acknowledged.length,
+    'acknowledged',
+  );
   Object.values(state.retained).forEach((record, index) => {
     // Query keys can contain canonicalized user arguments. Diagnostics name
     // only the structural position, never the potentially sensitive key.
@@ -360,6 +369,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           state.retained = {};
           state.pending = [];
           state.failed = [];
+          state.acknowledged = [];
         }
         state.authFingerprint = authFingerprint;
         commit(state);
@@ -415,6 +425,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             });
           }
           state.pending = [];
+          state.acknowledged = [];
         }
         state.artifactScope = nextScope;
         commit(state);
@@ -523,8 +534,23 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         const [entry] = state.pending.splice(index, 1);
         const settled = clone({ ...entry, status, output, diagnostic });
         if (status === 'failed') state.failed.push(settled);
+        if (status === 'confirmed' && !state.acknowledged.includes(id)) {
+          state.acknowledged.push(id);
+        }
         commit(state);
         return settled;
+      });
+    },
+
+    async pendingMutationAcknowledgements(limit = MAX_OFFLINE_LEDGER_IDS) {
+      return transact((state) => clone(state.acknowledged.slice(0, limit)));
+    },
+
+    async confirmMutationAcknowledgements(ids) {
+      const confirmed = new Set(ids);
+      return transact((state, commit) => {
+        state.acknowledged = state.acknowledged.filter((id) => !confirmed.has(id));
+        commit(state);
       });
     },
 

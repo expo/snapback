@@ -108,6 +108,53 @@ export default defineSchema({}, { ephemeral: defineEphemeral({ cursors }) });
   ]));
 }
 
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+export default defineSchema({}, { ephemeral: defineEphemeral({
+  cursors: ephemeral.collection({
+    scope: { roomId: v.string() },
+    value: v.object({ x: v.number() }),
+    ttlMs: 1000,
+    maxTtlMs: 30_001,
+    publish: allow.all(),
+    subscribe: allow.all(),
+  }),
+}) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_INVALID_BUDGET'
+    && d.field === 'maxTtlMs'
+    && d.maximum === 30_000
+  )));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+export default defineSchema({}, { ephemeral: defineEphemeral({
+  cursors: ephemeral.collection({
+    scope: { roomId: v.string() },
+    value: v.object({ x: v.number() }),
+    ttlMs: 1000,
+    publish: allow.roomPermission('room:admin'),
+    subscribe: allow.all(),
+  }),
+}) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_INVALID_AUTH'
+    && d.operation === 'publish'
+    && d.prefix === 'room:admin'
+  )));
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 
 console.log('authoring-validation.test.mjs: all cases passed');

@@ -2593,6 +2593,28 @@ async fn invoke_mutation(
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Result<Json<MutationResponse>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if let Some(current_id) = request.client_mutation_id.as_deref()
+        && request
+            .acknowledged_client_mutation_ids
+            .iter()
+            .any(|acknowledged| acknowledged == current_id)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
+            "sync",
+            "the current client mutation id cannot be acknowledged by the same request",
+        )
+        .with_details(json!({ "clientMutationId": current_id }))
+        .into());
+    }
+    if !request.acknowledged_client_mutation_ids.is_empty() {
+        let auth = request.input.auth.clone();
+        let ids = request.acknowledged_client_mutation_ids.clone();
+        with_snapback(&state, move |snapback| {
+            snapback.acknowledge_client_mutations(&auth, &ids)
+        })
+        .await?;
+    }
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
@@ -3279,7 +3301,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
-        | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION" => StatusCode::CONFLICT,
+        | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+        | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
@@ -3292,7 +3315,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_EPHEMERAL_RATE_LIMITED" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_VALUE_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
-        | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
+        | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
+        | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
@@ -3300,6 +3324,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
+        | "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         | "SNAPBACK_READ_LANE_UNAVAILABLE"
         | "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING"
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE"
@@ -3312,6 +3337,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // here automatically: the default below remains a truthful 500 until
         // its producer deliberately chooses a client class.
         "SNAPBACK_ARG_MISSING"
+        | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
+        | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
+        | "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED"
+        | "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_USER_MISSING"
         | "SNAPBACK_BINDING_MISSING"
@@ -3335,6 +3364,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CRON_INVALID_EXPRESSION"
         | "SNAPBACK_CRON_INVALID_INTERVAL"
         | "SNAPBACK_CRON_INVALID_SCHEDULE"
+        | "SNAPBACK_CRON_JITTER_INVALID"
         | "SNAPBACK_CRON_JOB_DISABLED"
         | "SNAPBACK_CRON_JOB_IN_FLIGHT"
         | "SNAPBACK_CRON_JOB_INVALID"
@@ -3366,8 +3396,12 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION"
         | "SNAPBACK_FIELD_MISSING"
         | "SNAPBACK_FIELD_TYPE_MISMATCH"
+        | "SNAPBACK_FUNCTION_IDENTITY_COLLISION"
+        | "SNAPBACK_FUNCTION_IDENTITY_INVALID"
         | "SNAPBACK_FUNCTION_KIND_MISMATCH"
+        | "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH"
         | "SNAPBACK_FUNCTION_NOT_LIVE"
+        | "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID"
         | "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED"
         | "SNAPBACK_HANDLER_CAPABILITY_DENIED"
         | "SNAPBACK_HANDLER_DID_NOT_SETTLE"
@@ -3394,7 +3428,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PLAN_BOUNDS"
         | "SNAPBACK_PLAN_INVALID"
         | "SNAPBACK_PLAN_SOURCE_INVALID"
+        | "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
+        | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
+        | "SNAPBACK_QUERY_LIMIT_INVALID"
         | "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_UNKNOWN_INDEX"
         | "SNAPBACK_REQUEST_JSON_INVALID"
@@ -3761,11 +3798,15 @@ mod tests {
     ];
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTH_STALE_RESULT",
         "SNAPBACK_AUTH_USER_MISSING",
         "SNAPBACK_BINDING_MISSING",
+        "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
         "SNAPBACK_CAPTURED_READ_INVALID",
+        "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
+        "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
         "SNAPBACK_CLIENT_MUTATION_ID_INVALID",
         "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED",
         "SNAPBACK_CONFIG_ENTRY_INVALID",
@@ -3785,6 +3826,7 @@ mod tests {
         "SNAPBACK_CRON_INVALID_EXPRESSION",
         "SNAPBACK_CRON_INVALID_INTERVAL",
         "SNAPBACK_CRON_INVALID_SCHEDULE",
+        "SNAPBACK_CRON_JITTER_INVALID",
         "SNAPBACK_CRON_JOB_DISABLED",
         "SNAPBACK_CRON_JOB_IN_FLIGHT",
         "SNAPBACK_CRON_JOB_INVALID",
@@ -3816,8 +3858,12 @@ mod tests {
         "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
         "SNAPBACK_FIELD_MISSING",
         "SNAPBACK_FIELD_TYPE_MISMATCH",
+        "SNAPBACK_FUNCTION_IDENTITY_COLLISION",
+        "SNAPBACK_FUNCTION_IDENTITY_INVALID",
         "SNAPBACK_FUNCTION_KIND_MISMATCH",
+        "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
         "SNAPBACK_FUNCTION_NOT_LIVE",
+        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
         "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
         "SNAPBACK_HANDLER_CAPABILITY_DENIED",
         "SNAPBACK_HANDLER_DID_NOT_SETTLE",
@@ -3844,7 +3890,10 @@ mod tests {
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
         "SNAPBACK_PLAN_SOURCE_INVALID",
+        "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+        "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
+        "SNAPBACK_QUERY_LIMIT_INVALID",
         "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_UNKNOWN_INDEX",
         "SNAPBACK_REQUEST_JSON_INVALID",
@@ -3896,9 +3945,11 @@ mod tests {
         "SNAPBACK_CONFIG_VERIFY_STALE",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
         "SNAPBACK_MUTATION_CONFLICT",
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
         "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE",
         "SNAPBACK_VALUE_TOO_LARGE",
@@ -3920,6 +3971,7 @@ mod tests {
         "SNAPBACK_CAPABILITY_WORKERD_MISSING",
         "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
         "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
+        "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
@@ -3975,11 +4027,13 @@ mod tests {
         "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
         "SNAPBACK_READY_FILE_PATH_COLLISION",
         "SNAPBACK_RUNTIME_CREATE_FAILED",
+        "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
         "SNAPBACK_SCHEMA_SERIALIZE_FAILED",
         "SNAPBACK_SQLITE_ERROR",
         "SNAPBACK_V8_REJECTION_DETECTION_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
         "SNAPBACK_V8_RUNNER_START_FAILED",
+        "SNAPBACK_VERSION_OUT_OF_RANGE",
     ];
 
     const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[

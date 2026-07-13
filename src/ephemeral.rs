@@ -322,6 +322,16 @@ fn default_max_pending_ephemeral_keys() -> usize {
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
 const MAX_OUTBOX_BACKLOG: usize = 1_024;
 
+/// Client overlays retain at most one delete version per possible live room
+/// entry. Together with the authoritative snapshot high-water this is enough
+/// to reject a delayed pre-delete upsert without turning ephemeral state into
+/// durable history.
+const MAX_OVERLAY_TOMBSTONES: usize = 1_024;
+
+/// The local adapter's paved-path TTL ceiling from LLP 0013. Definition
+/// validation enforces it before replacing live collection state.
+const LOCAL_HARD_MAX_TTL_MS: Millis = 30_000;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct PublishRequest {
     pub collection: String,
@@ -464,6 +474,10 @@ pub enum EphemeralMessage {
     Snapshot {
         room: RoomId,
         scope_epoch: u64,
+        /// Authoritative room cursor at the instant the snapshot and
+        /// subscriber registration became one operation. This remains valid
+        /// even when `entries` is empty or the newest event was a delete.
+        high_water_version: u64,
         entries: Vec<EphemeralEntry>,
     },
     Upsert {
@@ -504,6 +518,17 @@ impl EphemeralMessage {
             | Self::ResyncRequired { scope_epoch, .. } => Some(*scope_epoch),
             Self::Upsert { entry, .. } => Some(entry.scope_epoch),
             Self::Error { .. } => None,
+        }
+    }
+
+    fn entry_version(&self) -> Option<u64> {
+        match self {
+            Self::Upsert { entry, .. } => Some(entry.entry_version),
+            Self::Remove { entry_version, .. } => Some(*entry_version),
+            Self::Snapshot {
+                high_water_version, ..
+            } => Some(*high_water_version),
+            Self::ResyncRequired { .. } | Self::Error { .. } => None,
         }
     }
 
@@ -697,16 +722,16 @@ struct RateBucket {
 impl RateBucket {
     fn new(collection: &EphemeralCollection, now_ms: Millis) -> Self {
         Self {
-            tokens_milli: collection.burst as u64 * 1_000,
+            tokens_milli: u64::from(collection.burst).saturating_mul(1_000),
             last_refill_ms: now_ms,
         }
     }
 
     fn allow(&mut self, collection: &EphemeralCollection, now_ms: Millis) -> bool {
         let elapsed = now_ms.saturating_sub(self.last_refill_ms);
-        let refill = elapsed * collection.sustained_hz as u64;
-        let capacity = collection.burst as u64 * 1_000;
-        self.tokens_milli = (self.tokens_milli + refill).min(capacity);
+        let refill = elapsed.saturating_mul(u64::from(collection.sustained_hz));
+        let capacity = u64::from(collection.burst).saturating_mul(1_000);
+        self.tokens_milli = self.tokens_milli.saturating_add(refill).min(capacity);
         self.last_refill_ms = now_ms;
 
         if self.tokens_milli < 1_000 {
@@ -919,7 +944,19 @@ impl OutboundQueue {
         while let Some(message) = self.resync.pop_front() {
             messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
         }
-        for (_, message) in std::mem::take(&mut self.ephemeral) {
+        // The pending map coalesces by room/key, whose lexical map order is
+        // unrelated to the room authority's monotonic entryVersion. Sort the
+        // surviving latest-state messages before transport so a client's room
+        // high-water can safely reject any delayed lower-version frame.
+        let mut ephemeral = std::mem::take(&mut self.ephemeral)
+            .into_values()
+            .collect::<Vec<_>>();
+        ephemeral.sort_by(|left, right| {
+            left.resync_room_epoch()
+                .cmp(&right.resync_room_epoch())
+                .then_with(|| left.entry_version().cmp(&right.entry_version()))
+        });
+        for message in ephemeral {
             messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
         }
         // Drained: the queue can accept fresh state again.
@@ -1042,6 +1079,11 @@ type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 ///
 /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — the sharded design and its lock order.
 struct EphemeralShared {
+    /// Definition generation barrier. Ordinary room operations take a read
+    /// guard; replacement/reset takes the write guard through collection swap,
+    /// room retirement, lane cleanup, and resync enqueue. A new-generation
+    /// publish therefore cannot be erased by an old-generation wipe.
+    lifecycle: RwLock<()>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
     outboxes: StdMutex<BTreeMap<ConnectionId, SharedOutbox>>,
@@ -1102,6 +1144,7 @@ impl LocalEphemeralBackend {
     pub fn with_limits(limits: EphemeralStoreLimits) -> Self {
         Self {
             shared: Arc::new(EphemeralShared {
+                lifecycle: RwLock::new(()),
                 collections: RwLock::new(BTreeMap::new()),
                 rooms: StdMutex::new(BTreeMap::new()),
                 outboxes: StdMutex::new(BTreeMap::new()),
@@ -1121,23 +1164,42 @@ impl LocalEphemeralBackend {
         self.shared.delivery.clone()
     }
 
-    pub fn register_collection(&self, collection: EphemeralCollection) {
+    pub fn register_collection(
+        &self,
+        collection: EphemeralCollection,
+    ) -> Result<(), EphemeralError> {
+        validate_collection_definitions(std::slice::from_ref(&collection))?;
+        let _generation = self
+            .shared
+            .lifecycle
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
         self.shared
             .collections
             .write()
             .unwrap_or_else(PoisonError::into_inner)
             .insert(collection.name.clone(), collection);
+        Ok(())
     }
 
     /// Provisioning-time definition load. Identical definitions are an
     /// idempotent no-op; changed definitions are a destructive replacement
     /// that retires all rooms and signals every registered subscriber.
-    pub fn replace_collections(&self, collections: Vec<EphemeralCollection>) {
+    pub fn replace_collections(
+        &self,
+        collections: Vec<EphemeralCollection>,
+    ) -> Result<(), EphemeralError> {
+        validate_collection_definitions(&collections)?;
         let next = collections
             .into_iter()
             .map(|collection| (collection.name.clone(), collection))
             .collect::<BTreeMap<_, _>>();
 
+        let _generation = self
+            .shared
+            .lifecycle
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
         {
             let mut current = self
                 .shared
@@ -1148,7 +1210,7 @@ impl LocalEphemeralBackend {
             // app-definition loads with identical ephemeral definitions must not
             // erase active cursor rooms or queued latest-state messages.
             if *current == next {
-                return;
+                return Ok(());
             }
             *current = next;
         }
@@ -1160,12 +1222,19 @@ impl LocalEphemeralBackend {
         // higher epochs from the store-global allocator.
         self.wipe_rooms_signaling_resync(ResyncReason::EpochChanged);
         lock(&self.shared.rate_buckets).clear();
+        Ok(())
     }
 
     pub fn ensure_collections(
         &self,
         collections: Vec<EphemeralCollection>,
     ) -> Result<CollectionEnsureOutcome, EphemeralError> {
+        validate_collection_definitions(&collections)?;
+        let _generation = self
+            .shared
+            .lifecycle
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
         let expected = collections
             .into_iter()
             .map(|collection| (collection.name.clone(), collection))
@@ -1231,6 +1300,11 @@ impl LocalEphemeralBackend {
     /// queues and rate buckets are cleared, counters restart (the reset's own
     /// resync signals are counted, since they follow the counter reset).
     pub fn reset_runtime_state(&self) {
+        let _generation = self
+            .shared
+            .lifecycle
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
         self.shared.counters.reset();
         // The runtime reset retires the durable world too (the caller wipes
         // the database and drops every live subscription), so queued durable
@@ -1249,6 +1323,11 @@ impl LocalEphemeralBackend {
         request: PublishRequest,
         now_ms: Millis,
     ) -> Result<PublishOutcome, EphemeralError> {
+        let _generation = self
+            .shared
+            .lifecycle
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         let ttl_ms = request.ttl_ms.unwrap_or(collection.default_ttl_ms);
@@ -1259,7 +1338,12 @@ impl LocalEphemeralBackend {
         let owner = entry_owner_for(&collection, &request)?;
         self.ensure_publish_rate(&collection, &request.connection_id, now_ms)?;
 
-        let expires_at_ms = now_ms + ttl_ms;
+        let expires_at_ms = now_ms.checked_add(ttl_ms).ok_or_else(|| {
+            EphemeralError::new(
+                EphemeralErrorCode::InvalidTtl,
+                "ephemeral expiry exceeds the supported timestamp range",
+            )
+        })?;
         let connection_id = request.connection_id;
         let value = request.value;
         let value_len = value.len();
@@ -1388,6 +1472,11 @@ impl LocalEphemeralBackend {
         request: DeleteRequest,
         now_ms: Millis,
     ) -> Result<Option<EphemeralMessage>, EphemeralError> {
+        let _generation = self
+            .shared
+            .lifecycle
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
@@ -1434,6 +1523,11 @@ impl LocalEphemeralBackend {
     /// an unknown collection, invalid room, or unknown registration is a quiet
     /// no-op (teardown races schema replacement, disconnect, and reap).
     pub fn unsubscribe(&self, request: SubscribeRequest) -> Result<bool, EphemeralError> {
+        let _generation = self
+            .shared
+            .lifecycle
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
         let Some(collection) = self.collection_if_loaded(&request.collection) else {
             return Ok(false);
         };
@@ -1467,6 +1561,11 @@ impl LocalEphemeralBackend {
         request: SubscribeRequest,
         now_ms: Millis,
     ) -> Result<EphemeralMessage, EphemeralError> {
+        let _generation = self
+            .shared
+            .lifecycle
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.subscribe, &request.scope, &request.auth)?;
@@ -1510,6 +1609,7 @@ impl LocalEphemeralBackend {
             Ok(EphemeralMessage::Snapshot {
                 room: room_id.clone(),
                 scope_epoch: room.scope_epoch,
+                high_water_version: room.next_entry_version.saturating_sub(1),
                 entries,
             })
         }) {
@@ -2418,17 +2518,144 @@ fn next_expiry_deadline(room: &RoomState) -> Option<Millis> {
     room.expiry_counts.keys().next().copied()
 }
 
-fn room_id_for(collection: &EphemeralCollection, scope: &Scope) -> Result<RoomId, EphemeralError> {
-    for field in &collection.scope_fields {
-        if !scope.0.contains_key(field) {
+fn valid_manifest_identifier(value: &str) -> bool {
+    let mut chars = value.chars();
+    chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+}
+
+/// Validate the complete local ephemeral definition set before it can replace
+/// live authority state. Codegen performs the same authoring checks, but the
+/// Rust parser is the artifact authority (LLP 0037), so direct ingestion must
+/// fail closed too.
+pub fn validate_collection_definitions(
+    collections: &[EphemeralCollection],
+) -> Result<(), EphemeralError> {
+    let mut names = BTreeSet::new();
+    for collection in collections {
+        if !valid_manifest_identifier(&collection.name) {
             return Err(EphemeralError::new(
-                EphemeralErrorCode::InvalidScope,
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
                 format!(
-                    "scope is missing required field {field} for {}",
+                    "ephemeral collection name {:?} is not a portable identifier",
                     collection.name
                 ),
             ));
         }
+        if !names.insert(collection.name.clone()) {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} is declared more than once",
+                    collection.name
+                ),
+            ));
+        }
+
+        let scope = collection
+            .scope_fields
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if scope.is_empty()
+            || scope.len() != collection.scope_fields.len()
+            || scope.iter().any(|field| !valid_manifest_identifier(field))
+        {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} needs unique non-empty portable scope fields",
+                    collection.name
+                ),
+            ));
+        }
+        let routing = collection
+            .routing_fields
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if routing.is_empty()
+            || routing.len() != collection.routing_fields.len()
+            || !routing.is_subset(&scope)
+        {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} needs unique routing fields drawn from its scope",
+                    collection.name
+                ),
+            ));
+        }
+
+        if collection.default_ttl_ms == 0
+            || collection.default_ttl_ms > collection.max_ttl_ms
+            || collection.max_ttl_ms > LOCAL_HARD_MAX_TTL_MS
+        {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} TTL budget must satisfy 0 < default <= max <= {}ms",
+                    collection.name, LOCAL_HARD_MAX_TTL_MS
+                ),
+            ));
+        }
+        if collection.max_value_bytes == 0
+            || collection.hard_max_value_bytes == 0
+            || collection.max_value_bytes > collection.hard_max_value_bytes
+            || collection.hard_max_value_bytes > 4_096
+        {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} value budget must satisfy 0 < max <= hardMax <= 4096",
+                    collection.name
+                ),
+            ));
+        }
+        if collection.sustained_hz == 0
+            || collection.burst == 0
+            || collection.dispatch_ms == 0
+            || collection.max_pending_ephemeral_keys == 0
+            || collection.max_pending_ephemeral_keys > MAX_OUTBOX_BACKLOG
+        {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} rate, dispatch, and pending-key budgets must be positive and pending keys may not exceed {}",
+                    collection.name, MAX_OUTBOX_BACKLOG
+                ),
+            ));
+        }
+        for policy in [&collection.publish, &collection.subscribe] {
+            if matches!(policy, AccessPolicy::RequireRoomPermission { prefix } if !valid_manifest_identifier(prefix))
+            {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::IncompatibleCollectionDefinition,
+                    format!(
+                        "ephemeral collection {} has an invalid authorization prefix",
+                        collection.name
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn room_id_for(collection: &EphemeralCollection, scope: &Scope) -> Result<RoomId, EphemeralError> {
+    let expected = collection.scope_fields.iter().collect::<BTreeSet<_>>();
+    let actual = scope.0.keys().collect::<BTreeSet<_>>();
+    if actual != expected {
+        return Err(EphemeralError::new(
+            EphemeralErrorCode::InvalidScope,
+            format!(
+                "scope keys for {} must exactly match [{}]",
+                collection.name,
+                collection.scope_fields.join(", ")
+            ),
+        ));
     }
 
     let routing_key = scope
@@ -2578,7 +2805,9 @@ pub struct ClientEphemeralOverlay {
 #[derive(Clone, Debug, Default)]
 struct OverlayRoom {
     scope_epoch: u64,
+    high_water_version: u64,
     entries: BTreeMap<EntryKey, EphemeralEntry>,
+    tombstones: BTreeMap<EntryKey, u64>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2602,17 +2831,35 @@ impl ClientEphemeralOverlay {
             EphemeralMessage::Snapshot {
                 room,
                 scope_epoch,
+                high_water_version,
                 entries,
             } => {
+                if entries
+                    .iter()
+                    .any(|entry| entry.entry_version > *high_water_version)
+                {
+                    self.rooms.remove(room);
+                    return OverlayApply::NeedsResync;
+                }
+                if let Some(current) = self.rooms.get(room) {
+                    if *scope_epoch < current.scope_epoch
+                        || (*scope_epoch == current.scope_epoch
+                            && *high_water_version < current.high_water_version)
+                    {
+                        return OverlayApply::IgnoredStale;
+                    }
+                }
                 self.rooms.insert(
                     room.clone(),
                     OverlayRoom {
                         scope_epoch: *scope_epoch,
+                        high_water_version: *high_water_version,
                         entries: entries
                             .iter()
                             .cloned()
                             .map(|entry| (entry.key.clone(), entry))
                             .collect(),
+                        tombstones: BTreeMap::new(),
                     },
                 );
                 OverlayApply::Applied
@@ -2624,13 +2871,16 @@ impl ClientEphemeralOverlay {
                 if overlay_room.scope_epoch != entry.scope_epoch {
                     return OverlayApply::NeedsResync;
                 }
-                if overlay_room
-                    .entries
-                    .get(&entry.key)
-                    .is_some_and(|current| current.entry_version >= entry.entry_version)
+                if entry.entry_version <= overlay_room.high_water_version
+                    || overlay_room
+                        .tombstones
+                        .get(&entry.key)
+                        .is_some_and(|version| *version >= entry.entry_version)
                 {
                     return OverlayApply::IgnoredStale;
                 }
+                overlay_room.high_water_version = entry.entry_version;
+                overlay_room.tombstones.remove(&entry.key);
                 overlay_room
                     .entries
                     .insert(entry.key.clone(), entry.clone());
@@ -2649,14 +2899,22 @@ impl ClientEphemeralOverlay {
                 if overlay_room.scope_epoch != *scope_epoch {
                     return OverlayApply::NeedsResync;
                 }
-                if overlay_room
-                    .entries
-                    .get(key)
-                    .is_some_and(|current| current.entry_version > *entry_version)
-                {
+                if *entry_version <= overlay_room.high_water_version {
                     return OverlayApply::IgnoredStale;
                 }
+                overlay_room.high_water_version = *entry_version;
                 overlay_room.entries.remove(key);
+                overlay_room.tombstones.insert(key.clone(), *entry_version);
+                while overlay_room.tombstones.len() > MAX_OVERLAY_TOMBSTONES {
+                    let oldest = overlay_room
+                        .tombstones
+                        .iter()
+                        .min_by_key(|(_, version)| *version)
+                        .map(|(key, _)| key.clone());
+                    if let Some(oldest) = oldest {
+                        overlay_room.tombstones.remove(&oldest);
+                    }
+                }
                 OverlayApply::Applied
             }
             EphemeralMessage::ResyncRequired { room, .. } => {
@@ -2817,7 +3075,7 @@ mod tests {
         let mut users = collection();
         users.name = "userPresence".to_owned();
         users.key_mode = KeyMode::User;
-        backend.register_collection(users);
+        backend.register_collection(users).unwrap();
 
         let scope = scope();
         let mut publish = PublishRequest {
@@ -2860,7 +3118,7 @@ mod tests {
         let mut custom = collection();
         custom.name = "customPresence".to_owned();
         custom.key_mode = KeyMode::Custom;
-        backend.register_collection(custom);
+        backend.register_collection(custom).unwrap();
         let custom_publish = |connection: &str, value: &[u8]| PublishRequest {
             collection: "customPresence".to_owned(),
             scope: scope.clone(),
@@ -2912,7 +3170,7 @@ mod tests {
         let mut cursors = EphemeralCollection::local_cursor("cursors", "boardId");
         cursors.sustained_hz = 1_000_000;
         cursors.burst = 1_000_000;
-        backend.register_collection(cursors);
+        backend.register_collection(cursors).unwrap();
 
         let request = |connection: &str, board: String| SubscribeRequest {
             collection: "cursors".to_owned(),
@@ -2956,7 +3214,7 @@ mod tests {
     #[test]
     fn reverse_index_cleanup_linearizes_before_concurrent_room_reuse() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("race"), 1_000).unwrap();
         let room_id = room();
         let room_arc = lock(&backend.shared.rooms)
@@ -3025,7 +3283,7 @@ mod tests {
     #[test]
     fn retired_room_index_reconciliation_preserves_same_id_replacement() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         backend
             .publish(publish_request("old", b"old"), 1_000)
             .unwrap();
@@ -3065,7 +3323,7 @@ mod tests {
     #[test]
     fn s5_d6_disconnect_clears_rate_buckets() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
 
         backend
             .publish(publish_request("a", b"cursor"), 1_000)
@@ -3089,7 +3347,7 @@ mod tests {
     #[test]
     fn disconnect_visits_only_the_connections_rooms() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
 
         // Room board-1: an entry owned by connection "x".
         backend
@@ -3140,7 +3398,7 @@ mod tests {
     #[test]
     fn connection_room_index_covers_publish_only_rooms() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
 
         // "a" publishes into board-1 (never subscribes) and subscribes to
         // board-2 (never publishes).
@@ -3181,7 +3439,7 @@ mod tests {
     #[test]
     fn subscriber_gets_snapshot_then_live_cursor_update() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
 
         let published = backend
             .publish(publish_request("a", b"{x:1}"), 1_000)
@@ -3215,7 +3473,7 @@ mod tests {
     #[test]
     fn ttl_expiry_removes_entry_and_does_not_touch_durable_lane() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         let published = backend
             .publish(publish_request("a", b"cursor"), 1_000)
             .unwrap();
@@ -3250,7 +3508,7 @@ mod tests {
     #[test]
     fn disconnect_cleans_connection_owned_entry() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         let published = backend
             .publish(publish_request("a", b"cursor"), 1_000)
             .unwrap();
@@ -3281,7 +3539,7 @@ mod tests {
     #[test]
     fn guarded_disconnect_aborts_once_the_connection_reregisters() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         let notifier = backend.delivery_notifier();
 
         // The reconnected socket's fresh state: registration first (the WS
@@ -3342,7 +3600,7 @@ mod tests {
     #[test]
     fn guarded_disconnect_without_reregistration_wipes_everything() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
 
         backend
             .publish(publish_request("a", b"cursor"), 1_000)
@@ -3410,7 +3668,7 @@ mod tests {
     #[test]
     fn l4_gauges_are_accurate_on_demand() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("b"), 1_000).unwrap();
         backend
             .publish(publish_request("a", b"cursor"), 1_001)
@@ -3435,7 +3693,7 @@ mod tests {
     #[test]
     fn high_frequency_updates_are_coalesced_by_key() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("b"), 1_000).unwrap();
 
         backend
@@ -3469,7 +3727,7 @@ mod tests {
         collection.max_value_bytes = 4;
         collection.burst = 2;
         collection.sustained_hz = 1;
-        backend.register_collection(collection);
+        backend.register_collection(collection).unwrap();
 
         let oversize = backend
             .publish(publish_request("a", b"too-large"), 1_000)
@@ -3496,6 +3754,7 @@ mod tests {
         overlay.apply(&EphemeralMessage::Snapshot {
             room: room.clone(),
             scope_epoch: 1,
+            high_water_version: 2,
             entries: vec![EphemeralEntry {
                 key: EntryKey("a".to_owned()),
                 value: b"new".to_vec(),
@@ -3526,9 +3785,162 @@ mod tests {
     }
 
     #[test]
+    fn empty_snapshot_high_water_clears_state_and_blocks_delayed_upsert() {
+        let room = room();
+        let key = EntryKey("a".to_owned());
+        let entry = |version, value: &[u8]| EphemeralEntry {
+            key: key.clone(),
+            value: value.to_vec(),
+            received_at_ms: version,
+            expires_at_ms: 10_000,
+            scope_epoch: 7,
+            entry_version: version,
+        };
+        let mut overlay = ClientEphemeralOverlay::default();
+        assert_eq!(
+            overlay.apply(&EphemeralMessage::Snapshot {
+                room: room.clone(),
+                scope_epoch: 7,
+                high_water_version: 1,
+                entries: vec![entry(1, b"present")],
+            }),
+            OverlayApply::Applied
+        );
+        assert_eq!(
+            overlay.apply(&EphemeralMessage::Snapshot {
+                room: room.clone(),
+                scope_epoch: 7,
+                high_water_version: 2,
+                entries: Vec::new(),
+            }),
+            OverlayApply::Applied
+        );
+        assert!(overlay.room_entries(&room).is_empty());
+        assert_eq!(
+            overlay.apply(&EphemeralMessage::Upsert {
+                room: room.clone(),
+                entry: entry(2, b"delayed"),
+            }),
+            OverlayApply::IgnoredStale
+        );
+        assert!(overlay.room_entries(&room).is_empty());
+    }
+
+    #[test]
+    fn delete_high_water_blocks_same_version_resurrection() {
+        let room = room();
+        let key = EntryKey("a".to_owned());
+        let mut overlay = ClientEphemeralOverlay::default();
+        overlay.apply(&EphemeralMessage::Snapshot {
+            room: room.clone(),
+            scope_epoch: 1,
+            high_water_version: 1,
+            entries: vec![EphemeralEntry {
+                key: key.clone(),
+                value: b"present".to_vec(),
+                received_at_ms: 1,
+                expires_at_ms: 10_000,
+                scope_epoch: 1,
+                entry_version: 1,
+            }],
+        });
+        assert_eq!(
+            overlay.apply(&EphemeralMessage::Remove {
+                room: room.clone(),
+                key: key.clone(),
+                scope_epoch: 1,
+                entry_version: 2,
+                reason: RemoveReason::Deleted,
+            }),
+            OverlayApply::Applied
+        );
+        assert_eq!(
+            overlay.apply(&EphemeralMessage::Upsert {
+                room: room.clone(),
+                entry: EphemeralEntry {
+                    key: key.clone(),
+                    value: b"delayed".to_vec(),
+                    received_at_ms: 2,
+                    expires_at_ms: 10_000,
+                    scope_epoch: 1,
+                    entry_version: 2,
+                },
+            }),
+            OverlayApply::IgnoredStale
+        );
+        assert!(overlay.get(&room, &key).is_none());
+    }
+
+    #[test]
+    fn coalesced_room_messages_drain_in_entry_version_order() {
+        let backend = LocalEphemeralBackend::new();
+        let mut definition = collection();
+        definition.key_mode = KeyMode::Custom;
+        backend.register_collection(definition).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+        let publish = |key: &str, now_ms| {
+            let mut request = publish_request("publisher", key.as_bytes());
+            request.custom_key = Some(key.to_owned());
+            backend.publish(request, now_ms).unwrap();
+        };
+        publish("z", 1_001);
+        publish("a", 1_002);
+        let versions = backend
+            .drain_outbox("observer")
+            .into_iter()
+            .filter_map(|message| match message {
+                RealtimeEnvelope::Ephemeral(message) => message.entry_version(),
+                RealtimeEnvelope::Durable(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(versions, vec![1, 2]);
+    }
+
+    #[test]
+    fn full_definition_and_exact_scope_validation_fail_before_state_change() {
+        let backend = LocalEphemeralBackend::new();
+        let valid = collection();
+        backend.replace_collections(vec![valid.clone()]).unwrap();
+
+        let mut invalid = valid.clone();
+        invalid.max_ttl_ms = LOCAL_HARD_MAX_TTL_MS + 1;
+        let error = backend
+            .replace_collections(vec![valid.clone(), invalid])
+            .expect_err("duplicate/invalid definitions must reject atomically");
+        assert_eq!(
+            error.code,
+            EphemeralErrorCode::IncompatibleCollectionDefinition
+        );
+
+        let invalid_auth = valid.clone().require_room_permission("board:administrator");
+        assert_eq!(
+            backend
+                .replace_collections(vec![invalid_auth])
+                .expect_err("ambiguous permission prefixes must reject")
+                .code,
+            EphemeralErrorCode::IncompatibleCollectionDefinition
+        );
+
+        let mut extra_scope = publish_request("publisher", b"cursor");
+        extra_scope
+            .scope
+            .0
+            .insert("attacker".to_owned(), "shadow".to_owned());
+        assert_eq!(
+            backend.publish(extra_scope, 1_000).unwrap_err().code,
+            EphemeralErrorCode::InvalidScope
+        );
+        backend
+            .publish(publish_request("publisher", b"valid"), 1_001)
+            .expect("the prior valid definition must remain installed");
+    }
+
+    #[test]
     fn durable_lane_drains_before_ephemeral_lane() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("b"), 1_000).unwrap();
         backend
             .publish(publish_request("a", b"cursor"), 1_001)
@@ -3543,7 +3955,7 @@ mod tests {
     #[test]
     fn unauthorized_subscribe_is_rejected() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         let mut request = subscribe_request("b");
         request.auth = AuthContext::default();
 
@@ -3558,6 +3970,7 @@ mod tests {
         overlay.apply(&EphemeralMessage::Snapshot {
             room: room.clone(),
             scope_epoch: 1,
+            high_water_version: 1,
             entries: vec![EphemeralEntry {
                 key: EntryKey("a".to_owned()),
                 value: b"cursor".to_vec(),
@@ -3575,7 +3988,7 @@ mod tests {
     #[test]
     fn missing_routing_field_is_rejected() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
 
         let invalid_scope = Scope::from_pairs([("notBoardId", "board-1")]);
         let request = PublishRequest {
@@ -3599,7 +4012,7 @@ mod tests {
         let backend = LocalEphemeralBackend::new();
         let mut collection = collection();
         collection.key_mode = KeyMode::User;
-        backend.register_collection(collection);
+        backend.register_collection(collection).unwrap();
 
         let mut first = publish_request("tab-a", b"online");
         first.user_id = Some("user-1".to_owned());
@@ -3636,7 +4049,7 @@ mod tests {
         let backend = LocalEphemeralBackend::new();
         let mut collection = collection();
         collection.max_pending_ephemeral_keys = 1;
-        backend.register_collection(collection);
+        backend.register_collection(collection).unwrap();
 
         let scope_one = Scope::from_pairs([("boardId", "one")]);
         let scope_two = Scope::from_pairs([("boardId", "two")]);
@@ -3715,7 +4128,7 @@ mod tests {
         let backend = LocalEphemeralBackend::new();
         let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
         collection.max_pending_ephemeral_keys = 1;
-        backend.register_collection(collection);
+        backend.register_collection(collection).unwrap();
         let scope = Scope::from_pairs([("boardId", "board-1")]);
 
         // A durable message creates the outbox before the collection-specific
@@ -3784,7 +4197,7 @@ mod tests {
         let backend = LocalEphemeralBackend::new();
         let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
         collection.max_pending_ephemeral_keys = 1;
-        backend.register_collection(collection);
+        backend.register_collection(collection).unwrap();
 
         let subscribe = |board: &str| {
             backend
@@ -3871,7 +4284,7 @@ mod tests {
     #[test]
     fn eng_23347_subscriber_registration_carries_outbox_for_hot_fanout() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection());
+        backend.register_collection(collection()).unwrap();
         backend
             .subscribe(subscribe_request("observer"), 1_000)
             .unwrap();
@@ -3922,7 +4335,7 @@ mod tests {
         });
         let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
         collection.key_mode = KeyMode::Custom;
-        backend.register_collection(collection);
+        backend.register_collection(collection).unwrap();
 
         let publish = |key: &str, value: &[u8], scope_value: &str| PublishRequest {
             collection: "boardCursors".to_owned(),
@@ -4003,7 +4416,9 @@ mod tests {
     #[test]
     fn l9_recreated_room_gets_a_fresh_scope_epoch() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
         let publish = |value: &[u8]| PublishRequest {
             collection: "boardCursors".to_owned(),
             scope: Scope::from_pairs([("boardId", "board-1")]),
@@ -4027,6 +4442,7 @@ mod tests {
         overlay.apply(&EphemeralMessage::Snapshot {
             room: first.room.clone(),
             scope_epoch: first.scope_epoch,
+            high_water_version: old_upsert_version.entry_version,
             entries: vec![EphemeralEntry {
                 key: first.key.clone(),
                 value: b"three".to_vec(),
@@ -4071,7 +4487,9 @@ mod tests {
     #[test]
     fn l9_cleanup_expired_visits_due_rooms_and_prunes_empty_ones() {
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
         let publish = |board: &str, ttl_ms: Millis| PublishRequest {
             collection: "boardCursors".to_owned(),
             scope: Scope::from_pairs([("boardId", board)]),
@@ -4110,7 +4528,7 @@ mod tests {
         let backend = LocalEphemeralBackend::new();
         let mut collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
         collection.key_mode = KeyMode::Custom;
-        backend.register_collection(collection.clone());
+        backend.register_collection(collection.clone()).unwrap();
         let room_id =
             room_id_for(&collection, &Scope::from_pairs([("boardId", "board-1")])).unwrap();
 
@@ -4177,7 +4595,9 @@ mod tests {
     fn l9_reset_and_destructive_replace_signal_resync_boundaries() {
         let backend = LocalEphemeralBackend::new();
         let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
-        backend.replace_collections(vec![collection.clone()]);
+        backend
+            .replace_collections(vec![collection.clone()])
+            .unwrap();
 
         let subscribe = SubscribeRequest {
             collection: "boardCursors".to_owned(),
@@ -4194,7 +4614,7 @@ mod tests {
         // Destructive replacement: a changed definition retires the epoch.
         let mut changed = collection.clone();
         changed.max_value_bytes = 512;
-        backend.replace_collections(vec![changed.clone()]);
+        backend.replace_collections(vec![changed.clone()]).unwrap();
 
         let messages = backend.drain_outbox("observer");
         assert_eq!(
@@ -4249,7 +4669,9 @@ mod tests {
         use std::sync::atomic::AtomicU64 as ClockCell;
 
         let backend = LocalEphemeralBackend::new();
-        backend.register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"));
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
         let clock = Arc::new(ClockCell::new(1_000));
         let publishers = 4usize;
         let publishes_per_publisher = 50u64;
@@ -4355,7 +4777,7 @@ mod tests {
         let mut cursors = EphemeralCollection::local_cursor("cursors", "roomId");
         cursors.sustained_hz = 10_000_000;
         cursors.burst = 10_000_000;
-        backend.register_collection(cursors);
+        backend.register_collection(cursors).unwrap();
 
         let stop = Arc::new(AtomicBool::new(false));
         let publisher = {

@@ -207,74 +207,6 @@
       ],
       "type": "string"
     },
-    "ConfigEntryDefinition": {
-      "description": "@ref LLP 0036#declared-configuration-in-the-manifest — one declared config\nentry: names, purposes, and acquisition metadata are app source (public by\nconstruction); values never appear in any manifest.",
-      "properties": {
-        "acquisition": {
-          "description": "Structured, agent-readable acquisition metadata (LLP 0036 D6). The host\ncarries it verbatim to status/wizard consumers; v1 does not interpret it."
-        },
-        "default": {
-          "description": "Non-secret entries only; carried for forward compatibility. v1 rejects\nnon-secret entries at manifest validation, so this is always absent in\nan accepted manifest."
-        },
-        "description": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "howToGet": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "pool": {
-          "default": false,
-          "description": "The entry holds an ordered pool of values rotated across invocations.",
-          "type": "boolean"
-        },
-        "probe": {
-          "description": "Name of a declared action that test-calls the value (`config.verify`).",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "purpose": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "required": {
-          "default": true,
-          "type": "boolean"
-        },
-        "secret": {
-          "default": true,
-          "description": "Default **true**: misclassification fails safe — forgetting the flag\nmakes a value more protected, never less (LLP 0036 D5).",
-          "type": "boolean"
-        },
-        "sourceSpan": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceSpan"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "type": "object"
-    },
     "CronActivationKind": {
       "enum": [
         "Always",
@@ -314,83 +246,6 @@
       "required": [
         "enabled",
         "maxOffsetMs"
-      ],
-      "type": "object"
-    },
-    "CronJobDefinition": {
-      "description": "@ref LLP 0028#cron-job-definition — generated function manifests carry\nsource-authored cron jobs beside query/mutation/action handlers.",
-      "properties": {
-        "action": {
-          "type": "string"
-        },
-        "activation": {
-          "$ref": "#/$defs/CronActivationPolicy",
-          "default": {
-            "kind": "Always",
-            "whileLive": []
-          }
-        },
-        "enabled": {
-          "default": true,
-          "type": "boolean"
-        },
-        "jitterPolicy": {
-          "$ref": "#/$defs/CronJitterPolicy",
-          "default": {
-            "enabled": true,
-            "maxOffsetMs": 0
-          }
-        },
-        "name": {
-          "type": "string"
-        },
-        "overlapPolicy": {
-          "$ref": "#/$defs/CronOverlapPolicy",
-          "default": "NoOverlap"
-        },
-        "requiredCapabilities": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "retryPolicy": {
-          "$ref": "#/$defs/CronRetryPolicy",
-          "default": {
-            "mode": "NextTick"
-          }
-        },
-        "schedule": {
-          "$ref": "#/$defs/CronSchedule"
-        },
-        "sourceSpan": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceSpan"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "targetWakeup": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CronTargetWakeup"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "required": [
-        "name",
-        "schedule",
-        "action"
       ],
       "type": "object"
     },
@@ -496,31 +351,6 @@
       },
       "type": "object"
     },
-    "Diagnostic": {
-      "properties": {
-        "code": {
-          "type": "string"
-        },
-        "details": true,
-        "message": {
-          "type": "string"
-        },
-        "severity": {
-          "$ref": "#/$defs/DiagnosticSeverity"
-        },
-        "subsystem": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "code",
-        "severity",
-        "subsystem",
-        "message",
-        "details"
-      ],
-      "type": "object"
-    },
     "DiagnosticSeverity": {
       "enum": [
         "info",
@@ -615,169 +445,6 @@
       ],
       "type": "object"
     },
-    "EphemeralDiagnostics": {
-      "properties": {
-        "activeRooms": {
-          "items": {
-            "$ref": "#/$defs/EphemeralRoomDiagnostics"
-          },
-          "type": "array"
-        },
-        "coalescedUpdates": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "disconnectedEntries": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "entryCount": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "expiredEntries": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "limitRejections": {
-          "default": 0,
-          "description": "Operations rejected by a hard room/store limit (L9). Structured\nrejection, never silent eviction.\n\n@ref LLP 0026#limits-and-diagnostics — limits are capability facts.",
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "outboxOverflows": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "oversizedPublishes": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "pendingDurableMessages": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "pendingEphemeralKeys": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "pendingResyncMessages": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "rateLimitedPublishes": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "rejectedPublishes": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "resyncRequired": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "roomCount": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "subscriberCount": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "unauthorizedRequests": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "valueBytes": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "roomCount",
-        "entryCount",
-        "subscriberCount",
-        "valueBytes",
-        "activeRooms",
-        "pendingEphemeralKeys",
-        "pendingDurableMessages",
-        "pendingResyncMessages",
-        "rejectedPublishes",
-        "rateLimitedPublishes",
-        "oversizedPublishes",
-        "unauthorizedRequests",
-        "expiredEntries",
-        "disconnectedEntries",
-        "coalescedUpdates",
-        "resyncRequired",
-        "outboxOverflows"
-      ],
-      "type": "object"
-    },
-    "EphemeralRoomDiagnostics": {
-      "properties": {
-        "collection": {
-          "type": "string"
-        },
-        "entries": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "routingKey": {
-          "type": "string"
-        },
-        "scope": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        "scopeEpoch": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "subscribers": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "valueBytes": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "collection",
-        "routingKey",
-        "scope",
-        "scopeEpoch",
-        "entries",
-        "subscribers",
-        "valueBytes"
-      ],
-      "type": "object"
-    },
     "FieldManifest": {
       "properties": {
         "field_type": {
@@ -815,46 +482,6 @@
         "Action"
       ],
       "type": "string"
-    },
-    "IbexCliCapability": {
-      "properties": {
-        "available": {
-          "type": "boolean"
-        },
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "version": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "available"
-      ],
-      "type": "object"
-    },
-    "IbexSubmoduleCapability": {
-      "properties": {
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "present": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "present"
-      ],
-      "type": "object"
     },
     "IndexManifest": {
       "properties": {
@@ -972,6 +599,56 @@
         }
       ]
     },
+    "PublicConfigEntryDefinition": {
+      "description": "Public config declaration. Values never ride the manifest; the source span\nis additionally removed because it reveals local build paths.",
+      "properties": {
+        "acquisition": true,
+        "default": true,
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "howToGet": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "pool": {
+          "type": "boolean"
+        },
+        "probe": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "secret": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "secret",
+        "required",
+        "pool"
+      ],
+      "type": "object"
+    },
     "PublicCronInspectState": {
       "description": "Public cron posture: aggregate state only. Run records, result values,\nerror messages, diagnostic details, run ids, and slot/idempotency keys stay\non the gated administrative inspect surface because handler-controlled text\ncan contain credentials or application data.",
       "properties": {
@@ -1006,8 +683,65 @@
       ],
       "type": "object"
     },
+    "PublicCronJobDefinition": {
+      "description": "Public cron declaration: scheduling posture without its source path.",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "activation": {
+          "$ref": "#/$defs/CronActivationPolicy"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "jitterPolicy": {
+          "$ref": "#/$defs/CronJitterPolicy"
+        },
+        "name": {
+          "type": "string"
+        },
+        "overlapPolicy": {
+          "$ref": "#/$defs/CronOverlapPolicy"
+        },
+        "requiredCapabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "retryPolicy": {
+          "$ref": "#/$defs/CronRetryPolicy"
+        },
+        "schedule": {
+          "$ref": "#/$defs/CronSchedule"
+        },
+        "targetWakeup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CronTargetWakeup"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "schedule",
+        "action",
+        "enabled",
+        "activation",
+        "jitterPolicy",
+        "overlapPolicy",
+        "retryPolicy",
+        "requiredCapabilities"
+      ],
+      "type": "object"
+    },
     "PublicDiagnostic": {
-      "description": "A diagnostic safe for anonymous inspection. Handler-controlled messages\nand arbitrary details are intentionally absent.",
+      "description": "Public diagnostic identity. Messages and structured details can contain\nsource paths, handler text, arguments, or other operator-only context, so\nunauthenticated inspection exposes only the stable classification fields.",
       "properties": {
         "code": {
           "type": "string"
@@ -1023,6 +757,116 @@
         "code",
         "severity",
         "subsystem"
+      ],
+      "type": "object"
+    },
+    "PublicEphemeralDiagnostics": {
+      "description": "Aggregate ephemeral health facts safe for unauthenticated inspection.\nPer-room identities, routing keys, scopes, and epochs stay on the gated\nadmin endpoint because they can encode tenant and application data.",
+      "properties": {
+        "coalescedUpdates": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disconnectedEntries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "entryCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expiredEntries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limitRejections": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "outboxOverflows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "oversizedPublishes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pendingDurableMessages": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pendingEphemeralKeys": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pendingResyncMessages": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rateLimitedPublishes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejectedPublishes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resyncRequired": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "roomCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "subscriberCount": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unauthorizedRequests": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "valueBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "roomCount",
+        "entryCount",
+        "subscriberCount",
+        "valueBytes",
+        "pendingEphemeralKeys",
+        "pendingDurableMessages",
+        "pendingResyncMessages",
+        "rejectedPublishes",
+        "rateLimitedPublishes",
+        "oversizedPublishes",
+        "unauthorizedRequests",
+        "expiredEntries",
+        "disconnectedEntries",
+        "coalescedUpdates",
+        "resyncRequired",
+        "outboxOverflows",
+        "limitRejections"
       ],
       "type": "object"
     },
@@ -1106,7 +950,7 @@
       "type": "object"
     },
     "PublicFunctionManifest": {
-      "description": "The public projection of [`FunctionManifest`] served inside the root\n`/inspect` identity descriptor. Like `PublicInspect` it is a typed\nallowlist: the `From` impls below destructure the full structs exhaustively,\nso a newly-added field is a compile error here rather than a silent leak.\n\nWhat it keeps: identity/compat and dependency facts — app id, bundle/inputs\nhashes, function names/kinds/capability summaries, read/write summaries,\ncron and config *declarations* (never values; secrets do not ride the\nmanifest — LLP 0036). What it drops: every executable handler body\n(`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan` (a\nsource-path leak). Full source stays only on the gated\n`/_snapback/api/inspect` twin.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is an identity\n  descriptor; handler source and plan bodies are operational facts for the\n  gated twin only (ENG-23441).",
+      "description": "The public projection of [`FunctionManifest`] served inside the root\n`/inspect` identity descriptor. Like `PublicInspect` it is a typed\nallowlist: the `From` impls below destructure the full structs exhaustively,\nso a newly-added field is a compile error here rather than a silent leak.\n\nWhat it keeps: identity/compat and dependency facts — app id, bundle/inputs\nhashes, function names/kinds/capability summaries, read/write summaries,\ncron and config *declarations* (never values; secrets do not ride the\nmanifest — LLP 0036). What it drops: every executable handler body\n(`IbexModule.source`, `HandlerPlan` step bodies), every function/cron/config\n`sourceSpan` (a source-path leak), and free-form unsupported-dependency\ndiagnostic message/details. Full operational context stays only on the gated\n`/_snapback/api/inspect` twin.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is an identity\n  descriptor; handler source and plan bodies are operational facts for the\n  gated twin only (ENG-23441).",
       "properties": {
         "appId": {
           "type": "string"
@@ -1122,13 +966,13 @@
         },
         "config": {
           "items": {
-            "$ref": "#/$defs/ConfigEntryDefinition"
+            "$ref": "#/$defs/PublicConfigEntryDefinition"
           },
           "type": "array"
         },
         "cronJobs": {
           "items": {
-            "$ref": "#/$defs/CronJobDefinition"
+            "$ref": "#/$defs/PublicCronJobDefinition"
           },
           "type": "array"
         },
@@ -1157,7 +1001,7 @@
         },
         "unsupportedDependencyDiagnostics": {
           "items": {
-            "$ref": "#/$defs/Diagnostic"
+            "$ref": "#/$defs/PublicDiagnostic"
           },
           "type": "array"
         }
@@ -1211,6 +1055,23 @@
       ],
       "type": "string"
     },
+    "PublicIbexCliCapability": {
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "type": "object"
+    },
     "PublicIbexModule": {
       "description": "Public projection of [`IbexModule`]: the export name, never the source.",
       "properties": {
@@ -1220,6 +1081,147 @@
       },
       "required": [
         "export"
+      ],
+      "type": "object"
+    },
+    "PublicIbexSubmoduleCapability": {
+      "properties": {
+        "present": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "present"
+      ],
+      "type": "object"
+    },
+    "PublicRuntimeCapabilities": {
+      "description": "Runtime capability posture safe for unauthenticated inspection. Absolute\nexecutable/submodule paths remain on the gated inspect endpoint.",
+      "properties": {
+        "asyncHandlerCompletion": {
+          "$ref": "#/$defs/CapabilityState"
+        },
+        "canonicalEngine": {
+          "type": "string"
+        },
+        "hostPlanRuntime": {
+          "type": "boolean"
+        },
+        "ibexCli": {
+          "$ref": "#/$defs/PublicIbexCliCapability"
+        },
+        "ibexCtxDbHostBridge": {
+          "$ref": "#/$defs/CapabilityState"
+        },
+        "ibexSubmodule": {
+          "$ref": "#/$defs/PublicIbexSubmoduleCapability"
+        },
+        "mutationDryRun": {
+          "type": "boolean"
+        },
+        "sqliteLockHeldAcrossAsync": {
+          "$ref": "#/$defs/CapabilityState"
+        }
+      },
+      "required": [
+        "canonicalEngine",
+        "ibexSubmodule",
+        "ibexCli",
+        "hostPlanRuntime",
+        "ibexCtxDbHostBridge",
+        "asyncHandlerCompletion",
+        "sqliteLockHeldAcrossAsync",
+        "mutationDryRun"
+      ],
+      "type": "object"
+    },
+    "PublicSchemaManifest": {
+      "description": "Public schema identity facts. The schema itself is intentionally public,\nbut artifact diagnostics are projected to their stable classification so\nsource paths and application values in producer-authored text stay gated.",
+      "properties": {
+        "app": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AppIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "appId": {
+          "type": "string"
+        },
+        "artifactDiagnostics": {
+          "items": {
+            "$ref": "#/$defs/PublicDiagnostic"
+          },
+          "type": "array"
+        },
+        "artifactKind": {
+          "type": "string"
+        },
+        "ephemeralCollections": {
+          "items": {
+            "$ref": "#/$defs/EphemeralCollection"
+          },
+          "type": "array"
+        },
+        "generatedAt": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "inputsHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "portabilityFlags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "schemaHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "sourceHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/TableManifest"
+          },
+          "type": "array"
+        },
+        "targetProfile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "artifactKind",
+        "schemaVersion",
+        "appId",
+        "artifactDiagnostics",
+        "portabilityFlags",
+        "ephemeralCollections",
+        "tables"
       ],
       "type": "object"
     },
@@ -1283,164 +1285,6 @@
       ],
       "type": "string"
     },
-    "RuntimeCapabilities": {
-      "properties": {
-        "asyncHandlerCompletion": {
-          "$ref": "#/$defs/CapabilityState"
-        },
-        "canonicalEngine": {
-          "type": "string"
-        },
-        "hostPlanRuntime": {
-          "type": "boolean"
-        },
-        "ibexCli": {
-          "$ref": "#/$defs/IbexCliCapability"
-        },
-        "ibexCtxDbHostBridge": {
-          "$ref": "#/$defs/CapabilityState"
-        },
-        "ibexSubmodule": {
-          "$ref": "#/$defs/IbexSubmoduleCapability"
-        },
-        "mutationDryRun": {
-          "description": "`function.explain` kind `mutationDryRun` is served for queries'\nsibling tier pair — HostPlan (IR) and IbexModule mutations\n(LLP 0051 D8 / Increment 4). The per-function `dryRunSupported`\ncatalog bit (LLP 0024 §Catalog) rides LLP 0042's generated catalog;\nuntil that lands this capability is the honest wire marker.",
-          "type": "boolean"
-        },
-        "sqliteLockHeldAcrossAsync": {
-          "$ref": "#/$defs/CapabilityState"
-        }
-      },
-      "required": [
-        "canonicalEngine",
-        "ibexSubmodule",
-        "ibexCli",
-        "hostPlanRuntime",
-        "ibexCtxDbHostBridge",
-        "asyncHandlerCompletion",
-        "sqliteLockHeldAcrossAsync",
-        "mutationDryRun"
-      ],
-      "type": "object"
-    },
-    "SchemaManifest": {
-      "properties": {
-        "app": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/AppIdentity"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "appId": {
-          "default": "local-app",
-          "type": "string"
-        },
-        "artifactDiagnostics": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/Diagnostic"
-          },
-          "type": "array"
-        },
-        "artifactKind": {
-          "default": "schemaManifest",
-          "type": "string"
-        },
-        "ephemeralCollections": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/EphemeralCollection"
-          },
-          "type": "array"
-        },
-        "generatedAt": {
-          "default": null,
-          "format": "uint64",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "inputsHash": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "portabilityFlags": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "schemaHash": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "schemaVersion": {
-          "default": "snapback.v0",
-          "type": "string"
-        },
-        "sourceHash": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "tables": {
-          "items": {
-            "$ref": "#/$defs/TableManifest"
-          },
-          "type": "array"
-        },
-        "targetProfile": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "tables"
-      ],
-      "type": "object"
-    },
-    "SourceSpan": {
-      "properties": {
-        "column": {
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "file": {
-          "type": "string"
-        },
-        "line": {
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "file",
-        "line",
-        "column"
-      ],
-      "type": "object"
-    },
     "TableManifest": {
       "properties": {
         "fields": {
@@ -1473,7 +1317,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/inspect.public.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "The public projection of [`InspectState`] served at the root `/inspect` and\n`/`. It is a typed allowlist: the `From<InspectState>` below destructures the\nfull struct, so a newly-added `InspectState` (or `StorageInfo`,\n`LiveSubscriptionInfo`) field is a compile error here rather than a silent\nleak. Sensitive facts deliberately dropped to, or reduced on, the gated\n`/_snapback/api/inspect` twin include `subscriptions[].connection_id` (the\nenumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute\n`storage.sqlite_path` (an environment leak), and the executable handler\nbodies inside `functions` (`IbexModule.source` / `HandlerPlan` bodies — a\nsource disclosure, ENG-23441; see [`PublicFunctionManifest`]). Cron state is\naggregate-only and recent diagnostics omit handler-controlled message and\ndetail fields.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.\n@ref LLP 0036#runtime-exposure-d5-d8 — secret-like runtime diagnostics are redacted before retention and never projected anonymously as raw text.",
+  "description": "The public projection of [`InspectState`] served at the root `/inspect` and\n`/`. It is a typed allowlist: the `From<InspectState>` below destructures the\nfull struct, so a newly-added `InspectState` (or `StorageInfo`,\n`LiveSubscriptionInfo`) field is a compile error here rather than a silent\nleak. Sensitive facts are deliberately dropped and live only in the gated\n`/_snapback/api/inspect` twin: `subscriptions[].connection_id` (the\nenumerate-and-disconnect vector — LLP 0031 D2/D3), the absolute\n`storage.sqlite_path` and runtime executable/submodule paths (environment\nleaks), per-room ephemeral identities, mutation-retention internals, and the\nexecutable handler bodies inside `functions` (`IbexModule.source` /\n`HandlerPlan` bodies — a source disclosure, ENG-23441; see\n[`PublicFunctionManifest`]). Cron state is aggregate-only, and free-form\ndiagnostic message/details are gated because producers may include source\npaths or application values.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is trimmed to an identity descriptor; the trim is guarded by a typed projection.\n@ref LLP 0036#runtime-exposure-d5-d8 — secret-like runtime diagnostics are redacted before retention and never projected anonymously as raw text.",
   "properties": {
     "activeConnections": {
       "format": "uint",
@@ -1496,7 +1340,7 @@
       "$ref": "#/$defs/PublicCronInspectState"
     },
     "ephemeral": {
-      "$ref": "#/$defs/EphemeralDiagnostics"
+      "$ref": "#/$defs/PublicEphemeralDiagnostics"
     },
     "functions": {
       "$ref": "#/$defs/PublicFunctionManifest"
@@ -1516,10 +1360,10 @@
       "type": "array"
     },
     "runtime": {
-      "$ref": "#/$defs/RuntimeCapabilities"
+      "$ref": "#/$defs/PublicRuntimeCapabilities"
     },
     "schema": {
-      "$ref": "#/$defs/SchemaManifest"
+      "$ref": "#/$defs/PublicSchemaManifest"
     },
     "schemaVersion": {
       "type": "string"

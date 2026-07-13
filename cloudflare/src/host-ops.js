@@ -23,6 +23,13 @@ function snapbackFail(code, message) {
 
 const TABLE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SYSTEM_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
+export const QUERY_MAX_LIMIT = 1024;
+export const QUERY_DEFAULT_LIMIT = QUERY_MAX_LIMIT;
+export const QUERY_MAX_IN_ITEMS = 500;
+export const QUERY_MAX_BUFFERED_WRITES = 1024;
+export const QUERY_INTERNAL_OVERFETCH_MAX = QUERY_MAX_LIMIT + QUERY_MAX_BUFFERED_WRITES;
+
+const effectiveQueryLimit = (plan) => plan.limit == null ? QUERY_DEFAULT_LIMIT : plan.limit;
 
 function fieldType(field) {
   return String(field.type || field.field_type || '').toLowerCase();
@@ -30,6 +37,74 @@ function fieldType(field) {
 
 function tableManifest(schemaTables, table) {
   return schemaTables instanceof Map ? schemaTables.get(String(table || '')) || null : null;
+}
+
+function queryError(code, message) {
+  const error = new Error(message);
+  error.snapbackCode = code;
+  return error;
+}
+
+function validatePortableQueryShape(plan) {
+  if (plan.limit != null && (!Number.isSafeInteger(plan.limit) || plan.limit < 0 || plan.limit > QUERY_MAX_LIMIT)) {
+    throw queryError(
+      'SNAPBACK_QUERY_LIMIT_INVALID',
+      `query limit must be a non-negative safe integer no greater than ${QUERY_MAX_LIMIT}`
+    );
+  }
+  let inItems = 0;
+  for (const filter of plan.filters || []) {
+    if (filter.op !== 'In') continue;
+    const target = literalValue(filter.value);
+    if (!Array.isArray(target)) {
+      throw queryError('SNAPBACK_QUERY_FILTER_VALUE_INVALID', `query In filter on ${filter.field} expects an array`);
+    }
+    inItems += target.length;
+    if (inItems > QUERY_MAX_IN_ITEMS) {
+      throw queryError(
+        'SNAPBACK_QUERY_IN_ITEMS_EXCEEDED',
+        `query In operands contain ${inItems} total items; maxInItems is ${QUERY_MAX_IN_ITEMS}`
+      );
+    }
+  }
+}
+
+function validateQueryFilterTypes(table, plan) {
+  const fields = new Map((table.fields || []).map((field) => [field.name, field]));
+  for (const filter of plan.filters || []) {
+    const declared = fields.get(filter.field) || null;
+    const target = literalValue(filter.value);
+    const values = filter.op === 'In' ? target : [target];
+    if (declared && fieldType(declared) === 'json') {
+      throw queryError(
+        'SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE',
+        `query filter ${table.name}.${filter.field} has non-portable Json type`
+      );
+    }
+    for (const value of values) {
+      let valid;
+      if (value === null) valid = Boolean(declared?.optional);
+      else if (!declared) {
+        valid = filter.field === '_id'
+          ? typeof value === 'string'
+          : Number.isSafeInteger(value) && value >= 0;
+      } else {
+        const type = fieldType(declared);
+        valid = type === 'string' ? typeof value === 'string'
+          : type === 'boolean' ? typeof value === 'boolean'
+          : type === 'integer' ? Number.isSafeInteger(value)
+          : (type === 'real' || type === 'number' || type === 'float')
+            ? typeof value === 'number' && Number.isFinite(value)
+            : false;
+      }
+      if (!valid) {
+        throw queryError(
+          'SNAPBACK_QUERY_FILTER_VALUE_INVALID',
+          `query filter ${table.name}.${filter.field} has a value incompatible with its declared type`
+        );
+      }
+    }
+  }
 }
 
 function writeFailure(code, message, details = null) {
@@ -186,6 +261,16 @@ export class HostContext {
     return null;
   }
 
+  ensureBufferedWriteCapacity() {
+    if (this.writes.length >= QUERY_MAX_BUFFERED_WRITES) {
+      return snapbackFail(
+        'SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED',
+        `one mutation may buffer at most ${QUERY_MAX_BUFFERED_WRITES} writes`,
+      );
+    }
+    return null;
+  }
+
   // Actions reach durable state only through ctx.runMutation (LLP 0028
   // §Execution) — never through direct db host calls. The ctx bootstrap
   // denies these client-side; this is the host-side half of the gate.
@@ -221,9 +306,17 @@ export class HostContext {
   // mirrors the NULL-never-matches WHERE semantics, same as
   // filter_matches_row in src/live_matcher.rs); ties break on the id
   // column, matching applyPlan's _id tie-break.
-  storageQuery(physical, plan) {
+  storageQuery(physical, plan, storageLimit = effectiveQueryLimit(plan)) {
     const table = tableManifest(this.schemaTables, plan.table);
     if (!table) throw new Error(`unknown table ${plan.table}`);
+    validatePortableQueryShape(plan);
+    if (!Number.isSafeInteger(storageLimit) || storageLimit < 0 || storageLimit > QUERY_INTERNAL_OVERFETCH_MAX) {
+      throw queryError(
+        'SNAPBACK_QUERY_LIMIT_INVALID',
+        `internal query overfetch must not exceed ${QUERY_INTERNAL_OVERFETCH_MAX}`
+      );
+    }
+    validateQueryFilterTypes(table, plan);
     const declaredFields = new Map((table.fields || []).map((field) => [field.name, field]));
     const ensureQueryField = (field) => {
       const name = String(field || '');
@@ -306,10 +399,8 @@ export class HostContext {
       .map((entry) => `${fieldExpr(ensureOrderableQueryField(entry.field))} ${entry.direction === 'Desc' ? 'DESC' : 'ASC'} NULLS LAST`)
       .join(', ');
     if (order) sql += ` ORDER BY ${order}, id ASC`;
-    if (plan.limit != null) {
-      sql += ' LIMIT ?';
-      params.push(Number(plan.limit));
-    }
+    sql += ' LIMIT ?';
+    params.push(Number(storageLimit));
     const rows = [];
     const cursor = this.sql.exec(sql, ...params);
     for (const record of cursor) {
@@ -415,7 +506,16 @@ export class HostContext {
         const hasBuffered = this.bufferedForTable(plan.table).length > 0;
         let stored;
         try {
-          stored = this.storageQuery(physical, hasBuffered ? { ...plan, limit: null } : plan);
+          const table = tableManifest(this.schemaTables, plan.table);
+          validatePortableQueryShape(plan);
+          validateQueryFilterTypes(table, plan);
+          const storageLimit = hasBuffered
+            ? Math.min(
+              effectiveQueryLimit(plan) + this.bufferedForTable(plan.table).length,
+              QUERY_INTERNAL_OVERFETCH_MAX,
+            )
+            : effectiveQueryLimit(plan);
+          stored = this.storageQuery(physical, plan, storageLimit);
         } catch (error) {
           const code = error && error.snapbackCode;
           if (typeof code === 'string') {
@@ -447,6 +547,8 @@ export class HostContext {
       case 'db.insert': {
         const denied = this.ensureWritable('insert');
         if (denied) return denied;
+        const full = this.ensureBufferedWriteCapacity();
+        if (full) return full;
         if (!this.physicalTable(args.table)) return this.unknownTable('insert', args.table);
         const insertValues = Object.prototype.hasOwnProperty.call(args, 'values') ? args.values : {};
         const validated = validateWriteValues(this.schemaTables, args.table, insertValues, { insert: true });
@@ -458,6 +560,8 @@ export class HostContext {
       case 'db.patch': {
         const denied = this.ensureWritable('patch');
         if (denied) return denied;
+        const full = this.ensureBufferedWriteCapacity();
+        if (full) return full;
         const physical = this.physicalTable(args.table);
         if (!physical) return this.unknownTable('patch', args.table);
         const patchValues = Object.prototype.hasOwnProperty.call(args, 'values') ? args.values : {};
@@ -474,6 +578,8 @@ export class HostContext {
       case 'db.delete': {
         const denied = this.ensureWritable('delete');
         if (denied) return denied;
+        const full = this.ensureBufferedWriteCapacity();
+        if (full) return full;
         const physical = this.physicalTable(args.table);
         if (!physical) return this.unknownTable('delete', args.table);
         const stored = this.storageGet(physical, args.id);
@@ -506,6 +612,7 @@ export class HostContext {
 // indexed field, ordered by one field, optional take. Equal sort keys
 // tie-break by _id, matching the Rust merge path's deterministic ordering.
 export function applyPlan(rows, plan) {
+  validatePortableQueryShape(plan);
   let result = rows.filter((row) => (plan.filters || []).every((filter) => matchFilter(row, filter)));
   if ((plan.order || []).length) {
     result.sort((a, b) => compareValues(a._id, b._id));
@@ -514,7 +621,7 @@ export function applyPlan(rows, plan) {
       result.sort((a, b) => compareOrderValues(a[order.field], b[order.field], dir));
     }
   }
-  if (plan.limit != null) result = result.slice(0, plan.limit);
+  result = result.slice(0, effectiveQueryLimit(plan));
   return result;
 }
 

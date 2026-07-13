@@ -30,6 +30,8 @@
     return match ? match[1] : null;
   }
   function literal(value) { return { Literal: value }; }
+  var QUERY_MAX_LIMIT = 1024;
+  var QUERY_MAX_IN_ITEMS = 500;
   function normalizeDirection(direction) {
     return String(direction || "asc").toLowerCase() === "desc" ? "Desc" : "Asc";
   }
@@ -264,7 +266,7 @@
       }
     }
     function makeBuilder(table) {
-      var plan = { table: table, filters: [], order: [], limit: null, indexed_by: null };
+      var plan = { table: table, filters: [], order: [], limit: QUERY_MAX_LIMIT, indexed_by: null };
       var builder = {
         withIndex: function(name) { plan.indexed_by = name; return builder; },
         eq: function(field, value) {
@@ -272,6 +274,19 @@
           return builder;
         },
         in: function(field, values) {
+          if (!Array.isArray(values)) {
+            throw snapbackError("SNAPBACK_QUERY_FILTER_VALUE_INVALID", "query In expects an array");
+          }
+          var total = values.length;
+          for (var i = 0; i < plan.filters.length; i++) {
+            var prior = plan.filters[i];
+            if (prior.op === "In" && prior.value && Array.isArray(prior.value.Literal)) {
+              total += prior.value.Literal.length;
+            }
+          }
+          if (total > QUERY_MAX_IN_ITEMS) {
+            throw snapbackError("SNAPBACK_QUERY_IN_ITEMS_EXCEEDED", "query In operands exceed maxInItems " + QUERY_MAX_IN_ITEMS);
+          }
           plan.filters.push({ field: field, op: "In", value: literal(values) });
           return builder;
         },
@@ -295,7 +310,13 @@
           plan.order.push({ field: field, direction: normalizeDirection(direction) });
           return builder;
         },
-        take: function(limit) { plan.limit = Number(limit); return builder; },
+        take: function(limit) {
+          if (!Number.isSafeInteger(limit) || limit < 0 || limit > QUERY_MAX_LIMIT) {
+            throw snapbackError("SNAPBACK_QUERY_LIMIT_INVALID", "query limit must be a non-negative safe integer no greater than " + QUERY_MAX_LIMIT);
+          }
+          plan.limit = limit;
+          return builder;
+        },
         // The host boundary is engine-shaped: synchronous FFI on Ibex, an
         // async RPC on the V8 leg (LLP 0014 one-way door 3). collect()/first()
         // unwrap either shape from one source, so handlers `await` both.

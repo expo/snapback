@@ -7,8 +7,9 @@
 //     wire shapes (`field_type`, host-plan `indexed_by`, externally-tagged
 //     runtime variants, …) are the ratified LLP 0012 v0 artifact pin — their
 //     casing is owned by that pin, not by the inspect payload.
-//   - `ephemeral.activeRooms[].scope`: scope field names are app data
-//     (whatever the app's ephemeral collection declares), not payload keys.
+// Admin-only `ephemeral.activeRooms[].scope` keys are app data (whatever the
+// app's collection declares), not payload keys. The public projection omits
+// active room identities entirely.
 
 use serde_json::Value;
 use snapback::admin::{AdminInspect, ServerContext};

@@ -1462,7 +1462,7 @@ async fn ephemeral_identity_ownership_is_enforced_through_http_and_reconnect() {
     let mut presence = EphemeralCollection::local_cursor("userPresence", "roomId")
         .require_room_permission("presence");
     presence.key_mode = KeyMode::User;
-    snapback.register_ephemeral_collection(presence);
+    snapback.register_ephemeral_collection(presence).unwrap();
     let app = app_with_context(snapback, loopback_context(None));
     let token_a = open_connection(app.clone(), "conn-a").await;
     let token_b = open_connection(app.clone(), "conn-b").await;
@@ -1600,7 +1600,7 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
     let mut snapback = seeded_snapback();
     let mut presence = EphemeralCollection::local_cursor("sessionPresence", "roomId");
     presence.key_mode = KeyMode::Session;
-    snapback.register_ephemeral_collection(presence);
+    snapback.register_ephemeral_collection(presence).unwrap();
     let state = AppState::detached(snapback);
     let grant = state
         .connections
@@ -2217,7 +2217,9 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
 #[tokio::test]
 async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     let mut snapback = seeded_snapback();
-    snapback.register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"));
+    snapback
+        .register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"))
+        .unwrap();
     let state = AppState::detached(snapback);
     let grant = state
         .connections

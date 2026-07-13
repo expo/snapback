@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -133,6 +133,20 @@ Success returns authoritative rows and versions. Conflict or denial returns
 0008's **typed conflict payload** (LWW-per-field, delete-wins v1 defaults) —
 not a generic error — and the client rolls back or rebases the local
 optimistic overlay.
+
+The server retains a settled `clientMutationId` until that same auth identity
+returns it in a later request's `acknowledgedClientMutationIds` list. The client
+persists confirmed ids until a server response proves the acknowledgement was
+received; auth/artifact scope changes clear the client list. A request may not
+acknowledge its own current id. Acknowledgement and GC are idempotent and
+auth-bound, so one principal cannot delete another's replay result.
+
+Exactly-once wins over opportunistic eviction. A retained result is capped at
+65,536 serialized bytes; the ledger is capped at 10,000 records and 67,108,864
+logical result bytes. At a cap the server refuses a new identity rather than
+evicting an unacknowledged result. Gated storage inspection reports current
+record/byte gauges, the caps, and cumulative acknowledged-GC count; the public
+inspection projection omits these operational retention facts.
 
 ### Conflict posture
 

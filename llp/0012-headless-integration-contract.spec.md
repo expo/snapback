@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 X1: DK-2 cursor pin — versions are per-app-stream opaque `(stream, version)` resume tokens, no cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked LLP 0030 for Contract/Exact preview server lifecycle)
+**Revised:** 2026-07-12 (ENG-24572: function artifacts are whole-manifest semantic units and reject atomically before replacing a known-good generation); 2026-07-02 (LLP 0032 X1: DK-2 cursor pin — versions are per-app-stream opaque `(stream, version)` resume tokens, no cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked LLP 0030 for Contract/Exact preview server lifecycle)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030
 
 ## Summary
@@ -264,6 +264,15 @@ error — until the file was moved to fix the namespace
 checked manifest fact so this silent class of failure cannot recur, and so the sync
 matcher ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md)) has the read-set
 it needs.
+
+The server validates a function manifest as one generation before installation:
+function names/ids are non-empty and globally unambiguous; kind and runtime
+agree; host plans satisfy query/mutation bounds; action mutation references,
+schema table/field/index dependencies (including the primary table), config
+declarations/uses/probes/defaults, and cron targets/jitter arithmetic are valid.
+Any error leaves the prior functions, config, cron state, and app generation
+serving. Provisioning treats error diagnostics as failure rather than reporting
+an invalid artifact as successfully installed.
 
 ## Capability Manifest
 

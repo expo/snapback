@@ -380,6 +380,49 @@
       ],
       "type": "string"
     },
+    "ClientMutationRetentionInfo": {
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gcTotal": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxRecords": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxResultBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "records": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "records",
+        "bytes",
+        "gcTotal",
+        "maxRecords",
+        "maxBytes",
+        "maxResultBytes"
+      ],
+      "type": "object"
+    },
     "ConfigEntryDefinition": {
       "description": "@ref LLP 0036#declared-configuration-in-the-manifest — one declared config\nentry: names, purposes, and acquisition metadata are app source (public by\nconstruction); values never appear in any manifest.",
       "properties": {
@@ -2333,6 +2376,9 @@
     },
     "StorageInfo": {
       "properties": {
+        "clientMutationRetention": {
+          "$ref": "#/$defs/ClientMutationRetentionInfo"
+        },
         "sqlitePath": {
           "type": [
             "string",
@@ -2353,7 +2399,8 @@
       },
       "required": [
         "version",
-        "tables"
+        "tables",
+        "clientMutationRetention"
       ],
       "type": "object"
     },

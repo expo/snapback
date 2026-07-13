@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
@@ -273,6 +273,12 @@ First-slice requirements:
 - explicit ordering is limited to scalar/system fields; `Json` fields fail
   closed until Snapback defines one canonical array/object order across every
   engine;
+- every materialized query is bounded: omitted `take` means 1,024 rows, an
+  explicit limit must be `0..=1,024`, and literal `In` operands are capped at
+  500 items cumulatively across the whole plan rather than per clause;
+- one mutation may buffer at most 1,024 writes. Read-your-writes queries
+  overfetch only `effective limit + buffered writes`, with an internal ceiling
+  of 2,048, then merge and truncate through the same portable evaluator;
 - pagination for large or mutable result sets uses cursors, not offsets;
 - offset-style `skip(n)` is a small-data convenience and should warn on
   production-marked unbounded queries.
@@ -408,6 +414,14 @@ The first local schema applier may be conservative:
 - preserve removed fields instead of dropping data;
 - reject type changes that require rewriting existing rows;
 - reject unsafe uniqueness changes unless the data already satisfies them.
+
+A newly added required field is accepted only for an empty table until the
+schema language gains a portable default/backfill expression. Tightening an
+existing optional field is accepted only after an in-transaction null-count
+check, and the physical SQLite column must become `NOT NULL` in the same schema
+transaction (using a validated table rebuild where SQLite cannot alter the
+constraint directly). Any null/backfill conflict rejects without advancing the
+stored manifest or partially rebuilding the table.
 
 This conservative applier is validated by Valet, which shipped almost exactly this
 behavior in production: add-column-only, no `ALTER COLUMN`, no down-migrations,

@@ -1,10 +1,12 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::ephemeral::validate_collection_definitions;
 use crate::manifest::{
-    CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
-    FieldType, FilterOp, HandlerInput, MutationOutput, MutationPlan, MutationStep, OrderDirection,
+    CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
+    CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MutationOutput,
+    MutationPlan, MutationStep, OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_IN_ITEMS,
     QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest,
-    ValueExpr, auth_fingerprint, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
-    validate_portable_timestamp_millis,
+    ValueExpr, auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid,
+    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
@@ -35,6 +37,28 @@ const META_CRON_STATE: &str = "cron_state";
 // that pruning has removed. A resume from at/above it is guaranteed replayable;
 // below it, a change may be gone, so the client must resnapshot.
 const META_RETENTION_FLOOR: &str = "retention_floor";
+const META_CLIENT_MUTATION_GC_TOTAL: &str = "client_mutation_gc_total";
+/// A hard availability bound, deliberately equal to the existing journal
+/// version budget. We refuse a new durable identity instead of evicting an
+/// unacknowledged result and risking duplicate execution after response loss.
+pub const CLIENT_MUTATION_MAX_RECORDS: u64 = 10_000;
+/// One retained output is bounded by the portable mutation-plan artifact
+/// budget; the aggregate is 1,024 such maximum outputs, matching the bounded
+/// replay-ledger/runtime lane. Both are hard refusal limits, never eviction.
+pub const CLIENT_MUTATION_MAX_RESULT_BYTES: u64 =
+    crate::value_expr::MAX_PLAN_SERIALIZED_BYTES as u64;
+pub const CLIENT_MUTATION_MAX_BYTES: u64 = 1_024 * CLIENT_MUTATION_MAX_RESULT_BYTES;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientMutationRetentionInfo {
+    pub records: u64,
+    pub bytes: u64,
+    pub gc_total: u64,
+    pub max_records: u64,
+    pub max_bytes: u64,
+    pub max_result_bytes: u64,
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct StorageInfo {
@@ -42,6 +66,8 @@ pub struct StorageInfo {
     pub sqlite_path: Option<PathBuf>,
     pub version: u64,
     pub tables: Vec<String>,
+    #[serde(rename = "clientMutationRetention")]
+    pub client_mutation_retention: ClientMutationRetentionInfo,
 }
 
 /// A page of rows read through the schema-aware storage layer for the admin
@@ -310,7 +336,91 @@ impl LocalDatabase {
                 .iter()
                 .map(|table| table.name.clone())
                 .collect(),
+            client_mutation_retention: self.client_mutation_retention_info()?,
         })
+    }
+
+    pub fn client_mutation_retention_info(&self) -> SnapbackResult<ClientMutationRetentionInfo> {
+        let (records, bytes): (i64, i64) = self.conn.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(
+                 length(CAST(client_mutation_id AS BLOB)) +
+                 length(CAST(function AS BLOB)) +
+                 length(CAST(auth_fingerprint AS BLOB)) +
+                 length(CAST(input_fingerprint AS BLOB)) +
+                 length(CAST(output_json AS BLOB))
+             ), 0) FROM _snapback_client_mutations",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let gc_total = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![META_CLIENT_MUTATION_GC_TOTAL],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        Ok(ClientMutationRetentionInfo {
+            records: records as u64,
+            bytes: bytes as u64,
+            gc_total,
+            max_records: CLIENT_MUTATION_MAX_RECORDS,
+            max_bytes: CLIENT_MUTATION_MAX_BYTES,
+            max_result_bytes: CLIENT_MUTATION_MAX_RESULT_BYTES,
+        })
+    }
+
+    /// Reclaim full settlement payloads only after the client has durably
+    /// removed those ids from its replay queue. The auth fingerprint prevents
+    /// one authority from acknowledging another user's opaque ids.
+    pub fn acknowledge_client_mutations(
+        &mut self,
+        auth_fingerprint: &str,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
+        if ids.len() > CLIENT_MUTATION_ACK_MAX_IDS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
+                "sync",
+                format!(
+                    "one request may acknowledge at most {CLIENT_MUTATION_ACK_MAX_IDS} client mutations"
+                ),
+            ));
+        }
+        let unique = ids.iter().collect::<BTreeSet<_>>();
+        for id in &unique {
+            if !replay_opaque_id_is_valid(id) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_INVALID",
+                    "sync",
+                    "acknowledged client mutation id is invalid",
+                ));
+            }
+        }
+        if unique.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.conn.transaction()?;
+        let mut deleted = 0_u64;
+        for id in unique {
+            deleted += tx.execute(
+                "DELETE FROM _snapback_client_mutations
+                 WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2",
+                params![id, auth_fingerprint],
+            )? as u64;
+        }
+        if deleted > 0 {
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value =
+                   CAST(CAST(value AS INTEGER) + excluded.value AS TEXT)",
+                params![META_CLIENT_MUTATION_GC_TOTAL, deleted.to_string()],
+            )?;
+        }
+        tx.commit()?;
+        Ok(deleted)
     }
 
     /// Return the durably settled result for a client mutation identity.
@@ -509,6 +619,7 @@ impl LocalDatabase {
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         validate_schema(&manifest)?;
         reject_field_retypes(&self.schema, &manifest)?;
+        reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
 
         let schema_json = serde_json::to_string(&manifest).map_err(|error| {
             SnapbackError::error(
@@ -561,8 +672,8 @@ impl LocalDatabase {
         tx.execute("DELETE FROM _snapback_changes", [])?;
         tx.execute("DELETE FROM _snapback_client_mutations", [])?;
         tx.execute(
-            "DELETE FROM _snapback_meta WHERE key = ?1",
-            params![META_RETENTION_FLOOR],
+            "DELETE FROM _snapback_meta WHERE key IN (?1, ?2)",
+            params![META_RETENTION_FLOOR, META_CLIENT_MUTATION_GC_TOTAL],
         )?;
         // Remove the previous runtime ledger in the same durable boundary.
         // The post-commit runtime pass persists the new clean state; if that
@@ -665,6 +776,15 @@ impl LocalDatabase {
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         query_on(&self.conn, &self.schema, plan, input)
+    }
+
+    pub(crate) fn query_with_storage_limit(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        storage_limit: usize,
+    ) -> SnapbackResult<QueryOutput> {
+        query_on_with_storage_limit(&self.conn, &self.schema, plan, input, storage_limit)
     }
 
     pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
@@ -1061,6 +1181,7 @@ impl LocalDatabase {
                         &bindings,
                         now_ms,
                         Some(&next_id),
+                        None,
                     )?;
                     let rows = {
                         let mut statement = tx.prepare(&sql)?;
@@ -1571,9 +1692,32 @@ impl LocalDatabase {
               auth_fingerprint TEXT NOT NULL,
               input_fingerprint TEXT NOT NULL,
               output_json TEXT NOT NULL,
-              settled_at_ms INTEGER NOT NULL
+              settled_at_ms INTEGER NOT NULL,
+              settled_version INTEGER NOT NULL DEFAULT 0
             );
             ",
+        )?;
+        // Older databases predate settlement-version metadata. SQLite cannot
+        // express ADD COLUMN IF NOT EXISTS, so inspect before applying the
+        // additive internal migration.
+        let mut columns = self
+            .conn
+            .prepare("PRAGMA table_info(_snapback_client_mutations)")?;
+        let names = columns
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        drop(columns);
+        if !names.contains("settled_version") {
+            self.conn.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN settled_version INTEGER NOT NULL DEFAULT 0",
+                [],
+            )?;
+        }
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_settlement
+             ON _snapback_client_mutations(settled_version, settled_at_ms)",
+            [],
         )?;
         Ok(())
     }
@@ -1618,10 +1762,38 @@ pub(crate) fn query_on(
     plan: &QueryPlan,
     input: &HandlerInput,
 ) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit(conn, schema, plan, input, effective_query_limit(plan))
+}
+
+pub(crate) fn query_on_with_storage_limit(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    storage_limit: usize,
+) -> SnapbackResult<QueryOutput> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
     let table = schema_table(schema, &plan.table)?;
+    validate_query_plan_shape(plan)?;
+    if storage_limit > QUERY_INTERNAL_OVERFETCH_MAX {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_LIMIT_INVALID",
+            "query",
+            format!(
+                "internal query overfetch {storage_limit} exceeds {QUERY_INTERNAL_OVERFETCH_MAX}"
+            ),
+        ));
+    }
     validate_query_index(table, plan)?;
-    let (sql, values) = build_query_sql(table, plan, input, &BTreeMap::new(), now_millis(), None)?;
+    let (sql, values) = build_query_sql(
+        table,
+        plan,
+        input,
+        &BTreeMap::new(),
+        now_millis(),
+        None,
+        Some(storage_limit),
+    )?;
     let mut statement = conn.prepare(&sql)?;
     let columns = statement
         .column_names()
@@ -1704,6 +1876,23 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
             _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    pub(crate) fn query_with_storage_limit(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        storage_limit: usize,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                query_on_with_storage_limit(conn, schema, plan, input, storage_limit)
+            }
+            _ => self
+                .live()
+                .expect("live db")
+                .query_with_storage_limit(plan, input, storage_limit),
         }
     }
 
@@ -1838,6 +2027,9 @@ impl WithDetail for SnapbackError {
 }
 
 fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
+    validate_collection_definitions(&manifest.ephemeral_collections).map_err(|error| {
+        SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
+    })?;
     let mut tables = BTreeSet::new();
     // SQLite index names are database-global, and the physical name is
     // `{table}_{index}` joined with `_` — a character both identifiers may
@@ -1963,6 +2155,74 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
     Ok(())
 }
 
+/// Required fields need a physical invariant, not only a generated type. A
+/// nullable column may tighten only when every stored row is already non-null;
+/// `create_or_update_table` then rebuilds the table atomically with `NOT NULL`.
+/// A new required column still needs an empty table because there is no value
+/// to synthesize for existing rows.
+fn reject_unsafe_required_field_changes(
+    conn: &Connection,
+    current: &SchemaManifest,
+    next: &SchemaManifest,
+) -> SnapbackResult<()> {
+    for table in &next.tables {
+        let Some(current_table) = current.table(&table.name) else {
+            continue;
+        };
+        for field in &table.fields {
+            match current_table.field(&field.name) {
+                Some(previous) if !field.optional => {
+                    let null_count: i64 = conn.query_row(
+                        &format!(
+                            "SELECT COUNT(*) FROM {} WHERE {} IS NULL",
+                            quote_ident(&table.name)?,
+                            quote_ident(&field.name)?
+                        ),
+                        [],
+                        |row| row.get(0),
+                    )?;
+                    if null_count > 0 {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
+                            "schema",
+                            format!(
+                                "field {}.{} cannot become physically required while {null_count} stored rows are null",
+                                table.name, field.name
+                            ),
+                        )
+                        .with_detail("table", table.name.clone())
+                        .with_detail("field", field.name.clone())
+                        .with_detail("existingNullRows", null_count)
+                        .with_detail("wasOptional", previous.optional));
+                    }
+                }
+                None if !field.optional => {
+                    let row_count: i64 = conn.query_row(
+                        &format!("SELECT COUNT(*) FROM {}", quote_ident(&table.name)?),
+                        [],
+                        |row| row.get(0),
+                    )?;
+                    if row_count > 0 {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
+                            "schema",
+                            format!(
+                                "required field {}.{} cannot be added to {row_count} existing rows without a default/backfill",
+                                table.name, field.name
+                            ),
+                        )
+                        .with_detail("table", table.name.clone())
+                        .with_detail("field", field.name.clone())
+                        .with_detail("existingRows", row_count));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
 /// The manifest wire name of a field type (matches `FieldType`'s serde
 /// serialization), for error messages and diagnostics.
 fn field_type_name(field_type: &FieldType) -> &'static str {
@@ -1984,9 +2244,10 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
     ];
     for field in &table.fields {
         columns.push(format!(
-            "{} {}",
+            "{} {}{}",
             quote_ident(&field.name)?,
-            sqlite_type(&field.field_type)
+            sqlite_type(&field.field_type),
+            if field.optional { "" } else { " NOT NULL" }
         ));
     }
 
@@ -1999,16 +2260,17 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
         [],
     )?;
 
-    let existing = existing_columns(tx, &table.name)?;
+    let existing = physical_columns(tx, &table.name)?;
     for field in &table.fields {
         match existing.get(&field.name) {
             None => {
                 tx.execute(
                     &format!(
-                        "ALTER TABLE {} ADD COLUMN {} {}",
+                        "ALTER TABLE {} ADD COLUMN {} {}{}",
                         quote_ident(&table.name)?,
                         quote_ident(&field.name)?,
-                        sqlite_type(&field.field_type)
+                        sqlite_type(&field.field_type),
+                        if field.optional { "" } else { " NOT NULL" }
                     ),
                     [],
                 )?;
@@ -2019,28 +2281,168 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
             // so silently accepting a retyped manifest would hand back values
             // decoded under the old declaration while schema and generated
             // types promise the new one.
-            Some(column_type) => {
+            Some(column) => {
                 let declared = sqlite_type(&field.field_type);
-                if !column_type.eq_ignore_ascii_case(declared) {
+                if !column.declared_type.eq_ignore_ascii_case(declared) {
                     return Err(SnapbackError::error(
                         "SNAPBACK_SCHEMA_FIELD_RETYPED",
                         "schema",
                         format!(
                             "field {}.{} cannot change storage type from {} to {}; \
                              retyping stored data is not supported — add a new field instead",
-                            table.name, field.name, column_type, declared
+                            table.name, field.name, column.declared_type, declared
                         ),
                     )
                     .with_detail("table", table.name.clone())
                     .with_detail("field", field.name.clone())
-                    .with_detail("existingType", column_type.clone())
+                    .with_detail("existingType", column.declared_type.clone())
                     .with_detail("requestedType", declared));
                 }
             }
         }
     }
 
+    // Repair both a safe optional→required evolution and legacy databases
+    // whose manifest already said "required" while the physical column was
+    // nullable. Validation above proves every affected row is non-null; this
+    // rebuild and the manifest write share the surrounding transaction.
+    let columns = physical_columns(tx, &table.name)?;
+    let required = table
+        .fields
+        .iter()
+        .filter(|field| !field.optional)
+        .map(|field| field.name.clone())
+        .collect::<BTreeSet<_>>();
+    if columns.values().any(|column| {
+        required.contains(&column.name) && !column.not_null && column.primary_key == 0
+    }) {
+        rebuild_table_with_required_columns(tx, &table.name, &columns, &required)?;
+    }
+
     Ok(())
+}
+
+fn rebuild_table_with_required_columns(
+    tx: &Transaction<'_>,
+    table: &str,
+    columns: &BTreeMap<String, PhysicalColumn>,
+    required: &BTreeSet<String>,
+) -> SnapbackResult<()> {
+    for field in required {
+        let null_count: i64 = tx.query_row(
+            &format!(
+                "SELECT COUNT(*) FROM {} WHERE {} IS NULL",
+                quote_ident(table)?,
+                quote_ident(field)?
+            ),
+            [],
+            |row| row.get(0),
+        )?;
+        if null_count > 0 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
+                "schema",
+                format!(
+                    "field {table}.{field} cannot become physically required while {null_count} stored rows are null"
+                ),
+            )
+            .with_detail("table", table.to_owned())
+            .with_detail("field", field.clone())
+            .with_detail("existingNullRows", null_count));
+        }
+    }
+
+    let temporary = format!("_snapback_rebuild_{}_{}", table, Uuid::now_v7().simple());
+    let definitions = columns
+        .values()
+        .map(|column| {
+            let declared_type = safe_rebuild_column_type(column)?;
+            let mut definition = format!("{} {}", quote_ident(&column.name)?, declared_type);
+            if column.primary_key > 0 {
+                definition.push_str(" PRIMARY KEY");
+            } else if column.not_null || required.contains(&column.name) {
+                definition.push_str(" NOT NULL");
+            }
+            Ok(definition)
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let names = columns
+        .values()
+        .map(|column| quote_ident(&column.name))
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    tx.execute(
+        &format!(
+            "CREATE TABLE {} ({})",
+            quote_ident(&temporary)?,
+            definitions.join(", ")
+        ),
+        [],
+    )?;
+    tx.execute(
+        &format!(
+            "INSERT INTO {} ({}) SELECT {} FROM {}",
+            quote_ident(&temporary)?,
+            names.join(", "),
+            names.join(", "),
+            quote_ident(table)?
+        ),
+        [],
+    )?;
+    tx.execute(&format!("DROP TABLE {}", quote_ident(table)?), [])?;
+    tx.execute(
+        &format!(
+            "ALTER TABLE {} RENAME TO {}",
+            quote_ident(&temporary)?,
+            quote_ident(table)?
+        ),
+        [],
+    )?;
+    Ok(())
+}
+
+fn safe_rebuild_column_type(column: &PhysicalColumn) -> SnapbackResult<&'static str> {
+    let canonical = match column.declared_type.trim().to_ascii_uppercase().as_str() {
+        "TEXT" => "TEXT",
+        "INTEGER" => "INTEGER",
+        "REAL" => "REAL",
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
+                "schema",
+                format!(
+                    "physical column {} has unsupported declaration {:?}",
+                    column.name, column.declared_type
+                ),
+            ));
+        }
+    };
+    if column.default_sql.is_some() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
+            "schema",
+            format!(
+                "physical column {} has an unexpected default declaration",
+                column.name
+            ),
+        ));
+    }
+    match column.name.as_str() {
+        "_id" if canonical == "TEXT" && column.primary_key == 1 => {}
+        "_version" | "_createdAt" | "_updatedAt"
+            if canonical == "INTEGER" && column.primary_key == 0 && column.not_null => {}
+        name if !is_system_field(name) && column.primary_key == 0 => {}
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
+                "schema",
+                format!(
+                    "physical column {} has unexpected system/primary-key metadata",
+                    column.name
+                ),
+            ));
+        }
+    }
+    Ok(canonical)
 }
 
 /// Create or rebuild a declared index so the physical index always matches
@@ -2124,15 +2526,32 @@ fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<Phy
     Ok(Some(PhysicalIndex { table, columns }))
 }
 
-/// Existing column names and their declared SQLite types from
-/// `PRAGMA table_info`, so schema apply can detect retyped fields rather than
-/// only missing ones.
-fn existing_columns(tx: &Transaction<'_>, table: &str) -> SnapbackResult<BTreeMap<String, String>> {
+/// Existing physical column facts from `PRAGMA table_info`, used both for type
+/// checks and for lossless required-field table rebuilds.
+struct PhysicalColumn {
+    name: String,
+    declared_type: String,
+    not_null: bool,
+    default_sql: Option<String>,
+    primary_key: i64,
+}
+
+fn physical_columns(
+    tx: &Transaction<'_>,
+    table: &str,
+) -> SnapbackResult<BTreeMap<String, PhysicalColumn>> {
     let mut statement = tx.prepare(&format!("PRAGMA table_info({})", quote_ident(table)?))?;
     let mut rows = statement.query([])?;
     let mut columns = BTreeMap::new();
     while let Some(row) = rows.next()? {
-        columns.insert(row.get::<_, String>(1)?, row.get::<_, String>(2)?);
+        let column = PhysicalColumn {
+            name: row.get(1)?,
+            declared_type: row.get(2)?,
+            not_null: row.get::<_, i64>(3)? != 0,
+            default_sql: row.get(4)?,
+            primary_key: row.get(5)?,
+        };
+        columns.insert(column.name.clone(), column);
     }
     Ok(columns)
 }
@@ -2175,10 +2594,12 @@ fn build_query_sql(
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
     runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+    sql_limit: Option<usize>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     let mut sql = format!("SELECT * FROM {}", quote_ident(&table.name)?);
     let mut values = Vec::new();
     let mut where_parts = Vec::new();
+    let mut in_items = 0usize;
 
     for filter in &plan.filters {
         ensure_field_or_system(table, &filter.field)?;
@@ -2186,6 +2607,7 @@ fn build_query_sql(
             FilterOp::Eq => {
                 let field_type = field_type(table, &filter.field);
                 let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
+                validate_query_filter_value(table, &filter.field, &value)?;
                 values.push(json_to_sql_value(&value, field_type)?);
                 where_parts.push(format!("{} = ?", quote_ident(&filter.field)?));
             }
@@ -2205,10 +2627,25 @@ fn build_query_sql(
                     .with_detail("op", Value::String("In".to_owned()))
                     .with_detail("value", value));
                 };
+                in_items = in_items.saturating_add(items.len());
+                if in_items > QUERY_MAX_IN_ITEMS {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
+                        "query",
+                        format!(
+                            "query In operands contain {in_items} total items; maxInItems is {QUERY_MAX_IN_ITEMS}"
+                        ),
+                    )
+                    .with_detail("maxInItems", QUERY_MAX_IN_ITEMS as u64));
+                }
+                if matches!(field_type, Some(FieldType::Json)) {
+                    validate_query_filter_value(table, &filter.field, &Value::Null)?;
+                }
                 if items.is_empty() {
                     where_parts.push("1 = 0".to_owned());
                 } else {
                     for item in items {
+                        validate_query_filter_value(table, &filter.field, item)?;
                         values.push(json_to_sql_value(item, field_type)?);
                     }
                     let placeholders = (0..items.len()).map(|_| "?").collect::<Vec<_>>().join(", ");
@@ -2221,6 +2658,7 @@ fn build_query_sql(
             FilterOp::Lt | FilterOp::Lte | FilterOp::Gt | FilterOp::Gte => {
                 let field_type = field_type(table, &filter.field);
                 let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
+                validate_query_filter_value(table, &filter.field, &value)?;
                 values.push(json_to_sql_value(&value, field_type)?);
                 let op = match filter.op {
                     FilterOp::Lt => "<",
@@ -2260,12 +2698,53 @@ fn build_query_sql(
         sql.push_str(&order_parts.join(", "));
     }
 
-    if let Some(limit) = plan.limit {
+    if let Some(limit) = sql_limit {
         sql.push_str(" LIMIT ");
         sql.push_str(&limit.to_string());
     }
 
     Ok((sql, values))
+}
+
+fn validate_query_filter_value(
+    table: &TableManifest,
+    field_name: &str,
+    value: &Value,
+) -> SnapbackResult<()> {
+    if let Some(field) = table.field(field_name) {
+        if field.field_type == FieldType::Json {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
+                "query",
+                format!(
+                    "query filter {}.{} has non-portable Json type",
+                    table.name, field_name
+                ),
+            ));
+        }
+        if value.is_null() && !field.optional {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+                "query",
+                format!(
+                    "query filter {}.{} cannot compare required data with null",
+                    table.name, field_name
+                ),
+            ));
+        }
+        return Ok(());
+    }
+    if value.is_null() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+            "query",
+            format!(
+                "query filter {}.{} cannot compare with null",
+                table.name, field_name
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn validate_read_set(
@@ -2642,6 +3121,16 @@ fn seed_into_transaction(
         }
     }
     Ok(changed_count)
+}
+
+fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
+    i64::try_from(value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_VERSION_OUT_OF_RANGE",
+            "storage",
+            format!("version {value} cannot be represented by the storage engine"),
+        )
+    })
 }
 
 fn insert_document(
@@ -3215,11 +3704,57 @@ fn record_client_mutation_result(
         )
         .with_details(json!({ "error": error.to_string() }))
     })?;
+    let output_bytes = output_json.len() as u64;
+    if output_bytes > CLIENT_MUTATION_MAX_RESULT_BYTES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
+            "sync",
+            format!(
+                "serialized client mutation result is {output_bytes} bytes; the durable replay cap is {CLIENT_MUTATION_MAX_RESULT_BYTES}"
+            ),
+        )
+        .with_details(json!({
+            "bytes": output_bytes,
+            "maxBytes": CLIENT_MUTATION_MAX_RESULT_BYTES,
+        })));
+    }
+    let (retained, retained_bytes): (i64, i64) = tx.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(
+           length(CAST(client_mutation_id AS BLOB)) +
+           length(CAST(function AS BLOB)) +
+           length(CAST(auth_fingerprint AS BLOB)) +
+           length(CAST(input_fingerprint AS BLOB)) +
+           length(CAST(output_json AS BLOB))
+         ), 0) FROM _snapback_client_mutations",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let new_bytes = identity.id.len() as u64
+        + identity.function.len() as u64
+        + identity.auth_fingerprint.len() as u64
+        + identity.input_fingerprint.len() as u64
+        + output_bytes;
+    if retained as u64 >= CLIENT_MUTATION_MAX_RECORDS
+        || (retained_bytes as u64).saturating_add(new_bytes) > CLIENT_MUTATION_MAX_BYTES
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
+            "sync",
+            "durable client-mutation replay retention is full; acknowledge consumed results before submitting another durable id",
+        )
+        .with_details(json!({
+            "records": retained,
+            "maxRecords": CLIENT_MUTATION_MAX_RECORDS,
+            "bytes": retained_bytes,
+            "incomingBytes": new_bytes,
+            "maxBytes": CLIENT_MUTATION_MAX_BYTES,
+        })));
+    }
     tx.execute(
         "INSERT INTO _snapback_client_mutations(
            client_mutation_id, function, auth_fingerprint, input_fingerprint,
-           output_json, settled_at_ms
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+           output_json, settled_at_ms, settled_version
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
             identity.id,
             identity.function,
@@ -3227,6 +3762,7 @@ fn record_client_mutation_result(
             identity.input_fingerprint,
             output_json,
             timestamp_to_sql_millis(now_millis())?,
+            version_to_sql_integer(output.version)?,
         ],
     )?;
     Ok(())
@@ -3411,6 +3947,81 @@ mod guarded_commit_tests {
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
         assert_eq!(db.current_version().unwrap(), 1);
+    }
+
+    #[test]
+    fn oversized_idempotency_result_rolls_back_rows_and_settlement() {
+        let mut db = database();
+        let input = HandlerInput {
+            args: json!({
+                "result": "x".repeat(CLIENT_MUTATION_MAX_RESULT_BYTES as usize + 1),
+            }),
+            ..HandlerInput::default()
+        };
+        let identity = ClientMutationIdentity::new("cm_large_result", "hostPlan", &input);
+        let mut plan = insert_plan();
+        // Keep the plan itself comfortably inside the portable artifact bound:
+        // production output can be much larger than its expression when it is
+        // derived from request data.
+        plan.return_value = Some(ReturnValue::Expr(ValueExpr::Arg("result".to_owned())));
+        let error = match db.execute_mutation_plan_with_lifecycle(
+            &plan,
+            &input,
+            true,
+            Some(&identity),
+            &|| Ok(()),
+            || Ok(()),
+        ) {
+            Ok(_) => panic!("oversized retained output must reject the whole transaction"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
+        );
+        assert_empty(&db);
+        assert_eq!(
+            db.client_mutation_retention_info().unwrap().records,
+            0,
+            "a rejected output cannot leave an idempotency row"
+        );
+    }
+
+    #[test]
+    fn explicit_authenticated_acknowledgement_reclaims_settlement_and_tracks_gc() {
+        let mut db = database();
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_ack_1", "hostPlan", &input);
+        db.execute_mutation_plan_with_lifecycle(
+            &insert_plan(),
+            &input,
+            true,
+            Some(&identity),
+            &|| Ok(()),
+            || Ok(()),
+        )
+        .expect("settle mutation");
+        let retained = db.client_mutation_retention_info().unwrap();
+        assert_eq!(retained.records, 1);
+        assert!(retained.bytes > 0);
+        assert_eq!(
+            db.acknowledge_client_mutations("another-auth", &[identity.id.clone()])
+                .unwrap(),
+            0,
+            "another authority cannot reclaim the result"
+        );
+        assert_eq!(
+            db.acknowledge_client_mutations(
+                &identity.auth_fingerprint,
+                &[identity.id.clone(), identity.id.clone()]
+            )
+            .unwrap(),
+            1,
+            "duplicate acknowledgements are idempotently deduplicated"
+        );
+        let reclaimed = db.client_mutation_retention_info().unwrap();
+        assert_eq!(reclaimed.records, 0);
+        assert_eq!(reclaimed.gc_total, 1);
     }
 
     struct CommitVisibilityGuard {
