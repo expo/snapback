@@ -109,7 +109,8 @@ pub(crate) fn create_backup(
     let keyring_bytes = keyring
         .validated_file_bytes()
         .map_err(|_| backup_invalid("source auth keyring is unavailable or invalid"))?;
-    validate_retained_key_references(database.auth_retained_key_ids(), keyring)?;
+    backup_keyring_captured();
+    validate_retained_key_references(database.auth_retained_key_ids(), &keyring_bytes)?;
 
     let mut temporary = TemporaryDirectory::create(output_directory, "backup", random)?;
     backup_step_completed(0)?;
@@ -232,7 +233,7 @@ pub(crate) fn restore_backup(
     }
     validate_retained_key_references(
         LocalDatabase::auth_retained_key_ids_file_read_only(&staged_database),
-        &source_keyring,
+        &keyring_bytes,
     )?;
 
     let staged_keyring = AuthKeyringStore::keyring_path(&staged_database);
@@ -273,14 +274,23 @@ pub(crate) fn restore_backup(
 
 fn validate_retained_key_references(
     key_ids: SnapbackResult<Vec<String>>,
-    keyring: &AuthKeyringStore,
+    keyring: &crate::auth::keyring::ValidatedKeyringBytes,
 ) -> SnapbackResult<()> {
-    for raw in key_ids.map_err(|_| backup_invalid("retained auth key references are invalid"))? {
-        let key_id = AuthKeyId::parse(&raw)
-            .map_err(|_| backup_invalid("retained auth key references are invalid"))?;
-        keyring
-            .with_key(&key_id, |_| ())
-            .map_err(|_| backup_invalid("retained auth key references are not in the keyring"))?;
+    let key_ids = key_ids
+        .map_err(|_| backup_invalid("retained auth key references are invalid"))?
+        .into_iter()
+        .map(|raw| {
+            AuthKeyId::parse(&raw)
+                .map_err(|_| backup_invalid("retained auth key references are invalid"))
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    if !keyring
+        .contains_all(&key_ids)
+        .map_err(|_| backup_invalid("captured auth keyring is invalid"))?
+    {
+        return Err(backup_invalid(
+            "retained auth key references are not in the captured keyring",
+        ));
     }
     Ok(())
 }
@@ -602,6 +612,16 @@ thread_local! {
     static FAIL_BACKUP_AFTER_STEP: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
     static FAIL_RESTORE_AFTER_STEP: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
     static AFTER_RESTORE_SOURCE_HASH: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static AFTER_BACKUP_KEYRING_CAPTURE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+}
+
+fn backup_keyring_captured() {
+    #[cfg(test)]
+    AFTER_BACKUP_KEYRING_CAPTURE.with(|slot| {
+        if let Some(operation) = slot.borrow_mut().take() {
+            operation();
+        }
+    });
 }
 
 fn restore_source_database_hashed() {
@@ -1018,6 +1038,51 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+    }
+
+    #[test]
+    fn backup_validates_references_against_exact_captured_keyring_bytes() {
+        let mut fixture = Fixture::new();
+        let replacement_database = fixture.parent().join("replacement.sqlite3");
+        let replacement_keyring = AuthKeyringStore::file_for_database(&replacement_database);
+        let replacement_random = CountingRandom(AtomicU8::new(97));
+        replacement_keyring
+            .load_or_mint_initial(0, &replacement_random)
+            .unwrap();
+        let replacement_key_id = replacement_keyring
+            .with_active_key(0, &replacement_random, |id, _| id.as_str().to_owned())
+            .unwrap();
+        let replacement_bytes =
+            std::fs::read(AuthKeyringStore::keyring_path(&replacement_database)).unwrap();
+
+        fixture
+            .database
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_verification_codes SET key_id = ?1",
+                    params![replacement_key_id],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        let live_keyring_path = AuthKeyringStore::keyring_path(&fixture.database_path);
+        AFTER_BACKUP_KEYRING_CAPTURE.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                std::fs::write(live_keyring_path, replacement_bytes).unwrap();
+            }));
+        });
+
+        let output = fixture.parent().join("spliced-keyrings");
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            0,
+            &fixture.random,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!output.exists());
     }
 
     fn assert_no_temporary(parent: &Path, prefix: &str) {

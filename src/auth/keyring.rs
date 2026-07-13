@@ -70,6 +70,15 @@ impl ValidatedKeyringBytes {
     pub(crate) fn expose_secret(&self) -> &[u8] {
         &self.0
     }
+
+    /// Prove that every retained challenge reference is present in these exact
+    /// captured bytes. Physical backup must not reopen the keyring path for
+    /// this check: an external replacement could otherwise validate ring B
+    /// while publishing previously retained ring A.
+    pub(crate) fn contains_all(&self, key_ids: &[AuthKeyId]) -> Result<bool, KeyringError> {
+        let ring = parse_ring(self.expose_secret())?;
+        Ok(key_ids.iter().all(|key_id| ring.find(key_id).is_some()))
+    }
 }
 
 impl fmt::Debug for ValidatedKeyringBytes {
