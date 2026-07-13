@@ -737,18 +737,38 @@ impl AppState {
     /// Install an already-constructed provider without changing auth-mode
     /// posture or performing catalog activation.
     pub fn with_auth_provider(mut self, provider: Arc<AuthProvider>) -> Self {
-        let coordinator = {
+        let (coordinator, catalog_ready) = {
             let mut snapback = self
                 .snapback
                 .try_lock()
                 .expect("trusted auth-provider builder owns the detached instance");
             let database = snapback.auth_database_mut();
-            database
+            let incarnation = database
                 .ensure_authorization_stream_incarnation()
                 .expect("trusted auth-provider builder creates its stream");
-            let source = database
-                .session_projection_source()
-                .expect("trusted auth-provider builder requires a ready catalog");
+            let catalog_ready = match database.inspect_auth_catalog() {
+                Ok(crate::storage::auth::AuthCatalogState::ReadyV1) => true,
+                Ok(crate::storage::auth::AuthCatalogState::Uninitialized) => false,
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_TABLE_COLLISION" => false,
+                Err(error) => panic!("trusted auth-provider catalog inspection failed: {error:?}"),
+            };
+            let source = if catalog_ready {
+                database
+                    .session_projection_source()
+                    .expect("trusted auth-provider builder reads a ready catalog")
+            } else {
+                crate::auth::session_projection::ProjectionSource {
+                    authorization_stream_value:
+                        crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
+                            .encode_bytes()
+                            .expect("trusted auth-provider builder encodes its stream"),
+                    restore_declaration_id: None,
+                    users: Vec::new(),
+                    identities: Vec::new(),
+                    sessions: Vec::new(),
+                    superseded_tokens: Vec::new(),
+                }
+            };
             let projection =
                 crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
                     source,
@@ -756,14 +776,17 @@ impl AppState {
                     provider.monotonic_now(),
                 )
                 .expect("trusted auth-provider builder publishes a valid projection");
-            Arc::new(
-                crate::auth::coordinator::AuthCoordinator::new(projection)
-                    .expect("trusted auth-provider projection invariants"),
+            (
+                Arc::new(
+                    crate::auth::coordinator::AuthCoordinator::new(projection)
+                        .expect("trusted auth-provider projection invariants"),
+                ),
+                catalog_ready,
             )
         };
         self.auth_provider = Some(provider);
         self.auth_coordinator = Some(coordinator);
-        self.auth_catalog_ready = true;
+        self.auth_catalog_ready = catalog_ready;
         self
     }
 

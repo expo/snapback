@@ -3807,26 +3807,36 @@ mod tests {
                 |id, _| id.as_str().to_owned(),
             )
             .unwrap();
+        let user_id = uuid::Uuid::now_v7().to_string();
+        let identity_id = uuid::Uuid::now_v7().to_string();
+        let session_id = uuid::Uuid::now_v7().to_string();
+        let authority_instance_id = uuid::Uuid::now_v7().to_string();
         database
             .with_auth_transaction(|transaction| {
                 transaction.execute(
-                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('user', 0)",
-                    [],
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
+                    params![user_id],
                 )?;
                 transaction.execute(
                     "INSERT INTO _auth_identities(
                        id, user_id, provider, subject, verified_at_ms
-                     ) VALUES('identity', 'user', 'email-code', 'person@example.com', 0)",
-                    [],
+                     ) VALUES(?1, ?2, 'email-code', 'person@example.com', 0)",
+                    params![identity_id, user_id],
                 )?;
                 transaction.execute(
                     "INSERT INTO _auth_sessions(
                        id, user_id, identity_id, authority_instance_id, token_hash,
                        generation, created_at_ms, last_used_at_ms, expires_at_ms,
                        absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES('session', 'user', 'identity', 'authority', ?1,
+                     ) VALUES(?1, ?2, ?3, ?4, ?5,
                               1, 0, 0, 2000000000000, 2000000000000, NULL)",
-                    params![vec![1_u8; 32]],
+                    params![
+                        session_id,
+                        user_id,
+                        identity_id,
+                        authority_instance_id,
+                        vec![1_u8; 32],
+                    ],
                 )?;
                 transaction.execute(
                     "INSERT INTO _auth_verification_codes(
@@ -3899,6 +3909,10 @@ mod tests {
         }));
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         while !ready.exists() {
+            if server.is_finished() {
+                let outcome = server.await;
+                panic!("declared restore startup exited before readiness: {outcome:?}");
+            }
             assert!(
                 std::time::Instant::now() < deadline,
                 "declared restore never reached readiness"
@@ -3915,8 +3929,8 @@ mod tests {
                 Ok((
                     connection.query_row(
                         "SELECT generation, revoked_at_ms IS NOT NULL
-                         FROM _auth_sessions WHERE id = 'session'",
-                        [],
+                         FROM _auth_sessions WHERE id = ?1",
+                        params![session_id],
                         |row| Ok((row.get::<_, i64>(0)?, row.get::<_, bool>(1)?)),
                     )?,
                     connection.query_row(
