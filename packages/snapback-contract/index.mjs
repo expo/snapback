@@ -35,13 +35,17 @@ export {
   scopeKey,
   SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
   validateAuthorizationVersion,
+  validateAuthenticatedBootIssuer,
+  validateAuthorizationInvalidationConnection,
   validateCompositeWitness,
   validateDataWitness,
   validateIssuerId,
+  validateIssuerRetirement,
   validateQueryNamespace,
   validateResolutionTicket,
   validateResyncObligation,
   validateScopeId,
+  validateScopeRetirement,
 } from './auth-invalidation.mjs';
 
 export {

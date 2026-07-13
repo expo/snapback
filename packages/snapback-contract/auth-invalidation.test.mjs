@@ -8,7 +8,10 @@ import {
   resolutionSatisfies,
   scopeKey,
   SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
+  validateAuthorizationInvalidationConnection,
+  validateIssuerRetirement,
   validateResyncObligation,
+  validateScopeRetirement,
 } from './auth-invalidation.mjs';
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
@@ -56,6 +59,11 @@ const expectation = ({
   versionStream = 'stream-A',
   issuer = issuerId,
 } = {}) => ({ authorization, versionStream, issuerId: issuer });
+const authenticatedIssuer = Object.freeze({
+  issuerId,
+  keyId: 'invalidation-key-1',
+  mac: 'A'.repeat(43),
+});
 
 // Exact closed shapes reject extension fields before they can become an
 // accidental compatibility channel.
@@ -78,6 +86,62 @@ const expectation = ({
   delete missingOwner.ownerContinuityId;
   assert.throws(
     () => validateResyncObligation(missingOwner),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
+}
+
+// Authenticated cleanup frontiers are closed, monotone facts bound to the
+// exact issuer incarnation and query instance. Validation never treats them
+// as a snapshot/release proof.
+{
+  const scopeRetirement = {
+    issuerId,
+    namespace,
+    retireThroughScopeSequence: 3,
+    authorizationExpectation: { incarnation: INCARNATION, epoch: 4 },
+    mac: 'A'.repeat(43),
+  };
+  assert.deepEqual(validateScopeRetirement(scopeRetirement), scopeRetirement);
+  const issuerRetirement = {
+    currentIssuer: authenticatedIssuer,
+    retireThroughBootSequence: 6,
+    authorizationExpectation: { incarnation: INCARNATION, epoch: 4 },
+    mac: 'A'.repeat(43),
+  };
+  assert.deepEqual(validateIssuerRetirement(issuerRetirement), issuerRetirement);
+  assert.deepEqual(validateAuthorizationInvalidationConnection({
+    protocolVersion: 1,
+    issuerId,
+    connectionGeneration: 5,
+    issuerRetirement,
+  }), {
+    protocolVersion: 1,
+    issuerId,
+    connectionGeneration: 5,
+    issuerRetirement,
+  });
+  assert.throws(
+    () => validateScopeRetirement({
+      ...scopeRetirement,
+      authorizationExpectation: { incarnation: OTHER_INCARNATION, epoch: 0 },
+    }),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
+  assert.throws(
+    () => validateIssuerRetirement({
+      ...issuerRetirement,
+      retireThroughBootSequence: issuerId.bootSequence,
+    }),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
+  assert.throws(
+    () => validateAuthorizationInvalidationConnection({
+      protocolVersion: 1,
+      issuerId,
+      connectionGeneration: 5,
+      issuerRetirement,
+      bearer: 'planted',
+    }),
     { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
   );
 }

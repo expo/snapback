@@ -13,6 +13,7 @@ export const AUTH_INVALIDATION_REFIRE_MAX_MS = 5_000;
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const BASE64URL_128 = /^[A-Za-z0-9_-]{22}$/;
+const BASE64URL_SHA256 = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/;
 const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const DISPOSITION_ORDER = Object.freeze({ retain: 0, quarantine: 1, delete: 2 });
 
@@ -123,6 +124,21 @@ export function validateIssuerId(value, path = 'issuerId') {
   });
 }
 
+export function validateAuthenticatedBootIssuer(value, path = 'authenticatedIssuer') {
+  exact(value, ['issuerId', 'keyId', 'mac'], path);
+  opaque(value.keyId, `${path}.keyId`);
+  if (typeof value.mac !== 'string' || !BASE64URL_SHA256.test(value.mac)) {
+    throw corrupt(`${path}.mac must be a canonical SHA-256 base64url value`, {
+      field: `${path}.mac`,
+    });
+  }
+  return Object.freeze({
+    issuerId: validateIssuerId(value.issuerId, `${path}.issuerId`),
+    keyId: value.keyId,
+    mac: value.mac,
+  });
+}
+
 export function validateQueryNamespace(value, path = 'namespace') {
   exact(value, ['clientStoreId', 'queryKey', 'queryInstanceId'], path);
   return Object.freeze({
@@ -180,6 +196,118 @@ export function validateScopeId(value, path = 'scopeId') {
     });
   }
   throw corrupt(`${path}.kind is invalid`, { field: `${path}.kind` });
+}
+
+export function validateScopeRetirement(value, path = 'scopeRetirement') {
+  exact(value, [
+    'issuerId',
+    'namespace',
+    'retireThroughScopeSequence',
+    'authorizationExpectation',
+    'mac',
+  ], path);
+  const issuerId = validateIssuerId(value.issuerId, `${path}.issuerId`);
+  const authorizationExpectation = validateAuthorizationVersion(
+    value.authorizationExpectation,
+    `${path}.authorizationExpectation`,
+  );
+  if (authorizationExpectation.incarnation !== issuerId.authorizationIncarnation) {
+    throw corrupt(`${path} crosses authorization incarnations`, { field: path });
+  }
+  if (typeof value.mac !== 'string' || !BASE64URL_SHA256.test(value.mac)) {
+    throw corrupt(`${path}.mac must be a canonical SHA-256 base64url value`, {
+      field: `${path}.mac`,
+    });
+  }
+  return Object.freeze({
+    issuerId,
+    namespace: validateQueryNamespace(value.namespace, `${path}.namespace`),
+    retireThroughScopeSequence: safeInteger(
+      value.retireThroughScopeSequence,
+      `${path}.retireThroughScopeSequence`,
+      { positive: true },
+    ),
+    authorizationExpectation,
+    mac: value.mac,
+  });
+}
+
+export function validateIssuerRetirement(value, path = 'issuerRetirement') {
+  exact(value, [
+    'currentIssuer',
+    'retireThroughBootSequence',
+    'authorizationExpectation',
+    'mac',
+  ], path);
+  const currentIssuer = validateAuthenticatedBootIssuer(
+    value.currentIssuer,
+    `${path}.currentIssuer`,
+  );
+  const retireThroughBootSequence = safeInteger(
+    value.retireThroughBootSequence,
+    `${path}.retireThroughBootSequence`,
+    { positive: true },
+  );
+  if (retireThroughBootSequence >= currentIssuer.issuerId.bootSequence) {
+    throw corrupt(`${path} must retire strictly older boot sequences`, {
+      field: `${path}.retireThroughBootSequence`,
+    });
+  }
+  const authorizationExpectation = validateAuthorizationVersion(
+    value.authorizationExpectation,
+    `${path}.authorizationExpectation`,
+  );
+  if (
+    authorizationExpectation.incarnation
+      !== currentIssuer.issuerId.authorizationIncarnation
+  ) {
+    throw corrupt(`${path} crosses authorization incarnations`, { field: path });
+  }
+  if (typeof value.mac !== 'string' || !BASE64URL_SHA256.test(value.mac)) {
+    throw corrupt(`${path}.mac must be a canonical SHA-256 base64url value`, {
+      field: `${path}.mac`,
+    });
+  }
+  return Object.freeze({
+    currentIssuer,
+    retireThroughBootSequence,
+    authorizationExpectation,
+    mac: value.mac,
+  });
+}
+
+export function validateAuthorizationInvalidationConnection(
+  value,
+  path = 'authorizationInvalidation',
+) {
+  exact(value, ['protocolVersion', 'issuerId', 'connectionGeneration'], path, [
+    'issuerRetirement',
+  ]);
+  if (value.protocolVersion !== SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION) {
+    throw invalidationError(
+      'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+      'authorization invalidation connection protocol version is unsupported',
+    );
+  }
+  return Object.freeze({
+    protocolVersion: SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
+    issuerId: validateIssuerId(value.issuerId, `${path}.issuerId`),
+    connectionGeneration: safeInteger(
+      value.connectionGeneration,
+      `${path}.connectionGeneration`,
+      { positive: true },
+    ),
+    ...(Object.hasOwn(value, 'issuerRetirement')
+      ? {
+          issuerRetirement: value.issuerRetirement === null
+            ? null
+            : validateIssuerRetirement(
+                value.issuerRetirement,
+                `${path}.issuerRetirement`,
+              ),
+        }
+      : {}),
+  });
 }
 
 export function scopeKey(scope) {
