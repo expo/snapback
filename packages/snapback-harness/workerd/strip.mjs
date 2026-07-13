@@ -11,11 +11,83 @@
 // captured into `kept` before the strip and never re-exposed to handlers.
 import allowlist from "./allowlist.mjs";
 
+function inheritedGetter(prototype, name) {
+  let current = prototype;
+  while (current) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, name);
+    if (descriptor && descriptor.get) return descriptor.get;
+    current = Object.getPrototypeOf(current);
+  }
+  throw new Error("missing harness request getter: " + name);
+}
+
+function inheritedMethod(prototype, name) {
+  let current = prototype;
+  while (current) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, name);
+    if (descriptor && typeof descriptor.value === "function") return descriptor.value;
+    current = Object.getPrototypeOf(current);
+  }
+  throw new Error("missing harness request method: " + name);
+}
+
 export const kept = {
   Response: globalThis.Response,
   Request: globalThis.Request,
   Headers: globalThis.Headers,
   URL: globalThis.URL,
+  Error: globalThis.Error,
+  Promise: globalThis.Promise,
+  promiseResolve: globalThis.Promise.resolve,
+  promiseAllSettled: globalThis.Promise.allSettled,
+  promiseThen: globalThis.Promise.prototype.then,
+  Set: globalThis.Set,
+  setAdd: globalThis.Set.prototype.add,
+  setDelete: globalThis.Set.prototype.delete,
+  setForEach: globalThis.Set.prototype.forEach,
+  setSizeGetter: globalThis.Object.getOwnPropertyDescriptor(
+    globalThis.Set.prototype,
+    "size"
+  ).get,
+  Map: globalThis.Map,
+  mapSet: globalThis.Map.prototype.set,
+  mapDelete: globalThis.Map.prototype.delete,
+  mapForEach: globalThis.Map.prototype.forEach,
+  mapClear: globalThis.Map.prototype.clear,
+  Number: globalThis.Number,
+  String: globalThis.String,
+  stringCharCodeAt: globalThis.String.prototype.charCodeAt,
+  stringCharAt: globalThis.String.prototype.charAt,
+  defineProperty: globalThis.Object.defineProperty,
+  objectCreate: globalThis.Object.create,
+  objectKeys: globalThis.Object.keys,
+  objectSetPrototypeOf: globalThis.Object.setPrototypeOf,
+  arrayIsArray: globalThis.Array.isArray,
+  jsonStringify: globalThis.JSON.stringify,
+  jsonParse: globalThis.JSON.parse,
+  reflectApply: globalThis.Reflect.apply,
+  headersGet: globalThis.Headers.prototype.get,
+  responseJson: inheritedMethod(globalThis.Response.prototype, "json"),
+  urlPathnameGetter: inheritedGetter(globalThis.URL.prototype, "pathname"),
+  urlSearchParamsGetter: inheritedGetter(globalThis.URL.prototype, "searchParams"),
+  urlSearchParamsGet: globalThis.URLSearchParams.prototype.get,
+  eventPreventDefault: globalThis.Event.prototype.preventDefault,
+  regExpTest: globalThis.RegExp.prototype.test,
+  requestBodyGetter: inheritedGetter(globalThis.Request.prototype, "body"),
+  requestHeadersGetter: inheritedGetter(globalThis.Request.prototype, "headers"),
+  requestMethodGetter: inheritedGetter(globalThis.Request.prototype, "method"),
+  requestUrlGetter: inheritedGetter(globalThis.Request.prototype, "url"),
+  streamGetReader: globalThis.ReadableStream.prototype.getReader,
+  readerRead: globalThis.ReadableStreamDefaultReader.prototype.read,
+  readerCancel: globalThis.ReadableStreamDefaultReader.prototype.cancel,
+  Uint8Array: globalThis.Uint8Array,
+  uint8ArraySet: globalThis.Uint8Array.prototype.set,
+  typedArrayByteLengthGetter: inheritedGetter(
+    globalThis.Uint8Array.prototype,
+    "byteLength"
+  ),
+  TextDecoder: globalThis.TextDecoder,
+  textDecoderDecode: globalThis.TextDecoder.prototype.decode,
   addEventListener:
     typeof globalThis.addEventListener === "function"
       ? globalThis.addEventListener.bind(globalThis)

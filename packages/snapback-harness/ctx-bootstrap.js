@@ -1,7 +1,28 @@
 (function(g) {
+  // Capture every intrinsic used by the settlement/rejection control plane
+  // before application source evaluates. Handler code is allowed to mutate
+  // its own global object; those mutations must not be able to rewrite the
+  // host's success/failure envelope or blind rejection detection.
+  var TrustedError = Error;
+  var TrustedMap = Map;
+  var trustedString = String;
+  var trustedJsonStringify = JSON.stringify;
+  var trustedDefineProperty = Object.defineProperty;
+  var trustedGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  var trustedFreeze = Object.freeze;
+  var trustedReflectApply = Reflect.apply;
+  var trustedMapSet = TrustedMap && TrustedMap.prototype.set;
+  var trustedMapDelete = TrustedMap && TrustedMap.prototype.delete;
+  var trustedMapGet = TrustedMap && TrustedMap.prototype.get;
+  var trustedMapHas = TrustedMap && TrustedMap.prototype.has;
+  var trustedMapForEach = TrustedMap && TrustedMap.prototype.forEach;
+  var trustedArrayJoin = Array.prototype.join;
+  var trustedStringCharCodeAt = String.prototype.charCodeAt;
+  var trustedStringCharAt = String.prototype.charAt;
+
   function snapbackError(code, message) {
-    var error = new Error(code + ": " + message);
-    try { Object.defineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
+    var error = new TrustedError(code + ": " + message);
+    try { trustedDefineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
     return error;
   }
   function codeFromMessage(message) {
@@ -26,17 +47,17 @@
     // points. Install non-writable/non-configurable properties before the
     // handler module runs, and fail harness initialization if the runtime
     // cannot enforce that boundary.
-    Object.defineProperty(g, name, {
+    trustedDefineProperty(g, name, {
       value: value,
       enumerable: false,
       configurable: false,
       writable: false
     });
-    var descriptor = Object.getOwnPropertyDescriptor(g, name);
+    var descriptor = trustedGetOwnPropertyDescriptor(g, name);
     if (!descriptor || descriptor.value !== value || descriptor.configurable || descriptor.writable) {
       throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", name);
     }
-    try { Object.freeze(value); } catch (_) {}
+    try { trustedFreeze(value); } catch (_) {}
   }
   // The opaque secret handle (LLP 0036 D5/D8): every accidental
   // materialization path — stringify, JSON, template coercion, console —
@@ -137,19 +158,39 @@
   // (handlers attached before the rejection re-enter handle() during
   // finale, so they clear their entry too). A promise still in the ledger
   // after the final drain therefore rejected with no handler at completion.
-  // The host sweeps the ledger after every successful eval and fails the
-  // invocation if entries remain.
+  // The host inspects the ledger after every successful eval and fails the
+  // invocation if entries remain. Inspection never clears: a VM with a
+  // rejection is burned, which keeps the handler-visible bridge harmless.
   //
   // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
   // Obligation 3: settlement of the invocation promise does not prove the
   // handler's detached chains succeeded; the ledger closes that gap.
   (function installRejectionLedger() {
-    if (typeof g.__snapbackTakeUnhandledRejections === "function") return;
     var OriginalPromise = g.__OriginalPromise;
-    var ledger = OriginalPromise && typeof Map === "function" ? new Map() : null;
+    // V8/workerd owns a lexical event-based ledger in rejection-ledger.mjs.
+    // This pinned then/promise hook mechanism is Hermes-only.
+    if (!OriginalPromise) return;
+    var ledger = OriginalPromise && typeof TrustedMap === "function" ? new TrustedMap() : null;
+    if (!ledger) {
+      throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "rejection ledger Map unavailable");
+    }
     if (ledger) {
-      OriginalPromise._C = function(promise, reason) { ledger.set(promise, reason); };
-      OriginalPromise._B = function(promise) { ledger.delete(promise); };
+      var rejected = function(promise, reason) {
+        trustedReflectApply(trustedMapSet, ledger, [promise, reason]);
+      };
+      var handled = function(promise) {
+        trustedReflectApply(trustedMapDelete, ledger, [promise]);
+      };
+      try {
+        trustedDefineProperty(OriginalPromise, "_C", {
+          value: rejected, configurable: false, writable: false
+        });
+        trustedDefineProperty(OriginalPromise, "_B", {
+          value: handled, configurable: false, writable: false
+        });
+      } catch (_) {
+        throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "rejection ledger hooks could not be sealed");
+      }
       // Self-check: if a vendored-runtime upgrade moves the pinned hook
       // slots, disable detection (reverting to rejections going unseen)
       // rather than misreport; tests/unhandled_rejection_v0.rs pins that
@@ -158,34 +199,40 @@
       var working = false;
       try {
         var probe = new OriginalPromise(function(_, rej) { rej("snapback-ledger-probe"); });
-        working = ledger.get(probe) === "snapback-ledger-probe";
-        probe.then(undefined, function() {});
-        working = working && !ledger.has(probe);
+        working = trustedReflectApply(trustedMapGet, ledger, [probe]) === "snapback-ledger-probe";
+        var trustedPromiseThen = OriginalPromise.prototype.then;
+        trustedReflectApply(trustedPromiseThen, probe, [undefined, function() {}]);
+        working = working && !trustedReflectApply(trustedMapHas, ledger, [probe]);
       } catch (_) { working = false; }
       if (!working) {
-        OriginalPromise._C = null;
-        OriginalPromise._B = null;
-        ledger = null;
+        throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "rejection ledger self-check failed");
       }
     }
     function describeReason(reason) {
       try {
-        if (reason instanceof Error && reason.message) { return String(reason.message); }
-        return String(reason);
+        if (reason && typeof reason === "object" && reason.message) { return trustedString(reason.message); }
+        return trustedString(reason);
       } catch (_) { return "unserializable rejection reason"; }
     }
-    var take = function() {
-      if (!ledger) { return { supported: false, rejections: [] }; }
+    // Deliberately non-destructive. This function must be callable by the
+    // host through eval, which also makes its name knowable to handler code.
+    // A handler may inspect its own ledger, but cannot drain it before the
+    // host's post-microtask sweep. A VM with a non-empty ledger is burned.
+    var inspect = function() {
+      if (!ledger) {
+        return '{"supported":false,"rejections":[]}';
+      }
       var rejections = [];
-      ledger.forEach(function(reason) { rejections.push(describeReason(reason)); });
-      ledger.clear();
-      return { supported: true, rejections: rejections };
+      trustedReflectApply(trustedMapForEach, ledger, [function(reason) {
+        // Serialize each primitive reason separately. Passing the report as
+        // an ordinary object/array to JSON.stringify would invoke poisoned
+        // Object.prototype.toJSON or Array.prototype.toJSON hooks.
+        rejections[rejections.length] = trustedJsonStringify(describeReason(reason));
+      }]);
+      return '{"supported":true,"rejections":[' +
+        trustedReflectApply(trustedArrayJoin, rejections, [',']) + ']}';
     };
-    try {
-      Object.defineProperty(g, "__snapbackTakeUnhandledRejections", {
-        value: take, configurable: false, writable: false
-      });
-    } catch (_) { g.__snapbackTakeUnhandledRejections = take; }
+    installTrustedFunction("__snapbackInspectUnhandledRejections", inspect);
   })();
   // `host`, `makeBuilder`, and the whole `ctx` are built *per invocation* so
   // that they close over this invocation's `epoch`. A continuation captured
@@ -374,15 +421,16 @@
     return await handler(ctx, args);
   };
   function __snapbackSafeString(value) {
-    var text = String(value);
+    var text = trustedString(value);
     var out = "";
     for (var i = 0; i < text.length; i++) {
-      var code = text.charCodeAt(i);
+      var code = trustedReflectApply(trustedStringCharCodeAt, text, [i]);
       if (code >= 0xD800 && code <= 0xDBFF) {
         if (i + 1 < text.length) {
-          var next = text.charCodeAt(i + 1);
+          var next = trustedReflectApply(trustedStringCharCodeAt, text, [i + 1]);
           if (next >= 0xDC00 && next <= 0xDFFF) {
-            out += text.charAt(i) + text.charAt(i + 1);
+            out += trustedReflectApply(trustedStringCharAt, text, [i]) +
+              trustedReflectApply(trustedStringCharAt, text, [i + 1]);
             i++;
             continue;
           }
@@ -391,7 +439,7 @@
       } else if (code >= 0xDC00 && code <= 0xDFFF) {
         out += "\uFFFD";
       } else {
-        out += text.charAt(i);
+        out += trustedReflectApply(trustedStringCharAt, text, [i]);
       }
     }
     return out;
@@ -407,17 +455,24 @@
   var snapbackSettle = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
     try {
       var value = await snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall);
-      var encodedValue = JSON.stringify(value === undefined ? null : value, __snapbackJsonReplacer);
+      var encodedValue = trustedJsonStringify(value === undefined ? null : value, __snapbackJsonReplacer);
       if (encodedValue === undefined) {
-        var resultError = new Error("handler returned a value that is not JSON-serializable");
-        try { Object.defineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
+        var resultError = new TrustedError("handler returned a value that is not JSON-serializable");
+        try { trustedDefineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
         throw resultError;
       }
       return '{"r":{"__snapbackOk":true,"value":' + encodedValue + '}}';
     } catch (error) {
-      var code = error && error.__snapbackCode || null;
+      var rawCode = error && error.__snapbackCode;
+      var code = typeof rawCode === "string" ? rawCode : null;
       var message = __snapbackSafeString(error && error.message || error);
-      return JSON.stringify({ r: { __snapbackOk: false, code: code, message: message } }, __snapbackJsonReplacer);
+      // Build the trusted outer envelope from separately encoded primitives.
+      // A handler may poison Object.prototype.toJSON; serializing a plain
+      // envelope object here would let that inherited hook turn a thrown
+      // handler failure into a forged success.
+      return '{"r":{"__snapbackOk":false,"code":' +
+        trustedJsonStringify(code) + ',"message":' +
+        trustedJsonStringify(message, __snapbackJsonReplacer) + '}}';
     }
   };
   installTrustedFunction("__snapbackInvoke", snapbackInvoke);

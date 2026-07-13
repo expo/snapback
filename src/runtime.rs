@@ -1203,7 +1203,7 @@ fn run_ibex_handler_with_context_until(
     drop(time_limit);
 
     let output = eval_result?;
-    let rejections = take_unhandled_rejections(runtime.0)?;
+    let rejections = inspect_unhandled_rejections(runtime.0)?;
     if !rejections.is_empty() {
         return Err(unhandled_rejection_error(module, rejections));
     }
@@ -1266,15 +1266,17 @@ fn run_warm_handler_with_context(
     });
 
     match eval_result {
-        Ok(output) => match take_unhandled_rejections(vm.runtime()) {
+        Ok(output) => match inspect_unhandled_rejections(vm.runtime()) {
             Ok(rejections) => {
-                // The sweep drained the ledger, so the VM carries no stale
-                // rejection state into the next invocation; the pool's
-                // reset-and-verify decides whether it survives as usual.
-                pool.reset_and_check_in(vm);
                 if !rejections.is_empty() {
+                    // The ledger is intentionally non-destructive so handler
+                    // code cannot drain it. A VM that observed an unhandled
+                    // rejection is therefore burned, never pooled with stale
+                    // control-plane state.
+                    drop(vm);
                     return Err(unhandled_rejection_error(module, rejections));
                 }
+                pool.reset_and_check_in(vm);
                 parse_handler_output(module, output)
             }
             Err(error) => {
@@ -1295,25 +1297,36 @@ fn run_warm_handler_with_context(
 /// invocation promise settled, which an in-IIFE check would miss. The source
 /// is a fixed string that makes no host calls, so (like the warm reset eval)
 /// it runs outside the host-context window.
-fn take_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResult<Vec<String>> {
-    const TAKE_SOURCE: &str = r#"(function() {
-  var take = globalThis.__snapbackTakeUnhandledRejections;
-  if (typeof take !== "function") { return "null"; }
-  try { return JSON.stringify(take()); } catch (_) { return "null"; }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RejectionInspection {
+    supported: bool,
+    rejections: Vec<String>,
+}
+
+fn inspect_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResult<Vec<String>> {
+    const INSPECT_SOURCE: &str = r#"(function() {
+  var inspect = globalThis.__snapbackInspectUnhandledRejections;
+  if (typeof inspect !== "function") { throw new Error("rejection inspection missing"); }
+  return inspect();
 })()"#;
-    let output = eval(runtime, "<snapback-rejection-sweep>", TAKE_SOURCE)?;
-    let report = serde_json::from_str::<Value>(&output).unwrap_or(Value::Null);
-    Ok(report
-        .get("rejections")
-        .and_then(Value::as_array)
-        .map(|rejections| {
-            rejections
-                .iter()
-                .map(|reason| reason.as_str().unwrap_or("unserializable rejection reason"))
-                .map(ToOwned::to_owned)
-                .collect()
-        })
-        .unwrap_or_default())
+    let output = eval(runtime, "<snapback-rejection-inspection>", INSPECT_SOURCE)?;
+    let report: RejectionInspection = serde_json::from_str(&output).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID",
+            "runtime",
+            "the trusted rejection inspection returned malformed data; the invocation failed closed",
+        )
+        .with_details(json!({ "error": error.to_string() }))
+    })?;
+    if !report.supported {
+        return Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE",
+            "runtime",
+            "unhandled-rejection detection is unavailable; the invocation failed closed",
+        ));
+    }
+    Ok(report.rejections)
 }
 
 /// A handler that completes while a detached promise chain it spawned

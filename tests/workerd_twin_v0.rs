@@ -19,7 +19,8 @@ use snapback::manifest::{
     FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
 };
 use snapback::workerd_exec::{
-    HandlerBackend, detect_workerd_binary, with_forced_backend, with_wall_clock_timeout_ms,
+    HandlerBackend, InvokeAuthTestMode, detect_workerd_binary, with_forced_backend,
+    with_invoke_auth_test_mode, with_wall_clock_timeout_ms,
 };
 
 const TWIN_MODULE_SOURCE: &str = include_str!("conformance/twin-corpus.handlers.js");
@@ -143,6 +144,8 @@ fn functions() -> FunctionManifest {
             define("writeInQuery", FunctionKind::Query),
             define("hangForever", FunctionKind::Mutation),
             define("detachedRejection", FunctionKind::Mutation),
+            define("rejectionDrainProbe", FunctionKind::Mutation),
+            define("settlementForgeryProbe", FunctionKind::Mutation),
             define("busyLoop", FunctionKind::Mutation),
             define("probeGlobalName", FunctionKind::Query),
             define("probeMember", FunctionKind::Query),
@@ -214,6 +217,32 @@ fn v8_mutation_commits_end_to_end() {
         .rows;
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get("label"), Some(&json!("a")));
+}
+
+#[test]
+fn local_workerd_invoke_requires_its_generated_bearer() {
+    require_workerd!();
+    for mode in [InvokeAuthTestMode::Missing, InvokeAuthTestMode::Wrong] {
+        let mut snapback = configured();
+        let error = with_invoke_auth_test_mode(mode, || {
+            on_v8(|| {
+                snapback.invoke_mutation(
+                    "addItem",
+                    input(json!({"label": "unauthorized", "rank": 1})),
+                )
+            })
+        })
+        .expect_err("an unauthenticated local invoke must be refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_V8_RUNNER_INVOKE_FAILED");
+        assert!(
+            snapback
+                .invoke_query("listItems", input(json!({})))
+                .expect("list items")
+                .rows
+                .is_empty(),
+            "{mode:?}: an unauthenticated invoke must commit nothing"
+        );
+    }
 }
 
 #[test]
@@ -292,6 +321,54 @@ fn unhandled_rejection_floor_is_engine_neutral() {
         .expect("query")
         .rows;
     assert!(rows.is_empty(), "a rejected invocation must commit nothing");
+}
+
+#[test]
+fn rejection_ledger_cannot_be_drained_by_handler_code_on_either_engine() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut snapback = configured();
+        let error = with_forced_backend(backend, || {
+            snapback.invoke_mutation("rejectionDrainProbe", input(json!({})))
+        })
+        .expect_err("handler-visible inspection must not drain rejection state");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+            "{backend:?}: unexpected rejection result: {error}"
+        );
+        assert!(
+            snapback
+                .invoke_query("listItems", input(json!({})))
+                .expect("list items")
+                .rows
+                .is_empty(),
+            "{backend:?}: a drain attempt must commit nothing"
+        );
+    }
+}
+
+#[test]
+fn settlement_serialization_cannot_be_forged_on_either_engine() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut snapback = configured();
+        let error = with_forced_backend(backend, || {
+            snapback.invoke_mutation("settlementForgeryProbe", input(json!({})))
+        })
+        .expect_err("mutating JSON serialization must not forge success");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_HANDLER_FAILED",
+            "{backend:?}: unexpected settlement result: {error}"
+        );
+        assert!(
+            snapback
+                .invoke_query("listItems", input(json!({})))
+                .expect("list items")
+                .rows
+                .is_empty(),
+            "{backend:?}: a forged settlement attempt must commit nothing"
+        );
+    }
 }
 
 #[test]

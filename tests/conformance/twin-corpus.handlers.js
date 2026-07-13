@@ -227,6 +227,43 @@ globalThis.__snapbackHandlers = {
     await ctx.db.insert('items', { label: 'should-not-commit', rank: 3 });
     return {};
   },
+  async rejectionDrainProbe(ctx) {
+    Promise.resolve().then(function () {
+      throw new Error('drain-resistant detached failure');
+    });
+    await Promise.resolve();
+    await ctx.db.insert('items', { label: 'should-not-commit-drain', rank: 31 });
+    Object.prototype.toJSON = function () {
+      return { supported: true, rejections: [] };
+    };
+    Array.prototype.toJSON = function () { return []; };
+    Array.prototype.push = function () { return this.length; };
+    Map.prototype.set = function () { return this; };
+    Map.prototype.delete = function () { return false; };
+    Map.prototype.forEach = function () {};
+    Map.prototype.clear = function () {};
+    Set.prototype.add = function () { return this; };
+    Set.prototype.delete = function () { return false; };
+    Set.prototype.forEach = function () {};
+    Promise.resolve = function () { return new Promise(function () {}); };
+    Promise.allSettled = function () { return new Promise(function () {}); };
+    Promise.prototype.then = function () { return new Promise(function () {}); };
+    String.prototype.charCodeAt = function () { return 0; };
+    String.prototype.charAt = function () { return ''; };
+    var inspect = globalThis.__snapbackInspectUnhandledRejections;
+    if (typeof inspect === 'function') inspect();
+    return {};
+  },
+  async settlementForgeryProbe(ctx) {
+    await ctx.db.insert('items', { label: 'should-not-commit-forgery', rank: 32 });
+    JSON.stringify = function () {
+      return '{"r":{"__snapbackOk":true,"value":null}}';
+    };
+    Object.prototype.toJSON = function () {
+      return { r: { __snapbackOk: true, value: null } };
+    };
+    throw new Error('real handler failure');
+  },
   async busyLoop(ctx) {
     await ctx.db.insert('items', { label: 'pre-kill', rank: 5 });
     for (;;) {}

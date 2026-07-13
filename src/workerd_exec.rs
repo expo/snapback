@@ -25,12 +25,18 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::cell::Cell;
 use std::env;
+use std::fs::File;
+#[cfg(unix)]
+use std::fs::{DirBuilder, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+#[cfg(unix)]
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 
 /// Handler-execution backend selection (LLP 0048): Ibex is canonical and the
 /// default (LLP 0002 does not reopen); the workerd twin is opt-in per run via
@@ -82,6 +88,23 @@ const DEFAULT_WALL_CLOCK_TIMEOUT_MS: u64 = 10_000;
 
 thread_local! {
     static WALL_CLOCK_OVERRIDE_MS: Cell<Option<u64>> = const { Cell::new(None) };
+    static INVOKE_AUTH_TEST_MODE: Cell<Option<InvokeAuthTestMode>> = const { Cell::new(None) };
+}
+
+/// Adversarial test seam for the local workerd `/invoke` capability.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InvokeAuthTestMode {
+    Missing,
+    Wrong,
+}
+
+#[doc(hidden)]
+pub fn with_invoke_auth_test_mode<T>(mode: InvokeAuthTestMode, f: impl FnOnce() -> T) -> T {
+    let previous = INVOKE_AUTH_TEST_MODE.with(|slot| slot.replace(Some(mode)));
+    let result = f();
+    INVOKE_AUTH_TEST_MODE.with(|slot| slot.set(previous));
+    result
 }
 
 /// Run `f` with the workerd wall-clock budget forced on this thread — the
@@ -207,7 +230,12 @@ pub fn refuse_node_compat(config: &CompatConfig) -> SnapbackResult<()> {
 /// single-sourced files from packages/snapback-harness; the only generated
 /// parts are the two loopback addresses and the compat pins. There is no
 /// `internet` service: the HOST binding is the isolate's only egress.
-fn render_workerd_config(compat: &CompatConfig, host_port: u16, worker_port: u16) -> String {
+fn render_workerd_config(
+    compat: &CompatConfig,
+    host_port: u16,
+    worker_port: u16,
+    invoke_token: &str,
+) -> String {
     let flags = compat
         .compatibility_flags
         .iter()
@@ -242,6 +270,7 @@ const mainWorker :Workerd.Worker = (
   compatibilityFlags = [{flags}],
   bindings = [
     (name = "HOST", service = "snapbackHost"),
+    (name = "SNAPBACK_INVOKE_TOKEN", text = "{invoke_token}"),
   ],
 );
 "#,
@@ -286,6 +315,80 @@ impl Drop for TempDirGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
+}
+
+#[cfg(unix)]
+fn create_private_invocation_dir() -> SnapbackResult<PathBuf> {
+    for _ in 0..16 {
+        let path = env::temp_dir().join(format!("snapback-workerd-{}", uuid::Uuid::new_v4()));
+        let mut builder = DirBuilder::new();
+        #[cfg(unix)]
+        builder.mode(0o700);
+        match builder.create(&path) {
+            Ok(()) => return Ok(path),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(runner_error(
+                    "SNAPBACK_V8_RUNNER_START_FAILED",
+                    "could not atomically create the private workerd invocation directory",
+                    json!({ "error": error.to_string(), "operation": "createInvocationDirectory" }),
+                ));
+            }
+        }
+    }
+    Err(runner_error(
+        "SNAPBACK_V8_RUNNER_START_FAILED",
+        "could not allocate a unique workerd invocation directory",
+        json!({}),
+    ))
+}
+
+#[cfg(not(unix))]
+fn create_private_invocation_dir() -> SnapbackResult<PathBuf> {
+    Err(runner_error(
+        "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
+        "owner-only workerd invocation directories are not implemented on this host; refusing to materialize handler code",
+        json!({}),
+    ))
+}
+
+#[cfg(unix)]
+fn create_private_file(path: &Path, role: &str, contents: &[u8]) -> SnapbackResult<File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options.open(path).map_err(|error| {
+        runner_error(
+            "SNAPBACK_V8_RUNNER_START_FAILED",
+            "could not exclusively create a private workerd invocation file",
+            json!({ "error": error.to_string(), "fileRole": role, "operation": "create" }),
+        )
+    })?;
+    file.write_all(contents).map_err(|error| {
+        runner_error(
+            "SNAPBACK_V8_RUNNER_START_FAILED",
+            "could not write a private workerd invocation file",
+            json!({ "error": error.to_string(), "fileRole": role, "operation": "write" }),
+        )
+    })?;
+    file.flush().map_err(|error| {
+        runner_error(
+            "SNAPBACK_V8_RUNNER_START_FAILED",
+            "could not flush a private workerd invocation file",
+            json!({ "error": error.to_string(), "fileRole": role, "operation": "flush" }),
+        )
+    })?;
+    Ok(file)
+}
+
+#[cfg(not(unix))]
+fn create_private_file(_path: &Path, _role: &str, _contents: &[u8]) -> SnapbackResult<File> {
+    Err(runner_error(
+        "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
+        "owner-only workerd invocation files are not implemented on this host; refusing to materialize handler code",
+        json!({}),
+    ))
 }
 
 fn runner_error(code: &str, message: impl Into<String>, details: Value) -> SnapbackError {
@@ -362,27 +465,10 @@ pub(crate) fn run_handler_workerd(
 
     // Materialize the single-sourced harness plus this invocation's handler
     // module into a per-invocation directory; the config embeds them by path.
-    let dir = env::temp_dir().join(format!(
-        "snapback-workerd-{}-{}",
-        std::process::id(),
-        invocation.epoch()
-    ));
-    std::fs::create_dir_all(&dir).map_err(|error| {
-        runner_error(
-            "SNAPBACK_V8_RUNNER_START_FAILED",
-            "could not create the workerd invocation directory",
-            json!({ "error": error.to_string(), "dir": dir.display().to_string() }),
-        )
-    })?;
+    let dir = create_private_invocation_dir()?;
     let _dir_guard = TempDirGuard(dir.clone());
     let write = |name: &str, contents: &str| -> SnapbackResult<()> {
-        std::fs::write(dir.join(name), contents).map_err(|error| {
-            runner_error(
-                "SNAPBACK_V8_RUNNER_START_FAILED",
-                format!("could not write {name} for the workerd invocation"),
-                json!({ "error": error.to_string() }),
-            )
-        })
+        create_private_file(&dir.join(name), name, contents.as_bytes()).map(|_| ())
     };
     write("entry.mjs", HARNESS_ENTRY_SOURCE)?;
     write("handler-server.mjs", HARNESS_SERVER_SOURCE)?;
@@ -394,17 +480,11 @@ pub(crate) fn run_handler_workerd(
     write("handler.mjs", &module.source)?;
     write(
         "config.capnp",
-        &render_workerd_config(&compat, host_port, worker_port),
+        &render_workerd_config(&compat, host_port, worker_port, &token),
     )?;
 
     let stderr_path = dir.join("workerd-stderr.log");
-    let stderr_file = std::fs::File::create(&stderr_path).map_err(|error| {
-        runner_error(
-            "SNAPBACK_V8_RUNNER_START_FAILED",
-            "could not create the workerd stderr capture",
-            json!({ "error": error.to_string() }),
-        )
-    })?;
+    let stderr_file = create_private_file(&stderr_path, "workerd-stderr.log", &[])?;
     // Keep the reservation until immediately before spawn. workerd itself has
     // to bind the port, but the TOCTOU window is now just the spawn handoff.
     drop(worker_probe);
@@ -467,19 +547,27 @@ pub(crate) fn run_handler_workerd(
         "runJson": Value::Null,
         "secretsJson": Value::Null,
         "epoch": invocation.epoch().to_string(),
-        "token": token,
         "settlementTimeoutMs": timeout_ms.saturating_sub(250).max(1),
     })
     .to_string();
     let invoke_url = format!("http://{worker_addr}/invoke");
     let request_timeout = Duration::from_millis(timeout_ms + 2_000);
     let (done_tx, done_rx) = mpsc::channel::<Result<String, String>>();
+    let invoke_token = token.clone();
+    let invoke_auth_test_mode = INVOKE_AUTH_TEST_MODE.with(|slot| slot.get());
     let invoke_thread = std::thread::spawn(move || {
         let agent = ureq::AgentBuilder::new().timeout(request_timeout).build();
-        let outcome = agent
+        let mut request = agent
             .post(&invoke_url)
-            .set("content-type", "application/json")
-            .send_string(&invoke_body);
+            .set("content-type", "application/json");
+        match invoke_auth_test_mode {
+            None => request = request.set("x-snapback-invoke-token", &invoke_token),
+            Some(InvokeAuthTestMode::Wrong) => {
+                request = request.set("x-snapback-invoke-token", "wrong-test-token");
+            }
+            Some(InvokeAuthTestMode::Missing) => {}
+        }
+        let outcome = request.send_string(&invoke_body);
         let message = match outcome {
             Ok(response) => match response.into_string() {
                 Ok(body) => Ok(body),
@@ -624,58 +712,164 @@ fn stderr_tail(path: &Path) -> String {
 // ---------------------------------------------------------------------------
 // minimal loopback HTTP handling for the host-call channel
 
+const MAX_HOST_CALL_REQUEST_LINE_BYTES: usize = 4 * 1024;
+const MAX_HOST_CALL_HEADER_LINE_BYTES: usize = 8 * 1024;
+const MAX_HOST_CALL_HEADERS_BYTES: usize = 16 * 1024;
+// Above the hosted proof's 4 MB request ceiling so application value limits
+// remain authoritative, while still preventing attacker-sized allocation.
+const MAX_HOST_CALL_BODY_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HostTransportReadError {
+    Malformed,
+    Unauthorized,
+    HeadersTooLarge,
+    BodyTooLarge,
+    Io,
+}
+
+fn read_bounded_line<R: BufRead>(
+    reader: &mut R,
+    max_bytes: usize,
+) -> Result<Option<Vec<u8>>, HostTransportReadError> {
+    let mut line = Vec::new();
+    let mut limited = (&mut *reader).take((max_bytes + 1) as u64);
+    let read = limited
+        .read_until(b'\n', &mut line)
+        .map_err(|_| HostTransportReadError::Io)?;
+    if read == 0 {
+        return Ok(None);
+    }
+    if read > max_bytes || line.last() != Some(&b'\n') {
+        return Err(HostTransportReadError::HeadersTooLarge);
+    }
+    Ok(Some(line))
+}
+
+fn read_host_call_request<R: BufRead>(
+    reader: &mut R,
+    expected_token: &str,
+) -> Result<Vec<u8>, HostTransportReadError> {
+    let request_line = read_bounded_line(reader, MAX_HOST_CALL_REQUEST_LINE_BYTES)?
+        .ok_or(HostTransportReadError::Malformed)?;
+    let request_line = std::str::from_utf8(&request_line)
+        .map_err(|_| HostTransportReadError::Malformed)?
+        .trim_end_matches(['\r', '\n']);
+    if request_line != "POST /host-call HTTP/1.1" {
+        return Err(HostTransportReadError::Malformed);
+    }
+
+    let mut total_header_bytes = request_line.len();
+    let mut content_length = None;
+    let mut sent_token = None;
+    loop {
+        let line = read_bounded_line(reader, MAX_HOST_CALL_HEADER_LINE_BYTES)?
+            .ok_or(HostTransportReadError::Malformed)?;
+        total_header_bytes = total_header_bytes.saturating_add(line.len());
+        if total_header_bytes > MAX_HOST_CALL_HEADERS_BYTES {
+            return Err(HostTransportReadError::HeadersTooLarge);
+        }
+        let line = std::str::from_utf8(&line).map_err(|_| HostTransportReadError::Malformed)?;
+        let trimmed = line.trim_end_matches(['\r', '\n']);
+        if trimmed.is_empty() {
+            break;
+        }
+        let (name, value) = trimmed
+            .split_once(':')
+            .ok_or(HostTransportReadError::Malformed)?;
+        match name.trim().to_ascii_lowercase().as_str() {
+            "content-length" => {
+                if content_length.is_some() {
+                    return Err(HostTransportReadError::Malformed);
+                }
+                content_length = Some(
+                    value
+                        .trim()
+                        .parse::<usize>()
+                        .map_err(|_| HostTransportReadError::Malformed)?,
+                );
+            }
+            "x-snapback-host-token" => {
+                if sent_token.is_some() {
+                    return Err(HostTransportReadError::Malformed);
+                }
+                sent_token = Some(value.trim().to_owned());
+            }
+            _ => {}
+        }
+    }
+
+    // Authenticate before allocating or reading the attacker-declared body.
+    if sent_token.as_deref() != Some(expected_token) {
+        return Err(HostTransportReadError::Unauthorized);
+    }
+    let content_length = content_length.ok_or(HostTransportReadError::Malformed)?;
+    if content_length > MAX_HOST_CALL_BODY_BYTES {
+        return Err(HostTransportReadError::BodyTooLarge);
+    }
+    let mut body = vec![0u8; content_length];
+    reader
+        .read_exact(&mut body)
+        .map_err(|_| HostTransportReadError::Io)?;
+    Ok(body)
+}
+
+fn transport_error_payload(error: HostTransportReadError) -> (u16, Value) {
+    match error {
+        HostTransportReadError::Unauthorized => (
+            401,
+            json!({ "ok": false, "code": "SNAPBACK_HANDLER_HOST_CALL_UNAUTHORIZED", "message": "host-call transport authentication failed" }),
+        ),
+        HostTransportReadError::HeadersTooLarge => (
+            431,
+            json!({ "ok": false, "code": "SNAPBACK_HANDLER_HOST_CALL_HEADERS_TOO_LARGE", "message": "host-call headers exceeded the transport limit" }),
+        ),
+        HostTransportReadError::BodyTooLarge => (
+            413,
+            json!({ "ok": false, "code": "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE", "message": "host-call body exceeded the transport limit" }),
+        ),
+        HostTransportReadError::Malformed | HostTransportReadError::Io => (
+            400,
+            json!({ "ok": false, "code": "SNAPBACK_HANDLER_HOST_CALL_MALFORMED", "message": "host-call transport request was malformed" }),
+        ),
+    }
+}
+
+fn write_json_response(mut stream: TcpStream, status: u16, response: Value) {
+    let payload = response.to_string();
+    let reason = match status {
+        200 => "OK",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        413 => "Content Too Large",
+        431 => "Request Header Fields Too Large",
+        _ => "Error",
+    };
+    let _ = write!(
+        stream,
+        "HTTP/1.1 {status} {reason}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+        payload.len(),
+        payload
+    );
+    let _ = stream.flush();
+}
+
 fn serve_host_call_connection(stream: TcpStream, ctx: &mut IbexHostContext<'_>, token: &str) {
     let _ = stream.set_nonblocking(false);
     let _ = stream.set_read_timeout(Some(Duration::from_millis(2_000)));
     let _ = stream.set_write_timeout(Some(Duration::from_millis(2_000)));
     let mut reader = BufReader::new(stream);
 
-    let mut request_line = String::new();
-    if reader.read_line(&mut request_line).is_err() {
-        return;
-    }
-    let mut content_length = 0usize;
-    let mut sent_token = String::new();
-    loop {
-        let mut line = String::new();
-        match reader.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    break;
-                }
-                if let Some((name, value)) = trimmed.split_once(':') {
-                    let name = name.trim().to_ascii_lowercase();
-                    if name == "content-length" {
-                        content_length = value.trim().parse().unwrap_or(0);
-                    } else if name == "x-snapback-host-token" {
-                        sent_token = value.trim().to_owned();
-                    }
-                }
-            }
-            Err(_) => return,
+    let body = match read_host_call_request(&mut reader, token) {
+        Ok(body) => body,
+        Err(error) => {
+            let (status, payload) = transport_error_payload(error);
+            write_json_response(reader.into_inner(), status, payload);
+            return;
         }
-    }
-    let mut body = vec![0u8; content_length];
-    if reader.read_exact(&mut body).is_err() {
-        return;
-    }
-    let mut stream = reader.into_inner();
-
-    let response = if sent_token != token {
-        json!({ "ok": false, "code": "SNAPBACK_HANDLER_HOST_CALL_MALFORMED", "message": "host call carried a bad transport token" })
-    } else {
-        host_call_response(ctx, &body)
     };
-    let payload = response.to_string();
-    let _ = write!(
-        stream,
-        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
-        payload.len(),
-        payload
-    );
-    let _ = stream.flush();
+    let response = host_call_response(ctx, &body);
+    write_json_response(reader.into_inner(), 200, response);
 }
 
 /// Decode one host call and dispatch it into the shared op table with the
@@ -737,5 +931,109 @@ fn host_call_response(ctx: &mut IbexHostContext<'_>, body: &[u8]) -> Value {
             "code": error.diagnostic.code,
             "message": error.diagnostic.message,
         }),
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    use std::io::Cursor;
+
+    fn request(token: &str, content_length: &str, body: &[u8]) -> Vec<u8> {
+        let mut bytes = format!(
+            "POST /host-call HTTP/1.1\r\ncontent-length: {content_length}\r\nx-snapback-host-token: {token}\r\n\r\n"
+        )
+        .into_bytes();
+        bytes.extend_from_slice(body);
+        bytes
+    }
+
+    #[test]
+    fn host_transport_authenticates_before_allocating_declared_body() {
+        let bytes = request("wrong", &usize::MAX.to_string(), &[]);
+        let error = read_host_call_request(&mut Cursor::new(bytes), "right")
+            .expect_err("a bad token must be refused");
+        assert_eq!(error, HostTransportReadError::Unauthorized);
+    }
+
+    #[test]
+    fn host_transport_bounds_headers_and_body() {
+        let oversized = request("right", &(MAX_HOST_CALL_BODY_BYTES + 1).to_string(), &[]);
+        assert_eq!(
+            read_host_call_request(&mut Cursor::new(oversized), "right").unwrap_err(),
+            HostTransportReadError::BodyTooLarge
+        );
+
+        let mut long_header = b"POST /host-call HTTP/1.1\r\nx-long: ".to_vec();
+        long_header.extend(std::iter::repeat_n(b'a', MAX_HOST_CALL_HEADER_LINE_BYTES));
+        long_header.extend_from_slice(b"\r\n\r\n");
+        assert_eq!(
+            read_host_call_request(&mut Cursor::new(long_header), "right").unwrap_err(),
+            HostTransportReadError::HeadersTooLarge
+        );
+    }
+
+    #[test]
+    fn host_transport_accepts_one_bounded_authenticated_request() {
+        let body = br#"{"rawOp":"1|runtime.now","argsJson":"{}"}"#;
+        let bytes = request("right", &body.len().to_string(), body);
+        assert_eq!(
+            read_host_call_request(&mut Cursor::new(bytes), "right").unwrap(),
+            body
+        );
+    }
+
+    #[test]
+    fn workerd_config_carries_a_private_invoke_capability() {
+        let config = render_workerd_config(
+            &CompatConfig {
+                compatibility_date: "2026-07-01".to_owned(),
+                compatibility_flags: vec![],
+            },
+            1234,
+            5678,
+            "unguessable-test-token",
+        );
+        assert!(config.contains("SNAPBACK_INVOKE_TOKEN"));
+        assert!(config.contains("unguessable-test-token"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workerd_files_are_created_exclusively() {
+        let dir = create_private_invocation_dir().expect("private invocation directory");
+        let _guard = TempDirGuard(dir.clone());
+        let path = dir.join("entry.mjs");
+        create_private_file(&path, "test-fixture", b"first").expect("first exclusive create");
+        let error = create_private_file(&path, "test-fixture", b"replacement")
+            .expect_err("create_new must refuse pre-existing files");
+        assert_eq!(error.diagnostic.details["fileRole"], "test-fixture");
+        assert_eq!(error.diagnostic.details["operation"], "create");
+        assert!(
+            !error
+                .diagnostic
+                .details
+                .to_string()
+                .contains(&dir.display().to_string()),
+            "public diagnostics must not disclose the private materialization path"
+        );
+        assert_eq!(std::fs::read(path).unwrap(), b"first");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777,
+                0o700
+            );
+            assert_eq!(
+                std::fs::metadata(dir.join("entry.mjs"))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
+        }
     }
 }

@@ -5,14 +5,21 @@
   "scripts": {
     "build": "./build.sh",
     "dev": "./dev.sh",
-    "test": "node tests/contract-bindings.mjs && node tests/static-metadata.mjs && node tests/kv-layout.mjs && node tests/dev-serve-react-esm.mjs"
+    "test": "node tests/contract-bindings.mjs && node tests/static-metadata.mjs && node tests/kv-layout.mjs && node tests/dev-serve-react-esm.mjs && node tests/fatal-rendering.mjs",
+    "audit:production": "bun audit --production"
   },
   "dependencies": {
-    "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2"
+    "@exact/contract": "npm:@ccheever/exact-contract@0.1.4",
+    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.4",
+    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.4"
   },
   "devDependencies": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "vite": "^8.0.0"
+  },
+  "overrides": {
+    "@chenglou/pretext": "0.0.8",
+    "undici": "6.27.0"
   }
 }

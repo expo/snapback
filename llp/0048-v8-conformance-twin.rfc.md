@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24375: encoding boundary coverage now pins
+**Revised:** 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
 forgiving-base64 padding validation, the complete UTF-8 label table with exact
 ASCII-whitespace/Web-IDL conversion, and streaming UTF-8 decoder state;
 ENG-24339: adversarial twin coverage pins sealed invoke/settle globals,
@@ -370,6 +370,11 @@ The twin is built and its minimum gate is green. What landed:
   Backend selection is per-run (`SNAPBACK_HANDLER_BACKEND=workerd-v8` or a
   thread-local test seam); Ibex stays default. Actions stay on Ibex (egress
   and secrets are out of the twin's scope; the manifest says so).
+  Materialization uses an atomically-created unpredictable UUID directory,
+  owner-only on Unix (0700), with each harness/config/log file opened
+  create-new at 0600. The local `/invoke` socket requires a generated bearer
+  before its bounded body is read; the callback listener bounds request lines,
+  aggregate headers, and body size and authenticates before body allocation.
 - **Conformance runner + gate.** `src/bin/snapback-conformance-twin.rs` runs
   one corpus (`tests/conformance/twin-corpus.handlers.js`) on both engines,
   normalizes ids/timestamps and strips diagnostic-only `runtime.log`, then
@@ -419,6 +424,13 @@ all are fixed and gated by the twin suites and the conformance corpus:
   bootstrap time. Twin probes cover hostile frozen globals, accessors,
   wrapper interception, and raw host-call attempts; Rust independently
   rejects action DB reads at the shared host-op boundary.
+- **Unforgeable settlement and rejection collection** (ENG-24559): the V8
+  rejection ledger is a lexical module export consumed only by the handler
+  server, not a handler-visible draining global. The shared settlement wrapper
+  captures trusted serialization primitives, and the server serializes a
+  prototype-free copy of internal response data. Adversarial twin cases replace
+  `JSON.stringify`, poison `Object.prototype.toJSON`, and attempt an early
+  rejection inspection; both engines still fail with nothing committed.
 - **Drain contract** (ENG-23584): the fixed 32-tick microtask drain is
   replaced by a quiescence contract — wait for this invocation's in-flight
   host calls, then yield real tasks (workerd defers `unhandledrejection`

@@ -3102,9 +3102,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
             StatusCode::UNAUTHORIZED
         }
         "SNAPBACK_EPHEMERAL_RATE_LIMITED" => StatusCode::TOO_MANY_REQUESTS,
-        "SNAPBACK_VALUE_TOO_LARGE" | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE" => {
-            StatusCode::PAYLOAD_TOO_LARGE
-        }
+        "SNAPBACK_VALUE_TOO_LARGE"
+        | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
+        | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
@@ -3115,7 +3115,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE"
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING"
         | "SNAPBACK_CAPABILITY_MINIFLARE_MISSING"
-        | "SNAPBACK_CAPABILITY_WORKERD_MISSING" => StatusCode::SERVICE_UNAVAILABLE,
+        | "SNAPBACK_CAPABILITY_WORKERD_MISSING"
+        | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
         // here automatically: the default below remains a truthful 500 until
@@ -3510,6 +3511,10 @@ mod tests {
             "diagnostic-code prefix used to recognize host-call failures",
         ),
         (
+            "SNAPBACK_INVOKE_TOKEN",
+            "private workerd text binding carrying the local invocation capability",
+        ),
+        (
             "SNAPBACK_IBEX",
             "environment variable overriding the Ibex executable",
         ),
@@ -3691,6 +3696,7 @@ mod tests {
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
+        "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE",
         "SNAPBACK_VALUE_TOO_LARGE",
     ];
 
@@ -3710,6 +3716,7 @@ mod tests {
         "SNAPBACK_CAPABILITY_WORKERD_MISSING",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
+        "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
     ];
 
     // These literals include internal errors plus informational/warning
@@ -3743,10 +3750,14 @@ mod tests {
         "SNAPBACK_CRON_STATE_PARSE_FAILED",
         "SNAPBACK_CRON_STATE_SERIALIZE_FAILED",
         "SNAPBACK_DRY_RUN_LEDGER_ELIDED",
+        "SNAPBACK_HANDLER_HOST_CALL_HEADERS_TOO_LARGE",
         "SNAPBACK_HANDLER_HOST_CALL_PANIC",
         "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
+        "SNAPBACK_HANDLER_HOST_CALL_UNAUTHORIZED",
         "SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT",
         "SNAPBACK_HANDLER_INPUT_SERIALIZE_FAILED",
+        "SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE",
+        "SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID",
         "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
         "SNAPBACK_HOST_STOP_UNVERIFIABLE",
         "SNAPBACK_IBEX_CLI_UNAVAILABLE",

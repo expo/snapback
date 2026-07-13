@@ -10,24 +10,24 @@
 // invocation identity), so attribution rests on the handler server's
 // invocation mutex: exactly one invocation runs — and drains to quiescence —
 // at a time, so everything `take()` returns belongs to the invocation that
-// just finished (ENG-23585).
+// just finished (ENG-23585). Its take/inspect functions are lexical module
+// exports consumed only by handler-server.mjs; application code cannot call
+// them or clear the ledger.
 //
-// This module must evaluate before ctx-bootstrap.js: the bootstrap's
-// hook-slot installer no-ops when a take function is already defined.
 import { kept } from "./strip.mjs";
 
-const ledger = new Map();
+const ledger = new kept.Map();
 let supported = false;
 try {
   if (typeof kept.addEventListener === "function") {
     kept.addEventListener("unhandledrejection", (event) => {
-      ledger.set(event.promise, event.reason);
+      kept.reflectApply(kept.mapSet, ledger, [event.promise, event.reason]);
       try {
-        event.preventDefault();
+        kept.reflectApply(kept.eventPreventDefault, event, []);
       } catch (_) {}
     });
     kept.addEventListener("rejectionhandled", (event) => {
-      ledger.delete(event.promise);
+      kept.reflectApply(kept.mapDelete, ledger, [event.promise]);
     });
     supported = true;
   }
@@ -37,28 +37,31 @@ try {
 
 function describeReason(reason) {
   try {
-    if (reason instanceof Error && reason.message) {
-      return String(reason.message);
+    if (reason && typeof reason === "object" && reason.message) {
+      return kept.String(reason.message);
     }
-    return String(reason);
+    return kept.String(reason);
   } catch (_) {
     return "unserializable rejection reason";
   }
 }
 
-const take = function () {
+function snapshot(clear) {
   const rejections = [];
-  ledger.forEach((reason) => rejections.push(describeReason(reason)));
-  ledger.clear();
+  kept.reflectApply(kept.mapForEach, ledger, [
+    (reason) => { rejections[rejections.length] = describeReason(reason); },
+  ]);
+  if (clear) kept.reflectApply(kept.mapClear, ledger, []);
   return { supported, rejections };
-};
+}
 
-try {
-  Object.defineProperty(globalThis, "__snapbackTakeUnhandledRejections", {
-    value: take,
-    configurable: false,
-    writable: false,
-  });
-} catch (_) {
-  globalThis.__snapbackTakeUnhandledRejections = take;
+// These lexical module exports are imported only by handler-server.mjs. They
+// never become handler-visible globals, so application code cannot drain the
+// isolate ledger before the trusted post-quiescence sweep.
+export function inspectUnhandledRejections() {
+  return snapshot(false);
+}
+
+export function takeUnhandledRejections() {
+  return snapshot(true);
 }

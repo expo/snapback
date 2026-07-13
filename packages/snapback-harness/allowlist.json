@@ -162,7 +162,7 @@
     "__snapbackHandlers",
     "__snapbackInvoke",
     "__snapbackSettle",
-    "__snapbackTakeUnhandledRejections",
+    "__snapbackInspectUnhandledRejections",
     "__snapbackConsoleSink",
     "__hostCall",
     "__OriginalPromise"

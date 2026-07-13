@@ -11,6 +11,7 @@ import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { AdminClient } from '../packages/snapback-admin-client/index.mjs';
 import { createAdminSurface } from './admin-boundary.mjs';
+import { renderFatal } from './fatal.mjs';
 import app from './app.contract';
 import {
   configureAdminContractLinks,
@@ -32,9 +33,7 @@ function showFatal(message: string): void {
     return;
   }
   const root = document.getElementById('exact-root');
-  if (root) {
-    root.innerHTML = `<pre style="margin:24px;color:#c0362c;font:13px ui-monospace,Menlo,monospace;white-space:pre-wrap">Admin console failed to start:\n${message}</pre>`;
-  }
+  if (root) renderFatal(document, message);
 }
 
 async function boot(): Promise<void> {
