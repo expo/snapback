@@ -6005,7 +6005,7 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead,
+        BEFORE_MUTATION_POSTCOMMIT_HOOK, DetachedIbexMutation, DetachedMutationRead, EnsureAppMode,
         LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, StagedNestedMutation,
     };
@@ -6014,10 +6014,10 @@ mod tests {
         InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
     };
     use crate::manifest::{
-        CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
-        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        IndexManifest, MutationPlan, MutationStep, QueryPlan, ReturnValue, SchemaManifest,
-        TableManifest, ValueExpr, ctx_ledger_version,
+        AuthManifest, AuthMode, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
+        FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
+        HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
+        SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
@@ -6026,6 +6026,128 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::{Duration, Instant};
+
+    fn auth_artifact_pair(mode: AuthMode, marker: char) -> (SchemaManifest, FunctionManifest) {
+        let (schema_version, auth, schema_hash, bundle_hash, inputs_hash, required_capabilities) =
+            match mode {
+                AuthMode::Dev => (
+                    "snapback.v0".to_owned(),
+                    None,
+                    format!("sha256:schema-{marker}"),
+                    format!("sha256:functions-{marker}"),
+                    "sha256:inputs-shared".to_owned(),
+                    Vec::new(),
+                ),
+                AuthMode::Sessions => (
+                    "snapback.v1".to_owned(),
+                    Some(AuthManifest {
+                        mode: AuthMode::Sessions,
+                    }),
+                    format!(
+                        "{}{}",
+                        crate::auth::mode::SCHEMA_V1_PREFIX,
+                        marker.to_string().repeat(64)
+                    ),
+                    format!(
+                        "{}{}",
+                        crate::auth::mode::FUNCTION_V1_PREFIX,
+                        marker.to_string().repeat(64)
+                    ),
+                    format!(
+                        "{}{}",
+                        crate::auth::mode::INPUTS_V1_PREFIX,
+                        marker.to_string().repeat(64)
+                    ),
+                    vec!["auth.sessions.v1".to_owned()],
+                ),
+            };
+        (
+            SchemaManifest {
+                schema_version: schema_version.clone(),
+                app_id: "mode-provision-test".to_owned(),
+                auth,
+                required_capabilities,
+                schema_hash: Some(schema_hash),
+                inputs_hash: Some(inputs_hash.clone()),
+                ..SchemaManifest::default()
+            },
+            FunctionManifest {
+                schema_version,
+                app_id: "mode-provision-test".to_owned(),
+                bundle_hash: Some(bundle_hash),
+                inputs_hash: Some(inputs_hash),
+                ..FunctionManifest::default()
+            },
+        )
+    }
+
+    #[test]
+    fn network_mode_provision_requires_first_sessions_pair_and_stages_without_publish() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let (schema, functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+        let error = snapback
+            .prepare_auth_provision(EnsureAppMode::Sessions, Some(schema.clone()), None, None)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(
+            snapback.db.auth_mode_snapshot().unwrap().state.mode_state,
+            crate::auth::mode::AuthModeStatus::Settled
+        );
+
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                Some(schema),
+                Some(functions.clone()),
+                None,
+            )
+            .unwrap();
+        let (outcome, state) = snapback.commit_auth_provision(prepared, "test").unwrap();
+        assert_eq!(
+            state.mode_state,
+            crate::auth::mode::AuthModeStatus::PendingRestart
+        );
+        assert_eq!(state.active, AuthMode::Dev);
+        assert_eq!(state.desired, AuthMode::Sessions);
+        assert_eq!(outcome.schema, "provisioned");
+        assert_eq!(outcome.functions, "provisioned");
+        assert_ne!(snapback.functions.bundle_hash, functions.bundle_hash);
+    }
+
+    #[test]
+    fn network_one_half_update_uses_only_same_boot_preflighted_sibling() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("one-half.sqlite3");
+        let (schema, functions) = auth_artifact_pair(AuthMode::Dev, 'a');
+        let mut snapback = LocalSnapback::open(&path).unwrap();
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Dev,
+                Some(schema),
+                Some(functions.clone()),
+                None,
+            )
+            .unwrap();
+        snapback.commit_auth_provision(prepared, "test").unwrap();
+
+        let (mut updated_schema, _) = auth_artifact_pair(AuthMode::Dev, 'b');
+        // Keep the pair-level input identity equal to the loaded sibling.
+        updated_schema.inputs_hash = functions.inputs_hash.clone();
+        let prepared = snapback
+            .prepare_auth_provision(EnsureAppMode::Dev, Some(updated_schema), None, None)
+            .unwrap();
+        let (outcome, _) = snapback.commit_auth_provision(prepared, "test").unwrap();
+        assert_eq!(outcome.schema, "provisioned");
+        assert_eq!(outcome.functions, "matched");
+        drop(snapback);
+
+        let mut reopened = LocalSnapback::open(&path).unwrap();
+        let (another_schema, _) = auth_artifact_pair(AuthMode::Dev, 'c');
+        let error = reopened
+            .prepare_auth_provision(EnsureAppMode::Dev, Some(another_schema), None, None)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+    }
 
     const SCHEMA_RELOAD_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
