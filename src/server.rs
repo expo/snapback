@@ -6660,6 +6660,10 @@ mod tests {
         "SNAPBACK_ACTION_TIMEOUT_SETUP_FAILED",
         "SNAPBACK_ADMIN_SECRET_READ_SERIALIZATION_FAILED",
         "SNAPBACK_ADMIN_SECRET_READ_PROVENANCE_UNAVAILABLE",
+        // Local backup/restore validation is a CLI/operator diagnostic. It is
+        // deliberately not a request-path 4xx; if it ever crosses ApiError,
+        // the fail-safe HTTP projection remains 500.
+        "SNAPBACK_AUTH_BACKUP_INVALID",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
