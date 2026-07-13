@@ -3,7 +3,9 @@ use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
     WireAuthorityFields,
 };
-use crate::auth::mode::{DeploymentIdentity, StartupArtifacts};
+use crate::auth::mode::{
+    AuthModeStateRecord, DeploymentIdentity, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
+};
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
@@ -619,6 +621,13 @@ impl EnsureAppMode {
             Self::Sessions => "snapback.v1",
         }
     }
+
+    pub(crate) const fn auth_mode(self) -> AuthMode {
+        match self {
+            Self::Dev => AuthMode::Dev,
+            Self::Sessions => AuthMode::Sessions,
+        }
+    }
 }
 
 /// Identity-only schema half accepted by the Public `attest` branch.
@@ -750,6 +759,30 @@ pub enum EnsureAppResponse {
     Attest(EnsureAppAttestOutcome),
     Provision(EnsureAppProvisionOutcome),
     Legacy(EnsureAppOutcome),
+}
+
+/// A complete candidate pair that passed every artifact- and target-owned
+/// preflight predicate. The HTTP mode-change path deliberately carries this
+/// owned value across admission quiescence, then repeats preflight under the
+/// global write lane before storage may commit it.
+#[derive(Clone, Debug)]
+pub(crate) struct PreparedAuthProvision {
+    requested_mode: AuthMode,
+    artifacts: StartupArtifacts,
+    deployment: DeploymentIdentity,
+}
+
+impl PreparedAuthProvision {
+    pub(crate) fn requested_mode(&self) -> AuthMode {
+        self.requested_mode
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PreflightedArtifactPair {
+    deployment: DeploymentIdentity,
+    schema: SchemaManifest,
+    functions: FunctionManifest,
 }
 
 fn ensure_request_invalid(message: impl Into<String>) -> SnapbackError {
@@ -1398,6 +1431,12 @@ pub struct ConfigVerifyOutcome {
 pub struct LocalSnapback {
     db: LocalDatabase,
     functions: FunctionManifest,
+    // Complete pairs proven by this process. Durable deployment identities
+    // are hashes, not manifest bodies, so they can never supply a missing
+    // `/app/ensure` half after restart. The cache is deliberately tiny: at
+    // most the active and requested deployment can be useful.
+    // @ref LLP 0055#complete-candidate-pair-preflight — one-half provisioning may use only a same-boot, fully preflighted sibling.
+    preflighted_artifact_pairs: VecDeque<PreflightedArtifactPair>,
     // ENG-22752: starts false and flips when the first functions manifest
     // loads (provision/ensure). Distinguishes "no app has booted yet" from
     // "the loaded app declares no config" for `config_status` consumers —
@@ -1545,7 +1584,7 @@ impl LocalSnapback {
     /// target-owned predicate has already run against these exact values.
     // @ref LLP 0055#complete-candidate-pair-preflight — hashes are evidence only after the complete pair and target capability registry validate.
     pub(crate) fn preflight_auth_artifacts(
-        &self,
+        &mut self,
         artifacts: &StartupArtifacts,
         requested_mode: AuthMode,
     ) -> SnapbackResult<DeploymentIdentity> {
@@ -1590,7 +1629,31 @@ impl LocalSnapback {
             // namespace collisions before staging can make the app pending.
             self.db.inspect_auth_catalog()?;
         }
+        self.remember_preflighted_pair(
+            deployment.clone(),
+            artifacts.schema.clone(),
+            artifacts.functions.clone(),
+        );
         Ok(deployment)
+    }
+
+    fn remember_preflighted_pair(
+        &mut self,
+        deployment: DeploymentIdentity,
+        schema: SchemaManifest,
+        functions: FunctionManifest,
+    ) {
+        self.preflighted_artifact_pairs
+            .retain(|pair| pair.deployment != deployment);
+        self.preflighted_artifact_pairs
+            .push_back(PreflightedArtifactPair {
+                deployment,
+                schema,
+                functions,
+            });
+        while self.preflighted_artifact_pairs.len() > 2 {
+            self.preflighted_artifact_pairs.pop_front();
+        }
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
@@ -1829,6 +1892,173 @@ impl LocalSnapback {
             .store(generation, Ordering::SeqCst);
     }
 
+    fn resolve_complete_provision_pair(
+        &self,
+        requested_mode: AuthMode,
+        schema: Option<SchemaManifest>,
+        functions: Option<FunctionManifest>,
+        seed: Option<SeedData>,
+        state: &AuthModeStateRecord,
+    ) -> SnapbackResult<StartupArtifacts> {
+        if schema.is_some() && functions.is_some() {
+            return Ok(StartupArtifacts {
+                format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
+                schema: schema.expect("checked complete schema half"),
+                functions: functions.expect("checked complete function half"),
+                seed,
+            });
+        }
+
+        let sibling_identity = if requested_mode == state.active {
+            state.active_deployment.as_ref()
+        } else if requested_mode == state.desired {
+            state.requested_deployment.as_ref()
+        } else {
+            None
+        };
+        let sibling = sibling_identity.and_then(|identity| {
+            self.preflighted_artifact_pairs
+                .iter()
+                .rev()
+                .find(|pair| &pair.deployment == identity)
+        });
+        let Some(sibling) = sibling else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "auth-mode",
+                "a partial provision requires the complete preflighted sibling pair from this process",
+            ));
+        };
+
+        Ok(StartupArtifacts {
+            format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
+            schema: schema.unwrap_or_else(|| sibling.schema.clone()),
+            functions: functions.unwrap_or_else(|| sibling.functions.clone()),
+            seed,
+        })
+    }
+
+    fn require_provision_posture(
+        state: &AuthModeStateRecord,
+        requested_mode: AuthMode,
+    ) -> SnapbackResult<()> {
+        use crate::auth::mode::AuthModeStatus;
+
+        match state.mode_state {
+            AuthModeStatus::Settled => Ok(()),
+            AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
+                if requested_mode == state.desired && requested_mode != state.active =>
+            {
+                Ok(())
+            }
+            AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined => {
+                Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_MODE_PENDING",
+                    "auth-mode",
+                    "a pending auth-mode transition may only be corrected by re-staging its desired mode",
+                ))
+            }
+        }
+    }
+
+    /// First, read-only provisioning pass. It resolves any same-boot sibling,
+    /// validates the complete pair and target registry, and returns owned
+    /// bytes that can cross the admission barrier. No schema, function,
+    /// mode-state, or seed effect occurs here.
+    // @ref LLP 0055#stage-ordering — mode staging preflights before closing admission and repeats under the write lane.
+    pub(crate) fn prepare_auth_provision(
+        &mut self,
+        requested_mode: EnsureAppMode,
+        schema: Option<SchemaManifest>,
+        functions: Option<FunctionManifest>,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<PreparedAuthProvision> {
+        let requested_mode = requested_mode.auth_mode();
+        let snapshot = self.db.auth_mode_snapshot()?;
+        Self::require_provision_posture(&snapshot.state, requested_mode)?;
+        let artifacts = self.resolve_complete_provision_pair(
+            requested_mode,
+            schema,
+            functions,
+            seed,
+            &snapshot.state,
+        )?;
+        let deployment = self.preflight_auth_artifacts(&artifacts, requested_mode)?;
+        Ok(PreparedAuthProvision {
+            requested_mode,
+            artifacts,
+            deployment,
+        })
+    }
+
+    /// State-sensitive second pass and atomic durable cut. A caller staging a
+    /// mode change must hold the transition guard supplied by the admission
+    /// controller; same-mode callers remain serialized by the app write lane.
+    pub(crate) fn commit_auth_provision(
+        &mut self,
+        prepared: PreparedAuthProvision,
+        profile: &str,
+    ) -> SnapbackResult<(EnsureAppProvisionOutcome, AuthModeStateRecord)> {
+        let before = self.db.auth_mode_snapshot()?;
+        Self::require_provision_posture(&before.state, prepared.requested_mode)?;
+        let observed =
+            self.preflight_auth_artifacts(&prepared.artifacts, prepared.requested_mode)?;
+        if observed != prepared.deployment {
+            return Err(crate::auth::mode::mode_corrupt(
+                "prepared provisioning identity changed between preflight passes",
+            ));
+        }
+
+        let comparison = if prepared.requested_mode == before.state.active {
+            before.state.active_deployment.as_ref()
+        } else {
+            before.state.requested_deployment.as_ref()
+        };
+        let schema_matched = comparison
+            .is_some_and(|identity| identity.schema_hash == prepared.deployment.schema_hash);
+        let functions_matched = comparison
+            .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
+
+        let seed_outcome = if prepared.requested_mode == before.state.active {
+            let seed_outcome = self.db.apply_same_mode_network_deployment(
+                prepared.deployment,
+                prepared.artifacts.schema,
+                prepared.artifacts.seed,
+            )?;
+            self.publish_preflighted_functions(prepared.artifacts.functions);
+            seed_outcome.as_str()
+        } else {
+            let seeded = prepared.artifacts.seed.is_some();
+            self.db.stage_auth_mode(
+                prepared.deployment,
+                prepared.artifacts.schema,
+                prepared.artifacts.seed,
+            )?;
+            if seeded { "seeded" } else { "skipped-absent" }
+        };
+        let state = self.db.auth_mode_snapshot()?.state;
+        Ok((
+            EnsureAppProvisionOutcome {
+                intent: EnsureAppIntent::Provision,
+                schema: if schema_matched {
+                    "matched"
+                } else {
+                    "provisioned"
+                }
+                .to_owned(),
+                functions: if functions_matched {
+                    "matched"
+                } else {
+                    "provisioned"
+                }
+                .to_owned(),
+                seed: seed_outcome.to_owned(),
+                profile: profile.to_owned(),
+            },
+            state,
+        ))
+    }
+
     /// ENG-22527: the ensure-everything mount-lifecycle operation. Inspects
     /// the loaded schemaHash/bundleHash against the posted generated
     /// manifests; provisions ONLY the missing/mismatched halves (when the
@@ -1942,35 +2172,45 @@ impl LocalSnapback {
         pair: EnsureAppPairIdentity,
     ) -> SnapbackResult<EnsureAppAttestOutcome> {
         let requested = pair.normalized(requested_mode)?;
-        let schema = self.db.schema();
-        let active = match (
-            schema.schema_hash.as_ref(),
-            schema.inputs_hash.as_ref(),
-            self.functions.bundle_hash.as_ref(),
-            self.functions.inputs_hash.as_ref(),
-        ) {
-            (Some(schema_hash), Some(schema_inputs), Some(bundle_hash), Some(function_inputs))
-                if schema.schema_version == self.functions.schema_version
-                    && schema.app_id == self.functions.app_id
-                    && schema_inputs == function_inputs =>
-            {
-                Some(EnsureAppActiveIdentity {
-                    schema_version: schema.schema_version.clone(),
-                    app_id: schema.app_id.clone(),
-                    schema_hash: schema_hash.clone(),
-                    bundle_hash: bundle_hash.clone(),
-                    inputs_hash: schema_inputs.clone(),
-                })
-            }
-            _ => None,
+        let requested_deployment = DeploymentIdentity {
+            schema_version: requested.schema_version.clone(),
+            auth_mode: requested_mode.auth_mode(),
+            app_id: requested.app_id.clone(),
+            schema_hash: requested.schema_hash.clone(),
+            bundle_hash: requested.bundle_hash.clone(),
+            inputs_hash: requested.inputs_hash.clone(),
+        };
+        requested_deployment.validate().map_err(|_| {
+            ensure_request_invalid(
+                "app.ensure attestation identity is not valid for its requested auth mode",
+            )
+        })?;
+
+        let snapshot = self.db.auth_mode_snapshot()?;
+        if snapshot.state.mode_state != crate::auth::mode::AuthModeStatus::Settled
+            || snapshot.state.active != requested_mode.auth_mode()
+            || snapshot.state.desired != requested_mode.auth_mode()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "app.ensure attestation requires a settled active mode matching requestedMode",
+            ));
         }
-        .ok_or_else(|| {
+        let active_deployment = snapshot.state.active_deployment.ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                 "auth",
                 "app.ensure attestation requires a complete coherent active artifact pair",
             )
         })?;
+        let active = EnsureAppActiveIdentity {
+            schema_version: active_deployment.schema_version,
+            app_id: active_deployment.app_id,
+            schema_hash: active_deployment.schema_hash,
+            bundle_hash: active_deployment.bundle_hash,
+            inputs_hash: active_deployment.inputs_hash,
+        };
         Ok(EnsureAppAttestOutcome {
             intent: EnsureAppIntent::Attest,
             matched: active == requested,
@@ -4327,6 +4567,7 @@ impl LocalSnapback {
         Ok(Self {
             db,
             functions: FunctionManifest::default(),
+            preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
             config: ConfigStore::in_memory(),
             runtime,

@@ -9,8 +9,8 @@
 
 use super::{
     LocalDatabase, create_index, create_or_update_table, current_version_on, physical_user_tables,
-    reject_field_retypes, reject_unsafe_required_field_changes, seed_into_transaction, set_version,
-    validate_schema,
+    reject_field_retypes, reject_unsafe_required_field_changes, schema_table,
+    seed_into_transaction, set_version, validate_schema,
 };
 use crate::auth::mode::{
     AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeQuarantine, AuthModeStateRecord,
@@ -38,6 +38,23 @@ pub struct AuthModeSnapshot {
 pub struct AuthModeDowngradeResult {
     pub state: AuthModeStateRecord,
     pub sessions_revoked: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum NetworkSeedOutcome {
+    SkippedAbsent,
+    Seeded,
+    SkippedNonempty,
+}
+
+impl NetworkSeedOutcome {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::SkippedAbsent => "skipped-absent",
+            Self::Seeded => "seeded",
+            Self::SkippedNonempty => "skipped-nonempty",
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -444,6 +461,85 @@ impl LocalDatabase {
         tx.commit()?;
         self.schema = manifest;
         Ok(())
+    }
+
+    /// Same-mode network provisioning keeps the legacy seed-if-empty behavior
+    /// while making DDL, seed, both active-manifest keys, and
+    /// `activeDeployment` one transaction. Unlike the cold-start carrier seam,
+    /// a repeated network provision may carry seed data for an existing app;
+    /// it is applied only when every named target is empty.
+    // @ref LLP 0055#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
+    pub(crate) fn apply_same_mode_network_deployment(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<NetworkSeedOutcome> {
+        deployment.validate()?;
+        deployment.validate_schema_half(&manifest)?;
+        validate_schema(&manifest)?;
+        reject_field_retypes(&self.schema, &manifest)?;
+        reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
+
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current = require_managed_snapshot(&tx)?;
+        require_settled_available(&current.state)?;
+        if deployment.auth_mode != current.state.active {
+            return Err(mode_corrupt(
+                "same-mode network deployment differs from active auth mode",
+            ));
+        }
+
+        apply_schema_ddl(&tx, &manifest)?;
+        let seed_outcome = match seed {
+            None => NetworkSeedOutcome::SkippedAbsent,
+            Some(seed) => {
+                let mut all_empty = true;
+                for table in seed.tables.keys() {
+                    // `schema_table` validates the logical target before the
+                    // quoted physical lookup. Any invalid seed rolls this
+                    // transaction back, including additive DDL.
+                    schema_table(&manifest, table)?;
+                    let count: i64 = tx.query_row(
+                        &format!("SELECT COUNT(*) FROM {}", super::quote_ident(table)?),
+                        [],
+                        |row| row.get(0),
+                    )?;
+                    if count != 0 {
+                        all_empty = false;
+                        break;
+                    }
+                }
+                if all_empty {
+                    let next_version =
+                        current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
+                            mode_corrupt("app version overflowed while provisioning deployment")
+                        })?;
+                    let changed = seed_into_transaction(&tx, &manifest, seed, next_version)?;
+                    if changed > 0 {
+                        set_version(&tx, next_version)?;
+                    }
+                    NetworkSeedOutcome::Seeded
+                } else {
+                    NetworkSeedOutcome::SkippedNonempty
+                }
+            }
+        };
+
+        let raw = serialize_json(&manifest)?;
+        save_active_manifest_in(&tx, &current.state, &raw)?;
+        let next = AuthModeStateRecord {
+            active_deployment: Some(deployment),
+            ..current.state
+        };
+        next.validate_shape()?;
+        save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
+        require_managed_snapshot(&tx)?;
+        tx.commit()?;
+        self.schema = manifest;
+        Ok(seed_outcome)
     }
 
     pub(super) fn apply_schema_mode_aware(
@@ -972,6 +1068,50 @@ mod tests {
         let settled = database.unstage_auth_mode().unwrap();
         assert_eq!(settled.transition_generation, 3);
         assert_eq!(settled.mode_state, AuthModeStatus::Settled);
+    }
+
+    #[test]
+    fn same_mode_network_deployment_commits_identity_and_seed_if_empty_once() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (identity, manifest) = dev_pair(Some("network_items"));
+        let mut row = Map::new();
+        row.insert("_id".to_owned(), serde_json::json!("seeded"));
+        row.insert("value".to_owned(), serde_json::json!("first"));
+        let seed = SeedData {
+            tables: BTreeMap::from([("network_items".to_owned(), vec![row])]),
+        };
+
+        let outcome = database
+            .apply_same_mode_network_deployment(
+                identity.clone(),
+                manifest.clone(),
+                Some(seed.clone()),
+            )
+            .unwrap();
+        assert_eq!(outcome, NetworkSeedOutcome::Seeded);
+        assert_eq!(
+            database
+                .auth_mode_snapshot()
+                .unwrap()
+                .state
+                .active_deployment,
+            Some(identity.clone())
+        );
+        let values = mode_meta(&database.conn);
+        assert_eq!(
+            values.get(META_LEGACY_SCHEMA_MANIFEST),
+            values.get(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
+        );
+
+        let outcome = database
+            .apply_same_mode_network_deployment(identity, manifest, Some(seed))
+            .unwrap();
+        assert_eq!(outcome, NetworkSeedOutcome::SkippedNonempty);
+        let count: i64 = database
+            .conn
+            .query_row("SELECT COUNT(*) FROM network_items", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
     }
 
     #[test]
