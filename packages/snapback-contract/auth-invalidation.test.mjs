@@ -41,6 +41,7 @@ const obligation = ({
   disposition = 'quarantine',
   observed = witness(),
   retryEpisodeId = null,
+  ownerContinuityId = scope.kind === 'subscription' ? 'owner_A' : undefined,
 } = {}) => ({
   protocolVersion: SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
   scopeId: scope,
@@ -48,6 +49,7 @@ const obligation = ({
   maxDisposition: disposition,
   witness: observed,
   retryEpisodeId,
+  ...(ownerContinuityId === undefined ? {} : { ownerContinuityId }),
 });
 const expectation = ({
   authorization = { incarnation: INCARNATION, epoch: 4 },
@@ -70,6 +72,12 @@ const expectation = ({
   );
   assert.throws(
     () => validateResyncObligation({ ...obligation(), maxDisposition: 'hide-ish' }),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
+  const missingOwner = obligation();
+  delete missingOwner.ownerContinuityId;
+  assert.throws(
+    () => validateResyncObligation(missingOwner),
     { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
   );
 }
@@ -102,6 +110,14 @@ const expectation = ({
     () => mergeResyncObligation(
       merged.obligation,
       obligation({ revision: 2, disposition: 'retain' }),
+      expectation(),
+    ),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
+  assert.throws(
+    () => mergeResyncObligation(
+      merged.obligation,
+      obligation({ revision: 3, ownerContinuityId: 'owner_B' }),
       expectation(),
     ),
     { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
@@ -166,6 +182,7 @@ const expectation = ({
     witness: witness(4, minCommitVersion),
     maxDisposition: 'quarantine',
     ackToken: 'ack_snapshot_3',
+    ownerContinuityId: 'owner_A',
   });
   assert.equal(resolutionSatisfies(pending, resolution(99)), false);
   assert.equal(resolutionSatisfies(pending, resolution(100)), true);
@@ -174,6 +191,16 @@ const expectation = ({
     { ...pending, maxDisposition: 'delete' },
     resolution(105),
   ), false);
+  assert.equal(resolutionSatisfies(
+    pending,
+    { ...resolution(105), ownerContinuityId: 'owner_B' },
+  ), false);
+  const missingOwner = resolution(105);
+  delete missingOwner.ownerContinuityId;
+  assert.throws(
+    () => resolutionSatisfies(pending, missingOwner),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
 }
 
 // Never-reused allocators refuse the JS precision boundary instead of wrap.

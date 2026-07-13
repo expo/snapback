@@ -194,7 +194,7 @@ export function validateResyncObligation(value, path = 'obligation') {
     'maxDisposition',
     'witness',
     'retryEpisodeId',
-  ], path);
+  ], path, ['ownerContinuityId']);
   if (value.protocolVersion !== SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION) {
     throw invalidationError(
       'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
@@ -213,13 +213,25 @@ export function validateResyncObligation(value, path = 'obligation') {
   if (value.retryEpisodeId !== null) {
     opaque(value.retryEpisodeId, `${path}.retryEpisodeId`);
   }
+  if (Object.hasOwn(value, 'ownerContinuityId')) {
+    opaque(value.ownerContinuityId, `${path}.ownerContinuityId`);
+  }
+  const scopeId = validateScopeId(value.scopeId, `${path}.scopeId`);
+  if (scopeId.kind === 'subscription' && !Object.hasOwn(value, 'ownerContinuityId')) {
+    throw corrupt(`${path}.ownerContinuityId is required for subscription custody`, {
+      field: `${path}.ownerContinuityId`,
+    });
+  }
   return Object.freeze({
     protocolVersion: SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
-    scopeId: validateScopeId(value.scopeId, `${path}.scopeId`),
+    scopeId,
     revision: safeInteger(value.revision, `${path}.revision`, { positive: true }),
     maxDisposition: value.maxDisposition,
     witness: validateCompositeWitness(value.witness, `${path}.witness`),
     retryEpisodeId: value.retryEpisodeId,
+    ...(Object.hasOwn(value, 'ownerContinuityId')
+      ? { ownerContinuityId: value.ownerContinuityId }
+      : {}),
   });
 }
 
@@ -301,6 +313,9 @@ export function mergeResyncObligation(existingValue, incomingValue, expectationV
   if (scopeKey(existing.scopeId) !== scopeKey(incoming.scopeId)) {
     throw corrupt('obligations from distinct scopes cannot share one map entry');
   }
+  if (existing.ownerContinuityId !== incoming.ownerContinuityId) {
+    throw corrupt('one scope was rebound to a different owner continuity');
+  }
   if (incoming.revision < existing.revision) {
     return Object.freeze({ status: 'duplicate', obligation: clone(existing) });
   }
@@ -327,7 +342,7 @@ export function validateResolutionTicket(value, path = 'resolution') {
     'witness',
     'maxDisposition',
     'ackToken',
-  ], path);
+  ], path, ['ownerContinuityId']);
   if (value.protocolVersion !== SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION) {
     throw invalidationError(
       'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
@@ -340,14 +355,26 @@ export function validateResolutionTicket(value, path = 'resolution') {
   if (!Object.hasOwn(DISPOSITION_ORDER, value.maxDisposition)) {
     throw corrupt(`${path}.maxDisposition is invalid`, { field: `${path}.maxDisposition` });
   }
+  const scopeId = validateScopeId(value.scopeId, `${path}.scopeId`);
+  if (Object.hasOwn(value, 'ownerContinuityId')) {
+    opaque(value.ownerContinuityId, `${path}.ownerContinuityId`);
+  }
+  if (scopeId.kind === 'subscription' && !Object.hasOwn(value, 'ownerContinuityId')) {
+    throw corrupt(`${path}.ownerContinuityId is required for subscription custody`, {
+      field: `${path}.ownerContinuityId`,
+    });
+  }
   return Object.freeze({
     protocolVersion: SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION,
     kind: value.kind,
-    scopeId: validateScopeId(value.scopeId, `${path}.scopeId`),
+    scopeId,
     revision: safeInteger(value.revision, `${path}.revision`, { positive: true }),
     witness: validateCompositeWitness(value.witness, `${path}.witness`),
     maxDisposition: value.maxDisposition,
     ackToken: opaque(value.ackToken, `${path}.ackToken`),
+    ...(Object.hasOwn(value, 'ownerContinuityId')
+      ? { ownerContinuityId: value.ownerContinuityId }
+      : {}),
   });
 }
 
@@ -358,6 +385,7 @@ export function resolutionSatisfies(obligationValue, resolutionValue) {
   if (resolution.revision !== obligation.revision) return false;
   if (!sameJson(resolution.witness.authorization, obligation.witness.authorization)) return false;
   if (resolution.maxDisposition !== obligation.maxDisposition) return false;
+  if (resolution.ownerContinuityId !== obligation.ownerContinuityId) return false;
   if (obligation.witness.data !== null) {
     if (resolution.witness.data === null) return false;
     if (resolution.witness.data.versionStream !== obligation.witness.data.versionStream) return false;
