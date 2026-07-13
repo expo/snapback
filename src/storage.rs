@@ -28,6 +28,10 @@ use uuid::Uuid;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 
+#[allow(dead_code)]
+#[path = "storage/auth_rescue.rs"]
+pub(crate) mod auth_rescue;
+
 #[cfg(test)]
 type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
 

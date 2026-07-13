@@ -8,4 +8,6 @@ pub mod keyring;
 pub(crate) mod lifecycle;
 pub mod mailbox;
 pub mod provider;
+#[allow(dead_code)] // Wired by the collision-recovery/operator composition lane.
+pub(crate) mod rescue;
 pub mod wire;

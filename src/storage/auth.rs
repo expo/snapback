@@ -672,7 +672,7 @@ pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> 
     Ok(())
 }
 
-fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthCatalogState> {
+pub(super) fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthCatalogState> {
     let objects = schema_objects(conn)?;
     let marker = auth_catalog_marker_from_objects(conn, &objects)?;
     match marker.as_deref() {
@@ -717,6 +717,29 @@ fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthCatalogState
             Ok(AuthCatalogState::Uninitialized)
         }
     }
+}
+
+/// Rescue is intentionally limited to table collisions. An exact v1 global
+/// object name remains an offline-repair condition even when an unrelated
+/// table collision would otherwise be copyable.
+pub(super) fn reject_exact_auth_catalog_object_collision(conn: &Connection) -> SnapbackResult<()> {
+    if let Some(object) = schema_objects(conn)?.into_iter().find(|object| {
+        AUTH_INDEXES
+            .iter()
+            .any(|index| index.name.eq_ignore_ascii_case(&object.name))
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
+            "auth",
+            "an exact auth-catalog object name is already foreign-owned",
+        )
+        .with_details(json!({
+            "objectKind": object.kind,
+            "objectName": object.name,
+            "owningTable": object.table,
+        })));
+    }
+    Ok(())
 }
 
 fn require_ready_on(conn: &Connection) -> SnapbackResult<()> {
@@ -1003,7 +1026,7 @@ fn schema_objects(conn: &Connection) -> SnapbackResult<Vec<SchemaObject>> {
         .collect::<Result<Vec<_>, _>>()?)
 }
 
-fn auth_catalog_marker(conn: &Connection) -> SnapbackResult<Option<String>> {
+pub(super) fn auth_catalog_marker(conn: &Connection) -> SnapbackResult<Option<String>> {
     let objects = schema_objects(conn)?;
     auth_catalog_marker_from_objects(conn, &objects)
 }
