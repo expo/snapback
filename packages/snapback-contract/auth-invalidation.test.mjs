@@ -88,6 +88,15 @@ const authenticatedIssuer = Object.freeze({
     () => validateResyncObligation(missingOwner),
     { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
   );
+  assert.doesNotThrow(() => validateResyncObligation(obligation({
+    scope: { ...scopeId, namespace: { ...namespace, queryKey: 'é'.repeat(4_096) } },
+  })));
+  assert.throws(
+    () => validateResyncObligation(obligation({
+      scope: { ...scopeId, namespace: { ...namespace, queryKey: 'é'.repeat(4_097) } },
+    })),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
 }
 
 // Authenticated cleanup frontiers are closed, monotone facts bound to the

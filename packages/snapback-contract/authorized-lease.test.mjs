@@ -50,6 +50,11 @@ const lease = {
 };
 
 assert.deepEqual(validateAuthorizedLease(lease), lease);
+assert.doesNotThrow(() => validateAuthorizedLease({ ...lease, queryKey: 'é'.repeat(4_096) }));
+assert.throws(
+  () => validateAuthorizedLease({ ...lease, queryKey: 'é'.repeat(4_097) }),
+  { code: 'SNAPBACK_AUTHORIZED_LEASE_CORRUPT' },
+);
 const expectedHash = createHash('sha256')
   .update(`snapback.authorized-lease.hash.v1\n${JSON.stringify(canonical(lease))}`, 'utf8')
   .digest('hex');

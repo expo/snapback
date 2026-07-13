@@ -42,6 +42,7 @@ const UUID_V7_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}
 const RECORD_IDENTITY_FIELDS = ['authFingerprint', 'authorityKey', ...ARTIFACT_SCOPE_FIELDS];
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+const utf8Length = (value) => new TextEncoder().encode(value).length;
 
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
@@ -218,6 +219,13 @@ function assertStateField(condition, field) {
 }
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const ownEntry = (record, key) => Object.hasOwn(record, key) ? record[key] : undefined;
+const setOwnEntry = (record, key, value) => Object.defineProperty(record, key, {
+  value,
+  enumerable: true,
+  configurable: true,
+  writable: true,
+});
 
 function assertQueueAuthorizationState(queue, path, authorityEpoch) {
   assertStateField(isRecord(queue), path);
@@ -751,7 +759,10 @@ const normalizeState = (state) => {
   );
   assertStateField(isRecord(state.queryAuthorization), 'queryAuthorization');
   for (const [queryKey, query] of Object.entries(state.queryAuthorization)) {
-    assertStateField(queryKey.length > 0 && queryKey.length <= 8_192, 'queryAuthorization.key');
+    assertStateField(
+      queryKey.length > 0 && utf8Length(queryKey) <= 8_192,
+      'queryAuthorization.key',
+    );
     assertQueryAuthorizationState(query, 'queryAuthorization.entry', state, queryKey);
   }
   assertStateField(
@@ -1321,7 +1332,7 @@ function fenceMatches(query, fence) {
 }
 
 function requireQuery(state, key, fence = null, operation = 'retained query operation') {
-  const query = state.queryAuthorization[key];
+  const query = ownEntry(state.queryAuthorization, key);
   if (!query || query.lifecycle !== 'active' || (fence !== null && !fenceMatches(query, fence))) {
     throw clientStoreStateError(
       'SNAPBACK_AUTH_QUERY_FENCE_STALE',
@@ -1947,7 +1958,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       appId,
       targetProfileId,
     }, expected = {}) {
-      if (typeof key !== 'string' || key.length === 0 || key.length > 8_192) {
+      if (typeof key !== 'string' || key.length === 0 || utf8Length(key) > 8_192) {
         throw new TypeError('authorized retained query key must be non-empty and bounded');
       }
       const normalizedAuthorization = validateAuthorizationVersion(authorization);
@@ -1984,7 +1995,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           );
         }
         const authorityInstanceId = state.authorityDescriptor?.authorityInstanceId ?? null;
-        const current = state.queryAuthorization[key];
+        const current = ownEntry(state.queryAuthorization, key);
         if (
           current?.lifecycle === 'active'
           && current.authorityGeneration === state.authorityEpoch
@@ -2030,7 +2041,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           lease: null,
           clientDeadlineMs: null,
         };
-        state.queryAuthorization[key] = query;
+        setOwnEntry(state.queryAuthorization, key, query);
         commit(state);
         return clone({
           namespace: { clientStoreId: state.origin, queryKey: key, queryInstanceId },
@@ -2236,9 +2247,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         if (!recordMatchesCurrentRetainedScope(state, scopedRecord)) {
           throw staleStoreScopeError('authorized retained snapshot');
         }
-        state.retained[key] = clone(scopedRecord);
+        setOwnEntry(state.retained, key, clone(scopedRecord));
         commit(state);
-        return clone({ fence: nextFence, record: state.retained[key] });
+        return clone({ fence: nextFence, record: ownEntry(state.retained, key) });
       });
     },
 
@@ -2305,7 +2316,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             'retained update lease expired before commit',
           );
         }
-        const current = state.retained[key];
+        const current = ownEntry(state.retained, key);
         if (
           !isRecord(record)
           || !Array.isArray(record.rows)
@@ -2329,7 +2340,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             minCommitVersion: record.version,
           },
         };
-        state.retained[key] = clone({
+        setOwnEntry(state.retained, key, clone({
           ...record,
           ...(state.artifactScope ?? {}),
           principalScope: clone(state.principalScope),
@@ -2339,9 +2350,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           authorityInstanceId: query.authorityInstanceId,
           authorizedLeaseHash: query.accepted.authorizedLeaseHash,
           stale: false,
-        });
+        }));
         commit(state);
-        return clone({ fence: nextFence, record: state.retained[key] });
+        return clone({ fence: nextFence, record: ownEntry(state.retained, key) });
       });
     },
 
@@ -2396,7 +2407,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             authorizedLeaseHash: null,
           };
           query.effectiveDisposition = remainingDisposition;
-          state.retained[key] = clone({
+          setOwnEntry(state.retained, key, clone({
             ...record,
             ...(state.artifactScope ?? {}),
             principalScope: clone(state.principalScope),
@@ -2405,10 +2416,11 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             authorityInstanceId: query.authorityInstanceId,
             authorizedLeaseHash: null,
             stale: false,
-          });
+          }));
         }
         const nextFence = advanceQueryGeneration(query);
-        if (state.retained[key]) state.retained[key].queryGeneration = query.queryGeneration;
+        const retained = ownEntry(state.retained, key);
+        if (retained) retained.queryGeneration = query.queryGeneration;
         commit(state);
         return clone({
           ackToken: resolution.ackToken,
@@ -2481,7 +2493,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             'retained query lease expired and was deleted before read',
           );
         }
-        const record = state.retained[key];
+        const record = ownEntry(state.retained, key);
         if (
           !record
           || !recordMatchesExpectedRetainedScope(state, record, expected)
@@ -2514,7 +2526,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     async finishAuthorizedQueryRetirement(key, queryInstanceId, expected = {}) {
       return transact((state, commit) => {
         assertExpectedAuthority(state, expected, 'authorized query retirement finalization');
-        const query = state.queryAuthorization[key];
+        const query = ownEntry(state.queryAuthorization, key);
         if (!query || query.queryInstanceId !== queryInstanceId) return false;
         if (query.lifecycle !== 'retiring' || Object.keys(query.pendingByScope).length > 0) {
           throw clientStoreStateError(
@@ -2533,7 +2545,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       return transact((state) => {
         if (state.principalScope?.authMode === 'sessions') return null;
         if (!expectedAuthorityMatchesState(state, expected)) return null;
-        const record = state.retained[key];
+        const record = ownEntry(state.retained, key);
         if (!record || !recordMatchesExpectedRetainedScope(state, record, expected)) return null;
         return clone({ ...record, stale: true });
       });
@@ -2554,7 +2566,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         if (!recordMatchesCurrentRetainedScope(state, scopedRecord)) {
           throw staleStoreScopeError('retained query write');
         }
-        const current = state.retained[key];
+        const current = ownEntry(state.retained, key);
         if (
           current
           && current.versionStreamId === scopedRecord.versionStreamId
@@ -2565,9 +2577,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         ) {
           return clone(current);
         }
-        state.retained[key] = clone({ ...scopedRecord, stale: false });
+        setOwnEntry(state.retained, key, clone({ ...scopedRecord, stale: false }));
         commit(state);
-        return clone(state.retained[key]);
+        return clone(ownEntry(state.retained, key));
       });
     },
 

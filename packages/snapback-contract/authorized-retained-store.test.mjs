@@ -375,6 +375,19 @@ await assert.rejects(
 );
 assert.equal((await reloadedMalformed.snapshot()).retained[QUERY_KEY], undefined);
 
+// Canonical query keys are data, not object-prototype control channels.
+const prototypeNamed = await store.initializeAuthorizedRetainedQuery('__proto__', {
+  authorization: AUTHORIZATION,
+  issuerId: ISSUER,
+  versionStream: VERSION_STREAM,
+  principalId: USER,
+  activationHash: ACTIVATION_HASH,
+  appId: APP_ID,
+  targetProfileId: TARGET_PROFILE_ID,
+}, EXPECTED);
+assert.equal(prototypeNamed.namespace.queryKey, '__proto__');
+assert.equal(Object.hasOwn((await store.snapshot()).queryAuthorization, '__proto__'), true);
+
 // Format 4 had no lease proof. Session-mode rows are never grandfathered.
 const legacy = {
   ...(await store.snapshot()),

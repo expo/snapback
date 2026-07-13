@@ -20,6 +20,7 @@ const MAC_SHA256 = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/;
 const ACTIVATION_HASH = /^snapback\.authorized-lease\.activation\.v1:sha256:[0-9a-f]{64}$/;
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+const utf8Length = (value) => new TextEncoder().encode(value).length;
 
 function leaseError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -215,7 +216,9 @@ export function validateAuthorizedLease(value, path = 'authorizedLease') {
     leaseRequestId: opaque(value.leaseRequestId, `${path}.leaseRequestId`),
     issuerId: validateIssuerId(value.issuerId, `${path}.issuerId`),
     clientStoreId: opaque(value.clientStoreId, `${path}.clientStoreId`),
-    queryKey: typeof value.queryKey === 'string' && value.queryKey.length > 0 && value.queryKey.length <= 8_192
+    queryKey: typeof value.queryKey === 'string'
+      && value.queryKey.length > 0
+      && utf8Length(value.queryKey) <= 8_192
       ? value.queryKey
       : (() => { throw corrupt(`${path}.queryKey is invalid`, { field: `${path}.queryKey` }); })(),
     queryInstanceId: safeInteger(value.queryInstanceId, `${path}.queryInstanceId`, { positive: true }),

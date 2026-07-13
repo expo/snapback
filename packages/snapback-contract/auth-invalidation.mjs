@@ -18,6 +18,7 @@ const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const DISPOSITION_ORDER = Object.freeze({ retain: 0, quarantine: 1, delete: 2 });
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+const utf8Length = (value) => new TextEncoder().encode(value).length;
 
 function invalidationError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -65,7 +66,7 @@ function opaque(value, path) {
 }
 
 function canonicalQueryKey(value, path = 'namespace.queryKey') {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 8_192) {
+  if (typeof value !== 'string' || value.length === 0 || utf8Length(value) > 8_192) {
     throw corrupt(`${path} must be a non-empty bounded string`, { field: path });
   }
   return value;
