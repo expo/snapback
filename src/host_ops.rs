@@ -10,15 +10,17 @@
 //!   source of truth for `hostOpsResult`; the committed schema in `schemas/`
 //!   is generated from them (tests/artifact_schemas_v0.rs).
 
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::local::LocalSnapback;
 use crate::manifest::{
     CtxAnswerLedger, FunctionKind, FunctionManifest, HandlerInput, SNAPBACK_SCHEMA_VERSION,
     SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
+use serde::de::{Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use std::fmt;
 use uuid::Uuid;
 
 pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
@@ -57,7 +59,7 @@ pub const EXPLAIN_KINDS: [&str; 5] = [
     "mutationDryRun",
 ];
 
-#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct HostOpsResult {
     #[serde(rename = "schemaVersion")]
     pub schema_version: String,
@@ -90,6 +92,25 @@ pub struct HostOpsResult {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) secret_read_provenance_complete: bool,
+}
+
+impl fmt::Debug for HostOpsResult {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HostOpsResult")
+            .field("schema_version", &self.schema_version)
+            .field("result_kind", &self.result_kind)
+            .field("request_id", &self.request_id)
+            .field("operation", &self.operation)
+            .field("ok", &self.ok)
+            .field("target", &self.target)
+            .field("authority", &self.authority)
+            .field("artifacts", &self.artifacts)
+            .field("data", &"[REDACTED]")
+            .field("diagnostic_count", &self.diagnostics.len())
+            .field("next_count", &self.next.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl HostOpsResult {
@@ -244,7 +265,7 @@ impl HostReadyDescriptor {
 
 /// One host-ops request. Operation-specific fields are optional and validated
 /// per operation; unknown operations fail closed with an envelope.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize)]
 pub struct HostOpsRequest {
     pub operation: String,
     #[serde(default, rename = "requestId")]
@@ -257,7 +278,7 @@ pub struct HostOpsRequest {
     pub seed: Option<SeedData>,
     #[serde(default)]
     pub function: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_optional_closed_value")]
     pub args: Option<Value>,
     #[serde(default, rename = "userId")]
     pub user_id: Option<String>,
@@ -265,6 +286,147 @@ pub struct HostOpsRequest {
     /// `mutationDryRun` is the served one).
     #[serde(default)]
     pub kind: Option<String>,
+}
+
+struct ClosedValue(Value);
+
+impl<'de> Deserialize<'de> for ClosedValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ClosedValueVisitor;
+
+        impl<'de> Visitor<'de> for ClosedValueVisitor {
+            type Value = ClosedValue;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a JSON value without duplicate object keys")
+            }
+
+            fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::Bool(value)))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::Number(value.into())))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::Number(value.into())))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                serde_json::Number::from_f64(value)
+                    .map(Value::Number)
+                    .map(ClosedValue)
+                    .ok_or_else(|| E::custom("non-finite JSON number"))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::String(value.to_owned())))
+            }
+
+            fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::String(value)))
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::Null))
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E> {
+                Ok(ClosedValue(Value::Null))
+            }
+
+            fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                ClosedValue::deserialize(deserializer)
+            }
+
+            fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut values = Vec::new();
+                while let Some(ClosedValue(value)) = sequence.next_element()? {
+                    values.push(value);
+                }
+                Ok(ClosedValue(Value::Array(values)))
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut values = serde_json::Map::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    if values.contains_key(&key) {
+                        return Err(serde::de::Error::custom(format!("duplicate field `{key}`")));
+                    }
+                    let ClosedValue(value) = map.next_value()?;
+                    values.insert(key, value);
+                }
+                Ok(ClosedValue(Value::Object(values)))
+            }
+        }
+
+        deserializer.deserialize_any(ClosedValueVisitor)
+    }
+}
+
+fn deserialize_optional_closed_value<'de, D>(deserializer: D) -> Result<Option<Value>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct OptionalClosedValueVisitor;
+
+    impl<'de> Visitor<'de> for OptionalClosedValueVisitor {
+        type Value = Option<Value>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("an optional JSON value without duplicate object keys")
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            ClosedValue::deserialize(deserializer).map(|ClosedValue(value)| Some(value))
+        }
+    }
+
+    deserializer.deserialize_option(OptionalClosedValueVisitor)
+}
+
+impl fmt::Debug for HostOpsRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HostOpsRequest")
+            .field("operation", &self.operation)
+            .field("request_id", &self.request_id)
+            .field("schema", &self.schema.as_ref().map(|_| "[..]"))
+            .field("functions", &self.functions.as_ref().map(|_| "[..]"))
+            .field("seed", &self.seed.as_ref().map(|_| "[REDACTED]"))
+            .field("function", &self.function)
+            .field("args", &self.args.as_ref().map(|_| "[REDACTED]"))
+            .field("user_id", &self.user_id.as_ref().map(|_| "[REDACTED]"))
+            .field("kind", &self.kind)
+            .finish()
+    }
 }
 
 pub fn new_request_id() -> String {
@@ -310,6 +472,96 @@ fn authority_dev_user(user_id: Option<&str>) -> Option<HostOpsAuthority> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn host_ops_result(
+    snapback: &LocalSnapback,
+    request_id: String,
+    operation: String,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    ok: bool,
+    authority: Option<HostOpsAuthority>,
+    data: Value,
+    diagnostics: Vec<Diagnostic>,
+) -> HostOpsResult {
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id,
+        operation,
+        ok,
+        target: HostOpsTarget {
+            app_id: snapback.loaded_app_id(),
+            app_root: None,
+            target_profile: match profile {
+                crate::admin::ServerProfile::Dev => TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                other => format!("local-{}-sqlite-ibex", other.as_str()),
+            },
+            server_url,
+        },
+        authority,
+        artifacts: HostOpsArtifacts {
+            schema_hash: snapback.loaded_schema_hash(),
+            bundle_hash: snapback.loaded_bundle_hash(),
+            database_version: snapback.durable_version(),
+        },
+        data,
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+/// Assemble an auth operator outcome through the same `hostOpsResult`
+/// projection as every other served operation. Authentication failures occur
+/// before this helper; once the operation is admitted its authority envelope
+/// records the independent AdminWrite + impersonation gate on success or
+/// failure.
+pub(crate) fn auth_operator_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: Result<Value, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    match outcome {
+        Ok(data) => {
+            let authority = if operation == "auth.mintSession" {
+                authority_admin("issuedBy: admin")
+            } else {
+                authority_admin("host-ops auth impersonation gate")
+            };
+            host_ops_result(
+                snapback,
+                request_id,
+                operation,
+                server_url,
+                profile,
+                true,
+                authority,
+                data,
+                Vec::new(),
+            )
+        }
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority_admin("host-ops auth impersonation gate"),
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
 /// Execute one served host operation against the local instance and produce
 /// the envelope. The HTTP handler and (through HTTP) the CLI both come here,
 /// so the projections cannot drift.
@@ -338,40 +590,22 @@ pub fn execute_host_op_with_profile(
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let operation = request.operation.clone();
 
-    let target = |snapback: &LocalSnapback| HostOpsTarget {
-        app_id: snapback.loaded_app_id(),
-        app_root: None,
-        target_profile: match profile {
-            crate::admin::ServerProfile::Dev => TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
-            other => format!("local-{}-sqlite-ibex", other.as_str()),
-        },
-        server_url: server_url.clone(),
-    };
-    let artifacts = |snapback: &LocalSnapback| HostOpsArtifacts {
-        schema_hash: snapback.loaded_schema_hash(),
-        bundle_hash: snapback.loaded_bundle_hash(),
-        database_version: snapback.durable_version(),
-    };
     let envelope = |snapback: &LocalSnapback,
                     ok: bool,
                     authority: Option<HostOpsAuthority>,
                     data: Value,
-                    diagnostics: Vec<Diagnostic>| HostOpsResult {
-        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
-        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-        request_id: request_id.clone(),
-        operation: operation.clone(),
-        ok,
-        target: target(snapback),
-        authority,
-        artifacts: artifacts(snapback),
-        data,
-        diagnostics,
-        next: Vec::new(),
-        secret_read_tables: Vec::new(),
-        secret_read_rows: 0,
-        secret_read_query: false,
-        secret_read_provenance_complete: true,
+                    diagnostics: Vec<Diagnostic>| {
+        host_ops_result(
+            snapback,
+            request_id.clone(),
+            operation.clone(),
+            server_url.clone(),
+            profile,
+            ok,
+            authority,
+            data,
+            diagnostics,
+        )
     };
 
     let profile_requirement =
@@ -1018,4 +1252,51 @@ fn explain_function(
 
 fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic {
     Diagnostic::error(code, "host-ops", message).with_details(json!({ "operation": operation }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_ops_debug_redacts_auth_inputs_and_credential_data() {
+        const EMAIL_SENTINEL: &str = "debug-email-sentinel@example.com";
+        const TOKEN_SENTINEL: &str = "sbs_DEBUG_CREDENTIAL_SENTINEL";
+
+        let request: HostOpsRequest = serde_json::from_value(json!({
+            "operation": "auth.mintSession",
+            "args": { "email": EMAIL_SENTINEL },
+        }))
+        .expect("parse auth host operation");
+        let request_debug = format!("{request:?}");
+        assert!(!request_debug.contains(EMAIL_SENTINEL), "{request_debug}");
+        assert!(request_debug.contains("[REDACTED]"), "{request_debug}");
+
+        let snapback = LocalSnapback::memory().expect("memory host-ops debug fixture");
+        let result = auth_operator_result(
+            &snapback,
+            &request,
+            None,
+            crate::admin::ServerProfile::Test,
+            Ok(json!({
+                "tokenType": "Bearer",
+                "token": TOKEN_SENTINEL,
+            })),
+        );
+        let result_debug = format!("{result:?}");
+        assert!(!result_debug.contains(TOKEN_SENTINEL), "{result_debug}");
+        assert!(result_debug.contains("[REDACTED]"), "{result_debug}");
+    }
+
+    #[test]
+    fn host_ops_args_reject_duplicate_auth_fields_before_value_projection() {
+        let error = serde_json::from_str::<HostOpsRequest>(
+            r#"{"operation":"auth.mintSession","args":{"email":"first@example.com","email":"second@example.com"}}"#,
+        )
+        .expect_err("duplicate auth args must not collapse into a Value");
+        assert!(
+            error.to_string().contains("duplicate field `email`"),
+            "{error}"
+        );
+    }
 }

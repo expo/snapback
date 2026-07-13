@@ -99,7 +99,7 @@ impl CredentialResponse {
         }
     }
 
-    #[allow(dead_code)] // Item 5 consumes the opaque bearer for connection projection.
+    #[allow(dead_code)] // Later session/client projection consumes this without serializing it.
     pub(crate) fn token(&self) -> &SessionBearer {
         &self.token
     }

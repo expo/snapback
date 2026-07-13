@@ -4,8 +4,9 @@ use crate::admin_secret_read::{
 };
 use crate::auth::provider::{AuthProvider, ProviderError};
 use crate::auth::wire::{
-    CredentialResponse, ExchangeRequest, MailboxQuery, MailboxResponse, RequestCodeRequest,
-    RequestCodeResponse,
+    CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
+    MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
+    RescueCollidingTableRequest,
 };
 use crate::cron::{CronRunClaim, CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
@@ -2100,7 +2101,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::CredentialSecret,
             ),
-            post(auth_provider_pending),
+            post(auth_refresh).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -2113,7 +2114,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::CredentialSecret,
             ),
-            post(auth_provider_pending),
+            post(auth_logout).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -2126,7 +2127,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::PublicNoStore,
             ),
-            post(auth_provider_pending),
+            post(auth_family_alarm).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
         RegisteredRoute::new(
@@ -3000,18 +3001,6 @@ async fn enforce_registered_route_policy(
     apply_registered_response_controls(response_policy, next.run(request).await)
 }
 
-/// Consume-side fence retained for refresh, logout, and family-alarm until the
-/// item-5 session coordinator exposes their revocation/projection services.
-/// Request-code and exchange use their concrete item-3 handlers above.
-async fn auth_provider_pending() -> Result<Json<Value>, ApiError> {
-    Err(SnapbackError::error(
-        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-        "auth",
-        "the auth provider catalog is not active",
-    )
-    .into())
-}
-
 const AUTH_REQUEST_BODY_LIMIT: usize = 4 * 1024;
 
 fn auth_request_invalid() -> ApiError {
@@ -3024,12 +3013,15 @@ fn auth_request_invalid() -> ApiError {
 }
 
 fn auth_provider_unavailable() -> ApiError {
+    auth_provider_unavailable_error().into()
+}
+
+fn auth_provider_unavailable_error() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "auth",
         "authentication provider is unavailable",
     )
-    .into()
 }
 
 fn map_provider_error(error: ProviderError) -> ApiError {
@@ -3041,6 +3033,16 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
         .auth_provider
         .clone()
         .ok_or_else(auth_provider_unavailable)
+}
+
+/// The provider protocol accepts exactly one `Authorization: Bearer …`
+/// header. Axum's ordinary `HeaderMap::get` would silently select one value
+/// from a duplicate header set, so keep the cardinality check explicit.
+fn auth_bearer(headers: &HeaderMap) -> Option<&str> {
+    let value = single_header_value(headers, header::AUTHORIZATION.as_str())?;
+    let bearer = value.strip_prefix("Bearer ")?;
+    (!bearer.is_empty() && bearer.trim() == bearer && !bearer.chars().any(char::is_whitespace))
+        .then_some(bearer)
 }
 
 /// Parse one exact provider DTO without leaking parser details. The raw-byte
@@ -3149,6 +3151,87 @@ async fn auth_exchange(
     // consumes committed evictions. No such projection exists in this slice.
     let (response, _committed_revocation) = issue.into_parts();
     Ok(Json(response))
+}
+
+/// Rotate one exact bearer after provider admission. Item 4 supplies the
+/// central resolved-session authority gate; direct handler tests cover this
+/// item-3 projection while that gate remains deliberately fenced.
+///
+/// @ref LLP 0054#rotation — refresh rotates the current token and publishes
+/// the same closed credential response as exchange.
+async fn auth_refresh(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<CredentialResponse>, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+    let admission = provider.admit().await;
+    let now_ms = provider.now_ms();
+    let issue = with_snapback(&runtime.snapback, move |snapback| {
+        admission.refresh(snapback.auth_database_mut(), bearer.as_str(), now_ms)
+    })
+    .await
+    .map_err(|error| {
+        // Item 5 consumes this after-commit projection fact before exposing
+        // the diagnostic. Keeping the split here prevents a later coordinator
+        // from accidentally losing reuse-triggered family revocation.
+        let (error, _committed_revocation) = error.into_parts();
+        ApiError::from(error)
+    })?;
+    let (response, _committed_revocation) = issue.into_parts();
+    Ok(Json(response))
+}
+
+/// Revoke the family addressed by one exact current/in-grace bearer. The
+/// response is intentionally empty; the committed revocation remains an
+/// explicit item-5 projection seam.
+///
+/// @ref LLP 0054#session-and-token-family-protocol — logout succeeds with an
+/// empty 204 response and never aliases a bearer through JSON or query input.
+async fn auth_logout(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<StatusCode, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+    let admission = provider.admit().await;
+    let now_ms = provider.now_ms();
+    let _committed_revocation = with_snapback(&runtime.snapback, move |snapback| {
+        admission.logout(snapback.auth_database_mut(), bearer.as_str(), now_ms)
+    })
+    .await
+    .map_err(map_provider_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Opaque revoke-only alarm. Every bearer shape enters the provider's fixed
+/// transaction and waits for its admission-selected publication deadline.
+/// The optional revocation is internal and never influences the response.
+///
+/// @ref LLP 0054#logout-ordinary-supersession-and-family-alarm — malformed, unknown, current,
+/// tombstone, and already-revoked bearers all publish the same delayed 202.
+async fn auth_family_alarm(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<(StatusCode, Json<FamilyAlarmResponse>), ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
+    let admission = provider.admit().await;
+    let now_ms = provider.now_ms();
+    let outcome = with_snapback(&runtime.snapback, move |snapback| {
+        admission.family_alarm(snapback.auth_database_mut(), bearer.as_str(), now_ms)
+    })
+    .await
+    .map_err(map_provider_error)?;
+    let (response, publish_not_before, _committed_revocation) = outcome.into_parts();
+    tokio::time::sleep_until(tokio::time::Instant::from_std(publish_not_before)).await;
+    Ok((StatusCode::ACCEPTED, Json(response)))
 }
 
 /// Exact capture-mailbox projection. The handler requires the middleware-
@@ -3558,9 +3641,16 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             CredentialResolution::AdminCredential,
             InvocationAuthority::Operator,
             LegacyBodyPolicy::NotApplicable,
-            EffectPolicy::ImpersonationCapability,
+            EffectPolicy::Unavailable,
             ResponseSensitivity::CredentialSecret,
-            SessionModeOverlay::NONE,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: None,
+                legacy_body_policy: None,
+                effect_policy: Some(EffectPolicy::ImpersonationCapability),
+                response_sensitivity: None,
+            },
         ),
         operation(
             "host_ops.auth.rescueCollidingTable",
@@ -4975,20 +5065,191 @@ async fn config_verify(
 /// through one gate and returns one `hostOpsResult` envelope. Transport is a
 /// projection — HTTP is always 200 once an envelope exists; `ok` and
 /// `diagnostics[]` carry the outcome (LLP 0024 §Result Envelope).
+fn auth_host_operation_input<T: serde::de::DeserializeOwned>(
+    request: &crate::host_ops::HostOpsRequest,
+) -> Result<T, SnapbackError> {
+    let has_unrelated_fields = request.schema.is_some()
+        || request.functions.is_some()
+        || request.seed.is_some()
+        || request.function.is_some()
+        || request.user_id.is_some()
+        || request.kind.is_some();
+    let Some(args) = request.args.clone().filter(|_| !has_unrelated_fields) else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_REQUEST_INVALID",
+            "auth",
+            "authentication request is invalid",
+        ));
+    };
+    serde_json::from_value(args).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_REQUEST_INVALID",
+            "auth",
+            "authentication request is invalid",
+        )
+    })
+}
+
+async fn auth_host_result(
+    runtime: &AppState,
+    request: crate::host_ops::HostOpsRequest,
+    server_url: Option<String>,
+    outcome: Result<Value, SnapbackError>,
+) -> crate::host_ops::HostOpsResult {
+    let profile = runtime.server.profile;
+    with_snapback(&runtime.snapback, move |snapback| {
+        crate::host_ops::auth_operator_result(snapback, &request, server_url, profile, outcome)
+    })
+    .await
+}
+
+/// Auth host operations acquire provider coordination before the outer
+/// app-instance lock. The handler repeats the selected-operation gate as a
+/// backstop so a direct invocation cannot substitute an admin, console,
+/// secret-read, session, or impersonation credential for either required
+/// axis.
+///
+/// @ref LLP 0054#concurrency-locks-and-linearization — maintenance/address
+/// admission precedes the outer app lock for mint and rescue.
+/// @ref LLP 0054#routes-operations-and-dtos — both host operations use closed
+/// args and the ordinary hostOpsResult envelope.
+async fn execute_auth_host_operation(
+    runtime: &AppState,
+    headers: &HeaderMap,
+    impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
+    request: crate::host_ops::HostOpsRequest,
+    server_url: Option<String>,
+) -> Result<crate::host_ops::HostOpsResult, ApiError> {
+    crate::admin::authorize_host_operation(
+        &runtime.server,
+        headers,
+        &request.operation,
+        None,
+        false,
+        runtime.policy_auth_mode,
+        &runtime.secret_reads,
+        impersonation,
+    )?;
+    crate::admin::require_operation_profile(&runtime.server, &request.operation, false)?;
+
+    match request.operation.as_str() {
+        "auth.mintSession" => {
+            let args = match auth_host_operation_input::<MintSessionRequest>(&request) {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let Some(provider) = runtime.auth_provider.clone() else {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(auth_provider_unavailable_error()),
+                )
+                .await);
+            };
+            let admission = match provider.admit_email(&args.email).await {
+                Ok(admission) => admission,
+                Err(error) => {
+                    let (error, _committed_revocation) = error.into_parts();
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let now_ms = provider.now_ms();
+            let profile = runtime.server.profile;
+            let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                let outcome = admission
+                    .mint_session(snapback.auth_database_mut(), now_ms)
+                    .map_err(|error| {
+                        let (error, _committed_revocation) = error.into_parts();
+                        error
+                    })
+                    .and_then(|issue| {
+                        // Item 5 consumes a cap-eviction revocation before the
+                        // plaintext credential is published.
+                        let (credential, _committed_revocation) = issue.into_parts();
+                        serde_json::to_value(credential)
+                            .map_err(|_| auth_provider_unavailable_error())
+                    });
+                crate::host_ops::auth_operator_result(
+                    snapback, &request, server_url, profile, outcome,
+                )
+            })
+            .await;
+            Ok(outcome)
+        }
+        "auth.rescueCollidingTable" => {
+            let args = match auth_host_operation_input::<RescueCollidingTableRequest>(&request) {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let Some(provider) = runtime.auth_provider.clone() else {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(auth_provider_unavailable_error()),
+                )
+                .await);
+            };
+            let maintenance = provider.exclusive_maintenance().await;
+            let profile = runtime.server.profile;
+            let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                let outcome = crate::auth::rescue::rescue_colliding_table(
+                    snapback.auth_database_mut(),
+                    &args,
+                )
+                .and_then(|result| {
+                    serde_json::to_value(result).map_err(|_| auth_provider_unavailable_error())
+                });
+                // Keep the exclusive maintenance guard across the complete
+                // rescue transaction and result projection.
+                let result = crate::host_ops::auth_operator_result(
+                    snapback, &request, server_url, profile, outcome,
+                );
+                drop(maintenance);
+                result
+            })
+            .await;
+            Ok(outcome)
+        }
+        _ => unreachable!("caller dispatches only registered auth host operations"),
+    }
+}
+
 async fn host_ops_handler(
     State(runtime): State<AppState>,
-    State(ctx): State<Arc<ServerContext>>,
-    State(policy_mode): State<PolicyAuthMode>,
-    State(secret_reads): State<SecretReadLeaseRegistry>,
     impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
     headers: HeaderMap,
     Json(mut request): Json<crate::host_ops::HostOpsRequest>,
 ) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
     let state = runtime.snapback.clone();
+    let ctx = runtime.server.clone();
+    let policy_mode = runtime.policy_auth_mode;
+    let secret_reads = runtime.secret_reads.clone();
     let server_url = Some(format!("http://{}:{}", ctx.host, ctx.port));
     let profile = ctx.profile;
     let requested_operation = request.operation.clone();
     let requested_function = request.function.clone();
+
+    if matches!(
+        request.operation.as_str(),
+        "auth.mintSession" | "auth.rescueCollidingTable"
+    ) {
+        let result = execute_auth_host_operation(
+            &runtime,
+            &headers,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+            request,
+            server_url,
+        )
+        .await?;
+        return Ok(Json(result));
+    }
+
     let reset_preauthorized = requested_operation == "app.reset";
     if reset_preauthorized {
         // `app.reset` has no function-dependent policy. Run its complete
@@ -6428,7 +6689,7 @@ mod tests {
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
-    use crate::auth::crypto::OsRandom;
+    use crate::auth::crypto::{OsRandom, SessionBearer};
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::lifecycle::activate_catalog;
     use crate::auth::provider::{AuthProvider, AuthProviderProfile};
@@ -6442,6 +6703,7 @@ mod tests {
     };
     use crate::runtime::IbexActionHost;
     use axum::body::{Body, Bytes, to_bytes};
+    use axum::extract::State;
     use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
     use futures_util::StreamExt as _;
     use std::collections::BTreeSet;
@@ -6455,9 +6717,7 @@ mod tests {
     use tokio::sync::{Mutex, Semaphore};
     use tower::ServiceExt as _;
 
-    fn auth_http_fixture_with_provider(
-        mode: PolicyAuthMode,
-    ) -> (axum::Router, String, Arc<AuthProvider>) {
+    fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
@@ -6486,17 +6746,55 @@ mod tests {
         let state = AppState::from_snapback(snapback, context)
             .with_policy_auth_mode(mode)
             .with_impersonation_capabilities(registry)
-            .with_auth_provider(provider.clone());
-        (
-            app(state),
-            capability.expect("captured capability"),
-            provider,
-        )
+            .with_auth_provider(provider);
+        (state, capability.expect("captured capability"))
+    }
+
+    fn auth_http_fixture_with_provider(
+        mode: PolicyAuthMode,
+    ) -> (axum::Router, String, Arc<AuthProvider>) {
+        let (state, capability) = auth_runtime_fixture(mode);
+        let provider = state
+            .auth_provider
+            .clone()
+            .expect("installed auth provider");
+        (app(state), capability, provider)
     }
 
     fn auth_http_fixture(mode: PolicyAuthMode) -> (axum::Router, String) {
-        let (router, capability, _) = auth_http_fixture_with_provider(mode);
-        (router, capability)
+        let (state, capability) = auth_runtime_fixture(mode);
+        (app(state), capability)
+    }
+
+    async fn mint_test_credential(state: &AppState, email: &str) -> serde_json::Value {
+        let provider = state
+            .auth_provider
+            .clone()
+            .expect("installed auth provider");
+        let admission = provider.admit_email(email).await.expect("admit test email");
+        let now_ms = provider.now_ms();
+        let issue = super::with_snapback(&state.snapback, move |snapback| {
+            admission.mint_session(snapback.auth_database_mut(), now_ms)
+        })
+        .await
+        .expect("mint test session");
+        let (credential, _committed_revocation) = issue.into_parts();
+        serde_json::to_value(credential).expect("serialize test credential")
+    }
+
+    fn auth_provider_headers(bearer: Option<&str>) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        if let Some(bearer) = bearer {
+            headers.insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {bearer}")).expect("bearer header"),
+            );
+        }
+        headers
     }
 
     fn auth_http_request(
@@ -7020,31 +7318,532 @@ mod tests {
         assert_eq!(response_json(repaired).await["authProvider"], "available");
     }
 
+    /// LLP 0054#rotation — direct handler acceptance pins the item-3 bearer,
+    /// body, status, and credential projection while item 4 deliberately
+    /// keeps registered SessionAuth routes centrally fenced.
+    #[tokio::test]
+    async fn auth_refresh_and_logout_handlers_enforce_exact_carriers_and_statuses() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let initial = mint_test_credential(&state, "refresh@example.com").await;
+        let initial_token = initial["token"].as_str().unwrap().to_owned();
+
+        let refreshed = super::auth_refresh(
+            State(state.clone()),
+            auth_provider_headers(Some(&initial_token)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect("refresh current bearer");
+        let refreshed = serde_json::to_value(refreshed.0).expect("serialize refresh response");
+        assert_eq!(
+            refreshed
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "refreshAfter".to_owned(),
+                "session".to_owned(),
+                "token".to_owned(),
+                "tokenType".to_owned(),
+            ])
+        );
+        assert_eq!(refreshed["tokenType"], "Bearer");
+        let current_token = refreshed["token"].as_str().unwrap().to_owned();
+        assert_ne!(current_token, initial_token);
+
+        let superseded = super::auth_refresh(
+            State(state.clone()),
+            auth_provider_headers(Some(&initial_token)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect_err("in-grace predecessor cannot rotate twice");
+        assert_eq!(
+            superseded.0.diagnostic.code,
+            "SNAPBACK_AUTH_REFRESH_SUPERSEDED"
+        );
+
+        let mut duplicate = auth_provider_headers(None);
+        duplicate.append(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {current_token}")).unwrap(),
+        );
+        duplicate.append(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {current_token}")).unwrap(),
+        );
+        for headers in [
+            auth_provider_headers(None),
+            {
+                let mut headers = auth_provider_headers(None);
+                headers.insert(
+                    header::AUTHORIZATION,
+                    HeaderValue::from_static("Basic not-a-bearer"),
+                );
+                headers
+            },
+            duplicate,
+        ] {
+            let error = super::auth_refresh(
+                State(state.clone()),
+                headers,
+                Ok(Bytes::from_static(br#"{}"#)),
+            )
+            .await
+            .expect_err("only one exact bearer header is accepted");
+            assert_eq!(error.0.diagnostic.code, "SNAPBACK_AUTH_REQUIRED");
+        }
+
+        let body_alias = super::auth_logout(
+            State(state.clone()),
+            auth_provider_headers(Some(&current_token)),
+            Ok(Bytes::from_static(br#"{"token":"body-alias"}"#)),
+        )
+        .await
+        .expect_err("logout body is the exact empty object");
+        assert_eq!(
+            body_alias.0.diagnostic.code,
+            "SNAPBACK_AUTH_REQUEST_INVALID"
+        );
+
+        assert_eq!(
+            super::auth_logout(
+                State(state.clone()),
+                auth_provider_headers(Some(&current_token)),
+                Ok(Bytes::from_static(br#"{}"#)),
+            )
+            .await
+            .expect("logout current bearer"),
+            StatusCode::NO_CONTENT
+        );
+        let repeated = super::auth_logout(
+            State(state),
+            auth_provider_headers(Some(&current_token)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect_err("revoked session cannot log out twice");
+        assert_eq!(repeated.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+    }
+
+    /// LLP 0054#family-alarm-mitigation — every bearer class publishes the
+    /// same delayed response, while only an attributable tombstone revokes.
+    #[tokio::test]
+    async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let initial = mint_test_credential(&state, "alarm@example.com").await;
+        let predecessor = initial["token"].as_str().unwrap().to_owned();
+        let unknown = SessionBearer::generate(&OsRandom)
+            .unwrap()
+            .expose_secret()
+            .to_owned();
+
+        for bearer in [None, Some("malformed"), Some(unknown.as_str())] {
+            let started = Instant::now();
+            let (status, response) = super::auth_family_alarm(
+                State(state.clone()),
+                auth_provider_headers(bearer),
+                Ok(Bytes::from_static(br#"{}"#)),
+            )
+            .await
+            .expect("opaque alarm response");
+            assert_eq!(status, StatusCode::ACCEPTED);
+            assert!(response.0.accepted);
+            assert!(started.elapsed() >= Duration::from_millis(20));
+        }
+
+        // A current bearer is an opaque no-op and remains refreshable.
+        let (status, response) = super::auth_family_alarm(
+            State(state.clone()),
+            auth_provider_headers(Some(&predecessor)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect("current alarm response");
+        assert_eq!((status, response.0.accepted), (StatusCode::ACCEPTED, true));
+        let rotated = super::auth_refresh(
+            State(state.clone()),
+            auth_provider_headers(Some(&predecessor)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect("current bearer survived alarm");
+        let rotated = serde_json::to_value(rotated.0).unwrap();
+        let successor = rotated["token"].as_str().unwrap().to_owned();
+
+        // The predecessor is now an attributable tombstone. Its response is
+        // unchanged, but the successor's family is revoked before publish.
+        for _ in 0..2 {
+            let started = Instant::now();
+            let (status, response) = super::auth_family_alarm(
+                State(state.clone()),
+                auth_provider_headers(Some(&predecessor)),
+                Ok(Bytes::from_static(br#"{}"#)),
+            )
+            .await
+            .expect("tombstone/already-revoked alarm response");
+            assert_eq!((status, response.0.accepted), (StatusCode::ACCEPTED, true));
+            assert!(started.elapsed() >= Duration::from_millis(20));
+        }
+        let revoked = super::auth_logout(
+            State(state.clone()),
+            auth_provider_headers(Some(&successor)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect_err("tombstone alarm revoked the successor family");
+        assert_eq!(revoked.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+
+        let invalid_body = super::auth_family_alarm(
+            State(state),
+            auth_provider_headers(None),
+            Ok(Bytes::from_static(br#"{"bearer":"body-alias"}"#)),
+        )
+        .await
+        .expect_err("family alarm body is closed");
+        assert_eq!(
+            invalid_body.0.diagnostic.code,
+            "SNAPBACK_AUTH_REQUEST_INVALID"
+        );
+    }
+
     /// LLP 0054#routes-operations-and-dtos — active dev refusal precedes the
     /// installed provider, bearer, and even an over-limit malformed body.
     #[tokio::test]
     async fn auth_http_dev_refusal_precedes_provider_and_body_handling() {
         let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
-        let response = router
+        for uri in ["/auth/request-code", "/auth/family-alarm"] {
+            let response = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    uri,
+                    vec![b'x'; super::AUTH_REQUEST_BODY_LIMIT + 1],
+                    false,
+                    None,
+                    None,
+                ))
+                .await
+                .expect("dev-mode provider refusal");
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            assert_eq!(
+                response.headers()[header::CACHE_CONTROL],
+                "no-store, private"
+            );
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_MODE_DEV"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn registered_session_auth_routes_remain_item_four_fenced() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
+        for uri in ["/auth/refresh", "/auth/logout"] {
+            let response = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    uri,
+                    br#"{}"#.to_vec(),
+                    true,
+                    None,
+                    None,
+                ))
+                .await
+                .expect("registered SessionAuth route");
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+            );
+        }
+    }
+
+    /// LLP 0054#host-operation-dtos — mint projects the exact credential as a
+    /// named host-ops datum and records its administrative issue provenance;
+    /// active Dev keeps the operation unavailable until item 4 activates
+    /// Sessions.
+    #[tokio::test]
+    async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
+        let body = serde_json::to_vec(&serde_json::json!({
+            "operation": "auth.mintSession",
+            "requestId": "hop_auth_mint_exact",
+            "args": { "email": "operator@example.com" },
+        }))
+        .unwrap();
+
+        let (sessions, impersonation) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let response = sessions
+            .clone()
             .oneshot(auth_http_request(
                 "POST",
-                "/auth/request-code",
-                vec![b'x'; super::AUTH_REQUEST_BODY_LIMIT + 1],
+                "/_snapback/api/host-ops",
+                body.clone(),
+                true,
+                Some("auth-http-admin"),
+                Some(&impersonation),
+            ))
+            .await
+            .expect("mint session host operation");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let response = response_json(response).await;
+        assert_eq!(response["resultKind"], "hostOpsResult");
+        assert_eq!(response["requestId"], "hop_auth_mint_exact");
+        assert_eq!(response["operation"], "auth.mintSession");
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["authority"]["mode"], "devAdminBypass");
+        assert_eq!(response["authority"]["reason"], "issuedBy: admin");
+        assert_eq!(
+            response["data"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "refreshAfter".to_owned(),
+                "session".to_owned(),
+                "token".to_owned(),
+                "tokenType".to_owned(),
+            ])
+        );
+        assert_eq!(response["data"]["tokenType"], "Bearer");
+        assert!(
+            response["data"]["token"]
+                .as_str()
+                .unwrap()
+                .starts_with("sbs_")
+        );
+
+        for invalid in [
+            serde_json::json!({
+                "operation": "auth.mintSession",
+                "args": { "email": "operator@example.com", "role": "admin" },
+            }),
+            serde_json::json!({
+                "operation": "auth.mintSession",
+                "args": { "email": "operator@example.com" },
+                "userId": "credential-substitution",
+            }),
+        ] {
+            let invalid = sessions
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    "/_snapback/api/host-ops",
+                    serde_json::to_vec(&invalid).unwrap(),
+                    true,
+                    Some("auth-http-admin"),
+                    Some(&impersonation),
+                ))
+                .await
+                .expect("closed mint args");
+            assert_eq!(invalid.status(), StatusCode::OK);
+            let invalid = response_json(invalid).await;
+            assert_eq!(invalid["ok"], false);
+            assert_eq!(
+                invalid["diagnostics"][0]["code"],
+                "SNAPBACK_AUTH_REQUEST_INVALID"
+            );
+        }
+
+        let (dev, dev_impersonation) = auth_http_fixture(PolicyAuthMode::Dev);
+        let unavailable = dev
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                body,
+                true,
+                Some("auth-http-admin"),
+                Some(&dev_impersonation),
+            ))
+            .await
+            .expect("dev mint activation fence");
+        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(unavailable).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+    }
+
+    #[tokio::test]
+    async fn auth_host_handler_backstop_requires_both_authority_axes() {
+        let (state, impersonation) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let request = || {
+            serde_json::from_value::<crate::host_ops::HostOpsRequest>(serde_json::json!({
+                "operation": "auth.mintSession",
+                "args": { "email": "backstop@example.com" },
+            }))
+            .unwrap()
+        };
+        let mut admin_headers = HeaderMap::new();
+        admin_headers.insert(
+            "x-snapback-admin-token",
+            HeaderValue::from_static("auth-http-admin"),
+        );
+        let missing_effect =
+            super::execute_auth_host_operation(&state, &admin_headers, None, request(), None)
+                .await
+                .expect_err("AdminWrite cannot substitute for impersonation capability");
+        assert_eq!(
+            missing_effect.0.diagnostic.code,
+            "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+        );
+
+        let verified = state
+            .impersonation_capabilities
+            .as_ref()
+            .unwrap()
+            .authorize(Some(&impersonation))
+            .expect("verify test impersonation capability");
+        let missing_admin = super::execute_auth_host_operation(
+            &state,
+            &HeaderMap::new(),
+            Some(&verified),
+            request(),
+            None,
+        )
+        .await
+        .expect_err("impersonation capability cannot substitute for AdminWrite");
+        assert_eq!(
+            missing_admin.0.diagnostic.code,
+            "SNAPBACK_ADMIN_TOKEN_REQUIRED"
+        );
+    }
+
+    /// LLP 0054#host-operation-dtos — ordinary dormant collisions use the
+    /// shared rescue core and exact six-field metadata projection; unlike the
+    /// stored-manifest recovery router, ordinary service remains live.
+    #[tokio::test]
+    async fn auth_rescue_host_op_returns_pinned_metadata_and_keeps_service_live() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("rescue.sqlite3");
+        {
+            let connection = rusqlite::Connection::open(&database_path).unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TABLE _auth_legacy_first(id TEXT PRIMARY KEY, value TEXT);
+                     INSERT INTO _auth_legacy_first(id, value) VALUES('one', 'first');
+                     CREATE INDEX legacy_first_value ON _auth_legacy_first(value);
+                     CREATE TABLE _auth_legacy_second(id TEXT PRIMARY KEY, value TEXT);
+                     INSERT INTO _auth_legacy_second(id, value) VALUES('two', 'second');",
+                )
+                .unwrap();
+        }
+        let snapback = LocalSnapback::open(&database_path).expect("open dormant collision");
+        let provider = Arc::new(
+            AuthProvider::new(
+                AuthProviderProfile::Test,
+                Arc::new(AuthKeyringStore::in_memory()),
+            )
+            .expect("construct rescue provider"),
+        );
+        let (registry, operator) =
+            ImpersonationCapabilityRegistry::generate("auth-rescue-fixture".to_owned(), &OsRandom)
+                .unwrap();
+        let mut impersonation = None;
+        operator
+            .emit_once_to_terminal(|value| {
+                impersonation = Some(value.to_owned());
+                Ok(())
+            })
+            .unwrap();
+        let impersonation = impersonation.unwrap();
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        context.admin_token = Some("auth-rescue-admin".to_owned());
+        let state = AppState::from_snapback(snapback, context)
+            .with_policy_auth_mode(PolicyAuthMode::Dev)
+            .with_impersonation_capabilities(registry)
+            .with_auth_provider(provider);
+        let router = app(state);
+
+        let rescue = |source: &str, target: &str| {
+            auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&serde_json::json!({
+                    "operation": "auth.rescueCollidingTable",
+                    "args": { "sourceTable": source, "targetTable": target },
+                }))
+                .unwrap(),
+                true,
+                Some("auth-rescue-admin"),
+                Some(&impersonation),
+            )
+        };
+        let first = router
+            .clone()
+            .oneshot(rescue("_auth_legacy_first", "legacy_auth_first"))
+            .await
+            .expect("first collision rescue");
+        assert_eq!(first.status(), StatusCode::OK);
+        let first = response_json(first).await;
+        assert_eq!(first["ok"], true, "{first}");
+        assert_eq!(
+            first["data"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "catalogCollisionCleared".to_owned(),
+                "copiedExplicitIndexCount".to_owned(),
+                "copiedRowCount".to_owned(),
+                "manifestUpdated".to_owned(),
+                "source".to_owned(),
+                "target".to_owned(),
+            ])
+        );
+        assert_eq!(first["data"]["source"], "_auth_legacy_first");
+        assert_eq!(first["data"]["target"], "legacy_auth_first");
+        assert_eq!(first["data"]["copiedRowCount"], 1);
+        assert_eq!(first["data"]["copiedExplicitIndexCount"], 1);
+
+        let inspect = router
+            .clone()
+            .oneshot(auth_http_request(
+                "GET",
+                "/inspect",
+                Vec::new(),
                 false,
                 None,
                 None,
             ))
             .await
-            .expect("dev-mode provider refusal");
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
-        assert_eq!(
-            response.headers()[header::CACHE_CONTROL],
-            "no-store, private"
-        );
-        assert_eq!(
-            response_json(response).await["diagnostic"]["code"],
-            "SNAPBACK_AUTH_MODE_DEV"
-        );
+            .expect("ordinary app service remains live");
+        assert_eq!(inspect.status(), StatusCode::OK);
+        let health = router
+            .clone()
+            .oneshot(auth_http_request(
+                "GET",
+                "/health",
+                Vec::new(),
+                false,
+                None,
+                None,
+            ))
+            .await
+            .expect("health remains available");
+        assert_eq!(health.status(), StatusCode::OK);
+
+        let second = router
+            .oneshot(rescue("_auth_legacy_second", "legacy_auth_second"))
+            .await
+            .expect("repeated collision rescue");
+        assert_eq!(second.status(), StatusCode::OK);
+        let second = response_json(second).await;
+        assert_eq!(second["ok"], true, "{second}");
+        assert!(second["data"].get("restartRequired").is_none());
     }
 
     #[test]
