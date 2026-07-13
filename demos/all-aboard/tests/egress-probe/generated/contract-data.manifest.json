@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:7057bb5837964a75",
+  "bundleHash": "sha256:7764c69d4dc75255",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": false,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "08f765c5ff4b867c97b65331bee17ed5022d6c39702cfae2a865cc83a52543ad",
+  "inputsHash": "034ec33b54defeaad34c73f9450dfc86191a87f9d156de7a6dc7e3177c814f89",
   "manifestVersion": 2,
   "mutations": {},
   "provider": "snapback",
@@ -44,6 +44,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:82b1b8add2ed0408",
+  "schemaHash": "sha256:9e229e7a31a66095",
   "schemaVersion": "snapback.v0"
 }

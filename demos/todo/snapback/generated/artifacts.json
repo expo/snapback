@@ -23,7 +23,7 @@
     "contract/setCompleted.mutation.ts",
     "contract/setCompleted.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:b4f9dbde1d0c35fc",
+  "bundleHash": "sha256:c9b3aaba0dd99e56",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -60,8 +60,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "655e30e18d9c647221faa44585a34f5fc73600ace33aae79640e00a3482e6031",
-  "schemaHash": "sha256:ce0ea39976a45ab8",
+  "inputsHash": "4fd6bfa3919eacc486317cb98468448b1ea0bea06674163aebf163742dfdb262",
+  "schemaHash": "sha256:e89fa8a6111ee1b1",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

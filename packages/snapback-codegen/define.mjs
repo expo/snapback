@@ -22,8 +22,18 @@ const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
+const REFLECT_APPLY = Reflect.apply;
+const ARRAY_SLICE = Array.prototype.slice;
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
+const QUERY_SPEC_FIELDS = new Set([
+  'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
+  'auth', 'authorityIndependent', 'authScopeField',
+]);
+const JS_QUERY_SPEC_FIELDS = new Set([
+  'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
+  'defaultLive', 'auth', 'authorityIndependent',
+]);
 const TARGET_CAPABILITIES = new Set([
   'auth.sessions.v1',
   'cron',
@@ -53,7 +63,9 @@ function authoredFunctionAuth(spec, kind) {
 
 function assertKnownSpecFields(spec, kind, allowed) {
   assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${kind} expects a spec object`);
-  for (const field of Object.keys(spec)) {
+  const fields = Object.keys(spec);
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index];
     assert(allowed.has(field), `${kind} has unknown field ${field}`);
   }
 }
@@ -123,10 +135,11 @@ class TableBuilder {
     assert(!this.permissionBackingDeclared, 'permissionBacking() may be declared only once per table');
     if (fields !== undefined) {
       assert(Array.isArray(fields), 'permissionBacking() fields must be an array');
-      for (const field of fields) {
+      for (let index = 0; index < fields.length; index += 1) {
+        const field = fields[index];
         assert(typeof field === 'string', 'permissionBacking() fields must be strings');
       }
-      this.permissionFields = [...fields];
+      this.permissionFields = REFLECT_APPLY(ARRAY_SLICE, fields, []);
     }
     this.permissionBackingDeclared = true;
     return this;
@@ -340,10 +353,7 @@ export const asc = (field) => ({ field, direction: 'Asc' });
 export const desc = (field) => ({ field, direction: 'Desc' });
 
 function queryDef(kind, spec) {
-  assertKnownSpecFields(spec, kind, new Set([
-    'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
-    'auth', 'authorityIndependent', 'authScopeField',
-  ]));
+  assertKnownSpecFields(spec, kind, QUERY_SPEC_FIELDS);
   assert(spec.table, `${kind} requires a table`);
   if (spec.authScopeField !== undefined) {
     assert(
@@ -376,10 +386,7 @@ export const defineLiveQuery = (spec) => queryDef('LiveQuery', spec);
 export const defineQuery = (spec) => queryDef('Query', spec);
 
 function jsQueryDef(kind, spec) {
-  assertKnownSpecFields(spec, kind, new Set([
-    'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
-    'defaultLive', 'auth', 'authorityIndependent',
-  ]));
+  assertKnownSpecFields(spec, kind, JS_QUERY_SPEC_FIELDS);
   assert(spec.source, `${kind} requires a handler source file`);
   assert(spec.exportName, `${kind} requires exportName`);
   assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);

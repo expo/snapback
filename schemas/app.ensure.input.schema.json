@@ -1768,6 +1768,20 @@
         "name": {
           "type": "string"
         },
+        "permissionBacking": {
+          "description": "This table contains facts that grant or revoke authority. This axis is\nindependent of query/result dependence and of function-level\n`authorityIndependent` declarations.\n\n@ref LLP 0053#two-orthogonal-declarations — permission-backing data is\n  an explicit table property, not inferred from function reads.",
+          "type": "boolean"
+        },
+        "permissionFields": {
+          "description": "Optional narrowing for known updates. Inserts, deletes, and updates\nwith absent/empty/unknown changed-field metadata remain conservative.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "syncable": {
           "default": false,
           "type": "boolean"
