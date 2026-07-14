@@ -452,7 +452,7 @@
       "type": "object"
     },
     {
-      "description": "The subscription (or the whole connection, when `subscription_id` is\nabsent — outbox overflow) must re-snapshot. Known reasons today:\n`reset`, `outbox_overflow`, `permission_epoch_changed`,\n`live_delta_failed`, `live_refresh_failed`, `live_serialize_failed`,\n`permission_resync_serialize_failed`. A string, not an enum: the\nrecovery is identical for every reason and new reasons must not break\ndeployed decoders.",
+      "description": "The subscription (or the whole connection, when `subscription_id` is\nabsent — outbox overflow) must re-snapshot. Known reasons today:\n`reset`, `auth_deployment_activated`, `outbox_overflow`, `permission_epoch_changed`,\n`live_delta_failed`, `live_refresh_failed`, `live_serialize_failed`,\n`permission_resync_serialize_failed`. A string, not an enum: the\nrecovery is identical for every reason and new reasons must not break\ndeployed decoders.",
       "properties": {
         "clear_retained": {
           "type": "boolean"
