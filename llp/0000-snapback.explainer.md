@@ -362,7 +362,7 @@ corpus does not rely on scattered "pending Charlie" notes.
 - **2026-07-14:** the ordered auth-program implementation through ENG-24607 is
   now composed on the local target. LLP 0058's staged mode and shared invocation
   gate make server-derived handler authority the only sessions source; LLP
-  0057's connection-bound projection, two-phase revocation, and
+  0059's connection-bound projection, two-phase revocation, and
   `AuthCoordinator` close the activation fence; LLP 0053's accepted item-6/item-8
   contract supplies negotiated authorization invalidation and signed,
   equality-expiring retained-query leases; and the authority descriptor plus
@@ -370,7 +370,7 @@ corpus does not rely on scattered "pending Charlie" notes.
   queued work. The card-game proof exercises real finite/live separation,
   logout blanking, cold-process retained display, and expiry deletion. This is
   an implementation ledger entry, not an acceptance transition for Draft LLPs
-  0055–0058. The local target remains explicitly not hosted-auth ready: it owns
+  0057–0060. The local target remains explicitly not hosted-auth ready: it owns
   neither the public TLS edge, trusted effective-source derivation, shared
   throttling, multi-replica invalidation, nor sender-constrained browser
   credentials.
