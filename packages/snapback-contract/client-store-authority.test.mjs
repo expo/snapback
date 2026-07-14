@@ -43,6 +43,7 @@ const principal = {
   authorizationStreamIncarnation: INCARNATION,
   userId: USER,
 };
+const devPrincipal = { ...principal, authMode: 'dev' };
 const descriptor = (authorityInstanceId, sessionGeneration = 1) => ({
   descriptorVersion: 1,
   authorityInstanceId,
@@ -119,7 +120,6 @@ const coordinatorAt = async (authority) => {
   const twoAxis = createMemorySnapbackClientStore();
   // This item-7-only fixture stays on the legacy dev retained path. Sessions
   // exercise the lease-bearing principal axis in authorized-retained-store.
-  const devPrincipal = { ...principal, authMode: 'dev' };
   await twoAxis.scopeAuthorization({
     principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_1),
@@ -155,7 +155,7 @@ const coordinatorAt = async (authority) => {
   assert.equal(stranded[0].reason, 'authority_instance_changed');
   assert.equal(stranded[0].rerecordable, true);
   assert.equal(stranded[0].discardOnly, false);
-  assert.deepEqual(stranded[0].predecessorPrincipalScope, principal);
+  assert.deepEqual(stranded[0].predecessorPrincipalScope, devPrincipal);
   await twoAxis.discardStranded();
   assert.deepEqual(await twoAxis.strandedMutations(), []);
 
@@ -223,6 +223,8 @@ const coordinatorAt = async (authority) => {
   delete legacyItem6.principalScope;
   delete legacyItem6.authorityDescriptor;
   delete legacyItem6.queryAuthorization;
+  delete legacyItem6.queryInstanceHighWater;
+  delete legacyItem6.leaseClockHighWaterMs;
   delete legacyItem6.legacyV3Stranded;
   delete legacyItem6.legacyV4Stranded;
   legacyItem6.retained.private = { rows: [{ secret: 'item6-row' }] };
@@ -243,7 +245,7 @@ const coordinatorAt = async (authority) => {
 
   const item7 = createMemorySnapbackClientStore();
   await item7.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_1),
   });
   const item7Queue = await item7.captureMutationQueue();
@@ -296,6 +298,8 @@ const coordinatorAt = async (authority) => {
   const item7QueueAuthorization = structuredClone(legacyItem7.queueAuthorization);
   legacyItem7.version = 4;
   delete legacyItem7.queueAuthorization;
+  delete legacyItem7.queryInstanceHighWater;
+  delete legacyItem7.leaseClockHighWaterMs;
   delete legacyItem7.legacyV4Stranded;
   const exactItem7V4 = structuredClone(legacyItem7);
   const migratedItem7 = createMemorySnapbackClientStore({ state: legacyItem7 });
@@ -387,7 +391,7 @@ const coordinatorAt = async (authority) => {
 {
   const seeded = createMemorySnapbackClientStore();
   await seeded.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_1),
   });
   await seeded.putRetainedQuery('private', { rows: [{ secret: 'principal-row' }] });
@@ -400,7 +404,7 @@ const coordinatorAt = async (authority) => {
     ...queue,
   });
   await seeded.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_2),
   });
   queue = await seeded.captureMutationQueue();
@@ -440,7 +444,7 @@ const coordinatorAt = async (authority) => {
 
   const switched = createMemorySnapbackClientStore({ state: structuredClone(seededState) });
   await switched.scopeAuthorization({
-    principalScope: { ...principal, userId: USER_2 },
+    principalScope: { ...devPrincipal, userId: USER_2 },
     authorityDescriptor: descriptor(AUTHORITY_3),
   });
   const switchedState = await switched.snapshot();
@@ -464,7 +468,7 @@ const coordinatorAt = async (authority) => {
   unknownState.failed = [];
   const unknown = createMemorySnapbackClientStore({ state: unknownState });
   await unknown.scopeAuthorization({
-    principalScope: principal,
+    principalScope: devPrincipal,
     authorityDescriptor: descriptor(AUTHORITY_3),
   });
   const adopted = await unknown.snapshot();
@@ -593,10 +597,9 @@ const coordinatorAt = async (authority) => {
       principalScope: authorityPrincipal(row.previous),
       authorityDescriptor: descriptor(AUTHORITY_1),
     }, predecessor);
-    await mounted.putRetainedQuery('private', {
-      rows: [{ secret: `private/${row.name}/retained` }],
-      ...predecessor,
-    });
+    // Session retained rows require the item-8 AuthorizedLease path, whose
+    // transition behavior is covered by authorized-retained-store.test.mjs.
+    // This table isolates the mutation-queue privacy transition.
     const queue = await mounted.captureMutationQueue(predecessor);
     const failed = await mounted.enqueueMutation({
       id: `cm_${row.name}_failed`,
@@ -694,7 +697,7 @@ const coordinatorAt = async (authority) => {
 
       const bytes = JSON.stringify(state);
       if (row.expected === 'rerecordable') {
-        assert.equal(Object.keys(state.retained).length, 1, `${row.name}: retained`);
+        assert.deepEqual(state.retained, {}, `${row.name}: no unleased retention`);
         assert.deepEqual(
           state.stranded.map((entry) => entry.id).sort(),
           [
@@ -774,10 +777,6 @@ const coordinatorAt = async (authority) => {
     principalScope: authorityPrincipal(sessionA),
     authorityDescriptor: descriptor(AUTHORITY_1),
   }, predecessor);
-  await recoveringStore.putRetainedQuery('private', {
-    rows: [{ secret: 'private/recovery/retained' }],
-    ...predecessor,
-  });
   const queue = await recoveringStore.captureMutationQueue(predecessor);
   await recoveringStore.enqueueMutation({
     id: 'cm_recovery_pending',
