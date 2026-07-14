@@ -610,8 +610,8 @@ export async function createSnapbackContractSurface({
     // Retained reads and queued writes are independent authorization axes.
     // Sessions-mode replay requires the exact current descriptor, while only
     // the exact AuthorizedLease capability enables session retention.
-    // @ref LLP 0039#storage-scope-is-two-dimensional — principal scope and
-    // authority-instance scope fence different durable material.
+    // @ref LLP 0039#replay-parity-and-the-authority-instance-id — principal
+    // scope and authority-instance scope fence different durable material.
     let coordinatedSessionsMode = coordinator?.authority?.authMode === 'sessions';
     let authSession = coordinatedSessionsMode && typeof client.authSession === 'function'
       ? await client.authSession()
