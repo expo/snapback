@@ -144,6 +144,49 @@ assert.throws(
   { code: 'SNAPBACK_AUTHORIZED_LEASE_EXPIRED' },
 );
 
+// ENG-24992 verification locus (LLP 0053 §The lease, dated amendment): the
+// client holds no verifier key, so custody validation checks canonical MAC
+// FORM only. A non-canonical MAC is corruption; a canonically shaped MAC with
+// one flipped bit passes custody validation BY DESIGN and is refused by the
+// server's keyed verifier (src/auth/lease.rs). The custody hash still pins the
+// exact issued bytes, so the flip is detected as substitution after commit.
+for (const mac of [
+  'A'.repeat(42), // too short for 256 bits
+  'A'.repeat(44), // too long
+  `${'A'.repeat(42)}B`, // trailing char leaves non-zero padding bits
+  `${'A'.repeat(42)}=`, // padded/non-base64url alphabet
+  `+${'A'.repeat(42)}`, // base64 (not base64url) alphabet
+]) {
+  assert.throws(
+    () => validateAuthorizedLease({ ...lease, mac }),
+    { code: 'SNAPBACK_AUTHORIZED_LEASE_CORRUPT' },
+    `mac form ${JSON.stringify(mac)} must be corrupt`,
+  );
+}
+const flippedMacBytes = Buffer.from(lease.mac, 'base64url');
+flippedMacBytes[0] ^= 0x01;
+const flippedMac = flippedMacBytes.toString('base64url');
+assert.notEqual(flippedMac, lease.mac);
+const flippedLease = { ...lease, mac: flippedMac };
+// Custody validation accepts the canonical shape (documented limitation)...
+assert.deepEqual(validateAuthorizedLease(flippedLease), flippedLease);
+const flippedCommit = deriveAuthorizedLeaseCommit({
+  lease: flippedLease,
+  request,
+  expected,
+  clientNowMs: 5_001,
+});
+// ...but one flipped MAC bit changes the custody hash, so a lease substituted
+// after commit fails the stored-hash equality and deletes before read
+// (client-store.mjs getAuthorizedRetainedQuery; exercised end to end in
+// authorized-retained-store.test.mjs).
+assert.notEqual(flippedCommit.leaseHash, authorizedLeaseHash(lease));
+
+// keyId is opaque to the client: an unknown key cannot be detected here and
+// fails closed at the server keyring instead (LLP 0053: unknown keys fail
+// closed).
+assert.doesNotThrow(() => validateAuthorizedLease({ ...lease, keyId: 'unknown-key-9' }));
+
 assert.deepEqual(validateAuthorizedLeaseCapability({
   protocolVersion: 1,
   defaultMs: SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS,

@@ -403,6 +403,45 @@ await assert.rejects(
 );
 assert.equal((await reloadedMalformed.snapshot()).retained[QUERY_KEY], undefined);
 
+// ENG-24992 (LLP 0043 acceptance / LLP 0053 §The lease, verification locus):
+// one flipped MAC bit keeps the lease canonically shaped — client custody
+// validation cannot verify the server-keyed MAC — but the committed custody
+// hash pins the exact issued bytes, so the substituted lease fails stored-hash
+// equality and commits delete-before-read as a binding mismatch.
+const substitutedState = await store.snapshot();
+const substitutedStore = createMemorySnapbackClientStore({ state: substitutedState });
+const substitutedRequest = await substitutedStore.beginAuthorizedLeaseRequest(QUERY_KEY, {
+  fence: recreated.fence,
+  leaseRequestId: 'request_bit_flip',
+  clientNowMs: 2_810,
+}, EXPECTED);
+const substitutedSnapshot = await substitutedStore.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
+  fence: substitutedRequest.fence,
+  lease: lease({
+    storeId: recreated.namespace.clientStoreId,
+    queryInstanceId: recreated.namespace.queryInstanceId,
+    requestId: substitutedRequest.request.leaseRequestId,
+    version: 105,
+  }),
+  record: record(105),
+  clientNowMs: 2_811,
+}, EXPECTED);
+const committedMac = substitutedState.queryAuthorization[QUERY_KEY].lease.mac;
+const flippedMacBytes = Buffer.from(committedMac, 'base64url');
+flippedMacBytes[0] ^= 0x01;
+const flippedMac = flippedMacBytes.toString('base64url');
+assert.notEqual(flippedMac, committedMac);
+substitutedState.queryAuthorization[QUERY_KEY].lease.mac = flippedMac;
+const reloadedSubstituted = createMemorySnapbackClientStore({ state: substitutedState });
+await assert.rejects(
+  () => reloadedSubstituted.getAuthorizedRetainedQuery(QUERY_KEY, {
+    fence: substitutedSnapshot.fence,
+    clientNowMs: 2_812,
+  }, EXPECTED),
+  { code: 'SNAPBACK_AUTHORIZED_LEASE_BINDING_MISMATCH' },
+);
+assert.equal((await reloadedSubstituted.snapshot()).retained[QUERY_KEY], undefined);
+
 // Canonical query keys are data, not object-prototype control channels.
 const prototypeNamed = await store.initializeAuthorizedRetainedQuery('__proto__', {
   authorization: AUTHORIZATION,

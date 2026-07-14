@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-14 (ENG-24606 reconciliation: item 8 now populates the format-5 `queryAuthorization` namespace with never-reused query-instance identities, authorization witnesses, independent pending-scope fences, signed lease custody, and equality-expiry deletion; the earlier ENG-24605 empty reservation remains the historical pre-item-8 checkpoint). 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-14 (ENG-24992: the Milestone 1 fail-closed list no longer implies client-side cryptographic MAC verification — client custody detects structural/binding/hash/expiry/rollback defects while `key_id`/`mac` are authenticated only by the server keyring, per LLP 0053 §The lease's dated verification-locus amendment; executable one-bit MAC tamper and unknown-key vectors pin both sides). 2026-07-14 (ENG-24606 reconciliation: item 8 now populates the format-5 `queryAuthorization` namespace with never-reused query-instance identities, authorization witnesses, independent pending-scope fences, signed lease custody, and equality-expiry deletion; the earlier ENG-24605 empty reservation remains the historical pre-item-8 checkpoint). 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -91,8 +91,18 @@ When offline, a subscribed query may return retained rows immediately if:
   with no pending query-authorization fence that blocks release.
 
 A missing, malformed, expired, wrong-principal, wrong-query-instance,
-wrong-witness, wrong-target, wrong-activation, rollback-tainted, or invalid-MAC
-lease deletes the current query instance before exposure. Heartbeat, delta,
+wrong-witness, wrong-target, wrong-activation, rollback-tainted, or
+hash-mismatched lease deletes the current query instance before exposure.
+(Amended 2026-07-14, ENG-24992: that client-side list covers exactly what an
+offline client can verify — the closed envelope structure and canonical MAC
+form, binding equality, clamps and duration, expiry/rollback, and the stored
+unkeyed lease hash that pins the exact issued bytes against post-commit
+corruption or substitution. Cryptographic `mac`/`key_id` verification belongs
+to the server keyring, which fails closed on unknown keys and refuses a
+single flipped MAC bit whenever a lease is presented for revalidation-free
+service; a canonically shaped forged MAC passes client custody by design and
+buys the holder nothing beyond bytes already on its disk — see LLP 0053 §The
+lease, "Verification locus".) Heartbeat, delta,
 session refresh, reconnect, mutation success, and ACK never renew it. Only a
 fresh full authorization revalidation and snapshot may renew, after the server
 atomically proves the captured data head, authorization pair, activation hash,
@@ -294,6 +304,11 @@ Neither migration infers one authority axis from the other.
   current query instance and an unexpired signed `AuthorizedLease`; missing,
   malformed, wrong-bound, rollback-tainted, and equality-expired leases commit
   delete-before-render.
+- A lease whose MAC differs by one bit is refused by the server's keyed
+  verifier and unknown `key_id`s fail closed at the keyring; the client store
+  detects the post-commit substitution by lease-hash inequality and commits
+  delete-before-read, while client custody validation alone accepts the
+  canonical shape (documented limitation — ENG-24992, LLP 0053 §The lease).
 - Lease renewal paused after capturing data head 99 loses to a `public →
   private` write at head 100: it mints no lease and discards the stale snapshot.
   If reservation wins first, the later write raises the normal LLP 0053

@@ -4,6 +4,16 @@
 // retained session result is readable only inside the exact server-issued
 // lease and the request-started client interval; neither heartbeat nor delta
 // delivery can renew it.
+//
+// Verification locus (ENG-24992): this module is CLIENT CUSTODY validation.
+// It promises exactly structural validation of the closed envelope (including
+// canonical base64url MAC form), binding equality against the current query
+// authority, clamp/duration arithmetic, expiry derivation, and — through
+// `authorizedLeaseHash` — post-commit corruption/substitution detection over
+// the exact issued bytes. It cannot and does not verify `mac`/`keyId`
+// cryptographically: the HMAC key is a server secret, so a canonically shaped
+// forged MAC passes here by design and is refused by the server's keyed
+// verifier (`verify_for_service`), where unknown keys fail closed.
 
 import {
   validateAuthorizationVersion,
@@ -267,6 +277,12 @@ export function validateAuthorizedLease(value, path = 'authorizedLease') {
       field: `${path}.authorityInstanceId`,
     });
   }
+  // Canonical FORM only — 43 base64url chars encoding exactly 256 bits. The
+  // client holds no verifier key, so cryptographic validity is the server's
+  // check; substitution after commit is caught by `authorizedLeaseHash`.
+  // @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+  // verification locus: server keyring authenticates mac/keyId, unknown keys
+  // fail closed there.
   if (typeof value.mac !== 'string' || !MAC_SHA256.test(value.mac)) {
     throw corrupt(`${path}.mac must be a canonical SHA-256 base64url value`, {
       field: `${path}.mac`,
@@ -312,6 +328,11 @@ export function validateAuthorizedLease(value, path = 'authorizedLease') {
   });
 }
 
+// Unkeyed custody hash over the exact issued lease bytes. Stored at commit
+// and compared before every retained read, it detects post-commit corruption
+// or substitution (any changed byte — including one flipped MAC bit — changes
+// it and forces delete-before-read). It is not a forgery detector; see the
+// module header for the verification locus.
 export function authorizedLeaseHash(value) {
   const lease = validateAuthorizedLease(value);
   const bytes = new TextEncoder().encode(

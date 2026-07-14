@@ -98,6 +98,7 @@
       "$ref": "#/$defs/IssuerId"
     },
     "keyId": {
+      "description": "Opaque to the client; resolved against the server keyring, where an\nunknown key fails closed.",
       "type": "string"
     },
     "leaseId": {
@@ -107,6 +108,8 @@
       "type": "string"
     },
     "mac": {
+      "description": "Server-keyed HMAC-SHA-256 over every field plus target/app identity.\nThe schema pins only the canonical 256-bit base64url FORM — exactly\nwhat client custody validation checks; cryptographic validity is the\nserver verifier's (LLP 0053 §The lease, verification locus).",
+      "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$",
       "type": "string"
     },
     "principalId": {

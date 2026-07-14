@@ -191,7 +191,14 @@ pub struct AuthorizedLease {
     pub session_not_after_ms: Option<u64>,
     pub provider_not_after_ms: Option<u64>,
     pub authority_instance_id: Option<String>,
+    /// Opaque to the client; resolved against the server keyring, where an
+    /// unknown key fails closed.
     pub key_id: String,
+    /// Server-keyed HMAC-SHA-256 over every field plus target/app identity.
+    /// The schema pins only the canonical 256-bit base64url FORM — exactly
+    /// what client custody validation checks; cryptographic validity is the
+    /// server verifier's (LLP 0053 §The lease, verification locus).
+    #[schemars(pattern(r"^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$"))]
     pub mac: String,
 }
 
@@ -736,7 +743,7 @@ mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::invalidation::IssuerId;
-    use crate::auth::keyring::{AUTH_KEY_ROTATION_AGE_MS, AuthKeyringStore};
+    use crate::auth::keyring::{AUTH_KEY_ROTATION_AGE_MS, AuthKeyringStore, KeyringError};
     use serde_json::Value;
     use std::sync::Mutex;
 
@@ -1125,6 +1132,67 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_EXPIRED");
+    }
+
+    /// ENG-24992 (LLP 0053 §The lease, verification locus): a single flipped
+    /// MAC bit keeps the envelope canonically shaped — shape/custody
+    /// validation accepts it by design, exactly like the client-side analogue
+    /// pinned in packages/snapback-contract/authorized-lease.test.mjs — and
+    /// only the server's keyed verifier refuses it.
+    #[test]
+    fn one_flipped_mac_bit_passes_shape_but_fails_the_keyed_verifier() {
+        let original = lease();
+        let mut bytes = URL_SAFE_NO_PAD.decode(&original.mac).unwrap();
+        bytes[0] ^= 0x01;
+        let mut tampered = original.clone();
+        tampered.mac = URL_SAFE_NO_PAD.encode(&bytes);
+        assert_ne!(tampered.mac, original.mac);
+        tampered
+            .validate_shape(AuthorizedLeaseConfig::default())
+            .unwrap();
+        let error = signer()
+            .verify_for_service(
+                &tampered,
+                &AuthorizedLeaseExpectation::from(&tampered),
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                TARGET,
+                APP,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_INVALID");
+    }
+
+    /// ENG-24992: "an unknown key fails closed" is a server-keyring rule (the
+    /// client treats keyId as opaque). A lease naming a key the keyring never
+    /// held cannot resolve verifier material, and a resolved key with another
+    /// id refuses the foreign lease before any MAC arithmetic.
+    #[test]
+    fn unknown_lease_key_fails_closed_at_the_keyring() {
+        let random = IncrementingRandom::default();
+        let ring = AuthKeyringStore::in_memory();
+        ring.load_or_mint_initial(NOW, &random).unwrap();
+        let lease = lease();
+        let key_id = AuthKeyId::parse(&lease.key_id).unwrap();
+        assert_eq!(
+            ring.with_key(&key_id, |_| ()).unwrap_err(),
+            KeyringError::MissingKey,
+        );
+        let error = ring
+            .with_active_key(NOW, &random, |key_id, key| {
+                AuthorizedLeaseAuthenticator::new(key_id, key)
+                    .verify_for_service(
+                        &lease,
+                        &AuthorizedLeaseExpectation::from(&lease),
+                        AuthorizedLeaseConfig::default(),
+                        NOW + 1,
+                        TARGET,
+                        APP,
+                    )
+                    .unwrap_err()
+            })
+            .unwrap();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_INVALID");
     }
 
     #[derive(Default)]

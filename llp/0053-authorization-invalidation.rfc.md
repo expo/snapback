@@ -5,7 +5,13 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-13 (ENG-24592 focused exact confirmation completed READY
+**Revised:** 2026-07-14 (ENG-24992 verification-locus clarification: the lease
+MAC and `key_id` are authenticated only by the server's keyring — where the
+unknown-key fail-closed rule lives — while client custody validation promises
+exactly structural/binding/clamp/expiry/rollback checks plus unkeyed-hash
+corruption detection; client-side cryptographic MAC verification was never
+implementable without verifier-key distribution and is explicitly disclaimed.
+See §The lease and the dated changelog entry.) 2026-07-13 (ENG-24592 focused exact confirmation completed READY
 by Codex round 7 and Fable round 8 on the operative corpus ending in this
 document's SHA-256
 `eb1c624c5a06facaaa32d51e0e5e6793d1ae68e532a36b64a8fb51f3391e1568`;
@@ -1065,6 +1071,29 @@ pair. Retainability is already restricted to `userId`-only result dependence, so
 session/provider identity is recorded for clamp and audit rather than smuggled
 in as a new result axis.
 
+**Verification locus (amended 2026-07-14, ENG-24992).** The MAC's verification
+key is a server secret, so cryptographic verification happens only where that
+key lives. The **server** authenticates `key_id` and `mac` whenever a lease is
+presented for revalidation-free service; the unknown-key fail-closed rule above
+is a server-keyring rule, and a single flipped MAC bit is refused there
+(`AuthorizedLeaseAuthenticator::verify_for_service`). The **client** cannot and
+does not verify the MAC. Client custody validation promises exactly:
+structural validation of the closed envelope including canonical base64url MAC
+form, binding equality against the current query authority, clamp/duration
+arithmetic, expiry and clock-rollback enforcement, and post-commit
+corruption/substitution detection through the stored unkeyed lease hash that
+pins the exact issued bytes. `key_id` is opaque to the client; an unknown key
+is client-undetectable and is refused server-side. A canonically shaped but
+forged MAC therefore passes client custody validation **by design** — this
+admits nothing, because the honest/hostile analysis below already establishes
+that a client reading its own retained bytes needs no forged lease, and any
+attempt to use one against the server fails the keyed verifier. An earlier
+reading of this section and of LLP 0043's fail-closed list ("invalid-MAC lease
+deletes ... before exposure") implied client-side cryptographic MAC
+verification; that would require distributing verifier material to clients — a
+key-distribution design v1 deliberately does not include — and is explicitly
+disclaimed rather than promised.
+
 `query_instance_id` isolates lease effects as strictly as obligation effects.
 A lease issued for instance A cannot install into, renew, quarantine, or delete
 a later instance B at the same `(client_store_id, query_key)`. A stale A record
@@ -1783,6 +1812,21 @@ spec must use the owning 0053 semantics and the registered wire spelling.
 
 ## Changelog
 
+- **2026-07-14 (ENG-24992 verification-locus clarification; still Accepted).**
+  Resolved the AuthorizedLease MAC client-verification mismatch by revising the
+  contract text rather than shipping client verifier keys (option 2 of the
+  ticket): §The lease now states the verification locus explicitly — server
+  keyring authenticates `key_id`/`mac` and fails closed on unknown keys;
+  client custody validation promises structural/binding/clamp/expiry/rollback
+  checks plus unkeyed-hash substitution detection only, and a canonically
+  shaped forged MAC passes client custody by design. LLP 0043's fail-closed
+  list was amended in the same change. New executable vectors pin both sides:
+  a single flipped MAC bit passes `validateAuthorizedLease` but changes the
+  custody hash (client delete-before-read on substitution,
+  `authorized-retained-store.test.mjs`), is refused by
+  `verify_for_service`, and an unknown `key_id` fails closed at the keyring
+  (`src/auth/lease.rs`). No architectural or wire change; no status
+  transition.
 - **2026-07-13 (focused exact confirmation complete; Accepted).** Codex round 6
   returned NOT READY and Fable round 7 returned READY on the prior exact corpus;
   both preserved the architecture. Closed Codex's one HIGH by carrying the
