@@ -1418,6 +1418,13 @@ impl EphemeralApi {
             .begin_server_authorized_room_act(collection, scope)
     }
 
+    #[cfg(test)]
+    pub(crate) fn authorization_expectation_for_test(
+        &self,
+    ) -> Option<crate::storage::AuthorizationVersion> {
+        self.store.authorization_expectation_for_test()
+    }
+
     // Touch-after-success (MEDIUM finding 2): the activity touch happens
     // *after* the store op registers/enqueues, so a registration that
     // survives a racing write-lane `disconnect` (which removes activity
@@ -2113,6 +2120,15 @@ impl LocalSnapback {
         Ok(())
     }
 
+    /// Remove every process-local issuer projection after a durable reset
+    /// whose successor cannot be reconstructed exactly. The coordinator stays
+    /// globally closed; clearing both query and room leaves no lower-level
+    /// embedding path holding a usable issuer for either incarnation.
+    pub(crate) fn clear_auth_invalidation_after_failed_reset(&mut self) {
+        self.auth_invalidation = None;
+        self.ephemeral.clear_authorization_issuer();
+    }
+
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
         validate_collection_definitions(&manifest.ephemeral_collections)
@@ -2333,8 +2349,11 @@ impl LocalSnapback {
         }
     }
 
-    /// Publish reset-owned process state only after the coordinator has made
-    /// the durable authorization-stream successor current.
+    /// Publish reset-owned process state while the coordinator's stream
+    /// mutation ticket still blocks predecessor and successor publication.
+    /// The server installs a freshly authenticated successor issuer after
+    /// this clears the predecessor state, then finalizes the coordinator as
+    /// the last step that reopens app authority.
     pub(crate) fn publish_coordinated_reset(
         &mut self,
         committed: CoordinatedResetCommit,
@@ -2372,9 +2391,8 @@ impl LocalSnapback {
             self.subscriptions.values().cloned().collect();
         self.subscriptions.clear();
         // The authenticated issuer names the pre-reset authorization
-        // incarnation. Reset terminates those scopes; this process refuses new
-        // auth-scoped live admission until startup reserves/authenticates a
-        // fresh issuer for the new incarnation.
+        // incarnation. Reset terminates those scopes; coordinated server reset
+        // installs a freshly reserved successor before reopening authority.
         self.auth_invalidation = None;
         self.permission_epochs.clear();
         self.refresh_read_epochs();
@@ -6251,6 +6269,15 @@ impl LocalSnapback {
             store: self.ephemeral.clone(),
             activity: self.connections_last_seen.clone(),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn auth_invalidation_expectation_for_test(
+        &self,
+    ) -> Option<crate::storage::AuthorizationVersion> {
+        self.auth_invalidation
+            .as_ref()
+            .map(|state| state.obligations.expectation().authorization.clone())
     }
 
     pub(crate) fn authorize_ephemeral_room(

@@ -919,7 +919,7 @@ impl AuthCoordinator {
     }
 
     #[cfg(test)]
-    fn inject_finalize_failure(&self) {
+    pub(crate) fn inject_finalize_failure(&self) {
         self.fail_next_finalize
             .store(true, std::sync::atomic::Ordering::SeqCst);
     }

@@ -2187,6 +2187,7 @@ struct PreparedRoomAuthorizationCommit {
     backend: LocalEphemeralBackend,
     ticket: RoomDependencyTicket,
     authorization: AuthorizationVersion,
+    incarnation_rotated: bool,
     rollback_on_drop: bool,
 }
 
@@ -2204,8 +2205,15 @@ impl PreparedAuthorizationCommit for PreparedRoomAuthorizationCommit {
         // is known committed. A failed finalization therefore leaves the
         // exact dependency ticket pending and every protected sink closed.
         self.rollback_on_drop = false;
-        self.backend
-            .publish_committed_authorization(self.authorization.clone())?;
+        // A boot issuer authenticates exactly one authorization incarnation.
+        // Destructive reset keeps this ticket closed while the server builds
+        // and installs a successor issuer; asking the predecessor issuer to
+        // publish across incarnations would turn a known committed reset into
+        // a false commit-uncertain result.
+        if !self.incarnation_rotated {
+            self.backend
+                .publish_committed_authorization(self.authorization.clone())?;
+        }
         self.backend.finalize_room_authorization_event(
             &self.ticket,
             self.authorization.clone(),
@@ -2230,6 +2238,7 @@ impl AuthorizationCommitInterlock for LocalEphemeralBackend {
             backend: self.clone(),
             ticket,
             authorization: witness.version.clone(),
+            incarnation_rotated: witness.incarnation_rotated,
             rollback_on_drop: true,
         }))
     }
@@ -2284,6 +2293,21 @@ impl LocalEphemeralBackend {
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
     ) {
         *lock(&self.shared.authorization_issuer) = Some(issuer);
+    }
+
+    pub(crate) fn clear_authorization_issuer(&self) {
+        *lock(&self.shared.authorization_issuer) = None;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn authorization_expectation_for_test(&self) -> Option<AuthorizationVersion> {
+        lock(&self.shared.authorization_issuer)
+            .as_ref()
+            .map(|issuer| {
+                issuer
+                    .authorization_expectation()
+                    .expect("test issuer expectation")
+            })
     }
 
     fn publish_committed_authorization(

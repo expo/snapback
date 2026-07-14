@@ -667,7 +667,12 @@ pub struct AppState {
     pub(crate) auth_catalog_ready: bool,
     /// Authenticated boot identity installed before listener bind. Its absence
     /// keeps session-mode auth-scoped live admission fail-closed.
-    pub(crate) auth_invalidation: Option<crate::auth::invalidation::LiveInvalidationIssuer>,
+    /// Clone-shared current boot issuer. Destructive reset rotates the durable
+    /// authorization incarnation while the listener stays alive, so the
+    /// successor issuer must replace the startup issuer for every router
+    /// clone before the coordinator reopens publication.
+    pub(crate) auth_invalidation:
+        Arc<StdRwLock<Option<crate::auth::invalidation::LiveInvalidationIssuer>>>,
     /// Validated per-app lease duration. Construction rejects zero or values
     /// above the protocol hard maximum; the handshake projects this exact
     /// value only when authorized-lease readiness is true.
@@ -728,7 +733,7 @@ impl AppState {
                 auth_provider: None,
                 auth_coordinator: None,
                 auth_catalog_ready: false,
-                auth_invalidation: None,
+                auth_invalidation: Arc::new(StdRwLock::new(None)),
                 authorized_lease_config: AuthorizedLeaseConfig::default(),
                 #[cfg(test)]
                 fail_auth_mode_publication: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -989,12 +994,36 @@ impl AppState {
     }
 
     pub(crate) fn with_auth_invalidation(
-        mut self,
+        self,
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
     ) -> Self {
         self.connections.install_invalidation_issuer(issuer.clone());
-        self.auth_invalidation = Some(issuer);
+        *self
+            .auth_invalidation
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
         self
+    }
+
+    /// Publish a reset successor only after its durable reservation and
+    /// authenticated LocalSnapback projection have both succeeded.
+    pub(crate) fn install_reset_auth_invalidation(
+        &self,
+        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+    ) {
+        self.connections.install_invalidation_issuer(issuer.clone());
+        *self
+            .auth_invalidation
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
+    }
+
+    pub(crate) fn clear_reset_auth_invalidation(&self) {
+        self.connections.clear_invalidation_issuer();
+        *self
+            .auth_invalidation
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
 
     pub fn auth_provider_health(&self) -> AuthProviderHealth {

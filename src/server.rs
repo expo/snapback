@@ -1671,6 +1671,26 @@ impl ConnectionRegistry {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
     }
 
+    pub(crate) fn clear_invalidation_issuer(&self) {
+        *self
+            .invalidation_issuer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+
+    #[cfg(test)]
+    fn invalidation_expectation_for_test(&self) -> Option<crate::storage::AuthorizationVersion> {
+        self.invalidation_issuer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .map(|issuer| {
+                issuer
+                    .authorization_expectation()
+                    .expect("test issuer expectation")
+            })
+    }
+
     /// Remove every grant bound to one exact predecessor session generation.
     /// The reverse index keeps this proportional to the affected authority,
     /// not to the 16,384-entry registry.
@@ -8566,20 +8586,44 @@ async fn coordinated_app_reset(
     let carrier = coordinator.premark_stream_reset()?;
     let predecessor = carrier.predecessor().clone();
     let successor = carrier.successor().clone();
+    let durable_successor = successor.clone();
     let effect_admission = route_admission.clone();
     let attempt = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = match effect_admission.effect_guard("app reset transaction") {
             Ok(effect) => effect,
             Err(error) => return AuthTransactionAttempt::RolledBack(error),
         };
-        snapback.attempt_reset_with_seed_and_authorization_stream(seed, &predecessor, &successor)
+        snapback.attempt_reset_with_seed_and_authorization_stream(
+            seed,
+            &predecessor,
+            &durable_successor,
+        )
     })
     .await;
-    let committed = coordinator.finish_stream_reset(carrier, attempt)?;
-    let seeded = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.publish_coordinated_reset(committed)
-    })
-    .await;
+    let committed = match attempt {
+        AuthTransactionAttempt::Committed(committed) => committed,
+        AuthTransactionAttempt::RolledBack(error) => {
+            return coordinator.finish_stream_reset(
+                carrier,
+                AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::RolledBack(
+                    error,
+                ),
+            );
+        }
+        AuthTransactionAttempt::CommitUncertain(error) => {
+            return coordinator.finish_stream_reset(
+                carrier,
+                AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
+                    error,
+                ),
+            );
+        }
+    };
+
+    // The durable successor is known committed, but the coordinator's stream
+    // ticket remains installed. Terminalize every predecessor carrier and
+    // clear the router issuer before publishing reset-owned in-memory state;
+    // no request can observe a half-installed successor through this window.
     let close_by = provider
         .monotonic_now()
         .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
@@ -8587,8 +8631,109 @@ async fn coordinated_app_reset(
     runtime
         .auth_terminal_lifecycle
         .committed_stream_reset(crate::live_wire::LiveAuthErrorReason::Reset, close_by);
+    runtime.clear_reset_auth_invalidation();
+    let seeded = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.publish_coordinated_reset(committed)
+    })
+    .await;
     runtime.secret_reads.clear_after_committed_reset();
     maintenance.clear_mailbox_after_committed_reset();
+
+    // Reserve and authenticate a boot issuer for the already-durable
+    // successor while publication is still blocked. The old issuer is scoped
+    // to the predecessor incarnation and must never be asked to cross it.
+    let successor_incarnation = successor.as_str().to_owned();
+    let rebuild: SnapbackResult<crate::auth::invalidation::LiveInvalidationIssuer> = async {
+        let reservation = with_snapback(&runtime.snapback, move |snapback| {
+            let (app_id, target_profile_id) = {
+                let schema = snapback.auth_database_mut().schema();
+                (
+                    schema.app_id.clone(),
+                    schema.target_profile.clone().unwrap_or_else(|| {
+                        crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                    }),
+                )
+            };
+            let (authorization, version_stream, boot_sequence) = snapback
+                .auth_database_mut()
+                .reserve_invalidation_boot_issuer()?;
+            if authorization.incarnation != successor_incarnation {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "reset successor issuer reservation observed another authorization incarnation",
+                ));
+            }
+            Ok((
+                app_id,
+                target_profile_id,
+                authorization,
+                version_stream,
+                boot_sequence,
+            ))
+        })
+        .await?;
+        let (app_id, target_profile_id, authorization, version_stream, boot_sequence) = reservation;
+        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+            authorization.incarnation.clone(),
+            boot_sequence,
+        )?;
+        let successor_issuer = provider
+            .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
+            .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
+        let installed_issuer = successor_issuer.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.install_auth_invalidation(installed_issuer, authorization, version_stream)
+        })
+        .await?;
+        Ok(successor_issuer)
+    }
+    .await;
+    let successor_issuer = match rebuild {
+        Ok(issuer) => issuer,
+        Err(error) => {
+            with_snapback(&runtime.snapback, |snapback| {
+                snapback.clear_auth_invalidation_after_failed_reset();
+            })
+            .await;
+            let classified = coordinator.finish_stream_reset(
+                carrier,
+                AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
+                    error,
+                ),
+            );
+            return match classified {
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_REVOCATION_UNCERTAIN" => {
+                    Err(error)
+                }
+                _ => {
+                    let _ = coordinator.fail_global_closed();
+                    Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                        "auth",
+                        "committed reset successor projection could not be reconstructed",
+                    ))
+                }
+            };
+        }
+    };
+    runtime.install_reset_auth_invalidation(successor_issuer);
+    if coordinator
+        .finish_stream_reset(carrier, AuthTransactionAttempt::Committed(()))
+        .is_err()
+    {
+        runtime.clear_reset_auth_invalidation();
+        with_snapback(&runtime.snapback, |snapback| {
+            snapback.clear_auth_invalidation_after_failed_reset();
+        })
+        .await;
+        let _ = coordinator.fail_global_closed();
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+            "auth",
+            "committed reset successor projection could not be reconciled",
+        ));
+    }
     Ok(seeded)
 }
 
@@ -10027,13 +10172,18 @@ async fn authorize_bound_ephemeral_room(
             "protected room operations require authInvalidationProtocol: 1",
         )));
     }
-    let issuer = runtime.auth_invalidation.clone().ok_or_else(|| {
-        ApiError::from(SnapbackError::error(
-            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-            "auth",
-            "protected room authority requires an authenticated invalidation issuer",
-        ))
-    })?;
+    let issuer = runtime
+        .auth_invalidation
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "protected room authority requires an authenticated invalidation issuer",
+            ))
+        })?;
     for _ in 0..3 {
         let collection_name = collection.to_owned();
         let room_scope = scope.clone();
@@ -11351,10 +11501,11 @@ mod tests {
         CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionTokenQuery, DetachedActionHost,
         DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
         SharedSnapback, app, configured_action_worker_limit, configured_cron_dispatch_concurrency,
-        dispatch_cron_tick_background, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+        coordinated_app_reset, dispatch_cron_tick_background, parse_action_watchdog_timeout,
+        parse_optional_json, reserve_detached_action_worker,
+        reserve_detached_action_worker_with_counters,
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-        status_for_diagnostic_code,
+        status_for_diagnostic_code, with_snapback,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
@@ -11471,6 +11622,55 @@ mod tests {
             .with_impersonation_capabilities(registry)
             .with_auth_provider(provider);
         (state, capability.expect("captured capability"))
+    }
+
+    fn auth_invalidation_reset_fixture() -> AppState {
+        let mut snapback = LocalSnapback::memory().expect("memory reset fixture");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            super::now_millis(),
+            &OsRandom,
+        )
+        .expect("activate reset auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct reset auth provider"),
+        );
+        let (app_id, target_profile_id) = {
+            let schema = snapback.auth_database_mut().schema();
+            (
+                schema.app_id.clone(),
+                schema.target_profile.clone().unwrap_or_else(|| {
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                }),
+            )
+        };
+        let (authorization, version_stream, boot_sequence) = snapback
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()
+            .expect("reserve predecessor issuer");
+        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+            authorization.incarnation.clone(),
+            boot_sequence,
+        )
+        .expect("construct predecessor issuer id");
+        let issuer = provider
+            .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
+            .expect("authenticate predecessor issuer");
+        snapback
+            .install_auth_invalidation(issuer.clone(), authorization, version_stream)
+            .expect("install predecessor invalidation projections");
+
+        AppState::from_snapback(snapback, ServerContext::detached())
+            .with_auth_provider(provider)
+            .with_auth_invalidation(issuer)
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            )
+            .expect("install reset sessions posture")
     }
 
     fn auth_http_fixture_with_provider(
@@ -16030,10 +16230,12 @@ globalThis.__snapbackHandlers = {
 
     #[tokio::test]
     async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
-        let state = crate::admin::AppState::detached(
-            LocalSnapback::memory().expect("in-memory terminal lifecycle state"),
-        );
+        let state = auth_invalidation_reset_fixture();
         let registry = state.connections.clone();
+        assert!(
+            registry.invalidation_expectation_for_test().is_some(),
+            "fixture begins with the predecessor connection issuer",
+        );
         let grant = registry
             .open(Some("terminal-reset".to_owned()), None, true)
             .expect("open predecessor grant");
@@ -16068,6 +16270,208 @@ globalThis.__snapbackHandlers = {
                 .verify(&grant.connection_id, Some(&grant.connection_token))
                 .is_err(),
             "grant invalidation linearizes before the terminal wake"
+        );
+        assert!(
+            registry.invalidation_expectation_for_test().is_none(),
+            "terminal reset clears the predecessor connection issuer",
+        );
+    }
+
+    #[tokio::test]
+    async fn committed_reset_rebuilds_every_invalidation_projection_before_reopening() {
+        let state = auth_invalidation_reset_fixture();
+        let predecessor = state
+            .auth_coordinator
+            .as_ref()
+            .expect("reset coordinator")
+            .authorization_stream_incarnation()
+            .expect("predecessor incarnation");
+        let old_grant = state
+            .connections
+            .open(Some("reset-predecessor".to_owned()), None, true)
+            .expect("open predecessor connection");
+        let route_admission = test_route_admission(&state).0;
+
+        let reset = coordinated_app_reset(&state, &route_admission, None)
+            .await
+            .expect("committed reset returns success");
+        assert!(reset.is_none());
+
+        let successor = state
+            .auth_coordinator
+            .as_ref()
+            .expect("reset coordinator")
+            .authorization_stream_incarnation()
+            .expect("successor incarnation");
+        assert_ne!(successor, predecessor);
+        let durable = with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .authorization_version()
+                .expect("durable reset authorization")
+        })
+        .await;
+        assert_eq!(durable.incarnation, successor);
+        assert_eq!(durable.epoch, 0);
+        assert!(
+            state
+                .connections
+                .verify(&old_grant.connection_id, Some(&old_grant.connection_token),)
+                .is_err(),
+            "predecessor connection is terminal after reset",
+        );
+
+        let router_projection = state
+            .auth_invalidation
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .expect("router successor issuer")
+            .authorization_expectation()
+            .expect("router authorization expectation");
+        assert_eq!(router_projection, durable);
+        assert_eq!(
+            state
+                .connections
+                .invalidation_expectation_for_test()
+                .expect("connection successor issuer"),
+            durable,
+        );
+        assert_eq!(
+            state
+                .ephemeral
+                .authorization_expectation_for_test()
+                .expect("room successor issuer"),
+            durable,
+        );
+        let query_projection = with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_invalidation_expectation_for_test()
+                .expect("query successor expectation")
+        })
+        .await;
+        assert_eq!(query_projection, durable);
+
+        let credential = mint_test_credential(&state, "reset-successor@example.com").await;
+        let bearer = credential["token"]
+            .as_str()
+            .expect("fresh successor bearer")
+            .to_owned();
+        let router = app(state.clone());
+        let handshake = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-auth-invalidation-protocol", "1")
+                    .header("x-snapback-authority-descriptor-protocol", "1")
+                    .header("x-snapback-authorized-lease-protocol", "1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("successor handshake response");
+        assert_eq!(handshake.status(), StatusCode::OK);
+        let handshake = response_json(handshake).await;
+        assert_eq!(handshake["authorizationStreamIncarnation"], successor);
+        assert_eq!(
+            handshake["availability"]["retainedReads"]["available"],
+            true
+        );
+        assert_eq!(handshake["clientProtocols"]["authorizedLease"], 1);
+        assert_eq!(handshake["authorizedLease"]["protocolVersion"], 1);
+
+        let lease_admission = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/missing_function/authorized-lease")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-auth-invalidation-protocol", "1")
+                    .header("x-snapback-authorized-lease-protocol", "1")
+                    .body(Body::from(
+                        r#"{
+                            "args": {},
+                            "leaseRequestId": "reset_successor_request",
+                            "clientStoreId": "reset_successor_store",
+                            "queryKey": "missing_function:{}",
+                            "queryInstanceId": 1
+                        }"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("successor lease admission response");
+        assert_eq!(
+            response_json(lease_admission).await["diagnostic"]["code"],
+            "SNAPBACK_UNKNOWN_FUNCTION",
+            "the successor query and lease gates must reach function lookup",
+        );
+    }
+
+    #[tokio::test]
+    async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_closed() {
+        let state = auth_invalidation_reset_fixture();
+        let coordinator = state.auth_coordinator.clone().expect("reset coordinator");
+        let predecessor = coordinator
+            .authorization_stream_incarnation()
+            .expect("predecessor incarnation");
+        coordinator.inject_finalize_failure();
+        let route_admission = test_route_admission(&state).0;
+
+        let error = coordinated_app_reset(&state, &route_admission, None)
+            .await
+            .expect_err("injected postcommit finalize failure");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REVOCATION_UNCERTAIN");
+        let durable = with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .authorization_version()
+                .expect("durable committed successor")
+        })
+        .await;
+        assert_ne!(durable.incarnation, predecessor);
+        assert_eq!(
+            coordinator
+                .authorization_stream_incarnation()
+                .expect_err("coordinator stays globally closed")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+        assert!(
+            state
+                .auth_invalidation
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none(),
+            "router issuer is cleared",
+        );
+        assert!(
+            state
+                .connections
+                .invalidation_expectation_for_test()
+                .is_none(),
+            "connection issuer is cleared",
+        );
+        assert!(
+            state
+                .ephemeral
+                .authorization_expectation_for_test()
+                .is_none(),
+            "room issuer is cleared",
+        );
+        assert!(
+            with_snapback(&state.snapback, |snapback| {
+                snapback.auth_invalidation_expectation_for_test()
+            })
+            .await
+            .is_none(),
+            "query issuer is cleared",
         );
     }
 
