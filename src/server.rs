@@ -16737,6 +16737,18 @@ mod tests {
             "machine-readable marker emitted only by the LLP 0053 room acceptance test",
         ),
         (
+            "SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT",
+            "machine-readable drain/send schedule marker emitted only by the LLP 0053 room acceptance test",
+        ),
+        (
+            "SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT",
+            "machine-readable enqueue/drain schedule marker emitted only by the LLP 0053 room acceptance test",
+        ),
+        (
+            "SNAPBACK_AUTH_ACCEPTANCE_ROOM_FRAME_ENQUEUE_RECEIPT",
+            "machine-readable frame/enqueue schedule marker emitted only by the LLP 0053 room acceptance test",
+        ),
+        (
             "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT",
             "machine-readable marker emitted only by the LLP 0053 server acceptance test",
         ),
