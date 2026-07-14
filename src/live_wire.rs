@@ -69,7 +69,7 @@ pub enum LiveEnvelope {
     },
     /// The subscription (or the whole connection, when `subscription_id` is
     /// absent — outbox overflow) must re-snapshot. Known reasons today:
-    /// `reset`, `outbox_overflow`, `permission_epoch_changed`,
+    /// `reset`, `auth_deployment_activated`, `outbox_overflow`, `permission_epoch_changed`,
     /// `live_delta_failed`, `live_refresh_failed`, `live_serialize_failed`,
     /// `permission_resync_serialize_failed`. A string, not an enum: the
     /// recovery is identical for every reason and new reasons must not break

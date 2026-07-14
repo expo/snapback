@@ -44,12 +44,12 @@ use crate::live_wire::{
     LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AdmittedCronClaim, AppActionStage, AuthorizationInvalidationAckInput,
+    AdmittedCronClaim, AppActionStage, AuthProvisionCommit, AuthorizationInvalidationAckInput,
     AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
     FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction,
-    StagedConfigVerify, StagedNestedMutation, live_stream_text,
+    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, PreparedAuthProvision, StagedAction,
+    StagedAppAction, StagedConfigVerify, StagedNestedMutation, live_stream_text,
 };
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -4164,6 +4164,17 @@ fn auth_transition_pending(runtime: &AppState) -> bool {
         || posture.active != posture.desired
 }
 
+fn settled_function_load_mode(runtime: &AppState) -> SnapbackResult<AuthMode> {
+    if auth_transition_pending(runtime) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_MODE_PENDING",
+            "auth",
+            "functions.load is unavailable until auth mode is settled and app data is available",
+        ));
+    }
+    Ok(runtime.auth_mode_state().active)
+}
+
 fn auth_diagnostic_app_route(path: &str) -> bool {
     matches!(path, "/" | "/health" | "/auth/session")
 }
@@ -4691,6 +4702,7 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
         || matches!(
             spec.path,
             "/_snapback/api/functions/{name}/run"
+                | "/_snapback/api/functions/load"
                 | "/_snapback/api/host-ops"
                 | "/_snapback/api/app/reset"
                 | "/_snapback/api/auth/mailbox"
@@ -4950,7 +4962,7 @@ async fn enforce_registered_route_policy(
             .into_response(),
         );
     }
-    let route_admission = match acquire_registered_route_admission(spec, &runtime) {
+    let mut route_admission = match acquire_registered_route_admission(spec, &runtime) {
         Ok(admission) => admission,
         Err(error) => {
             return apply_registered_response_controls(effective, error.into_response());
@@ -5380,6 +5392,20 @@ async fn enforce_registered_route_policy(
             route_admission.as_ref(),
             None,
         );
+    }
+    let owns_auth_transition = policy_mode == PolicyAuthMode::Sessions
+        && (spec.path == "/_snapback/api/functions/load"
+            || selected_operation
+                .is_some_and(|(operation, _)| operation.operation == "host_ops.functions.load"));
+    if owns_auth_transition {
+        // Both legacy function-load ingresses are transition owners, like
+        // `/app/ensure`. Authentication (and host-operation selection, when
+        // applicable) has completed; release the middleware root before
+        // entering the handler so the transition never waits on its own
+        // response lease.
+        // @ref LLP 0058#complete-candidate-pair-preflight — sessions-mode
+        // legacy load carriers are one-half provisioning, never raw swaps.
+        route_admission.take();
     }
     if selected_policy.effect_policy == EffectPolicy::ImpersonationCapability {
         if !runtime.server.profile.allows_provisioning() {
@@ -8197,27 +8223,45 @@ async fn apply_schema(
 }
 
 async fn load_functions(
-    State(state): State<SharedSnapback>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(runtime): State<AppState>,
     headers: HeaderMap,
     Json(manifest): Json<FunctionManifest>,
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
-    crate::admin::authorize_operation(&ctx, &headers, "functions.load", None)?;
-    crate::admin::require_operation_profile(&ctx, "functions.load", false)?;
-    let diagnostics =
-        with_snapback(&state, move |snapback| snapback.load_functions(manifest)).await;
+    crate::admin::authorize_operation(&runtime.server, &headers, "functions.load", None)?;
+    crate::admin::require_operation_profile(&runtime.server, "functions.load", false)?;
+    let diagnostics = if settled_function_load_mode(&runtime)? == AuthMode::Sessions {
+        let prepared = with_snapback(&runtime.snapback, move |snapback| {
+            snapback.prepare_auth_provision(EnsureAppMode::Sessions, None, Some(manifest), None)
+        })
+        .await?;
+        commit_prepared_auth_provision(
+            &runtime,
+            prepared,
+            runtime.server.profile.as_str().to_owned(),
+        )
+        .await?
+        .diagnostics
+    } else {
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.load_functions_in_settled_dev(manifest)
+        })
+        .await?
+    };
     // @ref LLP 0036#the-setup-wizard-d3 — the printed line is the install
     // instruction: a manifest that declares required config the store cannot
     // satisfy points the operator straight at the wizard.
-    let missing = with_snapback(&state, |snapback| snapback.required_missing_config()).await;
+    let missing = with_snapback(&runtime.snapback, |snapback| {
+        snapback.required_missing_config()
+    })
+    .await;
     if !missing.is_empty() {
         println!(
             "config: {} required entr{} missing ({}) → http://{}:{}/_snapback/admin/setup",
             missing.len(),
             if missing.len() == 1 { "y" } else { "ies" },
             missing.join(", "),
-            ctx.host,
-            ctx.port,
+            runtime.server.host,
+            runtime.server.port,
         );
     }
     Ok(Json(DiagnosticsResponse { diagnostics }))
@@ -8579,7 +8623,7 @@ async fn execute_auth_host_operation(
 
 async fn host_ops_handler(
     State(runtime): State<AppState>,
-    Extension(route_admission): Extension<AdmissionLease>,
+    route_admission: Option<Extension<AdmissionLease>>,
     authority: Option<Extension<PreparedAuthority>>,
     impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
     headers: HeaderMap,
@@ -8594,6 +8638,7 @@ async fn host_ops_handler(
     let requested_operation = request.operation.clone();
     let requested_function = request.function.clone();
     let prepared_authority = authority.map(|Extension(authority)| authority);
+    let route_admission = route_admission.map(|Extension(admission)| admission);
 
     if matches!(
         request.operation.as_str(),
@@ -8603,11 +8648,97 @@ async fn host_ops_handler(
             &runtime,
             &headers,
             impersonation.as_ref().map(|Extension(verified)| verified),
-            &route_admission,
+            route_admission.as_ref().ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_MODE_PENDING",
+                    "auth",
+                    "host auth operation is missing managed admission",
+                ))
+            })?,
             request,
             server_url,
         )
         .await?;
+        return Ok(Json(result));
+    }
+
+    if request.operation == "functions.load" {
+        // The route middleware has already selected and authenticated this
+        // exact operation. In sessions it also released its own admission
+        // root so this handler can own the activation transition without
+        // self-deadlocking. Raw loading remains available only in exact
+        // settled+available dev posture.
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            request.user_id.is_some(),
+            policy_mode,
+            &secret_reads,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+        )?;
+        let functions = request.functions.clone();
+        let function_count = functions
+            .as_ref()
+            .map(|functions| functions.functions.len())
+            .unwrap_or(0);
+        let outcome = match crate::admin::require_operation_profile(
+            &ctx,
+            &request.operation,
+            request.user_id.is_some(),
+        ) {
+            Err(error) => Err(error.0),
+            Ok(()) => match functions {
+                None => Err(SnapbackError::error(
+                    "SNAPBACK_HOST_OP_INPUT_MISSING",
+                    "host-ops",
+                    "functions.load requires a `functions` manifest in the request body",
+                )),
+                Some(functions) => match settled_function_load_mode(&runtime) {
+                    Err(error) => Err(error),
+                    Ok(AuthMode::Sessions) => {
+                        match with_snapback(&state, move |snapback| {
+                            snapback.prepare_auth_provision(
+                                EnsureAppMode::Sessions,
+                                None,
+                                Some(functions),
+                                None,
+                            )
+                        })
+                        .await
+                        {
+                            Ok(prepared) => commit_prepared_auth_provision(
+                                &runtime,
+                                prepared,
+                                profile.as_str().to_owned(),
+                            )
+                            .await
+                            .map(|committed| committed.diagnostics)
+                            .map_err(|error| error.0),
+                            Err(error) => Err(error),
+                        }
+                    }
+                    Ok(AuthMode::Dev) => {
+                        with_snapback(&state, move |snapback| {
+                            snapback.load_functions_in_settled_dev(functions)
+                        })
+                        .await
+                    }
+                },
+            },
+        };
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::coordinated_functions_load_result(
+                snapback,
+                &request,
+                server_url,
+                profile,
+                function_count,
+                outcome,
+            )
+        })
+        .await;
         return Ok(Json(result));
     }
 
@@ -8632,7 +8763,21 @@ async fn host_ops_handler(
             &request.operation,
             request.user_id.is_some(),
         ) {
-            Ok(()) => coordinated_app_reset(&runtime, &route_admission, request.seed.clone()).await,
+            Ok(()) => {
+                let route_admission = route_admission.as_ref().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_MODE_PENDING",
+                        "auth",
+                        "host reset operation is missing managed admission",
+                    )
+                });
+                match route_admission {
+                    Ok(route_admission) => {
+                        coordinated_app_reset(&runtime, route_admission, request.seed.clone()).await
+                    }
+                    Err(error) => Err(error),
+                }
+            }
             Err(error) => Err(error.0),
         };
         let result = with_snapback(&state, move |snapback| {
@@ -9277,6 +9422,79 @@ async fn invoke_action(
     Ok(Json(result))
 }
 
+/// Commit one already-preflighted provisioning pair. Cross-mode changes and
+/// every settled-sessions same-mode request own the admission transition:
+/// predecessor finite work drains before SQLite can activate, and the local
+/// authorization projection completes under the closed epoch before the
+/// successor reopens.
+async fn commit_prepared_auth_provision(
+    runtime: &AppState,
+    prepared: PreparedAuthProvision,
+    profile: String,
+) -> Result<AuthProvisionCommit, ApiError> {
+    let predecessor = runtime.auth_mode_state();
+    let owns_transition =
+        prepared.requested_mode() != predecessor.active || predecessor.active == AuthMode::Sessions;
+    let (committed, runtime_state_published) = if owns_transition {
+        let controller = runtime.auth_admission_controller();
+        let terminal_lifecycle = runtime.auth_terminal_lifecycle.clone();
+        let runtime_projection = runtime.clone();
+        let transition = tokio::task::spawn_blocking(move || controller.begin_transition())
+            .await
+            .expect("auth-mode transition task panicked")?;
+        let (committed, _state, _published) = with_snapback(&runtime.snapback, move |snapback| {
+            transition.commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    &profile,
+                    Some(projection_admission),
+                )?;
+                if let Some(reason) =
+                    committed_mode_terminal_reason(predecessor.as_ref(), &committed.state)
+                {
+                    let close_by = Instant::now()
+                        .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+                        .unwrap_or_else(Instant::now);
+                    terminal_lifecycle.committed_mode_transition(reason, close_by);
+                }
+                runtime_projection
+                    .publish_auth_mode_state_while_transition_closed(committed.state.clone())
+                    .map_err(ModeCommitFailure::Uncertain)?;
+                let state = committed.state.clone();
+                Ok((committed, state))
+            })
+        })
+        .await?;
+        (committed, true)
+    } else {
+        let committed = match with_snapback(&runtime.snapback, move |snapback| {
+            snapback.commit_auth_provision_classified(prepared, &profile, None)
+        })
+        .await
+        {
+            Ok(committed) => committed,
+            Err(ModeCommitFailure::RolledBack(error)) => return Err(ApiError::from(error)),
+            Err(ModeCommitFailure::Uncertain(error)) => {
+                runtime
+                    .auth_admission_controller()
+                    .fail_closed_after_uncertain_commit()?;
+                return Err(ApiError::from(error));
+            }
+        };
+        (committed, false)
+    };
+
+    if !runtime_state_published
+        && let Err(error) = runtime.publish_auth_mode_state(committed.state.clone())
+    {
+        runtime
+            .auth_admission_controller()
+            .fail_closed_after_uncertain_commit()?;
+        return Err(ApiError::from(error));
+    }
+    Ok(committed)
+}
+
 /// The closed mount-lifecycle ensure family (LLP 0012 / LLP 0034): legacy
 /// v0-dev compatibility remains idempotent; explicit attestation is
 /// observational; explicit provisioning is centrally AdminWrite and then
@@ -9333,82 +9551,13 @@ async fn ensure_app(
                         )
                     })
                     .await?;
-                    let profile = runtime.server.profile.as_str().to_owned();
-                    let cross_mode = prepared.requested_mode() != runtime.auth_mode_state().active;
-                    let (outcome, committed) = if cross_mode {
-                        // `/app/ensure` is the transition owner and therefore
-                        // never self-admits. Close the current epoch only after
-                        // the complete candidate pair passed the read-only
-                        // pass, then repeat and commit under the write lane.
-                        let controller = runtime.auth_admission_controller();
-                        let terminal_lifecycle = runtime.auth_terminal_lifecycle.clone();
-                        let predecessor = runtime.auth_mode_state();
-                        let transition =
-                            tokio::task::spawn_blocking(move || controller.begin_transition())
-                                .await
-                                .expect("auth-mode transition task panicked")?;
-                        let (outcome, committed, _published) =
-                            with_snapback(&runtime.snapback, move |snapback| {
-                                transition.commit_and_publish_mode_state(|| {
-                                    let committed = snapback
-                                        .commit_auth_provision_classified(prepared, &profile);
-                                    if let Ok((_, mode)) = &committed
-                                        && let Some(reason) = committed_mode_terminal_reason(
-                                            predecessor.as_ref(),
-                                            mode,
-                                        )
-                                    {
-                                        let close_by = Instant::now()
-                                            .checked_add(
-                                                crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-                                            )
-                                            .unwrap_or_else(Instant::now);
-                                        // The durable cut is known, but the
-                                        // new admission epoch is not visible
-                                        // yet. Installing terminal state here
-                                        // means the epoch wake cannot outrun
-                                        // the required typed socket close.
-                                        terminal_lifecycle
-                                            .committed_mode_transition(reason, close_by);
-                                    }
-                                    committed
-                                })
-                            })
-                            .await?;
-                        (outcome, committed)
-                    } else {
-                        // Same-mode hot apply is serialized by the write lane
-                        // but does not suspend unrelated app-data roots.
-                        match with_snapback(&runtime.snapback, move |snapback| {
-                            snapback.commit_auth_provision_classified(prepared, &profile)
-                        })
-                        .await
-                        {
-                            Ok(committed) => committed,
-                            Err(ModeCommitFailure::RolledBack(error)) => {
-                                return Err(ApiError::from(error));
-                            }
-                            Err(ModeCommitFailure::Uncertain(error)) => {
-                                runtime
-                                    .auth_admission_controller()
-                                    .fail_closed_after_uncertain_commit()?;
-                                return Err(ApiError::from(error));
-                            }
-                        }
-                    };
-                    // The controller already published cross-mode state at the
-                    // durable cut. Swap the clone-shared request projection
-                    // only afterward; same-mode synchronization is idempotent.
-                    if let Err(error) = runtime.publish_auth_mode_state(committed) {
-                        // A durable write already succeeded. If the exact
-                        // record cannot be installed in the request projection,
-                        // serving the predecessor would be authority drift.
-                        runtime
-                            .auth_admission_controller()
-                            .fail_closed_after_uncertain_commit()?;
-                        return Err(ApiError::from(error));
-                    }
-                    Ok(Json(EnsureAppResponse::Provision(outcome)))
+                    let committed = commit_prepared_auth_provision(
+                        &runtime,
+                        prepared,
+                        runtime.server.profile.as_str().to_owned(),
+                    )
+                    .await?;
+                    Ok(Json(EnsureAppResponse::Provision(committed.outcome)))
                 }
             }
         }
@@ -11904,14 +12053,15 @@ mod tests {
     };
     use crate::cron::CronRunOutcome;
     use crate::diagnostic::SnapbackError;
-    use crate::local::{LocalSnapback, StagedAction};
+    use crate::local::{EnsureAppMode, LocalSnapback, StagedAction};
     use crate::manifest::{
         AuthInput, AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
         CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
-        FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-        FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationAcknowledgementRequest,
-        MutationPlan, MutationStep, QueryPlan, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION,
-        SchemaManifest, SeedData, TableManifest, TargetCapabilityId, ValueExpr,
+        FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+        FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        MutationAcknowledgementRequest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
+        SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, SeedData, TableManifest,
+        TargetCapabilityId, ValueExpr,
     };
     use crate::runtime::IbexActionHost;
     use crate::storage::ClientMutationIdentity;
@@ -12528,6 +12678,158 @@ mod tests {
         }
     }
 
+    fn activation_functions(bundle_marker: char, hide_rows: bool) -> FunctionManifest {
+        let query = |name, kind| {
+            FunctionDefinition::new(
+                name,
+                kind,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "items".to_owned(),
+                    filters: hide_rows
+                        .then(|| FilterExpr {
+                            field: "value".to_owned(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(json!("never-visible")),
+                        })
+                        .into_iter()
+                        .collect(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )
+        };
+        FunctionManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            app_id: "auth-activation-fixture".to_owned(),
+            bundle_hash: Some(format!(
+                "{FUNCTION_V1_PREFIX}{}",
+                bundle_marker.to_string().repeat(64)
+            )),
+            inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
+            functions: vec![
+                query("listItems", FunctionKind::Query),
+                query("liveItems", FunctionKind::LiveQuery),
+            ],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn sessions_activation_server_fixture() -> AppState {
+        let mut snapback = LocalSnapback::memory().expect("memory activation server fixture");
+        let schema = SchemaManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            app_id: "auth-activation-fixture".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+            }),
+            required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
+            schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
+            inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
+            tables: vec![TableManifest {
+                name: "items".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "value".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor_functions = activation_functions('2', false);
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                Some(schema),
+                Some(predecessor_functions.clone()),
+                Some(SeedData {
+                    tables: BTreeMap::from([(
+                        "items".to_owned(),
+                        vec![Map::from_iter([(
+                            "value".to_owned(),
+                            json!("predecessor-visible"),
+                        )])],
+                    )]),
+                }),
+            )
+            .expect("preflight complete initial sessions pair");
+        let (_, pending) = snapback
+            .commit_auth_provision(prepared, "test")
+            .expect("stage initial sessions pair");
+        assert_eq!(pending.mode_state, AuthModeStatus::PendingRestart);
+
+        let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(super::now_millis(), &OsRandom)
+            .expect("provision activation keyring before sessions consume");
+        let settled = snapback
+            .auth_database_mut()
+            .consume_sessions_auth_mode(&readiness)
+            .expect("consume initial sessions pair");
+        snapback
+            .synchronize_auth_mode_admission(&settled)
+            .expect("synchronize settled sessions admission");
+        let diagnostics = snapback.publish_preflighted_functions(predecessor_functions, 43);
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "activation functions must publish: {diagnostics:?}"
+        );
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            super::now_millis(),
+            &OsRandom,
+        )
+        .expect("activate auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct activation auth provider"),
+        );
+        let (authorization, version_stream, boot_sequence) = snapback
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()
+            .expect("reserve activation invalidation issuer");
+        let issuer_id = IssuerId::fresh(authorization.incarnation.clone(), boot_sequence)
+            .expect("construct activation issuer id");
+        let issuer = provider
+            .authenticate_invalidation_boot_issuer(
+                issuer_id,
+                crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+                "auth-activation-fixture",
+            )
+            .expect("authenticate activation invalidation issuer");
+        snapback
+            .install_auth_invalidation(issuer.clone(), authorization, version_stream)
+            .expect("install activation invalidation state");
+
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        context.admin_token = Some("auth-http-admin".to_owned());
+        AppState::from_snapback(snapback, context)
+            .with_auth_provider(provider)
+            .with_auth_invalidation(issuer)
+            .with_auth_runtime_facts(settled, readiness)
+            .expect("install activation sessions posture")
+    }
+
+    async fn sessions_activation_server_fixture_async() -> AppState {
+        tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            sessions_activation_server_fixture()
+        })
+        .await
+        .expect("construct activation fixture off the async workers")
+    }
+
     fn settled_sessions_state() -> AuthModeStateRecord {
         AuthModeStateRecord {
             format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
@@ -13117,6 +13419,68 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pending_and_quarantined_modes_refuse_both_function_load_ingresses() {
+        for quarantined in [false, true] {
+            let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+            let state = state
+                .with_auth_runtime_facts(
+                    pending_sessions_state(quarantined),
+                    AuthProgramReadiness::item4(false),
+                )
+                .expect("install pending mode");
+            let router = app(state.clone());
+
+            let direct = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    "/_snapback/api/functions/load",
+                    serde_json::to_vec(&legacy_v0_activation_bypass_manifest()).unwrap(),
+                    true,
+                    Some("auth-http-admin"),
+                    None,
+                ))
+                .await
+                .expect("direct pending function-load refusal");
+            assert_eq!(direct.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(
+                response_json(direct).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_MODE_PENDING"
+            );
+
+            let host = router
+                .oneshot(auth_http_request(
+                    "POST",
+                    "/_snapback/api/host-ops",
+                    serde_json::to_vec(&json!({
+                        "operation": "functions.load",
+                        "functions": legacy_v0_activation_bypass_manifest(),
+                    }))
+                    .unwrap(),
+                    true,
+                    Some("auth-http-admin"),
+                    None,
+                ))
+                .await
+                .expect("host-op pending function-load refusal");
+            assert_eq!(host.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(
+                response_json(host).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_MODE_PENDING"
+            );
+
+            assert_eq!(
+                with_snapback(&state.snapback, |snapback| {
+                    snapback.function_kind("listItems")
+                })
+                .await,
+                None,
+                "neither ingress may publish the raw v0 manifest"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn published_mode_state_is_visible_to_router_clones_before_stage_response() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
         let router = app(state.clone());
@@ -13213,6 +13577,416 @@ mod tests {
         assert_eq!(
             controller.admit().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    fn legacy_v0_activation_bypass_manifest() -> FunctionManifest {
+        FunctionManifest {
+            schema_version: "snapback.v0".to_owned(),
+            app_id: "auth-activation-fixture".to_owned(),
+            bundle_hash: Some("sha256:legacy-raw-load-would-accept".to_owned()),
+            inputs_hash: Some("sha256:legacy-raw-inputs".to_owned()),
+            functions: vec![FunctionDefinition::new(
+                "listItems",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )],
+            ..FunctionManifest::default()
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn dev_direct_functions_load_admission_closes_stage_race() {
+        let (state, _) = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            auth_runtime_fixture(PolicyAuthMode::Dev)
+        })
+        .await
+        .expect("construct dev fixture off async workers");
+        let router = app(state.clone());
+        let controller = state.auth_admission_controller();
+        let app_lock = state.snapback.lock().await;
+        let request = auth_http_request(
+            "POST",
+            "/_snapback/api/functions/load",
+            serde_json::to_vec(&FunctionManifest::default()).unwrap(),
+            true,
+            Some("auth-http-admin"),
+            None,
+        );
+        let load = tokio::spawn(async move {
+            router
+                .oneshot(request)
+                .await
+                .expect("paused dev function-load response")
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while controller.snapshot().in_flight == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("direct load acquires managed admission before the app lock");
+
+        let transition = tokio::task::spawn_blocking({
+            let controller = controller.clone();
+            move || {
+                let guard = controller.begin_transition()?;
+                drop(guard);
+                Ok::<(), SnapbackError>(())
+            }
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while controller.snapshot().accepting {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("stage closes new admission while load is paused after routing");
+        assert!(!transition.is_finished());
+
+        drop(app_lock);
+        let response = tokio::time::timeout(Duration::from_secs(2), load)
+            .await
+            .expect("predecessor load reaches its response")
+            .expect("load task joins");
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(
+            !transition.is_finished(),
+            "stage cannot reach its durable cut while the predecessor response body owns admission"
+        );
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("drain predecessor load response");
+        assert_eq!(
+            serde_json::from_slice::<Value>(&body).expect("pending response JSON")["diagnostic"]["code"],
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+        tokio::time::timeout(Duration::from_secs(2), transition)
+            .await
+            .expect("stage resumes after the response drain")
+            .expect("transition task joins")
+            .expect("transition acquisition succeeds");
+        assert!(controller.snapshot().accepting);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn direct_functions_load_quiesces_old_query_body_and_activates_complete_pair() {
+        let state = sessions_activation_server_fixture_async().await;
+        let router = app(state.clone());
+        let controller = state.auth_admission_controller();
+        let predecessor_admission = controller.snapshot();
+        let predecessor_mode = state.auth_mode_state();
+        let predecessor_bundle = predecessor_mode
+            .active_deployment
+            .as_ref()
+            .expect("predecessor deployment")
+            .bundle_hash
+            .clone();
+
+        let rejected = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/functions/load",
+                serde_json::to_vec(&legacy_v0_activation_bypass_manifest()).unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .expect("legacy direct load rejection");
+        assert!(
+            !rejected.status().is_success(),
+            "sessions mode must never enter the raw v0 function loader"
+        );
+        let rejected = response_json(rejected).await;
+        assert!(
+            rejected["diagnostic"]["code"]
+                .as_str()
+                .is_some_and(|code| code.contains("ARTIFACT") || code.contains("CAPABILITY")),
+            "complete-pair preflight must own the rejection: {rejected}"
+        );
+        assert_eq!(
+            state
+                .auth_mode_state()
+                .active_deployment
+                .as_ref()
+                .expect("unchanged deployment")
+                .bundle_hash,
+            predecessor_bundle
+        );
+
+        let mut query = auth_http_request(
+            "POST",
+            "/query/listItems",
+            br#"{}"#.to_vec(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut query);
+        let old_response = router
+            .clone()
+            .oneshot(query)
+            .await
+            .expect("predecessor query response");
+        assert_eq!(old_response.status(), StatusCode::OK);
+
+        let successor_functions = activation_functions('4', true);
+        let successor_bundle = successor_functions
+            .bundle_hash
+            .clone()
+            .expect("successor bundle");
+        let activation_request = auth_http_request(
+            "POST",
+            "/_snapback/api/functions/load",
+            serde_json::to_vec(&successor_functions).unwrap(),
+            true,
+            Some("auth-http-admin"),
+            None,
+        );
+        let activation = tokio::spawn({
+            let router = router.clone();
+            async move {
+                router
+                    .oneshot(activation_request)
+                    .await
+                    .expect("direct activation response")
+            }
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while controller.snapshot().accepting {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("activation closes admission while old response is paused");
+        assert_eq!(controller.snapshot().in_flight, 1);
+        assert!(
+            !activation.is_finished(),
+            "the durable activation cannot overtake an unpolled predecessor query body"
+        );
+
+        let old_body = to_bytes(old_response.into_body(), usize::MAX)
+            .await
+            .expect("publish predecessor query body under its still-live epoch");
+        let old_body: Value = serde_json::from_slice(&old_body).expect("old query JSON");
+        assert_eq!(old_body["rows"].as_array().map(Vec::len), Some(1));
+
+        let activated = tokio::time::timeout(Duration::from_secs(2), activation)
+            .await
+            .expect("activation resumes after predecessor response drains")
+            .expect("activation task joins");
+        assert_eq!(activated.status(), StatusCode::OK);
+        let _ = response_json(activated).await;
+        let reopened = controller.snapshot();
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
+        assert_ne!(
+            reopened.admission_epoch,
+            predecessor_admission.admission_epoch
+        );
+        assert_eq!(
+            state
+                .auth_mode_state()
+                .active_deployment
+                .as_ref()
+                .expect("successor deployment")
+                .bundle_hash,
+            successor_bundle
+        );
+
+        let (durable_authorization, projected_authorization) =
+            with_snapback(&state.snapback, |snapback| {
+                (
+                    snapback
+                        .auth_database_mut()
+                        .authorization_version()
+                        .expect("durable activation authorization"),
+                    snapback
+                        .auth_invalidation_expectation_for_test()
+                        .expect("projected activation authorization"),
+                )
+            })
+            .await;
+        assert_eq!(projected_authorization, durable_authorization);
+
+        let mut successor_query = auth_http_request(
+            "POST",
+            "/query/listItems",
+            br#"{}"#.to_vec(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut successor_query);
+        let successor_response = router
+            .oneshot(successor_query)
+            .await
+            .expect("successor query response");
+        assert_eq!(successor_response.status(), StatusCode::OK);
+        assert_eq!(
+            response_json(successor_response).await["rows"],
+            json!([]),
+            "every query admitted after activation observes the successor policy"
+        );
+    }
+
+    #[tokio::test]
+    async fn sessions_activation_runtime_projection_failure_never_reopens_admission() {
+        let state = sessions_activation_server_fixture_async().await;
+        let controller = state.auth_admission_controller();
+        let predecessor_bundle = state
+            .auth_mode_state()
+            .active_deployment
+            .as_ref()
+            .expect("predecessor deployment")
+            .bundle_hash
+            .clone();
+        let successor = activation_functions('6', true);
+        let successor_bundle = successor.bundle_hash.clone().expect("successor bundle");
+        state.inject_auth_mode_publication_failure();
+
+        let response = app(state.clone())
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/functions/load",
+                serde_json::to_vec(&successor).unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .expect("injected runtime projection failure response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "TEST_AUTH_MODE_PUBLICATION_FAILURE"
+        );
+        assert_eq!(
+            state
+                .auth_mode_state()
+                .active_deployment
+                .as_ref()
+                .expect("runtime projection remains predecessor")
+                .bundle_hash,
+            predecessor_bundle
+        );
+        let durable_bundle = with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .auth_mode_snapshot()
+                .expect("durable activation snapshot")
+                .state
+                .active_deployment
+                .expect("durable successor deployment")
+                .bundle_hash
+        })
+        .await;
+        assert_eq!(durable_bundle, successor_bundle);
+        let closed = controller.snapshot();
+        assert!(!closed.accepting);
+        assert_eq!(closed.in_flight, 0);
+        assert_eq!(
+            controller.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    #[tokio::test]
+    async fn host_ops_functions_load_cannot_bypass_complete_pair_activation() {
+        let state = sessions_activation_server_fixture_async().await;
+        let router = app(state.clone());
+        let controller = state.auth_admission_controller();
+        let predecessor_admission = controller.snapshot();
+        let predecessor = state.auth_mode_state();
+        let predecessor_bundle = predecessor
+            .active_deployment
+            .as_ref()
+            .expect("predecessor deployment")
+            .bundle_hash
+            .clone();
+
+        let rejected = router
+            .clone()
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&json!({
+                    "operation": "functions.load",
+                    "functions": legacy_v0_activation_bypass_manifest(),
+                }))
+                .unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .expect("host-op legacy load rejection");
+        assert_eq!(rejected.status(), StatusCode::OK);
+        let rejected = response_json(rejected).await;
+        assert_eq!(rejected["ok"], false);
+        assert!(
+            rejected["diagnostics"][0]["code"]
+                .as_str()
+                .is_some_and(|code| code.contains("ARTIFACT") || code.contains("CAPABILITY")),
+            "host-op must expose complete-pair preflight rejection: {rejected}"
+        );
+        assert_eq!(
+            state
+                .auth_mode_state()
+                .active_deployment
+                .as_ref()
+                .expect("unchanged deployment")
+                .bundle_hash,
+            predecessor_bundle
+        );
+
+        let successor_functions = activation_functions('5', true);
+        let successor_bundle = successor_functions
+            .bundle_hash
+            .clone()
+            .expect("successor bundle");
+        let activated = router
+            .oneshot(auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&json!({
+                    "operation": "functions.load",
+                    "functions": successor_functions,
+                }))
+                .unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            ))
+            .await
+            .expect("coordinated host-op activation response");
+        assert_eq!(activated.status(), StatusCode::OK);
+        let activated = response_json(activated).await;
+        assert_eq!(activated["ok"], true, "{activated}");
+        assert_eq!(activated["data"]["loaded"], true);
+        assert_eq!(
+            state
+                .auth_mode_state()
+                .active_deployment
+                .as_ref()
+                .expect("successor deployment")
+                .bundle_hash,
+            successor_bundle
+        );
+        let reopened = controller.snapshot();
+        assert!(reopened.accepting);
+        assert_ne!(
+            reopened.admission_epoch,
+            predecessor_admission.admission_epoch
         );
     }
 

@@ -47,6 +47,28 @@ pub(crate) enum NetworkSeedOutcome {
     SkippedNonempty,
 }
 
+/// Exact authorization projection produced by the same SQLite transaction as
+/// a same-mode deployment. The storage interlock consumes one clone for room
+/// authority; the local runtime consumes this returned clone before reopening
+/// app admission so durable subscriptions cannot remain on the predecessor.
+///
+/// @ref LLP 0058#same-mode-provisioning — sessions activation returns the
+/// exact durable authorization witness and commit floor for pre-reopen local
+/// projection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct NetworkDeploymentAuthorization {
+    pub(crate) witness: super::AuthorizationCommitWitness,
+    pub(crate) min_commit_version: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct NetworkDeploymentCommit {
+    pub(crate) seed_outcome: NetworkSeedOutcome,
+    pub(crate) activation_changed: bool,
+    pub(crate) state: AuthModeStateRecord,
+    pub(crate) authorization: Option<NetworkDeploymentAuthorization>,
+}
+
 impl NetworkSeedOutcome {
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
@@ -897,8 +919,10 @@ impl LocalDatabase {
         manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> SnapbackResult<(NetworkSeedOutcome, AuthModeStateRecord)> {
-        self.apply_same_mode_network_deployment_classified(deployment, manifest, seed)
-            .into_result()
+        let committed = self
+            .apply_same_mode_network_deployment_classified(deployment, manifest, seed)
+            .into_result()?;
+        Ok((committed.seed_outcome, committed.state))
     }
 
     /// Same-mode network provisioning keeps the legacy seed-if-empty behavior
@@ -912,7 +936,7 @@ impl LocalDatabase {
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
         seed: Option<SeedData>,
-    ) -> DurableModeCommit<(NetworkSeedOutcome, AuthModeStateRecord)> {
+    ) -> DurableModeCommit<NetworkDeploymentCommit> {
         let predecessor = match (|| -> SnapbackResult<_> {
             deployment.validate()?;
             deployment.validate_schema_half(&manifest)?;
@@ -1033,7 +1057,18 @@ impl LocalDatabase {
                     Some(authorization) => Some((authorization, current_version_on(tx)?)),
                     None => None,
                 };
-                Ok(((seed_outcome, next), successor, authorization))
+                let output = NetworkDeploymentCommit {
+                    seed_outcome,
+                    activation_changed,
+                    state: next,
+                    authorization: authorization.as_ref().map(|(witness, min_commit_version)| {
+                        NetworkDeploymentAuthorization {
+                            witness: witness.clone(),
+                            min_commit_version: *min_commit_version,
+                        }
+                    }),
+                };
+                Ok((output, successor, authorization))
             },
         );
         if matches!(committed, DurableModeCommit::Committed(_)) {
@@ -1741,6 +1776,41 @@ mod tests {
     }
 
     #[test]
+    fn same_mode_network_commit_returns_the_exact_activation_witness_and_floor() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (identity, manifest) = dev_pair(None);
+        let committed = match database.apply_same_mode_network_deployment_classified(
+            identity.clone(),
+            manifest.clone(),
+            None,
+        ) {
+            DurableModeCommit::Committed(committed) => committed,
+            other => panic!("activation must commit, got {other:?}"),
+        };
+        let authorization = committed
+            .authorization
+            .expect("changed activation returns its durable witness");
+        assert!(authorization.witness.event);
+        assert!(!authorization.witness.incarnation_rotated);
+        assert_eq!(
+            authorization.witness.version,
+            database.authorization_version().unwrap()
+        );
+        assert_eq!(
+            authorization.min_commit_version,
+            database.current_version().unwrap()
+        );
+
+        let repeated = match database
+            .apply_same_mode_network_deployment_classified(identity, manifest, None)
+        {
+            DurableModeCommit::Committed(committed) => committed,
+            other => panic!("identical deployment must commit, got {other:?}"),
+        };
+        assert!(repeated.authorization.is_none());
+    }
+
+    #[test]
     fn repeated_same_mode_permission_seed_uses_auth_marker_to_prove_rollback() {
         let mut database = LocalDatabase::memory().unwrap();
         let (identity, mut manifest) = dev_pair(Some("permission_items"));
@@ -1827,7 +1897,7 @@ mod tests {
             manifest.clone(),
             None,
         ) {
-            DurableModeCommit::Committed((_, state)) => state,
+            DurableModeCommit::Committed(committed) => committed.state,
             other => panic!("expected exact committed successor, got {other:?}"),
         };
         assert_eq!(committed.schema(), &manifest);

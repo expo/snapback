@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0060
 
 ## Summary
@@ -347,6 +347,21 @@ v0 half, so it requires both v1 halves. A staged correction likewise supplies
 both halves unless its unchanged full sibling is loaded and exactly matches
 `requestedDeployment`.
 
+The direct `POST /_snapback/api/functions/load` route and multiplexed
+`host_ops.functions.load` operation are provisioning ingresses for this rule,
+not privileged raw-loader exceptions. In settled sessions mode they interpret
+their posted function manifest as a one-half update, resolve the schema only
+from that boot's complete preflighted sibling, and enter the same activation
+barrier described below. A v0, mixed, sibling-less, or otherwise invalid pair
+fails before function replacement or any mode/auth-state effect. Their legacy
+raw-load behavior remains available only in settled dev mode. The direct route
+holds ordinary managed admission across that dev load and its response, and the
+raw local seam rechecks the exact durable settled/available dev posture under
+the write lane. Thus a concurrent stage cannot pass a runtime-state check and
+then race a raw function swap into pending/quarantined state. An in-process
+host-op carrier has no transition owner and therefore refuses sessions mode;
+the server-coordinated path is its sole sessions implementation.
+
 Public `attest` accepts only the closed identity pair from LLP 0012 and performs
 steps 2–8 plus equality. It never accepts a full manifest, seed, or stage field
 and never mutates. Privileged `provision` performs all ten steps. Hash equality
@@ -676,6 +691,47 @@ atomically with schema effects, and only then swaps the prepared generation.
 The next process start requires a startup carrier matching that new active
 deployment. A same-mode request never makes the legacy key parseable and never
 bypasses branch authorization because its hashes happen to match.
+
+V1-sessions same-mode provisioning is nevertheless an authorization
+**activation** and uses the mode-admission barrier even though durable mode
+remains settled. After complete read-only preflight, the transition owner closes
+new admission and waits for every predecessor finite invocation and retained
+HTTP response body to drain. Under the write lane it repeats preflight, commits
+the schema/deployment and authorization event in one SQLite transaction,
+receives that transaction's exact `AuthorizationCommitWitness` plus minimum
+commit-version floor, publishes the prepared function generation, and projects
+all live invalidation obligations and successor snapshots from that exact pair
+while the predecessor remains closed. The transition owns one private
+projection admission for those local reruns/publications; it is never exposed
+as ordinary request admission and is dropped before reopen. Only after every
+required projection succeeds does the controller retire the predecessor and
+open a fresh increasing `admissionEpoch` for the still-settled sessions mode.
+
+Projection is conservative over the complete retained-live registry, not only
+queries that already own an authorization scope. An
+`authorityIndependent` predecessor subscription is terminally resynced with
+`clearRetained` and removed before reopen, because the successor may remove the
+function or make it authority-dependent and the old subscription has no scope
+to which an obligation can be attached. A data-only seed whose exact storage
+witness says `event: false` does not fabricate an authorization epoch, but it
+still reruns retained queries under the private projection admission so their
+snapshots include the committed rows. Preprojection errors are propagated to
+the transition; the ordinary post-commit mutation fanout's diagnostic-only
+fallback is forbidden at this activation boundary.
+
+A confirmed rollback reopens the unchanged deployment under a fresh admission
+epoch. An ambiguous durable outcome, function/publication failure after a known
+commit, invalidation projection failure, or mode-state publication failure
+leaves admission closed with `SNAPBACK_AUTH_MODE_PENDING` (while preserving the
+primary typed failure where one exists); it must never reopen the predecessor
+or guess which policy is active. An identity-equal no-op still crosses the
+sessions barrier so its result cannot become a bypass around quiescence, though
+it has no authorization witness to project.
+
+The transition guard enters both durable-commit closures in fail-closed
+posture. Only an explicit typed `RolledBack` result may re-arm predecessor
+reopen; an unwind or otherwise unclassified exit is treated like an ambiguous
+post-commit failure and leaves admission closed.
 
 ### Sessions-to-dev downgrade
 
@@ -1305,6 +1361,18 @@ A same-mode v0 update proves both manifest keys and `activeDeployment` change
 in one transaction. One-half updates succeed only while the complete attested
 sibling remains loaded in that process; after restart, the durable deployment
 identity alone cannot stand in for it and both manifest halves are required.
+The sessions matrix additionally pauses a predecessor finite-query response
+body, proves activation cannot commit until that body reaches its final sink,
+then proves the exact durable authorization witness/floor is installed in the
+live obligation store before the successor epoch admits work. A retained
+authorized lease from the predecessor fails revalidation after the same cut.
+Both direct and host-op `functions.load` carriers reject a raw v0 payload and
+activate a valid one-half v1 payload only through the complete-pair barrier;
+pending/quarantined and in-process sessions carriers cannot fall through to
+the raw loader. Deterministic live cases exhaust projection sequencing and
+prove admission stays closed, terminally resync both changed-to-protected and
+removed authority-independent subscriptions, and prove an ordinary data-only
+seed refreshes an auth-scoped snapshot without advancing authorization.
 
 ### Stage, consume, poison, and downgrade
 

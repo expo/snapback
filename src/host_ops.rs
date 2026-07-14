@@ -675,6 +675,55 @@ pub(crate) fn coordinated_reset_result(
     }
 }
 
+/// Project a sessions-mode function activation already executed through the
+/// complete-pair provisioning barrier. The dev-mode embedding continues to
+/// use the legacy branch below; only the server's sessions path calls this
+/// helper, so no raw function swap can bypass durable activation.
+pub(crate) fn coordinated_functions_load_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    function_count: usize,
+    outcome: Result<Vec<Diagnostic>, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    match outcome {
+        Ok(diagnostics) => {
+            let ok = !diagnostics.iter().any(|diagnostic| {
+                matches!(
+                    diagnostic.severity,
+                    crate::diagnostic::DiagnosticSeverity::Error
+                        | crate::diagnostic::DiagnosticSeverity::Fatal
+                )
+            });
+            host_ops_result(
+                snapback,
+                request_id,
+                operation,
+                server_url,
+                profile,
+                ok,
+                authority_admin("host-ops admin write gate"),
+                json!({ "loaded": ok, "functionCount": function_count }),
+                diagnostics,
+            )
+        }
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority_admin("host-ops admin write gate"),
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
 /// Execute one served host operation against the local instance and produce
 /// the envelope. The HTTP handler and (through HTTP) the CLI both come here,
 /// so the projections cannot drift.
@@ -864,17 +913,31 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                 );
             };
             let function_count = functions.functions.len();
-            let diagnostics = snapback.load_functions(functions);
-            let ok = !diagnostics.iter().any(|diagnostic| {
-                diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
-            });
-            envelope(
-                snapback,
-                ok,
-                authority_admin("host-ops admin write gate"),
-                json!({ "loaded": ok, "functionCount": function_count }),
-                diagnostics,
-            )
+            match snapback.load_functions_in_settled_dev(functions) {
+                Ok(diagnostics) => {
+                    let ok = !diagnostics.iter().any(|diagnostic| {
+                        matches!(
+                            diagnostic.severity,
+                            crate::diagnostic::DiagnosticSeverity::Error
+                                | crate::diagnostic::DiagnosticSeverity::Fatal
+                        )
+                    });
+                    envelope(
+                        snapback,
+                        ok,
+                        authority_admin("host-ops admin write gate"),
+                        json!({ "loaded": ok, "functionCount": function_count }),
+                        diagnostics,
+                    )
+                }
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    json!({ "loaded": false, "functionCount": function_count }),
+                    vec![error.diagnostic],
+                ),
+            }
         }
         "function.run" => run_function(snapback, &request, prepared_authority, envelope),
         "function.explain" => explain_function(snapback, &request, prepared_authority, envelope),
@@ -1438,6 +1501,115 @@ mod tests {
             result.diagnostics[0].code,
             "SNAPBACK_INVOCATION_SOURCE_INVALID"
         );
+    }
+
+    #[test]
+    fn in_process_functions_load_refuses_settled_sessions_without_coordinator() {
+        let mut snapback = LocalSnapback::memory().expect("memory host-op fixture");
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = crate::auth::mode::DeploymentIdentity {
+            schema_version: crate::manifest::SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            auth_mode: crate::manifest::AuthMode::Sessions,
+            app_id: "host-op-sessions".to_owned(),
+            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, '1'),
+            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, '2'),
+            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, '3'),
+        };
+        let schema = SchemaManifest {
+            schema_version: crate::manifest::SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            app_id: "host-op-sessions".to_owned(),
+            auth: Some(crate::manifest::AuthManifest {
+                mode: crate::manifest::AuthMode::Sessions,
+            }),
+            required_capabilities: vec![
+                crate::manifest::TargetCapabilityId::AuthSessionsV1.to_string(),
+            ],
+            schema_hash: Some(deployment.schema_hash.clone()),
+            inputs_hash: Some(deployment.inputs_hash.clone()),
+            ..SchemaManifest::default()
+        };
+        snapback
+            .auth_database_mut()
+            .stage_auth_mode(deployment, schema, None)
+            .expect("stage sessions fixture");
+        let readiness =
+            crate::auth::mode::AuthProgramReadiness::new(true, true, true, true, true, true, true);
+        let settled = snapback
+            .auth_database_mut()
+            .consume_sessions_auth_mode(&readiness)
+            .expect("consume sessions fixture");
+        snapback
+            .synchronize_auth_mode_admission(&settled)
+            .expect("publish sessions admission");
+
+        let bypass = crate::manifest::FunctionDefinition::new(
+            "rawBypass",
+            FunctionKind::Query,
+            crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Query(
+                crate::manifest::QueryPlan {
+                    table: "missing".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+            )),
+        );
+        let result = execute_host_op(
+            &mut snapback,
+            HostOpsRequest {
+                operation: "functions.load".to_owned(),
+                functions: Some(FunctionManifest {
+                    functions: vec![bypass],
+                    ..FunctionManifest::default()
+                }),
+                ..HostOpsRequest::default()
+            },
+            None,
+        );
+        assert!(!result.ok);
+        assert_eq!(
+            result.diagnostics[0].code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(snapback.function_kind("rawBypass"), None);
+    }
+
+    #[test]
+    fn in_process_dev_functions_load_refuses_closed_precommit_transition() {
+        let mut snapback = LocalSnapback::memory().expect("memory host-op fixture");
+        let transition = snapback
+            .begin_auth_mode_transition()
+            .expect("close dev admission before its durable cut");
+        let bypass = crate::manifest::FunctionDefinition::new(
+            "closedBypass",
+            FunctionKind::Query,
+            crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Query(
+                crate::manifest::QueryPlan {
+                    table: "missing".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+            )),
+        );
+        let result = execute_host_op(
+            &mut snapback,
+            HostOpsRequest {
+                operation: "functions.load".to_owned(),
+                functions: Some(FunctionManifest {
+                    functions: vec![bypass],
+                    ..FunctionManifest::default()
+                }),
+                ..HostOpsRequest::default()
+            },
+            None,
+        );
+        assert!(!result.ok);
+        assert_eq!(result.diagnostics[0].code, "SNAPBACK_AUTH_MODE_PENDING");
+        assert_eq!(snapback.function_kind("closedBypass"), None);
+        drop(transition);
     }
 
     #[test]

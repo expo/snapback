@@ -57,7 +57,7 @@ use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
     IbexSubmoduleCapability, RuntimeCapabilities, RuntimeManager,
 };
-use crate::storage::auth_mode::DurableModeCommit;
+use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
     BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
     ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
@@ -909,6 +909,13 @@ pub(crate) struct PreparedAuthProvision {
     requested_mode: AuthMode,
     artifacts: StartupArtifacts,
     deployment: DeploymentIdentity,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct AuthProvisionCommit {
+    pub(crate) outcome: EnsureAppProvisionOutcome,
+    pub(crate) state: AuthModeStateRecord,
+    pub(crate) diagnostics: Vec<Diagnostic>,
 }
 
 impl PreparedAuthProvision {
@@ -2318,6 +2325,37 @@ impl LocalSnapback {
         diagnostics
     }
 
+    /// Legacy raw function publication is a dev-only embedding seam. Every
+    /// sessions deployment must enter through complete-pair provisioning and
+    /// own the activation transition; pending/quarantined state cannot use a
+    /// raw swap as a recovery side door.
+    pub(crate) fn load_functions_in_settled_dev(
+        &mut self,
+        manifest: FunctionManifest,
+    ) -> SnapbackResult<Vec<Diagnostic>> {
+        let admission = self.admission.admit_dev()?;
+        let state = self.db.auth_mode_snapshot()?.state;
+        if state.active != state.desired
+            || state.mode_state != crate::auth::mode::AuthModeStatus::Settled
+            || state.app_data_availability != crate::auth::mode::AppDataAvailability::Available
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_PENDING",
+                "auth",
+                "raw functions.load is unavailable while auth mode is not settled and available",
+            ));
+        }
+        if state.active != AuthMode::Dev {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "sessions functions.load requires complete-pair activation coordination",
+            ));
+        }
+        let _publication = admission.effect_guard("raw dev function publication")?;
+        Ok(self.load_functions(manifest))
+    }
+
     /// Publish a function generation that passed
     /// [`Self::preflight_auth_artifacts`] against the schema now committed by
     /// the staged-mode transaction. The swap itself contains no fallible
@@ -2676,15 +2714,17 @@ impl LocalSnapback {
     }
 
     /// State-sensitive second pass and atomic durable cut. A caller staging a
-    /// mode change must hold the transition guard supplied by the admission
-    /// controller; same-mode callers remain serialized by the app write lane.
+    /// mode change or activating a same-mode Sessions deployment must hold the
+    /// transition guard supplied by the admission controller. Same-mode dev
+    /// callers remain serialized by the app write lane alone.
     #[cfg(test)]
     pub(crate) fn commit_auth_provision(
         &mut self,
         prepared: PreparedAuthProvision,
         profile: &str,
     ) -> SnapbackResult<(EnsureAppProvisionOutcome, AuthModeStateRecord)> {
-        self.commit_auth_provision_classified(prepared, profile)
+        self.commit_auth_provision_classified(prepared, profile, None)
+            .map(|committed| (committed.outcome, committed.state))
             .map_err(ModeCommitFailure::into_error)
     }
 
@@ -2692,7 +2732,8 @@ impl LocalSnapback {
         &mut self,
         prepared: PreparedAuthProvision,
         profile: &str,
-    ) -> Result<(EnsureAppProvisionOutcome, AuthModeStateRecord), ModeCommitFailure> {
+        activation_admission: Option<&AdmissionLease>,
+    ) -> Result<AuthProvisionCommit, ModeCommitFailure> {
         let before = self
             .db
             .auth_mode_snapshot()
@@ -2709,6 +2750,16 @@ impl LocalSnapback {
                 ),
             ));
         }
+        if before.state.active == AuthMode::Sessions
+            && prepared.requested_mode == before.state.active
+            && activation_admission.is_none()
+        {
+            return Err(ModeCommitFailure::RolledBack(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth-mode",
+                "same-mode sessions provisioning requires the closed activation admission",
+            )));
+        }
 
         let comparison = if prepared.requested_mode == before.state.active {
             before.state.active_deployment.as_ref()
@@ -2720,7 +2771,7 @@ impl LocalSnapback {
         let functions_matched = comparison
             .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
 
-        let (seed_outcome, state) = if prepared.requested_mode == before.state.active {
+        let (seed_outcome, state, diagnostics) = if prepared.requested_mode == before.state.active {
             let publication_generation = self
                 .reserve_function_publication_generation()
                 .map_err(ModeCommitFailure::RolledBack)?;
@@ -2729,7 +2780,12 @@ impl LocalSnapback {
                 prepared.artifacts.schema,
                 prepared.artifacts.seed,
             );
-            let (seed_outcome, state) = match committed {
+            let NetworkDeploymentCommit {
+                seed_outcome,
+                activation_changed,
+                state,
+                authorization,
+            } = match committed {
                 DurableModeCommit::Committed(committed) => committed,
                 DurableModeCommit::RolledBack(error) => {
                     return Err(ModeCommitFailure::RolledBack(error));
@@ -2738,11 +2794,43 @@ impl LocalSnapback {
                     return Err(ModeCommitFailure::Uncertain(error));
                 }
             };
-            self.publish_preflighted_functions(
+            let diagnostics = self.publish_preflighted_functions(
                 prepared.artifacts.functions,
                 publication_generation,
             );
-            (seed_outcome.as_str(), state)
+            if before.state.active == AuthMode::Sessions
+                && (activation_changed || seed_outcome == NetworkSeedOutcome::Seeded)
+            {
+                // @ref LLP 0058#same-mode-provisioning — publish the prepared
+                // generation, project this transaction's exact auth event,
+                // and invalidate retained authority-independent snapshots
+                // while ordinary successor admission is still closed.
+                let admission = activation_admission.expect(
+                    "settled sessions activation checked transition-owned admission before commit",
+                );
+                self.begin_live_delivery_frame(self.subscriptions.len());
+                let already_resynced = if let Some(authorization) =
+                    authorization.as_ref().filter(|event| event.witness.event)
+                {
+                    self.notify_authorization_activation_in_frame(
+                        &authorization.witness,
+                        authorization.min_commit_version,
+                        admission,
+                    )
+                    .map_err(ModeCommitFailure::Uncertain)?
+                } else {
+                    BTreeSet::new()
+                };
+                if activation_changed {
+                    self.invalidate_unscoped_live_subscriptions_for_activation(admission)
+                        .map_err(ModeCommitFailure::Uncertain)?;
+                }
+                if seed_outcome == NetworkSeedOutcome::Seeded {
+                    self.notify_live_subscriptions_in_frame(&[], &already_resynced, admission)
+                        .map_err(ModeCommitFailure::Uncertain)?;
+                }
+            }
+            (seed_outcome.as_str(), state, diagnostics)
         } else {
             let seeded = prepared.artifacts.seed.is_some();
             let committed = self.db.stage_auth_mode_classified(
@@ -2759,10 +2847,14 @@ impl LocalSnapback {
                     return Err(ModeCommitFailure::Uncertain(error));
                 }
             };
-            (if seeded { "seeded" } else { "skipped-absent" }, state)
+            (
+                if seeded { "seeded" } else { "skipped-absent" },
+                state,
+                Vec::new(),
+            )
         };
-        Ok((
-            EnsureAppProvisionOutcome {
+        Ok(AuthProvisionCommit {
+            outcome: EnsureAppProvisionOutcome {
                 intent: EnsureAppIntent::Provision,
                 schema: if schema_matched {
                     "matched"
@@ -2780,7 +2872,8 @@ impl LocalSnapback {
                 profile: profile.to_owned(),
             },
             state,
-        ))
+            diagnostics,
+        })
     }
 
     /// ENG-22527: the ensure-everything mount-lifecycle operation. Inspects
@@ -7780,6 +7873,39 @@ impl LocalSnapback {
         min_commit_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<BTreeSet<String>> {
+        self.notify_authorization_event_in_frame_with_policy(
+            authorization,
+            min_commit_version,
+            admission,
+            false,
+        )
+    }
+
+    /// Activation is still inside the closed transition after its durable
+    /// cut. Unlike ordinary post-commit mutation fanout, no projection error
+    /// may be downgraded to a diagnostic: the caller must keep successor
+    /// admission closed until restart/reconciliation can recover it.
+    fn notify_authorization_activation_in_frame(
+        &mut self,
+        authorization: &crate::storage::AuthorizationCommitWitness,
+        min_commit_version: u64,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<BTreeSet<String>> {
+        self.notify_authorization_event_in_frame_with_policy(
+            authorization,
+            min_commit_version,
+            admission,
+            true,
+        )
+    }
+
+    fn notify_authorization_event_in_frame_with_policy(
+        &mut self,
+        authorization: &crate::storage::AuthorizationCommitWitness,
+        min_commit_version: u64,
+        admission: &AdmissionLease,
+        fail_closed_on_preprojection_error: bool,
+    ) -> SnapbackResult<BTreeSet<String>> {
         // The authenticated expectation is process state, not a projection of
         // the current subscriber set. Advance it even with zero live queries
         // so a later subscription cannot start under a pre-event epoch.
@@ -7848,6 +7974,7 @@ impl LocalSnapback {
             })();
         let preprojected = match preprojected {
             Ok(projections) => projections,
+            Err(error) if fail_closed_on_preprojection_error => return Err(error),
             Err(error) => {
                 self.record_diagnostics(vec![error.diagnostic]);
                 return Ok(subscriptions
@@ -7908,6 +8035,81 @@ impl LocalSnapback {
             }
         }
         Ok(handled)
+    }
+
+    /// A sessions-mode deployment swap can change or remove a function that
+    /// was previously proved `authorityIndependent`. Such a retained live
+    /// query owns no authorization scope, so it cannot safely inherit the
+    /// deployment event's obligation. Retire every unscoped predecessor
+    /// subscription and enqueue a clear-retained resync while the activation
+    /// projection lease is still the sole admitted root. The client may then
+    /// establish a successor subscription under the new manifest after the
+    /// controller reopens.
+    fn invalidate_unscoped_live_subscriptions_for_activation(
+        &mut self,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
+        let subscriptions = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.authorization.is_none())
+            .cloned()
+            .collect::<Vec<_>>();
+        if subscriptions.is_empty() {
+            return Ok(());
+        }
+
+        let payloads = subscriptions
+            .iter()
+            .map(|subscription| {
+                serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    reason: "auth_deployment_activated".to_owned(),
+                    subscription_id: Some(subscription.id.clone()),
+                    scope: Some(String::new()),
+                    epoch: Some(0),
+                    clear_retained: true,
+                })
+                .map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                        "realtime",
+                        "activation resync message could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() }))
+                })
+            })
+            .collect::<SnapbackResult<Vec<_>>>()?;
+
+        let _publication = admission.effect_guard("activation live resync publication")?;
+        let snapshot_version = self.db.current_version().ok();
+        let received_at_ms = now_millis();
+        for (subscription, payload) in subscriptions.iter().zip(payloads) {
+            self.subscriptions.remove(&subscription.id);
+            self.receipts.push_global(
+                Receipt::Subscription {
+                    event: SubscriptionReceiptEvent::Disposed,
+                    reason: Some("auth_deployment_activated".to_owned()),
+                    subscription_id: Some(subscription.id.clone()),
+                    superseded_by: None,
+                    lane: None,
+                    binding_id: None,
+                    collection: None,
+                    removed: None,
+                    scope: subscription.input.args.clone(),
+                    snapshot_version,
+                    correlation: None,
+                    received_at_ms,
+                }
+                .into_value(),
+            );
+            self.ephemeral
+                .enqueue_durable(subscription.connection_id.clone(), payload);
+            self.live_delivery.total_deliveries += 1;
+            self.live_delivery.last_deliveries += 1;
+        }
+        self.refresh_auth_scoped_live_connections();
+        self.refresh_cron_active();
+        Ok(())
     }
 
     fn notify_live_subscriptions_in_frame(
@@ -9388,8 +9590,8 @@ mod tests {
         ResolvedAppAuthority, WireAuthorityFields,
     };
     use crate::auth::mode::{
-        AuthModeStateRecord, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
-        SCHEMA_V1_PREFIX,
+        AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
+        INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
     };
     use crate::manifest::{
         ActionPlan, AuthManifest, AuthMode, AuthorityDescriptor, ConfigEntryDefinition,
@@ -9397,11 +9599,12 @@ mod tests {
         CronRetryMode, CronRetryPolicy, CronSchedule, CtxAnswerLedger, FieldManifest, FieldType,
         FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
         HandlerInput, HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep,
-        QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
+        QueryPlan, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
+        ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
-    use serde_json::{Value, json};
+    use serde_json::{Map, Value, json};
     use std::collections::BTreeMap;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -9543,6 +9746,514 @@ mod tests {
             .prepare_auth_provision(EnsureAppMode::Dev, Some(another_schema), None, None)
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+    }
+
+    fn sessions_activation_pair(
+        bundle_marker: char,
+        hide_rows: bool,
+    ) -> (SchemaManifest, FunctionManifest) {
+        let (mut schema, mut functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+        schema.tables = vec![TableManifest {
+            name: "items".to_owned(),
+            fields: vec![FieldManifest {
+                name: "value".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+        }];
+        functions.bundle_hash = Some(format!(
+            "{}{}",
+            FUNCTION_V1_PREFIX,
+            bundle_marker.to_string().repeat(64)
+        ));
+        functions.functions = vec![FunctionDefinition::new(
+            "listItems",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: hide_rows
+                    .then(|| FilterExpr {
+                        field: "value".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::Literal(json!("never-visible")),
+                    })
+                    .into_iter()
+                    .collect(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        )];
+        (schema, functions)
+    }
+
+    fn settled_sessions_activation_snapback(
+        schema: SchemaManifest,
+        predecessor_functions: FunctionManifest,
+    ) -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory activation fixture");
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                Some(schema),
+                Some(predecessor_functions.clone()),
+                Some(crate::manifest::SeedData {
+                    tables: BTreeMap::from([(
+                        "items".to_owned(),
+                        vec![serde_json::Map::from_iter([(
+                            "value".to_owned(),
+                            json!("predecessor-visible"),
+                        )])],
+                    )]),
+                }),
+            )
+            .expect("preflight initial complete sessions pair");
+        let (_, pending) = snapback
+            .commit_auth_provision(prepared, "test")
+            .expect("stage initial sessions pair");
+        assert_eq!(
+            pending.mode_state,
+            crate::auth::mode::AuthModeStatus::PendingRestart
+        );
+        let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
+        let settled = snapback
+            .auth_database_mut()
+            .consume_sessions_auth_mode(&readiness)
+            .expect("consume initial sessions pair");
+        snapback
+            .synchronize_auth_mode_admission(&settled)
+            .expect("publish settled sessions admission");
+        let diagnostics = snapback.publish_preflighted_functions(predecessor_functions, 41);
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "initial sessions functions must publish: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    #[test]
+    fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
+        let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
+
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "activation-live".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(90)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                },
+            )
+            .expect("subscribe under predecessor deployment");
+        assert_eq!(subscribed.snapshot.rows.len(), 1);
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "activation-live").is_empty(),
+            "the activation test starts with an empty delivery queue"
+        );
+        let predecessor_authorization = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("installed invalidation state")
+            .obligations
+            .expectation()
+            .authorization
+            .clone();
+
+        let (_, successor_functions) = sessions_activation_pair('d', true);
+        let successor_bundle = successor_functions.bundle_hash.clone();
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions),
+                None,
+            )
+            .expect("preflight one-half successor through cached complete pair");
+        let controller = snapback.admission.clone();
+        let transition = controller
+            .begin_transition()
+            .expect("close and drain predecessor admission");
+        let (committed, state, reopened) = transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                let state = committed.state.clone();
+                Ok((committed, state))
+            })
+            .expect("commit and project successor activation");
+
+        assert_eq!(committed.state, state);
+        assert_eq!(
+            state.active_deployment.unwrap().bundle_hash,
+            successor_bundle.unwrap()
+        );
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
+        let durable_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .expect("durable successor authorization");
+        let projected_authorization = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("installed invalidation state")
+            .obligations
+            .expectation()
+            .authorization
+            .clone();
+        assert_eq!(projected_authorization, durable_authorization);
+        assert_eq!(
+            projected_authorization.epoch,
+            predecessor_authorization.epoch + 1
+        );
+
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "activation-live");
+        let successor = frames
+            .iter()
+            .filter_map(|frame| serde_json::from_str::<Value>(frame).ok())
+            .find(|frame| {
+                frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
+            })
+            .expect("activation projects a successor snapshot before admission reopens");
+        assert_eq!(successor["snapshot"]["rows"], json!([]));
+        assert_eq!(
+            successor["obligation"]["witness"]["authorization"]["epoch"],
+            projected_authorization.epoch
+        );
+        assert!(
+            frames
+                .iter()
+                .all(|frame| !frame.contains("\"kind\":\"live_delta\"")),
+            "deployment authorization changes never escape as an unfenced live delta"
+        );
+    }
+
+    #[test]
+    fn same_mode_sessions_activation_projection_error_stays_closed() {
+        let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "activation-exhausted".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(91)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                },
+            )
+            .expect("subscribe auth-scoped predecessor");
+        snapback
+            .auth_invalidation
+            .as_mut()
+            .expect("installed invalidation state")
+            .next_cause_sequence = crate::auth::invalidation::MAX_PROTOCOL_COUNTER;
+
+        let (_, successor_functions) = sessions_activation_pair('e', true);
+        let successor_bundle = successor_functions.bundle_hash.clone().unwrap();
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions),
+                None,
+            )
+            .expect("preflight successor");
+        let controller = snapback.admission.clone();
+        let transition = controller.begin_transition().expect("close predecessor");
+        let error = transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                let state = committed.state.clone();
+                Ok((committed, state))
+            })
+            .expect_err("projection exhaustion must fail the activation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED"
+        );
+        assert!(!controller.snapshot().accepting);
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .auth_mode_snapshot()
+                .expect("durable successor")
+                .state
+                .active_deployment
+                .expect("successor deployment")
+                .bundle_hash,
+            successor_bundle
+        );
+    }
+
+    #[test]
+    fn activation_terminally_resyncs_unscoped_live_queries_changed_or_removed() {
+        let (schema, mut predecessor_functions) = sessions_activation_pair('b', false);
+        let independent = |name: &str| {
+            let mut function = FunctionDefinition::new(
+                name,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            );
+            function.authority_independent = true;
+            function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+            function
+        };
+        predecessor_functions.functions = vec![
+            independent("independentChanged"),
+            independent("independentRemoved"),
+        ];
+        let mut snapback =
+            settled_sessions_activation_snapback(schema, predecessor_functions.clone());
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribe = |snapback: &mut LocalSnapback, name: &str, connection_id: &str| {
+            snapback
+                .subscribe_live_with_invalidation(
+                    name,
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: None,
+                        supersedes: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(connection.clone()),
+                    },
+                )
+                .expect("subscribe authority-independent predecessor")
+        };
+        let changed = subscribe(
+            &mut snapback,
+            "independentChanged",
+            "activation-independent-changed",
+        );
+        let removed = subscribe(
+            &mut snapback,
+            "independentRemoved",
+            "activation-independent-removed",
+        );
+        assert!(
+            snapback
+                .subscriptions
+                .values()
+                .all(|subscription| subscription.authorization.is_none())
+        );
+        drain_live_stream_through_test_sink(&mut snapback, "activation-independent-changed");
+        drain_live_stream_through_test_sink(&mut snapback, "activation-independent-removed");
+
+        let mut protected = FunctionDefinition::new(
+            "independentChanged",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        protected.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+        let mut successor_functions = predecessor_functions;
+        successor_functions.bundle_hash = Some(format!("{}{}", FUNCTION_V1_PREFIX, "f".repeat(64)));
+        successor_functions.functions = vec![protected];
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions),
+                None,
+            )
+            .expect("preflight protected successor");
+        let controller = snapback.admission.clone();
+        let transition = controller.begin_transition().expect("close predecessor");
+        transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                let state = committed.state.clone();
+                Ok((committed, state))
+            })
+            .expect("activate protected successor");
+
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&changed.subscription_id)
+        );
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&removed.subscription_id)
+        );
+        for (connection_id, subscription_id) in [
+            (
+                "activation-independent-changed",
+                changed.subscription_id.as_str(),
+            ),
+            (
+                "activation-independent-removed",
+                removed.subscription_id.as_str(),
+            ),
+        ] {
+            let frames = drain_live_stream_through_test_sink(&mut snapback, connection_id);
+            assert!(frames.iter().any(|frame| {
+                serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
+                    frame["kind"] == "resync_required"
+                        && frame["reason"] == "auth_deployment_activated"
+                        && frame["subscription_id"] == subscription_id
+                        && frame["clear_retained"] == true
+                })
+            }));
+        }
+    }
+
+    #[test]
+    fn data_only_same_mode_seed_refreshes_auth_scoped_live_before_reopening() {
+        let (mut schema, mut functions) = sessions_activation_pair('b', false);
+        schema.tables.push(TableManifest {
+            name: "freshItems".to_owned(),
+            fields: vec![FieldManifest {
+                name: "value".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+        });
+        let function = functions
+            .functions
+            .first_mut()
+            .expect("activation live function");
+        function.runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "freshItems".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        }));
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "activation-data-seed".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(92)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                },
+            )
+            .expect("subscribe empty auth-scoped result");
+        assert!(subscribed.snapshot.rows.is_empty());
+        drain_live_stream_through_test_sink(&mut snapback, "activation-data-seed");
+        let predecessor_authorization = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("installed invalidation state")
+            .obligations
+            .expectation()
+            .authorization
+            .clone();
+
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                None,
+                Some(SeedData {
+                    tables: BTreeMap::from([(
+                        "freshItems".to_owned(),
+                        vec![Map::from_iter([(
+                            "value".to_owned(),
+                            json!("seed-visible"),
+                        )])],
+                    )]),
+                }),
+            )
+            .expect("preflight data-only seed against cached pair");
+        let controller = snapback.admission.clone();
+        let transition = controller.begin_transition().expect("close predecessor");
+        let (committed, _, reopened) = transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                let state = committed.state.clone();
+                Ok((committed, state))
+            })
+            .expect("seed and refresh under closed activation");
+        assert_eq!(committed.outcome.seed, "seeded");
+        assert!(reopened.accepting);
+        assert_eq!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("installed invalidation state")
+                .obligations
+                .expectation()
+                .authorization,
+            predecessor_authorization,
+            "ordinary seed rows do not fabricate an authorization epoch"
+        );
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "activation-data-seed");
+        assert!(frames.iter().any(|frame| {
+            serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
+                frame["kind"] == "authorization_invalidation"
+                    && frame["snapshot"]["rows"]
+                        .as_array()
+                        .is_some_and(|rows| rows.len() == 1)
+            })
+        }));
     }
 
     const SCHEMA_RELOAD_SOURCE: &str = r#"

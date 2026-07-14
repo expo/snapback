@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -705,6 +705,25 @@ not published and the caller receives the matching auth/backpressure outcome. A
 revocation marker that begins after a successful transfer sees the effect as
 already in flight and need not retract it; a marker that begins before the
 transfer prevents publication.
+
+The stream/session leaf fence composes with LLP 0058's process-local mode
+admission fence. A registered finite HTTP response retains its exact admission
+root inside the response body—not merely in response extensions—through every
+body frame and final sink/drop. Therefore a same-mode sessions deployment
+activation cannot commit while a predecessor response is paused after handler
+computation: the response either finishes under the still-current predecessor
+epoch before the activation cut, or a retired/cancelled epoch suppresses its
+remaining frames. The activation's sole transition-owned projection lease may
+publish only the exact post-commit authorization obligations and rerun
+snapshots; ordinary successor requests remain closed until that projection is
+complete and the lease has been dropped. This mode fence is independent of,
+and does not replace, the session/connection leaf validation above.
+The same closed projection phase also terminally resyncs and drops every
+retained authority-independent predecessor query: it cannot inherit successor
+authority because it owns no invalidation scope. Data-only deployment seeds
+rerun retained queries even when the storage witness correctly reports no
+authorization event. Any activation preprojection failure keeps mode admission
+closed instead of using ordinary mutation fanout's diagnostic-only fallback.
 
 Queued live deltas are different by design. Production/enqueue is allowed
 inside `with_snapback`'s global write guard and therefore MUST NOT acquire any
@@ -1534,6 +1553,14 @@ wall-clock sleeps are not proof of ordering.
 6. For finite responses, live results, durable outbox, ephemeral effects, room
    receipts, and callback envelopes, independently pause between computation
    and commit and prove the final fence rejects old authority.
+   Separately pause a predecessor finite HTTP body, begin a same-mode sessions
+   deployment activation, and prove the activation cannot reach its durable cut
+   until the body finishes; after it finishes, require the exact durable
+   authorization witness and live successor projection before new admission.
+   Exhaust projection sequencing and prove the committed successor stays
+   closed. Change one retained authority-independent function to protected and
+   remove another; both receive clear-retained terminal resyncs before reopen.
+   A data-only seed refreshes retained results without inventing an auth epoch.
 7. With a fake monotonic clock, expiry/revocation/reset produces at most one
    notifier-generation-matched `auth_error`, stops ordinary drain/reconnect,
    and closes by 5000 ms even when the writer handoff/socket cannot accept the

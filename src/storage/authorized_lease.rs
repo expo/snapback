@@ -677,6 +677,50 @@ mod tests {
     }
 
     #[test]
+    fn same_mode_activation_revokes_a_predecessor_retained_lease() {
+        let mut db = sessions_database(None);
+        let lease = current_lease(&mut db, "request_pre_activation", NOW);
+        db.reserve_authorized_lease(
+            &lease,
+            AuthorizedLeaseConfig::default(),
+            NOW,
+            true,
+            &lease.issuer_id,
+        )
+        .unwrap();
+        let expectation = AuthorizedLeaseExpectation::from(&lease);
+        let verified = signer()
+            .verify_for_service(
+                &lease,
+                &expectation,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                "local-dev-sqlite-ibex",
+                "lease-test",
+            )
+            .unwrap();
+
+        let (mut deployment, manifest) = sessions_pair();
+        deployment.bundle_hash = format!(
+            "{}{}",
+            crate::auth::mode::FUNCTION_V1_PREFIX,
+            "d".repeat(64)
+        );
+        db.apply_same_mode_deployment(deployment, manifest, None)
+            .expect("activate successor deployment");
+
+        let error = db
+            .authorize_revalidation_free_lease(
+                &verified,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                true,
+            )
+            .expect_err("predecessor lease must not survive activation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+    }
+
+    #[test]
     fn request_ids_are_one_shot_and_server_clock_rollback_survives_restart() {
         let directory = tempdir().unwrap();
         let path = directory.path().join("app.sqlite3");

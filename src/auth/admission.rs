@@ -906,17 +906,21 @@ impl ModeTransitionGuard {
         commit: impl FnOnce() -> Result<(T, AuthModeStateRecord), ModeCommitFailure>,
     ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
         self.validate_closed()?;
+        // Enter the closure in fail-closed posture. Only its explicit typed
+        // rollback classification is proof that Drop may reopen the
+        // predecessor; an unwind or any unclassified exit after a durable cut
+        // must leave admission closed.
+        self.reopen_on_abort = false;
         let (output, mode) = match commit() {
             Ok(committed) => committed,
-            Err(ModeCommitFailure::RolledBack(error)) => return Err(error),
-            Err(ModeCommitFailure::Uncertain(error)) => {
-                self.reopen_on_abort = false;
+            Err(ModeCommitFailure::RolledBack(error)) => {
+                self.reopen_on_abort = true;
                 return Err(error);
             }
+            Err(ModeCommitFailure::Uncertain(error)) => return Err(error),
         };
 
         // The durable cut is now known. From here on Drop must fail closed.
-        self.reopen_on_abort = false;
         mode.validate_shape()?;
         let accepting = mode.mode_state == AuthModeStatus::Settled
             && mode.app_data_availability == AppDataAvailability::Available;
@@ -929,6 +933,92 @@ impl ModeTransitionGuard {
         )?;
         self.finished = true;
         Ok((output, mode, snapshot))
+    }
+
+    /// Execute a durable commit plus its process-local authorization
+    /// projection while the predecessor epoch remains closed. The temporary
+    /// lease is the transition's sole admitted root: it permits fresh-query
+    /// snapshots and queue publication, but it is created only after every
+    /// predecessor root drained and is dropped before the successor reopens.
+    ///
+    /// A confirmed rollback reopens the predecessor under a fresh epoch. Any
+    /// ambiguous commit or failure after the durable cut leaves the successor
+    /// closed so the process cannot serve with a partially published policy.
+    ///
+    /// @ref LLP 0058#same-mode-provisioning — the transition's private
+    /// projection root is the only work admitted between durable activation
+    /// and successor reopen.
+    pub(crate) fn commit_project_and_publish_mode_state<T>(
+        mut self,
+        commit: impl FnOnce(&AdmissionLease) -> Result<(T, AuthModeStateRecord), ModeCommitFailure>,
+    ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
+        self.validate_closed()?;
+        let projection_admission = self.admit_transition_projection()?;
+        // The closure may cross the durable cut before running arbitrary
+        // process-local projection code. Enter it fail-closed so an unwind
+        // cannot accidentally reopen the predecessor; only an explicit
+        // RolledBack result re-arms abort reopening.
+        self.reopen_on_abort = false;
+        let committed = commit(&projection_admission);
+        drop(projection_admission);
+        let (output, mode) = match committed {
+            Ok(committed) => committed,
+            Err(ModeCommitFailure::RolledBack(error)) => {
+                self.reopen_on_abort = true;
+                return Err(error);
+            }
+            Err(ModeCommitFailure::Uncertain(error)) => return Err(error),
+        };
+
+        // From the durable cut onward, even a process-local projection or
+        // publication failure must not reopen the predecessor.
+        self.validate_closed()?;
+        mode.validate_shape()?;
+        let accepting = mode.mode_state == AuthModeStatus::Settled
+            && mode.app_data_availability == AppDataAvailability::Available;
+        let snapshot = self.controller.retire_and_reopen(
+            self.admission_epoch,
+            self.transition_generation,
+            mode.transition_generation,
+            mode.active,
+            accepting,
+        )?;
+        self.finished = true;
+        Ok((output, mode, snapshot))
+    }
+
+    fn admit_transition_projection(&self) -> SnapbackResult<AdmissionLease> {
+        let mut state = lock(&self.controller.inner.state);
+        let current_epoch = state.current_epoch;
+        let Some(epoch) = state.epochs.get_mut(&self.admission_epoch) else {
+            return Err(admission_closed());
+        };
+        if current_epoch != self.admission_epoch
+            || epoch.transition_generation != self.transition_generation
+            || epoch.active_mode != self.active_mode
+            || epoch.accepting
+            || epoch.retired
+            || !epoch.transition_owned
+            || epoch.in_flight != 0
+        {
+            return Err(admission_closed());
+        }
+        epoch.in_flight = epoch.in_flight.checked_add(1).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                "auth",
+                "transition projection admission count overflowed",
+            )
+        })?;
+        Ok(AdmissionLease {
+            token: Arc::new(LeaseToken {
+                controller: Some(self.controller.inner.clone()),
+                transition_generation: epoch.transition_generation,
+                admission_epoch: self.admission_epoch,
+                active_mode: Some(epoch.active_mode),
+                cancellation: epoch.cancellation.clone(),
+            }),
+        })
     }
 
     /// Publish a durable transaction that the caller already committed. The
@@ -1196,6 +1286,119 @@ mod tests {
         let reopened = guard.publish_committed_generation(4, true).unwrap();
         assert_eq!(reopened.transition_generation, 4);
         assert!(reopened.accepting);
+    }
+
+    #[test]
+    fn paused_old_query_drains_then_projection_finishes_before_activation_reopens() {
+        let settled = settled_sessions(7);
+        let controller = AdmissionController::from_mode_state(&settled).unwrap();
+        let old_query = controller.admit_for_mode(AuthMode::Sessions).unwrap();
+        let old_epoch = old_query.admission_epoch();
+        let (started_tx, started_rx) = mpsc::channel();
+        let worker = {
+            let controller = controller.clone();
+            thread::spawn(move || {
+                started_tx.send(()).unwrap();
+                controller.begin_transition().unwrap()
+            })
+        };
+        started_rx.recv().unwrap();
+        while controller.snapshot().accepting {
+            thread::yield_now();
+        }
+        assert_eq!(controller.snapshot().in_flight, 1);
+        assert_eq!(
+            controller.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+
+        drop(old_query);
+        let guard = worker.join().unwrap();
+        let projected = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let observed = projected.clone();
+        let (_, returned, reopened) = guard
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                assert_eq!(projection_admission.active_mode(), Some(AuthMode::Sessions));
+                projection_admission
+                    .effect_guard("activation invalidation projection")
+                    .map_err(ModeCommitFailure::Uncertain)?;
+                assert!(!controller.snapshot().accepting);
+                assert_eq!(controller.snapshot().in_flight, 1);
+                observed.store(true, Ordering::SeqCst);
+                Ok(((), settled.clone()))
+            })
+            .unwrap();
+        assert!(projected.load(Ordering::SeqCst));
+        assert_eq!(returned, settled);
+        assert_ne!(reopened.admission_epoch, old_epoch);
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
+    }
+
+    #[test]
+    fn ambiguous_activation_projection_drops_its_root_and_stays_closed() {
+        let settled = settled_sessions(9);
+        let controller = AdmissionController::from_mode_state(&settled).unwrap();
+        let before = controller.snapshot();
+        let error = controller
+            .begin_transition()
+            .unwrap()
+            .commit_project_and_publish_mode_state::<()>(|projection_admission| {
+                projection_admission
+                    .effect_guard("ambiguous activation projection")
+                    .map_err(ModeCommitFailure::Uncertain)?;
+                Err(ModeCommitFailure::Uncertain(SnapbackError::error(
+                    "TEST_ACTIVATION_UNCERTAIN",
+                    "test",
+                    "activation commit acknowledgement was lost",
+                )))
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_ACTIVATION_UNCERTAIN");
+        let closed = controller.snapshot();
+        assert_ne!(closed.admission_epoch, before.admission_epoch);
+        assert_eq!(closed.transition_generation, before.transition_generation);
+        assert!(!closed.accepting);
+        assert_eq!(closed.in_flight, 0);
+    }
+
+    #[test]
+    fn activation_projection_unwind_after_possible_commit_stays_closed() {
+        let settled = settled_sessions(10);
+        let controller = AdmissionController::from_mode_state(&settled).unwrap();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = controller
+                .begin_transition()
+                .unwrap()
+                .commit_project_and_publish_mode_state::<()>(|_| {
+                    panic!("injected post-commit activation projection unwind")
+                });
+        }));
+        assert!(panic.is_err());
+        let closed = controller.snapshot();
+        assert!(!closed.accepting);
+        assert_eq!(closed.in_flight, 0);
+        assert_eq!(
+            controller.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    #[test]
+    fn mode_commit_unwind_after_possible_commit_stays_closed() {
+        let controller = AdmissionController::new(11, true).unwrap();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = controller
+                .begin_transition()
+                .unwrap()
+                .commit_and_publish_mode_state::<()>(|| {
+                    panic!("injected post-commit mode publication unwind")
+                });
+        }));
+        assert!(panic.is_err());
+        let closed = controller.snapshot();
+        assert!(!closed.accepting);
+        assert_eq!(closed.in_flight, 0);
     }
 
     #[test]

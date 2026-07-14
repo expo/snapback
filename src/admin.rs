@@ -929,6 +929,41 @@ impl AppState {
             .clone()
     }
 
+    /// Install a durable mode record while the caller still owns the closed
+    /// admission transition. This deliberately does not reconcile the
+    /// controller: the `ModeTransitionGuard` publishes that exact record only
+    /// after every other process-local projection has succeeded.
+    ///
+    /// @ref LLP 0058#same-mode-provisioning — runtime mode state is part of the
+    /// pre-reopen projection; a failed swap leaves admission closed.
+    pub(crate) fn publish_auth_mode_state_while_transition_closed(
+        &self,
+        mode_state: AuthModeStateRecord,
+    ) -> Result<(), SnapbackError> {
+        #[cfg(test)]
+        if self
+            .fail_auth_mode_publication
+            .swap(false, std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(SnapbackError::error(
+                "TEST_AUTH_MODE_PUBLICATION_FAILURE",
+                "auth",
+                "injected post-commit auth-mode publication failure",
+            ));
+        }
+        mode_state.validate_shape()?;
+        let snapshot = AuthModeRuntimeSnapshot {
+            active_policy: mode_state.active.into(),
+            desired_policy: mode_state.desired.into(),
+            state: Arc::new(mode_state),
+        };
+        *self
+            .auth_mode_runtime
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = snapshot;
+        Ok(())
+    }
+
     /// Publish a record that was already committed by the durable mode store.
     /// Validation happens before the one clone-shared swap; no request can
     /// observe the new record with the old active/desired policy inputs.
