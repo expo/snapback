@@ -202,9 +202,11 @@ await expectCode(
   ),
 );
 
-// Format 3 migrates by preserving already authority-tagged queue bytes while
-// installing a generation-zero queue fence. A truncated current format fails
-// closed instead of silently manufacturing a new fence.
+// Format 3 predates server-issued authority-instance descriptors. Migration
+// therefore strands its queue bytes instead of treating client-authored tags
+// as replay authority, while installing a generation-zero queue fence. A
+// truncated current format fails closed instead of silently manufacturing a
+// new fence.
 {
   const legacy = {
     version: 3,
@@ -238,7 +240,17 @@ await expectCode(
     pendingScopeCount: 0,
     effectiveDisposition: 'retain',
   });
-  assert.equal((await migrated.pendingMutations({ ...authority, ...capture })).length, 1);
+  assert.equal((await migrated.pendingMutations({ ...authority, ...capture })).length, 0);
+  assert.deepEqual((await migrated.snapshot()).legacyV3Stranded, [{
+    authorityEpoch: 0,
+    authorityKey: authority.authorityKey,
+    function: 'legacyWrite',
+    id: 'cm_legacy_queue',
+    legacyFormat: 3,
+    replayable: false,
+    sequence: 1,
+    status: 'pending',
+  }]);
 }
 
 {
