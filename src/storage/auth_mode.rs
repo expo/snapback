@@ -107,6 +107,8 @@ thread_local! {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AuthModeCommitBoundary {
     BeforeCommit,
+    #[cfg(test)]
+    AfterRollback,
     AfterCommit,
 }
 
@@ -153,6 +155,16 @@ fn commit_boundary_completed(boundary: AuthModeCommitBoundary) -> SnapbackResult
     Ok(())
 }
 
+fn commit_mode_sqlite_transaction(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    #[cfg(test)]
+    if let Err(error) = commit_boundary_completed(AuthModeCommitBoundary::AfterRollback) {
+        tx.execute_batch("ROLLBACK")?;
+        return Err(error);
+    }
+    tx.execute_batch("COMMIT")?;
+    Ok(())
+}
+
 fn transaction_step_completed(step: usize) -> SnapbackResult<()> {
     #[cfg(not(test))]
     let _ = step;
@@ -175,9 +187,26 @@ fn transaction_step_completed(step: usize) -> SnapbackResult<()> {
 /// exact reread whenever SQLite does not give the caller a clean boundary.
 /// Transaction-body failures count as rolled back only after an explicit
 /// rollback succeeds (or an exact predecessor reread proves it).
+/// `track_data_marker` is required when the body may change app/auth state
+/// without changing the mode snapshot; pure mode transitions use their exact
+/// predecessor and successor snapshots and avoid an unnecessary version read.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ModeCommitMarker {
+    app_version: u64,
+    authorization: Option<super::AuthorizationVersion>,
+}
+
+fn mode_commit_marker_on(conn: &Connection) -> SnapbackResult<ModeCommitMarker> {
+    Ok(ModeCommitMarker {
+        app_version: current_version_on(conn)?,
+        authorization: super::auth_stream::read_authorization_version_on(conn)?,
+    })
+}
+
 fn commit_mode_transaction<T>(
     conn: &mut Connection,
     predecessor: &AuthModeSnapshot,
+    track_data_marker: bool,
     interlock: Option<std::sync::Arc<dyn super::AuthorizationCommitInterlock>>,
     transaction_body: impl FnOnce(
         &Transaction<'_>,
@@ -191,26 +220,55 @@ fn commit_mode_transaction<T>(
         Ok(tx) => tx,
         Err(error) => return DurableModeCommit::RolledBack(error.into()),
     };
+    let predecessor_marker = if track_data_marker {
+        match mode_commit_marker_on(&tx) {
+            Ok(marker) => Some(marker),
+            Err(error) => {
+                return rollback_mode_transaction(&tx, predecessor, None, error);
+            }
+        }
+    } else {
+        None
+    };
     let (output, successor, authorization) = match transaction_body(&tx) {
         Ok(prepared) => prepared,
         Err(error) => {
-            return match tx.rollback() {
-                Ok(()) => DurableModeCommit::RolledBack(error),
-                Err(_) if managed_snapshot_matches(conn, predecessor) => {
-                    DurableModeCommit::RolledBack(error)
-                }
-                Err(_) => DurableModeCommit::Uncertain(error),
-            };
+            return rollback_mode_transaction(&tx, predecessor, predecessor_marker.as_ref(), error);
         }
     };
-    if let Err(error) = commit_boundary_completed(AuthModeCommitBoundary::BeforeCommit) {
-        return match tx.rollback() {
-            Ok(()) => DurableModeCommit::RolledBack(error),
-            Err(_) if managed_snapshot_matches(conn, predecessor) => {
-                DurableModeCommit::RolledBack(error)
+    let successor_marker = if track_data_marker {
+        match mode_commit_marker_on(&tx) {
+            Ok(marker) => Some(marker),
+            Err(error) => {
+                return rollback_mode_transaction(
+                    &tx,
+                    predecessor,
+                    predecessor_marker.as_ref(),
+                    error,
+                );
             }
-            Err(_) => DurableModeCommit::Uncertain(error),
-        };
+        }
+    } else {
+        None
+    };
+    if let (Some(predecessor_marker), Some(successor_marker)) =
+        (predecessor_marker.as_ref(), successor_marker.as_ref())
+    {
+        let expected_authorization = authorization
+            .as_ref()
+            .map(|(witness, _)| Some(witness.version.clone()))
+            .unwrap_or_else(|| predecessor_marker.authorization.clone());
+        if successor_marker.authorization != expected_authorization {
+            return rollback_mode_transaction(
+                &tx,
+                predecessor,
+                Some(predecessor_marker),
+                mode_corrupt("auth-mode transaction produced a mismatched authorization successor"),
+            );
+        }
+    }
+    if let Err(error) = commit_boundary_completed(AuthModeCommitBoundary::BeforeCommit) {
+        return rollback_mode_transaction(&tx, predecessor, predecessor_marker.as_ref(), error);
     }
     let prepared = match authorization.as_ref() {
         Some((witness, _)) if witness.event => match interlock
@@ -222,21 +280,42 @@ fn commit_mode_transaction<T>(
         {
             Ok(prepared) => prepared,
             Err(error) => {
-                return match tx.rollback() {
-                    Ok(()) => DurableModeCommit::RolledBack(error),
-                    Err(_) if managed_snapshot_matches(conn, predecessor) => {
-                        DurableModeCommit::RolledBack(error)
-                    }
-                    Err(_) => DurableModeCommit::Uncertain(error),
-                };
+                return rollback_mode_transaction(
+                    &tx,
+                    predecessor,
+                    predecessor_marker.as_ref(),
+                    error,
+                );
             }
         },
         _ => None,
     };
-    let durable = if let Err(error) = tx.commit() {
-        reconcile_mode_commit(conn, predecessor, &successor, output, error.into())
+    let durable = if let Err(error) = commit_mode_sqlite_transaction(&tx) {
+        if !tx.is_autocommit() && tx.execute_batch("ROLLBACK").is_ok() {
+            DurableModeCommit::RolledBack(error)
+        } else if tx.is_autocommit() {
+            reconcile_mode_commit(
+                &tx,
+                predecessor,
+                predecessor_marker.as_ref(),
+                &successor,
+                successor_marker.as_ref(),
+                output,
+                error,
+            )
+        } else {
+            DurableModeCommit::Uncertain(error)
+        }
     } else if let Err(error) = commit_boundary_completed(AuthModeCommitBoundary::AfterCommit) {
-        reconcile_mode_commit(conn, predecessor, &successor, output, error)
+        reconcile_mode_commit(
+            &tx,
+            predecessor,
+            predecessor_marker.as_ref(),
+            &successor,
+            successor_marker.as_ref(),
+            output,
+            error,
+        )
     } else {
         DurableModeCommit::Committed(output)
     };
@@ -259,29 +338,81 @@ fn commit_mode_transaction<T>(
     }
 }
 
+fn rollback_mode_transaction<T>(
+    tx: &Transaction<'_>,
+    predecessor: &AuthModeSnapshot,
+    predecessor_marker: Option<&ModeCommitMarker>,
+    error: SnapbackError,
+) -> DurableModeCommit<T> {
+    if !tx.is_autocommit() && tx.execute_batch("ROLLBACK").is_ok() {
+        return DurableModeCommit::RolledBack(error);
+    }
+    let predecessor_is_durable = match predecessor_marker {
+        Some(marker) => durable_mode_state_matches(tx, predecessor, marker),
+        None => matches!(
+            inspect_mode_durable_state(tx, false),
+            Ok(Some((observed, None))) if &observed == predecessor
+        ),
+    };
+    if tx.is_autocommit() && predecessor_is_durable {
+        DurableModeCommit::RolledBack(error)
+    } else {
+        DurableModeCommit::Uncertain(error)
+    }
+}
+
 fn reconcile_mode_commit<T>(
     conn: &Connection,
     predecessor: &AuthModeSnapshot,
+    predecessor_marker: Option<&ModeCommitMarker>,
     successor: &AuthModeSnapshot,
+    successor_marker: Option<&ModeCommitMarker>,
     output: T,
     error: SnapbackError,
 ) -> DurableModeCommit<T> {
-    match inspect_for_open(conn) {
-        Ok(OpenAuthModeInspection::Managed(observed)) if observed.as_ref() == successor => {
+    match inspect_mode_durable_state(conn, successor_marker.is_some()) {
+        Ok(Some((observed, marker)))
+            if &observed == successor && marker.as_ref() == successor_marker =>
+        {
             DurableModeCommit::Committed(output)
         }
-        Ok(OpenAuthModeInspection::Managed(observed)) if observed.as_ref() == predecessor => {
+        Ok(Some((observed, marker)))
+            if &observed == predecessor && marker.as_ref() == predecessor_marker =>
+        {
             DurableModeCommit::RolledBack(error)
         }
         _ => DurableModeCommit::Uncertain(error),
     }
 }
 
-fn managed_snapshot_matches(conn: &Connection, expected: &AuthModeSnapshot) -> bool {
+fn durable_mode_state_matches(
+    conn: &Connection,
+    expected: &AuthModeSnapshot,
+    expected_marker: &ModeCommitMarker,
+) -> bool {
     matches!(
-        inspect_for_open(conn),
-        Ok(OpenAuthModeInspection::Managed(observed)) if observed.as_ref() == expected
+        inspect_mode_durable_state(conn, true),
+        Ok(Some((observed, marker)))
+            if &observed == expected && marker.as_ref() == Some(expected_marker)
     )
+}
+
+fn inspect_mode_durable_state(
+    conn: &Connection,
+    include_marker: bool,
+) -> SnapbackResult<Option<(AuthModeSnapshot, Option<ModeCommitMarker>)>> {
+    let tx = conn.unchecked_transaction()?;
+    let state = match inspect_for_open(&tx)? {
+        OpenAuthModeInspection::Managed(snapshot) => Some((
+            *snapshot,
+            include_marker
+                .then(|| mode_commit_marker_on(&tx))
+                .transpose()?,
+        )),
+        OpenAuthModeInspection::Fresh | OpenAuthModeInspection::Legacy { .. } => None,
+    };
+    tx.commit()?;
+    Ok(state)
 }
 
 impl LocalDatabase {
@@ -331,9 +462,11 @@ impl LocalDatabase {
             Err(error) => return DurableModeCommit::RolledBack(error),
         };
         let authorization_interlock = self.authorization_interlock.clone();
+        let track_data_marker = seed.is_some();
         commit_mode_transaction(
             &mut self.conn,
             &predecessor,
+            track_data_marker,
             authorization_interlock,
             |tx| {
                 let current = require_managed_snapshot(tx)?;
@@ -548,6 +681,7 @@ impl LocalDatabase {
         next.validate_shape()?;
         save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
         transaction_step_completed(3)?;
+        let authorization_predecessor = super::auth_stream::read_authorization_version_on(&tx)?;
         let authorization = super::authorization::authorization_commit_hook_in(
             &tx,
             super::authorization::AuthorizationCommitCause::Activation,
@@ -558,6 +692,7 @@ impl LocalDatabase {
             tx,
             &authorization,
             super::AuthorizationCommitImpact::AllProtectedRooms,
+            authorization_predecessor,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -620,6 +755,7 @@ impl LocalDatabase {
         next.validate_shape()?;
         save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
         transaction_step_completed(1)?;
+        let authorization_predecessor = super::auth_stream::read_authorization_version_on(&tx)?;
         let authorization = super::authorization::authorization_commit_hook_in(
             &tx,
             super::authorization::AuthorizationCommitCause::Activation,
@@ -630,6 +766,7 @@ impl LocalDatabase {
             tx,
             &authorization,
             super::AuthorizationCommitImpact::AllProtectedRooms,
+            authorization_predecessor,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -704,6 +841,11 @@ impl LocalDatabase {
         };
         next.validate_shape()?;
         save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
+        let authorization_predecessor = if activation_changed || !seeded_changes.is_empty() {
+            super::auth_stream::read_authorization_version_on(&tx)?
+        } else {
+            None
+        };
         let authorization = if activation_changed {
             Some(super::authorization::authorization_commit_hook_in(
                 &tx,
@@ -730,8 +872,12 @@ impl LocalDatabase {
                     if activation_changed {
                         super::AuthorizationCommitImpact::AllProtectedRooms
                     } else {
-                        super::AuthorizationCommitImpact::AppWrites(&seeded_changes)
+                        super::AuthorizationCommitImpact::AppWrites {
+                            schema: &manifest,
+                            changes: &seeded_changes,
+                        }
                     },
+                    authorization_predecessor,
                     min_commit_version,
                     authorization_interlock,
                 )?;
@@ -786,9 +932,11 @@ impl LocalDatabase {
             Err(error) => return DurableModeCommit::RolledBack(error),
         };
         let authorization_interlock = self.authorization_interlock.clone();
+        let track_data_marker = seed.is_some();
         let committed = commit_mode_transaction(
             &mut self.conn,
             &predecessor,
+            track_data_marker,
             authorization_interlock,
             |tx| {
                 let current = require_managed_snapshot(tx)?;
@@ -923,6 +1071,11 @@ impl LocalDatabase {
         apply_schema_ddl(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
+        let authorization_predecessor = if activation_changed {
+            super::auth_stream::read_authorization_version_on(&tx)?
+        } else {
+            None
+        };
         let authorization = if activation_changed {
             Some(super::authorization::authorization_commit_hook_in(
                 &tx,
@@ -939,6 +1092,7 @@ impl LocalDatabase {
                     tx,
                     &authorization,
                     super::AuthorizationCommitImpact::AllProtectedRooms,
+                    authorization_predecessor,
                     min_commit_version,
                     authorization_interlock,
                 )?;
@@ -1378,6 +1532,46 @@ mod tests {
         }
     }
 
+    struct RecordingModeInterlock {
+        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    struct RecordingModeCommit {
+        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl super::super::AuthorizationCommitInterlock for RecordingModeInterlock {
+        fn prepare(
+            &self,
+            witness: &super::super::AuthorizationCommitWitness,
+            impact: super::super::AuthorizationCommitImpact<'_>,
+        ) -> SnapbackResult<Box<dyn super::super::PreparedAuthorizationCommit>> {
+            assert!(witness.event);
+            assert!(matches!(
+                impact,
+                super::super::AuthorizationCommitImpact::AllProtectedRooms
+            ));
+            self.prepared
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(Box::new(RecordingModeCommit {
+                committed: self.committed.clone(),
+            }))
+        }
+    }
+
+    impl super::super::PreparedAuthorizationCommit for RecordingModeCommit {
+        fn committed(self: Box<Self>, _min_commit_version: u64) -> SnapbackResult<()> {
+            self.committed
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn ambiguous(self: Box<Self>) {
+            panic!("an exact mode predecessor or successor must reconcile the test commit");
+        }
+    }
+
     fn mode_meta(connection: &Connection) -> BTreeMap<String, String> {
         read_mode_meta(connection).unwrap().unwrap()
     }
@@ -1544,6 +1738,60 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM network_items", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn repeated_same_mode_permission_seed_uses_auth_marker_to_prove_rollback() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (identity, mut manifest) = dev_pair(Some("permission_items"));
+        manifest.tables[0].permission_backing = true;
+        manifest.tables[0].permission_fields = Some(vec!["value".to_owned()]);
+        let (first_outcome, _) = database
+            .apply_same_mode_network_deployment(identity.clone(), manifest.clone(), None)
+            .unwrap();
+        assert_eq!(first_outcome, NetworkSeedOutcome::SkippedAbsent);
+        let predecessor_version = database.current_version().unwrap();
+        let predecessor_authorization = database.authorization_version().unwrap();
+
+        let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        database.install_authorization_interlock(std::sync::Arc::new(RecordingModeInterlock {
+            prepared: prepared.clone(),
+            committed: committed.clone(),
+        }));
+        let seed = SeedData {
+            tables: BTreeMap::from([(
+                "permission_items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), serde_json::json!("rolled-back-seed")),
+                    ("value".to_owned(), serde_json::json!("member")),
+                ])],
+            )]),
+        };
+        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterRollback);
+        match database.apply_same_mode_network_deployment_classified(identity, manifest, Some(seed))
+        {
+            DurableModeCommit::RolledBack(error) => assert_eq!(
+                error.diagnostic.code,
+                "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE"
+            ),
+            other => panic!("durable predecessor must prove rollback, got {other:?}"),
+        }
+
+        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert_eq!(database.current_version().unwrap(), predecessor_version);
+        assert_eq!(
+            database.authorization_version().unwrap(),
+            predecessor_authorization
+        );
+        let count: i64 = database
+            .conn
+            .query_row("SELECT COUNT(*) FROM permission_items", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 0);
     }
 
     #[test]

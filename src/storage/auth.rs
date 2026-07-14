@@ -390,6 +390,7 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         activate_auth_catalog_v1_in(&tx)?;
+        let authorization_predecessor = super::auth_stream::read_authorization_version_on(&tx)?;
         let authorization = super::authorization::authorization_commit_hook_in(
             &tx,
             super::authorization::AuthorizationCommitCause::Activation,
@@ -399,6 +400,7 @@ impl LocalDatabase {
             tx,
             &authorization,
             super::AuthorizationCommitImpact::AllProtectedRooms,
+            authorization_predecessor,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -587,6 +589,11 @@ impl LocalDatabase {
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
         restore_transaction_step_completed(1)?;
 
+        // Capture the exact durable predecessor before the destructive hook
+        // rotates the authorization incarnation. A COMMIT error can reopen
+        // the room ticket only if this exact pair is observed again.
+        let authorization_predecessor = super::auth_stream::read_authorization_version_on(&tx)?;
+
         // @ref LLP 0059#reset-restore-and-stream-publication — a first
         // application rotates authorization authority in this same
         // destructive transaction; an idempotent declaration returns above
@@ -614,6 +621,7 @@ impl LocalDatabase {
             tx,
             &authorization,
             super::AuthorizationCommitImpact::AllProtectedRooms,
+            authorization_predecessor,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -1227,6 +1235,7 @@ mod tests {
     struct RecordingRestoreInterlock {
         prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
         committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        expect_incarnation_rotated: bool,
     }
 
     struct RecordingRestoreCommit {
@@ -1240,7 +1249,7 @@ mod tests {
             impact: crate::storage::AuthorizationCommitImpact<'_>,
         ) -> SnapbackResult<Box<dyn crate::storage::PreparedAuthorizationCommit>> {
             assert!(witness.event);
-            assert!(witness.incarnation_rotated);
+            assert_eq!(witness.incarnation_rotated, self.expect_incarnation_rotated);
             assert!(matches!(
                 impact,
                 crate::storage::AuthorizationCommitImpact::AllProtectedRooms
@@ -1273,6 +1282,7 @@ mod tests {
         db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
             prepared: prepared.clone(),
             committed: committed.clone(),
+            expect_incarnation_rotated: true,
         }));
 
         let declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd17";
@@ -1287,6 +1297,82 @@ mod tests {
         );
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn catalog_activation_reconciles_absent_predecessor_and_lost_commit_ack() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
+            prepared: prepared.clone(),
+            committed: committed.clone(),
+            expect_incarnation_rotated: false,
+        }));
+        crate::storage::inject_authorization_commit_fault_for_test(
+            crate::storage::AuthorizationCommitFaultForTest::AfterRollback,
+        );
+        let error = db
+            .activate_auth_catalog_v1()
+            .expect_err("absent durable predecessor proves activation rolled back");
+        assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
+        assert_eq!(
+            db.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::Uninitialized
+        );
+
+        crate::storage::inject_authorization_commit_fault_for_test(
+            crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
+        );
+
+        db.activate_auth_catalog_v1()
+            .expect("exact catalog successor proves activation committed");
+        assert_eq!(
+            db.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV1
+        );
+        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn destructive_restore_reconciles_lost_ack_and_definite_rollback() {
+        let mut db = catalog_database();
+        let predecessor = db.authorization_version().unwrap();
+        let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
+            prepared: prepared.clone(),
+            committed: committed.clone(),
+            expect_incarnation_rotated: true,
+        }));
+
+        let rolled_back_declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd18";
+        crate::storage::inject_authorization_commit_fault_for_test(
+            crate::storage::AuthorizationCommitFaultForTest::BeforeCommit,
+        );
+        let error = db
+            .apply_auth_restore_declaration(rolled_back_declaration, 100)
+            .expect_err("explicit SQLite rollback is definite");
+        assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
+        assert_eq!(db.authorization_version().unwrap(), predecessor);
+
+        let committed_declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd19";
+        crate::storage::inject_authorization_commit_fault_for_test(
+            crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
+        );
+        let applied = db
+            .apply_auth_restore_declaration(committed_declaration, 101)
+            .expect("rotated durable successor proves the lost acknowledgement");
+        assert!(matches!(applied, AuthRestoreResult::Applied { .. }));
+        assert_ne!(db.authorization_version().unwrap(), predecessor);
+        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(
+            db.apply_auth_restore_declaration(committed_declaration, 102)
+                .unwrap(),
+            AuthRestoreResult::AlreadyApplied
+        );
     }
 
     #[test]

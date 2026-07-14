@@ -63,6 +63,33 @@ thread_local! {
 }
 
 #[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AuthorizationCommitFaultForTest {
+    BeforeCommit,
+    AfterRollback,
+    AfterCommit,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// One-shot generic authorization-COMMIT fault. `AfterRollback` and
+    /// `AfterCommit` force exact durable predecessor/successor reconciliation.
+    static AUTHORIZATION_COMMIT_FAULT: std::cell::Cell<Option<AuthorizationCommitFaultForTest>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn inject_authorization_commit_fault_for_test(fault: AuthorizationCommitFaultForTest) {
+    AUTHORIZATION_COMMIT_FAULT.with(|slot| {
+        assert!(
+            slot.get().is_none(),
+            "authorization commit fault must be one-shot"
+        );
+        slot.set(Some(fault));
+    });
+}
+
+#[cfg(test)]
 pub(crate) fn inject_reset_commit_failure_for_test() {
     BEFORE_RESET_COMMIT_HOOK.with(|slot| {
         assert!(slot.borrow().is_none(), "reset hook must be one-shot");
@@ -230,7 +257,10 @@ pub struct AuthorizationCommitWitness {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum AuthorizationCommitImpact<'a> {
     AllProtectedRooms,
-    AppWrites(&'a [ChangedRow]),
+    AppWrites {
+        schema: &'a SchemaManifest,
+        changes: &'a [ChangedRow],
+    },
 }
 
 /// Process-local sink barrier paired with the durable authorization hook.
@@ -250,10 +280,19 @@ pub(crate) trait PreparedAuthorizationCommit: Send {
     fn ambiguous(self: Box<Self>);
 }
 
+/// Commit with the exact authorization pair observed before this transaction's
+/// hook. The predecessor is not derivable from the successor: first activation
+/// advances from absent metadata, while destructive boundaries rotate the
+/// incarnation.
+///
+/// @ref LLP 0053#ephemeral-room-authority-invalidation — a failed COMMIT may
+///   finalize only after successor proof, and may exact-unmark only after
+///   predecessor/rollback proof; every other outcome keeps the ticket pending.
 fn commit_with_authorization_interlock(
     tx: Transaction<'_>,
     witness: &AuthorizationCommitWitness,
     impact: AuthorizationCommitImpact<'_>,
+    predecessor: Option<AuthorizationVersion>,
     min_commit_version: u64,
     interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
 ) -> SnapbackResult<()> {
@@ -265,21 +304,80 @@ fn commit_with_authorization_interlock(
     } else {
         None
     };
-    match tx.commit() {
-        Ok(()) => match prepared {
-            Some(prepared) => prepared.committed(min_commit_version),
-            None => Ok(()),
-        },
-        Err(error) => {
-            if let Some(prepared) = prepared {
-                // SQLite could have crossed the durable boundary before the
-                // driver surfaced an error. Keep every sink closed until an
-                // explicit reconciliation proves commit or rollback.
-                prepared.ambiguous();
+    let Some(prepared) = prepared else {
+        return tx.commit().map_err(Into::into);
+    };
+
+    // Keep the Transaction handle so a COMMIT error can be reconciled on the
+    // same serialized connection before another supported writer can advance
+    // the durable authorization pair. No room/registry lock is held here.
+    let commit = commit_authorization_transaction(&tx);
+    if commit.is_ok() {
+        return prepared.committed(min_commit_version);
+    }
+    let commit_error = commit.expect_err("checked error outcome");
+
+    if !tx.is_autocommit() && tx.execute_batch("ROLLBACK").is_ok() {
+        // SQLite confirmed that this exact transaction rolled back. Dropping
+        // the prepared handle compare-removes only its ticket.
+        drop(prepared);
+        return Err(commit_error);
+    }
+
+    if tx.is_autocommit() {
+        match auth_stream::read_authorization_version_snapshot(&tx) {
+            Ok(actual) if actual == Some(witness.version.clone()) => {
+                return prepared.committed(min_commit_version);
             }
-            Err(error.into())
+            Ok(actual) if actual == predecessor => {
+                drop(prepared);
+                return Err(commit_error);
+            }
+            Ok(_) | Err(_) => {}
         }
     }
+
+    // The transaction may have committed, rolled back, or left the connection
+    // unreadable. Keep the exact process-local ticket closed; process rebuild
+    // is the only safe recovery because owner-level durable-query/schema
+    // publication did not complete. No timeout path may reopen it.
+    prepared.ambiguous();
+    Err(commit_error)
+}
+
+fn commit_authorization_transaction(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    #[cfg(test)]
+    let fault = AUTHORIZATION_COMMIT_FAULT.with(|slot| slot.take());
+    #[cfg(test)]
+    if fault == Some(AuthorizationCommitFaultForTest::BeforeCommit) {
+        return Err(SnapbackError::error(
+            "TEST_AUTHORIZATION_COMMIT_FAILURE",
+            "auth",
+            "injected failure before authorization COMMIT",
+        ));
+    }
+
+    #[cfg(test)]
+    if fault == Some(AuthorizationCommitFaultForTest::AfterRollback) {
+        tx.execute_batch("ROLLBACK")?;
+        return Err(SnapbackError::error(
+            "TEST_AUTHORIZATION_COMMIT_FAILURE",
+            "auth",
+            "injected authorization COMMIT error after durable rollback",
+        ));
+    }
+
+    tx.execute_batch("COMMIT")?;
+
+    #[cfg(test)]
+    if fault == Some(AuthorizationCommitFaultForTest::AfterCommit) {
+        return Err(SnapbackError::error(
+            "TEST_AUTHORIZATION_COMMIT_FAILURE",
+            "auth",
+            "injected lost authorization COMMIT acknowledgement",
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1128,6 +1226,21 @@ impl LocalDatabase {
             Ok(tx) => tx,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error.into()),
         };
+        let authorization_predecessor = match auth_stream::read_authorization_version_on(&tx) {
+            Ok(version) => version,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        if authorization_predecessor
+            .as_ref()
+            .map(|version| version.incarnation.as_str())
+            != Some(predecessor.as_str())
+        {
+            return auth::AuthTransactionAttempt::RolledBack(SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
+                "auth",
+                "reset coordinator predecessor does not match durable authorization state",
+            ));
+        }
         let seeded = match reset_and_seed_transaction(&tx, &schema, seed, successor) {
             Ok(seeded) => seeded,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
@@ -1170,15 +1283,16 @@ impl LocalDatabase {
             },
             Err(error) => {
                 let error = SnapbackError::from(error);
-                match self.authorization_stream_incarnation() {
-                    Ok(durable) if &durable == successor => match prepared {
+                match auth_stream::read_authorization_version_snapshot(&self.conn) {
+                    Ok(durable) if durable == Some(authorization.version.clone()) => match prepared
+                    {
                         Some(prepared) => match prepared.committed(min_commit_version) {
                             Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
                             Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
                         },
                         None => auth::AuthTransactionAttempt::Committed(seeded),
                     },
-                    Ok(durable) if &durable == predecessor => {
+                    Ok(durable) if durable == authorization_predecessor => {
                         drop(prepared);
                         auth::AuthTransactionAttempt::RolledBack(error)
                     }
@@ -1269,6 +1383,7 @@ impl LocalDatabase {
         if changed_count > 0 {
             set_version(&tx, next_version)?;
         }
+        let authorization_predecessor = auth_stream::read_authorization_version_on(&tx)?;
         let authorization = authorization::authorization_commit_hook_in(
             &tx,
             authorization::AuthorizationCommitCause::AppWrites {
@@ -1284,7 +1399,11 @@ impl LocalDatabase {
         commit_with_authorization_interlock(
             tx,
             &authorization,
-            AuthorizationCommitImpact::AppWrites(&changes),
+            AuthorizationCommitImpact::AppWrites {
+                schema: &schema,
+                changes: &changes,
+            },
+            authorization_predecessor,
             version,
             authorization_interlock,
         )?;
@@ -1900,6 +2019,11 @@ impl LocalDatabase {
             result,
             ctx_ledger: Some(output_ledger),
         };
+        let authorization_predecessor = if apply {
+            auth_stream::read_authorization_version_on(&tx)?
+        } else {
+            None
+        };
         let authorization = if apply {
             Some(authorization::authorization_commit_hook_in(
                 &tx,
@@ -1926,7 +2050,11 @@ impl LocalDatabase {
                 authorization
                     .as_ref()
                     .expect("an applied mutation has an authorization witness"),
-                AuthorizationCommitImpact::AppWrites(&changes),
+                AuthorizationCommitImpact::AppWrites {
+                    schema: &schema,
+                    changes: &changes,
+                },
+                authorization_predecessor,
                 version,
                 authorization_interlock,
             )?;
@@ -2209,6 +2337,11 @@ impl LocalDatabase {
             result,
             ctx_ledger: options.ctx_ledger,
         };
+        let authorization_predecessor = if options.apply {
+            auth_stream::read_authorization_version_on(&tx)?
+        } else {
+            None
+        };
         let authorization = if options.apply {
             Some(authorization::authorization_commit_hook_in(
                 &tx,
@@ -2234,7 +2367,11 @@ impl LocalDatabase {
                 authorization
                     .as_ref()
                     .expect("an applied mutation has an authorization witness"),
-                AuthorizationCommitImpact::AppWrites(&changes),
+                AuthorizationCommitImpact::AppWrites {
+                    schema: &schema,
+                    changes: &changes,
+                },
+                authorization_predecessor,
                 version,
                 authorization_interlock,
             )?;

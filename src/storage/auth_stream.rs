@@ -273,7 +273,7 @@ fn read_authorization_stream_record_on(
     .transpose()
 }
 
-fn read_authorization_version_on(
+pub(super) fn read_authorization_version_on(
     conn: &Connection,
 ) -> SnapbackResult<Option<AuthorizationVersion>> {
     let stream = read_authorization_stream_record_on(conn)?;
@@ -288,6 +288,17 @@ fn read_authorization_version_on(
             "authorization-version metadata is partial",
         )),
     }
+}
+
+/// Read both halves of the authorization pair from one SQLite snapshot when
+/// the caller is outside an existing transaction.
+pub(super) fn read_authorization_version_snapshot(
+    conn: &Connection,
+) -> SnapbackResult<Option<AuthorizationVersion>> {
+    let tx = conn.unchecked_transaction()?;
+    let version = read_authorization_version_on(&tx)?;
+    tx.commit()?;
+    Ok(version)
 }
 
 fn read_authorization_epoch_on(conn: &Connection) -> SnapbackResult<Option<u64>> {

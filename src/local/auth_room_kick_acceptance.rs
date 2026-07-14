@@ -25,7 +25,10 @@ use crate::manifest::{
     IndexManifest, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, TableManifest,
     TargetCapabilityId,
 };
-use crate::storage::AuthorizationVersion;
+use crate::storage::{
+    AuthorizationCommitFaultForTest, AuthorizationVersion,
+    inject_authorization_commit_fault_for_test,
+};
 use serde_json::{Map, Value, json};
 use std::sync::{Arc, Mutex, PoisonError, mpsc};
 use std::time::{Duration, Instant};
@@ -528,6 +531,90 @@ fn process_loss_before_room_ack_forces_fresh_membership_authorization() {
         } if entries.is_empty()
     ));
     drop(b_permit);
+}
+
+#[test]
+fn lost_commit_ack_proves_successor_and_finalizes_the_exact_room_ticket() {
+    let fixture = KickFixture::new();
+    inject_authorization_commit_fault_for_test(AuthorizationCommitFaultForTest::AfterCommit);
+
+    let kick = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .invoke_mutation_with_authority(
+            "kickMember",
+            HandlerInput {
+                args: json!({ "id": MEMBER_A }),
+                ..HandlerInput::default()
+            },
+            session_authority(InvocationSource::HttpMutation, USER_B),
+        )
+        .expect("durable successor proves the lost COMMIT acknowledgement succeeded");
+    assert_eq!(kick.changed_count, 1);
+
+    let pending = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .ephemeral
+        .pending_room_reauthorizations();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].room.scope, room_scope());
+    assert_eq!(pending[0].obligation.min_commit_version, kick.version);
+    let denied = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .expect_err("the reconciled commit durably removed A's membership");
+    assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+}
+
+#[test]
+fn commit_error_with_durable_rollback_removes_only_its_exact_room_ticket() {
+    let fixture = KickFixture::new();
+    inject_authorization_commit_fault_for_test(AuthorizationCommitFaultForTest::AfterRollback);
+
+    let error = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .invoke_mutation_with_authority(
+            "kickMember",
+            HandlerInput {
+                args: json!({ "id": MEMBER_A }),
+                ..HandlerInput::default()
+            },
+            session_authority(InvocationSource::HttpMutation, USER_B),
+        )
+        .expect_err("the injected COMMIT error has durably rolled back");
+    assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
+    assert!(
+        fixture
+            .snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .ephemeral
+            .pending_room_reauthorizations()
+            .is_empty(),
+        "confirmed rollback compare-removes the exact prepared ticket"
+    );
+    fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .expect("rollback preserves A's durable room permission");
+    publish_presence_locked(
+        &fixture.snapback,
+        &fixture.ephemeral,
+        CONNECTION_A,
+        USER_A,
+        b"A:rollback-kept-authority",
+        31,
+    )
+    .expect("the exact room reopens after confirmed rollback");
 }
 
 fn game_schema() -> SchemaManifest {

@@ -5962,6 +5962,15 @@ impl LocalSnapback {
         &mut self,
         collection: EphemeralCollection,
     ) -> Result<(), crate::ephemeral::EphemeralError> {
+        validate_collection_definitions(std::slice::from_ref(&collection))?;
+        // @ref LLP 0053#ephemeral-room-authority-invalidation — dynamic
+        // registration must preserve the same permissionFields/projection
+        // closure as manifest publication or invalidation can miss a room.
+        validate_collection_permission_backing(
+            std::slice::from_ref(&collection),
+            &self.db.schema().tables,
+            self.db.schema().effective_auth_mode() == AuthMode::Sessions,
+        )?;
         self.ephemeral.register_collection(collection)
     }
 
@@ -5969,6 +5978,12 @@ impl LocalSnapback {
         &mut self,
         collections: Vec<EphemeralCollection>,
     ) -> Result<CollectionEnsureOutcome, crate::ephemeral::EphemeralError> {
+        validate_collection_definitions(&collections)?;
+        validate_collection_permission_backing(
+            &collections,
+            &self.db.schema().tables,
+            self.db.schema().effective_auth_mode() == AuthMode::Sessions,
+        )?;
         self.ephemeral.ensure_collections(collections)
     }
 
@@ -9755,6 +9770,58 @@ globalThis.__snapbackHandlers = {
             authority_instance_id: authority_instance_id.to_owned(),
             session_generation: 1,
         }
+    }
+
+    #[test]
+    fn dynamic_ephemeral_registration_preserves_permission_projection_closure() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "memberships".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "gameId".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "userId".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: true,
+                    permission_fields: Some(vec!["gameId".to_owned()]),
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply permission-backing table");
+        let inconsistent =
+            crate::ephemeral::EphemeralCollection::local_cursor("gamePresence", "gameId")
+                .require_room_permission("game")
+                .permission_backed_by(crate::ephemeral::RoomPermissionProjection {
+                    table: "memberships".to_owned(),
+                    subject_field: "userId".to_owned(),
+                    scope_fields: BTreeMap::from([("gameId".to_owned(), "gameId".to_owned())]),
+                });
+
+        let register_error = snapback
+            .register_ephemeral_collection(inconsistent.clone())
+            .expect_err("dynamic registration cannot bypass permissionFields closure");
+        assert_eq!(
+            register_error.code,
+            crate::ephemeral::EphemeralErrorCode::IncompatibleCollectionDefinition
+        );
+        let ensure_error = snapback
+            .ensure_ephemeral_collections(vec![inconsistent])
+            .expect_err("dynamic ensure cannot bypass permissionFields closure");
+        assert_eq!(
+            ensure_error.code,
+            crate::ephemeral::EphemeralErrorCode::IncompatibleCollectionDefinition
+        );
     }
 
     #[test]

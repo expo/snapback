@@ -2428,7 +2428,7 @@ impl LocalEphemeralBackend {
         &self,
         impact: AuthorizationCommitImpact<'_>,
     ) -> RoomDependencySelector {
-        let AuthorizationCommitImpact::AppWrites(changes) = impact else {
+        let AuthorizationCommitImpact::AppWrites { schema, changes } = impact else {
             return RoomDependencySelector::all();
         };
         let collections = self
@@ -2451,6 +2451,13 @@ impl LocalEphemeralBackend {
                 if projection.table != change.table {
                     continue;
                 }
+                let Some(table) = schema.table(&change.table) else {
+                    // Authorization event classification already treats an
+                    // unknown table as affected. The room selector must not
+                    // narrow that conservative decision with less metadata.
+                    selector.collections.insert(collection.name.clone());
+                    continue;
+                };
                 let projection_fields = projection
                     .scope_fields
                     .values()
@@ -2458,6 +2465,16 @@ impl LocalEphemeralBackend {
                     .collect::<BTreeSet<_>>();
                 if matches!(change.op, ChangeOp::Update) {
                     if change.changed_fields.is_empty() {
+                        selector.collections.insert(collection.name.clone());
+                        continue;
+                    }
+                    if change
+                        .changed_fields
+                        .iter()
+                        .any(|field| table.field(field).is_none())
+                    {
+                        // Unknown names are incomplete change metadata, not a
+                        // proof that this projection is disjoint.
                         selector.collections.insert(collection.name.clone());
                         continue;
                     }
@@ -5587,6 +5604,65 @@ mod tests {
     fn collection() -> EphemeralCollection {
         EphemeralCollection::local_cursor("boardCursors", "boardId")
             .require_room_permission("board")
+    }
+
+    #[test]
+    fn unknown_change_field_widens_permission_projection_to_collection() {
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
+        use crate::storage::ChangedRow;
+
+        let projection = RoomPermissionProjection {
+            table: "memberships".to_owned(),
+            subject_field: "userId".to_owned(),
+            scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+        };
+        let backend = LocalEphemeralBackend::new();
+        backend
+            .register_collection(collection().permission_backed_by(projection))
+            .unwrap();
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "memberships".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "boardId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: true,
+                permission_fields: Some(vec!["boardId".to_owned(), "userId".to_owned()]),
+            }],
+            ..SchemaManifest::default()
+        };
+        let changes = [ChangedRow {
+            table: "memberships".to_owned(),
+            id: "member-a".to_owned(),
+            op: ChangeOp::Update,
+            row: Some(serde_json::json!({"boardId": "board-1", "userId": "user-a"})),
+            changed_fields: vec!["futureField".to_owned()],
+        }];
+
+        let selector = backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
+            schema: &schema,
+            changes: &changes,
+        });
+        let other_scope = Scope::from_pairs([("boardId", "board-2")]);
+        let other_room = room_id_for(&collection(), &other_scope).unwrap();
+        assert!(!selector.all_protected_rooms);
+        assert_eq!(
+            selector.collections,
+            BTreeSet::from(["boardCursors".to_owned()])
+        );
+        assert!(selector.matches(&room()));
+        assert!(selector.matches(&other_room));
     }
 
     fn publish_request(connection_id: &str, value: &[u8]) -> PublishRequest {
