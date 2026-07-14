@@ -9055,6 +9055,9 @@ fn auth_resnapshot_required() -> SnapbackError {
 }
 
 #[cfg(test)]
+mod auth_room_kick_acceptance;
+
+#[cfg(test)]
 mod tests {
     use super::{
         AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,

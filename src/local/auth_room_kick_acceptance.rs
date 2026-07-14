@@ -1,0 +1,774 @@
+//! ENG-24604 integrated acceptance for the card-game membership-kick trace.
+//! @ref LLP 0053#ephemeral-room-authority-invalidation — a membership kick must
+//! fence storage, protected-room admission, queued work, and final send as one
+//! authority transition.
+//!
+//! The lower-level race matrix remains next to the room authority in
+//! `ephemeral.rs`; this module proves those primitives compose through a real
+//! permission-backing SQLite commit, durable invalidation, and fresh room
+//! reauthorization. The clause map is recorded in
+//! `tests/eng-24604-protected-room-kick.acceptance.md`.
+
+use super::*;
+use crate::auth::invalidation::{
+    AUTH_INVALIDATION_PROTOCOL_VERSION, IssuerAuthenticator, IssuerId,
+};
+use crate::auth::mode::{
+    AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+    SCHEMA_V1_PREFIX,
+};
+use crate::ephemeral::{
+    AdmittedRealtimeEnvelope, EphemeralErrorCode, RemoveReason, ResyncReason, RoomAuthorityPermit,
+};
+use crate::manifest::{
+    AuthManifest, AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, IndexManifest,
+    ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, TableManifest, TargetCapabilityId,
+};
+use serde_json::{Map, Value, json};
+use std::sync::{Arc, Mutex, PoisonError, mpsc};
+use std::time::{Duration, Instant};
+
+const BOARD_ID: &str = "board-acceptance";
+const CONNECTION_A: &str = "player-a";
+const CONNECTION_B: &str = "player-b";
+const USER_A: &str = "018f0d90-7b31-7a22-8c33-445566778899";
+const USER_B: &str = "018f0d90-7b32-7a22-8c33-445566778899";
+const SESSION_A: &str = "018f0d90-7b33-7a22-8c33-445566778899";
+const SESSION_B: &str = "018f0d90-7b34-7a22-8c33-445566778899";
+const AUTHORITY_A: &str = "018f0d90-7b35-7a22-8c33-445566778899";
+const AUTHORITY_B: &str = "018f0d90-7b36-7a22-8c33-445566778899";
+const MEMBER_A: &str = "member-a";
+const MEMBER_B: &str = "member-b";
+const APP_ID: &str = "card-game-acceptance";
+
+struct KickFixture {
+    snapback: Arc<Mutex<LocalSnapback>>,
+    ephemeral: EphemeralApi,
+    room_auth_a: AuthContext,
+    room_auth_b: AuthContext,
+}
+
+impl KickFixture {
+    fn new() -> Self {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let schema = game_schema();
+        snapback
+            .auth_database_mut()
+            .stage_auth_mode(game_deployment(), schema.clone(), Some(game_members()))
+            .expect("stage complete sessions game deployment and seed");
+        let settled = snapback
+            .auth_database_mut()
+            .consume_sessions_auth_mode(&AuthProgramReadiness::new(
+                true, true, true, true, true, true, false,
+            ))
+            .expect("consume staged sessions game deployment");
+        snapback
+            .synchronize_auth_mode_admission(&settled)
+            .expect("bind local admission to settled sessions mode");
+        snapback
+            .ephemeral
+            .replace_collections(schema.ephemeral_collections)
+            .expect("publish the staged protected room definition");
+        let diagnostics = snapback.load_functions(game_functions());
+        assert!(
+            diagnostics.is_empty(),
+            "game functions load without diagnostics: {diagnostics:?}"
+        );
+        let [connection_a, connection_b] = install_invalidation(&mut snapback);
+
+        let durable_a = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "currentMembership",
+                durable_subscribe(CONNECTION_A, "store-a", 1),
+                session_authority(InvocationSource::LiveInitialQuery, USER_A),
+                LiveInvalidationAdmission {
+                    connection: Some(connection_a),
+                    session_mode: true,
+                },
+            )
+            .expect("A subscribes to its durable membership");
+        let durable_b = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "currentMembership",
+                durable_subscribe(CONNECTION_B, "store-b", 1),
+                session_authority(InvocationSource::LiveInitialQuery, USER_B),
+                LiveInvalidationAdmission {
+                    connection: Some(connection_b),
+                    session_mode: true,
+                },
+            )
+            .expect("B subscribes to its durable membership");
+        assert_eq!(durable_a.snapshot.rows.len(), 1);
+        assert_eq!(durable_a.snapshot.rows[0]["_id"], MEMBER_A);
+        assert_eq!(durable_b.snapshot.rows.len(), 1);
+        assert_eq!(durable_b.snapshot.rows[0]["_id"], MEMBER_B);
+
+        let ephemeral = snapback.ephemeral_api();
+        let room_auth_a = register_room(&snapback, &ephemeral, CONNECTION_A, USER_A, 10);
+        let room_auth_b = register_room(&snapback, &ephemeral, CONNECTION_B, USER_B, 11);
+        publish_presence(&snapback, &ephemeral, CONNECTION_A, USER_A, b"A:ready", 12)
+            .expect("A publishes its pre-kick presence");
+
+        Self {
+            snapback: Arc::new(Mutex::new(snapback)),
+            ephemeral,
+            room_auth_a,
+            room_auth_b,
+        }
+    }
+
+    fn kick_while_holding_final_send(&self) -> (MutationOutput, RealtimeEnvelope) {
+        let admitted = self
+            .ephemeral
+            .drain_outbox_for_send_if_active(CONNECTION_A)
+            .expect("A is an active room connection");
+        let (old_envelope, old_send_permit) = admitted
+            .into_iter()
+            .map(AdmittedRealtimeEnvelope::into_parts)
+            .find(|(envelope, _)| {
+                matches!(
+                    envelope,
+                    RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { .. })
+                )
+            })
+            .expect("A's pre-kick upsert reached destructive drain");
+        let old_send_permit = old_send_permit.expect("protected frame carries send permit");
+
+        let snapback = self.snapback.clone();
+        let (started_tx, started_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let kick = std::thread::spawn(move || {
+            started_tx.send(()).expect("signal kick start");
+            let result = snapback
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .invoke_mutation_with_authority(
+                    "kickMember",
+                    HandlerInput {
+                        args: json!({ "id": MEMBER_A }),
+                        ..HandlerInput::default()
+                    },
+                    session_authority(InvocationSource::HttpMutation, USER_B),
+                );
+            done_tx.send(result).expect("return kick result");
+        });
+        started_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("kick thread started");
+
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            match self
+                .ephemeral
+                .begin_server_authorized_room_act("gamePresence", &room_scope())
+            {
+                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                Ok(permit) => drop(permit),
+                Err(error) => panic!("unexpected room admission result: {error:?}"),
+            }
+            assert!(
+                Instant::now() < deadline,
+                "kick did not install its dependency ticket"
+            );
+            std::thread::yield_now();
+        }
+        assert!(
+            done_rx.try_recv().is_err(),
+            "the SQLite kick must wait for the drained final-send permit"
+        );
+
+        let late = self
+            .ephemeral
+            .subscribe(
+                room_subscribe("late-registration", self.room_auth_b.clone()),
+                13,
+            )
+            .expect_err("pending dependency ticket closes racing registration");
+        assert_eq!(late.code, EphemeralErrorCode::AuthorityPending);
+        let stale_publish = self
+            .ephemeral
+            .publish(
+                room_publish(
+                    CONNECTION_A,
+                    USER_A,
+                    self.room_auth_a.clone(),
+                    b"A:after-lookup",
+                ),
+                14,
+            )
+            .expect_err("pending barrier rejects old-authority mutation/enqueue");
+        assert_eq!(stale_publish.code, EphemeralErrorCode::AuthorityPending);
+
+        drop(old_send_permit);
+        let output = done_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("kick completes after quiescence")
+            .expect("kick mutation commits");
+        kick.join().expect("kick thread joins");
+
+        let rejected = match self.ephemeral.begin_final_send(&old_envelope) {
+            Err(error) => error,
+            Ok(_) => panic!("generation-1 frame crossed final send after commit"),
+        };
+        assert_eq!(rejected.code, EphemeralErrorCode::AuthorityPending);
+        (output, old_envelope)
+    }
+}
+
+#[test]
+fn card_game_kick_composes_durable_and_room_authority_boundaries() {
+    let fixture = KickFixture::new();
+    let (kick, old_envelope) = fixture.kick_while_holding_final_send();
+    drop(old_envelope);
+
+    let pending = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .ephemeral
+        .pending_room_reauthorizations();
+    assert_eq!(pending.len(), 1, "one protected game room is pending");
+    assert_eq!(pending[0].obligation.min_commit_version, kick.version);
+    let expectation = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .auth_invalidation_expectation_for_test()
+        .expect("installed authorization expectation");
+    assert_eq!(pending[0].obligation.authorization, expectation);
+
+    let frames_a = fixture.ephemeral.drain_outbox(CONNECTION_A);
+    let frames_b = fixture.ephemeral.drain_outbox(CONNECTION_B);
+    assert_durable_kick_snapshot(&frames_a, kick.version, 0);
+    assert_durable_kick_snapshot(&frames_b, kick.version, 1);
+    assert!(
+        frames_b.iter().all(|frame| !matches!(
+            frame,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
+                room_authority_generation: 1,
+                ..
+            })
+        )),
+        "B's queued generation-1 presence is discarded after the kick"
+    );
+    assert_auth_changed(&frames_a, 2);
+    assert_auth_changed(&frames_b, 2);
+    let dropped_refires = fixture.ephemeral.drain_outbox(CONNECTION_B);
+    assert_auth_changed(&dropped_refires, 2);
+
+    let completed = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .reauthorize_pending_ephemeral_rooms(|connection_id, previous| {
+            assert!(matches!(connection_id, CONNECTION_A | CONNECTION_B));
+            Ok(Some(previous.clone()))
+        })
+        .expect("fresh durable membership reauthorizes the room");
+    assert_eq!(completed, 1);
+
+    let denied_a = fixture.ephemeral.drain_outbox(CONNECTION_A);
+    assert!(denied_a.iter().any(|frame| matches!(
+        frame,
+        RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
+            error,
+            room_authority_generation: Some(2),
+            ..
+        }) if error.code == EphemeralErrorCode::PermissionDenied
+    )));
+    let survivor_b = fixture.ephemeral.drain_outbox(CONNECTION_B);
+    assert!(survivor_b.iter().any(|frame| matches!(
+        frame,
+        RealtimeEnvelope::Ephemeral(EphemeralMessage::Remove {
+            reason: RemoveReason::AuthRevoked,
+            room_authority_generation: 2,
+            ..
+        })
+    )));
+    assert!(survivor_b.iter().any(|frame| matches!(
+        frame,
+        RealtimeEnvelope::Ephemeral(EphemeralMessage::Snapshot {
+            room_authority_generation: 2,
+            entries,
+            ..
+        }) if entries.is_empty()
+    )));
+
+    let denied = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .expect_err("A cannot regain a room grant after its membership is deleted");
+    assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+
+    publish_presence_locked(
+        &fixture.snapback,
+        &fixture.ephemeral,
+        CONNECTION_B,
+        USER_B,
+        b"B:still-here",
+        20,
+    )
+    .expect("B can publish under the fresh generation");
+    assert!(
+        fixture.ephemeral.drain_outbox(CONNECTION_A).is_empty(),
+        "A was unregistered before B's fresh-generation fanout"
+    );
+}
+
+#[test]
+fn process_loss_before_room_ack_forces_fresh_membership_authorization() {
+    let fixture = KickFixture::new();
+    let (kick, old_envelope) = fixture.kick_while_holding_final_send();
+    drop(old_envelope);
+    assert_eq!(kick.changed_count, 1);
+
+    let fresh_ephemeral = {
+        let mut snapback = fixture
+            .snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        replace_process_local_room_authority(&mut snapback)
+    };
+    assert!(
+        fixture
+            .snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .ephemeral
+            .pending_room_reauthorizations()
+            .is_empty(),
+        "a fresh process owns no predecessor room obligation or continuity"
+    );
+
+    let denied = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .expect_err("fresh A registration re-reads the committed kick");
+    assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+
+    let snapback = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    let (b_auth, b_permit) = server_room_grant(&snapback, &fresh_ephemeral, USER_B);
+    let snapshot = fresh_ephemeral
+        .subscribe(room_subscribe(CONNECTION_B, b_auth), 30)
+        .expect("B fresh-registers after process loss");
+    assert!(matches!(
+        snapshot,
+        EphemeralMessage::Snapshot {
+            room_authority_generation: 1,
+            ref entries,
+            ..
+        } if entries.is_empty()
+    ));
+    drop(b_permit);
+}
+
+fn game_schema() -> SchemaManifest {
+    SchemaManifest {
+        schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+        app_id: APP_ID.to_owned(),
+        auth: Some(AuthManifest {
+            mode: AuthMode::Sessions,
+        }),
+        required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
+        schema_hash: Some(game_schema_hash()),
+        inputs_hash: Some(game_inputs_hash()),
+        tables: vec![TableManifest {
+            name: "gameMembers".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "gameId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "userId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_game_user".to_owned(),
+                fields: vec!["gameId".to_owned(), "userId".to_owned()],
+            }],
+            syncable: true,
+            permission_backing: true,
+            permission_fields: Some(vec!["gameId".to_owned(), "userId".to_owned()]),
+        }],
+        ephemeral_collections: vec![
+            EphemeralCollection::local_cursor("gamePresence", "gameId")
+                .require_room_permission("game")
+                .permission_backed_by(RoomPermissionProjection {
+                    table: "gameMembers".to_owned(),
+                    subject_field: "userId".to_owned(),
+                    scope_fields: BTreeMap::from([("gameId".to_owned(), "gameId".to_owned())]),
+                }),
+        ],
+        ..SchemaManifest::default()
+    }
+}
+
+fn game_functions() -> FunctionManifest {
+    let mut current_membership = FunctionDefinition::new(
+        "currentMembership",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "gameMembers".to_owned(),
+            filters: vec![
+                FilterExpr {
+                    field: "gameId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("gameId".to_owned()),
+                },
+                FilterExpr {
+                    field: "userId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                },
+            ],
+            order: Vec::new(),
+            limit: None,
+            indexed_by: Some("by_game_user".to_owned()),
+        })),
+    );
+    current_membership.auth_requirement = Some(AuthRequirement::Authenticated);
+    current_membership.read_set_summary.primary_table = Some("gameMembers".to_owned());
+    current_membership.read_set_summary.tables = vec!["gameMembers".to_owned()];
+    current_membership.read_set_summary.mode = Some("singleTable".to_owned());
+    current_membership.read_set_summary.auth_scope_field = Some("userId".to_owned());
+
+    let mut kick_member = FunctionDefinition::new(
+        "kickMember",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(crate::manifest::MutationPlan {
+            steps: vec![MutationStep::Delete {
+                table: "gameMembers".to_owned(),
+                id: ValueExpr::Arg("id".to_owned()),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    kick_member.auth_requirement = Some(AuthRequirement::Authenticated);
+    kick_member.write_set_summary.primary_table = Some("gameMembers".to_owned());
+    kick_member.write_set_summary.tables = vec!["gameMembers".to_owned()];
+
+    FunctionManifest {
+        schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+        app_id: APP_ID.to_owned(),
+        bundle_hash: Some(game_function_hash()),
+        inputs_hash: Some(game_inputs_hash()),
+        functions: vec![current_membership, kick_member],
+        ..FunctionManifest::default()
+    }
+}
+
+fn game_deployment() -> DeploymentIdentity {
+    DeploymentIdentity {
+        schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: APP_ID.to_owned(),
+        schema_hash: game_schema_hash(),
+        bundle_hash: game_function_hash(),
+        inputs_hash: game_inputs_hash(),
+    }
+}
+
+fn game_schema_hash() -> String {
+    format!("{SCHEMA_V1_PREFIX}{}", "a".repeat(64))
+}
+
+fn game_function_hash() -> String {
+    format!("{FUNCTION_V1_PREFIX}{}", "b".repeat(64))
+}
+
+fn game_inputs_hash() -> String {
+    format!("{INPUTS_V1_PREFIX}{}", "c".repeat(64))
+}
+
+fn game_members() -> SeedData {
+    SeedData {
+        tables: BTreeMap::from([(
+            "gameMembers".to_owned(),
+            vec![
+                Map::from_iter([
+                    ("_id".to_owned(), json!(MEMBER_A)),
+                    ("gameId".to_owned(), json!(BOARD_ID)),
+                    ("userId".to_owned(), json!(USER_A)),
+                ]),
+                Map::from_iter([
+                    ("_id".to_owned(), json!(MEMBER_B)),
+                    ("gameId".to_owned(), json!(BOARD_ID)),
+                    ("userId".to_owned(), json!(USER_B)),
+                ]),
+            ],
+        )]),
+    }
+}
+
+fn install_invalidation(snapback: &mut LocalSnapback) -> [AuthorizationInvalidationConnection; 2] {
+    let (authorization, version_stream, boot_sequence) = snapback
+        .auth_database_mut()
+        .reserve_invalidation_boot_issuer()
+        .expect("reserve acceptance issuer");
+    let issuer_id = IssuerId::fresh(authorization.incarnation.clone(), boot_sequence)
+        .expect("acceptance issuer id");
+    let authenticated = IssuerAuthenticator::new("eng-24604-protocol-key", [0x46; 32])
+        .expect("acceptance authenticator")
+        .authenticate(issuer_id, "local-test", "card-game")
+        .expect("authenticated acceptance issuer");
+    let issuer = LiveInvalidationIssuer::new(authenticated).expect("live acceptance issuer");
+    let connection = |generation| AuthorizationInvalidationConnection {
+        protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
+        issuer_id: issuer.authenticated().issuer_id.clone(),
+        connection_generation: generation,
+        authorization: authorization.clone(),
+        version_stream: version_stream.clone(),
+        issuer_retirement: None,
+    };
+    let connection_a = connection(
+        issuer
+            .reserve_connection_generation()
+            .expect("A connection generation"),
+    );
+    let connection_b = connection(
+        issuer
+            .reserve_connection_generation()
+            .expect("B connection generation"),
+    );
+    snapback
+        .install_auth_invalidation(issuer, authorization, version_stream)
+        .expect("install acceptance invalidation");
+    [connection_a, connection_b]
+}
+
+fn session_authority(source: InvocationSource, user_id: &str) -> PreparedAuthority {
+    let (session_id, authority_instance_id) = if user_id == USER_A {
+        (SESSION_A, AUTHORITY_A)
+    } else {
+        (SESSION_B, AUTHORITY_B)
+    };
+    InvocationGate::prepare_authority(
+        source,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        1,
+        1,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::Session {
+            user_id: user_id.to_owned(),
+            session_id: session_id.to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: authority_instance_id.to_owned(),
+            session_not_after_ms: 9_007_199_254_740_991,
+            provider_not_after_ms: None,
+        },
+    )
+    .expect("prepare acceptance session authority")
+}
+
+fn durable_subscribe(
+    connection_id: &str,
+    client_store_id: &str,
+    query_instance_id: u64,
+) -> LiveSubscribeInput {
+    LiveSubscribeInput {
+        connection_id: connection_id.to_owned(),
+        input: HandlerInput {
+            args: json!({ "gameId": BOARD_ID }),
+            ..HandlerInput::default()
+        },
+        authorization_namespace: Some(QueryNamespace {
+            client_store_id: client_store_id.to_owned(),
+            query_key: format!("currentMembership:{{gameId:{BOARD_ID}}}"),
+            query_instance_id,
+        }),
+        supersedes: None,
+    }
+}
+
+fn room_scope() -> crate::ephemeral::Scope {
+    crate::ephemeral::Scope::from_pairs([("gameId", BOARD_ID)])
+}
+
+fn base_room_auth(user_id: &str) -> AuthContext {
+    AuthContext {
+        principal: None,
+        session_id: Some(
+            if user_id == USER_A {
+                SESSION_A
+            } else {
+                SESSION_B
+            }
+            .to_owned(),
+        ),
+        user_id: Some(user_id.to_owned()),
+        permissions: BTreeSet::new(),
+    }
+}
+
+fn server_room_grant(
+    snapback: &LocalSnapback,
+    ephemeral: &EphemeralApi,
+    user_id: &str,
+) -> (AuthContext, RoomAuthorityPermit) {
+    let (auth, observed) = snapback
+        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(user_id))
+        .expect("durable membership grants the protected room");
+    let permit = ephemeral
+        .begin_server_authorized_room_act("gamePresence", &room_scope())
+        .expect("room authority is available")
+        .expect("protected room returns a permit");
+    assert_eq!(
+        ephemeral.authorization_expectation_for_test(),
+        Some(observed),
+        "durable lookup and room permit bind one authorization expectation"
+    );
+    (auth, permit)
+}
+
+fn replace_process_local_room_authority(snapback: &mut LocalSnapback) -> EphemeralApi {
+    let issuer = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("installed invalidation state")
+        .issuer
+        .clone();
+    let fresh = LocalEphemeralBackend::new();
+    fresh
+        .replace_collections(snapback.db.schema().ephemeral_collections.clone())
+        .expect("fresh process reloads protected room definitions");
+    fresh.install_authorization_issuer(issuer);
+    snapback
+        .db
+        .install_authorization_interlock(Arc::new(fresh.clone()));
+    snapback.ephemeral = fresh;
+    snapback.ephemeral_api()
+}
+
+fn register_room(
+    snapback: &LocalSnapback,
+    ephemeral: &EphemeralApi,
+    connection_id: &str,
+    user_id: &str,
+    now_ms: u64,
+) -> AuthContext {
+    let (auth, permit) = server_room_grant(snapback, ephemeral, user_id);
+    let snapshot = ephemeral
+        .subscribe(room_subscribe(connection_id, auth.clone()), now_ms)
+        .expect("protected room registration and snapshot");
+    assert!(matches!(
+        snapshot,
+        EphemeralMessage::Snapshot {
+            room_authority_generation: 1,
+            ..
+        }
+    ));
+    drop(permit);
+    auth
+}
+
+fn publish_presence(
+    snapback: &LocalSnapback,
+    ephemeral: &EphemeralApi,
+    connection_id: &str,
+    user_id: &str,
+    value: &[u8],
+    now_ms: u64,
+) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+    let (auth, permit) = server_room_grant(snapback, ephemeral, user_id);
+    let result = ephemeral.publish(room_publish(connection_id, user_id, auth, value), now_ms);
+    drop(permit);
+    result
+}
+
+fn publish_presence_locked(
+    snapback: &Arc<Mutex<LocalSnapback>>,
+    ephemeral: &EphemeralApi,
+    connection_id: &str,
+    user_id: &str,
+    value: &[u8],
+    now_ms: u64,
+) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+    let snapback = snapback.lock().unwrap_or_else(PoisonError::into_inner);
+    publish_presence(&snapback, ephemeral, connection_id, user_id, value, now_ms)
+}
+
+fn room_subscribe(connection_id: &str, auth: AuthContext) -> SubscribeRequest {
+    SubscribeRequest {
+        collection: "gamePresence".to_owned(),
+        scope: room_scope(),
+        connection_id: connection_id.to_owned(),
+        auth,
+    }
+}
+
+fn room_publish(
+    connection_id: &str,
+    user_id: &str,
+    auth: AuthContext,
+    value: &[u8],
+) -> PublishRequest {
+    PublishRequest {
+        collection: "gamePresence".to_owned(),
+        scope: room_scope(),
+        connection_id: connection_id.to_owned(),
+        session_id: Some(
+            if user_id == USER_A {
+                SESSION_A
+            } else {
+                SESSION_B
+            }
+            .to_owned(),
+        ),
+        user_id: Some(user_id.to_owned()),
+        custom_key: None,
+        value: value.to_vec(),
+        ttl_ms: None,
+        auth,
+    }
+}
+
+fn assert_durable_kick_snapshot(frames: &[RealtimeEnvelope], version: u64, row_count: usize) {
+    let frame = frames
+        .iter()
+        .filter_map(|frame| match frame {
+            RealtimeEnvelope::Durable(message) => {
+                serde_json::from_slice::<Value>(&message.payload).ok()
+            }
+            RealtimeEnvelope::Ephemeral(_) => None,
+        })
+        .find(|frame| {
+            frame["kind"] == "authorization_invalidation" && frame["snapshot"].is_object()
+        })
+        .expect("durable authorization invalidation snapshot frame");
+    assert_eq!(
+        frame["obligation"]["witness"]["data"]["minCommitVersion"],
+        version
+    );
+    assert_eq!(frame["snapshot"]["version"], version);
+    assert_eq!(
+        frame["snapshot"]["rows"]
+            .as_array()
+            .expect("snapshot rows")
+            .len(),
+        row_count
+    );
+}
+
+fn assert_auth_changed(frames: &[RealtimeEnvelope], generation: u64) {
+    assert!(frames.iter().any(|frame| matches!(
+        frame,
+        RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+            room_authority_generation,
+            reason: ResyncReason::AuthChanged,
+            ..
+        }) if *room_authority_generation == generation
+    )));
+}
