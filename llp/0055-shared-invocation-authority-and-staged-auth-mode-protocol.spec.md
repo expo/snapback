@@ -1211,9 +1211,11 @@ The complete admission matrix is:
 | +7 | queued replay unlocks only with descriptor protocol 1; no live/retained change |
 | +8 | retained reads unlock only with auth-invalidation protocol 1 and authorized-lease protocol 1 |
 
-The hosted-target readiness fact stays false until ENG-24607's deployment
-security and client-page XSS contracts are owned and enforced. A local `prod`
-profile is not evidence that a reverse-proxied deployment satisfies them.
+ENG-24607 makes hosted-target readiness a target-owned five-axis descriptor.
+The local target reports the four deployment axes unavailable/process-local
+and bearer v1 as XSS-exposed, so its derived hosted-auth fact remains false. A
+local `prod` profile or operator flag is not evidence that a reverse-proxied
+deployment satisfies any axis.
 
 ## Diagnostics and failure semantics
 

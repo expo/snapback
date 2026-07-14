@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0054, LLP 0055, LLP 0056
 
 ## Summary
@@ -32,9 +32,12 @@ This RFC makes three decisions:
 1. A session-enabled local server MUST refuse a plaintext non-loopback listener
    before bind with `SNAPBACK_AUTH_TRANSPORT_INSECURE`. There is no sessions
    override. A loopback reverse proxy remains explicitly outside that fence.
-2. A target MUST NOT advertise hosted auth until it can attest all four edge
-   facts in this RFC: end-to-end external TLS, trustworthy effective-source
-   derivation, shared throttling, and multi-replica invalidation convergence.
+2. A target MUST NOT advertise hosted deployment readiness until it can attest
+   all four edge facts in this RFC: end-to-end external TLS, trustworthy
+   effective-source derivation, shared throttling, and multi-replica
+   invalidation convergence. Secure hosted-browser auth additionally requires
+   the sender-constrained client posture; the two derived facts remain distinct
+   so CSP cannot silently upgrade bearer v1.
 3. Browser auth v1 remains bearer-first and honestly not XSS-resistant.
    Sender-constrained credentials are the v2 direction. They are required
    before Snapback advertises an XSS-hardened hosted-browser posture, and their
@@ -124,6 +127,18 @@ The diagnostic is an operator/startup failure, not a client-authentication
 failure. `/health` may remain available only in an already-composed embedded
 router used for diagnostics; normal CLI startup binds no listener after the
 pre-bind refusal.
+
+The local CLI's must-understand declaration is `--auth-deployment
+local|hosted`, defaulting to `local`. `hosted` is validated immediately after
+the bind name resolves and before the database path is created, the database is
+opened, restore/mode state is consumed, provider state is inspected, or a
+listener is bound. Because the local target's target-authored capabilities do
+not satisfy this contract, it fails with
+`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`. The flag is a request, never an
+operator assertion of TLS, proxy, limiter, invalidation, or browser facts.
+Embedded composition carries the same requested deployment in `ServerContext`;
+app-data and `/auth/session` refuse while `/` and `/health` remain available for
+identity and diagnosis.
 
 **Limit.** `127.0.0.1` or `::1` behind a public reverse proxy still appears
 loopback to Snapback. This fence proves only that Snapback itself did not bind
@@ -223,6 +238,27 @@ plaintext-bind violation.
 The current local target's hosted readiness is always false, including when its
 listener is loopback and an operator happens to place a proxy in front of it.
 
+The machine-readable `hostedAuth` target descriptor uses five independent,
+closed values:
+
+```json
+{
+  "externalTls": "unavailable | enforced",
+  "effectiveSource": "unavailable | trusted",
+  "authenticationThrottle": "processLocal | sharedEnforced",
+  "sessionInvalidation": "singleProcess | multiReplicaConvergent",
+  "clientCredentialPosture": "bearerV1XssExposed | senderConstrainedV2"
+}
+```
+
+It is target-authored in the capability manifest and has its own generated,
+drift-gated schema. Candidate artifacts and operator config cannot supply or
+override it. `deploymentReady` is derived from the first four exact positive
+values. `hostedAuthReady` additionally requires
+`clientCredentialPosture = senderConstrainedV2`. The executable matrix covers
+all 32 combinations and fails closed for the 31 non-conjunctive cases. Public
+diagnostics expose only the names of missing axes.
+
 ## Client-page credential contract
 
 ### C1. The v1 custody claim
@@ -239,6 +275,15 @@ accidental token exposure through ordinary client return values. It does **not**
 prevent an active app-origin script from reading IndexedDB/page memory or using
 the current credential. App-origin XSS therefore has the authority of the
 logged-in user for the credential's remaining lifetime.
+
+The implemented ordinary `settledView()` contains authority, epoch/revision,
+and refresh scheduling but no bearer. Auth exchange/refresh project only the
+non-secret session result. The kit's deliberately narrow transport accessor
+can still obtain the bearer to populate `Authorization`; v1 cannot both send a
+bearer and pretend same-origin JavaScript is unable to exercise it. Client
+transport errors defensively replace known request credentials/codes and
+sensitive protocol fields before constructing an app-visible `Error`, even if
+a broken receiver reflects them.
 
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
@@ -261,6 +306,17 @@ These are prevention and blast-radius controls. No combination of headers turns
 a JavaScript-readable bearer into an XSS-proof credential. The product must say
 “app-origin XSS can act as the user,” not “tokens are safe because they are in
 IndexedDB” or “CSP solves XSS.”
+
+Snapback-owned static operator pages now ship a concrete baseline: `default-src
+'none'`, no objects or framing, same-origin scripts/connect/assets, an exact
+SHA-256 admission for the one embedded setup script, no `unsafe-eval`, Trusted
+Types enforcement, `nosniff`, no-referrer, denied browser powers, and
+same-origin opener/resource policies. A drift test hashes the served inline
+bytes and compares them with the CSP. Inline styles remain admitted for the
+embedded setup page and React style props. This controls Snapback's operator
+surface only; an application or hosting target still owns the app document's
+CSP and dependencies, so these headers do not promote the local target or
+bearer v1 to hosted readiness.
 
 ### C3. Sender-constrained v2
 
@@ -335,8 +391,12 @@ material.
 
 ### Hosted target
 
+- The committed capability manifest and standalone generated schema carry the
+  exact five-axis `hostedAuth` descriptor; unknown values and unknown fields
+  are rejected.
 - A target matrix proves every hosted-readiness fact is independently
-  fail-closed and that only their conjunction enables sessions.
+  fail-closed, only the four deployment positives produce deployment readiness,
+  and only those four plus sender constraint produce hosted-browser readiness.
 - Direct access to an origin cannot forge trusted forwarding metadata.
 - Rate limits converge across at least two replicas and remain bounded during
   shared-limiter failure.
@@ -347,6 +407,11 @@ material.
 
 - A secret sentinel proves `localStorage`, wakeups, diagnostics, URLs, errors,
   and return values never contain bearer/admin material.
+- Ordinary coordinator views contain no bearer. The acceptance test names the
+  transactional custody record and authorization header as the intentional v1
+  carriers instead of hiding them from the assertion.
+- Snapback-owned static pages carry the restrictive CSP/security-header
+  baseline, and the exact embedded-script hash is derived from served bytes.
 - The documented IndexedDB record is explicitly treated as JavaScript-readable
   bearer custody, not encrypted/XSS-safe storage.
 - The future v2 conformance suite proves non-extractable key generation,
@@ -381,13 +446,22 @@ material.
 ## Status
 
 **Draft.** ENG-24607 assigns ownership and implements the current local
-plaintext fence, but it does not make the local target hosted-ready and does not
-claim sender constraint before v2 exists. A hosted target must satisfy the
+plaintext fence, target-owned capability descriptor, must-understand hosted
+composition refusal, Snapback-owned CSP baseline, and credential non-exposure
+sentinel. It does not make the local target hosted-ready and does not claim
+sender constraint before v2 exists. A hosted target must satisfy the
 conjunctive acceptance matrix above; a future browser v2 must receive its own
 wire/storage spec and review before activation.
 
 ## Changelog
 
+- **2026-07-13 (ENG-24607 enforcement):** added the generated five-axis target
+  capability descriptor and exact 32-case matrix; made `--auth-deployment
+  hosted` fail before target creation and repeat in embedded routing; removed
+  bearer material from ordinary coordinator views; added defensive client
+  diagnostic redaction and a bearer/admin sentinel across hints, wakeups,
+  URLs, errors, and auth return values; and installed a hash-pinned CSP plus
+  browser security headers on Snapback-owned static pages.
 - **2026-07-13 (ENG-24607):** initial owning contract. Assigned deployment edge
   security and client-page credential posture, pinned the no-override sessions
   plaintext fence and its reverse-proxy limit, made hosted readiness
