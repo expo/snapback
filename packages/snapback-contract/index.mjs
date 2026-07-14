@@ -577,13 +577,15 @@ export async function createSnapbackContractSurface({
       && everyMutationReplayable
       && manifest?.capabilities?.offlineReplay === true
     );
-    // Item 5 deliberately does not admit retained reads or queued replay in
-    // sessions mode. A generated manifest cannot widen those independent
-    // runtime axes merely by carrying the older offlineReplay capability.
+    // Queued replay is the authority-instance axis. Item 7 enables it in
+    // sessions mode only when the handshake and current store scope both
+    // prove the exact descriptor protocol; retained reads remain independent.
+    // @ref LLP 0039#storage-scope-is-two-dimensional — principal data and
+    // descriptor-bound queued custody have independent admission facts.
     let coordinatedSessionsMode = coordinator?.authority?.authMode === 'sessions';
-    let offlineReplayEnabled = offlineReplayEligible
-      && retainedIdentityComplete
-      && !coordinatedSessionsMode;
+    let authSession = coordinatedSessionsMode && typeof client.authSession === 'function'
+      ? await client.authSession()
+      : null;
     if (offlineReplayEligible && !retainedIdentityComplete) {
       const diagnostic = publishDiagnostic(
         'SNAPBACK_RETAINED_IDENTITY_INCOMPLETE',
@@ -614,10 +616,19 @@ export async function createSnapbackContractSurface({
           }
         : {}),
     };
-    const storeAuthorization = offlineReplayEnabled
+    const storeAuthorization = offlineReplayEligible
       && typeof client.currentAuthorizationScope === 'function'
       ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
       : null;
+    const sessionQueueCapable = Boolean(
+      coordinatedSessionsMode
+      && authSession?.availability?.queuedReplay?.available === true
+      && authSession?.clientProtocols?.authorityDescriptor === 1
+      && storeAuthorization?.authorityDescriptor?.descriptorVersion === 1
+    );
+    let offlineReplayEnabled = offlineReplayEligible
+      && retainedIdentityComplete
+      && (!coordinatedSessionsMode || sessionQueueCapable);
     if (clientStore) {
       if (storeAuthorization && typeof clientStore.scopeAuthorization === 'function') {
         await clientStore.scopeAuthorization(storeAuthorization, storeAuthorityCapture);
@@ -1523,9 +1534,21 @@ export async function createSnapbackContractSurface({
         ? context.authority.userId
         : userId;
       coordinatedSessionsMode = context.authority?.authMode === 'sessions';
+      authSession = coordinatedSessionsMode && typeof client.authSession === 'function'
+        ? await client.authSession()
+        : null;
+      const refreshedAuthorization = typeof client.currentAuthorizationScope === 'function'
+        ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
+        : null;
+      const refreshedQueueCapable = Boolean(
+        coordinatedSessionsMode
+        && authSession?.availability?.queuedReplay?.available === true
+        && authSession?.clientProtocols?.authorityDescriptor === 1
+        && refreshedAuthorization?.authorityDescriptor?.descriptorVersion === 1
+      );
       offlineReplayEnabled = offlineReplayEligible
         && retainedIdentityComplete
-        && !coordinatedSessionsMode;
+        && (!coordinatedSessionsMode || refreshedQueueCapable);
       storeAuthFingerprint = snapbackAuthFingerprint(activeUserId ?? null);
       Object.assign(storeExpectation, {
         authFingerprint: storeAuthFingerprint,
@@ -1533,6 +1556,12 @@ export async function createSnapbackContractSurface({
         authorityKey: capture.authorityKey,
       });
       if (clientStore) {
+        if (refreshedAuthorization && typeof clientStore.scopeAuthorization === 'function') {
+          await clientStore.scopeAuthorization(
+            refreshedAuthorization,
+            expectationForCapture(capture),
+          );
+        }
         await clientStore.scopeToAuth(storeAuthFingerprint, expectationForCapture(capture));
         await clientStore.scopeToArtifacts({
           schemaHash: storeExpectation.schemaHash,
