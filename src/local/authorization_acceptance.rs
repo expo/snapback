@@ -5,7 +5,8 @@
 //! the server without making test-only protocol constructors public.
 
 use super::{
-    AuthorizationInvalidationAckInput, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback,
+    AuthorizationInvalidationAckInput, LiveInvalidationAdmission, LiveSubscribeInput,
+    LocalSnapback, live_stream_text,
 };
 use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionLease;
@@ -540,6 +541,30 @@ fn parse_invalidation_frames(frames: Vec<String>) -> Vec<Value> {
         .collect()
 }
 
+fn parse_direct_invalidation_frames(frames: Vec<crate::ephemeral::DurableMessage>) -> Vec<Value> {
+    frames
+        .into_iter()
+        .map(|frame| serde_json::from_slice::<Value>(&frame.payload).expect("live frame JSON"))
+        .filter(|frame| frame["kind"] == "authorization_invalidation")
+        .collect()
+}
+
+fn drain_live_stream_through_test_sink(
+    snapback: &mut LocalSnapback,
+    connection_id: &str,
+) -> Vec<String> {
+    snapback
+        .drain_outbox_for_send(connection_id)
+        .into_iter()
+        .filter_map(|admitted| {
+            let (envelope, permit) = admitted.into_parts();
+            let frame = live_stream_text(envelope);
+            drop(permit);
+            frame
+        })
+        .collect()
+}
+
 fn settle_query(
     snapback: &mut LocalSnapback,
     connection: &AuthorizationInvalidationConnection,
@@ -547,7 +572,10 @@ fn settle_query(
     query: &mut TrackedQuery,
     mode: DeliveryMode,
 ) -> DeliveryObservation {
-    let drained = parse_invalidation_frames(snapback.drain_live_stream(&query.connection_id));
+    let drained = parse_invalidation_frames(drain_live_stream_through_test_sink(
+        snapback,
+        &query.connection_id,
+    ));
     let mut observation = DeliveryObservation::default();
     observation.record_generated(&drained, false);
 
@@ -568,7 +596,7 @@ fn settle_query(
                 ),
                 DeliveryMode::DeliverDrain => unreachable!(),
             }
-            let reprojected = parse_invalidation_frames(
+            let reprojected = parse_direct_invalidation_frames(
                 snapback
                     .authorization_invalidation_frames(&query.connection_id, admission)
                     .expect("level-triggered invalidation re-fire"),
@@ -1207,7 +1235,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         json!({ "id": user, "role": "suspended" }),
     );
     for query in &queries {
-        let _lost = snapback.drain_live_stream(&query.connection_id);
+        let _lost = drain_live_stream_through_test_sink(&mut snapback, &query.connection_id);
     }
     let denied = snapback
         .subscriptions

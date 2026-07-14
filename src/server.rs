@@ -38,7 +38,7 @@ use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     AuthContext, DeleteRequest, EphemeralCollection, PublishRequest, RealtimeEnvelope,
-    RoomAuthorityPermit, Scope, SubscribeRequest,
+    RealtimePublicationPermit, RoomAuthorityPermit, Scope, SubscribeRequest,
 };
 use crate::live_wire::{
     LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
@@ -4805,18 +4805,20 @@ fn finish_registered_response(
     if let Some(authority) = authority {
         response.extensions_mut().insert(authority.clone());
     }
-    let room_authority = response.extensions_mut().remove::<RetainedRoomAuthority>();
+    let publication_authority = response
+        .extensions_mut()
+        .remove::<RetainedRealtimeAuthority>();
     if let Some(admission) = admission {
         let (parts, body) = response.into_parts();
         let body = Body::new(RetainedAdmissionBody {
             inner: body,
             _admission: admission.clone(),
             _authority: authority.cloned(),
-            _room_authority: room_authority,
+            _publication_authority: publication_authority,
         });
         Response::from_parts(parts, body)
     } else {
-        debug_assert!(room_authority.is_none());
+        debug_assert!(publication_authority.is_none());
         response
     }
 }
@@ -4828,24 +4830,31 @@ struct RetainedAdmissionBody {
     inner: Body,
     _admission: AdmissionLease,
     _authority: Option<PreparedAuthority>,
-    _room_authority: Option<RetainedRoomAuthority>,
+    _publication_authority: Option<RetainedRealtimeAuthority>,
 }
 
 /// Response extensions can be discarded after header encoding. The Arc makes
-/// the extension cloneable while keeping the exact room permits alive until
-/// the wrapped HTTP body reaches its final transport sink (or is dropped).
+/// the extension cloneable while keeping the exact durable/room publication
+/// permits alive until the wrapped HTTP body reaches its final transport sink
+/// (or is dropped).
 #[derive(Clone)]
-struct RetainedRoomAuthority {
-    _permits: Arc<Vec<RoomAuthorityPermit>>,
+struct RetainedRealtimeAuthority {
+    _permits: Arc<Vec<RealtimePublicationPermit>>,
 }
 
 fn retain_room_authority(mut response: Response, permit: Option<RoomAuthorityPermit>) -> Response {
     if let Some(permit) = permit {
-        response.extensions_mut().insert(RetainedRoomAuthority {
-            _permits: Arc::new(vec![permit]),
-        });
+        retain_realtime_authority_in(&mut response, vec![RealtimePublicationPermit::Room(permit)]);
     }
     response
+}
+
+fn retain_realtime_authority_in(response: &mut Response, permits: Vec<RealtimePublicationPermit>) {
+    if !permits.is_empty() {
+        response.extensions_mut().insert(RetainedRealtimeAuthority {
+            _permits: Arc::new(permits),
+        });
+    }
 }
 
 impl HttpBody for RetainedAdmissionBody {
@@ -9471,7 +9480,7 @@ async fn subscribe_live(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Path(name): Path<String>,
     input: Result<Json<LiveSubscribeInput>, JsonRejection>,
-) -> Result<Json<crate::local::LiveSubscribeOutput>, ApiError> {
+) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
@@ -9480,13 +9489,27 @@ async fn subscribe_live(
         #[cfg(test)]
         session_mode: false,
     };
-    let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.subscribe_live_prepared_with_invalidation(&name, input, authority, invalidation)
+    let publication = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.subscribe_live_for_transport(&name, input, authority, invalidation)
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
-    Ok(Json(output))
+    let publication_authority = if let Some(authorization) = publication.authorization {
+        runtime
+            .ephemeral
+            .begin_final_send(&RealtimeEnvelope::Durable(
+                crate::ephemeral::DurableMessage::authorized(Vec::new(), authorization),
+            ))
+            .map_err(|error| ApiError::from(SnapbackError::new(diagnostic_from_ephemeral(error))))?
+    } else {
+        None
+    };
+    let mut response = Json(publication.output).into_response();
+    if let Some(permit) = publication_authority {
+        retain_realtime_authority_in(&mut response, vec![permit]);
+    }
+    Ok(response)
 }
 
 async fn resume_live(
@@ -9495,7 +9518,7 @@ async fn resume_live(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Path(name): Path<String>,
     input: Result<Json<LiveResumeInput>, JsonRejection>,
-) -> Result<Json<crate::local::LiveResumeOutput>, ApiError> {
+) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
@@ -9504,13 +9527,27 @@ async fn resume_live(
         #[cfg(test)]
         session_mode: false,
     };
-    let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.resume_live_prepared_with_invalidation(&name, input, authority, invalidation)
+    let publication = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.resume_live_for_transport(&name, input, authority, invalidation)
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
-    Ok(Json(output))
+    let publication_authority = if let Some(authorization) = publication.authorization {
+        runtime
+            .ephemeral
+            .begin_final_send(&RealtimeEnvelope::Durable(
+                crate::ephemeral::DurableMessage::authorized(Vec::new(), authorization),
+            ))
+            .map_err(|error| ApiError::from(SnapbackError::new(diagnostic_from_ephemeral(error))))?
+    } else {
+        None
+    };
+    let mut response = Json(publication.output).into_response();
+    if let Some(permit) = publication_authority {
+        retain_realtime_authority_in(&mut response, vec![permit]);
+    }
+    Ok(response)
 }
 
 async fn unsubscribe_live(
@@ -9614,7 +9651,7 @@ async fn acquire_live_act_admission(
 struct AdmittedLiveWrite {
     message: Message,
     admission: AdmissionLease,
-    _room_authority: Option<RoomAuthorityPermit>,
+    _publication_authority: Option<RealtimePublicationPermit>,
     completed: oneshot::Sender<bool>,
 }
 
@@ -9708,7 +9745,7 @@ async fn send_live_with_admission(
     writer: &mpsc::Sender<AdmittedLiveWrite>,
     message: Message,
     admission: &AdmissionLease,
-    room_authority: Option<RoomAuthorityPermit>,
+    publication_authority: Option<RealtimePublicationPermit>,
     connections: &ConnectionRegistry,
     connection_act: &PreparedConnectionAct,
 ) -> bool {
@@ -9726,7 +9763,7 @@ async fn send_live_with_admission(
                     .try_send(AdmittedLiveWrite {
                         message,
                         admission: admission.clone(),
-                        _room_authority: room_authority,
+                        _publication_authority: publication_authority,
                         completed,
                     })
                     .is_ok())
@@ -9917,7 +9954,9 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                     &writer,
                                     Message::Text(response.text.into()),
                                     &admission,
-                                    response.room_authority,
+                                    response
+                                        .room_authority
+                                        .map(RealtimePublicationPermit::Room),
                                     &connections,
                                     &connection_act,
                                 )
@@ -9956,7 +9995,10 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                             &writer,
                             Message::Text(response.text.into()),
                             &admission,
-                            response.room_authority.or(outer_room_authority),
+                            response
+                                .room_authority
+                                .or(outer_room_authority)
+                                .map(RealtimePublicationPermit::Room),
                             &connections,
                             &connection_act,
                         ).await {
@@ -10210,10 +10252,10 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         connection_act,
         reproject_authorization,
     } = drain;
-    // Re-run durable projections before acquiring room permits: a prepared
-    // authorization commit holds the write lane while waiting for those
-    // permits, so taking one and then waiting on `with_snapback` would invert
-    // the commit order.
+    // Re-run durable projections before acquiring publication permits: a
+    // prepared authorization commit holds the write lane while waiting for
+    // them, so taking one and then waiting on `with_snapback` would invert the
+    // commit order.
     let projections = if reproject_authorization {
         let connection = connection_id.to_owned();
         let rerun_admission = admission.clone();
@@ -10242,7 +10284,7 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         messages
     };
     for admitted in messages {
-        let (envelope, room_authority) = admitted.into_parts();
+        let (envelope, publication_authority) = admitted.into_parts();
         let Some(message) = live_stream_text(envelope) else {
             continue;
         };
@@ -10250,7 +10292,7 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
             writer,
             Message::Text(message.into()),
             admission,
-            room_authority,
+            publication_authority,
             connections,
             connection_act,
         )
@@ -10260,11 +10302,19 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         }
     }
     for projection in projections {
+        let envelope = RealtimeEnvelope::Durable(projection);
+        let publication_authority = match ephemeral.begin_final_send(&envelope) {
+            Ok(publication_authority) => publication_authority,
+            Err(_) => return std::ops::ControlFlow::Break(()),
+        };
+        let Some(message) = live_stream_text(envelope) else {
+            continue;
+        };
         if !send_live_with_admission(
             writer,
-            Message::Text(projection.into()),
+            Message::Text(message.into()),
             admission,
-            None,
+            publication_authority,
             connections,
             connection_act,
         )
@@ -10998,7 +11048,11 @@ fn admitted_socket_ack(
         (Some(_), Some(_)) => None,
         (Some(message), None) => {
             match ephemeral.begin_final_send(&RealtimeEnvelope::Ephemeral(message.clone())) {
-                Ok(room_authority) => room_authority,
+                Ok(Some(RealtimePublicationPermit::Room(room_authority))) => Some(room_authority),
+                Ok(None) => None,
+                Ok(Some(RealtimePublicationPermit::Durable { .. })) => {
+                    unreachable!("an ephemeral acknowledgement cannot acquire durable authority")
+                }
                 Err(error) => {
                     return socket_error(request_id, operation, diagnostic_from_ephemeral(error))
                         .into();
@@ -11115,19 +11169,19 @@ async fn drain_outbox(
                 .drain_outbox_for_send_if_active(&connection_act.connection_id))
         })?
     };
-    let mut room_authority = Vec::new();
+    let mut publication_authority = Vec::new();
     let mut drained = match admitted {
         Some(admitted) => admitted
             .into_iter()
             .map(|admitted| {
                 let (envelope, permit) = admitted.into_parts();
-                room_authority.extend(permit);
+                publication_authority.extend(permit);
                 envelope
             })
             .collect::<Vec<_>>(),
         None => vec![RealtimeEnvelope::Durable(
-            crate::ephemeral::DurableMessage {
-                payload: serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+            crate::ephemeral::DurableMessage::new(
+                serde_json::to_vec(&LiveEnvelope::ResyncRequired {
                     reason: "unknown_or_reaped".to_owned(),
                     subscription_id: None,
                     scope: None,
@@ -11135,20 +11189,22 @@ async fn drain_outbox(
                     clear_retained: true,
                 })
                 .unwrap_or_default(),
-            },
+            ),
         )],
     };
-    drained.extend(projections.into_iter().map(|payload| {
-        RealtimeEnvelope::Durable(crate::ephemeral::DurableMessage {
-            payload: payload.into_bytes(),
-        })
-    }));
-    let mut response = Json(drained).into_response();
-    if !room_authority.is_empty() {
-        response.extensions_mut().insert(RetainedRoomAuthority {
-            _permits: Arc::new(room_authority),
-        });
+    for projection in projections {
+        let envelope = RealtimeEnvelope::Durable(projection);
+        let permit = runtime
+            .ephemeral
+            .begin_final_send(&envelope)
+            .map_err(|error| {
+                ApiError::from(SnapbackError::new(diagnostic_from_ephemeral(error)))
+            })?;
+        publication_authority.extend(permit);
+        drained.push(envelope);
     }
+    let mut response = Json(drained).into_response();
+    retain_realtime_authority_in(&mut response, publication_authority);
     Ok(response)
 }
 
@@ -11819,12 +11875,12 @@ mod tests {
         ACTION_WORKER_LIMIT_MAX, AdmissionLease, CRON_DISPATCH_CONCURRENCY_DEFAULT,
         CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
         DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
-        SharedSnapback, app, configured_action_worker_limit, configured_cron_dispatch_concurrency,
-        coordinated_app_reset, dispatch_cron_tick_background, parse_action_watchdog_timeout,
-        parse_optional_json, reserve_detached_action_worker,
-        reserve_detached_action_worker_with_counters,
-        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-        status_for_diagnostic_code, with_snapback,
+        RealtimeEnvelope, SharedSnapback, app, configured_action_worker_limit,
+        configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
+        finish_registered_response, parse_action_watchdog_timeout, parse_optional_json,
+        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
+        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
@@ -14822,6 +14878,68 @@ mod tests {
         let serialized = serde_json::to_string(&body).unwrap();
         assert!(!serialized.contains(&predecessor));
         assert!(!serialized.contains(&successor));
+    }
+
+    #[tokio::test]
+    async fn authorized_durable_http_body_holds_commit_through_final_poll() {
+        let state = auth_invalidation_reset_fixture();
+        let authorization = state
+            .snapback
+            .lock()
+            .await
+            .auth_invalidation_expectation_for_test()
+            .expect("installed authorization expectation");
+        let envelope = RealtimeEnvelope::Durable(crate::ephemeral::DurableMessage::authorized(
+            br#"{"kind":"private_board"}"#.to_vec(),
+            authorization.clone(),
+        ));
+        let permit = state
+            .ephemeral
+            .begin_final_send(&envelope)
+            .expect("current durable publication is admitted")
+            .expect("auth-scoped durable publication carries a permit");
+        let mut response = Json(vec![envelope]).into_response();
+        retain_realtime_authority_in(&mut response, vec![permit]);
+        let admission = state
+            .auth_admission_controller()
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("sessions response admission");
+        let policy = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/outbox/{connection_id}")
+            .expect("registered outbox route")
+            .effective_for(PolicyAuthMode::Sessions);
+        let response = finish_registered_response(policy, response, Some(&admission), None);
+
+        let successor = crate::storage::AuthorizationVersion {
+            incarnation: authorization.incarnation,
+            epoch: authorization.epoch + 1,
+        };
+        let (prepared_tx, prepared_rx) = std::sync::mpsc::channel();
+        let prepare_ephemeral = state.ephemeral.clone();
+        let prepare = std::thread::spawn(move || {
+            let ticket = prepare_ephemeral
+                .prepare_room_authorization_event_for_test(successor)
+                .expect("prepare successor authorization event");
+            prepared_tx.send(ticket).unwrap();
+        });
+        assert!(
+            prepared_rx.recv_timeout(Duration::from_millis(20)).is_err(),
+            "the HTTP response body must retain the durable publication permit"
+        );
+
+        let _body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll response body to its final sink");
+        let ticket = prepared_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("authorization prepare resumes after the body completes");
+        assert!(
+            state
+                .ephemeral
+                .rollback_room_authorization_event_for_test(&ticket)
+        );
+        prepare.join().expect("prepare thread joins");
     }
 
     /// @ref LLP 0059#plan-begin-commit-finalize — a known logout commit must

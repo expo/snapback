@@ -913,6 +913,36 @@ impl EphemeralMessage {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct DurableMessage {
     pub payload: Vec<u8>,
+    /// Server-only final-publication witness for an auth-scoped durable
+    /// result. Control frames and explicitly authority-independent results do
+    /// not carry it. Keeping the stamp out of the wire shape prevents an
+    /// implementation fence from becoming caller-controlled protocol data.
+    ///
+    /// @ref LLP 0053#ephemeral-room-authority-invalidation — the card-game
+    ///   kick closes durable-board and room sinks at the same commit boundary.
+    #[serde(skip)]
+    #[schemars(skip)]
+    authorization: Option<AuthorizationVersion>,
+}
+
+impl DurableMessage {
+    pub fn new(payload: Vec<u8>) -> Self {
+        Self {
+            payload,
+            authorization: None,
+        }
+    }
+
+    pub(crate) fn authorized(payload: Vec<u8>, authorization: AuthorizationVersion) -> Self {
+        Self {
+            payload,
+            authorization: Some(authorization),
+        }
+    }
+
+    fn authorization(&self) -> Option<&AuthorizationVersion> {
+        self.authorization.as_ref()
+    }
 }
 
 fn retained_ephemeral_entry_message_bytes(entry: &EphemeralEntry) -> usize {
@@ -993,18 +1023,27 @@ impl RealtimeEnvelope {
     }
 }
 
-/// One destructively drained transport frame paired with the room-authority
-/// permit that made that drain admissible. The permit must remain alive until
-/// the final transport handoff: a concurrently prepared authorization commit
-/// waits for it before publishing a new room generation.
-pub(crate) struct AdmittedRealtimeEnvelope {
+/// One destructively drained transport frame paired with the publication
+/// permit that made that drain admissible. Keep this value alive until the
+/// final transport handoff: a concurrently prepared authorization commit
+/// waits for durable authorization and protected-room publications alike.
+///
+/// Embeddings can serialize [`Self::envelope`] while retaining this wrapper.
+/// Consuming or dropping it before the sink completes releases the commit
+/// interlock and is therefore not a valid publication handoff.
+#[must_use = "an admitted realtime frame must remain alive through its final transport sink"]
+pub struct AdmittedRealtimeEnvelope {
     envelope: RealtimeEnvelope,
-    room_authority: Option<RoomAuthorityPermit>,
+    publication_authority: Option<RealtimePublicationPermit>,
 }
 
 impl AdmittedRealtimeEnvelope {
-    pub(crate) fn into_parts(self) -> (RealtimeEnvelope, Option<RoomAuthorityPermit>) {
-        (self.envelope, self.room_authority)
+    pub fn envelope(&self) -> &RealtimeEnvelope {
+        &self.envelope
+    }
+
+    pub(crate) fn into_parts(self) -> (RealtimeEnvelope, Option<RealtimePublicationPermit>) {
+        (self.envelope, self.publication_authority)
     }
 }
 
@@ -1312,8 +1351,8 @@ impl OutboundQueue {
         // Typed since ENG-23891 (LLP 0051 D4). Wire note: the pre-typed frame
         // spelled this field `clearRetained`; the typed envelope unified it to
         // the durable lane's `clear_retained` (no shipped client read it).
-        let sentinel = DurableMessage {
-            payload: serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
+        let sentinel = DurableMessage::new(
+            serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
                 reason: "outbox_overflow".to_owned(),
                 subscription_id: None,
                 scope: None,
@@ -1321,7 +1360,7 @@ impl OutboundQueue {
                 clear_retained: true,
             })
             .unwrap_or_default(),
-        };
+        );
         self.durable_bytes = retained_durable_queue_item_bytes(&sentinel);
         self.durable.push_back(sentinel);
         self.overflowed = true;
@@ -1488,15 +1527,25 @@ impl OutboundQueue {
 
     fn drain_with_authority(
         &mut self,
-        mut classify: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+        mut classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
+        mut classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
     ) -> Vec<RealtimeEnvelope> {
+        let was_overflowed = self.overflowed;
         let mut messages = Vec::new();
+        let mut retained_durable = VecDeque::new();
         while let Some(message) = self.durable.pop_front() {
-            messages.push(RealtimeEnvelope::Durable(message));
+            match classify_durable(&message) {
+                FrameAuthorityDisposition::Send => {
+                    messages.push(RealtimeEnvelope::Durable(message));
+                }
+                FrameAuthorityDisposition::Retain => retained_durable.push_back(message),
+                FrameAuthorityDisposition::DropStale => {}
+            }
         }
+        self.durable = retained_durable;
         let mut retained_resync = VecDeque::new();
         while let Some(message) = self.resync.pop_front() {
-            match classify(message.as_ref()) {
+            match classify_ephemeral(message.as_ref()) {
                 FrameAuthorityDisposition::Send => {
                     messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
                 }
@@ -1512,7 +1561,7 @@ impl OutboundQueue {
         let mut retained_ephemeral = BTreeMap::new();
         let mut ephemeral = Vec::new();
         for (key, message) in std::mem::take(&mut self.ephemeral) {
-            match classify(message.as_ref()) {
+            match classify_ephemeral(message.as_ref()) {
                 FrameAuthorityDisposition::Send => ephemeral.push(message),
                 FrameAuthorityDisposition::Retain => {
                     retained_ephemeral.insert(key, message);
@@ -1530,7 +1579,9 @@ impl OutboundQueue {
             messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
         }
         self.durable.shrink_to_fit();
-        self.durable_bytes = 0;
+        self.durable_bytes = self.durable.iter().fold(0_usize, |total, message| {
+            total.saturating_add(retained_durable_queue_item_bytes(message))
+        });
         self.resync_bytes = self.resync.iter().fold(0_usize, |total, message| {
             total.saturating_add(retained_resync_queue_item_bytes(message.as_ref()))
         });
@@ -1542,7 +1593,8 @@ impl OutboundQueue {
             });
         // Sticky overflow clears only after every retained protected frame is
         // either delivered or invalidated by a newer authority generation.
-        self.overflowed = !self.resync.is_empty() || !self.ephemeral.is_empty();
+        self.overflowed = was_overflowed
+            && (!self.durable.is_empty() || !self.resync.is_empty() || !self.ephemeral.is_empty());
         messages
     }
 
@@ -1775,9 +1827,13 @@ struct RoomAuthorityRegistryState {
     next_ticket: u64,
     dependencies: BTreeMap<u64, RoomDependencyPending>,
     rooms: BTreeMap<RoomId, RoomAuthorityControl>,
+    durable_authorization: Option<AuthorizationVersion>,
+    active_durable_publications: usize,
 }
 
 struct RoomAuthorityRegistry {
+    // One registry owns both publication fences so an authorization ticket and
+    // its SQLite commit establish a single cut across durable and room lanes.
     state: StdMutex<RoomAuthorityRegistryState>,
     quiescent: Condvar,
 }
@@ -1798,6 +1854,31 @@ pub(crate) struct RoomAuthorityPermit {
     registry: Arc<RoomAuthorityRegistry>,
     room: RoomId,
     generation: u64,
+}
+
+/// One auth-scoped durable frame admitted at the final transport boundary.
+/// An authorization-changing commit installs its dependency ticket under the
+/// same registry lock and waits for these permits to quiesce before SQLite may
+/// commit. A frame already destructively drained therefore either finishes
+/// before the commit or is rejected against the successor authorization.
+pub(crate) struct DurableAuthorizationPermit {
+    registry: Arc<RoomAuthorityRegistry>,
+}
+
+impl Drop for DurableAuthorizationPermit {
+    fn drop(&mut self) {
+        let mut state = lock(&self.registry.state);
+        state.active_durable_publications = state.active_durable_publications.saturating_sub(1);
+        self.registry.quiescent.notify_all();
+    }
+}
+
+/// The single final-publication permit carried by a realtime frame. Durable
+/// app rows use the authorization fence; protected ephemeral frames use their
+/// exact room generation. Control and authority-independent frames need none.
+pub(crate) enum RealtimePublicationPermit {
+    Durable { _permit: DurableAuthorizationPermit },
+    Room(RoomAuthorityPermit),
 }
 
 impl RoomAuthorityPermit {
@@ -1845,6 +1926,36 @@ impl Drop for RoomAuthorityPermit {
 }
 
 impl RoomAuthorityRegistry {
+    fn install_durable_authorization(&self, authorization: AuthorizationVersion) {
+        let mut state = lock(&self.state);
+        state.durable_authorization = Some(authorization);
+        self.quiescent.notify_all();
+    }
+
+    fn begin_durable_final_send(
+        self: &Arc<Self>,
+        authorization: &AuthorizationVersion,
+    ) -> Result<DurableAuthorizationPermit, EphemeralError> {
+        let mut state = lock(&self.state);
+        if !state.dependencies.is_empty()
+            || state.durable_authorization.as_ref() != Some(authorization)
+        {
+            return Err(authority_pending_error());
+        }
+        state.active_durable_publications = state
+            .active_durable_publications
+            .checked_add(1)
+            .ok_or_else(|| {
+                EphemeralError::new(
+                    EphemeralErrorCode::AuthorityPending,
+                    "durable authorization publication permit count exhausted",
+                )
+            })?;
+        Ok(DurableAuthorizationPermit {
+            registry: self.clone(),
+        })
+    }
+
     fn begin_protected_act(&self, room_id: &RoomId) -> Result<u64, EphemeralError> {
         let mut state = lock(&self.state);
         if state
@@ -1947,12 +2058,14 @@ impl RoomAuthorityRegistry {
                 affected_rooms: affected_rooms.clone(),
             },
         );
-        while affected_rooms.iter().any(|room_id| {
-            state
-                .rooms
-                .get(room_id)
-                .is_some_and(|room| room.active_permits != 0)
-        }) {
+        while state.active_durable_publications != 0
+            || affected_rooms.iter().any(|room_id| {
+                state
+                    .rooms
+                    .get(room_id)
+                    .is_some_and(|room| room.active_permits != 0)
+            })
+        {
             state = self
                 .quiescent
                 .wait(state)
@@ -2008,6 +2121,7 @@ impl RoomAuthorityRegistry {
             .dependencies
             .remove(&ticket.ticket_id)
             .expect("validated room dependency remains under registry gate");
+        state.durable_authorization = Some(authorization.clone());
         let mut resyncs = Vec::with_capacity(pending.affected_rooms.len());
         let mut retired = Vec::new();
         for room_id in pending.affected_rooms {
@@ -2065,60 +2179,107 @@ impl RoomAuthorityRegistry {
             .map_or(0, |room| room.generation)
     }
 
-    fn drain_outbox(self: &Arc<Self>, outbox: &SharedOutbox) -> Vec<AdmittedRealtimeEnvelope> {
+    fn drain_outbox(
+        self: &Arc<Self>,
+        outbox: &SharedOutbox,
+        admit_fenced: bool,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
         // Registry admission precedes the outbox lock. Prepare cannot install
-        // a dependency ticket until this destructive act completes, and an
-        // enqueue follows the same registry-before-outbox order through its
-        // already-admitted room permit.
+        // a dependency ticket until this destructive drain and its permit
+        // accounting complete. Enqueue takes only the outbox lock (protected
+        // room enqueue already owns its permit), so no inverse lock order is
+        // introduced by durable publication fencing.
         let mut state = lock(&self.state);
-        let messages = lock(outbox).drain_with_authority(|message| {
-            let Some((room_id, generation)) = message.room_authority() else {
-                return FrameAuthorityDisposition::Send;
-            };
-            let Some(room) = state.rooms.get(room_id) else {
-                return if generation == 0 {
-                    FrameAuthorityDisposition::Send
+        // Before a durable authorization stream is installed this is the
+        // legacy/dev in-memory room API: there is no auth-changing commit for
+        // a permit to interlock with. Once installed, only the guarded drain
+        // may extract any frame whose publication depends on that stream.
+        let admit_fenced = admit_fenced || state.durable_authorization.is_none();
+        let messages = lock(outbox).drain_with_authority(
+            |message| {
+                let Some(authorization) = message.authorization() else {
+                    return FrameAuthorityDisposition::Send;
+                };
+                if !state.dependencies.is_empty() {
+                    return FrameAuthorityDisposition::Retain;
+                }
+                if state.durable_authorization.as_ref() == Some(authorization) {
+                    if admit_fenced {
+                        FrameAuthorityDisposition::Send
+                    } else {
+                        FrameAuthorityDisposition::Retain
+                    }
                 } else {
                     FrameAuthorityDisposition::DropStale
+                }
+            },
+            |message| {
+                let Some((room_id, generation)) = message.room_authority() else {
+                    return FrameAuthorityDisposition::Send;
                 };
-            };
-            if room.retired || generation != room.generation {
-                return FrameAuthorityDisposition::DropStale;
-            }
-            if !room.pending_tickets.is_empty() {
-                return FrameAuthorityDisposition::Retain;
-            }
-            if let Some(resync) = &room.resync {
-                let is_current_auth_signal = resync.room_authority_generation == generation
-                    && matches!(
-                        message,
-                        EphemeralMessage::ResyncRequired {
-                            reason: ResyncReason::AuthChanged,
-                            ..
+                let Some(room) = state.rooms.get(room_id) else {
+                    return if generation == 0 {
+                        FrameAuthorityDisposition::Send
+                    } else {
+                        FrameAuthorityDisposition::DropStale
+                    };
+                };
+                if room.retired || generation != room.generation {
+                    return FrameAuthorityDisposition::DropStale;
+                }
+                if !room.pending_tickets.is_empty() {
+                    return FrameAuthorityDisposition::Retain;
+                }
+                if let Some(resync) = &room.resync {
+                    let is_current_auth_signal = resync.room_authority_generation == generation
+                        && matches!(
+                            message,
+                            EphemeralMessage::ResyncRequired {
+                                reason: ResyncReason::AuthChanged,
+                                ..
+                            }
+                        );
+                    return if is_current_auth_signal {
+                        if admit_fenced {
+                            FrameAuthorityDisposition::Send
+                        } else {
+                            FrameAuthorityDisposition::Retain
                         }
-                    );
-                return if is_current_auth_signal {
+                    } else {
+                        FrameAuthorityDisposition::Retain
+                    };
+                }
+                if matches!(
+                    message,
+                    EphemeralMessage::ResyncRequired {
+                        reason: ResyncReason::AuthChanged,
+                        ..
+                    }
+                ) {
+                    return FrameAuthorityDisposition::DropStale;
+                }
+                if admit_fenced {
                     FrameAuthorityDisposition::Send
                 } else {
                     FrameAuthorityDisposition::Retain
-                };
-            }
-            if matches!(
-                message,
-                EphemeralMessage::ResyncRequired {
-                    reason: ResyncReason::AuthChanged,
-                    ..
                 }
-            ) {
-                return FrameAuthorityDisposition::DropStale;
-            }
-            FrameAuthorityDisposition::Send
-        });
+            },
+        );
         messages
             .into_iter()
             .map(|envelope| {
-                let room_authority = match &envelope {
-                    RealtimeEnvelope::Durable(_) => None,
+                let publication_authority = match &envelope {
+                    RealtimeEnvelope::Durable(message) => message.authorization().map(|_| {
+                        state.active_durable_publications = state
+                            .active_durable_publications
+                            .checked_add(1)
+                            .expect("bounded outbox cannot exhaust durable publication permits");
+                        RealtimePublicationPermit::Durable {
+                            _permit: DurableAuthorizationPermit {
+                                registry: self.clone(),
+                            },
+                        }
+                    }),
                     RealtimeEnvelope::Ephemeral(message) => {
                         message.room_authority().and_then(|(room_id, generation)| {
                             let room = state.rooms.get_mut(room_id)?;
@@ -2128,17 +2289,17 @@ impl RoomAuthorityRegistry {
                                 .active_permits
                                 .checked_add(1)
                                 .expect("bounded outbox cannot exhaust room permits");
-                            Some(RoomAuthorityPermit {
+                            Some(RealtimePublicationPermit::Room(RoomAuthorityPermit {
                                 registry: self.clone(),
                                 room: room_id.clone(),
                                 generation,
-                            })
+                            }))
                         })
                     }
                 };
                 AdmittedRealtimeEnvelope {
                     envelope,
-                    room_authority,
+                    publication_authority,
                 }
             })
             .collect()
@@ -2359,6 +2520,11 @@ impl LocalEphemeralBackend {
         &self,
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
     ) {
+        if let Ok(authorization) = issuer.authorization_expectation() {
+            self.shared
+                .room_authority
+                .install_durable_authorization(authorization);
+        }
         *lock(&self.shared.authorization_issuer) = Some(issuer);
     }
 
@@ -2846,12 +3012,22 @@ impl LocalEphemeralBackend {
     pub(crate) fn begin_final_send(
         &self,
         envelope: &RealtimeEnvelope,
-    ) -> Result<Option<RoomAuthorityPermit>, EphemeralError> {
+    ) -> Result<Option<RealtimePublicationPermit>, EphemeralError> {
         match envelope {
-            RealtimeEnvelope::Durable(_) => Ok(None),
-            RealtimeEnvelope::Ephemeral(message) => {
-                self.shared.room_authority.begin_final_send(message)
-            }
+            RealtimeEnvelope::Durable(message) => message
+                .authorization()
+                .map(|authorization| {
+                    self.shared
+                        .room_authority
+                        .begin_durable_final_send(authorization)
+                        .map(|permit| RealtimePublicationPermit::Durable { _permit: permit })
+                })
+                .transpose(),
+            RealtimeEnvelope::Ephemeral(message) => self
+                .shared
+                .room_authority
+                .begin_final_send(message)
+                .map(|permit| permit.map(RealtimePublicationPermit::Room)),
         }
     }
 
@@ -3895,10 +4071,30 @@ impl LocalEphemeralBackend {
         connection_id: impl Into<String>,
         payload: Vec<u8>,
     ) -> DurableEnqueueOutcome {
+        self.enqueue_durable_message(connection_id, DurableMessage::new(payload))
+    }
+
+    pub(crate) fn enqueue_authorized_durable(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+        authorization: AuthorizationVersion,
+    ) -> DurableEnqueueOutcome {
+        self.enqueue_durable_message(
+            connection_id,
+            DurableMessage::authorized(payload, authorization),
+        )
+    }
+
+    fn enqueue_durable_message(
+        &self,
+        connection_id: impl Into<String>,
+        message: DurableMessage,
+    ) -> DurableEnqueueOutcome {
         let connection_id = connection_id.into();
         let outbox = self.ensure_outbox(&connection_id);
         let mut queue = lock(&outbox);
-        let overflow = queue.push_durable(DurableMessage { payload });
+        let overflow = queue.push_durable(message);
         let parked_behind_overflow = queue.overflowed;
         drop(queue);
         if overflow.overflowed {
@@ -3924,6 +4120,11 @@ impl LocalEphemeralBackend {
         }
     }
 
+    /// Drain compatibility traffic that does not require an installed auth
+    /// final-publication fence. In sessions, auth-scoped durable data and
+    /// protected-room frames remain queued. A transport embedding must use
+    /// [`Self::drain_outbox_for_send`] and retain each admitted wrapper until
+    /// its final sink completes.
     pub fn drain_outbox(&self, connection_id: &str) -> Vec<RealtimeEnvelope> {
         // The authority obligation is level-triggered: losing or draining its
         // first signal cannot acknowledge it. Every heartbeat/poll recreates
@@ -3932,24 +4133,23 @@ impl LocalEphemeralBackend {
         self.enqueue_room_authority_resyncs(Some(connection_id));
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
-            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox))
+            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox, false))
             .unwrap_or_default()
             .into_iter()
-            .map(|admitted| admitted.into_parts().0)
+            .map(|admitted| {
+                let (envelope, _legacy_dev_permit) = admitted.into_parts();
+                envelope
+            })
             .collect()
     }
 
-    /// Destructively drain and retain each protected frame's authority permit
-    /// for a real transport handoff. Unlike `drain_outbox`, callers must carry
-    /// the returned permits through the final sink.
-    pub(crate) fn drain_outbox_for_send(
-        &self,
-        connection_id: &str,
-    ) -> Vec<AdmittedRealtimeEnvelope> {
+    /// Destructively drain frames for a real transport handoff. Callers must
+    /// keep each returned wrapper alive through the final sink.
+    pub fn drain_outbox_for_send(&self, connection_id: &str) -> Vec<AdmittedRealtimeEnvelope> {
         self.enqueue_room_authority_resyncs(Some(connection_id));
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
-            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox))
+            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox, true))
             .unwrap_or_default()
     }
 
@@ -5612,6 +5812,54 @@ mod tests {
     }
 
     #[test]
+    fn replacement_generation_inherits_the_guarded_durable_publication() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let backend = Arc::new(LocalEphemeralBackend::new());
+        let predecessor = authorization(0);
+        backend
+            .shared
+            .room_authority
+            .install_durable_authorization(predecessor.clone());
+        let notifier = backend.delivery_notifier();
+        let (old_generation, _old_waker) = notifier.register("conn").unwrap();
+        backend.enqueue_authorized_durable("conn", b"replacement-private".to_vec(), predecessor);
+
+        let (new_generation, _new_waker) = notifier.register("conn").unwrap();
+        assert!(
+            backend
+                .drain_outbox_for_send_if_current("conn", old_generation)
+                .is_none(),
+            "the superseded socket cannot steal the queued private frame"
+        );
+        let admitted = backend
+            .drain_outbox_for_send_if_current("conn", new_generation)
+            .expect("the replacement socket owns the guarded drain");
+        assert_eq!(admitted.len(), 1);
+        assert!(admitted[0].publication_authority.is_some());
+
+        let (prepared_tx, prepared_rx) = mpsc::channel();
+        let commit_backend = backend.clone();
+        let prepare = std::thread::spawn(move || {
+            let ticket = commit_backend
+                .prepare_room_authorization_event(authorization(1))
+                .unwrap();
+            prepared_tx.send(ticket).unwrap();
+        });
+        assert!(
+            prepared_rx.recv_timeout(Duration::from_millis(20)).is_err(),
+            "replacement ownership must not shorten the final-publication permit"
+        );
+        drop(admitted);
+        let ticket = prepared_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("the commit resumes after the replacement send completes");
+        assert!(backend.rollback_room_authorization_event(&ticket));
+        prepare.join().unwrap();
+    }
+
+    #[test]
     fn generation_bound_drain_serializes_registration_without_deadlock() {
         use std::sync::mpsc;
         use std::time::Duration;
@@ -5887,6 +6135,92 @@ mod tests {
     }
 
     #[test]
+    fn durable_authorization_ticket_retains_scoped_frames_but_not_independent_traffic() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = authorization(0);
+        let successor = authorization(1);
+        backend
+            .shared
+            .room_authority
+            .install_durable_authorization(predecessor.clone());
+        backend.enqueue_authorized_durable(
+            "observer",
+            b"old-private-board".to_vec(),
+            predecessor.clone(),
+        );
+        backend.enqueue_durable("observer", b"authority-independent".to_vec());
+
+        let ticket = backend
+            .prepare_room_authorization_event(successor.clone())
+            .unwrap();
+        let admitted = backend.drain_outbox_for_send("observer");
+        assert_eq!(admitted.len(), 1);
+        let (independent, permit) = admitted.into_iter().next().unwrap().into_parts();
+        assert!(permit.is_none());
+        assert!(matches!(
+            independent,
+            RealtimeEnvelope::Durable(message)
+                if message.payload == b"authority-independent"
+        ));
+
+        assert!(backend.rollback_room_authorization_event(&ticket));
+        let admitted = backend.drain_outbox_for_send("observer");
+        assert_eq!(admitted.len(), 1);
+        let (retained, permit) = admitted.into_iter().next().unwrap().into_parts();
+        assert!(permit.is_some());
+        assert!(matches!(
+            retained,
+            RealtimeEnvelope::Durable(message) if message.payload == b"old-private-board"
+        ));
+        drop(permit);
+
+        backend.enqueue_authorized_durable(
+            "observer",
+            b"stale-private-board".to_vec(),
+            predecessor,
+        );
+        let ticket = backend
+            .prepare_room_authorization_event(successor.clone())
+            .unwrap();
+        assert!(backend.drain_outbox_for_send("observer").is_empty());
+
+        backend
+            .finalize_room_authorization_event(&ticket, successor, 7)
+            .unwrap();
+        assert!(
+            backend.drain_outbox_for_send("observer").is_empty(),
+            "the predecessor-stamped board frame is discarded after commit"
+        );
+    }
+
+    #[test]
+    fn public_unfenced_drain_cannot_extract_authorized_durable_data() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = authorization(0);
+        backend
+            .shared
+            .room_authority
+            .install_durable_authorization(predecessor.clone());
+        backend.enqueue_authorized_durable("observer", b"private-board".to_vec(), predecessor);
+        backend.enqueue_durable("observer", b"authority-independent".to_vec());
+
+        assert_eq!(
+            backend.drain_outbox("observer"),
+            vec![RealtimeEnvelope::Durable(DurableMessage::new(
+                b"authority-independent".to_vec()
+            ))],
+            "the compatibility drain can publish only unfenced traffic"
+        );
+        let guarded = backend.drain_outbox_for_send("observer");
+        assert_eq!(guarded.len(), 1);
+        assert!(guarded[0].publication_authority.is_some());
+        assert!(matches!(
+            guarded[0].envelope(),
+            RealtimeEnvelope::Durable(message) if message.payload == b"private-board"
+        ));
+    }
+
+    #[test]
     fn committed_authorization_event_drops_old_frames_and_refires_auth_changed() {
         let backend = LocalEphemeralBackend::new();
         backend.register_collection(collection()).unwrap();
@@ -5905,7 +6239,7 @@ mod tests {
         assert_eq!(resyncs.len(), 1);
         assert_eq!(resyncs[0].1.room_authority_generation, 2);
 
-        let first = backend.drain_outbox("observer");
+        let first = drain_through_test_sink(&backend, "observer");
         assert!(
             first.iter().all(|frame| !matches!(
                 frame,
@@ -5921,7 +6255,7 @@ mod tests {
                 ..
             })
         )));
-        let second = backend.drain_outbox("observer");
+        let second = drain_through_test_sink(&backend, "observer");
         assert!(second.iter().any(|frame| matches!(
             frame,
             RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
@@ -5996,7 +6330,7 @@ mod tests {
                 .unwrap()
         );
 
-        let survivor = backend.drain_outbox("survivor");
+        let survivor = drain_through_test_sink(&backend, "survivor");
         assert!(survivor.iter().any(|frame| matches!(
             frame,
             RealtimeEnvelope::Ephemeral(EphemeralMessage::Remove {
@@ -6013,7 +6347,7 @@ mod tests {
                 ..
             }) if entries.is_empty()
         )));
-        let denied = backend.drain_outbox("owner");
+        let denied = drain_through_test_sink(&backend, "owner");
         assert!(denied.iter().any(|frame| matches!(
             frame,
             RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
@@ -6319,9 +6653,7 @@ mod tests {
         // The byte ceiling, not only the item ceiling, must collapse a large
         // durable backlog into the sticky resync representation.
         while !queue.overflowed {
-            queue.push_durable(DurableMessage {
-                payload: vec![9; 128 * 1_024],
-            });
+            queue.push_durable(DurableMessage::new(vec![9; 128 * 1_024]));
         }
         assert!(queue.durable.len() < MAX_OUTBOX_BACKLOG);
         assert_eq!(
@@ -6350,7 +6682,10 @@ mod tests {
         );
         assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
 
-        queue.drain_with_authority(|_| FrameAuthorityDisposition::Send);
+        queue.drain_with_authority(
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
         assert_eq!(queue.retained_bytes(), 0);
         assert_eq!(recompute_queue_retained_bytes(&queue), 0);
     }
@@ -6701,6 +7036,21 @@ mod tests {
                 RealtimeEnvelope::Durable(_) => None,
             })
             .expect("expected ephemeral message")
+    }
+
+    fn drain_through_test_sink(
+        backend: &LocalEphemeralBackend,
+        connection_id: &str,
+    ) -> Vec<RealtimeEnvelope> {
+        backend
+            .drain_outbox_for_send(connection_id)
+            .into_iter()
+            .map(AdmittedRealtimeEnvelope::into_parts)
+            .map(|(envelope, permit)| {
+                drop(permit);
+                envelope
+            })
+            .collect()
     }
 
     /// LLP 0032 S5.D6 — a connection's rate buckets are dropped on disconnect,
@@ -8077,8 +8427,8 @@ mod tests {
         );
         assert!(matches!(
             &messages[0],
-            RealtimeEnvelope::Durable(DurableMessage { payload })
-                if payload == b"{\"kind\":\"live_replace\"}"
+            RealtimeEnvelope::Durable(message)
+                if message.payload == b"{\"kind\":\"live_replace\"}"
         ));
         assert!(matches!(
             &messages[1],
@@ -8090,9 +8440,9 @@ mod tests {
         let durable_only = backend.drain_outbox("durable-only");
         assert_eq!(
             durable_only,
-            vec![RealtimeEnvelope::Durable(DurableMessage {
-                payload: b"{\"kind\":\"live_delta\"}".to_vec()
-            })],
+            vec![RealtimeEnvelope::Durable(DurableMessage::new(
+                b"{\"kind\":\"live_delta\"}".to_vec()
+            ))],
             "a durable-only connection's queue is not the ephemeral store's to wipe"
         );
 

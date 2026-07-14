@@ -32,8 +32,9 @@ use crate::diagnostic::{
 use crate::ephemeral::{
     AuthContext, CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
     EphemeralDiagnostics, EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest,
-    RealtimeEnvelope, RoomPermissionProjection, RoomSubscriberResolution, SubscribeRequest,
-    validate_collection_definitions, validate_collection_permission_backing,
+    RealtimeEnvelope, RealtimePublicationPermit, RoomPermissionProjection,
+    RoomSubscriberResolution, SubscribeRequest, validate_collection_definitions,
+    validate_collection_permission_backing,
 };
 use crate::live_matcher::{
     LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
@@ -616,6 +617,11 @@ pub struct LiveSubscribeOutput {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub scope_retirements: Vec<ScopeRetirement>,
+}
+
+pub(crate) struct LiveTransportPublication<T> {
+    pub(crate) output: T,
+    pub(crate) authorization: Option<crate::storage::AuthorizationVersion>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1542,20 +1548,33 @@ impl EphemeralApi {
         self.store.ensure_collections(collections)
     }
 
-    /// Drain a connection's outbox. A poll for updates is a liveness signal
-    /// for an HTTP-polling client (L2). Touch-after-drain, consistent with the
-    /// other ops (finding 2): a drain racing a `disconnect` re-adds only a
-    /// bare activity entry (self-healing, reapable), never a registration the
-    /// reaper cannot see.
+    /// Drain compatibility traffic from a connection's outbox. Once session
+    /// authorization fencing is installed, auth-scoped durable data and
+    /// protected-room frames remain queued; transport embeddings use
+    /// [`Self::drain_outbox_for_send`] and retain its wrappers through send. A
+    /// poll is still an L2 liveness signal. Touch-after-drain means a race with
+    /// `disconnect` can re-add only a bare, reapable activity entry.
     pub fn drain_outbox(&self, connection_id: &str) -> Vec<RealtimeEnvelope> {
         let drained = self.store.drain_outbox(connection_id);
         self.activity.touch(connection_id, now_millis());
         drained
     }
 
-    /// Destructive HTTP drain that distinguishes a live empty queue from an
-    /// extinct connection. `None` is a typed resnapshot boundary at the HTTP
-    /// adapter; it must never be serialized as a healthy `[]`.
+    /// Guarded destructive drain for embedding-owned transports. Every
+    /// returned value must remain alive until its envelope reaches the final
+    /// transport sink.
+    pub fn drain_outbox_for_send(
+        &self,
+        connection_id: &str,
+    ) -> Vec<crate::ephemeral::AdmittedRealtimeEnvelope> {
+        let drained = self.store.drain_outbox_for_send(connection_id);
+        self.activity.touch(connection_id, now_millis());
+        drained
+    }
+
+    /// Compatibility HTTP poll that distinguishes a live empty/unfenced queue
+    /// from an extinct connection. `None` is a typed resnapshot boundary; a
+    /// sessions transport publishes app data through the guarded drain.
     pub fn drain_outbox_if_active(&self, connection_id: &str) -> Option<Vec<RealtimeEnvelope>> {
         self.activity
             .act_if_active(connection_id, now_millis(), || {
@@ -1573,13 +1592,11 @@ impl EphemeralApi {
             })
     }
 
-    /// Drain for the WS push task. Unlike `drain_outbox` (an HTTP poll, which
-    /// is client-initiated and therefore liveness), this drain is
-    /// *server-initiated* — the 30s safety net calls it even when the peer has
-    /// silently vanished. Touch activity only when something was actually
-    /// drained for delivery; an empty drain must not refresh the connection,
-    /// or a dead idle WS peer is immortal against the L2 reaper (ENG-23424).
-    /// Client liveness on the WS path comes from `touch_connection` instead.
+    /// Compatibility drain for a WS push task. In sessions it extracts only
+    /// unfenced traffic; real app-data publication uses the guarded sibling.
+    /// Unlike an HTTP poll, this is server-initiated — the 30s safety net may
+    /// call it after a peer silently vanishes. Touch activity only when work
+    /// drains, or a dead idle peer would be immortal against the L2 reaper.
     pub fn drain_live_stream_if_current(
         &self,
         connection_id: &str,
@@ -1594,7 +1611,9 @@ impl EphemeralApi {
         Some(drained.into_iter().filter_map(live_stream_text).collect())
     }
 
-    pub(crate) fn drain_live_stream_for_send_if_current(
+    /// Generation-bound guarded drain for an embedding-owned WebSocket (or
+    /// equivalent push transport). Retain each admitted wrapper through send.
+    pub fn drain_live_stream_for_send_if_current(
         &self,
         connection_id: &str,
         generation: u64,
@@ -1611,13 +1630,29 @@ impl EphemeralApi {
     pub(crate) fn begin_final_send(
         &self,
         envelope: &RealtimeEnvelope,
-    ) -> Result<Option<crate::ephemeral::RoomAuthorityPermit>, crate::ephemeral::EphemeralError>
-    {
+    ) -> Result<Option<RealtimePublicationPermit>, crate::ephemeral::EphemeralError> {
         self.store.begin_final_send(envelope)
     }
 
+    #[cfg(test)]
+    pub(crate) fn prepare_room_authorization_event_for_test(
+        &self,
+        authorization: crate::storage::AuthorizationVersion,
+    ) -> SnapbackResult<crate::ephemeral::RoomDependencyTicket> {
+        self.store.prepare_room_authorization_event(authorization)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn rollback_room_authorization_event_for_test(
+        &self,
+        ticket: &crate::ephemeral::RoomDependencyTicket,
+    ) -> bool {
+        self.store.rollback_room_authorization_event(ticket)
+    }
+
     /// Embedded/test compatibility drain without socket-generation ownership.
-    /// WebSocket composition must use `drain_live_stream_if_current`.
+    /// WebSocket app-data composition must use
+    /// [`Self::drain_live_stream_for_send_if_current`].
     pub fn drain_live_stream(&self, connection_id: &str) -> Vec<String> {
         let drained = self.store.drain_outbox(connection_id);
         if !drained.is_empty() {
@@ -4371,6 +4406,26 @@ impl LocalSnapback {
         })
     }
 
+    pub(crate) fn subscribe_live_for_transport(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+    ) -> SnapbackResult<LiveTransportPublication<LiveSubscribeOutput>> {
+        let output =
+            self.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)?;
+        let authorization = output.authorization_scope.as_ref().and_then(|_| {
+            self.auth_invalidation
+                .as_ref()
+                .map(|state| state.obligations.expectation().authorization.clone())
+        });
+        Ok(LiveTransportPublication {
+            output,
+            authorization,
+        })
+    }
+
     /// Explicit unsubscribe (LLP 0034 §10.1 residual, ENG-22478): dispose one
     /// live subscription. Ownership mirrors `resume_live` — once a principal
     /// owns the subscription the caller must present that principal.
@@ -4982,6 +5037,26 @@ impl LocalSnapback {
             authorization_scope: None,
             authorization_invalidation: None,
             scope_retirements: Vec::new(),
+        })
+    }
+
+    pub(crate) fn resume_live_for_transport(
+        &mut self,
+        name: &str,
+        input: LiveResumeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+    ) -> SnapbackResult<LiveTransportPublication<LiveResumeOutput>> {
+        let output =
+            self.resume_live_prepared_with_invalidation(name, input, authority, invalidation)?;
+        let authorization = output.authorization_scope.as_ref().and_then(|_| {
+            self.auth_invalidation
+                .as_ref()
+                .map(|state| state.obligations.expectation().authorization.clone())
+        });
+        Ok(LiveTransportPublication {
+            output,
+            authorization,
         })
     }
 
@@ -6363,9 +6438,20 @@ impl LocalSnapback {
     }
 
     pub fn drain_outbox(&mut self, connection_id: &str) -> Vec<RealtimeEnvelope> {
-        // A poll for updates is a liveness signal for an HTTP-polling client.
+        // An unfenced poll remains a liveness signal but cannot extract app
+        // data whose final publication must cross an authorization fence.
         self.touch_connection(connection_id, now_millis());
         self.ephemeral.drain_outbox(connection_id)
+    }
+
+    /// Guarded destructive drain for an embedding-owned transport. Retain
+    /// each returned wrapper through the final transport sink.
+    pub fn drain_outbox_for_send(
+        &mut self,
+        connection_id: &str,
+    ) -> Vec<crate::ephemeral::AdmittedRealtimeEnvelope> {
+        self.touch_connection(connection_id, now_millis());
+        self.ephemeral.drain_outbox_for_send(connection_id)
     }
 
     /// Record connection activity for the L2 reaper. @ref LLP 0032 L2.
@@ -7337,9 +7423,11 @@ impl LocalSnapback {
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
         }
-        let enqueue = self
-            .ephemeral
-            .enqueue_durable(subscription.connection_id.clone(), payload);
+        let enqueue = self.ephemeral.enqueue_authorized_durable(
+            subscription.connection_id.clone(),
+            payload,
+            proof.authorization,
+        );
         if enqueue.overflowed_now {
             self.raise_connection_overflow(&subscription.connection_id, snapshot_version)?;
         }
@@ -7500,7 +7588,7 @@ impl LocalSnapback {
         &mut self,
         connection_id: &str,
         admission: &AdmissionLease,
-    ) -> SnapbackResult<Vec<String>> {
+    ) -> SnapbackResult<Vec<crate::ephemeral::DurableMessage>> {
         // @ref LLP 0058#gate-algorithm — a re-query validates and publishes
         // through the same admission lease itself. Never hold the admission
         // mutex while invoking it: managed leases use a non-reentrant mutex,
@@ -7546,13 +7634,13 @@ impl LocalSnapback {
                     })
                 {
                     if let Ok(frame) =
-                        serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                        serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                             projection.obligation,
                             projection.resolution,
                             None,
                         ))
                     {
-                        frames.push(frame);
+                        frames.push(crate::ephemeral::DurableMessage::new(frame));
                     }
                     continue;
                 }
@@ -7596,7 +7684,7 @@ impl LocalSnapback {
                     }
                     if let Some(projection) = projection
                         && let Ok(frame) =
-                            serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                            serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                                 projection.obligation,
                                 projection.resolution,
                                 Some(AuthorizationInvalidationSnapshot {
@@ -7607,7 +7695,10 @@ impl LocalSnapback {
                                 }),
                             ))
                     {
-                        frames.push(frame);
+                        frames.push(crate::ephemeral::DurableMessage::authorized(
+                            frame,
+                            proof.authorization,
+                        ));
                     }
                 }
                 Err(failure) => {
@@ -7626,13 +7717,13 @@ impl LocalSnapback {
                             .as_ref()
                             .and_then(|state| state.obligations.projection(scope))
                             && let Ok(frame) =
-                                serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                                serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                                     projection.obligation,
                                     projection.resolution,
                                     None,
                                 ))
                         {
-                            frames.push(frame);
+                            frames.push(crate::ephemeral::DurableMessage::new(frame));
                         }
                         continue;
                     }
@@ -7659,13 +7750,13 @@ impl LocalSnapback {
                     });
                     if let Some(projection) = projection
                         && let Ok(frame) =
-                            serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                            serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                                 projection.obligation,
                                 projection.resolution,
                                 None,
                             ))
                     {
-                        frames.push(frame);
+                        frames.push(crate::ephemeral::DurableMessage::new(frame));
                     }
                 }
             }
@@ -8145,8 +8236,24 @@ impl LocalSnapback {
                     dependency.version = Some(fresh);
                 }
             }
-            self.ephemeral
-                .enqueue_durable(subscription.connection_id.clone(), payload)
+            if subscription.authorization.is_some() {
+                let authorization = self
+                    .auth_invalidation
+                    .as_ref()
+                    .expect("auth-scoped live delta requires installed invalidation state")
+                    .obligations
+                    .expectation()
+                    .authorization
+                    .clone();
+                self.ephemeral.enqueue_authorized_durable(
+                    subscription.connection_id.clone(),
+                    payload,
+                    authorization,
+                )
+            } else {
+                self.ephemeral
+                    .enqueue_durable(subscription.connection_id.clone(), payload)
+            }
         };
 
         // Convergence gate (debug/test only): the delta-maintained member set
@@ -9290,6 +9397,22 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
 
+    fn drain_live_stream_through_test_sink(
+        snapback: &mut LocalSnapback,
+        connection_id: &str,
+    ) -> Vec<String> {
+        snapback
+            .drain_outbox_for_send(connection_id)
+            .into_iter()
+            .filter_map(|admitted| {
+                let (envelope, permit) = admitted.into_parts();
+                let frame = super::live_stream_text(envelope);
+                drop(permit);
+                frame
+            })
+            .collect()
+    }
+
     fn auth_artifact_pair(mode: AuthMode, marker: char) -> (SchemaManifest, FunctionManifest) {
         let (schema_version, auth, schema_hash, bundle_hash, inputs_hash, required_capabilities) =
             match mode {
@@ -10355,7 +10478,7 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("auth-scoped subscription");
-        assert!(snapback.drain_live_stream("session-remove").is_empty());
+        assert!(drain_live_stream_through_test_sink(&mut snapback, "session-remove").is_empty());
 
         invoke_test_session_mutation(
             &mut snapback,
@@ -10366,7 +10489,7 @@ globalThis.__snapbackHandlers = {
             },
         )
         .expect("delete visible row");
-        let messages = snapback.drain_live_stream("session-remove");
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "session-remove");
         let frame = messages
             .iter()
             .filter_map(|message| serde_json::from_str::<Value>(message).ok())
@@ -10384,8 +10507,7 @@ globalThis.__snapbackHandlers = {
         snapback
             .reproject_authorization_invalidations("session-remove", &admission)
             .expect("reproject pending truth");
-        let hint = snapback
-            .drain_live_stream("session-remove")
+        let hint = drain_live_stream_through_test_sink(&mut snapback, "session-remove")
             .into_iter()
             .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
             .find(|message| message["kind"] == "authorization_invalidation")
@@ -10397,10 +10519,11 @@ globalThis.__snapbackHandlers = {
         let rerun = snapback
             .authorization_invalidation_frames("session-remove", &admission)
             .expect("managed admission reruns pending authorization");
-        let rerun = serde_json::from_str::<Value>(
-            rerun
+        let rerun = serde_json::from_slice::<Value>(
+            &rerun
                 .first()
-                .expect("managed drain emits the fresh snapshot"),
+                .expect("managed drain emits the fresh snapshot")
+                .payload,
         )
         .expect("managed drain frame JSON");
         assert_eq!(rerun["snapshot"]["rows"], json!([]));
@@ -10513,7 +10636,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(frames.len(), 2, "one exact child per auth-scoped query");
         let tokens = frames
             .iter()
-            .map(|frame| serde_json::from_str::<Value>(frame).expect("frame JSON"))
+            .map(|frame| serde_json::from_slice::<Value>(&frame.payload).expect("frame JSON"))
             .map(|frame| {
                 frame["resolution"]["ackToken"]
                     .as_str()

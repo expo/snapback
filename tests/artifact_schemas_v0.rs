@@ -1021,9 +1021,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     }
 
     for envelope in [
-        RealtimeEnvelope::Durable(DurableMessage {
-            payload: b"{\"kind\":\"live_replace\"}".to_vec(),
-        }),
+        RealtimeEnvelope::Durable(DurableMessage::new(b"{\"kind\":\"live_replace\"}".to_vec())),
         RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
             room: snapback::ephemeral::RoomId {
                 collection: "cursors".to_owned(),
