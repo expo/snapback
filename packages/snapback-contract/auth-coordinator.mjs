@@ -923,6 +923,15 @@ export class AuthCoordinator {
       try {
         participantMethod(participant, 'blank', this.#barrierContext());
         participantMethod(participant, 'clearMemory', this.#barrierContext());
+        if (this.#activeBarrier) {
+          // @ref LLP 0059#transition-barrier — a participant registering
+          // mid-barrier joins paused and blank, so these phases are satisfied
+          // at registration; commitDurable and resume still come from the
+          // active barrier (as remaining phases or as pre-resume catch-up).
+          this.#markPhaseDone(this.#activeBarrier, entry, 'quiesce');
+          this.#markPhaseDone(this.#activeBarrier, entry, 'blank');
+          this.#markPhaseDone(this.#activeBarrier, entry, 'clearMemory');
+        }
       } catch (error) {
         entry.registrationError = error;
       }
@@ -960,10 +969,6 @@ export class AuthCoordinator {
 
   async #finishClearingOwned(owner, clearing, context) {
     const validated = validateAuthCustody(clearing, this.#appId);
-    this.#record = validated;
-    this.#publicationPaused = true;
-    this.#activeBarrier = { phase: 'clearing', context };
-    this.#publish(validated);
     const barrier = Object.freeze({
       appId: this.#appId,
       expectedEpoch: context.expectedEpoch,
@@ -976,6 +981,21 @@ export class AuthCoordinator {
       previousAuthority: clone(context.previousAuthority),
       nextAuthority: clone(context.nextAuthority),
     });
+    this.#record = validated;
+    this.#publicationPaused = true;
+    this.#activeBarrier = {
+      phase: 'clearing',
+      context,
+      // @ref LLP 0059#transition-barrier — barrier phase completion is tracked
+      // per registration; a participant that registers after commitDurable has
+      // completed globally catches up through these phases (with this exact
+      // CAS context) before it may resume.
+      catchUp: {
+        phases: ['quiesce', 'blank', 'clearMemory', 'commitDurable'],
+        context: barrier,
+      },
+    };
+    this.#publish(validated);
     try {
       await this.#runAwaitedPhase('quiesce', barrier);
       this.#runSyncPhase('blank', barrier);
@@ -1085,7 +1105,17 @@ export class AuthCoordinator {
       previousAuthority: clone(previous?.authority ?? null),
       nextAuthority: clone(record.authority),
     });
-    this.#activeBarrier = { phase: 'peer_transition', context };
+    this.#activeBarrier = {
+      phase: 'peer_transition',
+      context,
+      // Peer adoption never runs commitDurable (the transition owner cleared
+      // durable state once, globally); a late registrant only needs the local
+      // paused/blank phases before it may resume.
+      catchUp: {
+        phases: ['quiesce', 'blank', 'clearMemory'],
+        context,
+      },
+    };
     try {
       await this.#runAwaitedPhase('quiesce', context);
       this.#runSyncPhase('blank', context);
@@ -1102,10 +1132,27 @@ export class AuthCoordinator {
     }
   }
 
+  // Barrier phase completion is tracked per (barrier, participant entry) so a
+  // participant registered mid-barrier is neither double-invoked nor skipped:
+  // the awaited-phase loops pick up unmarked entries dynamically, and the
+  // pre-resume catch-up runs any phase the entry missed entirely.
+  #markPhaseDone(barrier, entry, method) {
+    if (entry.barrier !== barrier) {
+      entry.barrier = barrier;
+      entry.donePhases = new Set();
+    }
+    entry.donePhases.add(method);
+  }
+
+  #phaseDone(barrier, entry, method) {
+    return entry.barrier === barrier && entry.donePhases.has(method);
+  }
+
   #runSyncPhase(method, context) {
-    this.#activeBarrier.phase = method;
+    const barrier = this.#activeBarrier;
+    barrier.phase = method;
     for (const entry of this.#participants) {
-      if (entry.removed) continue;
+      if (entry.removed || this.#phaseDone(barrier, entry, method)) continue;
       if (entry.registrationError) throw entry.registrationError;
       const result = participantMethod(entry.participant, method, context);
       if (result && typeof result.then === 'function') {
@@ -1114,25 +1161,55 @@ export class AuthCoordinator {
           `participant ${entry.participant.name ?? entry.order} returned a promise from ${method}`,
         );
       }
+      this.#markPhaseDone(barrier, entry, method);
     }
   }
 
   async #runAwaitedPhase(method, context, { reverse = false } = {}) {
-    this.#activeBarrier.phase = method;
-    const completed = new Set();
+    const barrier = this.#activeBarrier;
+    barrier.phase = method;
     for (;;) {
       const ordered = reverse ? [...this.#participants].reverse() : [...this.#participants];
       const entry = ordered
-        .filter((candidate) => !candidate.removed && !completed.has(candidate))
-        [0];
+        .find((candidate) => !candidate.removed && !this.#phaseDone(barrier, candidate, method));
       if (!entry) break;
-      completed.add(entry);
-      if (entry.removed) continue;
       if (entry.registrationError) throw entry.registrationError;
+      if (method === 'resume') {
+        // @ref LLP 0059#transition-barrier — resume may not execute until the
+        // participant's predecessor durable state is cleared: a registrant
+        // that missed a globally completed phase (commitDurable in
+        // particular) receives it here first, with the barrier's CAS context.
+        await this.#catchUpBeforeResume(barrier, entry);
+      }
       const call = Promise.resolve().then(() => participantMethod(entry.participant, method, context));
       entry.active = call.catch(() => {});
       await call;
+      this.#markPhaseDone(barrier, entry, method);
     }
+  }
+
+  async #catchUpBeforeResume(barrier, entry) {
+    if (!barrier.catchUp) return;
+    const { phases, context } = barrier.catchUp;
+    for (const method of phases) {
+      if (this.#phaseDone(barrier, entry, method)) continue;
+      barrier.phase = method;
+      if (method === 'blank' || method === 'clearMemory') {
+        const result = participantMethod(entry.participant, method, context);
+        if (result && typeof result.then === 'function') {
+          throw coordinatorError(
+            'SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE',
+            `participant ${entry.participant.name ?? entry.order} returned a promise from ${method}`,
+          );
+        }
+      } else {
+        const call = Promise.resolve().then(() => participantMethod(entry.participant, method, context));
+        entry.active = call.catch(() => {});
+        await call;
+      }
+      this.#markPhaseDone(barrier, entry, method);
+    }
+    barrier.phase = 'resume';
   }
 
   #adoptSettled(record, { expose = true } = {}) {

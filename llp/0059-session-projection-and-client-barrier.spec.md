@@ -1401,10 +1401,17 @@ loss of ownership aborts immediately and permits a successor to recover:
 
 Local participant registration during `clearing` joins in a paused and blank
 state and participates in the remaining phases; it cannot observe pending
-custody. Unregistration waits for an executing local barrier method to finish.
-Barrier calls have deterministic registration order and reverse-order resume,
-and a participant exception is classified as a transition failure rather than
-skipped.
+custody. The coordinator tracks the active barrier's phase completion per
+registration: a participant that registers after a required phase already
+completed globally — in particular `commitDurable`, when registration lands
+between phase 7 and its `resume` — receives that phase as a catch-up, with the
+same expected-epoch CAS context, before its `resume` may execute. A late
+registrant is therefore never resumed over uncleared predecessor durable
+state, and a catch-up exception is a transition failure exactly like any other
+phase exception. Unregistration waits for an executing local barrier method to
+finish. Barrier calls have deterministic registration order and reverse-order
+resume, and a participant exception is classified as a transition failure
+rather than skipped.
 
 The custody transition behavior at item 5 is:
 

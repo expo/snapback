@@ -520,6 +520,112 @@ for (const bytes of hintBytes.values()) {
   await writer.close();
 }
 
+// ENG-24983: a participant that registers after the barrier's commitDurable
+// phase completed globally — but before settle/resume — must still clear its
+// predecessor durable state before it is resumed under the successor. The
+// clearing-to-settled CAS is delayed deterministically to open that window.
+{
+  const deferred = () => {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    return { promise, resolve };
+  };
+  const state = { custody: {} };
+  const inner = createMemoryAuthCustodyStorage({ state });
+  let settleGate = null;
+  const storage = {
+    withOwnership: (appId, operation) => inner.withOwnership(appId, (owner) => operation({
+      read: owner.read,
+      replace: async (expectedRevision, next) => {
+        if (next.phase === 'settled' && settleGate) {
+          const gate = settleGate;
+          settleGate = null;
+          gate.entered.resolve();
+          await gate.release.promise;
+        }
+        return owner.replace(expectedRevision, next);
+      },
+    })),
+    snapshot: (appId) => inner.snapshot(appId),
+  };
+  const delayed = new AuthCoordinator({
+    appId: APP,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await delayed.establishAnonymous(anonymous());
+  const durable = { early: 'A', late: 'A' };
+  const log = [];
+  delayed.registerParticipant({
+    name: 'early',
+    async quiesce() { log.push('early:quiesce'); },
+    blank() { log.push('early:blank'); },
+    clearMemory() { log.push('early:clearMemory'); },
+    async commitDurable(ctx) {
+      log.push(`early:commitDurable:${ctx.expectedEpoch}->${ctx.nextEpoch}`);
+      durable.early = 'cleared';
+    },
+    async resume() { log.push(`early:resume:${durable.early}`); },
+  });
+  settleGate = { entered: deferred(), release: deferred() };
+  const releaseSettle = settleGate.release;
+  const settleEntered = settleGate.entered;
+  const pendingTransition = delayed.transition(
+    anonymousCapture,
+    successor(session(SESSION_B, USER_B), 'late-registration-bearer', 10_000),
+    'late_registration_window',
+  );
+  await settleEntered.promise;
+  // The active barrier finished commitDurable for every registered
+  // participant, but durable custody has not yet settled.
+  assert.equal(inner.snapshot(APP).phase, 'clearing');
+  assert.equal(durable.early, 'cleared');
+  let lateResumeSawDurable = null;
+  delayed.registerParticipant({
+    name: 'late',
+    async quiesce() { log.push('late:quiesce'); },
+    blank() { log.push('late:blank'); },
+    clearMemory() { log.push('late:clearMemory'); },
+    async commitDurable(ctx) {
+      log.push(`late:commitDurable:${ctx.expectedEpoch}->${ctx.nextEpoch}`);
+      assert.equal(ctx.disposition, 'delete');
+      durable.late = 'cleared';
+    },
+    async resume(ctx) {
+      lateResumeSawDurable = durable.late;
+      log.push(`late:resume:${ctx.capture.authorityEpoch}`);
+    },
+  });
+  // Late registration while paused blanks synchronously and may not observe
+  // pending custody.
+  assert.deepEqual(log.filter((line) => line.startsWith('late:')), ['late:blank', 'late:clearMemory']);
+  assert.equal(
+    await errorCode(() => Promise.resolve(delayed.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  releaseSettle.resolve();
+  const settledCapture = await pendingTransition;
+  assert.equal(settledCapture.authorityEpoch, 1);
+  // The late participant's predecessor durable state was cleared before its
+  // resume executed, via a commitDurable catch-up under the barrier context.
+  assert.equal(durable.late, 'cleared');
+  assert.equal(lateResumeSawDurable, 'cleared');
+  assert.deepEqual(log.filter((line) => line.startsWith('late:')), [
+    'late:blank',
+    'late:clearMemory',
+    'late:commitDurable:0->1',
+    'late:resume:1',
+  ]);
+  // Reverse-order resume still holds: the late registrant (last registered)
+  // resumes before the earlier participant.
+  assert.deepEqual(log.filter((line) => line.includes(':resume')), [
+    'late:resume:1',
+    'early:resume:cleared',
+  ]);
+  await delayed.close();
+}
+
 // Malformed durable custody is a mandatory-gate failure. It must blank an
 // already exposed predecessor before returning the corruption diagnostic;
 // callers cannot keep using the old capture as an offline fallback.
