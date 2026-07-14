@@ -647,11 +647,18 @@ const valueContainsSecret = (value, secret) => {
 
 const projectCredentialResponse = (value, forbiddenSecrets = []) => {
   if (
-    !exactRecord(value, ['tokenType', 'token', 'refreshAfter', 'session'])
+    !exactRecord(value, [
+      'tokenType',
+      'token',
+      'refreshAfter',
+      'session',
+      'authorityDescriptor',
+    ])
     || value.tokenType !== 'Bearer'
     || typeof value.token !== 'string'
     || value.token.length === 0
     || !safeUnsignedInteger(value.refreshAfter)
+    || !authorityDescriptorIsValid(value.authorityDescriptor)
   ) return null;
   const session = projectSessionResponse(value.session);
   if (!session) return null;
@@ -660,6 +667,7 @@ const projectCredentialResponse = (value, forbiddenSecrets = []) => {
     token: value.token,
     refreshAfter: value.refreshAfter,
     session,
+    authorityDescriptor: { ...value.authorityDescriptor },
   };
   const publicProjection = credentialPublicProjection(projected);
   if ([projected.token, ...forbiddenSecrets].some((secret) => (
@@ -672,6 +680,7 @@ const credentialPublicProjection = (credential) => ({
   tokenType: credential.tokenType,
   refreshAfter: credential.refreshAfter,
   session: { ...credential.session },
+  authorityDescriptor: { ...credential.authorityDescriptor },
 });
 
 const clientAuthorityFromHandshake = (session) => {

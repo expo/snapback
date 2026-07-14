@@ -54,6 +54,11 @@ const handshake = {
   provider: { key: 'email-code', available: true },
   transports: ['bearer'],
   authority: { userId: 'user_1', sessionId: 'session_1', isAuthenticated: true },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: INCARNATION,
+    sessionGeneration: 1,
+  },
 };
 
 const witness = (version) => ({
