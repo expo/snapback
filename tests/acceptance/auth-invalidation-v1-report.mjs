@@ -86,26 +86,35 @@ const runRustReceipt = (testName, marker) => {
   return JSON.parse(line.slice(prefix.length));
 };
 
-const record = (version, rows) => ({
+const record = (version, rows, versionStream = VERSION_STREAM) => ({
   rows,
   version,
-  versionStreamId: VERSION_STREAM,
-  cursor: { stream: VERSION_STREAM, version },
+  versionStreamId: versionStream,
+  cursor: { stream: versionStream, version },
 });
 
-const lease = ({ queryKey, namespace, requestId, version, durationMs = 1_000 }) => ({
+const lease = ({
+  queryKey,
+  namespace,
+  requestId,
+  version,
+  durationMs = 1_000,
+  authorization = AUTHORIZATION,
+  issuerId = ISSUER,
+  versionStream = VERSION_STREAM,
+}) => ({
   protocolVersion: 1,
   leaseId: `lease_${version}`,
   leaseRequestId: requestId,
-  issuerId: ISSUER,
+  issuerId,
   clientStoreId: namespace.clientStoreId,
   queryKey,
   queryInstanceId: namespace.queryInstanceId,
   principalId: USER,
   sessionIdAtIssue: 'session-0053',
   providerKey: 'email-code',
-  authorization: AUTHORIZATION,
-  data: { versionStream: VERSION_STREAM, snapshotCommitVersion: version },
+  authorization,
+  data: { versionStream, snapshotCommitVersion: version },
   activationHash: ACTIVATION_HASH,
   issuedAtServerMs: 10_000,
   authorizedUntilServerMs: 10_000 + durationMs,
@@ -116,14 +125,18 @@ const lease = ({ queryKey, namespace, requestId, version, durationMs = 1_000 }) 
   mac: 'A'.repeat(43),
 });
 
-const witness = (minCommitVersion) => ({
-  authorization: AUTHORIZATION,
-  data: { versionStream: VERSION_STREAM, minCommitVersion },
+const witness = (
+  minCommitVersion,
+  authorization = AUTHORIZATION,
+  versionStream = VERSION_STREAM,
+) => ({
+  authorization,
+  data: { versionStream, minCommitVersion },
 });
 
-const subscriptionScope = (namespace, sequence = 1) => ({
+const subscriptionScope = (namespace, sequence = 1, issuerId = ISSUER) => ({
   kind: 'subscription',
-  issuerId: ISSUER,
+  issuerId,
   namespace,
   scopeSequence: sequence,
   connectionGeneration: 1,
@@ -135,12 +148,15 @@ const retainedObligation = ({
   revision = 1,
   disposition = 'quarantine',
   minCommitVersion = 101,
+  authorization = AUTHORIZATION,
+  issuerId = ISSUER,
+  versionStream = VERSION_STREAM,
 }) => ({
   protocolVersion: 1,
-  scopeId: subscriptionScope(namespace),
+  scopeId: subscriptionScope(namespace, 1, issuerId),
   revision,
   maxDisposition: disposition,
-  witness: witness(minCommitVersion),
+  witness: witness(minCommitVersion, authorization, versionStream),
   ownerContinuityId: `owner_${namespace.queryInstanceId}`,
   retryEpisodeId: null,
 });
@@ -154,7 +170,13 @@ const retainedResolution = ({
   kind,
   scopeId: obligation.scopeId,
   revision: obligation.revision,
-  witness: witness(minCommitVersion),
+  witness: {
+    authorization: obligation.witness.authorization,
+    data: {
+      versionStream: obligation.witness.data.versionStream,
+      minCommitVersion,
+    },
+  },
   maxDisposition: obligation.maxDisposition,
   ackToken: `ack_${obligation.scopeId.namespace.queryInstanceId}_${obligation.revision}`,
   ownerContinuityId: obligation.ownerContinuityId,
@@ -166,12 +188,14 @@ const queueObligation = ({
   revision = 1,
   disposition = 'quarantine',
   minCommitVersion = 101,
+  authorization = AUTHORIZATION,
+  versionStream = VERSION_STREAM,
 }) => ({
   protocolVersion: 1,
   scopeId: clientQueryScope(namespace),
   revision,
   maxDisposition: disposition,
-  witness: witness(minCommitVersion),
+  witness: witness(minCommitVersion, authorization, versionStream),
   retryEpisodeId: null,
 });
 const queueResolution = ({ obligation, kind = 'snapshot' }) => ({
@@ -184,14 +208,14 @@ const queueResolution = ({ obligation, kind = 'snapshot' }) => ({
   ackToken: `queue_ack_${obligation.scopeId.namespace.queryInstanceId}_${obligation.revision}`,
 });
 
-const createAuthorizedStore = async () => {
+const createAuthorizedStore = async ({ versionStream = VERSION_STREAM } = {}) => {
   const durable = {};
   const store = createMemorySnapbackClientStore({ state: durable });
   await store.bindAuthority(EXPECTED);
   await store.scopeToArtifacts({
     appId: APP_ID,
     targetProfileId: TARGET_PROFILE_ID,
-    versionStreamId: VERSION_STREAM,
+    versionStreamId: versionStream,
   }, EXPECTED);
   await store.scopeAuthorization({
     principalScope: PRINCIPAL_SCOPE,
@@ -200,11 +224,20 @@ const createAuthorizedStore = async () => {
   return { durable, store };
 };
 
-const installQuery = async ({ store, queryKey, version, rows, clientNowMs }) => {
+const installQuery = async ({
+  store,
+  queryKey,
+  version,
+  rows,
+  clientNowMs,
+  authorization = AUTHORIZATION,
+  issuerId = ISSUER,
+  versionStream = VERSION_STREAM,
+}) => {
   const initialized = await store.initializeAuthorizedRetainedQuery(queryKey, {
-    authorization: AUTHORIZATION,
-    issuerId: ISSUER,
-    versionStream: VERSION_STREAM,
+    authorization,
+    issuerId,
+    versionStream,
     principalId: USER,
     activationHash: ACTIVATION_HASH,
     appId: APP_ID,
@@ -223,8 +256,11 @@ const installQuery = async ({ store, queryKey, version, rows, clientNowMs }) => 
       requestId: request.request.leaseRequestId,
       version,
       durationMs: 1_000,
+      authorization,
+      issuerId,
+      versionStream,
     }),
-    record: record(version, rows),
+    record: record(version, rows, versionStream),
     clientNowMs: clientNowMs + 1,
   }, EXPECTED);
   return { ...initialized, fence: committed.fence };
@@ -392,158 +428,274 @@ const measureVisibilityLifecycle = async (serverWitnessFloor) => {
   };
 };
 
-const measureMembershipBlastRadius = async ({ serverWitnessFloor, expectedQueryCount }) => {
-  const { store } = await createAuthorizedStore();
-  const fixtures = [];
-  for (const [index, queryKey] of [
-    'lobby:{"kind":"mine"}',
-    'profile:{"kind":"mine"}',
-    'notes:{"kind":"mine"}',
-  ].entries()) {
-    fixtures.push({
-      queryKey,
-      installed: await installQuery({
+const measureMembershipBlastRadius = async ({
+  lifecycleReplay,
+  expectedQueryCount,
+  productionServerTrafficCounts,
+}) => {
+  const events = new Map();
+  for (const transition of lifecycleReplay) {
+    const grouped = events.get(transition.eventIndex) ?? [];
+    grouped.push(transition);
+    events.set(transition.eventIndex, grouped);
+  }
+  const perQueryLifecycle = [];
+  const perEventQueueLifecycle = [];
+  let retainedPayloadBytesBefore = 0;
+  let retainedPayloadBytesDuringQuarantine = 0;
+  let durableQuarantineFenceWrites = 0;
+  let durableDeleteTombstonesWrittenDuringQuarantine = 0;
+  let clientObligationApplications = 0;
+  let clientResolutionApplications = 0;
+  let clientLeaseRequests = 0;
+  let clientAuthorizedSnapshotCommits = 0;
+  let clientQueueObligationApplications = 0;
+  let clientQueueResolutionApplications = 0;
+
+  for (const [eventIndex, rawTransitions] of [...events.entries()].sort(([left], [right]) => (
+    left - right
+  ))) {
+    const transitions = [...rawTransitions].sort((left, right) => (
+      left.queryIndex - right.queryIndex
+    ));
+    assert.equal(transitions.length, expectedQueryCount);
+    const epoch = transitions[0].compositeWitness.authorization.epoch;
+    const authorization = { incarnation: INCARNATION, epoch };
+    const issuerId = { ...ISSUER, authorizationIncarnation: INCARNATION };
+    const { store } = await createAuthorizedStore();
+    const fixtures = [];
+    let clientNowMs = 1_000;
+
+    for (const transition of transitions) {
+      assert.equal(transition.compositeWitness.authorization.epoch, epoch);
+      const queryKey = [
+        transition.query.function,
+        transition.query.user,
+        `membership-event-${eventIndex}`,
+      ].join(':');
+      const rows = Array.from(
+        { length: transition.snapshot.rowCount },
+        (_, rowIndex) => ({ queryKey, rowIndex, authorized: true }),
+      );
+      const installed = await installQuery({
         store,
         queryKey,
-        version: 200 + index,
-        rows: [{ queryKey, private: true }],
-        clientNowMs: 3_000 + (index * 10),
-      }),
+        version: transition.snapshot.commitVersion - 1,
+        rows,
+        clientNowMs,
+        authorization,
+        issuerId,
+      });
+      clientNowMs += 2;
+      fixtures.push({ queryKey, rows, installed, transition });
+    }
+
+    let queueCapture = await store.captureMutationQueue(EXPECTED);
+    const expectedMutationIds = [`cm_membership_${eventIndex}_a`, `cm_membership_${eventIndex}_b`];
+    for (const [mutationIndex, mutationId] of expectedMutationIds.entries()) {
+      await store.enqueueMutation({
+        id: mutationId,
+        function: `write${mutationIndex}`,
+        args: { eventIndex, mutationIndex },
+        authorityDescriptor: AUTHORITY_DESCRIPTOR,
+        appId: APP_ID,
+        targetProfileId: TARGET_PROFILE_ID,
+        versionStreamId: VERSION_STREAM,
+        cursor: {
+          stream: VERSION_STREAM,
+          version: transitions[0].snapshot.commitVersion - 1,
+        },
+        ...EXPECTED,
+        ...queueCapture,
+      });
+    }
+    const before = await store.snapshot();
+    const eventBytesBefore = retainedPayloadBytes(before);
+    const pendingMutationsBefore = before.pending.length;
+    const queueObligations = [];
+    const hiddenTransitions = [];
+
+    for (const fixture of fixtures) {
+      const { transition, installed, queryKey } = fixture;
+      const beforeQueryRecord = (await store.snapshot()).retained[queryKey];
+      const bytesBefore = byteLength(beforeQueryRecord);
+      const pending = retainedObligation({
+        namespace: installed.namespace,
+        revision: transition.revision,
+        disposition: transition.disposition,
+        minCommitVersion: transition.compositeWitness.data.minCommitVersion,
+        authorization,
+        issuerId,
+      });
+      const accepted = await store.receiveRetainedQueryObligation(
+        queryKey,
+        pending,
+        installed.fence,
+        EXPECTED,
+      );
+      clientObligationApplications += 1;
+      durableQuarantineFenceWrites += Number(accepted.disposition === 'quarantine');
+      const hiddenRead = await store.getAuthorizedRetainedQuery(queryKey, {
+        fence: accepted.fence,
+        clientNowMs,
+      }, EXPECTED);
+      clientNowMs += 1;
+      assert.equal(hiddenRead, null);
+      const during = await store.snapshot();
+      const bytesDuring = byteLength(during.retained[queryKey]);
+      assert.equal(bytesDuring, bytesBefore);
+      const deleteTombstoneWritten = during.retained[queryKey] === undefined;
+      assert.equal(deleteTombstoneWritten, false);
+      durableDeleteTombstonesWrittenDuringQuarantine += Number(deleteTombstoneWritten);
+
+      const queuePending = queueObligation({
+        namespace: installed.namespace,
+        revision: transition.revision,
+        disposition: transition.disposition,
+        minCommitVersion: transition.compositeWitness.data.minCommitVersion,
+        authorization,
+      });
+      queueCapture = await store.applyMutationQueueObligation(
+        queuePending,
+        { ...EXPECTED, ...queueCapture },
+      );
+      clientQueueObligationApplications += 1;
+      queueObligations.push(queuePending);
+      hiddenTransitions.push({ fixture, pending, accepted, bytesBefore, bytesDuring });
+    }
+
+    const quarantined = await store.snapshot();
+    const eventBytesDuring = retainedPayloadBytes(quarantined);
+    assert.equal(eventBytesDuring, eventBytesBefore);
+    assert.equal(queueCapture.suspended, true);
+    assert.equal(queueCapture.pendingScopeCount, fixtures.length);
+    await assertCode('SNAPBACK_CLIENT_QUEUE_SUSPENDED', () => (
+      store.pendingMutations({ ...EXPECTED, ...queueCapture })
+    ));
+    assert.equal(quarantined.pending.length, pendingMutationsBefore);
+
+    for (const [queryIndex, hidden] of hiddenTransitions.entries()) {
+      const { fixture, pending, accepted, bytesBefore, bytesDuring } = hidden;
+      const { transition, queryKey, rows, installed } = fixture;
+      const resolved = await store.applyRetainedQueryResolution(queryKey, {
+        fence: accepted.fence,
+        resolution: retainedResolution({ obligation: pending }),
+        record: record(transition.snapshot.commitVersion, rows),
+      }, EXPECTED);
+      clientResolutionApplications += 1;
+      assert.equal(resolved.ackToken, `ack_${installed.namespace.queryInstanceId}_${transition.revision}`);
+      assert.equal((await store.snapshot()).queryAuthorization[queryKey].lease, null);
+      const request = await store.beginAuthorizedLeaseRequest(queryKey, {
+        fence: resolved.fence,
+        leaseRequestId: `request_recovery_${eventIndex}_${queryIndex}`,
+        clientNowMs,
+      }, EXPECTED);
+      clientNowMs += 1;
+      clientLeaseRequests += 1;
+      const recovered = await store.commitAuthorizedRetainedSnapshot(queryKey, {
+        fence: request.fence,
+        lease: lease({
+          queryKey,
+          namespace: installed.namespace,
+          requestId: request.request.leaseRequestId,
+          version: transition.snapshot.commitVersion,
+          authorization,
+          issuerId,
+        }),
+        record: record(transition.snapshot.commitVersion, rows),
+        clientNowMs,
+      }, EXPECTED);
+      clientNowMs += 1;
+      clientAuthorizedSnapshotCommits += 1;
+      assert.deepEqual((await store.getAuthorizedRetainedQuery(queryKey, {
+        fence: recovered.fence,
+        clientNowMs,
+      }, EXPECTED)).rows, rows);
+      clientNowMs += 1;
+
+      queueCapture = await store.resolveMutationQueueObligation(
+        queueResolution({ obligation: queueObligations[queryIndex] }),
+        { ...EXPECTED, ...queueCapture },
+      );
+      clientQueueResolutionApplications += 1;
+      const queueShouldRemainSuspended = queryIndex < hiddenTransitions.length - 1;
+      assert.equal(queueCapture.suspended, queueShouldRemainSuspended);
+      perQueryLifecycle.push({
+        eventIndex,
+        eventKind: transition.eventKind,
+        queryIndex: transition.queryIndex,
+        productionQuery: transition.query,
+        productionScope: transition.scope,
+        revision: transition.revision,
+        compositeWitness: transition.compositeWitness,
+        disposition: transition.disposition,
+        dispositionReason: transition.dispositionReason,
+        proofPath: transition.proofPath,
+        fullRequeryAndAuthorizationMatched: transition.fullRequeryAndAuthorizationMatched,
+        serverSnapshotCommitVersion: transition.snapshot.commitVersion,
+        serverSnapshotRowCount: transition.snapshot.rowCount,
+        serverResolutionKind: transition.resolutionKind,
+        serverAcknowledgementOutcome: transition.acknowledgementOutcome,
+        clientLifecycle: {
+          quarantineCommitted: true,
+          hiddenReadWasNull: true,
+          hiddenIntervalTransitions: 3,
+          retainedPayloadBytesBefore: bytesBefore,
+          retainedPayloadBytesDuringQuarantine: bytesDuring,
+          retainedPayloadBytesDeletedByQuarantine: bytesBefore - bytesDuring,
+          durableDeleteTombstonesWrittenDuringQuarantine: 0,
+          freshSnapshotCommitted: true,
+          leaseRevalidated: true,
+          recoveredRows: rows.length,
+          ackTokenObserved: resolved.ackToken,
+        },
+      });
+    }
+
+    const releasedMutationIds = (await store.pendingMutations({
+      ...EXPECTED,
+      ...queueCapture,
+    })).map(({ id }) => id);
+    assert.deepEqual(releasedMutationIds, expectedMutationIds);
+    perEventQueueLifecycle.push({
+      eventIndex,
+      eventKind: transitions[0].eventKind,
+      revision: transitions[0].revision,
+      pendingMutationsBefore,
+      suspendedMutationCount: quarantined.pending.length,
+      pendingScopeCountAtFullSuspension: fixtures.length,
+      remainedSuspendedUntilFinalQueryResolution: true,
+      releasedMutationIds,
     });
-  }
-  assert.equal(fixtures.length, expectedQueryCount);
-
-  let queueCapture = await store.captureMutationQueue(EXPECTED);
-  await store.enqueueMutation({
-    id: 'cm_membership_a',
-    function: 'writeA',
-    args: { secret: 'a' },
-    authorityDescriptor: AUTHORITY_DESCRIPTOR,
-    appId: APP_ID,
-    targetProfileId: TARGET_PROFILE_ID,
-    versionStreamId: VERSION_STREAM,
-    cursor: { stream: VERSION_STREAM, version: 202 },
-    ...EXPECTED,
-    ...queueCapture,
-  });
-  await store.enqueueMutation({
-    id: 'cm_membership_b',
-    function: 'writeB',
-    args: { secret: 'b' },
-    authorityDescriptor: AUTHORITY_DESCRIPTOR,
-    appId: APP_ID,
-    targetProfileId: TARGET_PROFILE_ID,
-    versionStreamId: VERSION_STREAM,
-    cursor: { stream: VERSION_STREAM, version: 202 },
-    ...EXPECTED,
-    ...queueCapture,
-  });
-  const before = await store.snapshot();
-  const retainedBytesBefore = retainedPayloadBytes(before);
-  const pendingMutationsBefore = before.pending.length;
-  const queueObligations = [];
-  let durableQuarantineFenceWrites = 0;
-
-  for (const { queryKey, installed } of fixtures) {
-    const queryPending = retainedObligation({
-      namespace: installed.namespace,
-      minCommitVersion: serverWitnessFloor.minCommitVersion,
-    });
-    const accepted = await store.receiveRetainedQueryObligation(
-      queryKey,
-      queryPending,
-      installed.fence,
-      EXPECTED,
-    );
-    if (accepted.disposition === 'quarantine') durableQuarantineFenceWrites += 1;
-    const queuePending = queueObligation({
-      namespace: installed.namespace,
-      minCommitVersion: serverWitnessFloor.minCommitVersion,
-    });
-    queueObligations.push(queuePending);
-    queueCapture = await store.applyMutationQueueObligation(
-      queuePending,
-      { ...EXPECTED, ...queueCapture },
-    );
+    retainedPayloadBytesBefore += eventBytesBefore;
+    retainedPayloadBytesDuringQuarantine += eventBytesDuring;
   }
 
-  const quarantined = await store.snapshot();
-  const retainedBytesDuringQuarantine = retainedPayloadBytes(quarantined);
-  assert.equal(retainedBytesDuringQuarantine, retainedBytesBefore);
-  assert.equal(queueCapture.suspended, true);
-  assert.equal(queueCapture.pendingScopeCount, fixtures.length);
-  await assertCode('SNAPBACK_CLIENT_QUEUE_SUSPENDED', () => (
-    store.pendingMutations({ ...EXPECTED, ...queueCapture })
-  ));
-  const suspendedMutationCount = quarantined.pending.length;
-  assert.equal(suspendedMutationCount, pendingMutationsBefore);
-
-  queueCapture = await store.resolveMutationQueueObligation(
-    queueResolution({ obligation: queueObligations[0] }),
-    { ...EXPECTED, ...queueCapture },
-  );
-  const suspendedAfterOneRootResolves = queueCapture.suspended;
-  const suspendedMutationCountAfterOneRoot = (await store.snapshot()).pending.length;
-  assert.equal(suspendedAfterOneRootResolves, true);
-  assert.equal(suspendedMutationCountAfterOneRoot, pendingMutationsBefore);
-
-  for (const pending of queueObligations.slice(1)) {
-    queueCapture = await store.resolveMutationQueueObligation(
-      queueResolution({ obligation: pending }),
-      { ...EXPECTED, ...queueCapture },
-    );
-  }
-  assert.equal(queueCapture.suspended, false);
-  const releasedMutationIds = (await store.pendingMutations({
-    ...EXPECTED,
-    ...queueCapture,
-  })).map(({ id }) => id);
-  assert.deepEqual(releasedMutationIds, ['cm_membership_a', 'cm_membership_b']);
-
-  const deleteRoot = queueObligation({
-    namespace: fixtures[0].installed.namespace,
-    revision: 2,
-    disposition: 'delete',
-    minCommitVersion: 211,
-  });
-  const deleted = await store.applyMutationQueueObligation(
-    deleteRoot,
-    { ...EXPECTED, ...queueCapture },
-  );
-  const afterDelete = await store.snapshot();
-  const pendingMutationsRemovedByDelete = pendingMutationsBefore - afterDelete.pending.length;
-  const stranded = await store.strandedMutations(EXPECTED);
-  const redactedDiscardOnlyRecordsCreated = stranded.filter((entry) => (
-    entry.discardOnly === true
-      && entry.replayable === false
-      && !Object.hasOwn(entry, 'args')
-  )).length;
-  assert.equal(pendingMutationsRemovedByDelete, pendingMutationsBefore);
-  assert.equal(redactedDiscardOnlyRecordsCreated, pendingMutationsBefore);
-  const terminal = await store.resolveMutationQueueObligation(
-    queueResolution({ obligation: deleteRoot, kind: 'terminalDelete' }),
-    { ...EXPECTED, ...deleted },
-  );
-  const discarded = (await store.strandedMutations(EXPECTED)).length;
-  await store.discardStranded({ ...EXPECTED, ...terminal });
-  assert.deepEqual(await store.strandedMutations(EXPECTED), []);
-
+  assert.equal(perQueryLifecycle.length, lifecycleReplay.length);
+  assert.equal(durableDeleteTombstonesWrittenDuringQuarantine, 0);
   return {
-    authScopedQueries: fixtures.length,
-    composedServerWitnessFloor: serverWitnessFloor,
-    retainedPayloadBytesBefore: retainedBytesBefore,
-    retainedPayloadBytesDuringQuarantine: retainedBytesDuringQuarantine,
+    membershipChurnEvents: events.size,
+    authScopedQueriesPerEvent: expectedQueryCount,
+    completeQueryLifecycles: perQueryLifecycle.length,
+    retainedPayloadBytesBefore,
+    retainedPayloadBytesDuringQuarantine,
     retainedPayloadBytesDeletedByCoarseQuarantine:
-      retainedBytesBefore - retainedBytesDuringQuarantine,
+      retainedPayloadBytesBefore - retainedPayloadBytesDuringQuarantine,
     durableQuarantineFenceWrites,
-    pendingMutationsBefore,
-    suspendedMutationCount,
-    suspendedAfterOneRootResolves,
-    suspendedMutationCountAfterOneRoot,
-    releasedMutationIds,
-    pendingMutationsRemovedByDelete,
-    redactedDiscardOnlyRecordsCreated,
-    discardOnlyRecordsDeleted: discarded,
+    durableDeleteTombstonesWrittenDuringQuarantine,
+    queueSuspensionCycles: perEventQueueLifecycle.length,
+    queueReleaseCycles: perEventQueueLifecycle.length,
+    trafficCounts: {
+      productionServer: productionServerTrafficCounts,
+      clientObligationApplications,
+      clientResolutionApplications,
+      clientLeaseRequests,
+      clientAuthorizedSnapshotCommits,
+      clientQueueObligationApplications,
+      clientQueueResolutionApplications,
+    },
+    perEventQueueLifecycle,
+    perQueryLifecycle,
   };
 };
 
@@ -715,9 +867,511 @@ const exerciseLiveClientScenarios = () => {
   };
 };
 
-const passedEntry = (scenario, observations, predicate) => {
-  assert.equal(predicate, true, `${scenario} scenario did not satisfy its oracle`);
-  return { scenario, passed: predicate, observations };
+// The reference function owns source rows and authorization predicates. The
+// production client paths receive only its full-query result; the executed
+// Rust receipt independently proves that production server projection matched
+// a fresh Ibex query. Composing both halves avoids treating client protocol
+// validation as an application-policy evaluator.
+const PROPERTY_SEED = 0x53a11ce;
+const PROPERTY_TRIALS_PER_EVENT = 3;
+const PROPERTY_EVENT_UNIVERSE = Object.freeze([
+  'randomized-writes',
+  'deployment-activation',
+  'lease-expiry',
+  'clock-rollback',
+  'overflow',
+  'disconnect-and-fresh-resume',
+  'response-loss',
+  'ack-loss',
+  'restart',
+  'stale-callback',
+  'cross-tab-write',
+  'disposition-escalation',
+]);
+
+const deterministicRandom = (seed) => {
+  let state = seed >>> 0;
+  return {
+    next() {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      return state;
+    },
+    state: () => state,
+  };
+};
+
+const canonicalRows = (rows) => [...rows].sort((left, right) => left.id.localeCompare(right.id));
+
+const fullAuthorizationRequery = (rows, {
+  principalId = USER,
+  authorityValid = true,
+  leaseValid = true,
+  connected = true,
+  invalidationPending = false,
+  terminal = false,
+} = {}) => {
+  if (!authorityValid || !leaseValid || !connected || invalidationPending || terminal) return [];
+  return canonicalRows(rows.filter((row) => row.ownerId === principalId || row.isPublic === true));
+};
+
+const propertyRows = (random, caseIndex) => {
+  const rows = Array.from({ length: 6 }, (_, rowIndex) => ({
+    id: `case-${caseIndex}-row-${rowIndex}`,
+    ownerId: ((random.next() >>> 16) & 1) === 0 ? USER : 'another-principal',
+    isPublic: ((random.next() >>> 16) & 3) === 0,
+  }));
+  rows[0] = { ...rows[0], ownerId: USER, isPublic: false };
+  rows[1] = { ...rows[1], ownerId: 'another-principal', isPublic: false };
+  return rows;
+};
+
+const propertySnapshot = (rows, version, authorization = AUTHORIZATION) => ({
+  rows,
+  version,
+  witness: liveWitness({ authorization, minCommitVersion: version }),
+});
+
+const assertOracleRows = (actualRows, expectedRows, scenario) => {
+  assert.deepEqual(canonicalRows(actualRows), canonicalRows(expectedRows), `${scenario} oracle rows`);
+};
+
+const normalizedPropertyWitness = (version) => ({
+  authorization: {
+    incarnation: '<authenticated-uuid-v7>',
+    epoch: AUTHORIZATION.epoch,
+  },
+  data: {
+    versionStream: '<authenticated-version-stream>',
+    minCommitVersion: version,
+  },
+});
+
+const exercisePropertyCase = async ({
+  scenario,
+  caseIndex,
+  random,
+  serverReceipt,
+  overflowReceipt,
+  deploymentReceipt,
+}) => {
+  const sourceRows = propertyRows(random, caseIndex);
+  const initiallyAuthorized = fullAuthorizationRequery(sourceRows);
+  const version = 500 + (caseIndex * 3);
+  const revision = 1 + (random.next() % 100);
+  const queryInstanceId = 1_000 + caseIndex;
+  const namespace = liveNamespace(queryInstanceId);
+  const proof = {
+    caseIndex,
+    randomState: `0x${random.state().toString(16).padStart(8, '0')}`,
+    scope: {
+      kind: 'subscription',
+      namespace: {
+        clientStoreId: '<production-client-store-id>',
+        queryKey: namespace.queryKey,
+        queryInstanceId,
+      },
+    },
+    scopeSource: 'executed-resync-obligation',
+    revision,
+    revisionSource: 'executed-resync-obligation',
+    compositeWitness: normalizedPropertyWitness(version + 1),
+    proofPath: [
+      'seeded-state-transition',
+      'production-protocol-path',
+      'independent-full-requery-and-authorization',
+      'state-and-row-comparison',
+    ],
+  };
+  let expectedRows;
+  let actualRows;
+  let productionObservation;
+  let dispositionReason;
+  let disposition;
+
+  if (scenario === 'randomized-writes') {
+    const updatedRows = structuredClone(sourceRows);
+    const writeKind = random.next() % 3;
+    const target = updatedRows[writeKind === 2 ? 0 : 1];
+    if (writeKind === 0) target.isPublic = true;
+    else if (writeKind === 1) target.ownerId = USER;
+    else target.ownerId = 'another-principal';
+    expectedRows = fullAuthorizationRequery(updatedRows);
+    const fence = createLiveFence({ namespace, rows: initiallyAuthorized, version });
+    let committedRows = null;
+    fence.applyLiveSnapshot({
+      fence: fence.capture(),
+      snapshot: propertySnapshot(expectedRows, version + 1),
+      commit: (event) => { committedRows = event.rows; },
+    });
+    actualRows = committedRows;
+    productionObservation = {
+      serverOperations: serverReceipt.scenario.randomizedOperations,
+      serverFreshQueryComparisons:
+        serverReceipt.runtimeAssertions.randomizedFreshQueryComparisons,
+      clientLiveSnapshotCommitted: true,
+      seededWriteKind: ['public-grant', 'owner-grant', 'owner-revoke'][writeKind],
+    };
+    proof.revision = null;
+    proof.revisionSource = 'ordinary-live-snapshot-has-no-invalidation-revision';
+    proof.scope.kind = null;
+    proof.scopeSource = 'production-query-namespace-without-a-resync-scope';
+    disposition = 'retain';
+    dispositionReason = 'ordinary-row-write-matcher-requery';
+  } else if (scenario === 'deployment-activation') {
+    const fence = createLiveFence({ namespace, rows: initiallyAuthorized, version });
+    const nextAuthorization = { incarnation: NEXT_INCARNATION, epoch: 0 };
+    const boundary = [];
+    const replaced = fence.replaceAuthenticatedExpectation({
+      issuerId: liveIssuer(NEXT_INCARNATION, 1),
+      authorization: nextAuthorization,
+      versionStream: `stream-property-deployment-${caseIndex}`,
+      snapshot: {
+        rows: fullAuthorizationRequery(sourceRows),
+        version: 1,
+        witness: liveWitness({
+          authorization: nextAuthorization,
+          versionStream: `stream-property-deployment-${caseIndex}`,
+          minCommitVersion: 1,
+        }),
+      },
+      commit: (event) => boundary.push(event.kind),
+    });
+    expectedRows = fullAuthorizationRequery(sourceRows, { authorityValid: false });
+    actualRows = fence.isRenderable() ? initiallyAuthorized : [];
+    productionObservation = {
+      disposition: replaced.disposition,
+      boundary: boundary.at(-1),
+      activationEpoch: deploymentReceipt.activationEpoch,
+      missingPredecessorObserved: deploymentReceipt.missingPredecessorObserved,
+    };
+    proof.scope.kind = null;
+    proof.scopeSource = 'authenticated-expectation-replacement-without-a-resync-scope';
+    proof.revision = deploymentReceipt.activationEpoch;
+    proof.revisionSource = 'production-activation-epoch';
+    proof.compositeWitness = {
+      authorization: {
+        incarnation: '<next-authenticated-uuid-v7>',
+        epoch: nextAuthorization.epoch,
+      },
+      data: {
+        versionStream: '<next-authenticated-version-stream>',
+        minCommitVersion: 1,
+      },
+    };
+    disposition = 'delete';
+    dispositionReason = 'authenticated-deployment-identity-change';
+  } else if (scenario === 'lease-expiry' || scenario === 'clock-rollback') {
+    const queryKey = `property:${scenario}:${caseIndex}`;
+    const { store } = await createAuthorizedStore();
+    const clientNowMs = 1_000 + (caseIndex * 20);
+    const installed = await installQuery({
+      store,
+      queryKey,
+      version,
+      rows: initiallyAuthorized,
+      clientNowMs,
+    });
+    proof.scope.namespace.queryKey = queryKey;
+    proof.scope.namespace.queryInstanceId = installed.namespace.queryInstanceId;
+    proof.revision = installed.fence.queryGeneration;
+    proof.revisionSource = 'production-client-query-generation';
+    proof.scope.kind = null;
+    proof.scopeSource = 'production-retained-query-namespace-without-a-resync-scope';
+    proof.compositeWitness = normalizedPropertyWitness(version);
+    if (scenario === 'lease-expiry') {
+      await assertCode('SNAPBACK_AUTHORIZED_LEASE_EXPIRED', () => (
+        store.getAuthorizedRetainedQuery(queryKey, {
+          fence: installed.fence,
+          clientNowMs: clientNowMs + 1_001,
+        }, EXPECTED)
+      ));
+      dispositionReason = 'authorized-lease-expired';
+    } else {
+      await store.getAuthorizedRetainedQuery(queryKey, {
+        fence: installed.fence,
+        clientNowMs: clientNowMs + 10,
+      }, EXPECTED);
+      await assertCode('SNAPBACK_AUTH_CLOCK_ROLLBACK', () => (
+        store.getAuthorizedRetainedQuery(queryKey, {
+          fence: installed.fence,
+          clientNowMs: clientNowMs + 9,
+        }, EXPECTED)
+      ));
+      dispositionReason = 'client-clock-rollback';
+    }
+    const after = await store.snapshot();
+    expectedRows = fullAuthorizationRequery(sourceRows, { leaseValid: false });
+    actualRows = after.retained[queryKey]?.rows ?? [];
+    productionObservation = {
+      retainedPayloadDeleted: after.retained[queryKey] === undefined,
+      effectiveDisposition: after.queryAuthorization[queryKey].effectiveDisposition,
+      durableDeleteTombstoneCommitted:
+        after.queryAuthorization[queryKey].queryGeneration > installed.fence.queryGeneration,
+    };
+    disposition = 'delete';
+  } else if (scenario === 'overflow') {
+    const children = [0, 1].map((childIndex) => {
+      const childNamespace = liveNamespace(queryInstanceId + childIndex);
+      const fence = createLiveFence({
+        namespace: childNamespace,
+        rows: initiallyAuthorized,
+        version,
+      });
+      const obligation = liveObligation({
+        namespace: childNamespace,
+        revision,
+        minCommitVersion: version + 1,
+      });
+      const accepted = fence.receiveObligation(obligation, { commit() {} });
+      return { fence, obligation, accepted };
+    });
+    const remaining = [children.length];
+    for (const child of children) {
+      const applied = child.fence.applyResolution({
+        fence: child.accepted.fence,
+        resolution: liveResolution(child.obligation),
+        snapshot: propertySnapshot(initiallyAuthorized, version + 1),
+        commit: (event) => { child.committedRows = event.rows; },
+      });
+      child.fence.acknowledge(applied.ackToken);
+      remaining.push(remaining.at(-1) - 1);
+    }
+    assert.deepEqual(remaining, [2, 1, 0]);
+    assert.deepEqual(remaining, [
+      overflowReceipt.authScopedChildren,
+      overflowReceipt.remainingAfterFirstAck,
+      overflowReceipt.remainingAfterAllAcks,
+    ]);
+    expectedRows = fullAuthorizationRequery(sourceRows);
+    actualRows = children.every(({ fence }) => fence.isRenderable())
+      ? children[0].committedRows
+      : [];
+    for (const child of children) assertOracleRows(child.committedRows, expectedRows, scenario);
+    productionObservation = {
+      overflowSentinelObserved: overflowReceipt.overflowSentinelObserved,
+      rootRemainingTrace: remaining,
+    };
+    disposition = 'retain';
+    dispositionReason = 'connection-overflow-root-expanded-to-auth-scoped-children';
+  } else if (scenario === 'disconnect-and-fresh-resume' || scenario === 'restart') {
+    const predecessor = createLiveFence({ namespace, rows: initiallyAuthorized, version });
+    const pending = liveObligation({ namespace, revision, minCommitVersion: version + 1 });
+    predecessor.receiveObligation(pending, { commit() {} });
+    const successorNamespace = liveNamespace(queryInstanceId + 10_000);
+    const successor = createLiveFence({
+      namespace: successorNamespace,
+      rows: initiallyAuthorized,
+      version: version + 1,
+    });
+    let staleCode = null;
+    try {
+      successor.receiveObligation(pending, { commit() {} });
+    } catch (error) {
+      staleCode = error?.code ?? null;
+    }
+    let committedRows = null;
+    successor.applyLiveSnapshot({
+      fence: successor.capture(),
+      snapshot: propertySnapshot(initiallyAuthorized, version + 2),
+      commit: (event) => { committedRows = event.rows; },
+    });
+    expectedRows = fullAuthorizationRequery(sourceRows);
+    actualRows = committedRows;
+    productionObservation = {
+      predecessorInstance: namespace.queryInstanceId,
+      successorInstance: successorNamespace.queryInstanceId,
+      delayedPredecessorFrameCode: staleCode,
+      ...(scenario === 'restart' ? {
+        serverIncarnationPreserved:
+          serverReceipt.runtimeAssertions.ordinaryRestartPreservedIncarnation,
+        serverNewIssuerInstalled: serverReceipt.runtimeAssertions.restartInstalledNewIssuer,
+        serverFreshSnapshotConverged:
+          serverReceipt.runtimeAssertions.restartInitialSnapshotConverged,
+      } : {}),
+    };
+    disposition = 'retain';
+    dispositionReason = scenario === 'restart'
+      ? 'process-local-scope-ended-on-restart'
+      : 'connection-ended-and-new-query-instance-installed';
+  } else if (scenario === 'response-loss' || scenario === 'ack-loss') {
+    const fence = createLiveFence({ namespace, rows: initiallyAuthorized, version });
+    const pending = liveObligation({ namespace, revision, minCommitVersion: version + 1 });
+    const accepted = fence.receiveObligation(pending, { commit() {} });
+    let committedRows = null;
+    const applied = fence.applyResolution({
+      fence: accepted.fence,
+      resolution: liveResolution(pending),
+      snapshot: propertySnapshot(initiallyAuthorized, version + 1),
+      commit: (event) => { committedRows = event.rows; },
+    });
+    let replayStatus = null;
+    if (scenario === 'ack-loss') {
+      const replay = fence.receiveObligation(pending, {
+        commit: () => assert.fail('applied proof must re-fire without another commit'),
+      });
+      replayStatus = replay.status;
+      assert.equal(replay.ackToken, applied.ackToken);
+    }
+    fence.acknowledge(applied.ackToken);
+    expectedRows = fullAuthorizationRequery(sourceRows);
+    actualRows = committedRows;
+    productionObservation = scenario === 'response-loss' ? {
+      discardedServerResponseDrains:
+        serverReceipt.runtimeMeasurements.membershipChurn.discardedResponseDrains
+        + serverReceipt.runtimeMeasurements.randomizedWrites.discardedResponseDrains,
+      reprojectedServerSnapshotFrames:
+        serverReceipt.runtimeMeasurements.membershipChurn.reprojectedSnapshotFrames
+        + serverReceipt.runtimeMeasurements.randomizedWrites.reprojectedSnapshotFrames,
+      reprojectedClientResolutionApplied: true,
+    } : {
+      replayStatus,
+      sameAckTokenRefired: replayStatus === 'applied',
+      acknowledgementStatus: 'acknowledged',
+    };
+    disposition = 'retain';
+    dispositionReason = scenario === 'response-loss'
+      ? 'level-triggered-response-reprojection'
+      : 'resolution-applied-before-ack-loss';
+  } else if (scenario === 'stale-callback' || scenario === 'cross-tab-write') {
+    const queryKey = `property:${scenario}:${caseIndex}`;
+    const { durable, store } = await createAuthorizedStore();
+    const clientNowMs = 1_000 + (caseIndex * 20);
+    const installed = await installQuery({
+      store,
+      queryKey,
+      version,
+      rows: initiallyAuthorized,
+      clientNowMs,
+    });
+    proof.scope.namespace.queryKey = queryKey;
+    proof.scope.namespace.queryInstanceId = installed.namespace.queryInstanceId;
+    const peer = createMemorySnapbackClientStore({ state: durable });
+    const peerCapture = await peer.captureAuthorizedRetainedQuery(queryKey, EXPECTED);
+    const pending = retainedObligation({
+      namespace: installed.namespace,
+      revision,
+      minCommitVersion: version + 1,
+    });
+    proof.revision = pending.revision;
+    proof.revisionSource = 'executed-resync-obligation';
+    const accepted = await store.receiveRetainedQueryObligation(
+      queryKey,
+      pending,
+      installed.fence,
+      EXPECTED,
+    );
+    let staleCode = null;
+    try {
+      await peer.putAuthorizedRetainedQuery(queryKey, {
+        fence: peerCapture.fence,
+        record: record(version + 1, initiallyAuthorized),
+        clientNowMs: clientNowMs + 10,
+      }, EXPECTED);
+    } catch (error) {
+      staleCode = error?.code ?? null;
+    }
+    const hidden = await store.getAuthorizedRetainedQuery(queryKey, {
+      fence: accepted.fence,
+      clientNowMs: clientNowMs + 11,
+    }, EXPECTED);
+    expectedRows = fullAuthorizationRequery(sourceRows, { invalidationPending: true });
+    actualRows = hidden?.rows ?? [];
+    productionObservation = {
+      sharedDurableStore:
+        peerCapture.namespace.clientStoreId === installed.namespace.clientStoreId,
+      stalePredecessorCode: staleCode,
+      retainedPayloadPhysicallyPresent:
+        (await store.snapshot()).retained[queryKey] !== undefined,
+    };
+    disposition = 'quarantine';
+    dispositionReason = scenario === 'stale-callback'
+      ? 'predecessor-query-generation-callback'
+      : 'cross-tab-predecessor-fence-write';
+  } else if (scenario === 'disposition-escalation') {
+    const fence = createLiveFence({ namespace, rows: initiallyAuthorized, version });
+    const quarantine = liveObligation({
+      namespace,
+      revision,
+      minCommitVersion: version + 1,
+    });
+    fence.receiveObligation(quarantine, { commit() {} });
+    const deletion = liveObligation({
+      namespace,
+      revision: revision + 1,
+      disposition: 'delete',
+      minCommitVersion: version + 2,
+    });
+    const terminal = fence.receiveObligation(deletion, { commit() {} });
+    fence.applyResolution({
+      fence: terminal.fence,
+      resolution: liveResolution(deletion, 'terminalDelete'),
+      commit: (event) => assert.equal(event.kind, 'delete'),
+    });
+    expectedRows = fullAuthorizationRequery(sourceRows, { terminal: true });
+    actualRows = fence.isRenderable() ? initiallyAuthorized : [];
+    productionObservation = {
+      serverTerminalDisposition:
+        serverReceipt.runtimeAssertions.terminalEscalationDisposition,
+      clientTerminalDisposition: fence.disposition(),
+    };
+    disposition = 'delete';
+    dispositionReason = 'trusted-denial-escalated-quarantine-to-delete';
+  } else {
+    assert.fail(`unhandled property scenario ${scenario}`);
+  }
+
+  assertOracleRows(actualRows, expectedRows, scenario);
+  assert.ok(['retain', 'quarantine', 'delete'].includes(disposition));
+  return {
+    ...proof,
+    disposition,
+    dispositionReason: {
+      value: dispositionReason,
+      source: 'executed-state-machine-event',
+    },
+    oracle: {
+      kind: 'independent-full-requery-and-full-authorization-reference-model',
+      sourceRowCount: sourceRows.length,
+      expectedAuthorizedRowIds: canonicalRows(expectedRows).map(({ id }) => id),
+      productionAuthorizedRowIds: canonicalRows(actualRows).map(({ id }) => id),
+      matched: true,
+    },
+    productionObservation,
+    passed: true,
+  };
+};
+
+const runSeededPropertyOracleCorpus = async (receipts) => {
+  const random = deterministicRandom(PROPERTY_SEED);
+  const schedule = [];
+  for (let trial = 0; trial < PROPERTY_TRIALS_PER_EVENT; trial += 1) {
+    const events = [...PROPERTY_EVENT_UNIVERSE];
+    for (let index = events.length - 1; index > 0; index -= 1) {
+      const swap = random.next() % (index + 1);
+      [events[index], events[swap]] = [events[swap], events[index]];
+    }
+    schedule.push(...events);
+  }
+  const cases = [];
+  for (const [caseIndex, scenario] of schedule.entries()) {
+    cases.push(await exercisePropertyCase({ scenario, caseIndex, random, ...receipts }));
+  }
+  const matrix = PROPERTY_EVENT_UNIVERSE.map((scenario) => {
+    const scenarioCases = cases.filter((entry) => schedule[entry.caseIndex] === scenario);
+    assert.equal(scenarioCases.length, PROPERTY_TRIALS_PER_EVENT);
+    assert.equal(scenarioCases.every(({ passed }) => passed), true);
+    return { scenario, passed: true, cases: scenarioCases };
+  });
+  return {
+    kind: 'deterministic-seeded-randomized-state-machine',
+    seed: `0x${PROPERTY_SEED.toString(16)}`,
+    trialsPerEvent: PROPERTY_TRIALS_PER_EVENT,
+    eventUniverse: PROPERTY_EVENT_UNIVERSE,
+    randomizedSchedule: schedule,
+    totalCases: cases.length,
+    fullRequeryAndAuthorizationComparisons: cases.length,
+    matrix,
+  };
 };
 
 const main = async () => {
@@ -745,18 +1399,27 @@ const main = async () => {
   assert.equal(AUTHORIZATION.epoch, serverWitnessFloor.authorizationEpoch);
   const visibility = await measureVisibilityLifecycle(serverWitnessFloor);
   const blastRadius = await measureMembershipBlastRadius({
-    serverWitnessFloor,
+    lifecycleReplay: serverReceipt.membershipLifecycleReplay,
     expectedQueryCount: serverReceipt.scenario.unrelatedQueriesDuringPermissionChurn,
+    productionServerTrafficCounts: serverReceipt.runtimeMeasurements.membershipChurn,
   });
   const live = exerciseLiveClientScenarios();
-
-  const membership = serverReceipt.runtimeMeasurements.membershipChurn;
-  const randomized = serverReceipt.runtimeMeasurements.randomizedWrites;
-  const runtime = serverReceipt.runtimeAssertions;
+  const propertyCorpus = await runSeededPropertyOracleCorpus({
+    serverReceipt,
+    overflowReceipt,
+    deploymentReceipt,
+  });
   const roomPauseValues = Object.values(roomReceipt.pausePoints);
+  const protectedRoomPassed = roomPauseValues.length === 5
+    && roomPauseValues.every((value) => value === true)
+    && roomReceipt.unrelatedRoomProgressWhileAffectedPending.registration
+    && roomReceipt.unrelatedRoomProgressWhileAffectedPending.publishAndDrain
+    && roomReceipt.postCommit.kickedDurableBoardRows === 0
+    && roomReceipt.postCommit.kickedOpponentPresenceFrames === 0;
+  assert.equal(protectedRoomPassed, true);
 
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     rfc: 'LLP 0053',
     reportKind: 'composed-production-acceptance',
     measurementSemantics: {
@@ -765,85 +1428,36 @@ const main = async () => {
       retainedByteDefinition: 'UTF-8 bytes of JSON-serialized retained payload records',
       rustInputs: 'machine-readable receipts emitted by executed production Rust acceptance tests',
       clientInputs: 'measurements collected from production @snapback/contract modules in this process',
+      oracleInputs:
+        'deterministically seeded source rows evaluated by an independent full-query/full-authorization reference model',
     },
     composedMeasurements: {
       hiddenViewAndRecovery: visibility,
       membershipChurnBlastRadius: blastRadius,
     },
-    propertyOracleMatrix: [
-      passedEntry('randomized-writes', {
-        operations: serverReceipt.scenario.randomizedOperations,
-        convergenceRounds: runtime.randomizedAllQueryConvergenceRounds,
-        freshQueryComparisons: runtime.randomizedFreshQueryComparisons,
-      }, runtime.randomizedAllQueryConvergenceRounds === serverReceipt.scenario.randomizedOperations
-        && runtime.randomizedFreshQueryComparisons
-          === serverReceipt.scenario.randomizedOperations
-            * serverReceipt.scenario.authScopedQueries),
-      passedEntry('deployment-activation', {
-        serverActivation: deploymentReceipt,
-        clientIdentityFence: live.deployment,
-      }, deploymentReceipt.missingPredecessorObserved
-        && deploymentReceipt.activationEpoch === 1
-        && deploymentReceipt.idempotentActivationEpochAdvance === 0
-        && deploymentReceipt.ordinaryWriteRaisedAuthorizationEvent === false
-        && deploymentReceipt.ordinaryRemovalRaisedAuthorizationEvent === false
-        && live.deployment.passed),
-      passedEntry('lease-expiry', {
-        retainedBytesDeleted: visibility.retainedPayloadBytesDeletedAtLeaseExpiry,
-        deleteTombstoneWritten: visibility.expiryDeleteTombstoneWritten,
-      }, visibility.retainedPayloadBytesDeletedAtLeaseExpiry > 0
-        && visibility.expiryDeleteTombstoneWritten),
-      passedEntry('clock-rollback', {
-        retainedBytesDeleted: visibility.retainedPayloadBytesDeletedAtClockRollback,
-        deleteTombstoneWritten: visibility.clockRollbackDeleteTombstoneWritten,
-      }, visibility.retainedPayloadBytesDeletedAtClockRollback > 0
-        && visibility.clockRollbackDeleteTombstoneWritten),
-      passedEntry('overflow', overflowReceipt, overflowReceipt.overflowSentinelObserved
-        && overflowReceipt.authScopedChildren === 2
-        && overflowReceipt.remainingAfterFirstAck === 1
-        && overflowReceipt.remainingAfterAllAcks === 0),
-      passedEntry('disconnect-and-fresh-resume', live.disconnect,
-        live.disconnect.delayedPredecessorFrameRejected
-          && live.disconnect.successorInstalledFreshSnapshot),
-      passedEntry('response-loss', {
-        discardedResponseDrains: membership.discardedResponseDrains
-          + randomized.discardedResponseDrains,
-        reprojectedSnapshotFrames: membership.reprojectedSnapshotFrames
-          + randomized.reprojectedSnapshotFrames,
-      }, membership.discardedResponseDrains + randomized.discardedResponseDrains > 0
-        && membership.reprojectedSnapshotFrames + randomized.reprojectedSnapshotFrames > 0),
-      passedEntry('ack-loss', {
-        clientRefiredSameAckToken: live.dispositionEscalation.ackLossRefiredSameToken,
-        serverAcknowledgements: membership.acknowledgements + randomized.acknowledgements,
-      }, live.dispositionEscalation.ackLossRefiredSameToken
-        && membership.acknowledgements + randomized.acknowledgements > 0),
-      passedEntry('restart', {
-        incarnationPreserved: runtime.ordinaryRestartPreservedIncarnation,
-        newIssuerInstalled: runtime.restartInstalledNewIssuer,
-        distinctQueryInstance: runtime.restartAcceptedDistinctCallerSuppliedQueryInstance,
-        freshSnapshotConverged: runtime.restartInitialSnapshotConverged,
-      }, runtime.ordinaryRestartPreservedIncarnation
-        && runtime.restartInstalledNewIssuer
-        && runtime.restartAcceptedDistinctCallerSuppliedQueryInstance
-        && runtime.restartInitialSnapshotConverged),
-      passedEntry('stale-callback', {
-        rejected: visibility.stalePeerWriteRejected,
-      }, visibility.stalePeerWriteRejected),
-      passedEntry('cross-tab-write', {
-        sharedDurableStore: visibility.sharedDurableStore,
-        predecessorFenceRejected: visibility.stalePeerWriteRejected,
-      }, visibility.sharedDurableStore && visibility.stalePeerWriteRejected),
-      passedEntry('disposition-escalation', live.dispositionEscalation,
-        runtime.terminalEscalationDisposition === 'delete'
-          && live.dispositionEscalation.terminalDisposition === 'delete'),
-      passedEntry('room-pause-points', roomReceipt,
-        roomPauseValues.length === 5
-          && roomPauseValues.every((value) => value === true)
-          && roomReceipt.unrelatedRoomProgressWhileAffectedPending.registration
-          && roomReceipt.unrelatedRoomProgressWhileAffectedPending.publishAndDrain
-          && roomReceipt.postCommit.kickedDurableBoardRows === 0
-          && roomReceipt.postCommit.kickedOpponentPresenceFrames === 0),
-    ],
+    propertyOracleCorpus: {
+      kind: propertyCorpus.kind,
+      seed: propertyCorpus.seed,
+      trialsPerEvent: propertyCorpus.trialsPerEvent,
+      eventUniverse: propertyCorpus.eventUniverse,
+      randomizedSchedule: propertyCorpus.randomizedSchedule,
+      totalCases: propertyCorpus.totalCases,
+      fullRequeryAndAuthorizationComparisons:
+        propertyCorpus.fullRequeryAndAuthorizationComparisons,
+    },
+    propertyOracleMatrix: propertyCorpus.matrix,
+    supplementalAssertions: {
+      protectedRoomPausePoints: {
+        passed: protectedRoomPassed,
+        receipt: roomReceipt,
+      },
+      deterministicSinglePathCompatibility: {
+        passed: live.deployment.passed
+          && live.disconnect.delayedPredecessorFrameRejected
+          && live.dispositionEscalation.ackLossRefiredSameToken,
+        observations: live,
+      },
+    },
     productionRustReceipts: {
       server: serverReceipt,
       deployment: deploymentReceipt,

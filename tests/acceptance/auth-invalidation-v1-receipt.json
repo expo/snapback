@@ -48,6 +48,7 @@
   },
   "runtimeAssertions": {
     "membershipAuthorizationEpochAdvance": 3,
+    "membershipFreshQueryComparisons": 9,
     "randomizedAuthorizationEpochAdvance": 0,
     "randomizedAllQueryConvergenceRounds": 24,
     "randomizedFreshQueryComparisons": 72,
@@ -57,6 +58,404 @@
     "restartAcceptedDistinctCallerSuppliedQueryInstance": true,
     "restartInitialSnapshotConverged": true
   },
+  "membershipLifecycleReplay": [
+    {
+      "eventIndex": 1,
+      "eventKind": "join-alice",
+      "queryIndex": 0,
+      "query": {
+        "user": "alice",
+        "function": "mineOrPublic"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "mineOrPublic:{}",
+        "queryInstanceId": 10
+      },
+      "revision": 4,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 6
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 8
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 8,
+        "rowCount": 0
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 1,
+      "eventKind": "join-alice",
+      "queryIndex": 1,
+      "query": {
+        "user": "bob",
+        "function": "mineOrPublic"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "mineOrPublic:{}",
+        "queryInstanceId": 11
+      },
+      "revision": 4,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 6
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 8
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 8,
+        "rowCount": 0
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 1,
+      "eventKind": "join-alice",
+      "queryIndex": 2,
+      "query": {
+        "user": "carol",
+        "function": "allNotes"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "allNotes:{}",
+        "queryInstanceId": 12
+      },
+      "revision": 4,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 6
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 8
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 8,
+        "rowCount": 1
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 2,
+      "eventKind": "join-bob",
+      "queryIndex": 0,
+      "query": {
+        "user": "alice",
+        "function": "mineOrPublic"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "mineOrPublic:{}",
+        "queryInstanceId": 10
+      },
+      "revision": 5,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 7
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 9
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 9,
+        "rowCount": 0
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 2,
+      "eventKind": "join-bob",
+      "queryIndex": 1,
+      "query": {
+        "user": "bob",
+        "function": "mineOrPublic"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "mineOrPublic:{}",
+        "queryInstanceId": 11
+      },
+      "revision": 5,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 7
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 9
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 9,
+        "rowCount": 0
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 2,
+      "eventKind": "join-bob",
+      "queryIndex": 2,
+      "query": {
+        "user": "carol",
+        "function": "allNotes"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "allNotes:{}",
+        "queryInstanceId": 12
+      },
+      "revision": 5,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 7
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 9
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 9,
+        "rowCount": 1
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 3,
+      "eventKind": "kick-bob",
+      "queryIndex": 0,
+      "query": {
+        "user": "alice",
+        "function": "mineOrPublic"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "mineOrPublic:{}",
+        "queryInstanceId": 10
+      },
+      "revision": 6,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 8
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 10
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 10,
+        "rowCount": 0
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 3,
+      "eventKind": "kick-bob",
+      "queryIndex": 1,
+      "query": {
+        "user": "bob",
+        "function": "mineOrPublic"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "mineOrPublic:{}",
+        "queryInstanceId": 11
+      },
+      "revision": 6,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 8
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 10
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 10,
+        "rowCount": 0
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    },
+    {
+      "eventIndex": 3,
+      "eventKind": "kick-bob",
+      "queryIndex": 2,
+      "query": {
+        "user": "carol",
+        "function": "allNotes"
+      },
+      "scope": {
+        "kind": "subscription",
+        "queryKey": "allNotes:{}",
+        "queryInstanceId": 12
+      },
+      "revision": 6,
+      "compositeWitness": {
+        "authorization": {
+          "incarnation": "<authenticated-uuid-v7>",
+          "epoch": 8
+        },
+        "data": {
+          "versionStream": "<authenticated-version-stream>",
+          "minCommitVersion": 10
+        }
+      },
+      "disposition": "quarantine",
+      "dispositionReason": {
+        "value": "permission-backing-membership-write",
+        "source": "executed-mutation-kind"
+      },
+      "proofPath": [
+        "production-permission-backing-mutation",
+        "production-obligation-registry",
+        "production-live-projection",
+        "production-fresh-full-query",
+        "production-exact-ack"
+      ],
+      "snapshot": {
+        "commitVersion": 10,
+        "rowCount": 1
+      },
+      "resolutionKind": "snapshot",
+      "acknowledgementOutcome": "discharged",
+      "fullRequeryAndAuthorizationMatched": true
+    }
+  ],
   "serverObligation": {
     "normalizedFieldSources": {
       "compositeWitness": "obligation.witness",

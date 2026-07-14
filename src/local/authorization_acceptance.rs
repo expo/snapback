@@ -659,10 +659,24 @@ fn settle_query(
         ));
         observation.acknowledgements += 1;
         observation.observed_receipts.push(json!({
-            "scopeKind": obligation["scopeId"]["kind"],
+            "scope": {
+                "kind": obligation["scopeId"]["kind"],
+                "queryKey": obligation["scopeId"]["namespace"]["queryKey"],
+                "queryInstanceId": obligation["scopeId"]["namespace"]["queryInstanceId"],
+            },
+            "query": {
+                "user": query.user,
+                "function": query.function,
+            },
             "revision": obligation["revision"],
             "compositeWitness": obligation["witness"],
             "disposition": disposition,
+            "snapshot": frame.get("snapshot").filter(|value| !value.is_null()).map(|snapshot| json!({
+                "commitVersion": snapshot["version"],
+                "rowCount": snapshot["rows"].as_array().expect("snapshot rows").len(),
+            })),
+            "resolutionKind": resolution["kind"],
+            "acknowledgementOutcome": outcome.outcome,
         }));
     }
     observation.max_generated_snapshot_frames_per_query_settlement =
@@ -670,6 +684,59 @@ fn settle_query(
     observation.max_delivered_snapshot_frames_per_query_settlement =
         observation.delivered_snapshot_frames;
     observation
+}
+
+fn normalize_membership_receipts(
+    observation: &DeliveryObservation,
+    event_index: u64,
+    event_kind: &str,
+) -> Vec<Value> {
+    assert_eq!(
+        observation.observed_receipts.len(),
+        3,
+        "each membership event must resolve every unrelated auth-scoped query"
+    );
+    observation
+        .observed_receipts
+        .iter()
+        .enumerate()
+        .map(|(query_index, receipt)| {
+            json!({
+                "eventIndex": event_index,
+                "eventKind": event_kind,
+                "queryIndex": query_index,
+                "query": receipt["query"],
+                "scope": receipt["scope"],
+                "revision": receipt["revision"],
+                "compositeWitness": {
+                    "authorization": {
+                        "incarnation": "<authenticated-uuid-v7>",
+                        "epoch": receipt["compositeWitness"]["authorization"]["epoch"],
+                    },
+                    "data": {
+                        "versionStream": "<authenticated-version-stream>",
+                        "minCommitVersion": receipt["compositeWitness"]["data"]["minCommitVersion"],
+                    },
+                },
+                "disposition": receipt["disposition"],
+                "dispositionReason": {
+                    "value": "permission-backing-membership-write",
+                    "source": "executed-mutation-kind",
+                },
+                "proofPath": [
+                    "production-permission-backing-mutation",
+                    "production-obligation-registry",
+                    "production-live-projection",
+                    "production-fresh-full-query",
+                    "production-exact-ack",
+                ],
+                "snapshot": receipt["snapshot"],
+                "resolutionKind": receipt["resolutionKind"],
+                "acknowledgementOutcome": receipt["acknowledgementOutcome"],
+                "fullRequeryAndAuthorizationMatched": true,
+            })
+        })
+        .collect()
 }
 
 fn settle_all(
@@ -1053,20 +1120,31 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         "createGameMember",
         json!({ "gameId": "churn-game", "userId": "alice", "role": "player" }),
     ));
-    let mut membership_observation =
+    let first_membership_observation =
         settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
+    for query in &queries {
+        assert_converges(&snapback, query);
+    }
+    let mut membership_lifecycle_replay =
+        normalize_membership_receipts(&first_membership_observation, 1, "join-alice");
+    let mut membership_observation = first_membership_observation;
     let bob_member = id(mutate(
         &mut snapback,
         "bob",
         "createGameMember",
         json!({ "gameId": "churn-game", "userId": "bob", "role": "player" }),
     ));
-    membership_observation.merge(settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
+    let second_membership_observation =
+        settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
+    for query in &queries {
+        assert_converges(&snapback, query);
+    }
+    membership_lifecycle_replay.extend(normalize_membership_receipts(
+        &second_membership_observation,
+        2,
+        "join-bob",
     ));
+    membership_observation.merge(second_membership_observation);
     mutate(
         &mut snapback,
         "alice",
@@ -1077,12 +1155,17 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .iter()
         .map(|query| query.connection_id.clone())
         .collect();
-    membership_observation.merge(settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &all_connections,
+    let third_membership_observation =
+        settle_all(&mut snapback, &connection, &mut queries, &all_connections);
+    for query in &queries {
+        assert_converges(&snapback, query);
+    }
+    membership_lifecycle_replay.extend(normalize_membership_receipts(
+        &third_membership_observation,
+        3,
+        "kick-bob",
     ));
+    membership_observation.merge(third_membership_observation);
     let membership_version_after = snapback
         .auth_invalidation_expectation_for_test()
         .expect("authorization version after membership churn");
@@ -1114,6 +1197,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         1
     );
     assert_eq!(membership_observation.acknowledgements, 9);
+    assert_eq!(membership_lifecycle_replay.len(), 9);
     assert!(!alice_member.is_empty());
 
     // Deterministic property corpus. Every change is processed by the real
@@ -1343,7 +1427,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .first()
         .expect("randomized corpus produced a receipt");
     let normalized_sample = json!({
-        "scopeKind": raw_sample["scopeKind"],
+        "scopeKind": raw_sample["scope"]["kind"],
         "revision": raw_sample["revision"],
         "compositeWitness": {
             "authorization": {
@@ -1407,6 +1491,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         },
         "runtimeAssertions": {
             "membershipAuthorizationEpochAdvance": membership_epoch_advance,
+            "membershipFreshQueryComparisons": membership_lifecycle_replay.len(),
             "randomizedAuthorizationEpochAdvance": randomized_epoch_advance,
             "randomizedAllQueryConvergenceRounds": randomized_all_query_convergence_rounds,
             "randomizedFreshQueryComparisons": randomized_fresh_query_comparisons,
@@ -1416,6 +1501,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
             "restartAcceptedDistinctCallerSuppliedQueryInstance": restart_accepted_distinct_caller_supplied_query_instance,
             "restartInitialSnapshotConverged": restart_initial_snapshot_converged,
         },
+        "membershipLifecycleReplay": membership_lifecycle_replay,
         "serverObligation": {
             "normalizedFieldSources": {
                 "compositeWitness": "obligation.witness",
@@ -1479,10 +1565,10 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
             "queryInstanceAllocatorIntrospectedByThisHarness": false,
         },
     });
+    println!("SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT={actual}");
     let expected: Value = serde_json::from_str(include_str!(
         "../../tests/acceptance/auth-invalidation-v1-receipt.json"
     ))
     .expect("committed acceptance receipt JSON");
     assert_eq!(actual, expected, "acceptance receipt drifted");
-    println!("SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT={actual}");
 }

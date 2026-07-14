@@ -15,8 +15,8 @@ exact acknowledgements; it is not a standalone authorization model.
 | Matcher/full-requery convergence | Both focused tests compare every delivered client row set with an independently executed full Ibex query after each shape transition and after every one of the 24 seeded randomized operations. The randomized receipt records 24 all-query convergence rounds and 72 individual fresh-query comparisons. DK-3 add/update/remove equivalence remains pinned by `live_delta_v0::deltas_applied_clientside_converge_with_a_fresh_query`; point-read and missing-row fallback remain in `local_v0`. |
 | Lost response/ACK and disposition escalation | The randomized corpus parses each destructive drain before discarding it, explicitly reprojects the level-triggered obligation, and exact-ACKs only delivered resolutions. It also races an outstanding quarantine with a host-branded denial and derives the delivered terminal `delete` disposition from the replacement obligation. `local::tests::auth_scoped_removal_is_atomic_obligation_and_exact_ack`, `overflow_root_waits_for_every_auth_scoped_child`, and `only_host_branded_permission_denial_issues_terminal_delete` retain the narrower protocol proofs. |
 | Ordinary restart | The randomized corpus reopens its file-backed database, observes that the durable authorization incarnation is preserved, installs a different issuer, subscribes with a caller-supplied query instance distinct from the pre-restart fixtures, and verifies that the returned initial snapshot converges with a fresh full query. It does not claim to introspect the durable query-instance allocator. Durable issuer/retry details remain pinned by `storage::auth_invalidation::tests::boot_sequence_is_consumed_before_restart_and_names_current_incarnation` and `retry_attempt_and_deadline_survive_restart_and_counter_repair`. |
-| Membership-churn blast radius | [`auth-invalidation-v1-receipt.json`](./auth-invalidation-v1-receipt.json) remains the Rust server receipt and is compared value-for-value with measurements from three real `gameMembers` events and three unrelated auth-scoped queries. The composed runner consumes that machine-readable receipt, then drives three production Contract retained-query fences and two queued mutations. [`auth-invalidation-v1-composed-receipt.json`](./auth-invalidation-v1-composed-receipt.json) reports 2,075 retained-payload bytes before and during coarse quarantine, zero deleted by quarantine, three durable quarantine-fence writes, and two suspended mutations. |
-| Client-store quarantine and queue behavior | `tests/acceptance/auth-invalidation-v1-report.mjs` imports the production `client-store.mjs` and measures the transitions directly. The committed receipt records the hidden boundary at store transition 1 and visibility restoration at transition 4, after snapshot resolution, lease-request reservation, and fresh authorized snapshot commit. It records 658 payload bytes preserved during quarantine; 651 and 652 bytes deleted by lease expiry and clock rollback; two durable delete tombstones; two mutations suspended while any of three roots remains; and two pending mutations converted to redacted discard-only custody and then deleted. These are composed runtime measurements, not copied assertions from another test file. |
+| Membership-churn blast radius | [`auth-invalidation-v1-receipt.json`](./auth-invalidation-v1-receipt.json) records every delivered production transition from three real `gameMembers` events across three unrelated auth-scoped queries. Each of the nine records carries the production scope/revision/composite witness, disposition and executed-mutation reason, snapshot commit and row count, exact ACK outcome, proof path, and fresh-full-query/full-authorization result. The composed runner replays each event's actual epoch/revision in an isolated production Contract store (so earlier epochs are not relabeled as the final epoch), completing quarantine, hidden read, fresh resolution snapshot, ACK observation, lease revalidation, authorized snapshot commit, queue discharge, and recovery for every query. [`auth-invalidation-v1-composed-receipt.json`](./auth-invalidation-v1-composed-receipt.json) reports nine complete lifecycles, 5,925 retained-payload bytes before and during quarantine, zero bytes deleted, zero delete tombstones, nine quarantine fences, and three queue suspension/release cycles. |
+| Client-store quarantine and queue behavior | `tests/acceptance/auth-invalidation-v1-report.mjs` imports the production `client-store.mjs` and measures the transitions directly. The standalone visibility fixture records the hidden boundary at store transition 1 and restoration at transition 4, after snapshot resolution, lease-request reservation, and fresh authorized snapshot commit. It records 658 payload bytes preserved during quarantine; 651 and 652 bytes deleted by lease expiry and clock rollback; and two durable delete tombstones. The membership workload separately records two queued mutations preserved through each event, suspension until the last of three exact query roots resolves, and release after all three resolutions. Its traffic ledger includes the executed server's 21 generated/15 delivered/6 discarded invalidation frames, 12 generated/9 delivered/3 discarded snapshots, three response-loss reprojections, nine server ACKs, and nine applications of each client query/queue lifecycle phase. These are composed runtime measurements, not copied assertions from another test file. |
 | Protected-query admission | `protected_query_profile_v1::{protected_hostplan_walk_is_recursive_and_typed, protected_ibex_uses_a_fresh_module_graph_every_time, protected_runtime_gate_catches_dynamic_clock_and_id_aliases}` and `retainability_profile_v1` own the closed-profile and retainability matrix. |
 | Ephemeral room kick | `local::auth_room_kick_acceptance` composes the durable membership commit with room dependency tickets, generation fences, sink refusal, fresh authorization, lost response, and process-loss recovery. Its machine-readable receipt records all five acceptance pause points, affected-room targeting, simultaneous unrelated-room registration/publish/drain, and zero post-kick durable-board/opponent-presence leakage. The composed runner executes and consumes that receipt. |
 | Lease/offline expiry | The signed-lease binding and head-race corpus remains in `auth::lease::tests` and `storage::authorized_lease::tests`. The composed runner adds the client half mechanically: equality expiry and backward-clock detection each delete the exact retained payload before returning the diagnostic, advance the durable query generation, and leave a `delete` fence. |
@@ -50,29 +50,38 @@ values are copied unchanged. The
 classification path. Their bases are the measured authorization-epoch deltas
 and fresh-full-query convergence checks.
 
-The composed receipt preserves the Rust receipt unchanged as
+The composed receipt embeds the executed Rust receipt as
 `productionRustReceipts.server`, including that focused harness's honest
 `coverageBoundaries`. It then closes those boundaries in a separate layer:
 
 - hidden-view and recovery values use **committed client-store transitions** as
   their unit. They are deterministic protocol intervals, not wall-clock latency
   or an availability bound;
-- the client measurements consume the executed Rust sample's authorization
-  epoch and minimum commit-version floor (`8` and `11` in the committed
-  deterministic receipt), while substituting only structurally valid local
-  values for the Rust receipt's deliberately normalized incarnation/stream
-  identifiers;
+- the standalone client measurement consumes the executed Rust sample's
+  authorization epoch and minimum commit-version floor (`8` and `11` in the
+  committed deterministic receipt). The membership measurement instead
+  consumes all nine per-event production records at epochs `6`, `7`, and `8`,
+  substituting only structurally valid local values for deliberately normalized
+  incarnation, stream, issuer, and client-store identifiers;
 - retained-byte counts are UTF-8 bytes of the JSON-serialized physical retained
   payload records. Metadata and JavaScript heap overhead are deliberately not
   called retained payload;
 - the Rust overflow and protected-room tests emit JSON receipts only after their
   production assertions pass. The runner executes the tests and parses those
   values; it does not infer success from a filename or source string; and
-- the 13-row property-oracle matrix is built from observed values for randomized
-  writes, deployment activation plus its client identity fence, expiry,
-  rollback, overflow, disconnect,
-  response loss, ACK loss, restart, stale callbacks, shared-store peer writes,
-  disposition escalation, and all room pause points.
+- the property corpus uses seed `0x53a11ce` to shuffle three complete passes
+  over the frozen event universe plus clock rollback: randomized writes,
+  deployment activation, expiry, overflow, disconnect, response loss, ACK
+  loss, restart, stale callbacks, shared-store peer writes, and disposition
+  escalation. All 36 cases execute production client protocol objects (and
+  compose the applicable executed Rust receipt), then compare their visible
+  row set with a separate full-requery/full-authorization reference function.
+  Every case emits its proof path, normalized composite witness, exact or
+  explicitly non-applicable scope/revision source, disposition and reason,
+  expected row IDs, production row IDs, and path-specific observations; and
+- protected-room pause-point acceptance remains a supplemental production
+  receipt rather than being mislabeled as a member of the randomized closed
+  event universe.
 
 `scripts/verify-local-proof` runs the composed report immediately after
 `cargo test`, before CI may clean the test profile. The report must compare

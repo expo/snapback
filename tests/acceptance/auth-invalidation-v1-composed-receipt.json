@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "rfc": "LLP 0053",
   "reportKind": "composed-production-acceptance",
   "measurementSemantics": {
@@ -7,7 +7,8 @@
     "wallClockLatencyClaimed": false,
     "retainedByteDefinition": "UTF-8 bytes of JSON-serialized retained payload records",
     "rustInputs": "machine-readable receipts emitted by executed production Rust acceptance tests",
-    "clientInputs": "measurements collected from production @snapback/contract modules in this process"
+    "clientInputs": "measurements collected from production @snapback/contract modules in this process",
+    "oracleInputs": "deterministically seeded source rows evaluated by an independent full-query/full-authorization reference model"
   },
   "composedMeasurements": {
     "hiddenViewAndRecovery": {
@@ -36,146 +37,2686 @@
       "stalePeerWriteRejected": true
     },
     "membershipChurnBlastRadius": {
-      "authScopedQueries": 3,
-      "composedServerWitnessFloor": {
-        "authorizationEpoch": 8,
-        "minCommitVersion": 11
-      },
-      "retainedPayloadBytesBefore": 2075,
-      "retainedPayloadBytesDuringQuarantine": 2075,
+      "membershipChurnEvents": 3,
+      "authScopedQueriesPerEvent": 3,
+      "completeQueryLifecycles": 9,
+      "retainedPayloadBytesBefore": 5925,
+      "retainedPayloadBytesDuringQuarantine": 5925,
       "retainedPayloadBytesDeletedByCoarseQuarantine": 0,
-      "durableQuarantineFenceWrites": 3,
-      "pendingMutationsBefore": 2,
-      "suspendedMutationCount": 2,
-      "suspendedAfterOneRootResolves": true,
-      "suspendedMutationCountAfterOneRoot": 2,
-      "releasedMutationIds": [
-        "cm_membership_a",
-        "cm_membership_b"
+      "durableQuarantineFenceWrites": 9,
+      "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+      "queueSuspensionCycles": 3,
+      "queueReleaseCycles": 3,
+      "trafficCounts": {
+        "productionServer": {
+          "generatedInvalidationFrames": 21,
+          "generatedSnapshotFrames": 12,
+          "deliveredInvalidationFrames": 15,
+          "deliveredSnapshotFrames": 9,
+          "discardedInvalidationFrames": 6,
+          "discardedSnapshotFrames": 3,
+          "reprojectedInvalidationFrames": 3,
+          "reprojectedSnapshotFrames": 3,
+          "discardedResponseDrains": 3,
+          "acknowledgements": 9,
+          "maxGeneratedSnapshotFramesPerQuerySettlement": 2,
+          "maxDeliveredSnapshotFramesPerQuerySettlement": 1,
+          "maxExplicitReprojectionCallsPerQuerySettlement": 1,
+          "deliveredDisposition": "quarantine"
+        },
+        "clientObligationApplications": 9,
+        "clientResolutionApplications": 9,
+        "clientLeaseRequests": 9,
+        "clientAuthorizedSnapshotCommits": 9,
+        "clientQueueObligationApplications": 9,
+        "clientQueueResolutionApplications": 9
+      },
+      "perEventQueueLifecycle": [
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "revision": 4,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 3,
+          "remainedSuspendedUntilFinalQueryResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_1_a",
+            "cm_membership_1_b"
+          ]
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "revision": 5,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 3,
+          "remainedSuspendedUntilFinalQueryResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_2_a",
+            "cm_membership_2_b"
+          ]
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "revision": 6,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 3,
+          "remainedSuspendedUntilFinalQueryResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_3_a",
+            "cm_membership_3_b"
+          ]
+        }
       ],
-      "pendingMutationsRemovedByDelete": 2,
-      "redactedDiscardOnlyRecordsCreated": 2,
-      "discardOnlyRecordsDeleted": 2
+      "perQueryLifecycle": [
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 0,
+          "productionQuery": {
+            "user": "alice",
+            "function": "mineOrPublic"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 10
+          },
+          "revision": 4,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 6
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 8
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 8,
+          "serverSnapshotRowCount": 0,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 632,
+            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 0,
+            "ackTokenObserved": "ack_1_4"
+          }
+        },
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 1,
+          "productionQuery": {
+            "user": "bob",
+            "function": "mineOrPublic"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 11
+          },
+          "revision": 4,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 6
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 8
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 8,
+          "serverSnapshotRowCount": 0,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 632,
+            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 0,
+            "ackTokenObserved": "ack_2_4"
+          }
+        },
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 2,
+          "productionQuery": {
+            "user": "carol",
+            "function": "allNotes"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "allNotes:{}",
+            "queryInstanceId": 12
+          },
+          "revision": 4,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 6
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 8
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 8,
+          "serverSnapshotRowCount": 1,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 711,
+            "retainedPayloadBytesDuringQuarantine": 711,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 1,
+            "ackTokenObserved": "ack_3_4"
+          }
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 0,
+          "productionQuery": {
+            "user": "alice",
+            "function": "mineOrPublic"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 10
+          },
+          "revision": 5,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 7
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 9
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 9,
+          "serverSnapshotRowCount": 0,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 632,
+            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 0,
+            "ackTokenObserved": "ack_1_5"
+          }
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 1,
+          "productionQuery": {
+            "user": "bob",
+            "function": "mineOrPublic"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 11
+          },
+          "revision": 5,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 7
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 9
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 9,
+          "serverSnapshotRowCount": 0,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 632,
+            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 0,
+            "ackTokenObserved": "ack_2_5"
+          }
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 2,
+          "productionQuery": {
+            "user": "carol",
+            "function": "allNotes"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "allNotes:{}",
+            "queryInstanceId": 12
+          },
+          "revision": 5,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 7
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 9
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 9,
+          "serverSnapshotRowCount": 1,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 711,
+            "retainedPayloadBytesDuringQuarantine": 711,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 1,
+            "ackTokenObserved": "ack_3_5"
+          }
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 0,
+          "productionQuery": {
+            "user": "alice",
+            "function": "mineOrPublic"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 10
+          },
+          "revision": 6,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 10
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 10,
+          "serverSnapshotRowCount": 0,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 632,
+            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 0,
+            "ackTokenObserved": "ack_1_6"
+          }
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 1,
+          "productionQuery": {
+            "user": "bob",
+            "function": "mineOrPublic"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 11
+          },
+          "revision": 6,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 10
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 10,
+          "serverSnapshotRowCount": 0,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 632,
+            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 0,
+            "ackTokenObserved": "ack_2_6"
+          }
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 2,
+          "productionQuery": {
+            "user": "carol",
+            "function": "allNotes"
+          },
+          "productionScope": {
+            "kind": "subscription",
+            "queryKey": "allNotes:{}",
+            "queryInstanceId": 12
+          },
+          "revision": 6,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 10
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "fullRequeryAndAuthorizationMatched": true,
+          "serverSnapshotCommitVersion": 10,
+          "serverSnapshotRowCount": 1,
+          "serverResolutionKind": "snapshot",
+          "serverAcknowledgementOutcome": "discharged",
+          "clientLifecycle": {
+            "quarantineCommitted": true,
+            "hiddenReadWasNull": true,
+            "hiddenIntervalTransitions": 3,
+            "retainedPayloadBytesBefore": 711,
+            "retainedPayloadBytesDuringQuarantine": 711,
+            "retainedPayloadBytesDeletedByQuarantine": 0,
+            "durableDeleteTombstonesWrittenDuringQuarantine": 0,
+            "freshSnapshotCommitted": true,
+            "leaseRevalidated": true,
+            "recoveredRows": 1,
+            "ackTokenObserved": "ack_3_6"
+          }
+        }
+      ]
     }
+  },
+  "propertyOracleCorpus": {
+    "kind": "deterministic-seeded-randomized-state-machine",
+    "seed": "0x53a11ce",
+    "trialsPerEvent": 3,
+    "eventUniverse": [
+      "randomized-writes",
+      "deployment-activation",
+      "lease-expiry",
+      "clock-rollback",
+      "overflow",
+      "disconnect-and-fresh-resume",
+      "response-loss",
+      "ack-loss",
+      "restart",
+      "stale-callback",
+      "cross-tab-write",
+      "disposition-escalation"
+    ],
+    "randomizedSchedule": [
+      "randomized-writes",
+      "stale-callback",
+      "overflow",
+      "ack-loss",
+      "lease-expiry",
+      "response-loss",
+      "restart",
+      "deployment-activation",
+      "cross-tab-write",
+      "clock-rollback",
+      "disposition-escalation",
+      "disconnect-and-fresh-resume",
+      "overflow",
+      "stale-callback",
+      "clock-rollback",
+      "disconnect-and-fresh-resume",
+      "restart",
+      "disposition-escalation",
+      "deployment-activation",
+      "response-loss",
+      "ack-loss",
+      "randomized-writes",
+      "cross-tab-write",
+      "lease-expiry",
+      "response-loss",
+      "stale-callback",
+      "randomized-writes",
+      "cross-tab-write",
+      "restart",
+      "deployment-activation",
+      "lease-expiry",
+      "ack-loss",
+      "clock-rollback",
+      "disconnect-and-fresh-resume",
+      "overflow",
+      "disposition-escalation"
+    ],
+    "totalCases": 36,
+    "fullRequeryAndAuthorizationComparisons": 36
   },
   "propertyOracleMatrix": [
     {
       "scenario": "randomized-writes",
       "passed": true,
-      "observations": {
-        "operations": 24,
-        "convergenceRounds": 24,
-        "freshQueryComparisons": 72
-      }
+      "cases": [
+        {
+          "caseIndex": 0,
+          "randomState": "0xe73d5f2c",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1000
+            }
+          },
+          "scopeSource": "production-query-namespace-without-a-resync-scope",
+          "revision": null,
+          "revisionSource": "ordinary-live-snapshot-has-no-invalidation-revision",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 501
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "ordinary-row-write-matcher-requery",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-0-row-0",
+              "case-0-row-1",
+              "case-0-row-2",
+              "case-0-row-3",
+              "case-0-row-4"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-0-row-0",
+              "case-0-row-1",
+              "case-0-row-2",
+              "case-0-row-3",
+              "case-0-row-4"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "serverOperations": 24,
+            "serverFreshQueryComparisons": 72,
+            "clientLiveSnapshotCommitted": true,
+            "seededWriteKind": "owner-grant"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 21,
+          "randomState": "0xbbb6260e",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1021
+            }
+          },
+          "scopeSource": "production-query-namespace-without-a-resync-scope",
+          "revision": null,
+          "revisionSource": "ordinary-live-snapshot-has-no-invalidation-revision",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 564
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "ordinary-row-write-matcher-requery",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-21-row-0",
+              "case-21-row-1",
+              "case-21-row-2",
+              "case-21-row-3",
+              "case-21-row-4",
+              "case-21-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-21-row-0",
+              "case-21-row-1",
+              "case-21-row-2",
+              "case-21-row-3",
+              "case-21-row-4",
+              "case-21-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "serverOperations": 24,
+            "serverFreshQueryComparisons": 72,
+            "clientLiveSnapshotCommitted": true,
+            "seededWriteKind": "owner-grant"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 26,
+          "randomState": "0x073289b0",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1026
+            }
+          },
+          "scopeSource": "production-query-namespace-without-a-resync-scope",
+          "revision": null,
+          "revisionSource": "ordinary-live-snapshot-has-no-invalidation-revision",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 579
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "ordinary-row-write-matcher-requery",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-26-row-2",
+              "case-26-row-3",
+              "case-26-row-4"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-26-row-2",
+              "case-26-row-3",
+              "case-26-row-4"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "serverOperations": 24,
+            "serverFreshQueryComparisons": 72,
+            "clientLiveSnapshotCommitted": true,
+            "seededWriteKind": "owner-revoke"
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "deployment-activation",
       "passed": true,
-      "observations": {
-        "serverActivation": {
-          "missingPredecessorObserved": true,
-          "activationEpoch": 1,
-          "idempotentActivationEpochAdvance": 0,
-          "ordinaryWriteRaisedAuthorizationEvent": false,
-          "ordinaryRemovalRaisedAuthorizationEvent": false
+      "cases": [
+        {
+          "caseIndex": 7,
+          "randomState": "0xe9e71a58",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1007
+            }
+          },
+          "scopeSource": "authenticated-expectation-replacement-without-a-resync-scope",
+          "revision": 1,
+          "revisionSource": "production-activation-epoch",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<next-authenticated-uuid-v7>",
+              "epoch": 0
+            },
+            "data": {
+              "versionStream": "<next-authenticated-version-stream>",
+              "minCommitVersion": 1
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "authenticated-deployment-identity-change",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "disposition": "delete",
+            "boundary": "delete",
+            "activationEpoch": 1,
+            "missingPredecessorObserved": true
+          },
+          "passed": true
         },
-        "clientIdentityFence": {
-          "failClosedBoundary": "delete",
-          "oldRowsRenderableAfterIdentityChange": false,
+        {
+          "caseIndex": 18,
+          "randomState": "0xfb6db1ad",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1018
+            }
+          },
+          "scopeSource": "authenticated-expectation-replacement-without-a-resync-scope",
+          "revision": 1,
+          "revisionSource": "production-activation-epoch",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<next-authenticated-uuid-v7>",
+              "epoch": 0
+            },
+            "data": {
+              "versionStream": "<next-authenticated-version-stream>",
+              "minCommitVersion": 1
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "authenticated-deployment-identity-change",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "disposition": "delete",
+            "boundary": "delete",
+            "activationEpoch": 1,
+            "missingPredecessorObserved": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 29,
+          "randomState": "0x5848c7f8",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1029
+            }
+          },
+          "scopeSource": "authenticated-expectation-replacement-without-a-resync-scope",
+          "revision": 1,
+          "revisionSource": "production-activation-epoch",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<next-authenticated-uuid-v7>",
+              "epoch": 0
+            },
+            "data": {
+              "versionStream": "<next-authenticated-version-stream>",
+              "minCommitVersion": 1
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "authenticated-deployment-identity-change",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "disposition": "delete",
+            "boundary": "delete",
+            "activationEpoch": 1,
+            "missingPredecessorObserved": true
+          },
           "passed": true
         }
-      }
+      ]
     },
     {
       "scenario": "lease-expiry",
       "passed": true,
-      "observations": {
-        "retainedBytesDeleted": 651,
-        "deleteTombstoneWritten": true
-      }
+      "cases": [
+        {
+          "caseIndex": 4,
+          "randomState": "0xb2cfb42f",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:lease-expiry:4",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "production-retained-query-namespace-without-a-resync-scope",
+          "revision": 2,
+          "revisionSource": "production-client-query-generation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 512
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "authorized-lease-expired",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "retainedPayloadDeleted": true,
+            "effectiveDisposition": "delete",
+            "durableDeleteTombstoneCommitted": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 23,
+          "randomState": "0xfebae0a7",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:lease-expiry:23",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "production-retained-query-namespace-without-a-resync-scope",
+          "revision": 2,
+          "revisionSource": "production-client-query-generation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 569
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "authorized-lease-expired",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "retainedPayloadDeleted": true,
+            "effectiveDisposition": "delete",
+            "durableDeleteTombstoneCommitted": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 30,
+          "randomState": "0xaf4ced23",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:lease-expiry:30",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "production-retained-query-namespace-without-a-resync-scope",
+          "revision": 2,
+          "revisionSource": "production-client-query-generation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 590
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "authorized-lease-expired",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "retainedPayloadDeleted": true,
+            "effectiveDisposition": "delete",
+            "durableDeleteTombstoneCommitted": true
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "clock-rollback",
       "passed": true,
-      "observations": {
-        "retainedBytesDeleted": 652,
-        "deleteTombstoneWritten": true
-      }
+      "cases": [
+        {
+          "caseIndex": 9,
+          "randomState": "0xc8023f02",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:clock-rollback:9",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "production-retained-query-namespace-without-a-resync-scope",
+          "revision": 2,
+          "revisionSource": "production-client-query-generation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 527
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "client-clock-rollback",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "retainedPayloadDeleted": true,
+            "effectiveDisposition": "delete",
+            "durableDeleteTombstoneCommitted": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 14,
+          "randomState": "0xbc2924b9",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:clock-rollback:14",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "production-retained-query-namespace-without-a-resync-scope",
+          "revision": 2,
+          "revisionSource": "production-client-query-generation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 542
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "client-clock-rollback",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "retainedPayloadDeleted": true,
+            "effectiveDisposition": "delete",
+            "durableDeleteTombstoneCommitted": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 32,
+          "randomState": "0xd4308025",
+          "scope": {
+            "kind": null,
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:clock-rollback:32",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "production-retained-query-namespace-without-a-resync-scope",
+          "revision": 2,
+          "revisionSource": "production-client-query-generation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 596
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "client-clock-rollback",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "retainedPayloadDeleted": true,
+            "effectiveDisposition": "delete",
+            "durableDeleteTombstoneCommitted": true
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "overflow",
       "passed": true,
-      "observations": {
-        "overflowSentinelObserved": true,
-        "authScopedChildren": 2,
-        "remainingAfterFirstAck": 1,
-        "remainingAfterAllAcks": 0
-      }
+      "cases": [
+        {
+          "caseIndex": 2,
+          "randomState": "0xb16abf5d",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1002
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 38,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 507
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "connection-overflow-root-expanded-to-auth-scoped-children",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-2-row-0",
+              "case-2-row-2",
+              "case-2-row-3",
+              "case-2-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-2-row-0",
+              "case-2-row-2",
+              "case-2-row-3",
+              "case-2-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "overflowSentinelObserved": true,
+            "rootRemainingTrace": [
+              2,
+              1,
+              0
+            ]
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 12,
+          "randomState": "0x0c2b0a17",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1012
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 24,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 537
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "connection-overflow-root-expanded-to-auth-scoped-children",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-12-row-0",
+              "case-12-row-4",
+              "case-12-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-12-row-0",
+              "case-12-row-4",
+              "case-12-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "overflowSentinelObserved": true,
+            "rootRemainingTrace": [
+              2,
+              1,
+              0
+            ]
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 34,
+          "randomState": "0xd67dbb37",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1034
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 52,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 603
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "connection-overflow-root-expanded-to-auth-scoped-children",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-34-row-0",
+              "case-34-row-2",
+              "case-34-row-3",
+              "case-34-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-34-row-0",
+              "case-34-row-2",
+              "case-34-row-3",
+              "case-34-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "overflowSentinelObserved": true,
+            "rootRemainingTrace": [
+              2,
+              1,
+              0
+            ]
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "disconnect-and-fresh-resume",
       "passed": true,
-      "observations": {
-        "predecessorInstance": 10,
-        "successorInstance": 11,
-        "delayedPredecessorFrameRejected": true,
-        "successorInstalledFreshSnapshot": true
-      }
+      "cases": [
+        {
+          "caseIndex": 11,
+          "randomState": "0xc5b4d8fc",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1011
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 81,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 534
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "connection-ended-and-new-query-instance-installed",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-11-row-0",
+              "case-11-row-3",
+              "case-11-row-4"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-11-row-0",
+              "case-11-row-3",
+              "case-11-row-4"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "predecessorInstance": 1011,
+            "successorInstance": 11011,
+            "delayedPredecessorFrameCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 15,
+          "randomState": "0x959e6ae0",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1015
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 33,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 546
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "connection-ended-and-new-query-instance-installed",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-15-row-0",
+              "case-15-row-2",
+              "case-15-row-3",
+              "case-15-row-4"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-15-row-0",
+              "case-15-row-2",
+              "case-15-row-3",
+              "case-15-row-4"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "predecessorInstance": 1015,
+            "successorInstance": 11015,
+            "delayedPredecessorFrameCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 33,
+          "randomState": "0xcf66c89c",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1033
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 41,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 600
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "connection-ended-and-new-query-instance-installed",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-33-row-0",
+              "case-33-row-2",
+              "case-33-row-4",
+              "case-33-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-33-row-0",
+              "case-33-row-2",
+              "case-33-row-4",
+              "case-33-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "predecessorInstance": 1033,
+            "successorInstance": 11033,
+            "delayedPredecessorFrameCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE"
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "response-loss",
       "passed": true,
-      "observations": {
-        "discardedResponseDrains": 15,
-        "reprojectedSnapshotFrames": 15
-      }
+      "cases": [
+        {
+          "caseIndex": 5,
+          "randomState": "0xde5cf47e",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1005
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 55,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 516
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "level-triggered-response-reprojection",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-5-row-0",
+              "case-5-row-2",
+              "case-5-row-4",
+              "case-5-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-5-row-0",
+              "case-5-row-2",
+              "case-5-row-4",
+              "case-5-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "discardedServerResponseDrains": 15,
+            "reprojectedServerSnapshotFrames": 15,
+            "reprojectedClientResolutionApplied": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 19,
+          "randomState": "0x3769d404",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1019
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 37,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 558
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "level-triggered-response-reprojection",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-19-row-0",
+              "case-19-row-2",
+              "case-19-row-3",
+              "case-19-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-19-row-0",
+              "case-19-row-2",
+              "case-19-row-3",
+              "case-19-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "discardedServerResponseDrains": 15,
+            "reprojectedServerSnapshotFrames": 15,
+            "reprojectedClientResolutionApplied": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 24,
+          "randomState": "0x6d38cf16",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1024
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 75,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 573
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "level-triggered-response-reprojection",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-24-row-0",
+              "case-24-row-2",
+              "case-24-row-3",
+              "case-24-row-4",
+              "case-24-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-24-row-0",
+              "case-24-row-2",
+              "case-24-row-3",
+              "case-24-row-4",
+              "case-24-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "discardedServerResponseDrains": 15,
+            "reprojectedServerSnapshotFrames": 15,
+            "reprojectedClientResolutionApplied": true
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "ack-loss",
       "passed": true,
-      "observations": {
-        "clientRefiredSameAckToken": true,
-        "serverAcknowledgements": 57
-      }
+      "cases": [
+        {
+          "caseIndex": 3,
+          "randomState": "0x456c6af4",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1003
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 73,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 510
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "resolution-applied-before-ack-loss",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-3-row-0",
+              "case-3-row-2",
+              "case-3-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-3-row-0",
+              "case-3-row-2",
+              "case-3-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "replayStatus": "applied",
+            "sameAckTokenRefired": true,
+            "acknowledgementStatus": "acknowledged"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 20,
+          "randomState": "0xc9c4b8ff",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1020
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 32,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 561
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "resolution-applied-before-ack-loss",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-20-row-0",
+              "case-20-row-2",
+              "case-20-row-3",
+              "case-20-row-4",
+              "case-20-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-20-row-0",
+              "case-20-row-2",
+              "case-20-row-3",
+              "case-20-row-4",
+              "case-20-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "replayStatus": "applied",
+            "sameAckTokenRefired": true,
+            "acknowledgementStatus": "acknowledged"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 31,
+          "randomState": "0xcfee59a2",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1031
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 27,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 594
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "resolution-applied-before-ack-loss",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-31-row-0",
+              "case-31-row-2",
+              "case-31-row-3",
+              "case-31-row-4",
+              "case-31-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-31-row-0",
+              "case-31-row-2",
+              "case-31-row-3",
+              "case-31-row-4",
+              "case-31-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "replayStatus": "applied",
+            "sameAckTokenRefired": true,
+            "acknowledgementStatus": "acknowledged"
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "restart",
       "passed": true,
-      "observations": {
-        "incarnationPreserved": true,
-        "newIssuerInstalled": true,
-        "distinctQueryInstance": true,
-        "freshSnapshotConverged": true
-      }
+      "cases": [
+        {
+          "caseIndex": 6,
+          "randomState": "0xf0bfdf91",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1006
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 50,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 519
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "process-local-scope-ended-on-restart",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-6-row-0",
+              "case-6-row-2",
+              "case-6-row-3",
+              "case-6-row-4",
+              "case-6-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-6-row-0",
+              "case-6-row-2",
+              "case-6-row-3",
+              "case-6-row-4",
+              "case-6-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "predecessorInstance": 1006,
+            "successorInstance": 11006,
+            "delayedPredecessorFrameCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "serverIncarnationPreserved": true,
+            "serverNewIssuerInstalled": true,
+            "serverFreshSnapshotConverged": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 16,
+          "randomState": "0x20b2246b",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1016
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 44,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 549
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "process-local-scope-ended-on-restart",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-16-row-0",
+              "case-16-row-2",
+              "case-16-row-4",
+              "case-16-row-5"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-16-row-0",
+              "case-16-row-2",
+              "case-16-row-4",
+              "case-16-row-5"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "predecessorInstance": 1016,
+            "successorInstance": 11016,
+            "delayedPredecessorFrameCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "serverIncarnationPreserved": true,
+            "serverNewIssuerInstalled": true,
+            "serverFreshSnapshotConverged": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 28,
+          "randomState": "0xf59825b1",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1028
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 42,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 585
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "retain",
+          "dispositionReason": {
+            "value": "process-local-scope-ended-on-restart",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [
+              "case-28-row-0",
+              "case-28-row-2",
+              "case-28-row-4"
+            ],
+            "productionAuthorizedRowIds": [
+              "case-28-row-0",
+              "case-28-row-2",
+              "case-28-row-4"
+            ],
+            "matched": true
+          },
+          "productionObservation": {
+            "predecessorInstance": 1028,
+            "successorInstance": 11028,
+            "delayedPredecessorFrameCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "serverIncarnationPreserved": true,
+            "serverNewIssuerInstalled": true,
+            "serverFreshSnapshotConverged": true
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "stale-callback",
       "passed": true,
-      "observations": {
-        "rejected": true
-      }
+      "cases": [
+        {
+          "caseIndex": 1,
+          "randomState": "0x47f18f3a",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:stale-callback:1",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 79,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 504
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "predecessor-query-generation-callback",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "sharedDurableStore": true,
+            "stalePredecessorCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "retainedPayloadPhysicallyPresent": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 13,
+          "randomState": "0x902d12c6",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:stale-callback:13",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 31,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 540
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "predecessor-query-generation-callback",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "sharedDurableStore": true,
+            "stalePredecessorCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "retainedPayloadPhysicallyPresent": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 25,
+          "randomState": "0x07d42fc9",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:stale-callback:25",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 78,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 576
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "predecessor-query-generation-callback",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "sharedDurableStore": true,
+            "stalePredecessorCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "retainedPayloadPhysicallyPresent": true
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "cross-tab-write",
       "passed": true,
-      "observations": {
-        "sharedDurableStore": true,
-        "predecessorFenceRejected": true
-      }
+      "cases": [
+        {
+          "caseIndex": 8,
+          "randomState": "0x5f317603",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:cross-tab-write:8",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 96,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 525
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "cross-tab-predecessor-fence-write",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "sharedDurableStore": true,
+            "stalePredecessorCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "retainedPayloadPhysicallyPresent": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 22,
+          "randomState": "0x3153a6cc",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:cross-tab-write:22",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 73,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 567
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "cross-tab-predecessor-fence-write",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "sharedDurableStore": true,
+            "stalePredecessorCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "retainedPayloadPhysicallyPresent": true
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 27,
+          "randomState": "0x78de5d1e",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "property:cross-tab-write:27",
+              "queryInstanceId": 1
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 51,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 582
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "cross-tab-predecessor-fence-write",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "sharedDurableStore": true,
+            "stalePredecessorCode": "SNAPBACK_AUTH_QUERY_FENCE_STALE",
+            "retainedPayloadPhysicallyPresent": true
+          },
+          "passed": true
+        }
+      ]
     },
     {
       "scenario": "disposition-escalation",
       "passed": true,
-      "observations": {
-        "initialDisposition": "quarantine",
-        "terminalDisposition": "delete",
-        "ackLossRefiredSameToken": true
-      }
-    },
-    {
-      "scenario": "room-pause-points",
+      "cases": [
+        {
+          "caseIndex": 10,
+          "randomState": "0x32b05005",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1010
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 22,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 531
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "trusted-denial-escalated-quarantine-to-delete",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "serverTerminalDisposition": "delete",
+            "clientTerminalDisposition": "delete"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 17,
+          "randomState": "0x6a0c53ca",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1017
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 79,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 552
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "trusted-denial-escalated-quarantine-to-delete",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "serverTerminalDisposition": "delete",
+            "clientTerminalDisposition": "delete"
+          },
+          "passed": true
+        },
+        {
+          "caseIndex": 35,
+          "randomState": "0x64fb7f66",
+          "scope": {
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "<production-client-store-id>",
+              "queryKey": "liveBoard:{}",
+              "queryInstanceId": 1035
+            }
+          },
+          "scopeSource": "executed-resync-obligation",
+          "revision": 51,
+          "revisionSource": "executed-resync-obligation",
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 606
+            }
+          },
+          "proofPath": [
+            "seeded-state-transition",
+            "production-protocol-path",
+            "independent-full-requery-and-authorization",
+            "state-and-row-comparison"
+          ],
+          "disposition": "delete",
+          "dispositionReason": {
+            "value": "trusted-denial-escalated-quarantine-to-delete",
+            "source": "executed-state-machine-event"
+          },
+          "oracle": {
+            "kind": "independent-full-requery-and-full-authorization-reference-model",
+            "sourceRowCount": 6,
+            "expectedAuthorizedRowIds": [],
+            "productionAuthorizedRowIds": [],
+            "matched": true
+          },
+          "productionObservation": {
+            "serverTerminalDisposition": "delete",
+            "clientTerminalDisposition": "delete"
+          },
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "supplementalAssertions": {
+    "protectedRoomPausePoints": {
       "passed": true,
-      "observations": {
+      "receipt": {
         "causingCommitVersion": 2,
         "affectedRoomCount": 1,
         "pausePoints": {
@@ -197,8 +2738,29 @@
           "survivorSnapshotDelivered": true
         }
       }
+    },
+    "deterministicSinglePathCompatibility": {
+      "passed": true,
+      "observations": {
+        "deployment": {
+          "failClosedBoundary": "delete",
+          "oldRowsRenderableAfterIdentityChange": false,
+          "passed": true
+        },
+        "disconnect": {
+          "predecessorInstance": 10,
+          "successorInstance": 11,
+          "delayedPredecessorFrameRejected": true,
+          "successorInstalledFreshSnapshot": true
+        },
+        "dispositionEscalation": {
+          "initialDisposition": "quarantine",
+          "terminalDisposition": "delete",
+          "ackLossRefiredSameToken": true
+        }
+      }
     }
-  ],
+  },
   "productionRustReceipts": {
     "server": {
       "schemaVersion": 2,
@@ -250,6 +2812,7 @@
       },
       "runtimeAssertions": {
         "membershipAuthorizationEpochAdvance": 3,
+        "membershipFreshQueryComparisons": 9,
         "randomizedAuthorizationEpochAdvance": 0,
         "randomizedAllQueryConvergenceRounds": 24,
         "randomizedFreshQueryComparisons": 72,
@@ -259,6 +2822,404 @@
         "restartAcceptedDistinctCallerSuppliedQueryInstance": true,
         "restartInitialSnapshotConverged": true
       },
+      "membershipLifecycleReplay": [
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 0,
+          "query": {
+            "user": "alice",
+            "function": "mineOrPublic"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 10
+          },
+          "revision": 4,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 6
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 8
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 8,
+            "rowCount": 0
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 1,
+          "query": {
+            "user": "bob",
+            "function": "mineOrPublic"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 11
+          },
+          "revision": 4,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 6
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 8
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 8,
+            "rowCount": 0
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 2,
+          "query": {
+            "user": "carol",
+            "function": "allNotes"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "allNotes:{}",
+            "queryInstanceId": 12
+          },
+          "revision": 4,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 6
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 8
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 8,
+            "rowCount": 1
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 0,
+          "query": {
+            "user": "alice",
+            "function": "mineOrPublic"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 10
+          },
+          "revision": 5,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 7
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 9
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 9,
+            "rowCount": 0
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 1,
+          "query": {
+            "user": "bob",
+            "function": "mineOrPublic"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 11
+          },
+          "revision": 5,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 7
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 9
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 9,
+            "rowCount": 0
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 2,
+          "query": {
+            "user": "carol",
+            "function": "allNotes"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "allNotes:{}",
+            "queryInstanceId": 12
+          },
+          "revision": 5,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 7
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 9
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 9,
+            "rowCount": 1
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 0,
+          "query": {
+            "user": "alice",
+            "function": "mineOrPublic"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 10
+          },
+          "revision": 6,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 10
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 10,
+            "rowCount": 0
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 1,
+          "query": {
+            "user": "bob",
+            "function": "mineOrPublic"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "mineOrPublic:{}",
+            "queryInstanceId": 11
+          },
+          "revision": 6,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 10
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 10,
+            "rowCount": 0
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 2,
+          "query": {
+            "user": "carol",
+            "function": "allNotes"
+          },
+          "scope": {
+            "kind": "subscription",
+            "queryKey": "allNotes:{}",
+            "queryInstanceId": 12
+          },
+          "revision": 6,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 10
+            }
+          },
+          "disposition": "quarantine",
+          "dispositionReason": {
+            "value": "permission-backing-membership-write",
+            "source": "executed-mutation-kind"
+          },
+          "proofPath": [
+            "production-permission-backing-mutation",
+            "production-obligation-registry",
+            "production-live-projection",
+            "production-fresh-full-query",
+            "production-exact-ack"
+          ],
+          "snapshot": {
+            "commitVersion": 10,
+            "rowCount": 1
+          },
+          "resolutionKind": "snapshot",
+          "acknowledgementOutcome": "discharged",
+          "fullRequeryAndAuthorizationMatched": true
+        }
+      ],
       "serverObligation": {
         "normalizedFieldSources": {
           "compositeWitness": "obligation.witness",
