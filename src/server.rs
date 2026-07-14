@@ -15959,6 +15959,14 @@ mod tests {
             "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
         ),
         (
+            "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT",
+            "machine-readable marker emitted only by the LLP 0053 room acceptance test",
+        ),
+        (
+            "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT",
+            "machine-readable marker emitted only by the LLP 0053 server acceptance test",
+        ),
+        (
             "SNAPBACK_BUILD_GIT_COMMIT",
             "compile-time environment variable carrying build provenance",
         ),
