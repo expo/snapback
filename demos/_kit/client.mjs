@@ -85,6 +85,7 @@ const EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP = 1_024;
 // @ref LLP 0031#the-invariant — app-data names must never normalize into the
 // privileged system namespace.
 const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
 
 // The live wire kinds this kit dispatches on, pinned to the committed
 // Rust-generated schemas (LLP 0051 D4 / ENG-23891):
@@ -505,10 +506,10 @@ const projectAuthorizedLeaseFacts = (value) => {
   ])) return null;
   if (
     value.protocolVersion !== 1
-    || !safeUnsignedInteger(value.defaultMs)
-    || !safeUnsignedInteger(value.hardMaxMs)
+    || value.defaultMs !== AUTHORIZED_LEASE_V1_DURATION_MS
+    || value.hardMaxMs !== AUTHORIZED_LEASE_V1_DURATION_MS
     || !safeUnsignedInteger(value.configuredMs)
-    || value.defaultMs > value.hardMaxMs
+    || value.configuredMs === 0
     || value.configuredMs > value.hardMaxMs
     || !Array.isArray(value.clamps)
     || value.clamps.length !== 2

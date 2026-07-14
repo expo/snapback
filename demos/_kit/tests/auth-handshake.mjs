@@ -3,7 +3,7 @@
 import { SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 10 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 11 });
 const originalFetch = globalThis.fetch;
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 const AUTHORIZATION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
@@ -318,6 +318,33 @@ try {
       }).includes(BEARER_SENTINEL), 'handshake refusal never republishes the bearer');
     }
     return { rejectedShapes: 2 };
+  });
+
+  await suite.check('authorized-lease capability facts are exact v1 constants', async () => {
+    const validFacts = {
+      protocolVersion: 1,
+      defaultMs: 86_400_000,
+      hardMaxMs: 86_400_000,
+      configuredMs: 60_000,
+      clamps: ['session', 'provider'],
+      renewal: 'full-revalidation',
+      timeBasis: 'server-absolute+client-request-elapsed',
+      clockRollback: 'delete-before-read',
+    };
+    for (const authorizedLease of [
+      { ...validFacts, defaultMs: Number.MAX_SAFE_INTEGER },
+      { ...validFacts, hardMaxMs: Number.MAX_SAFE_INTEGER },
+      { ...validFacts, configuredMs: 0 },
+    ]) {
+      globalThis.fetch = async () => response({
+        ...handshake({ activeMode: 'sessions' }),
+        authorizedLease,
+      });
+      const db = new SnapbackClient('http://stub', { bearerToken: 'session-secret' });
+      const error = await assertThrows(() => db.authSession({ force: true }));
+      assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
+    }
+    return { rejectedFacts: 3 };
   });
 } finally {
   globalThis.fetch = originalFetch;
