@@ -7,7 +7,14 @@ import { discoverDemoSetups, provisionDemo } from '../scripts/demo-setup';
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const demos = discoverDemoSetups(repoRoot);
 assert(demos.has('graffiti'), 'Graffiti is discovered from demo.snapback.json');
-assert.deepEqual([...demos.keys()].sort(), ['all-aboard', 'cursors-web', 'graffiti', 'todo', 'todo-v2']);
+assert.deepEqual([...demos.keys()].sort(), [
+  'all-aboard',
+  'card-game',
+  'cursors-web',
+  'graffiti',
+  'todo',
+  'todo-v2',
+]);
 
 for (const [id, setup] of demos) {
   const calls = [];
