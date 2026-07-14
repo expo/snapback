@@ -9766,6 +9766,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         mut admission_epoch,
     } = task;
     let state = runtime.snapback.clone();
+    let read = runtime.read.clone();
     let ephemeral = runtime.ephemeral.clone();
     let connections = runtime.connections.clone();
     let (sender, mut receiver) = socket.split();
@@ -9791,11 +9792,11 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         connection_id.clone(),
         generation,
     ));
-    let reproject_authorization =
+    let authorization_invalidation_negotiated =
         active_mode == AuthMode::Sessions && connection_act.authorization_invalidation.is_some();
     // Session invalidation is level-triggered, so its safety-net tick is also
     // the bounded re-fire. Dev retains the lower-traffic 30s fallback.
-    let heartbeat_ms = if reproject_authorization {
+    let heartbeat_ms = if authorization_invalidation_negotiated {
         crate::auth::invalidation::AUTH_INVALIDATION_REFIRE_MAX_MS
     } else {
         30_000
@@ -9842,7 +9843,8 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             admission: &initial_admission,
             connections: &connections,
             connection_act: &connection_act,
-            reproject_authorization,
+            reproject_authorization: authorization_invalidation_negotiated
+                && read.connection_has_auth_scoped_live(&connection_id),
         })
         .await
         .is_break()
@@ -9926,11 +9928,6 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                 continue 'stream;
                             }
                         };
-                        let protected_auth = room_authorization
-                            .as_ref()
-                            .map(|authorization| authorization.auth.clone());
-                        let outer_room_authority =
-                            room_authorization.and_then(|authorization| authorization.permit);
                         let response = {
                             let Ok(_effect) = admission.effect_guard("WebSocket inbound act") else {
                                 break 'stream;
@@ -9946,13 +9943,15 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                     policy_mode,
                                     authorization_invalidation_ready,
                                     &connection_act.resolved,
-                                    protected_auth,
+                                    room_authorization.as_ref(),
                                 )),
                             ) else {
                                 break 'stream;
                             };
                             response
                         };
+                        let outer_room_authority =
+                            room_authorization.and_then(|authorization| authorization.permit);
                         if !send_live_with_admission(
                             &writer,
                             Message::Text(response.text.into()),
@@ -10128,7 +10127,8 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                 admission: &admission,
                 connections: &connections,
                 connection_act: &connection_act,
-                reproject_authorization,
+                reproject_authorization: authorization_invalidation_negotiated
+                    && read.connection_has_auth_scoped_live(&connection_id),
             })
             .await
             .is_break()
@@ -10396,10 +10396,14 @@ struct BoundRoomAuthorization {
     permit: Option<RoomAuthorityPermit>,
 }
 
-/// Convert freshly bound connection authority into a durable room grant, then
-/// acquire the room permit and verify that the authenticated epoch observed by
-/// the read is still current. Commit preparation closes every new permit; a
-/// committed interlock publishes the successor epoch before reopening them.
+/// Convert freshly bound connection authority into a durable room grant while
+/// holding the targeted room permit from before the pinned lookup through the
+/// caller's room act and final transport sink. Commit preparation therefore
+/// either arrives first and rejects admission, or waits for this exact lookup
+/// and act to finish; unrelated rooms never queue behind the writer mutex.
+///
+/// @ref LLP 0053#ephemeral-room-authority-invalidation — lookup and every
+/// effect sink remain on one side of the commit-ordered room barrier.
 async fn authorize_bound_ephemeral_room(
     runtime: &AppState,
     collection: &str,
@@ -10435,25 +10439,63 @@ async fn authorize_bound_ephemeral_room(
                 "protected room authority requires an authenticated invalidation issuer",
             ))
         })?;
+    let collection_definition = runtime
+        .ephemeral
+        .collection_definition(collection)
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+                "ephemeral",
+                "ephemeral collection is not loaded",
+            ))
+        })?;
     for _ in 0..3 {
-        let collection_name = collection.to_owned();
-        let room_scope = scope.clone();
-        let candidate = base_auth.clone();
-        let (auth, observed) = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.authorize_ephemeral_room_observed(&collection_name, &room_scope, candidate)
-        })
-        .await?;
-        let permit = runtime
-            .ephemeral
-            .begin_server_authorized_room_act(collection, scope)
-            .map_err(ApiError::from_ephemeral)?
-            .ok_or_else(|| {
-                ApiError::from(SnapbackError::error(
-                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-                    "auth",
-                    "protected room did not publish a room-authority permit",
-                ))
-            })?;
+        let (auth, observed, permit) = if runtime.read.available() {
+            let permit = runtime
+                .ephemeral
+                .begin_server_authorized_room_act(collection, scope)
+                .map_err(ApiError::from_ephemeral)?
+                .ok_or_else(|| {
+                    ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                        "auth",
+                        "protected room did not publish a room-authority permit",
+                    ))
+                })?;
+            let read = runtime.read.clone();
+            let candidate = base_auth.clone();
+            let room_scope = scope.clone();
+            let definition = collection_definition.clone();
+            let (auth, observed) = with_read_lane(&read, move |lane| {
+                lane.authorize_ephemeral_room_observed(definition, room_scope, candidate)
+            })
+            .await?;
+            (auth, observed, permit)
+        } else {
+            // In-memory SQLite has no independent snapshot lane. Preserve the
+            // serialized compatibility path: the write mutex orders lookup
+            // against prepare, and the post-lookup permit + witness comparison
+            // still prevents a stale act from crossing commit.
+            let collection_name = collection.to_owned();
+            let room_scope = scope.clone();
+            let candidate = base_auth.clone();
+            let (auth, observed) = with_snapback(&runtime.snapback, move |snapback| {
+                snapback.authorize_ephemeral_room_observed(&collection_name, &room_scope, candidate)
+            })
+            .await?;
+            let permit = runtime
+                .ephemeral
+                .begin_server_authorized_room_act(collection, scope)
+                .map_err(ApiError::from_ephemeral)?
+                .ok_or_else(|| {
+                    ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                        "auth",
+                        "protected room did not publish a room-authority permit",
+                    ))
+                })?;
+            (auth, observed, permit)
+        };
         if issuer.authorization_expectation()? == observed {
             return Ok(BoundRoomAuthorization {
                 auth,
@@ -10673,7 +10715,7 @@ fn handle_live_socket_text_authorized(
     policy_mode: PolicyAuthMode,
     authorization_invalidation_ready: bool,
     authority: &ResolvedAppAuthority,
-    protected_auth: Option<AuthContext>,
+    protected_room: Option<&BoundRoomAuthorization>,
 ) -> LiveSocketResponse {
     if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
         return socket_error(
@@ -10744,7 +10786,7 @@ fn handle_live_socket_text_authorized(
             .into();
         }
     };
-    if let Some(auth) = protected_auth {
+    if let Some(auth) = protected_room.map(|authorization| authorization.auth.clone()) {
         match &mut message {
             LiveSocketClientMessage::EphemeralSubscribe { request, .. }
             | LiveSocketClientMessage::EphemeralUnsubscribe { request, .. } => {
@@ -10759,6 +10801,8 @@ fn handle_live_socket_text_authorized(
             LiveSocketClientMessage::Ping { .. } => {}
         }
     }
+    let admitted_room_authority =
+        protected_room.and_then(|authorization| authorization.permit.as_ref());
     let operation_name = live_socket_operation_name(&message);
     let operation = operation_by_name(operation_name)
         .expect("every decoded live-socket variant must have registered policy");
@@ -10858,13 +10902,18 @@ fn handle_live_socket_text_authorized(
         LiveSocketClientMessage::EphemeralSubscribe {
             request_id,
             request,
-        } => match ephemeral.subscribe(request, now_millis()) {
+        } => match ephemeral.subscribe_with_room_authority(
+            request,
+            now_millis(),
+            admitted_room_authority,
+        ) {
             Ok(message) => admitted_socket_ack(
                 ephemeral,
                 request_id,
                 "subscribe",
                 json!({ "message": &message }),
                 Some(&message),
+                admitted_room_authority,
             ),
             Err(error) => {
                 socket_error(request_id, "subscribe", diagnostic_from_ephemeral(error)).into()
@@ -10873,7 +10922,11 @@ fn handle_live_socket_text_authorized(
         LiveSocketClientMessage::EphemeralPublish {
             request_id,
             request,
-        } => match ephemeral.publish(request, now_millis()) {
+        } => match ephemeral.publish_with_room_authority(
+            request,
+            now_millis(),
+            admitted_room_authority,
+        ) {
             Ok(outcome) => socket_ack(request_id, "publish", json!({ "outcome": outcome })).into(),
             Err(error) => {
                 socket_error(request_id, "publish", diagnostic_from_ephemeral(error)).into()
@@ -10882,13 +10935,18 @@ fn handle_live_socket_text_authorized(
         LiveSocketClientMessage::EphemeralDelete {
             request_id,
             request,
-        } => match ephemeral.delete(request, now_millis()) {
+        } => match ephemeral.delete_with_room_authority(
+            request,
+            now_millis(),
+            admitted_room_authority,
+        ) {
             Ok(message) => admitted_socket_ack(
                 ephemeral,
                 request_id,
                 "delete",
                 json!({ "message": &message }),
                 message.as_ref(),
+                admitted_room_authority,
             ),
             Err(error) => {
                 socket_error(request_id, "delete", diagnostic_from_ephemeral(error)).into()
@@ -10900,7 +10958,11 @@ fn handle_live_socket_text_authorized(
         } => {
             let receipt_scope = request.scope.clone();
             let collection = request.collection.clone();
-            match ephemeral.unsubscribe(request, now_millis()) {
+            match ephemeral.unsubscribe_with_room_authority(
+                request,
+                now_millis(),
+                admitted_room_authority,
+            ) {
                 Ok(removed) => {
                     let receipt = ephemeral_unsubscribe_receipt(
                         &collection,
@@ -10930,9 +10992,11 @@ fn admitted_socket_ack(
     operation: &str,
     body: Value,
     message: Option<&crate::ephemeral::EphemeralMessage>,
+    admitted_room_authority: Option<&RoomAuthorityPermit>,
 ) -> LiveSocketResponse {
-    let room_authority = match message {
-        Some(message) => {
+    let room_authority = match (message, admitted_room_authority) {
+        (Some(_), Some(_)) => None,
+        (Some(message), None) => {
             match ephemeral.begin_final_send(&RealtimeEnvelope::Ephemeral(message.clone())) {
                 Ok(room_authority) => room_authority,
                 Err(error) => {
@@ -10941,7 +11005,7 @@ fn admitted_socket_ack(
                 }
             }
         }
-        None => None,
+        (None, _) => None,
     };
     LiveSocketResponse {
         text: socket_ack(request_id, operation, body),
@@ -11029,6 +11093,9 @@ async fn drain_outbox(
     }
     let projections = if authority.active_mode() == AuthMode::Sessions
         && connection_act.authorization_invalidation.is_some()
+        && runtime
+            .read
+            .connection_has_auth_scoped_live(&connection_act.connection_id)
     {
         let projection_connection = connection_act.connection_id.clone();
         let rerun_admission = admission.clone();
@@ -11279,7 +11346,7 @@ async fn publish_ephemeral(
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
             runtime
                 .ephemeral
-                .publish(request, epoch_now_ms)
+                .publish_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
                 .map_err(ApiError::from_ephemeral)
         })?;
     Ok(retain_room_authority(
@@ -11318,7 +11385,7 @@ async fn subscribe_ephemeral(
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
             runtime
                 .ephemeral
-                .subscribe(request, epoch_now_ms)
+                .subscribe_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
                 .map_err(ApiError::from_ephemeral)
         })?;
     Ok(retain_room_authority(
@@ -11357,7 +11424,7 @@ async fn delete_ephemeral(
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
             runtime
                 .ephemeral
-                .delete(request, epoch_now_ms)
+                .delete_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
                 .map_err(ApiError::from_ephemeral)
         })?;
     Ok(retain_room_authority(
@@ -11764,6 +11831,7 @@ mod tests {
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
     use crate::auth::crypto::{OsRandom, SessionBearer};
+    use crate::auth::invalidation::{IssuerId, LiveInvalidationIssuer};
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
     };
@@ -11782,10 +11850,12 @@ mod tests {
     use crate::diagnostic::SnapbackError;
     use crate::local::{LocalSnapback, StagedAction};
     use crate::manifest::{
-        AuthInput, AuthMode, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
-        CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FunctionDefinition,
-        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        MutationAcknowledgementRequest, MutationPlan, QueryPlan, ReturnValue, SchemaManifest,
+        AuthInput, AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
+        CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
+        FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
+        FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationAcknowledgementRequest,
+        MutationPlan, MutationStep, QueryPlan, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION,
+        SchemaManifest, SeedData, TableManifest, TargetCapabilityId, ValueExpr,
     };
     use crate::runtime::IbexActionHost;
     use crate::storage::ClientMutationIdentity;
@@ -11795,9 +11865,9 @@ mod tests {
     use axum::extract::{Extension, State};
     use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header};
     use axum::response::IntoResponse as _;
-    use futures_util::StreamExt as _;
-    use serde_json::{Value, json};
-    use std::collections::BTreeSet;
+    use futures_util::{SinkExt as _, StreamExt as _};
+    use serde_json::{Map, Value, json};
+    use std::collections::{BTreeMap, BTreeSet};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -11924,6 +11994,455 @@ mod tests {
                 AuthProgramReadiness::new(true, true, true, true, true, true, true),
             )
             .expect("install reset sessions posture")
+    }
+
+    fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
+        let directory = tempfile::tempdir().expect("protected-room fixture directory");
+        let database_path = directory.path().join("protected-room.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).expect("file-backed snapback");
+        let projection = RoomPermissionProjection {
+            table: "roomMembers".to_owned(),
+            subject_field: "userId".to_owned(),
+            scope_fields: BTreeMap::from([("roomId".to_owned(), "roomId".to_owned())]),
+        };
+        let collection = EphemeralCollection::local_cursor("protectedPresence", "roomId")
+            .require_room_permission("room")
+            .permission_backed_by(projection);
+        let schema = SchemaManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            app_id: "auth-http-fixture".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+            }),
+            required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
+            schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
+            inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
+            tables: vec![TableManifest {
+                name: "roomMembers".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "roomId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: true,
+                permission_fields: Some(vec!["roomId".to_owned(), "userId".to_owned()]),
+            }],
+            ephemeral_collections: vec![collection],
+            ..SchemaManifest::default()
+        };
+        let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(super::now_millis(), &OsRandom)
+            .expect("provision protected-room keyring before sessions consume");
+        let settled = snapback
+            .auth_database_mut()
+            .stage_auth_mode(sessions_deployment(), schema.clone(), None)
+            .expect("stage protected-room sessions schema");
+        assert_eq!(settled.mode_state, AuthModeStatus::PendingRestart);
+        let settled = snapback
+            .auth_database_mut()
+            .consume_sessions_auth_mode(&readiness)
+            .expect("consume protected-room sessions schema");
+        snapback
+            .synchronize_auth_mode_admission(&settled)
+            .expect("synchronize protected-room admission");
+        let mut kick = FunctionDefinition::new(
+            "kickRoomMember",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "roomMembers".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        kick.auth_requirement = Some(AuthRequirement::Authenticated);
+        kick.write_set_summary.primary_table = Some("roomMembers".to_owned());
+        kick.write_set_summary.tables = vec!["roomMembers".to_owned()];
+        let diagnostics = snapback.publish_preflighted_functions(
+            FunctionManifest {
+                schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+                app_id: "auth-http-fixture".to_owned(),
+                bundle_hash: Some(format!("{FUNCTION_V1_PREFIX}{}", "2".repeat(64))),
+                inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
+                functions: vec![kick],
+                ..FunctionManifest::default()
+            },
+            42,
+        );
+        assert!(
+            diagnostics.is_empty(),
+            "protected-room function manifest loads: {diagnostics:?}"
+        );
+
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            super::now_millis(),
+            &OsRandom,
+        )
+        .expect("activate protected-room auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct protected-room auth provider"),
+        );
+        let (authorization, version_stream, boot_sequence) = snapback
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()
+            .expect("reserve protected-room boot issuer");
+        let issuer_id = IssuerId::fresh(authorization.incarnation.clone(), boot_sequence)
+            .expect("construct protected-room issuer id");
+        let issuer: LiveInvalidationIssuer = provider
+            .authenticate_invalidation_boot_issuer(
+                issuer_id,
+                crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+                "auth-http-fixture",
+            )
+            .expect("authenticate protected-room issuer");
+        snapback
+            .install_auth_invalidation(issuer.clone(), authorization, version_stream)
+            .expect("install protected-room invalidation");
+
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        let state = AppState::from_snapback(snapback, context)
+            .with_auth_provider(provider)
+            .with_auth_invalidation(issuer)
+            .with_auth_runtime_facts(settled, readiness)
+            .expect("install protected-room sessions posture");
+        assert!(
+            state.read.available(),
+            "fixture must exercise the WAL reader lane"
+        );
+        (state, directory)
+    }
+
+    /// @ref LLP 0053#ephemeral-room-authority-invalidation — L9 requires an
+    /// unrelated protected room to register, publish, and drain over both HTTP
+    /// and WebSocket while an affected authorization commit is pending, with
+    /// no writer-mutex hop on the room path.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn protected_room_server_fast_paths_progress_during_affected_commit() {
+        const AFFECTED_ROOM: &str = "room-affected";
+        const UNRELATED_ROOM: &str = "room-unrelated";
+        const UNRELATED_WS_ROOM: &str = "room-unrelated-ws";
+        const AFFECTED_MEMBER: &str = "member-affected";
+
+        let (state, _directory) = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            protected_room_server_fixture()
+        })
+        .await
+        .expect("construct protected-room fixture off the async workers");
+        let credential = mint_test_credential(&state, "room-l9@example.com").await;
+        let bearer = credential["token"]
+            .as_str()
+            .expect("fixture session bearer")
+            .to_owned();
+        let user_id = credential["session"]["userId"]
+            .as_str()
+            .expect("fixture user id")
+            .to_owned();
+        let seed = SeedData {
+            tables: BTreeMap::from([(
+                "roomMembers".to_owned(),
+                vec![
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(AFFECTED_MEMBER)),
+                        ("roomId".to_owned(), json!(AFFECTED_ROOM)),
+                        ("userId".to_owned(), json!(user_id)),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("member-unrelated")),
+                        ("roomId".to_owned(), json!(UNRELATED_ROOM)),
+                        ("userId".to_owned(), json!(user_id)),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("member-unrelated-ws")),
+                        ("roomId".to_owned(), json!(UNRELATED_WS_ROOM)),
+                        ("userId".to_owned(), json!(user_id)),
+                    ]),
+                ],
+            )]),
+        };
+        with_snapback(&state.snapback, move |snapback| snapback.seed(seed))
+            .await
+            .expect("seed both room memberships");
+
+        let router = app(state.clone());
+        let opened = router
+            .clone()
+            .oneshot(connection_open_request(
+                Some(&bearer),
+                json!({
+                    "connectionId": "l9-unrelated-http",
+                    "authInvalidationProtocol": 1,
+                }),
+            ))
+            .await
+            .expect("open unrelated protected-room connection");
+        assert_eq!(opened.status(), StatusCode::OK);
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"]
+            .as_str()
+            .expect("connection id")
+            .to_owned();
+        let connection_token = opened["connectionToken"]
+            .as_str()
+            .expect("connection token")
+            .to_owned();
+
+        let affected_scope = Scope::from_pairs([("roomId", AFFECTED_ROOM)]);
+        let affected_permit = state
+            .ephemeral
+            .begin_server_authorized_room_act("protectedPresence", &affected_scope)
+            .expect("admit affected precommit sink")
+            .expect("protected room returns a permit");
+        let kick_router = router.clone();
+        let kick_bearer = bearer.clone();
+        let kick = tokio::spawn(async move {
+            kick_router
+                .oneshot(session_auth_http_request(
+                    "/mutation/kickRoomMember",
+                    serde_json::to_vec(&json!({ "args": { "id": AFFECTED_MEMBER } }))
+                        .expect("serialize kick"),
+                    &kick_bearer,
+                ))
+                .await
+                .expect("kick response")
+        });
+
+        let pending_deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            match state
+                .ephemeral
+                .begin_server_authorized_room_act("protectedPresence", &affected_scope)
+            {
+                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                Ok(permit) => drop(permit),
+                Err(error) => panic!("unexpected affected-room admission: {error:?}"),
+            }
+            assert!(
+                Instant::now() < pending_deadline,
+                "kick did not install its affected-room dependency ticket"
+            );
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            state.snapback.try_lock().is_err(),
+            "the affected mutation intentionally holds the writer lane while its commit waits"
+        );
+
+        let connection_request = |method: &str, uri: String, body: Option<Value>| {
+            let mut builder = Request::builder()
+                .method(method)
+                .uri(uri)
+                .header("x-snapback-auth-client-protocol", "1")
+                .header("x-snapback-auth-invalidation-protocol", "1")
+                .header("x-snapback-connection-token", &connection_token);
+            let body = if let Some(body) = body {
+                builder = builder.header(header::CONTENT_TYPE, "application/json");
+                Body::from(serde_json::to_vec(&body).expect("serialize connection request"))
+            } else {
+                Body::empty()
+            };
+            builder.body(body).expect("connection request")
+        };
+        let unrelated_scope = json!({ "roomId": UNRELATED_ROOM });
+        let subscribe = tokio::time::timeout(
+            Duration::from_secs(1),
+            router.clone().oneshot(connection_request(
+                "POST",
+                "/ephemeral/subscribe".to_owned(),
+                Some(json!({
+                    "collection": "protectedPresence",
+                    "scope": unrelated_scope,
+                    "connection_id": connection_id,
+                })),
+            )),
+        )
+        .await
+        .expect("unrelated protected subscribe must not queue on the writer")
+        .expect("unrelated subscribe response");
+        let subscribe_status = subscribe.status();
+        let subscribe_body = response_json(subscribe).await;
+        assert_eq!(
+            subscribe_status,
+            StatusCode::OK,
+            "unexpected subscribe response: {subscribe_body}"
+        );
+        assert!(
+            subscribe_body.get("Snapshot").is_some(),
+            "unrelated registration publishes its initial protected snapshot: {subscribe_body}"
+        );
+        assert!(state.snapback.try_lock().is_err());
+
+        let publish = tokio::time::timeout(
+            Duration::from_secs(1),
+            router.clone().oneshot(connection_request(
+                "POST",
+                "/ephemeral/publish".to_owned(),
+                Some(json!({
+                    "collection": "protectedPresence",
+                    "scope": { "roomId": UNRELATED_ROOM },
+                    "connection_id": connection_id,
+                    "value": [117, 110, 114, 101, 108, 97, 116, 101, 100],
+                    "ttl_ms": 5_000,
+                })),
+            )),
+        )
+        .await
+        .expect("unrelated protected publish must not queue on the writer")
+        .expect("unrelated publish response");
+        assert_eq!(publish.status(), StatusCode::OK);
+        let _ = response_json(publish).await;
+        assert!(state.snapback.try_lock().is_err());
+
+        let drain = tokio::time::timeout(
+            Duration::from_secs(1),
+            router.clone().oneshot(connection_request(
+                "GET",
+                format!("/outbox/{connection_id}"),
+                None,
+            )),
+        )
+        .await
+        .expect("unrelated protected drain must not queue on the writer")
+        .expect("unrelated drain response");
+        assert_eq!(drain.status(), StatusCode::OK);
+        let drained = response_json(drain).await;
+        assert!(
+            drained.as_array().is_some_and(|frames| !frames.is_empty()),
+            "the unrelated publish is destructively drained while the affected commit waits"
+        );
+        assert!(state.snapback.try_lock().is_err());
+
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind protected-room WebSocket server");
+        let address = listener.local_addr().expect("WebSocket server address");
+        let ws_server_state = state.clone();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app(ws_server_state))
+                .await
+                .expect("serve protected-room WebSocket test");
+        });
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+        let mut ws_request = format!("ws://{address}/live/{connection_id}/stream")
+            .into_client_request()
+            .expect("protected-room WebSocket request");
+        ws_request.headers_mut().insert(
+            "x-snapback-connection-token",
+            connection_token.parse().expect("connection token header"),
+        );
+        ws_request.headers_mut().insert(
+            "x-snapback-auth-client-protocol",
+            "1".parse().expect("client protocol header"),
+        );
+        ws_request.headers_mut().insert(
+            "x-snapback-auth-invalidation-protocol",
+            "1".parse().expect("invalidation protocol header"),
+        );
+        let (mut socket, _) = tokio::time::timeout(
+            Duration::from_secs(1),
+            tokio_tungstenite::connect_async(ws_request),
+        )
+        .await
+        .expect("unrelated protected WebSocket upgrade must not queue on the writer")
+        .expect("connect protected-room WebSocket");
+
+        socket
+            .send(tokio_tungstenite::tungstenite::Message::Text(
+                json!({
+                    "type": "ephemeral_subscribe",
+                    "requestId": "l9-ws-subscribe",
+                    "request": {
+                        "collection": "protectedPresence",
+                        "scope": { "roomId": UNRELATED_WS_ROOM },
+                        "connection_id": connection_id,
+                    },
+                })
+                .to_string()
+                .into(),
+            ))
+            .await
+            .expect("send unrelated protected WebSocket subscribe");
+        let subscribe_ack = tokio::time::timeout(Duration::from_secs(1), socket.next())
+            .await
+            .expect("unrelated protected WebSocket subscribe must make progress")
+            .expect("subscribe acknowledgement frame")
+            .expect("read subscribe acknowledgement");
+        let tokio_tungstenite::tungstenite::Message::Text(subscribe_ack) = subscribe_ack else {
+            panic!("expected protected-room subscribe text acknowledgement");
+        };
+        let subscribe_ack: Value =
+            serde_json::from_str(&subscribe_ack).expect("subscribe acknowledgement JSON");
+        assert_eq!(subscribe_ack["kind"], "ephemeral_ack");
+        assert_eq!(subscribe_ack["requestId"], "l9-ws-subscribe");
+        assert_eq!(subscribe_ack["operation"], "subscribe");
+        assert!(state.snapback.try_lock().is_err());
+
+        socket
+            .send(tokio_tungstenite::tungstenite::Message::Text(
+                json!({
+                    "type": "ephemeral_publish",
+                    "requestId": "l9-ws-publish",
+                    "request": {
+                        "collection": "protectedPresence",
+                        "scope": { "roomId": UNRELATED_WS_ROOM },
+                        "connection_id": connection_id,
+                        "value": [119, 115],
+                        "ttl_ms": 5_000,
+                    },
+                })
+                .to_string()
+                .into(),
+            ))
+            .await
+            .expect("send unrelated protected WebSocket publish");
+        tokio::time::timeout(Duration::from_secs(1), async {
+            let mut saw_publish_ack = false;
+            let mut saw_drained_message = false;
+            while !saw_publish_ack || !saw_drained_message {
+                let frame = socket
+                    .next()
+                    .await
+                    .expect("publish response frame")
+                    .expect("read publish response");
+                let tokio_tungstenite::tungstenite::Message::Text(frame) = frame else {
+                    continue;
+                };
+                let frame: Value = serde_json::from_str(&frame).expect("publish response JSON");
+                saw_publish_ack |= frame["kind"] == "ephemeral_ack"
+                    && frame["requestId"] == "l9-ws-publish"
+                    && frame["operation"] == "publish";
+                saw_drained_message |=
+                    frame["kind"] == "ephemeral" && frame["message"].get("Upsert").is_some();
+            }
+        })
+        .await
+        .expect("unrelated protected WebSocket publish/drain must not queue on the writer");
+        assert!(state.snapback.try_lock().is_err());
+        let _ = socket.close(None).await;
+        server.abort();
+
+        drop(affected_permit);
+        let kick = tokio::time::timeout(Duration::from_secs(2), kick)
+            .await
+            .expect("kick completes after affected sink quiesces")
+            .expect("kick task joins");
+        assert_eq!(kick.status(), StatusCode::OK);
     }
 
     fn auth_http_fixture_with_provider(
@@ -16414,7 +16933,8 @@ globalThis.__snapbackHandlers = {
         live_socket_operations, route_registry,
     };
     use crate::ephemeral::{
-        DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
+        DeleteRequest, EphemeralCollection, EphemeralErrorCode, PublishRequest,
+        RoomPermissionProjection, Scope, SubscribeRequest,
     };
 
     fn synthetic_connection_authority(

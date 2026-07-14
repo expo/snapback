@@ -1411,6 +1411,10 @@ impl EphemeralApi {
         self.store.collection_requires_room_permission(name)
     }
 
+    pub(crate) fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
+        self.store.collection_definition(name)
+    }
+
     pub(crate) fn begin_server_authorized_room_act(
         &self,
         collection: &str,
@@ -1441,8 +1445,19 @@ impl EphemeralApi {
         request: PublishRequest,
         now_ms: u64,
     ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+        self.publish_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn publish_with_room_authority(
+        &self,
+        request: PublishRequest,
+        now_ms: u64,
+        room_authority: Option<&crate::ephemeral::RoomAuthorityPermit>,
+    ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
         let connection_id = request.connection_id.clone();
-        let outcome = self.store.publish(request, now_ms);
+        let outcome = self
+            .store
+            .publish_with_room_authority(request, now_ms, room_authority);
         self.activity.touch(&connection_id, now_ms);
         outcome
     }
@@ -1452,8 +1467,19 @@ impl EphemeralApi {
         request: SubscribeRequest,
         now_ms: u64,
     ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
+        self.subscribe_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn subscribe_with_room_authority(
+        &self,
+        request: SubscribeRequest,
+        now_ms: u64,
+        room_authority: Option<&crate::ephemeral::RoomAuthorityPermit>,
+    ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
         let connection_id = request.connection_id.clone();
-        let outcome = self.store.subscribe(request, now_ms);
+        let outcome = self
+            .store
+            .subscribe_with_room_authority(request, now_ms, room_authority);
         self.activity.touch(&connection_id, now_ms);
         outcome
     }
@@ -1463,8 +1489,19 @@ impl EphemeralApi {
         request: DeleteRequest,
         now_ms: u64,
     ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
+        self.delete_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn delete_with_room_authority(
+        &self,
+        request: DeleteRequest,
+        now_ms: u64,
+        room_authority: Option<&crate::ephemeral::RoomAuthorityPermit>,
+    ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
         let connection_id = request.connection_id.clone();
-        let outcome = self.store.delete(request, now_ms);
+        let outcome = self
+            .store
+            .delete_with_room_authority(request, now_ms, room_authority);
         self.activity.touch(&connection_id, now_ms);
         outcome
     }
@@ -1481,8 +1518,19 @@ impl EphemeralApi {
         request: SubscribeRequest,
         now_ms: u64,
     ) -> Result<bool, crate::ephemeral::EphemeralError> {
+        self.unsubscribe_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn unsubscribe_with_room_authority(
+        &self,
+        request: SubscribeRequest,
+        now_ms: u64,
+        room_authority: Option<&crate::ephemeral::RoomAuthorityPermit>,
+    ) -> Result<bool, crate::ephemeral::EphemeralError> {
         let connection_id = request.connection_id.clone();
-        let removed = self.store.unsubscribe(request)?;
+        let removed = self
+            .store
+            .unsubscribe_with_room_authority(request, room_authority)?;
         self.activity.touch(&connection_id, now_ms);
         Ok(removed)
     }
@@ -1762,6 +1810,10 @@ pub struct LocalSnapback {
     // never take the global mutex.
     read_manifests: Arc<RwLock<Arc<ReadManifests>>>,
     read_epochs: Arc<RwLock<Arc<BTreeMap<String, u64>>>>,
+    // Clone-shared demand projection for transport drains. A connection with
+    // no durable auth-scoped query has no invalidation obligation to rerun, so
+    // its ephemeral-only HTTP/WS drain must not enter the global writer lane.
+    auth_scoped_live_connections: Arc<RwLock<Arc<BTreeSet<String>>>>,
     receipts: ReceiptLog,
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // per-instance warm VM pool (never process-global: two local app
@@ -2398,6 +2450,7 @@ impl LocalSnapback {
         let dropped_subscriptions: Vec<LiveSubscription> =
             self.subscriptions.values().cloned().collect();
         self.subscriptions.clear();
+        self.refresh_auth_scoped_live_connections();
         // The authenticated issuer names the pre-reset authorization
         // incarnation. Reset terminates those scopes; coordinated server reset
         // installs a freshly reserved successor before reopening authority.
@@ -3626,9 +3679,10 @@ impl LocalSnapback {
         let commit = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => match identity.as_ref() {
                 Some(identity) => {
-                    let _effect = prepared.effect_guard("idempotent mutation transaction")?;
                     self.db
-                        .execute_mutation_idempotent(plan, &input, identity)?
+                        .execute_mutation_idempotent_guarded(plan, &input, identity, || {
+                            prepared.effect_guard("idempotent mutation transaction")
+                        })?
                 }
                 None => self.db.execute_mutation_guarded(
                     plan,
@@ -4257,6 +4311,13 @@ impl LocalSnapback {
             self.receipts.push_connection(&input.connection_id, receipt);
         }
 
+        if subscription_authorization.is_some() {
+            // Publish demand before the durable-live registration becomes
+            // externally visible. A transient false positive only takes the
+            // conservative writer path; a false negative could skip a
+            // required level-triggered rerun.
+            self.premark_auth_scoped_live_connection(&input.connection_id);
+        }
         self.subscriptions.insert(
             subscription_id.clone(),
             LiveSubscription {
@@ -4269,6 +4330,7 @@ impl LocalSnapback {
                 authorization: subscription_authorization,
             },
         );
+        self.refresh_auth_scoped_live_connections();
         // A new subscription can arm a demand-gated cron job (L5).
         self.refresh_cron_active();
 
@@ -4378,6 +4440,7 @@ impl LocalSnapback {
         let _publication = authority.effect_guard("live unsubscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
+        self.refresh_auth_scoped_live_connections();
         let scope_retirement = if let (Some(state), Some(authorization)) = (
             self.auth_invalidation.as_mut(),
             subscription.authorization.as_ref(),
@@ -4839,11 +4902,13 @@ impl LocalSnapback {
                 &resolution_witness,
                 &_publication,
             )?;
+            self.premark_auth_scoped_live_connection(&input.connection_id);
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 stored.connection_id = input.connection_id;
                 stored.read_dependencies = query.read_dependencies;
                 stored.authorization = Some(authorization.clone());
             }
+            self.refresh_auth_scoped_live_connections();
             return Ok(LiveResumeOutput {
                 subscription_id: subscription.id,
                 mode: "resnapshot".to_owned(),
@@ -6104,6 +6169,7 @@ impl LocalSnapback {
         }
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
+        self.refresh_auth_scoped_live_connections();
         if let Some(state) = self.auth_invalidation.as_mut() {
             for scope in retired_authorization_scopes {
                 let _ = state.obligations.retire_scope(&scope);
@@ -6630,6 +6696,7 @@ impl LocalSnapback {
             auth_invalidation: None,
             read_manifests,
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
+            auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),
             receipts: ReceiptLog::default(),
         })
     }
@@ -6659,11 +6726,38 @@ impl LocalSnapback {
         ReadLane {
             manifests: self.read_manifests.clone(),
             epochs: self.read_epochs.clone(),
+            auth_scoped_live_connections: self.auth_scoped_live_connections.clone(),
             pool: self.db.reader_pool(),
             warm_vms: self.warm_vms.clone(),
             admission: self.admission.clone(),
             secret_read_reset_generation: self.secret_read_reset_generation.clone(),
         }
+    }
+
+    fn premark_auth_scoped_live_connection(&self, connection_id: &str) {
+        let mut projection = self
+            .auth_scoped_live_connections
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if projection.contains(connection_id) {
+            return;
+        }
+        let mut next = projection.as_ref().clone();
+        next.insert(connection_id.to_owned());
+        *projection = Arc::new(next);
+    }
+
+    fn refresh_auth_scoped_live_connections(&self) {
+        let next = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.authorization.is_some())
+            .map(|subscription| subscription.connection_id.clone())
+            .collect::<BTreeSet<_>>();
+        *self
+            .auth_scoped_live_connections
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(next);
     }
 
     /// Force the fresh-VM path for this instance (what `SNAPBACK_FRESH_VM=1`
@@ -8425,6 +8519,7 @@ struct ReadManifests {
 pub struct ReadLane {
     manifests: Arc<RwLock<Arc<ReadManifests>>>,
     epochs: Arc<RwLock<Arc<BTreeMap<String, u64>>>>,
+    auth_scoped_live_connections: Arc<RwLock<Arc<BTreeSet<String>>>>,
     pool: Option<Arc<ReaderPool>>,
     // Shared with the write lane: concurrent readers check out distinct VMs
     // (exclusive ownership per checkout), warming extras on miss up to the
@@ -8453,6 +8548,85 @@ impl ReadLane {
     /// database). When false, callers must use the write lane.
     pub fn available(&self) -> bool {
         self.pool.is_some()
+    }
+
+    pub(crate) fn connection_has_auth_scoped_live(&self, connection_id: &str) -> bool {
+        self.auth_scoped_live_connections
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .contains(connection_id)
+    }
+
+    /// Resolve one protected ephemeral-room grant without taking the global
+    /// writer mutex. The permission row and authorization pair are read from
+    /// one pinned WAL snapshot while the transport retains the room's
+    /// precommit permit, so a stale lookup cannot cross the causing commit.
+    ///
+    /// @ref LLP 0053#ephemeral-room-authority-invalidation — lookup, room act,
+    /// and final publication stay on one side of the targeted commit barrier.
+    pub(crate) fn authorize_ephemeral_room_observed(
+        &self,
+        collection: EphemeralCollection,
+        scope: crate::ephemeral::Scope,
+        base_auth: AuthContext,
+    ) -> SnapbackResult<(AuthContext, crate::storage::AuthorizationVersion)> {
+        let projection = collection.permission_backing.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "protected room lacks its durable permissionBacking projection",
+            )
+        })?;
+        let Some(user_id) = base_auth.user_id.as_deref() else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PERMISSION_DENIED",
+                "auth",
+                "durable room permission was denied",
+            ));
+        };
+        let scope_fields = projection
+            .scope_fields
+            .iter()
+            .map(|(scope_field, table_field)| {
+                scope
+                    .get(scope_field)
+                    .map(|value| (table_field.clone(), value.to_owned()))
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+                            "ephemeral",
+                            "room scope does not satisfy its permissionBacking projection",
+                        )
+                    })
+            })
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
+        let manifests = self.manifests();
+        let reader = pool.checkout()?;
+        let tx = reader.conn().unchecked_transaction()?;
+        crate::storage::current_version_on(&tx)?;
+        let granted = crate::storage::room_permission_projection_granted_on(
+            &tx,
+            &manifests.schema,
+            &projection.table,
+            &projection.subject_field,
+            user_id,
+            &scope_fields,
+            0,
+        )?;
+        let authorization = crate::storage::authorization_version_on(&tx)?;
+        tx.commit()?;
+        if !granted {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PERMISSION_DENIED",
+                "auth",
+                "durable room permission was denied",
+            ));
+        }
+        Ok((
+            collection.grant_projected_room_permission(base_auth, &scope),
+            authorization,
+        ))
     }
 
     fn manifests(&self) -> Arc<ReadManifests> {

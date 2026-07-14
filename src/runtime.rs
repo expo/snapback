@@ -12,8 +12,8 @@ use crate::manifest::{
     QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, effective_query_limit,
 };
 use crate::storage::{
-    BufferedWrite, CapturedReadDependency, CapturedReadKind, ClientMutationIdentity, DbRead,
-    LocalDatabase, MutationCommit,
+    BufferedCommitPayload, BufferedWrite, CapturedReadDependency, CapturedReadKind,
+    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -166,14 +166,17 @@ impl RuntimeManager {
             pool,
             None,
         )?;
-        let _effect = prepared.effect_guard("ibex mutation transaction")?;
-        db.commit_buffered_writes_idempotent(
+        db.commit_buffered_writes_idempotent_guarded(
             &input,
-            executed.writes,
-            executed.reads,
-            executed.result,
-            executed.ctx_ledger,
+            BufferedCommitPayload {
+                writes: executed.writes,
+                read_dependencies: executed.reads,
+                result: executed.result,
+                ctx_ledger: executed.ctx_ledger,
+            },
             identity,
+            || Ok(()),
+            || prepared.effect_guard("ibex mutation transaction"),
         )
     }
 

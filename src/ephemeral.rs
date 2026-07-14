@@ -1804,6 +1804,28 @@ impl RoomAuthorityPermit {
     fn generation(&self) -> u64 {
         self.generation
     }
+
+    /// Reuse the exact transport permit that admitted the durable lookup.
+    /// Pending tickets installed after this permit are allowed: prepare is
+    /// waiting for this permit to finish, so the act still linearizes before
+    /// commit. Retired or mismatched room identities fail closed.
+    fn admitted_generation(
+        &self,
+        registry: &Arc<RoomAuthorityRegistry>,
+        room: &RoomId,
+    ) -> Result<u64, EphemeralError> {
+        if !Arc::ptr_eq(&self.registry, registry) || &self.room != room {
+            return Err(authority_pending_error());
+        }
+        let state = lock(&registry.state);
+        let Some(control) = state.rooms.get(room) else {
+            return Err(authority_pending_error());
+        };
+        if control.retired || control.generation != self.generation {
+            return Err(authority_pending_error());
+        }
+        Ok(self.generation)
+    }
 }
 
 impl Drop for RoomAuthorityPermit {
@@ -2383,6 +2405,26 @@ impl LocalEphemeralBackend {
             room: room_id.clone(),
             generation,
         }))
+    }
+
+    fn room_authority_for_act(
+        &self,
+        collection: &EphemeralCollection,
+        room_id: &RoomId,
+        admitted: Option<&RoomAuthorityPermit>,
+    ) -> Result<(u64, Option<RoomAuthorityPermit>), EphemeralError> {
+        if !collection_requires_room_permission(collection) {
+            return Ok((0, None));
+        }
+        if let Some(admitted) = admitted {
+            let generation = admitted.admitted_generation(&self.shared.room_authority, room_id)?;
+            return Ok((generation, None));
+        }
+        let permit = self
+            .begin_room_authority_act(collection, room_id)?
+            .expect("protected room publishes an authority permit");
+        let generation = permit.generation();
+        Ok((generation, Some(permit)))
     }
 
     /// Acquire the outer transport permit used while a server-derived durable
@@ -3011,6 +3053,15 @@ impl LocalEphemeralBackend {
         request: PublishRequest,
         now_ms: Millis,
     ) -> Result<PublishOutcome, EphemeralError> {
+        self.publish_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn publish_with_room_authority(
+        &self,
+        request: PublishRequest,
+        now_ms: Millis,
+        admitted: Option<&RoomAuthorityPermit>,
+    ) -> Result<PublishOutcome, EphemeralError> {
         let _generation = self
             .shared
             .lifecycle
@@ -3031,11 +3082,8 @@ impl LocalEphemeralBackend {
         self.validate_ttl(&collection, ttl_ms)?;
         self.validate_value_size(&collection, request.value.len())?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
-        let room_authority = self.begin_room_authority_act(&collection, &room_id)?;
-        let room_authority_generation = room_authority
-            .as_ref()
-            .map(RoomAuthorityPermit::generation)
-            .unwrap_or(0);
+        let (room_authority_generation, _room_authority) =
+            self.room_authority_for_act(&collection, &room_id, admitted)?;
         let key = entry_key_for_publish(&collection, &request)?;
         let owner = entry_owner_for(&collection, &request)?;
         self.ensure_publish_rate(&collection, &request.connection_id, now_ms)?;
@@ -3222,6 +3270,15 @@ impl LocalEphemeralBackend {
         request: DeleteRequest,
         now_ms: Millis,
     ) -> Result<Option<EphemeralMessage>, EphemeralError> {
+        self.delete_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn delete_with_room_authority(
+        &self,
+        request: DeleteRequest,
+        now_ms: Millis,
+        admitted: Option<&RoomAuthorityPermit>,
+    ) -> Result<Option<EphemeralMessage>, EphemeralError> {
         let _generation = self
             .shared
             .lifecycle
@@ -3239,11 +3296,8 @@ impl LocalEphemeralBackend {
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
-        let room_authority = self.begin_room_authority_act(&collection, &room_id)?;
-        let room_authority_generation = room_authority
-            .as_ref()
-            .map(RoomAuthorityPermit::generation)
-            .unwrap_or(0);
+        let (room_authority_generation, _room_authority) =
+            self.room_authority_for_act(&collection, &room_id, admitted)?;
         let key = entry_key_for_delete(&collection, &request)?;
         let owner = entry_owner_for_delete(&collection, &request)?;
 
@@ -3299,6 +3353,14 @@ impl LocalEphemeralBackend {
     /// an unknown collection, invalid room, or unknown registration is a quiet
     /// no-op (teardown races schema replacement, disconnect, and reap).
     pub fn unsubscribe(&self, request: SubscribeRequest) -> Result<bool, EphemeralError> {
+        self.unsubscribe_with_room_authority(request, None)
+    }
+
+    pub(crate) fn unsubscribe_with_room_authority(
+        &self,
+        request: SubscribeRequest,
+        admitted: Option<&RoomAuthorityPermit>,
+    ) -> Result<bool, EphemeralError> {
         let _generation = self
             .shared
             .lifecycle
@@ -3319,7 +3381,8 @@ impl LocalEphemeralBackend {
         let Ok(room_id) = room_id_for(&collection, &request.scope) else {
             return Ok(false);
         };
-        let _room_authority = self.begin_room_authority_act(&collection, &room_id)?;
+        let (_room_authority_generation, _room_authority) =
+            self.room_authority_for_act(&collection, &room_id, admitted)?;
         let room_arc = {
             let rooms = lock(&self.shared.rooms);
             rooms.get(&room_id).cloned()
@@ -3357,6 +3420,15 @@ impl LocalEphemeralBackend {
         request: SubscribeRequest,
         now_ms: Millis,
     ) -> Result<EphemeralMessage, EphemeralError> {
+        self.subscribe_with_room_authority(request, now_ms, None)
+    }
+
+    pub(crate) fn subscribe_with_room_authority(
+        &self,
+        request: SubscribeRequest,
+        now_ms: Millis,
+        admitted: Option<&RoomAuthorityPermit>,
+    ) -> Result<EphemeralMessage, EphemeralError> {
         let _generation = self
             .shared
             .lifecycle
@@ -3374,11 +3446,8 @@ impl LocalEphemeralBackend {
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.subscribe, &request.scope, &request.auth)?;
-        let room_authority = self.begin_room_authority_act(&collection, &room_id)?;
-        let room_authority_generation = room_authority
-            .as_ref()
-            .map(RoomAuthorityPermit::generation)
-            .unwrap_or(0);
+        let (room_authority_generation, _room_authority) =
+            self.room_authority_for_act(&collection, &room_id, admitted)?;
 
         // Index-before-registration, same as publish: a disconnect racing
         // this subscribe must find the room in the connection's index so the
@@ -5756,6 +5825,64 @@ mod tests {
             .recv_timeout(Duration::from_secs(1))
             .expect("dropping the transport frame releases commit preparation");
         assert!(backend.rollback_room_authorization_event(&ticket));
+        prepare.join().unwrap();
+    }
+
+    #[test]
+    fn prelookup_transport_permit_admits_act_after_prepare_becomes_pending() {
+        use std::sync::mpsc;
+        use std::time::{Duration, Instant};
+
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let room_scope = scope();
+        let admitted = backend
+            .begin_server_authorized_room_act("boardCursors", &room_scope)
+            .unwrap()
+            .expect("protected room returns a prelookup permit");
+
+        let (prepared_tx, prepared_rx) = mpsc::channel();
+        let commit_backend = backend.clone();
+        let prepare = std::thread::spawn(move || {
+            let prepared = AuthorizationCommitInterlock::prepare(
+                &commit_backend,
+                &AuthorizationCommitWitness {
+                    version: authorization(1),
+                    event: true,
+                    incarnation_rotated: false,
+                },
+                AuthorizationCommitImpact::AllProtectedRooms,
+            )
+            .unwrap();
+            prepared_tx.send(prepared).unwrap();
+        });
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            match backend.begin_server_authorized_room_act("boardCursors", &room_scope) {
+                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                Ok(permit) => drop(permit),
+                Err(error) => panic!("unexpected room admission result: {error:?}"),
+            }
+            assert!(Instant::now() < deadline, "prepare did not become pending");
+            std::thread::yield_now();
+        }
+
+        backend
+            .publish_with_room_authority(
+                publish_request("owner", b"admitted-before-prepare"),
+                2,
+                Some(&admitted),
+            )
+            .expect("the prelookup permit keeps its room act before commit");
+        assert!(
+            prepared_rx.recv_timeout(Duration::from_millis(20)).is_err(),
+            "prepare must still wait through final transport publication"
+        );
+        drop(admitted);
+        let prepared = prepared_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("dropping the admitted permit releases prepare");
+        drop(prepared);
         prepare.join().unwrap();
     }
 

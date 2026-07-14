@@ -296,14 +296,47 @@ fn commit_with_authorization_interlock(
     min_commit_version: u64,
     interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
 ) -> SnapbackResult<()> {
-    let prepared = if witness.event {
-        interlock
-            .as_ref()
-            .map(|interlock| interlock.prepare(witness, impact))
-            .transpose()?
-    } else {
-        None
-    };
+    let prepared = prepare_authorization_commit_interlock(witness, impact, interlock.as_ref())?;
+    commit_with_prepared_authorization_interlock(
+        tx,
+        witness,
+        predecessor,
+        min_commit_version,
+        prepared,
+    )
+}
+
+/// Install and drain the targeted room dependency before a caller acquires
+/// any process-global commit fence. An affected room may delay this step, so
+/// holding the admission-controller mutex here would make unrelated room
+/// routes queue behind the affected commit and violate L9.
+///
+/// @ref LLP 0053#ephemeral-room-authority-invalidation — targeted dependency
+///   preparation must not suspend unrelated protected rooms.
+fn prepare_authorization_commit_interlock(
+    witness: &AuthorizationCommitWitness,
+    impact: AuthorizationCommitImpact<'_>,
+    interlock: Option<&Arc<dyn AuthorizationCommitInterlock>>,
+) -> SnapbackResult<Option<Box<dyn PreparedAuthorizationCommit>>> {
+    if !witness.event {
+        return Ok(None);
+    }
+    interlock
+        .map(|interlock| interlock.prepare(witness, impact))
+        .transpose()
+}
+
+/// Commit after any targeted room dependency has already quiesced. Callers
+/// that need a global lifecycle fence acquire it immediately before entering
+/// this helper, so the fence covers the SQLite cut without covering the room
+/// wait.
+fn commit_with_prepared_authorization_interlock(
+    tx: Transaction<'_>,
+    witness: &AuthorizationCommitWitness,
+    predecessor: Option<AuthorizationVersion>,
+    min_commit_version: u64,
+    prepared: Option<Box<dyn PreparedAuthorizationCommit>>,
+) -> SnapbackResult<()> {
     let Some(prepared) = prepared else {
         return tx.commit().map_err(Into::into);
     };
@@ -1431,41 +1464,15 @@ impl LocalDatabase {
         scope_fields: &[(String, String)],
         min_commit_version: u64,
     ) -> SnapbackResult<bool> {
-        let observed = self.current_version()?;
-        if observed < min_commit_version {
-            return Err(SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
-                "ephemeral",
-                "durable permission snapshot has not reached the room authorization cause",
-            )
-            .with_detail("observedVersion", observed)
-            .with_detail("minCommitVersion", min_commit_version));
-        }
-        let table = schema_table(&self.schema, table_name)?;
-        ensure_field(table, subject_field)?;
-        for (field, _) in scope_fields {
-            ensure_field(table, field)?;
-        }
-        let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
-        for (index, (field, _)) in scope_fields.iter().enumerate() {
-            predicates.push(format!("{} = ?{}", quote_ident(field)?, index + 2));
-        }
-        let sql = format!(
-            "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
-            quote_ident(table_name)?,
-            predicates.join(" AND ")
-        );
-        let values = std::iter::once(SqlValue::Text(user_id.to_owned()))
-            .chain(
-                scope_fields
-                    .iter()
-                    .map(|(_, value)| SqlValue::Text(value.clone())),
-            )
-            .collect::<Vec<_>>();
-        let granted: i64 = self
-            .conn
-            .query_row(&sql, params_from_iter(values.iter()), |row| row.get(0))?;
-        Ok(granted != 0)
+        room_permission_projection_granted_on(
+            &self.conn,
+            &self.schema,
+            table_name,
+            subject_field,
+            user_id,
+            scope_fields,
+            min_commit_version,
+        )
     }
 
     pub(crate) fn query_with_storage_limit(
@@ -1591,6 +1598,28 @@ impl LocalDatabase {
     ) -> SnapbackResult<MutationCommit> {
         Ok(self
             .execute_mutation_plan(plan, input, true, Some(identity))?
+            .commit)
+    }
+
+    pub(crate) fn execute_mutation_idempotent_guarded<G, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        Ok(self
+            .execute_mutation_plan_with_lifecycle(
+                plan,
+                input,
+                true,
+                Some(identity),
+                &|| Ok(()),
+                before_commit,
+            )?
             .commit)
     }
 
@@ -2037,16 +2066,7 @@ impl LocalDatabase {
         };
         if apply {
             check_live()?;
-            // The returned guard deliberately lives through tx.commit(). The
-            // caller chooses the linearization primitive; no plan step, row
-            // scan, expression evaluation, or live fan-out runs while held.
-            let _commit_guard = before_commit()?;
-            check_live()?;
-            if let Some(identity) = identity {
-                record_client_mutation_result(&tx, identity, &output)?;
-            }
-            commit_with_authorization_interlock(
-                tx,
+            let prepared_authorization_commit = prepare_authorization_commit_interlock(
                 authorization
                     .as_ref()
                     .expect("an applied mutation has an authorization witness"),
@@ -2054,9 +2074,25 @@ impl LocalDatabase {
                     schema: &schema,
                     changes: &changes,
                 },
+                authorization_interlock.as_ref(),
+            )?;
+            // Targeted room quiescence happens before this process-global
+            // fence. The returned guard still lives through tx.commit(), but
+            // an affected room cannot make unrelated route admission wait on
+            // the admission-controller mutex.
+            let _commit_guard = before_commit()?;
+            check_live()?;
+            if let Some(identity) = identity {
+                record_client_mutation_result(&tx, identity, &output)?;
+            }
+            commit_with_prepared_authorization_interlock(
+                tx,
+                authorization
+                    .as_ref()
+                    .expect("an applied mutation has an authorization witness"),
                 authorization_predecessor,
                 version,
-                authorization_interlock,
+                prepared_authorization_commit,
             )?;
         } else {
             // Execute-and-discard (LLP 0051 D8): everything above — writes,
@@ -2094,28 +2130,6 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
-            },
-        )
-    }
-
-    pub(crate) fn commit_buffered_writes_idempotent(
-        &mut self,
-        input: &HandlerInput,
-        writes: Vec<BufferedWrite>,
-        read_dependencies: Vec<CapturedReadDependency>,
-        result: Value,
-        ctx_ledger: CtxAnswerLedger,
-        identity: Option<&ClientMutationIdentity>,
-    ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes(
-            input,
-            writes,
-            read_dependencies,
-            result,
-            BufferedCommitOptions {
-                ctx_ledger: Some(ctx_ledger),
-                apply: true,
-                identity,
             },
         )
     }
@@ -2355,15 +2369,7 @@ impl LocalDatabase {
         };
         if options.apply {
             check_live()?;
-            // No handler/plan work runs under this guard; it linearizes only
-            // identity recording plus the final SQLite COMMIT.
-            let _commit_guard = before_commit()?;
-            check_live()?;
-            if let Some(identity) = options.identity {
-                record_client_mutation_result(&tx, identity, &output)?;
-            }
-            commit_with_authorization_interlock(
-                tx,
+            let prepared_authorization_commit = prepare_authorization_commit_interlock(
                 authorization
                     .as_ref()
                     .expect("an applied mutation has an authorization witness"),
@@ -2371,9 +2377,23 @@ impl LocalDatabase {
                     schema: &schema,
                     changes: &changes,
                 },
+                authorization_interlock.as_ref(),
+            )?;
+            // No handler/plan or targeted room wait runs under this guard; it
+            // linearizes only identity recording plus the final SQLite COMMIT.
+            let _commit_guard = before_commit()?;
+            check_live()?;
+            if let Some(identity) = options.identity {
+                record_client_mutation_result(&tx, identity, &output)?;
+            }
+            commit_with_prepared_authorization_interlock(
+                tx,
+                authorization
+                    .as_ref()
+                    .expect("an applied mutation has an authorization witness"),
                 authorization_predecessor,
                 version,
-                authorization_interlock,
+                prepared_authorization_commit,
             )?;
         } else {
             // Execute-and-discard (LLP 0051 D8): validated and applied above,
@@ -2608,6 +2628,68 @@ fn load_schema_manifest_from_connection(
             })
         })
         .transpose()
+}
+
+/// Resolve one schema-checked room membership projection on any SQLite
+/// connection. A read-lane caller supplies a pinned WAL transaction so the
+/// permission row, data head, and authorization witness share one snapshot.
+///
+/// @ref LLP 0053#ephemeral-room-authority-invalidation — durable room
+/// permission lookup must remain on the admitted side of the commit barrier.
+pub(crate) fn room_permission_projection_granted_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    table_name: &str,
+    subject_field: &str,
+    user_id: &str,
+    scope_fields: &[(String, String)],
+    min_commit_version: u64,
+) -> SnapbackResult<bool> {
+    let observed = current_version_on(conn)?;
+    if observed < min_commit_version {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
+            "ephemeral",
+            "durable permission snapshot has not reached the room authorization cause",
+        )
+        .with_detail("observedVersion", observed)
+        .with_detail("minCommitVersion", min_commit_version));
+    }
+    let table = schema_table(schema, table_name)?;
+    ensure_field(table, subject_field)?;
+    for (field, _) in scope_fields {
+        ensure_field(table, field)?;
+    }
+    let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
+    for (index, (field, _)) in scope_fields.iter().enumerate() {
+        predicates.push(format!("{} = ?{}", quote_ident(field)?, index + 2));
+    }
+    let sql = format!(
+        "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
+        quote_ident(table_name)?,
+        predicates.join(" AND ")
+    );
+    let values = std::iter::once(SqlValue::Text(user_id.to_owned()))
+        .chain(
+            scope_fields
+                .iter()
+                .map(|(_, value)| SqlValue::Text(value.clone())),
+        )
+        .collect::<Vec<_>>();
+    let granted: i64 = conn.query_row(&sql, params_from_iter(values.iter()), |row| row.get(0))?;
+    Ok(granted != 0)
+}
+
+/// Read the complete durable authorization witness from the caller's pinned
+/// transaction. Missing state is never interpreted as continuity.
+pub(crate) fn authorization_version_on(conn: &Connection) -> SnapbackResult<AuthorizationVersion> {
+    auth_stream::read_authorization_version_on(conn)?.ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT",
+            "auth",
+            "authorization-version metadata is missing",
+        )
+    })
 }
 
 /// Read a query plan against any connection: shared by the write lane (the
@@ -6269,13 +6351,17 @@ mod guarded_commit_tests {
         let mut ledger = ledger();
         ledger.now = 123_456_789;
         let commit = db
-            .commit_buffered_writes_idempotent(
+            .commit_buffered_writes_idempotent_guarded(
                 &input,
-                buffered_writes(),
-                Vec::new(),
-                json!({ "now": ledger.now }),
-                ledger.clone(),
+                BufferedCommitPayload {
+                    writes: buffered_writes(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "now": ledger.now }),
+                    ctx_ledger: ledger.clone(),
+                },
                 None,
+                || Ok(()),
+                || Ok(()),
             )
             .expect("buffered commit");
 
