@@ -8,8 +8,8 @@ import {
   arg,
   asc,
   authUserId,
+  defineLiveQuery,
   defineMutation,
-  defineQuery,
   eq,
   insert,
   returnBinding,
@@ -34,8 +34,9 @@ export const acceptHandCard = defineMutation({
   }),
 });
 
-export const myHand = defineQuery({
+export const myHand = defineLiveQuery({
   auth: 'authenticated',
+  retainable: true,
   table: 'hands',
   args: { gameId: v.string() },
   filter: [

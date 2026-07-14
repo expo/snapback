@@ -2,6 +2,6 @@
 import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./myHand.query.ts', {
-  myHand: query({ reads: ["hands"], readMode: 'async', cacheKey: 'hands', result: 'MyHandRow[]', mode: "snapshot", livePush: false, initialSnapshot: false, ephemeral: false }),
+  myHand: query({ reads: ["hands"], readMode: 'sync', cacheKey: 'hands', result: 'MyHandRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
   MyHandRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","gameId":"string","ownerId":"string","position":"number","card":"string"} }),
 });

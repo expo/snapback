@@ -14,7 +14,7 @@ export const api = Object.freeze({
     "appId": "card-game",
     "artifactKind": "functionReference",
     "id": "card-game:myHand",
-    "kind": "Query",
+    "kind": "LiveQuery",
     "name": "myHand",
     "schemaVersion": "snapback.v0"
   },

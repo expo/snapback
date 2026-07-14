@@ -18,6 +18,9 @@ host it anywhere, including for other people.**
 > invocation, live-query updates, and the in-memory ephemeral realtime state
 > backend from
 > [`llp/0013-ephemeral-realtime-state.rfc.md`](./llp/0013-ephemeral-realtime-state.rfc.md).
+> The local target also has built-in email-code sessions,
+> authorization-scoped live delivery, coordinator-backed credential
+> transitions, and lease-gated retained reads.
 > Start with the project explainer,
 > [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md).
 
@@ -157,11 +160,17 @@ Implemented now:
   validation.
 - Live-query subscription snapshots and online replace updates through the
   durable realtime lane.
+- Local sessions-mode auth with server-derived principals, connection-bound
+  live grants, auth-invalidation barriers, and signed authorized retained-query
+  leases.
 - HTTP endpoints for health, inspect, schema/function load, reset, seed, query,
   mutation, live subscribe, outbox drain, and ephemeral publish/subscribe.
 - The existing typed in-memory ephemeral store: process-local rooms, TTL expiry,
   connection-owned cleanup, `scopeEpoch`/`entryVersion`, rate and payload limits,
   and an in-memory client overlay.
+
+These auth guarantees are local-target guarantees. Hosted auth remains disabled
+pending ENG-24607's deployment-security and client-page XSS contracts.
 
 The local runtime reports Ibex as the canonical engine and detects an installed
 `ibex` binary. Ibex is vendored as a git submodule at [`vendor/ibex`](./vendor/ibex);
@@ -230,12 +239,17 @@ and [`diaries/0001-todo-demo.diary.md`](./diaries/0001-todo-demo.diary.md) for t
 build record. [`demos/todo-v2/`](./demos/todo-v2) is a comparison demo that adds
 priority and specifically exercises the LLP 0021 Contract/Exact hardening slice;
 see [`diaries/0004-todo-v2.diary.md`](./diaries/0004-todo-v2.diary.md).
+[`demos/card-game/`](./demos/card-game) proves two real sessions over one
+hidden-hand query: disjoint finite and live results, logout blanking, and honest
+offline retention only until the exact authorized-lease deadline. See
+[`diaries/0013-card-game.diary.md`](./diaries/0013-card-game.diary.md).
 
 ```sh
 bun install --frozen-lockfile                         # root JS toolchain (packageManager pin)
 node packages/snapback-codegen/index.mjs demos/todo/snapback   # generate manifests from source
 node demos/todo/tests/acceptance/headless.mjs     # required surface (node)
 bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (installed packages or local override)
+node demos/card-game/tests/acceptance/authority-scope.mjs # sessions/live/offline auth proof
 ```
 
 The canonical CI proof requires the full Contract/Exact and admin checks. For a

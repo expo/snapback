@@ -1,12 +1,12 @@
 // Finite hidden-card slice for the session-auth program.
 //
-// Hands are ordinary authenticated reads, deliberately not live queries: item
-// 7 proves server-derived principal isolation and the client-store axes, while
-// revocation-safe live delivery and authorized retained reads belong to items
-// 6 and 8 respectively.
+// Hands are syncable because `myHand` is a userId-only retainable live query.
+// Its rows may cross an offline boundary only beside item 8's exact authorized
+// lease; ordinary session possession never makes hidden rows retainable.
 //
-// @ref LLP 0016#authorized-sync-is-required-by-the-card-game-slice-but-not-yet-sequenced — this
-//   finite query proof must not be inflated into an auth-scoped live claim.
+// @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client — hidden
+//   hand retention is authorized by a bounded server lease, not reconnect or
+//   ambient session state.
 
 import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
 
@@ -16,7 +16,7 @@ export default defineSchema({
     ownerId: v.string(),
     position: v.integer(),
     card: v.string(),
-  }).index('by_owner_game', ['ownerId', 'gameId']),
+  }).index('by_owner_game', ['ownerId', 'gameId']).sync(),
   readySignals: defineTable({
     gameId: v.string(),
     userId: v.string(),

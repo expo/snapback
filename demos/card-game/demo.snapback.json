@@ -1,14 +1,20 @@
 {
   "id": "card-game",
-  "title": "Hidden-card auth slice",
-  "description": "A real sessions-mode hidden-hand query proving server-derived principal isolation before the live retained-query layer is enabled.",
+  "title": "Hidden-card sessions, live, and offline auth",
+  "description": "A real sessions-mode hidden-hand query proving server-derived principal isolation across finite and live reads, logout blanking, and lease-bounded offline retention.",
   "artifactSchemaVersion": "snapback.v1",
   "targetProfile": "local-dev-sqlite-ibex",
-  "systems": ["Auth", "API", "Storage", "Sync", "Contract/Exact"],
+  "systems": ["Auth", "API", "Storage", "Sync", "Realtime", "Client integration", "Contract/Exact"],
   "requiredCapabilities": {
     "storageEngine": "sqlite",
     "runtimeEngine": "host-plan",
-    "mutationReadSetValidation": true
+    "mutationReadSetValidation": true,
+    "authMode": "sessions",
+    "liveSubscriptions": true,
+    "syncableLiveQuery": true,
+    "authInvalidationProtocol": 1,
+    "authorizedLeaseProtocol": 1,
+    "offlineRetention": true
   },
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs",
@@ -32,7 +38,7 @@
     "users": ["user_ada", "user_grace"]
   },
   "surfaces": {
-    "finiteAuthProof": {
+    "sessionAuthProof": {
       "requirement": "required",
       "buildTargets": [],
       "runner": "node demos/card-game/tests/acceptance/authority-scope.mjs",
@@ -40,21 +46,25 @@
     }
   },
   "acceptanceChecks": {
-    "finiteAuthProof": [
+    "sessionAuthProof": [
       "two independently minted email-code sessions receive disjoint results from the same myHand query",
-      "myHand filters ownerId by server-projected AuthUserId",
-      "a valid session cannot override its principal through legacy body auth"
+      "myHand and acceptHandCard derive ownership from server-projected AuthUserId with no client owner argument",
+      "a valid session cannot override its principal through legacy body auth",
+      "two Contract surfaces establish live WebSockets and an authenticated hand mutation reaches only its owning surface",
+      "logout crosses the AuthCoordinator barrier and blanks the logged-out hand while the other session remains visible",
+      "a signed AuthorizedLease permits the surviving hand to render from retained storage while offline before its derived client deadline",
+      "at exact client-deadline equality the retained hand and lease are deleted before any offline render"
     ]
   },
   "capabilityGaps": [
-    "auth-scoped live invalidation (item 6)",
-    "authorized retained-query leases (item 8)",
-    "hosted deployment and client-page security contracts (item 9)",
+    "hosted deployment security contract: TLS termination, trusted-proxy source identity, and distributed throttling/invalidation (ENG-24607)",
+    "client-page XSS and bearer-custody contract required before hosted auth (ENG-24607)",
     "complete game rules and UI"
   ],
   "notClaiming": [
-    "revocation-safe live hidden-state delivery",
-    "offline availability of hidden hands",
+    "protection from a hostile client that already possesses retained bytes or client-side encryption at rest",
+    "the full permission-changing ACL and protected-room kick trace from LLP 0053",
+    "hosted or multi-replica auth readiness",
     "a complete card game"
   ]
 }

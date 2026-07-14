@@ -1,7 +1,7 @@
 {
   "appId": "card-game",
   "artifactKind": "functionManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:37896c82c1949f97e3eb817e3b0724eabd911b6666542ee29b6129ba36d72726",
+  "bundleHash": "snapback.v1:sessions:function:sha256:4ad01ddf675a4975d49508b9603742ae4448a8216ce9bf07b824600356a83238",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -68,7 +68,7 @@
       "bundleEntrypoint": "myHand",
       "exportedName": "myHand",
       "id": "card-game:myHand",
-      "kind": "Query",
+      "kind": "LiveQuery",
       "name": "myHand",
       "readSetSummary": {
         "authScopeField": null,
@@ -79,8 +79,10 @@
         ]
       },
       "requiredCapabilities": [
+        "live_subscriptions",
         "host_plan_runtime"
       ],
+      "retainable": true,
       "runtime": {
         "HostPlan": {
           "Query": {
@@ -111,7 +113,7 @@
         }
       },
       "sourceSpan": null,
-      "syncabilityClass": "online-only",
+      "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
         "mode": "none",
@@ -175,7 +177,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:5cfb9ac7c969f6f4084de296445fff281827805fd553ac6f212c43e6c20aa46f",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:65a8940ad1c9dda8969df536b54597cd16e9302380b6e9063a611c20643eb8cf",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

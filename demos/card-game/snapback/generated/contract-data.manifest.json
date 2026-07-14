@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:37896c82c1949f97e3eb817e3b0724eabd911b6666542ee29b6129ba36d72726",
+  "bundleHash": "snapback.v1:sessions:function:sha256:4ad01ddf675a4975d49508b9603742ae4448a8216ce9bf07b824600356a83238",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:5cfb9ac7c969f6f4084de296445fff281827805fd553ac6f212c43e6c20aa46f",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:65a8940ad1c9dda8969df536b54597cd16e9302380b6e9063a611c20643eb8cf",
   "manifestVersion": 2,
   "mutations": {
     "acceptHandCard": {
@@ -131,13 +131,14 @@
           "shape": "primitive"
         }
       },
-      "defaultLive": false,
+      "defaultLive": true,
       "ephemeral": false,
-      "initialSnapshot": false,
-      "livePush": false,
+      "initialSnapshot": true,
+      "livePush": true,
       "localRunnable": false,
-      "mode": "snapshot",
+      "mode": "live",
       "name": "myHand",
+      "pollCadenceMs": 1500,
       "reads": [
         "hands"
       ],
@@ -181,11 +182,13 @@
           "shape": "object"
         }
       },
+      "retainable": true,
       "serverRunnable": true,
-      "subscription": "none"
+      "subscription": "initial-snapshot",
+      "transport": "push"
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:c47548f3bcdfbe0af9c0c80d44f0b7c3ee953cfe5a67b8969a3e5d13db898595",
-  "schemaVersion": "snapback.v0"
+  "schemaHash": "snapback.v1:sessions:schema:sha256:bf38a993fc2d2bdc7c259a57a25afae2a406970c95ab60d662d73b94054e971e",
+  "schemaVersion": "snapback.v1"
 }

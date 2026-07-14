@@ -90,3 +90,101 @@ without changing the meaning of this proof.
 - A browser card table, auth-scoped live hand updates, revocation races, and
   offline hidden-hand presentation are intentionally deferred; the last two
   are owned by items 6 and 8.
+
+## 2026-07-13 — ENG-24606, live and lease-authorized hidden hands
+
+The same `myHand(gameId)` declaration now drives finite reads, an actual live
+WebSocket surface, retained storage, and offline presentation. The acceptance
+run mints two email-code sessions, deals rows through `acceptHandCard`, and
+proves that Ada and Grace see disjoint hands. Ada's third card reaches only her
+live Contract boundary. Logout then crosses the `AuthCoordinator` barrier and
+blanks Ada before the transition returns, while Grace remains visible. After
+the server stops, the test discards Grace's in-memory client and coordinator,
+then reconstructs new custody and client-store adapters over only their durable
+bytes. Her signed lease permits the cold process to render the retained hand
+before its derived client deadline; at exact equality the store deletes both
+lease and rows before any fallback can expose them.
+
+### What felt good
+
+The application declaration stayed small. `authUserId()` states ownership once
+for the query and mutation, `.sync()` makes the backing table eligible for
+retention, and `retainable: true` makes the offline intent explicit. Snapback
+and Contract carried the harder parts: session identity, connection binding,
+authorization invalidation, exact ACKs, lease issuance, durable storage, and
+the equality-expiry rule. The final demo has no client-supplied owner id and no
+test-only authorization shortcut.
+
+The lease boundary is also refreshingly honest. It authorizes an honest client
+to reuse one exact snapshot for a bounded interval; it does not pretend to
+revoke bytes already controlled by a hostile client. Keeping that distinction
+in the demo's `notClaiming` list made the acceptance proof easier to trust.
+
+### What felt bad or surprising
+
+Composition exposed several protocol seams that isolated tests had missed:
+
+- Browsers cannot attach custom headers to a WebSocket upgrade, so the four
+  exact auth protocol offers needed WebSocket subprotocol carriers.
+- Codegen pinned the Contract manifest to `snapback.v0` even when the selected
+  sessions artifact train was `snapback.v1`, and retainability validation
+  accepted `Query` but accidentally rejected the correct `LiveQuery` kind.
+- Rust enum-field serde defaults left `ScopeId` fields in snake_case while the
+  JavaScript protocol required camelCase.
+- Coalesced authenticated use can advance the in-memory session projection
+  beyond a captured deadline. Lease issuance therefore has to clamp against
+  durable session truth, not that older projection.
+- A live-mutation drain held an admission effect guard while revalidation
+  recursively validated the same managed lease. Narrowing the guard to the
+  obligation/ticket publication cut fixed the deadlock without weakening the
+  retirement fence.
+- An outbox snapshot and its level-triggered projection can arrive in one
+  turn. The client now coalesces the same exact resolution ticket into one
+  custody/ACK task instead of racing itself into a false stale-resolution
+  quarantine.
+- Standalone invalidation ACKs also need the authority-descriptor protocol
+  offer, and a failed forced handshake must preserve the last successful
+  projection for offline lease validation while every online boundary still
+  forces a fresh probe.
+- Cold-process fallback originally tried to resume the `AuthCoordinator`
+  transport before consulting the retained store, so it required the server
+  that offline boot exists to survive. The coordinator now has a cold-only
+  durable restore that exposes no online transport, and Contract validates the
+  stored principal/query fence and unexpired lease before attempting renewal.
+  The kit also keeps last-successful handshake state separate from an in-flight
+  probe, so concurrent failures or an invalid response cannot cache a rejected
+  promise or revive a stale projection.
+
+Reset issuer rotation and session startup's blocking SQLite work were earlier
+composition failures in the same train. Both reinforced the same lesson: auth
+correctness lives in lifecycle edges, not only in the happy-path verifier.
+
+### Snapback compared with familiar stacks
+
+Convex would bundle auth, reactivity, and caching with less visible protocol
+work, but the distinction between live revocation and offline authorization
+would also be less explicit. Supabase RLS would keep the online hand filter
+near the database, while the offline deadline, query-instance fence, and
+same-user/new-session custody policy would still need a client design.
+Snapback made those boundaries explicit, at the cost of substantial
+composition debugging.
+
+### Exact and Contract observations
+
+Contract materially participates now: the proof uses its real surface,
+two-axis store, auth barrier, invalidation queue, retained snapshot, and
+offline fallback. The most useful behavior is fail-closed blanking while a
+snapshot has no replacement lease; rendering resumes only after exact ACK and
+full revalidation commit a successor lease.
+
+Exact still does not participate. This is a headless Contract boundary proof,
+not a `.contract` UI or compiler proof, and the diary keeps that distinction
+explicit.
+
+### Remaining boundary
+
+This proves the local target and an honest client. ENG-24607 still owns hosted
+TLS and trusted-proxy assumptions, distributed throttling/invalidation, and
+the browser XSS/bearer-custody posture. The full permission-changing ACL and
+protected-room kick trace from LLP 0053, plus complete game rules and UI, are
+also outside this slice.

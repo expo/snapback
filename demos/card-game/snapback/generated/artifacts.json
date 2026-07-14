@@ -17,7 +17,7 @@
     "contract/signalReady.mutation.ts",
     "contract/signalReady.mutation.contract-meta.ts"
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:37896c82c1949f97e3eb817e3b0724eabd911b6666542ee29b6129ba36d72726",
+  "bundleHash": "snapback.v1:sessions:function:sha256:4ad01ddf675a4975d49508b9603742ae4448a8216ce9bf07b824600356a83238",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -29,7 +29,7 @@
     },
     {
       "id": "card-game:myHand",
-      "kind": "Query",
+      "kind": "LiveQuery",
       "name": "myHand"
     },
     {
@@ -39,8 +39,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:5cfb9ac7c969f6f4084de296445fff281827805fd553ac6f212c43e6c20aa46f",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:c47548f3bcdfbe0af9c0c80d44f0b7c3ee953cfe5a67b8969a3e5d13db898595",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:65a8940ad1c9dda8969df536b54597cd16e9302380b6e9063a611c20643eb8cf",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:bf38a993fc2d2bdc7c259a57a25afae2a406970c95ab60d662d73b94054e971e",
   "schemaVersion": "snapback.v0",
   "tables": [
     "hands",
