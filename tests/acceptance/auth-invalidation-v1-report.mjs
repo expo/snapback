@@ -63,7 +63,7 @@ const assertCode = async (code, operation) => {
   await assert.rejects(operation, (error) => error?.code === code);
 };
 
-const runRustReceipt = (testName, marker) => {
+const runRustReceipts = (testName, markers) => {
   const completed = spawnSync(
     'cargo',
     ['test', '--lib', testName, '--', '--exact', '--nocapture'],
@@ -78,13 +78,17 @@ const runRustReceipt = (testName, marker) => {
   if (completed.status !== 0) {
     throw new Error(`Rust acceptance ${testName} failed:\n${output}`);
   }
-  const prefix = `${marker}=`;
-  const line = output.split(/\r?\n/u).find((candidate) => candidate.startsWith(prefix));
-  if (line === undefined) {
-    throw new Error(`Rust acceptance ${testName} emitted no ${marker} record:\n${output}`);
-  }
-  return JSON.parse(line.slice(prefix.length));
+  return Object.fromEntries(markers.map((marker) => {
+    const prefix = `${marker}=`;
+    const line = output.split(/\r?\n/u).find((candidate) => candidate.startsWith(prefix));
+    if (line === undefined) {
+      throw new Error(`Rust acceptance ${testName} emitted no ${marker} record:\n${output}`);
+    }
+    return [marker, JSON.parse(line.slice(prefix.length))];
+  }));
 };
+
+const runRustReceipt = (testName, marker) => runRustReceipts(testName, [marker])[marker];
 
 const record = (version, rows, versionStream = VERSION_STREAM) => ({
   rows,
@@ -1387,10 +1391,23 @@ const main = async () => {
     'storage::guarded_commit_tests::activation_and_ordinary_writes_preserve_the_closed_event_universe',
     'SNAPBACK_AUTH_ACCEPTANCE_DEPLOYMENT_RECEIPT',
   );
-  const roomReceipt = runRustReceipt(
-    'local::auth_room_kick_acceptance::card_game_kick_composes_durable_and_room_authority_boundaries',
-    'SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT',
+  const roomFrameEnqueueReceipt = runRustReceipt(
+    'local::auth_room_kick_acceptance::frame_construction_before_first_enqueue_is_commit_ordered',
+    'SNAPBACK_AUTH_ACCEPTANCE_ROOM_FRAME_ENQUEUE_RECEIPT',
   );
+  const roomReceipts = runRustReceipts(
+    'local::auth_room_kick_acceptance::card_game_kick_composes_durable_and_room_authority_boundaries',
+    [
+      'SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT',
+      'SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT',
+      'SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT',
+    ],
+  );
+  const roomReceipt = roomReceipts.SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT;
+  const roomEnqueueDrainReceipt =
+    roomReceipts.SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT;
+  const roomDrainSendReceipt =
+    roomReceipts.SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT;
   const serverSample = serverReceipt.serverObligation.sample.compositeWitness;
   const serverWitnessFloor = {
     authorizationEpoch: serverSample.authorization.epoch,
@@ -1409,9 +1426,35 @@ const main = async () => {
     overflowReceipt,
     deploymentReceipt,
   });
-  const roomPauseValues = Object.values(roomReceipt.pausePoints);
-  const protectedRoomPassed = roomPauseValues.length === 5
-    && roomPauseValues.every((value) => value === true)
+  const protectedRoomReceipts = {
+    integratedKick: roomReceipt,
+    frameConstructionBeforeEnqueue: roomFrameEnqueueReceipt,
+    enqueueBeforeDestructiveDrain: roomEnqueueDrainReceipt,
+    destructiveDrainBeforeFinalSend: roomDrainSendReceipt,
+  };
+  const protectedRoomPassed =
+    roomReceipt.admissionPausePoints.lookupBeforeRoomMutation
+    && roomReceipt.admissionPausePoints.registrationAndInitialSnapshot
+    && roomFrameEnqueueReceipt.schedule === 'frame-construction-before-first-enqueue'
+    && roomFrameEnqueueReceipt.hookObservedConstructedPredecessor
+    && roomFrameEnqueueReceipt.pendingCommitBlockedBeforeFirstEnqueue
+    && roomFrameEnqueueReceipt.enqueueCompletedWhilePermitHeld
+    && roomFrameEnqueueReceipt.commitBlockedAfterEnqueueWhilePermitHeld
+    && roomFrameEnqueueReceipt.commitCompletedAfterPermitDrop
+    && roomFrameEnqueueReceipt.predecessorFrameRejectedAfterCommit
+    && roomFrameEnqueueReceipt.causingCommitVersion === roomReceipt.causingCommitVersion
+    && roomEnqueueDrainReceipt.schedule === 'enqueue-before-destructive-drain'
+    && roomEnqueueDrainReceipt.predecessorFrameEnqueueCompleted
+    && roomEnqueueDrainReceipt.predecessorFrameEntryVersion > 0
+    && roomEnqueueDrainReceipt.predecessorGeneration === 1
+    && roomEnqueueDrainReceipt.postCommitDrainDiscardedPredecessor
+    && roomEnqueueDrainReceipt.causingCommitVersion === roomReceipt.causingCommitVersion
+    && roomDrainSendReceipt.schedule === 'destructive-drain-before-final-send'
+    && roomDrainSendReceipt.commitBlockedByProtectedRoomSendPermit
+    && roomDrainSendReceipt.commitBlockedByDurableBoardSendPermit
+    && roomDrainSendReceipt.predecessorProtectedRoomFrameRejectedAfterCommit
+    && roomDrainSendReceipt.predecessorDurableBoardFrameRejectedAfterCommit
+    && roomDrainSendReceipt.causingCommitVersion === roomReceipt.causingCommitVersion
     && roomReceipt.unrelatedRoomProgressWhileAffectedPending.registration
     && roomReceipt.unrelatedRoomProgressWhileAffectedPending.publishAndDrain
     && roomReceipt.postCommit.kickedDurableBoardRows === 0
@@ -1449,7 +1492,7 @@ const main = async () => {
     supplementalAssertions: {
       protectedRoomPausePoints: {
         passed: protectedRoomPassed,
-        receipt: roomReceipt,
+        observations: protectedRoomReceipts,
       },
       deterministicSinglePathCompatibility: {
         passed: live.deployment.passed
@@ -1462,7 +1505,7 @@ const main = async () => {
       server: serverReceipt,
       deployment: deploymentReceipt,
       overflow: overflowReceipt,
-      protectedRoom: roomReceipt,
+      protectedRoom: protectedRoomReceipts,
     },
   };
 

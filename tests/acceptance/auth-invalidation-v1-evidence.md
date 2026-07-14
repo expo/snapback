@@ -18,7 +18,7 @@ exact acknowledgements; it is not a standalone authorization model.
 | Membership-churn blast radius | [`auth-invalidation-v1-receipt.json`](./auth-invalidation-v1-receipt.json) records every delivered production transition from three real `gameMembers` events across three unrelated auth-scoped queries. Each of the nine records carries the production scope/revision/composite witness, disposition and executed-mutation reason, snapshot commit and row count, exact ACK outcome, proof path, and fresh-full-query/full-authorization result. The composed runner replays each event's actual epoch/revision in an isolated production Contract store (so earlier epochs are not relabeled as the final epoch), completing quarantine, hidden read, fresh resolution snapshot, ACK observation, lease revalidation, authorized snapshot commit, queue discharge, and recovery for every query. [`auth-invalidation-v1-composed-receipt.json`](./auth-invalidation-v1-composed-receipt.json) reports nine complete lifecycles, 5,925 retained-payload bytes before and during quarantine, zero bytes deleted, zero delete tombstones, nine quarantine fences, and three queue suspension/release cycles. |
 | Client-store quarantine and queue behavior | `tests/acceptance/auth-invalidation-v1-report.mjs` imports the production `client-store.mjs` and measures the transitions directly. The standalone visibility fixture records the hidden boundary at store transition 1 and restoration at transition 4, after snapshot resolution, lease-request reservation, and fresh authorized snapshot commit. It records 658 payload bytes preserved during quarantine; 651 and 652 bytes deleted by lease expiry and clock rollback; and two durable delete tombstones. The membership workload separately records two queued mutations preserved through each event, suspension until the last of three exact query roots resolves, and release after all three resolutions. Its traffic ledger includes the executed server's 21 generated/15 delivered/6 discarded invalidation frames, 12 generated/9 delivered/3 discarded snapshots, three response-loss reprojections, nine server ACKs, and nine applications of each client query/queue lifecycle phase. These are composed runtime measurements, not copied assertions from another test file. |
 | Protected-query admission | `protected_query_profile_v1::{protected_hostplan_walk_is_recursive_and_typed, protected_ibex_uses_a_fresh_module_graph_every_time, protected_runtime_gate_catches_dynamic_clock_and_id_aliases}` and `retainability_profile_v1` own the closed-profile and retainability matrix. |
-| Ephemeral room kick | `local::auth_room_kick_acceptance` composes the durable membership commit with room dependency tickets, generation fences, sink refusal, fresh authorization, lost response, and process-loss recovery. Its machine-readable receipt records all five acceptance pause points, affected-room targeting, simultaneous unrelated-room registration/publish/drain, and zero post-kick durable-board/opponent-presence leakage. The composed runner executes and consumes that receipt. |
+| Ephemeral room kick | `local::auth_room_kick_acceptance` composes the durable membership commit with room dependency tickets, generation fences, sink refusal, fresh authorization, lost response, and process-loss recovery. The construction→enqueue race has its own one-shot, per-backend pause test and receipt; the existing real enqueue→drain and drain→send schedules emit two more receipts; and the integrated kick receipt owns lookup/mutation, registration/snapshot, affected-room targeting, unrelated-room progress, and post-kick leakage checks. The composed runner executes all four receipts and checks their schedule-specific observations explicitly instead of aliasing one predicate across pause points. |
 | Lease/offline expiry | The signed-lease binding and head-race corpus remains in `auth::lease::tests` and `storage::authorized_lease::tests`. The composed runner adds the client half mechanically: equality expiry and backward-clock detection each delete the exact retained payload before returning the diagnostic, advance the durable query generation, and leave a `delete` fence. |
 
 ## Receipt interpretation
@@ -67,8 +67,10 @@ The composed receipt embeds the executed Rust receipt as
   payload records. Metadata and JavaScript heap overhead are deliberately not
   called retained payload;
 - the Rust overflow and protected-room tests emit JSON receipts only after their
-  production assertions pass. The runner executes the tests and parses those
-  values; it does not infer success from a filename or source string; and
+  production assertions pass. The runner executes the tests and parses the
+  integrated room receipt plus the distinct construction→enqueue,
+  enqueue→drain, and drain→send receipts; it does not infer success from a
+  filename or source string or reuse one boolean for multiple schedules;
 - the property corpus uses seed `0x53a11ce` to shuffle three complete passes
   over the frozen event universe plus clock rollback: randomized writes,
   deployment activation, expiry, overflow, disconnect, response loss, ACK
@@ -80,8 +82,8 @@ The composed receipt embeds the executed Rust receipt as
   explicitly non-applicable scope/revision source, disposition and reason,
   expected row IDs, production row IDs, and path-specific observations; and
 - protected-room pause-point acceptance remains a supplemental production
-  receipt rather than being mislabeled as a member of the randomized closed
-  event universe.
+  receipt, composed from those distinct schedules, rather than being mislabeled
+  as a member of the randomized closed event universe.
 
 `scripts/verify-local-proof` runs the composed report immediately after
 `cargo test`, before CI may clean the test profile. The report must compare

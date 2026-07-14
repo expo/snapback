@@ -1438,6 +1438,16 @@ impl EphemeralApi {
         self.store.authorization_expectation_for_test()
     }
 
+    #[cfg(test)]
+    pub(crate) fn install_frame_before_first_enqueue_hook_for_test(
+        &self,
+        reached: std::sync::mpsc::SyncSender<EphemeralMessage>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) {
+        self.store
+            .install_frame_before_first_enqueue_hook_for_test(reached, release);
+    }
+
     // Touch-after-success (MEDIUM finding 2): the activity touch happens
     // *after* the store op registers/enqueues, so a registration that
     // survives a racing write-lane `disconnect` (which removes activity

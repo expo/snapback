@@ -58,6 +58,7 @@ struct KickFixture {
     room_auth_b: AuthContext,
     unrelated_room_auth_b: AuthContext,
     unrelated_room_observed: AuthorizationVersion,
+    opponent_presence_entry_version: u64,
 }
 
 #[derive(Debug)]
@@ -183,7 +184,7 @@ impl KickFixture {
             .expect("lookup for an unrelated protected room completes before the kick");
         publish_presence(&snapback, &ephemeral, CONNECTION_A, USER_A, b"A:ready", 12)
             .expect("A publishes its pre-kick presence");
-        publish_presence(
+        let opponent_presence = publish_presence(
             &snapback,
             &ephemeral,
             CONNECTION_B,
@@ -200,6 +201,7 @@ impl KickFixture {
             room_auth_b,
             unrelated_room_auth_b,
             unrelated_room_observed,
+            opponent_presence_entry_version: opponent_presence.entry_version,
         }
     }
 
@@ -424,6 +426,149 @@ impl KickFixture {
 }
 
 #[test]
+fn frame_construction_before_first_enqueue_is_commit_ordered() {
+    let fixture = KickFixture::new();
+    let (room_auth, room_permit) = {
+        let snapback = fixture
+            .snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        server_room_grant(&snapback, &fixture.ephemeral, USER_B)
+    };
+
+    let (frame_reached_tx, frame_reached_rx) = mpsc::sync_channel(0);
+    let (frame_release_tx, frame_release_rx) = mpsc::sync_channel(0);
+    fixture
+        .ephemeral
+        .install_frame_before_first_enqueue_hook_for_test(frame_reached_tx, frame_release_rx);
+
+    let publish_ephemeral = fixture.ephemeral.clone();
+    let (enqueue_completed_tx, enqueue_completed_rx) = mpsc::sync_channel(0);
+    let (permit_release_tx, permit_release_rx) = mpsc::sync_channel(0);
+    let publisher = std::thread::spawn(move || {
+        let result = publish_ephemeral.publish_with_room_authority(
+            room_publish(CONNECTION_B, USER_B, room_auth, b"B:paused-before-enqueue"),
+            17,
+            Some(&room_permit),
+        );
+        enqueue_completed_tx
+            .send(result)
+            .expect("report completed enqueue while retaining its permit");
+        permit_release_rx
+            .recv()
+            .expect("test releases the admitted room permit");
+        drop(room_permit);
+    });
+
+    let constructed_frame = frame_reached_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("publish paused after frame construction and before first enqueue");
+    let hook_observed_constructed_predecessor = matches!(
+        &constructed_frame,
+        EphemeralMessage::Upsert {
+            room_authority_generation: 1,
+            entry,
+            ..
+        } if entry.value == b"B:paused-before-enqueue"
+    );
+    assert!(hook_observed_constructed_predecessor);
+
+    let snapback = fixture.snapback.clone();
+    let (kick_started_tx, kick_started_rx) = mpsc::channel();
+    let (kick_done_tx, kick_done_rx) = mpsc::channel();
+    let kick = std::thread::spawn(move || {
+        kick_started_tx.send(()).expect("signal kick start");
+        let result = snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .invoke_mutation_with_authority(
+                "kickMember",
+                HandlerInput {
+                    args: json!({ "id": MEMBER_A }),
+                    ..HandlerInput::default()
+                },
+                session_authority(InvocationSource::HttpMutation, USER_B),
+            );
+        kick_done_tx.send(result).expect("report kick result");
+    });
+    kick_started_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("kick thread started");
+
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        match fixture
+            .ephemeral
+            .begin_server_authorized_room_act("gamePresence", &room_scope())
+        {
+            Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+            Ok(permit) => drop(permit),
+            Err(error) => panic!("unexpected room admission result: {error:?}"),
+        }
+        assert!(
+            Instant::now() < deadline,
+            "kick did not install its dependency ticket"
+        );
+        std::thread::yield_now();
+    }
+    let pending_commit_blocked_before_first_enqueue = kick_done_rx.try_recv().is_err();
+    assert!(
+        pending_commit_blocked_before_first_enqueue,
+        "the pending commit crossed a frame paused before its first enqueue"
+    );
+
+    frame_release_tx
+        .send(())
+        .expect("release the frame into its first enqueue");
+    let publish_outcome = enqueue_completed_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("publish completed its enqueue while retaining the admitted permit")
+        .expect("the pre-prepare room permit admits the ordered enqueue");
+    let enqueue_completed_while_permit_held = publish_outcome.entry_version > 0;
+    assert!(enqueue_completed_while_permit_held);
+    let commit_blocked_after_enqueue_while_permit_held = kick_done_rx.try_recv().is_err();
+    assert!(
+        commit_blocked_after_enqueue_while_permit_held,
+        "enqueue completion does not release the caller-retained room permit"
+    );
+
+    permit_release_tx
+        .send(())
+        .expect("release the admitted permit after observing enqueue completion");
+    publisher.join().expect("publisher joins");
+    let committed = kick_done_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("kick commits after the admitted permit drops")
+        .expect("kick mutation commits");
+    kick.join().expect("kick thread joins");
+    let commit_completed_after_permit_drop = committed.changed_count == 1;
+    assert!(commit_completed_after_permit_drop);
+
+    let predecessor_frame_rejected_after_commit = fixture
+        .ephemeral
+        .begin_final_send(&RealtimeEnvelope::Ephemeral(constructed_frame))
+        .is_err_and(|error| error.code == EphemeralErrorCode::AuthorityPending);
+    assert!(
+        predecessor_frame_rejected_after_commit,
+        "the constructed generation-1 frame cannot acquire a post-commit send permit"
+    );
+
+    println!(
+        "SNAPBACK_AUTH_ACCEPTANCE_ROOM_FRAME_ENQUEUE_RECEIPT={}",
+        json!({
+            "schedule": "frame-construction-before-first-enqueue",
+            "hookObservedConstructedPredecessor": hook_observed_constructed_predecessor,
+            "pendingCommitBlockedBeforeFirstEnqueue": pending_commit_blocked_before_first_enqueue,
+            "enqueueCompletedWhilePermitHeld": enqueue_completed_while_permit_held,
+            "commitBlockedAfterEnqueueWhilePermitHeld": commit_blocked_after_enqueue_while_permit_held,
+            "commitCompletedAfterPermitDrop": commit_completed_after_permit_drop,
+            "predecessorFrameRejectedAfterCommit": predecessor_frame_rejected_after_commit,
+            "causingCommitVersion": committed.version,
+        })
+    );
+}
+
+#[test]
 fn card_game_kick_composes_durable_and_room_authority_boundaries() {
     let fixture = KickFixture::new();
     let (kick, old_room_envelope, old_board_envelope, boundary_observations) =
@@ -625,18 +770,34 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         "A was unregistered before B's fresh-generation fanout"
     );
     println!(
+        "SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT={}",
+        json!({
+            "schedule": "enqueue-before-destructive-drain",
+            "predecessorFrameEnqueueCompleted": fixture.opponent_presence_entry_version > 0,
+            "predecessorFrameEntryVersion": fixture.opponent_presence_entry_version,
+            "predecessorGeneration": 1,
+            "postCommitDrainDiscardedPredecessor": queued_old_generation_discarded,
+            "causingCommitVersion": kick.version,
+        })
+    );
+    println!(
+        "SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT={}",
+        json!({
+            "schedule": "destructive-drain-before-final-send",
+            "commitBlockedByProtectedRoomSendPermit": boundary_observations.commit_waited_for_drained_send,
+            "commitBlockedByDurableBoardSendPermit": boundary_observations.commit_waited_for_durable_board_send,
+            "predecessorProtectedRoomFrameRejectedAfterCommit": boundary_observations.drained_old_generation_send_refused,
+            "predecessorDurableBoardFrameRejectedAfterCommit": boundary_observations.drained_old_board_send_refused,
+            "causingCommitVersion": kick.version,
+        })
+    );
+    println!(
         "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT={}",
         json!({
             "causingCommitVersion": kick.version,
             "affectedRoomCount": pending.len(),
-            "pausePoints": {
+            "admissionPausePoints": {
                 "lookupBeforeRoomMutation": boundary_observations.lookup_to_room_mutation_refused,
-                "frameConstructionBeforeEnqueue": queued_old_generation_discarded,
-                "enqueueBeforeDestructiveDrain": queued_old_generation_discarded,
-                "destructiveDrainBeforeFinalSend": boundary_observations.commit_waited_for_drained_send
-                    && boundary_observations.drained_old_generation_send_refused
-                    && boundary_observations.commit_waited_for_durable_board_send
-                    && boundary_observations.drained_old_board_send_refused,
                 "registrationAndInitialSnapshot": boundary_observations.affected_registration_refused,
             },
             "unrelatedRoomProgressWhileAffectedPending": {

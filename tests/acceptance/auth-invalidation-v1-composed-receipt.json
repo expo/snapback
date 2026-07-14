@@ -2716,26 +2716,51 @@
   "supplementalAssertions": {
     "protectedRoomPausePoints": {
       "passed": true,
-      "receipt": {
-        "causingCommitVersion": 2,
-        "affectedRoomCount": 1,
-        "pausePoints": {
-          "lookupBeforeRoomMutation": true,
-          "frameConstructionBeforeEnqueue": true,
-          "enqueueBeforeDestructiveDrain": true,
-          "destructiveDrainBeforeFinalSend": true,
-          "registrationAndInitialSnapshot": true
+      "observations": {
+        "integratedKick": {
+          "causingCommitVersion": 2,
+          "affectedRoomCount": 1,
+          "admissionPausePoints": {
+            "lookupBeforeRoomMutation": true,
+            "registrationAndInitialSnapshot": true
+          },
+          "unrelatedRoomProgressWhileAffectedPending": {
+            "registration": true,
+            "publishAndDrain": true
+          },
+          "postCommit": {
+            "kickedDurableBoardRows": 0,
+            "kickedOpponentPresenceFrames": 0,
+            "reauthorizedRoomCount": 1,
+            "typedDenialDelivered": true,
+            "survivorSnapshotDelivered": true
+          }
         },
-        "unrelatedRoomProgressWhileAffectedPending": {
-          "registration": true,
-          "publishAndDrain": true
+        "frameConstructionBeforeEnqueue": {
+          "schedule": "frame-construction-before-first-enqueue",
+          "hookObservedConstructedPredecessor": true,
+          "pendingCommitBlockedBeforeFirstEnqueue": true,
+          "enqueueCompletedWhilePermitHeld": true,
+          "commitBlockedAfterEnqueueWhilePermitHeld": true,
+          "commitCompletedAfterPermitDrop": true,
+          "predecessorFrameRejectedAfterCommit": true,
+          "causingCommitVersion": 2
         },
-        "postCommit": {
-          "kickedDurableBoardRows": 0,
-          "kickedOpponentPresenceFrames": 0,
-          "reauthorizedRoomCount": 1,
-          "typedDenialDelivered": true,
-          "survivorSnapshotDelivered": true
+        "enqueueBeforeDestructiveDrain": {
+          "schedule": "enqueue-before-destructive-drain",
+          "predecessorFrameEnqueueCompleted": true,
+          "predecessorFrameEntryVersion": 2,
+          "predecessorGeneration": 1,
+          "postCommitDrainDiscardedPredecessor": true,
+          "causingCommitVersion": 2
+        },
+        "destructiveDrainBeforeFinalSend": {
+          "schedule": "destructive-drain-before-final-send",
+          "commitBlockedByProtectedRoomSendPermit": true,
+          "commitBlockedByDurableBoardSendPermit": true,
+          "predecessorProtectedRoomFrameRejectedAfterCommit": true,
+          "predecessorDurableBoardFrameRejectedAfterCommit": true,
+          "causingCommitVersion": 2
         }
       }
     },
@@ -3315,25 +3340,50 @@
       "remainingAfterAllAcks": 0
     },
     "protectedRoom": {
-      "causingCommitVersion": 2,
-      "affectedRoomCount": 1,
-      "pausePoints": {
-        "lookupBeforeRoomMutation": true,
-        "frameConstructionBeforeEnqueue": true,
-        "enqueueBeforeDestructiveDrain": true,
-        "destructiveDrainBeforeFinalSend": true,
-        "registrationAndInitialSnapshot": true
+      "integratedKick": {
+        "causingCommitVersion": 2,
+        "affectedRoomCount": 1,
+        "admissionPausePoints": {
+          "lookupBeforeRoomMutation": true,
+          "registrationAndInitialSnapshot": true
+        },
+        "unrelatedRoomProgressWhileAffectedPending": {
+          "registration": true,
+          "publishAndDrain": true
+        },
+        "postCommit": {
+          "kickedDurableBoardRows": 0,
+          "kickedOpponentPresenceFrames": 0,
+          "reauthorizedRoomCount": 1,
+          "typedDenialDelivered": true,
+          "survivorSnapshotDelivered": true
+        }
       },
-      "unrelatedRoomProgressWhileAffectedPending": {
-        "registration": true,
-        "publishAndDrain": true
+      "frameConstructionBeforeEnqueue": {
+        "schedule": "frame-construction-before-first-enqueue",
+        "hookObservedConstructedPredecessor": true,
+        "pendingCommitBlockedBeforeFirstEnqueue": true,
+        "enqueueCompletedWhilePermitHeld": true,
+        "commitBlockedAfterEnqueueWhilePermitHeld": true,
+        "commitCompletedAfterPermitDrop": true,
+        "predecessorFrameRejectedAfterCommit": true,
+        "causingCommitVersion": 2
       },
-      "postCommit": {
-        "kickedDurableBoardRows": 0,
-        "kickedOpponentPresenceFrames": 0,
-        "reauthorizedRoomCount": 1,
-        "typedDenialDelivered": true,
-        "survivorSnapshotDelivered": true
+      "enqueueBeforeDestructiveDrain": {
+        "schedule": "enqueue-before-destructive-drain",
+        "predecessorFrameEnqueueCompleted": true,
+        "predecessorFrameEntryVersion": 2,
+        "predecessorGeneration": 1,
+        "postCommitDrainDiscardedPredecessor": true,
+        "causingCommitVersion": 2
+      },
+      "destructiveDrainBeforeFinalSend": {
+        "schedule": "destructive-drain-before-final-send",
+        "commitBlockedByProtectedRoomSendPermit": true,
+        "commitBlockedByDurableBoardSendPermit": true,
+        "predecessorProtectedRoomFrameRejectedAfterCommit": true,
+        "predecessorDurableBoardFrameRejectedAfterCommit": true,
+        "causingCommitVersion": 2
       }
     }
   }

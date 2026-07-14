@@ -2331,6 +2331,12 @@ struct DefinitionSwapTestHook {
     release: std::sync::mpsc::Receiver<()>,
 }
 
+#[cfg(test)]
+struct FrameBeforeFirstEnqueueTestHook {
+    reached: std::sync::mpsc::SyncSender<EphemeralMessage>,
+    release: std::sync::mpsc::Receiver<()>,
+}
+
 /// The shared state behind the backend handle. All synchronization is
 /// internal: a read-mostly collections registry, a small global routing map
 /// whose values are per-room locks, per-connection outbox locks, a
@@ -2355,6 +2361,10 @@ struct EphemeralShared {
     lifecycle: RwLock<()>,
     #[cfg(test)]
     definition_swap_hook: StdMutex<Option<DefinitionSwapTestHook>>,
+    /// One backend-local, one-shot pause at the exact constructed-frame →
+    /// first-outbox-push seam used by the protected-room commit-order test.
+    #[cfg(test)]
+    frame_before_first_enqueue_hook: StdMutex<Option<FrameBeforeFirstEnqueueTestHook>>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
     outboxes: StdMutex<BTreeMap<ConnectionId, SharedOutbox>>,
@@ -2500,6 +2510,8 @@ impl LocalEphemeralBackend {
                 lifecycle: RwLock::new(()),
                 #[cfg(test)]
                 definition_swap_hook: StdMutex::new(None),
+                #[cfg(test)]
+                frame_before_first_enqueue_hook: StdMutex::new(None),
                 collections: RwLock::new(BTreeMap::new()),
                 rooms: StdMutex::new(BTreeMap::new()),
                 outboxes: StdMutex::new(BTreeMap::new()),
@@ -2541,6 +2553,17 @@ impl LocalEphemeralBackend {
                     .authorization_expectation()
                     .expect("test issuer expectation")
             })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_frame_before_first_enqueue_hook_for_test(
+        &self,
+        reached: std::sync::mpsc::SyncSender<EphemeralMessage>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) {
+        let previous = lock(&self.shared.frame_before_first_enqueue_hook)
+            .replace(FrameBeforeFirstEnqueueTestHook { reached, release });
+        assert!(previous.is_none(), "frame-before-enqueue hook is one-shot");
     }
 
     fn publish_committed_authorization(
@@ -4725,6 +4748,8 @@ impl LocalEphemeralBackend {
 
         let message = Arc::new(message);
         let mut wakees = Vec::with_capacity(recipients.len());
+        #[cfg(test)]
+        self.pause_after_frame_construction_before_first_enqueue_for_test(message.as_ref());
         for (connection_id, outbox) in recipients {
             let result = lock(&outbox)
                 .push_ephemeral(message.clone(), collection.max_pending_ephemeral_keys);
@@ -4751,6 +4776,22 @@ impl LocalEphemeralBackend {
         // L8: wake subscriber delivery tasks after all messages are drainable
         // (push-before-wake), with one notifier-map lock for the whole fan-out.
         self.shared.delivery.wake_many(&wakees);
+    }
+
+    #[cfg(test)]
+    fn pause_after_frame_construction_before_first_enqueue_for_test(
+        &self,
+        message: &EphemeralMessage,
+    ) {
+        let hook = lock(&self.shared.frame_before_first_enqueue_hook).take();
+        if let Some(hook) = hook {
+            hook.reached
+                .send(message.clone())
+                .expect("frame-before-enqueue test observer remains alive");
+            hook.release
+                .recv()
+                .expect("frame-before-enqueue test releases fan-out");
+        }
     }
 
     /// Record that `connection_id` has touched `room_id` (subscribed or
