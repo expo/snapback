@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -1308,10 +1308,20 @@ server's current handshake; it does not invent an incarnation offline.
 
 ### Format 3 and authority tags
 
-`packages/snapback-contract/client-store.mjs` advances from format 2 to format
-3. Its existing top-level `generation` remains the monotonic store-write
-revision; it MUST NOT be repurposed as auth authority. The store adds a distinct
-`authorityEpoch` matching settled custody.
+Format 3 is the historical item-5 predecessor pinned by this Spec. At that
+landing boundary, `packages/snapback-contract/client-store.mjs` advanced from
+format 2 to format 3. Its existing top-level `generation` remained the
+monotonic store-write revision; it MUST NOT be repurposed as auth authority.
+The store added a distinct `authorityEpoch` matching settled custody.
+
+The current composed production store is format 5, owned by
+[LLP 0043#auth-posture](./0043-offline-replay-retention.rfc.md#auth-posture).
+It preserves this section's epoch/key barrier semantics while composing item
+6's query/queue fences, item 7's principal/authority-descriptor axes, and item
+8's `queryAuthorization` and signed-lease custody. Its migrator recognizes
+formats 1 through 4, accepts only the exact identifiable predecessor shapes,
+and migrates them to format 5 fail closed; it never retags an earlier format as
+current authority.
 
 Every privacy-bearing record in retained rows, pending writes, failed writes,
 stranded writes, acknowledgements, mutation receipts, and any implementation
@@ -1351,18 +1361,25 @@ may delete its keys. A reader derives the namespace from current custody and
 never scans/falls back to another epoch. It is forbidden to delete sequentially
 while leaving the old namespace readable or to retag an old segment as current.
 
-Migration from format 2 validates the old shape but does not reinterpret its
-`generation` or client-asserted `authFingerprint` as an authority epoch. On a
-dev-to-sessions transition it deletes retained rows and privacy caches, moves
-pending/failed queue records into a dedicated `legacyV2Stranded` namespace that
-is never replayable or retagged current, and creates format 3 at the current
-settled epoch. A legacy record that the exact v2 shape proves was anonymous may
-be discarded or explicitly re-recorded through the current coordinator check;
-a record carrying a client-asserted fingerprint is delete-only because that
-fingerprint is not server provenance. Non-private static metadata survives only
-when explicitly allowlisted by the migration. In dev mode migration may defer
-this conversion until a sessions transition. An older client rejects format 3
-rather than downgrading or rewriting it.
+The historical item-5 migration from format 2 validated the old shape but did
+not reinterpret its `generation` or client-asserted `authFingerprint` as an
+authority epoch. On a dev-to-sessions transition it deleted retained rows and
+privacy caches, moved pending/failed queue records into a dedicated
+`legacyV2Stranded` namespace that was never replayable or retagged current, and
+created format 3 at the current settled epoch. A legacy record that the exact
+v2 shape proved was anonymous could be discarded or explicitly re-recorded
+through the current coordinator check; a record carrying a client-asserted
+fingerprint was delete-only because that fingerprint was not server
+provenance. Non-private static metadata survived only when explicitly
+allowlisted by the migration. In dev mode migration could defer this conversion
+until a sessions transition.
+
+The composed migration now follows LLP 0043: it recognizes formats 1, 2, and 3,
+plus the two exact and mutually exclusive item-6/item-7 format-4 predecessor
+shapes, and produces format 5. Partial, hybrid, extended, or otherwise
+ambiguous format-4 state supplies no authority proof and is quarantined or
+deleted fail closed. Older clients reject format 5 rather than downgrading or
+rewriting it.
 
 ### Independent item-5 availability axes
 
@@ -1506,7 +1523,10 @@ only when their named implementation and executable probes are installed:
   restore incarnation coupling, and five-second terminal closure.
 - `authCoordinator` requires durable custody, cross-context mutex or fenced
   lease, all mandatory participants, client-store format 3, and delayed-race
-  acceptance in at least two contexts.
+  acceptance in at least two contexts. Format 3 is the historical item-5
+  prerequisite; composed production satisfies it through LLP 0043's format 5,
+  which preserves the item-5 epoch/key barrier and migrates formats 1 through 4
+  fail closed.
 
 No manifest field, environment variable, dev flag, or mocked readiness object
 may assert one early. `sessionActivationReady` remains derived as LLP 0058
@@ -1685,8 +1705,12 @@ wall-clock sleeps are not proof of ordering.
 
 ### Client store and Contract boundaries
 
-1. Migrate representative and adversarial format-2 stores. No privacy record is
-   retagged as a format-3 successor. Older readers reject format 3.
+1. At the historical item-5 boundary, migrate representative and adversarial
+   format-2 stores without retagging any privacy record as a format-3 successor.
+   In the composed production suite, migrate formats 1 through 4 into LLP
+   0043's format 5, distinguish the two exact format-4 predecessor shapes, and
+   quarantine or delete ambiguous format-4 state fail closed. Older readers
+   reject format 5.
 2. For every store operation, race transition between expected-epoch read and
    commit. CAS rejects the stale mutation and reads suppress mismatched tags.
    Repeat for generation-segmented fallback namespaces.
@@ -1736,8 +1760,10 @@ invariant across an externally enableable commit:
    revocation/rotation/reset/restore call site;
 3. extended connection bindings, reverse indexes, publication stamps, leased
    drain, notifier terminal events, and typed live errors;
-4. added custody storage, coordinator ownership/transition recovery, client-store
-   format 3, and mandatory kit/Contract participants;
+4. added custody storage, coordinator ownership/transition recovery, the
+   historical item-5 client-store format 3, and mandatory kit/Contract
+   participants; composed production now uses LLP 0043's format 5, which
+   preserves these barriers and migrates formats 1 through 4 fail closed;
 5. revised the closed handshake DTO, installed real readiness probes, and ran the
    full interleaving and activation matrix; and
 6. ran `./ref-check --verbose` and added non-mechanical `@ref LLP 0059#...`
