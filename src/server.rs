@@ -9249,7 +9249,8 @@ async fn coordinated_app_reset(
     route_admission: &AdmissionLease,
     seed: Option<SeedData>,
 ) -> SnapbackResult<Option<crate::manifest::MutationOutput>> {
-    if runtime.auth_mode_state().active == AuthMode::Dev
+    let active_auth_mode = runtime.auth_mode_state().active;
+    if active_auth_mode == AuthMode::Dev
         && runtime.auth_provider.is_none()
         && runtime.auth_coordinator.is_none()
     {
@@ -9331,85 +9332,94 @@ async fn coordinated_app_reset(
     runtime.secret_reads.clear_after_committed_reset();
     maintenance.clear_mailbox_after_committed_reset();
 
-    // Reserve and authenticate a boot issuer for the already-durable
-    // successor while publication is still blocked. The old issuer is scoped
-    // to the predecessor incarnation and must never be asked to cross it.
-    let successor_incarnation = successor.as_str().to_owned();
-    let rebuild: SnapbackResult<crate::auth::invalidation::LiveInvalidationIssuer> = async {
-        let reservation = with_snapback(&runtime.snapback, move |snapback| {
-            let (app_id, target_profile_id) = {
-                let schema = snapback.auth_database_mut().schema();
-                (
-                    schema.app_id.clone(),
-                    schema.target_profile.clone().unwrap_or_else(|| {
-                        crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
-                    }),
-                )
-            };
-            let (authorization, version_stream, boot_sequence) = snapback
-                .auth_database_mut()
-                .reserve_invalidation_boot_issuer()?;
-            if authorization.incarnation != successor_incarnation {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                    "auth",
-                    "reset successor issuer reservation observed another authorization incarnation",
-                ));
-            }
-            Ok((
-                app_id,
-                target_profile_id,
-                authorization,
-                version_stream,
-                boot_sequence,
-            ))
-        })
-        .await?;
-        let (app_id, target_profile_id, authorization, version_stream, boot_sequence) = reservation;
-        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-            authorization.incarnation.clone(),
-            boot_sequence,
-        )?;
-        let successor_issuer = provider
-            .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
-            .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
-        let installed_issuer = successor_issuer.clone();
-        with_snapback(&runtime.snapback, move |snapback| {
-            snapback.install_auth_invalidation(installed_issuer, authorization, version_stream)
-        })
-        .await?;
-        Ok(successor_issuer)
-    }
-    .await;
-    let successor_issuer = match rebuild {
-        Ok(issuer) => issuer,
-        Err(error) => {
-            with_snapback(&runtime.snapback, |snapback| {
-                snapback.clear_auth_invalidation_after_failed_reset();
-            })
-            .await;
-            let classified = coordinator.finish_stream_reset(
-                carrier,
-                AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
-                    error,
-                ),
-            );
-            return match classified {
-                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_REVOCATION_UNCERTAIN" => {
-                    Err(error)
-                }
-                _ => {
-                    let _ = coordinator.fail_global_closed();
-                    Err(SnapbackError::error(
-                        "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+    // Active sessions owns an authenticated invalidation issuer. Active dev
+    // deliberately does not, even when a ReadyV1 catalog is present (for
+    // example during a staged or downgraded deployment). Both modes rotate
+    // and publish the durable stream successor; only sessions reconstructs
+    // the mode-owned issuer before the final stream-ticket release.
+    if active_auth_mode == AuthMode::Sessions {
+        // Reserve and authenticate a boot issuer for the already-durable
+        // successor while publication is still blocked. The old issuer is
+        // scoped to the predecessor incarnation and must never be asked to
+        // cross it.
+        let successor_incarnation = successor.as_str().to_owned();
+        let rebuild: SnapbackResult<crate::auth::invalidation::LiveInvalidationIssuer> = async {
+            let reservation = with_snapback(&runtime.snapback, move |snapback| {
+                let (app_id, target_profile_id) = {
+                    let schema = snapback.auth_database_mut().schema();
+                    (
+                        schema.app_id.clone(),
+                        schema.target_profile.clone().unwrap_or_else(|| {
+                            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                        }),
+                    )
+                };
+                let (authorization, version_stream, boot_sequence) = snapback
+                    .auth_database_mut()
+                    .reserve_invalidation_boot_issuer()?;
+                if authorization.incarnation != successor_incarnation {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
                         "auth",
-                        "committed reset successor projection could not be reconstructed",
-                    ))
+                        "reset successor issuer reservation observed another authorization incarnation",
+                    ));
                 }
-            };
+                Ok((
+                    app_id,
+                    target_profile_id,
+                    authorization,
+                    version_stream,
+                    boot_sequence,
+                ))
+            })
+            .await?;
+            let (app_id, target_profile_id, authorization, version_stream, boot_sequence) =
+                reservation;
+            let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+                authorization.incarnation.clone(),
+                boot_sequence,
+            )?;
+            let successor_issuer = provider
+                .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
+                .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
+            let installed_issuer = successor_issuer.clone();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.install_auth_invalidation(installed_issuer, authorization, version_stream)
+            })
+            .await?;
+            Ok(successor_issuer)
         }
-    };
-    runtime.install_reset_auth_invalidation(successor_issuer);
+        .await;
+        let successor_issuer = match rebuild {
+            Ok(issuer) => issuer,
+            Err(error) => {
+                with_snapback(&runtime.snapback, |snapback| {
+                    snapback.clear_auth_invalidation_after_failed_reset();
+                })
+                .await;
+                let classified = coordinator.finish_stream_reset(
+                    carrier,
+                    AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
+                        error,
+                    ),
+                );
+                return match classified {
+                    Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_REVOCATION_UNCERTAIN" => {
+                        Err(error)
+                    }
+                    _ => {
+                        let _ = coordinator.fail_global_closed();
+                        Err(SnapbackError::error(
+                            "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                            "auth",
+                            "committed reset successor projection could not be reconstructed",
+                        ))
+                    }
+                };
+            }
+        };
+        runtime.install_reset_auth_invalidation(successor_issuer);
+    }
     if coordinator
         .finish_stream_reset(carrier, AuthTransactionAttempt::Committed(()))
         .is_err()
@@ -12813,6 +12823,23 @@ mod tests {
                 AuthProgramReadiness::new(true, true, true, true, true, true, true),
             )
             .expect("install reset sessions posture")
+    }
+
+    fn dormant_dev_reset_fixture() -> AppState {
+        let mut snapback = LocalSnapback::memory().expect("memory dormant reset fixture");
+        let runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            None,
+            AuthProviderProfile::Dev,
+        )
+        .expect("inspect dormant auth runtime");
+        assert!(!runtime.catalog_ready(), "fixture must remain dormant");
+        let coordinator = runtime
+            .build_coordinator(&mut snapback)
+            .expect("build dormant stream coordinator");
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Dev;
+        AppState::from_snapback(snapback, context).with_auth_runtime(&runtime, coordinator)
     }
 
     fn auth_projection_http_fixture(
@@ -20912,6 +20939,142 @@ globalThis.__snapbackHandlers = {
             response_json(lease_admission).await["diagnostic"]["code"],
             "SNAPBACK_UNKNOWN_FUNCTION",
             "the successor query and lease gates must reach function lookup",
+        );
+    }
+
+    #[tokio::test]
+    async fn dormant_dev_reset_rotates_stream_without_installing_a_session_issuer() {
+        // Match the production startup graph: even a dormant dev database has
+        // one inspected provider and one rebuilt stream coordinator. The old
+        // provider/coordinator-absent compatibility fast path is intentionally
+        // unreachable in this fixture.
+        let state = dormant_dev_reset_fixture();
+        assert!(!state.auth_catalog_ready);
+        assert!(state.auth_provider.is_some());
+        let coordinator = state
+            .auth_coordinator
+            .as_ref()
+            .expect("dormant stream coordinator");
+        let mut predecessor = coordinator
+            .authorization_stream_incarnation()
+            .expect("initial dormant incarnation");
+        let route_admission = test_route_admission(&state).0;
+
+        for reset_index in 0..2 {
+            let reset = coordinated_app_reset(&state, &route_admission, None)
+                .await
+                .expect("dormant dev reset succeeds");
+            assert!(reset.is_none());
+
+            let successor = coordinator
+                .authorization_stream_incarnation()
+                .expect("dormant successor remains available");
+            assert_ne!(successor, predecessor, "reset {reset_index} rotates stream");
+            let durable = with_snapback(&state.snapback, |snapback| {
+                snapback
+                    .auth_database_mut()
+                    .authorization_version()
+                    .expect("durable dormant successor")
+            })
+            .await;
+            assert_eq!(durable.incarnation, successor);
+            assert_eq!(durable.epoch, 0);
+            predecessor = successor;
+
+            assert!(
+                state
+                    .auth_invalidation
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_none(),
+                "dev router has no sessions issuer",
+            );
+            assert!(
+                state
+                    .connections
+                    .invalidation_expectation_for_test()
+                    .is_none(),
+                "dev connections have no sessions issuer",
+            );
+            assert!(
+                state
+                    .ephemeral
+                    .authorization_expectation_for_test()
+                    .is_none(),
+                "dev rooms have no sessions issuer",
+            );
+            assert!(
+                with_snapback(&state.snapback, |snapback| {
+                    snapback.auth_invalidation_expectation_for_test()
+                })
+                .await
+                .is_none(),
+                "dev queries have no sessions issuer",
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
+        // Catalog readiness is not the issuer predicate. A ready catalog can
+        // remain active Dev during staging or after downgrade; startup only
+        // installs an invalidation issuer when the active mode is Sessions.
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        assert!(state.auth_catalog_ready);
+        assert_eq!(state.auth_mode_state().active, AuthMode::Dev);
+        let coordinator = state
+            .auth_coordinator
+            .as_ref()
+            .expect("ready Dev stream coordinator");
+        let predecessor = coordinator
+            .authorization_stream_incarnation()
+            .expect("ready Dev predecessor");
+        let route_admission = test_route_admission(&state).0;
+
+        coordinated_app_reset(&state, &route_admission, None)
+            .await
+            .expect("ready Dev reset succeeds");
+        let successor = coordinator
+            .authorization_stream_incarnation()
+            .expect("ready Dev successor remains available");
+        assert_ne!(successor, predecessor);
+        let durable = with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .authorization_version()
+                .expect("durable ready Dev successor")
+        })
+        .await;
+        assert_eq!(durable.incarnation, successor);
+        assert!(
+            state
+                .auth_invalidation
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none(),
+            "ready Dev router has no sessions issuer",
+        );
+        assert!(
+            state
+                .connections
+                .invalidation_expectation_for_test()
+                .is_none(),
+            "ready Dev connections have no sessions issuer",
+        );
+        assert!(
+            state
+                .ephemeral
+                .authorization_expectation_for_test()
+                .is_none(),
+            "ready Dev rooms have no sessions issuer",
+        );
+        assert!(
+            with_snapback(&state.snapback, |snapback| {
+                snapback.auth_invalidation_expectation_for_test()
+            })
+            .await
+            .is_none(),
+            "ready Dev queries have no sessions issuer",
         );
     }
 
