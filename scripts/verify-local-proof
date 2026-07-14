@@ -158,7 +158,7 @@ if [ "$VERIFY_EXACT" != "0" ]; then
         run bun install --frozen-lockfile --cwd admin-ui
         # ENG-24575: production dependency vulnerabilities are a required
         # proof gate, not an optional local command that CI can forget to run.
-        run bash -lc 'cd admin-ui && ./build.sh && bun run test && bun run audit:production'
+        run bash -lc 'cd admin-ui && ./build.sh && bun run test && bun run test:browser-security && bun run audit:production'
     elif [ "$VERIFY_EXACT" = "1" ]; then
         printf '[snapback-verify] error: SNAPBACK_VERIFY_EXACT=1 but bun or installed Exact packages are unavailable\n' >&2
         exit 1
