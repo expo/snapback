@@ -286,6 +286,23 @@ node scripts/check-toolchain-authority.mjs
 scripts/verify-local-proof
 ```
 
+The Node runtime that executes proof scripts and package tests is pinned the
+same way: `.node-version` at the repository root is the single exact Node
+authority. Every CI workflow consumes it via `node-version-file`, and
+`scripts/check-toolchain-authority.mjs` asserts the active `node` matches it,
+so the same commit cannot run the proof under drifting Node patch releases.
+Package `engines` ranges stay compatibility declarations, not the CI
+authority. To upgrade Node, install/select the intended exact release (any
+version manager that reads `.node-version` works), verify it with
+`node --version`, update `.node-version` to that release, then run:
+
+```sh
+node scripts/check-toolchain-authority.mjs
+scripts/verify-local-proof
+```
+
+No workflow edit is part of a Node upgrade; the workflows read the same file.
+
 Rust upgrades are coordinated with the linked runtime rather than floated in
 Snapback alone. First land the exact channel in Ibex's `rust-toolchain.toml`,
 update Snapback's `vendor/ibex` submodule to that Ibex commit, and set the root

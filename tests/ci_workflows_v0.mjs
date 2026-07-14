@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { strict as assert } from 'node:assert';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,7 @@ assert.deepEqual(workflowNames, [
 ]);
 
 let actionCount = 0;
+let setupNodeCount = 0;
 for (const name of workflowNames) {
   const text = readFileSync(join(workflowDir, name), 'utf8');
   const permissions = /^permissions:\n((?:[ \t]+[^\n]*(?:\n|$))*)/m.exec(text);
@@ -66,7 +67,34 @@ for (const name of workflowNames) {
       `${name} setup-bun must consume the root packageManager authority`,
     );
   }
+
+  // ENG-24513: every setup-node step consumes the root .node-version
+  // authority; a floating `node-version:` input would let the same SHA run
+  // proof scripts under different Node patch releases over time.
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!lines[index].includes('actions/setup-node@')) continue;
+    setupNodeCount += 1;
+    const indent = /^\s*/.exec(lines[index])[0].length;
+    let end = index + 1;
+    while (end < lines.length) {
+      const nextIndent = /^\s*/.exec(lines[end])[0].length;
+      if (/^\s*-\s/.test(lines[end]) && nextIndent === indent) break;
+      end += 1;
+    }
+    const block = lines.slice(index, end).join('\n');
+    assert.match(
+      block,
+      /node-version-file:\s*\.node-version/,
+      `${name} setup-node must consume the root .node-version authority`,
+    );
+    assert.doesNotMatch(
+      block,
+      /node-version:/,
+      `${name} setup-node must not declare an inline node-version`,
+    );
+  }
 }
+assert.equal(setupNodeCount, 3, 'the Node-using workflow inventory changed; review and update this count');
 assert.equal(actionCount, 14, 'the reviewed workflow action inventory changed; review and update this count');
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
@@ -81,6 +109,45 @@ assert.match(
 const packageJson = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 assert.match(packageJson.packageManager ?? '', /^bun@\d+\.\d+\.\d+$/);
 assert.match(packageJson.devDependencies?.typescript ?? '', /^\d+\.\d+\.\d+$/);
+
+// ENG-24513: .node-version is the single exact Node runtime authority for CI
+// and the canonical proof. Package engines stay compatibility ranges that the
+// authority must satisfy — declarations, never the CI authority itself.
+const nodeAuthorityText = readFileSync(join(ROOT, '.node-version'), 'utf8');
+assert.match(
+  nodeAuthorityText,
+  /^\d+\.\d+\.\d+\n$/,
+  '.node-version must pin one exact Node release (no v prefix, one trailing newline)',
+);
+const nodeAuthority = nodeAuthorityText.trim().split('.').map(Number);
+for (const entry of readdirSync(join(ROOT, 'packages')).sort()) {
+  const manifestPath = join(ROOT, 'packages', entry, 'package.json');
+  if (!existsSync(manifestPath)) continue;
+  const engineRange = JSON.parse(readFileSync(manifestPath, 'utf8')).engines?.node;
+  if (engineRange === undefined) continue;
+  const minimum = /^>=(\d+)\.(\d+)\.(\d+)$/.exec(engineRange);
+  assert(
+    minimum,
+    `packages/${entry} engines.node must stay a >=x.y.z compatibility range, found ${engineRange}`,
+  );
+  const floor = minimum.slice(1, 4).map(Number);
+  const satisfied = nodeAuthority[0] !== floor[0]
+    ? nodeAuthority[0] > floor[0]
+    : nodeAuthority[1] !== floor[1]
+      ? nodeAuthority[1] > floor[1]
+      : nodeAuthority[2] >= floor[2];
+  assert(
+    satisfied,
+    `.node-version ${nodeAuthorityText.trim()} must satisfy packages/${entry} engines.node ${engineRange}`,
+  );
+}
+
+const toolchainAuthority = readFileSync(join(ROOT, 'scripts', 'check-toolchain-authority.mjs'), 'utf8');
+assert.match(
+  toolchainAuthority,
+  /\.node-version/,
+  'the canonical toolchain proof must assert the Node runtime authority',
+);
 
 const generatedTypesGate = join(ROOT, 'scripts', 'check-generated-types');
 const generatedTypesSource = readFileSync(generatedTypesGate, 'utf8');

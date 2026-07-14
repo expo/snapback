@@ -696,6 +696,15 @@ explicitly read-only. Resource guards query Cargo's effective target directory
 rather than assuming it shares the repository filesystem. `[confirmed —
 Charlie Cheever / Codex, 2026-07-12, ENG-24497/ENG-24502–ENG-24508]`
 
+The Node runtime that executes package tests and proof scripts is the same
+kind of fact: `.node-version` pins one exact release, every Node-using
+workflow consumes it through `node-version-file`, and the toolchain authority
+check asserts the active runtime matches it before the canonical build.
+Upgrades change `.node-version` in one commit and re-run the canonical proof;
+workflows never name a Node version themselves. Package `engines` ranges
+remain compatibility declarations the authority must satisfy, never the CI
+authority. `[confirmed — Charlie Cheever / Claude, 2026-07-14, ENG-24513]`
+
 When a behavior is not yet implemented, the capability report should say so and
 the tests should assert the reported gap rather than silently skipping it.
 

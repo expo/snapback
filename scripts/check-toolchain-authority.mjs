@@ -33,6 +33,21 @@ function lockedVersion(lockText, name) {
   return match[1];
 }
 
+// ENG-24513: .node-version is the single exact Node runtime authority. Every
+// workflow consumes it via node-version-file, and the canonical proof asserts
+// the active runtime matches it, so the same SHA cannot execute proof scripts
+// under drifting Node patch releases. Package engines stay compatibility
+// ranges, never the CI authority.
+const nodeVersion = exactVersion(
+  readFileSync(join(ROOT, '.node-version'), 'utf8').trim(),
+  '.node-version Node',
+);
+assert.equal(
+  process.version,
+  `v${nodeVersion}`,
+  `active Node ${process.version} must match .node-version v${nodeVersion}`,
+);
+
 const rootPackage = readJson(join(ROOT, 'package.json'));
 const bunVersion = exactVersion(/^bun@(.+)$/.exec(rootPackage.packageManager ?? '')?.[1], 'packageManager Bun');
 const actualBun = execFileSync('bun', ['--version'], { encoding: 'utf8' }).trim();
@@ -68,6 +83,6 @@ assert.equal(
 );
 
 process.stdout.write(
-  `[toolchain-authority] PASS: bun ${bunVersion}; ${actualRust}; ${actualClippy}; ` +
+  `[toolchain-authority] PASS: node ${nodeVersion}; bun ${bunVersion}; ${actualRust}; ${actualClippy}; ` +
   packageNames.map((name) => `${name} ${resolved[name]}`).join('; ') + '\n',
 );
