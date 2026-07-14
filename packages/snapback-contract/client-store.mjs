@@ -1403,6 +1403,11 @@ function invalidateQueriesForAuthorityTransition(state, { deleteRows }) {
     }
     query.authorityGeneration = nextInvalidationGeneration(query.authorityGeneration);
     query.queryGeneration = nextInvalidationGeneration(query.queryGeneration);
+    // @ref LLP 0057#transition-barrier — same-principal/new-session keeps the
+    //   physical rows quarantined, but the predecessor descriptor must stop
+    //   binding them during the clearing epoch before resume installs the
+    //   successor descriptor.
+    query.authorityInstanceId = null;
     query.effectiveDisposition = 'quarantine';
     query.lease = null;
     query.leaseRequest = null;

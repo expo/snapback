@@ -7,8 +7,10 @@ import {
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const AUTHORITY_INSTANCE = '018f0d90-7b12-7a22-8c33-445566778899';
+const AUTHORITY_INSTANCE_2 = '018f0d90-7b14-7a22-8c33-445566778899';
 const USER = '018f0d90-7b13-7a22-8c33-445566778899';
 const AUTHORITY_KEY = `sha256:${'a'.repeat(64)}`;
+const AUTHORITY_KEY_2 = `sha256:${'b'.repeat(64)}`;
 const QUERY_KEY = 'myHand:{"gameId":"g1"}';
 const VERSION_STREAM = 'stream_1';
 const ACTIVATION_HASH = `snapback.authorized-lease.activation.v1:sha256:${'a'.repeat(64)}`;
@@ -413,6 +415,84 @@ const prototypeNamed = await store.initializeAuthorizedRetainedQuery('__proto__'
 }, EXPECTED);
 assert.equal(prototypeNamed.namespace.queryKey, '__proto__');
 assert.equal(Object.hasOwn((await store.snapshot()).queryAuthorization, '__proto__'), true);
+
+// Same-principal/new-session preserves the physical retained namespace while
+// quarantining it and clearing every predecessor descriptor/lease binding.
+// Resume may then install only the successor descriptor. The independent
+// predecessor queue is stranded rather than retagged.
+const transitionRequest = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
+  fence: recreated.fence,
+  leaseRequestId: 'request_transition',
+  clientNowMs: 2_900,
+}, EXPECTED);
+await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
+  fence: transitionRequest.fence,
+  lease: lease({
+    storeId: recreated.namespace.clientStoreId,
+    queryInstanceId: recreated.namespace.queryInstanceId,
+    requestId: transitionRequest.request.leaseRequestId,
+    version: 104,
+  }),
+  record: record(104, [{ card: 'transition-king' }]),
+  clientNowMs: 2_901,
+}, EXPECTED);
+const transitionQueue = await store.captureMutationQueue(EXPECTED);
+await store.enqueueMutation({
+  id: 'cm_transition_ready',
+  function: 'signalReady',
+  args: { ready: true },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: AUTHORITY_INSTANCE,
+    sessionGeneration: 1,
+  },
+  appId: APP_ID,
+  targetProfileId: TARGET_PROFILE_ID,
+  versionStreamId: VERSION_STREAM,
+  cursor: { stream: VERSION_STREAM, version: 104 },
+  ...EXPECTED,
+  ...transitionQueue,
+});
+await store.transitionAuthority({
+  expectedEpoch: 0,
+  nextEpoch: 1,
+  nextAuthorityKey: AUTHORITY_KEY_2,
+  queueTransition: 'strand-rerecordable',
+  transitionReason: 'same_principal_new_session',
+  retainPrincipalData: true,
+  nextPrincipalScope: {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: INCARNATION,
+    userId: USER,
+  },
+});
+const NEXT_EXPECTED = { authorityEpoch: 1, authorityKey: AUTHORITY_KEY_2 };
+let transitioned = await store.snapshot();
+assert.deepEqual(transitioned.retained[QUERY_KEY].rows, [{ card: 'transition-king' }]);
+assert.equal(transitioned.queryAuthorization[QUERY_KEY].effectiveDisposition, 'quarantine');
+assert.equal(transitioned.queryAuthorization[QUERY_KEY].authorityInstanceId, null);
+assert.equal(transitioned.queryAuthorization[QUERY_KEY].lease, null);
+assert.equal(transitioned.pending.length, 0);
+assert.equal(transitioned.stranded[0].id, 'cm_transition_ready');
+await store.scopeAuthorization({
+  principalScope: {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: INCARNATION,
+    userId: USER,
+  },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: AUTHORITY_INSTANCE_2,
+    sessionGeneration: 1,
+  },
+}, NEXT_EXPECTED);
+transitioned = await store.snapshot();
+assert.deepEqual(transitioned.retained[QUERY_KEY].rows, [{ card: 'transition-king' }]);
+assert.equal(
+  transitioned.queryAuthorization[QUERY_KEY].authorityInstanceId,
+  AUTHORITY_INSTANCE_2,
+);
+assert.equal(transitioned.stranded[0].id, 'cm_transition_ready');
 
 // Format 4 had no lease proof. Session-mode rows are never grandfathered.
 const legacy = {

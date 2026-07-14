@@ -188,3 +188,37 @@ TLS and trusted-proxy assumptions, distributed throttling/invalidation, and
 the browser XSS/bearer-custody posture. The full permission-changing ACL and
 protected-room kick trace from LLP 0053, plus complete game rules and UI, are
 also outside this slice.
+
+## 2026-07-14 — Restoring the composed two-axis proof
+
+The item-8 composition had replaced the finite item-7 acceptance script with
+the stronger real-session live and AuthorizedLease proof, but in doing so it
+stopped executing the independent queue axis. I restored that coverage without
+returning to synthetic principals: the test now clones Grace's real
+post-handshake, lease-bearing store, enqueues `signalReady` with her exact
+server-issued authority descriptor, refreshes the live credential, and mints
+successor sessions through the email-code provider.
+
+The composition is useful evidence in its own right. Refresh preserves the
+queue because the opaque authority instance is stable. A separately minted
+Grace session keeps her physical principal-owned hand rows but strands the old
+queue as rerecordable, while a newly minted Ada session deletes Grace's rows.
+Running those transitions on a durable clone leaves the original Contract
+surface and store untouched, so the same acceptance still proves live logout
+blanking and cold-process lease expiry rather than trading one guarantee for
+another.
+
+The awkward part remains the number of captures at the seam: coordinator
+epoch, queue generation, artifact identity, principal scope, descriptor, and
+query lease all have different jobs. The explicitness is valuable compared
+with a single access-token cache in a typical React/Supabase client, but it is
+also easy for a later demo rewrite to preserve the visible hand behavior while
+silently dropping queue-ownership coverage. Keeping both assertions in one
+runner makes that regression visible.
+
+ENG-24607 has since assigned and enforced the hosted-security contract. The
+local target is still honestly not hosted-ready: it reports bearer-v1 XSS
+exposure and lacks target-owned external TLS, trusted effective-source
+derivation, shared throttling, and multi-replica invalidation. The demo
+metadata now names those missing implementations instead of claiming the
+contracts themselves are unowned.

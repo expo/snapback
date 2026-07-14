@@ -296,6 +296,135 @@ try {
   assert.equal(Number.isSafeInteger(clientDeadlineMs), true);
   assert.equal(clientDeadlineMs > Date.now(), true);
 
+  // Exercise the independent principal/data and authority-instance/queue axes
+  // on a clone of Grace's real, lease-bearing store. The original durable
+  // bytes remain untouched for the cold-process AuthorizedLease proof below.
+  const authorityStore = createMemorySnapbackClientStore({
+    state: structuredClone(retainedState),
+  });
+  let authorityCapture = await authorityStore.authorityScope();
+  const graceScope = await grace.client.currentAuthorizationScope();
+  const authorityState = await authorityStore.snapshot();
+  const queueCapture = await authorityStore.captureMutationQueue(authorityCapture);
+  const queuedReady = await authorityStore.enqueueMutation({
+    id: 'cm_ready_grace',
+    function: 'signalReady',
+    args: { gameId, ready: true },
+    ctxLedger: { version: 1, ids: ['signal_grace'], now: 1 },
+    authorityDescriptor: graceScope.authorityDescriptor,
+    ...authorityCapture,
+    ...queueCapture,
+    ...authorityState.artifactScope,
+    cursor: structuredClone(authorityState.retained[retainedQueryKey].cursor),
+  });
+  assert.equal(queuedReady.function, 'signalReady');
+  assert.deepEqual(queuedReady.authorityDescriptor, graceScope.authorityDescriptor);
+
+  // Credential refresh rotates the bearer without changing the session's
+  // public authority descriptor, so the queued write remains runnable.
+  const refreshedCredential = await grace.client.authRefresh();
+  assert.equal(refreshedCredential.superseded, undefined);
+  const refreshedGraceScope = await grace.client.currentAuthorizationScope();
+  assert.equal(
+    refreshedGraceScope.authorityDescriptor.authorityInstanceId,
+    graceScope.authorityDescriptor.authorityInstanceId,
+  );
+  assert.deepEqual(
+    refreshedGraceScope.authorityDescriptor,
+    graceScope.authorityDescriptor,
+  );
+  await authorityStore.scopeAuthorization(refreshedGraceScope, authorityCapture);
+  const refreshedQueueCapture = await authorityStore.captureMutationQueue(authorityCapture);
+  assert.deepEqual(
+    (await authorityStore.pendingMutations({
+      ...authorityCapture,
+      ...refreshedQueueCapture,
+    })).map(({ id }) => id),
+    ['cm_ready_grace'],
+  );
+
+  // A separately minted session for the same user keeps the principal-owned
+  // rows, but its new authority instance must strand the predecessor queue.
+  const graceSuccessor = await mintSession(
+    server,
+    schema.appId,
+    'grace@card-game.test',
+    'card-game-grace-successor',
+  );
+  sessions.push(graceSuccessor);
+  assert.equal(graceSuccessor.credential.session.userId, grace.credential.session.userId);
+  assert.notEqual(graceSuccessor.credential.session.id, grace.credential.session.id);
+  const graceSuccessorScope = await graceSuccessor.client.currentAuthorizationScope();
+  assert.notEqual(
+    graceSuccessorScope.authorityDescriptor.authorityInstanceId,
+    refreshedGraceScope.authorityDescriptor.authorityInstanceId,
+  );
+  const graceSuccessorCapture = graceSuccessor.coordinator.capture();
+  await authorityStore.transitionAuthority({
+    expectedEpoch: authorityCapture.authorityEpoch,
+    nextEpoch: authorityCapture.authorityEpoch + 1,
+    nextAuthorityKey: graceSuccessorCapture.authorityKey,
+    queueTransition: 'strand-rerecordable',
+    transitionReason: 'same_principal_new_session',
+    retainPrincipalData: true,
+    nextPrincipalScope: graceSuccessorScope.principalScope,
+  });
+  authorityCapture = {
+    authorityEpoch: authorityCapture.authorityEpoch + 1,
+    authorityKey: graceSuccessorCapture.authorityKey,
+  };
+  await authorityStore.scopeAuthorization(graceSuccessorScope, authorityCapture);
+  const successorState = await authorityStore.snapshot();
+  assert.deepEqual(
+    successorState.retained[retainedQueryKey].rows.map(({ card }) => card),
+    ['king-clubs', 'ten-diamonds'],
+  );
+  const successorQueueCapture = await authorityStore.captureMutationQueue(authorityCapture);
+  assert.deepEqual(
+    await authorityStore.pendingMutations({
+      ...authorityCapture,
+      ...successorQueueCapture,
+    }),
+    [],
+  );
+  const strandedReady = await authorityStore.strandedMutations(authorityCapture);
+  assert.equal(strandedReady.length, 1);
+  assert.equal(strandedReady[0].id, 'cm_ready_grace');
+  assert.equal(strandedReady[0].reason, 'same_principal_new_session');
+  assert.equal(strandedReady[0].rerecordable, true);
+  assert.equal(strandedReady[0].replayable, false);
+
+  // A different server-resolved principal owns a different retained namespace;
+  // the prior user's hidden rows are physically deleted on the switch.
+  const adaSuccessor = await mintSession(
+    server,
+    schema.appId,
+    'ada@card-game.test',
+    'card-game-ada-successor',
+  );
+  sessions.push(adaSuccessor);
+  assert.equal(adaSuccessor.credential.session.userId, ada.credential.session.userId);
+  assert.notEqual(adaSuccessor.credential.session.userId, grace.credential.session.userId);
+  const adaSuccessorScope = await adaSuccessor.client.currentAuthorizationScope();
+  const adaSuccessorCapture = adaSuccessor.coordinator.capture();
+  await authorityStore.transitionAuthority({
+    expectedEpoch: authorityCapture.authorityEpoch,
+    nextEpoch: authorityCapture.authorityEpoch + 1,
+    nextAuthorityKey: adaSuccessorCapture.authorityKey,
+    queueTransition: 'delete',
+    transitionReason: 'principal_changed',
+    retainPrincipalData: false,
+    nextPrincipalScope: adaSuccessorScope.principalScope,
+  });
+  authorityCapture = {
+    authorityEpoch: authorityCapture.authorityEpoch + 1,
+    authorityKey: adaSuccessorCapture.authorityKey,
+  };
+  await authorityStore.scopeAuthorization(adaSuccessorScope, authorityCapture);
+  const switchedState = await authorityStore.snapshot();
+  assert.equal(switchedState.retained[retainedQueryKey], undefined);
+  assert.equal(switchedState.queryAuthorization[retainedQueryKey], undefined);
+
   await disposeSurface(adaSurface);
   await disposeSurface(graceSurface);
   await server.stop();

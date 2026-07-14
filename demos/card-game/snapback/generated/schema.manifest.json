@@ -1,7 +1,7 @@
 {
   "app": {
-    "description": "A real sessions-mode hidden-hand query proving server-derived principal isolation across finite and live reads, logout blanking, and lease-bounded offline retention.",
-    "name": "Hidden-card sessions, live, and offline auth"
+    "description": "A real sessions-mode hidden-hand query proving server-derived principal isolation, authority-instance queue ownership, live logout blanking, and lease-bounded offline retention.",
+    "name": "Hidden-card sessions, two-axis queue, live, and offline auth"
   },
   "appId": "card-game",
   "artifactDiagnostics": [],
@@ -11,7 +11,7 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:f664d75657f928b1de3b20d42c6d51934f458277f9a2ac968a5b0f8e74fa43d3",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:12afaa6967ce339e0191a8e6dce8791e87fe4f660d11fbe812c9190755b2e279",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
