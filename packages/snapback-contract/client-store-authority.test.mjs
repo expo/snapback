@@ -19,6 +19,8 @@ const SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
 const USER = '018f0d90-7b23-7a22-8c33-445566778899';
 const AUTHORITY_1 = '018f0d90-7b24-7a22-8c33-445566778899';
 const AUTHORITY_2 = '018f0d90-7b25-7a22-8c33-445566778899';
+const AUTHORITY_3 = '018f0d90-7b26-7a22-8c33-445566778899';
+const USER_2 = '018f0d90-7b27-7a22-8c33-445566778899';
 const anonymous = {
   kind: 'anonymous',
   authMode: 'sessions',
@@ -112,6 +114,9 @@ const expectCode = async (code, operation) => {
   assert.equal(stranded[0].id, 'cm_authority_1');
   assert.equal(stranded[0].replayable, false);
   assert.equal(stranded[0].reason, 'authority_instance_changed');
+  assert.equal(stranded[0].rerecordable, true);
+  assert.equal(stranded[0].discardOnly, false);
+  assert.deepEqual(stranded[0].predecessorPrincipalScope, principal);
   await twoAxis.discardStranded();
   assert.deepEqual(await twoAxis.strandedMutations(), []);
 
@@ -132,24 +137,40 @@ const expectCode = async (code, operation) => {
 }
 
 // Item 6 and item 7 independently allocated format 4. Format 5 recognizes
-// both complete predecessor shapes: item 6's descriptor-less queue is
+// only their exact/XOR predecessor shapes: item 6's descriptor-less queue is
 // discard-only, while item 7's descriptor-bound queue gains the independent
 // invalidation generation without losing replay identity.
 {
   const item6 = createMemorySnapbackClientStore();
   const queue = await item6.captureMutationQueue();
-  await item6.enqueueMutation({ id: 'cm_item6_v4', function: 'write', ...queue });
+  await item6.enqueueMutation({
+    id: 'cm_item6_v4',
+    function: 'write',
+    args: { secret: 'item6-payload' },
+    ...queue,
+  });
   const legacyItem6 = await item6.snapshot();
   legacyItem6.version = 4;
   delete legacyItem6.principalScope;
   delete legacyItem6.authorityDescriptor;
   delete legacyItem6.queryAuthorization;
+  delete legacyItem6.legacyV3Stranded;
   delete legacyItem6.legacyV4Stranded;
+  legacyItem6.retained.private = { rows: [{ secret: 'item6-row' }] };
+  legacyItem6.legacyV2Stranded.push({
+    id: 'cm_item6_legacy',
+    function: 'legacyWrite',
+    sequence: 9,
+    args: { secret: 'older-item6-payload' },
+  });
   const migratedItem6 = createMemorySnapbackClientStore({ state: legacyItem6 });
   const item6State = await migratedItem6.snapshot();
   assert.deepEqual(item6State.pending, []);
+  assert.deepEqual(item6State.retained, {});
+  assert.deepEqual(item6State.legacyV2Stranded, []);
   assert.equal(item6State.legacyV4Stranded[0].id, 'cm_item6_v4');
   assert.equal(item6State.legacyV4Stranded[0].replayable, false);
+  assert.equal(item6State.legacyV4Stranded[0].discardOnly, true);
 
   const item7 = createMemorySnapbackClientStore();
   await item7.scopeAuthorization({
@@ -157,22 +178,233 @@ const expectCode = async (code, operation) => {
     authorityDescriptor: descriptor(AUTHORITY_1),
   });
   const item7Queue = await item7.captureMutationQueue();
-  await item7.enqueueMutation({
-    id: 'cm_item7_v4',
+  const item7Failed = await item7.enqueueMutation({
+    id: 'cm_item7_v4_failed',
     function: 'write',
+    args: { secret: 'item7-failed-payload' },
     authorityDescriptor: descriptor(AUTHORITY_1),
     ...item7Queue,
   });
+  await item7.settleMutation(item7Failed.id, { status: 'failed', ...item7Queue });
+  const item7Acknowledged = await item7.enqueueMutation({
+    id: 'cm_item7_v4_ack',
+    function: 'write',
+    authFingerprint: 'auth:item7',
+    authorityDescriptor: descriptor(AUTHORITY_1),
+    ...item7Queue,
+  });
+  await item7.settleMutation(item7Acknowledged.id, {
+    status: 'confirmed',
+    ...item7Queue,
+  });
+  await item7.enqueueMutation({
+    id: 'cm_item7_v4',
+    function: 'write',
+    args: { secret: 'item7-payload' },
+    authorityDescriptor: descriptor(AUTHORITY_1),
+    ...item7Queue,
+  });
+  await item7.putRetainedQuery('private', { rows: [{ secret: 'item7-row' }] });
   const legacyItem7 = await item7.snapshot();
+  legacyItem7.stranded.push({
+    id: 'cm_item7_unproven_stranded',
+    function: 'oldWrite',
+    sequence: 50,
+    args: { secret: 'item7-unproven-stranded' },
+  });
+  legacyItem7.legacyV2Stranded.push({
+    id: 'cm_item7_unproven_legacy2',
+    function: 'oldWrite',
+    sequence: 51,
+    args: { secret: 'item7-unproven-legacy2' },
+  });
+  legacyItem7.legacyV3Stranded.push({
+    id: 'cm_item7_unproven_legacy3',
+    function: 'oldWrite',
+    sequence: 52,
+    args: { secret: 'item7-unproven-legacy3' },
+  });
+  const item7QueueAuthorization = structuredClone(legacyItem7.queueAuthorization);
   legacyItem7.version = 4;
   delete legacyItem7.queueAuthorization;
   delete legacyItem7.legacyV4Stranded;
+  const exactItem7V4 = structuredClone(legacyItem7);
   const migratedItem7 = createMemorySnapbackClientStore({ state: legacyItem7 });
   const migratedQueue = await migratedItem7.captureMutationQueue();
+  const item7State = await migratedItem7.snapshot();
   assert.deepEqual(
     (await migratedItem7.pendingMutations(migratedQueue)).map((entry) => entry.id),
     ['cm_item7_v4'],
   );
+  assert.deepEqual(
+    (await migratedItem7.failedMutations(migratedQueue)).map((entry) => entry.id),
+    ['cm_item7_v4_failed'],
+  );
+  assert.deepEqual(item7State.acknowledged, []);
+  assert.deepEqual(item7State.stranded, []);
+  assert.deepEqual(item7State.legacyV2Stranded, []);
+  assert.deepEqual(item7State.legacyV3Stranded, []);
+  assert.deepEqual(
+    (await migratedItem7.getRetainedQuery('private')).rows,
+    [{ secret: 'item7-row' }],
+  );
+
+  const ambiguousPredecessors = [
+    ['both-axes', (state) => {
+      state.queueAuthorization = structuredClone(item7QueueAuthorization);
+    }],
+    ['partial-item7', (state) => {
+      delete state.queryAuthorization;
+    }],
+    ['neither-axis', (state) => {
+      delete state.principalScope;
+      delete state.authorityDescriptor;
+      delete state.queryAuthorization;
+    }],
+    ['hybrid-item6', (state) => {
+      state.queueAuthorization = structuredClone(item7QueueAuthorization);
+      delete state.authorityDescriptor;
+      delete state.queryAuthorization;
+    }],
+  ];
+  for (const [name, corrupt] of ambiguousPredecessors) {
+    const malicious = structuredClone(exactItem7V4);
+    malicious.stranded.push({
+      id: `cm_${name}_stranded`,
+      function: 'oldWrite',
+      sequence: 40,
+      args: { secret: `${name}-stranded-secret` },
+    });
+    malicious.legacyV2Stranded.push({
+      id: `cm_${name}_legacy2`,
+      function: 'oldWrite',
+      sequence: 41,
+      args: { secret: `${name}-legacy-secret` },
+    });
+    corrupt(malicious);
+    const migrated = await createMemorySnapbackClientStore({ state: malicious }).snapshot();
+    assert.deepEqual(migrated.retained, {}, `${name}: retained`);
+    assert.deepEqual(migrated.pending, [], `${name}: pending`);
+    assert.deepEqual(migrated.failed, [], `${name}: failed`);
+    assert.deepEqual(migrated.acknowledged, [], `${name}: acknowledgements`);
+    assert.deepEqual(migrated.stranded, [], `${name}: stranded`);
+    assert.deepEqual(migrated.legacyV2Stranded, [], `${name}: legacy v2`);
+    assert.deepEqual(migrated.legacyV3Stranded, [], `${name}: legacy v3`);
+    assert.equal(migrated.legacyV4Stranded.length, 2, `${name}: quarantine`);
+    for (const tombstone of migrated.legacyV4Stranded) {
+      assert.equal(tombstone.legacyShape, 'ambiguous');
+      assert.equal(tombstone.discardOnly, true);
+      assert.equal(Object.hasOwn(tombstone, 'args'), false);
+    }
+    const bytes = JSON.stringify(migrated);
+    for (const secret of [
+      'item7-payload',
+      'item7-row',
+      `${name}-stranded-secret`,
+      `${name}-legacy-secret`,
+    ]) assert.equal(bytes.includes(secret), false, `${name}: deleted ${secret}`);
+    assert.equal(migrated.principalScope, null);
+    assert.equal(migrated.authorityDescriptor, null);
+  }
+}
+
+// Principal identity is decided before queue authority. A different principal
+// or an unscoped predecessor deletes retained rows and every executable,
+// receipt, modern-stranded, and legacy-stranded namespace.
+{
+  const seeded = createMemorySnapbackClientStore();
+  await seeded.scopeAuthorization({
+    principalScope: principal,
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  });
+  await seeded.putRetainedQuery('private', { rows: [{ secret: 'principal-row' }] });
+  let queue = await seeded.captureMutationQueue();
+  await seeded.enqueueMutation({
+    id: 'cm_old_stranded',
+    function: 'write',
+    args: { secret: 'old-stranded' },
+    authorityDescriptor: descriptor(AUTHORITY_1),
+    ...queue,
+  });
+  await seeded.scopeAuthorization({
+    principalScope: principal,
+    authorityDescriptor: descriptor(AUTHORITY_2),
+  });
+  queue = await seeded.captureMutationQueue();
+  const failed = await seeded.enqueueMutation({
+    id: 'cm_current_failed',
+    function: 'write',
+    args: { secret: 'current-failed' },
+    authorityDescriptor: descriptor(AUTHORITY_2),
+    ...queue,
+  });
+  await seeded.settleMutation(failed.id, { status: 'failed', ...queue });
+  const confirmed = await seeded.enqueueMutation({
+    id: 'cm_current_ack',
+    function: 'write',
+    authFingerprint: 'auth:principal',
+    authorityDescriptor: descriptor(AUTHORITY_2),
+    ...queue,
+  });
+  await seeded.settleMutation(confirmed.id, { status: 'confirmed', ...queue });
+  await seeded.enqueueMutation({
+    id: 'cm_current_pending',
+    function: 'write',
+    args: { secret: 'current-pending' },
+    authorityDescriptor: descriptor(AUTHORITY_2),
+    ...queue,
+  });
+  const seededState = await seeded.snapshot();
+  seededState.legacyV2Stranded.push({
+    id: 'cm_legacy2_private', function: 'write', sequence: 70, args: { secret: 'legacy2' },
+  });
+  seededState.legacyV3Stranded.push({
+    id: 'cm_legacy3_private', function: 'write', sequence: 71, args: { secret: 'legacy3' },
+  });
+  seededState.legacyV4Stranded.push({
+    id: 'cm_legacy4_private', function: 'write', sequence: 72, args: { secret: 'legacy4' },
+  });
+
+  const switched = createMemorySnapbackClientStore({ state: structuredClone(seededState) });
+  await switched.scopeAuthorization({
+    principalScope: { ...principal, userId: USER_2 },
+    authorityDescriptor: descriptor(AUTHORITY_3),
+  });
+  const switchedState = await switched.snapshot();
+  assert.deepEqual(switchedState.retained, {});
+  for (const field of [
+    'pending',
+    'failed',
+    'acknowledged',
+    'stranded',
+    'legacyV2Stranded',
+    'legacyV3Stranded',
+    'legacyV4Stranded',
+  ]) assert.deepEqual(switchedState[field], [], `different principal clears ${field}`);
+  assert.equal(JSON.stringify(switchedState).includes('principal-row'), false);
+  assert.equal(JSON.stringify(switchedState).includes('current-pending'), false);
+
+  const unknownState = structuredClone(seededState);
+  unknownState.principalScope = null;
+  unknownState.authorityDescriptor = null;
+  unknownState.pending = [];
+  unknownState.failed = [];
+  const unknown = createMemorySnapbackClientStore({ state: unknownState });
+  await unknown.scopeAuthorization({
+    principalScope: principal,
+    authorityDescriptor: descriptor(AUTHORITY_3),
+  });
+  const adopted = await unknown.snapshot();
+  assert.deepEqual(adopted.retained, {});
+  for (const field of [
+    'pending',
+    'failed',
+    'acknowledged',
+    'stranded',
+    'legacyV2Stranded',
+    'legacyV3Stranded',
+    'legacyV4Stranded',
+  ]) assert.deepEqual(adopted[field], [], `unknown predecessor clears ${field}`);
 }
 
 // v2 validates without treating its generation/fingerprint as server

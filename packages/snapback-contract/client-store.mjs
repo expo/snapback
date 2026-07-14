@@ -413,6 +413,53 @@ function assertMatchesCurrentScope(record, path, state, { queued = false } = {})
   }
 }
 
+const LEGACY_V4_ITEM6_FIELDS = [
+  'acknowledged',
+  'artifactScope',
+  'authFingerprint',
+  'authorityEpoch',
+  'authorityKey',
+  'failed',
+  'generation',
+  'legacyV2Stranded',
+  'nextSequence',
+  'origin',
+  'pending',
+  'queueAuthorization',
+  'retained',
+  'stranded',
+  'version',
+].sort().join(',');
+
+const LEGACY_V4_ITEM7_FIELDS = [
+  'acknowledged',
+  'artifactScope',
+  'authFingerprint',
+  'authorityDescriptor',
+  'authorityEpoch',
+  'authorityKey',
+  'failed',
+  'generation',
+  'legacyV2Stranded',
+  'legacyV3Stranded',
+  'nextSequence',
+  'origin',
+  'pending',
+  'principalScope',
+  'queryAuthorization',
+  'retained',
+  'stranded',
+  'version',
+].sort().join(',');
+
+function legacyV4PredecessorShape(state) {
+  if (state.version !== 4) return null;
+  const fields = Object.keys(state).sort().join(',');
+  if (fields === LEGACY_V4_ITEM6_FIELDS) return 'item6';
+  if (fields === LEGACY_V4_ITEM7_FIELDS) return 'item7';
+  return 'ambiguous';
+}
+
 const normalizeState = (state) => {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     throw clientStoreStateError(
@@ -424,11 +471,11 @@ const normalizeState = (state) => {
   const legacyV2 = state.version === 2;
   const legacyV3 = state.version === 3;
   const legacyV4 = state.version === 4;
-  const legacyV4HadQueueAuthorization = legacyV4
-    && Object.hasOwn(state, 'queueAuthorization');
-  const legacyV4HadAuthorityDescriptor = legacyV4
-    && state.authorityDescriptor !== null
-    && state.authorityDescriptor !== undefined;
+  // @ref LLP 0043#auth-posture — item 6 and item 7 both shipped physical
+  //   format 4. Only their exact, mutually exclusive top-level shapes are
+  //   eligible for migration; partial/hybrid shapes cannot supply a missing
+  //   authority axis after the fact.
+  const legacyV4Shape = legacyV4PredecessorShape(state);
   if (legacyV1 || legacyV2 || legacyV3 || legacyV4) {
     // v2 changed acknowledgements from ambiguous bare ids to auth-tagged
     // records and replaces the collision-prone FNV scope with SHA-256. A v1
@@ -625,6 +672,9 @@ const normalizeState = (state) => {
   state.failed.forEach((entry, index) => {
     const path = `failed.${index}`;
     assertMutationRecord(entry, path, 'failed');
+    if (state.authorityDescriptor !== null) {
+      assertMatchesCurrentScope(entry, path, state, { queued: true });
+    }
     assertMutationIdentity(entry, path);
   });
   state.stranded.forEach((entry, index) => {
@@ -688,21 +738,63 @@ const normalizeState = (state) => {
     state.authorityDescriptor = null;
     state.queryAuthorization = {};
   }
-  if (legacyV4 && !legacyV4HadAuthorityDescriptor) {
-    // Format 4 was independently occupied by item 6's invalidation queue and
-    // item 7's two-axis authority store. The item-6 shape has no server-issued
-    // authority instance, so its queued bytes are inspectable/discardable but
-    // can never be rebound for replay in the composed format 5 store.
+  if (legacyV4Shape === 'item6') {
+    // The exact item-6 predecessor has no principal or server-issued authority
+    // instance. Its current queue is isolated for explicit discard, while all
+    // other privacy-bearing predecessor collections are deleted.
     state.legacyV4Stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
       ...clone(entry),
       legacyFormat: 4,
-      legacyShape: legacyV4HadQueueAuthorization ? 'invalidation' : 'unknown',
+      legacyShape: 'invalidation',
       replayable: false,
+      discardOnly: true,
     })));
+    state.retained = {};
     state.pending = [];
     state.failed = [];
     state.acknowledged = [];
+    state.stranded = [];
+    state.legacyV2Stranded = [];
+    state.legacyV3Stranded = [];
+    state.principalScope = null;
     state.authorityDescriptor = null;
+    state.queryAuthorization = {};
+    state.authFingerprint = null;
+  }
+  if (legacyV4Shape === 'item7') {
+    // The exact item-7 predecessor already proves the principal and queue
+    // authority axes. Preserve only data and current work bound to those axes;
+    // older stranded/receipt namespaces do not carry that proof.
+    state.acknowledged = [];
+    state.stranded = [];
+    state.legacyV2Stranded = [];
+    state.legacyV3Stranded = [];
+  }
+  if (legacyV4Shape === 'ambiguous') {
+    // Hybrid, partial, extended, and neither-shape v4 stores are not evidence
+    // for either authority model. Keep only redacted diagnostic tombstones;
+    // no payload or retained row may cross this unidentifiable predecessor.
+    const quarantined = [...state.pending, ...state.failed].map((entry) => ({
+      ...redactedStrandedMutation(entry, state, 'legacy_v4_ambiguous', 'delete'),
+      legacyFormat: 4,
+      legacyShape: 'ambiguous',
+    }));
+    state.retained = {};
+    state.pending = [];
+    state.failed = [];
+    state.acknowledged = [];
+    state.stranded = [];
+    state.legacyV2Stranded = [];
+    state.legacyV3Stranded = [];
+    state.legacyV4Stranded = quarantined;
+    state.principalScope = null;
+    state.authorityDescriptor = null;
+    state.queryAuthorization = {};
+    state.authFingerprint = null;
+    const format5Fields = new Set(Object.keys(freshState()));
+    for (const field of Object.keys(state)) {
+      if (!format5Fields.has(field)) delete state[field];
+    }
   }
   return state;
 };
@@ -906,12 +998,61 @@ function redactedStrandedMutation(entry, state, reason, disposition) {
   };
 }
 
-function strandCurrentQueue(state, reason, disposition = 'delete') {
-  state.stranded.push(...[...state.pending, ...state.failed].map((entry) => (
-    redactedStrandedMutation(entry, state, reason, disposition)
-  )));
+function rerecordableStrandedMutation(entry, state, reason) {
+  return {
+    ...clone(entry),
+    predecessorPrincipalScope: clone(state.principalScope),
+    strandedAtEpoch: state.queueAuthorization.authorityGeneration,
+    strandedAtQueueGeneration: state.queueAuthorization.queueGeneration,
+    disposition: 'strand',
+    reason,
+    replayable: false,
+    discardOnly: false,
+    rerecordable: true,
+  };
+}
+
+function clearLegacyQueueNamespaces(state) {
+  state.legacyV2Stranded = [];
+  state.legacyV3Stranded = [];
+  state.legacyV4Stranded = [];
+}
+
+function clearCurrentQueue(state) {
   state.pending = [];
   state.failed = [];
+  state.acknowledged = [];
+  state.queueAuthorization.pendingByScope = {};
+}
+
+function clearAllQueueNamespaces(state) {
+  clearCurrentQueue(state);
+  state.stranded = [];
+  clearLegacyQueueNamespaces(state);
+}
+
+function hasPrivacyBearingState(state) {
+  return Object.keys(state.retained).length > 0
+    || state.pending.length > 0
+    || state.failed.length > 0
+    || state.acknowledged.length > 0
+    || state.stranded.length > 0
+    || state.legacyV2Stranded.length > 0
+    || state.legacyV3Stranded.length > 0
+    || state.legacyV4Stranded.length > 0;
+}
+
+function strandCurrentQueue(
+  state,
+  reason,
+  disposition = 'delete',
+  { rerecordable = false } = {},
+) {
+  const strand = rerecordable
+    ? (entry) => rerecordableStrandedMutation(entry, state, reason)
+    : (entry) => redactedStrandedMutation(entry, state, reason, disposition);
+  state.stranded.push(...[...state.pending, ...state.failed].map(strand));
+  clearCurrentQueue(state);
 }
 
 function expectationForObligation(obligation) {
@@ -1155,23 +1296,52 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         const principalChanged = state.principalScope !== null
           && stableJson(state.principalScope) !== stableJson(principalScope);
         const unknownPrincipal = state.principalScope === null
-          && Object.keys(state.retained).length > 0;
-        if (principalChanged || unknownPrincipal) state.retained = {};
+          && hasPrivacyBearingState(state);
+
+        // @ref LLP 0056#format-3-and-authority-tags — establish the principal
+        //   boundary before considering queue authority. A different, missing,
+        //   or unprovable predecessor principal deletes every privacy-bearing
+        //   namespace; no later descriptor may make those bytes attributable.
+        if (principalChanged || unknownPrincipal) {
+          state.retained = {};
+          advanceQueueGeneration(state);
+          clearAllQueueNamespaces(state);
+          state.authFingerprint = null;
+        } else {
+          // Legacy queues have no format-5 proof connecting them to this
+          // principal, even when the modern principal itself is unchanged.
+          clearLegacyQueueNamespaces(state);
+        }
 
         const authorityChanged = state.authorityDescriptor !== null
           && state.authorityDescriptor.authorityInstanceId
             !== authorityDescriptor.authorityInstanceId;
         const unknownAuthority = state.authorityDescriptor === null
-          && (state.pending.length > 0 || state.failed.length > 0);
-        if (authorityChanged || unknownAuthority) {
-          state.stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
-            ...clone(entry),
-            replayable: false,
-            reason: authorityChanged ? 'authority_instance_changed' : 'authority_unknown',
-          })));
-          state.pending = [];
-          state.failed = [];
-          state.acknowledged = [];
+          && (
+            state.pending.length > 0
+            || state.failed.length > 0
+            || state.acknowledged.length > 0
+          );
+        const exactSamePrincipal = state.principalScope !== null
+          && stableJson(state.principalScope) === stableJson(principalScope);
+        if (!principalChanged && !unknownPrincipal && authorityChanged) {
+          advanceQueueGeneration(state);
+          if (exactSamePrincipal) {
+            strandCurrentQueue(
+              state,
+              'authority_instance_changed',
+              'strand',
+              { rerecordable: true },
+            );
+          } else {
+            clearAllQueueNamespaces(state);
+          }
+        } else if (!principalChanged && !unknownPrincipal && unknownAuthority) {
+          advanceQueueGeneration(state);
+          // A transition participant may deliberately leave already-stranded
+          // records while the successor descriptor is fetched. Only executable
+          // queue/receipt state lacks proof here and must be deleted.
+          clearCurrentQueue(state);
         }
         state.principalScope = clone(principalScope);
         state.authorityDescriptor = clone(authorityDescriptor);
