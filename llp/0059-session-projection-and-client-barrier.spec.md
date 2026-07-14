@@ -745,7 +745,8 @@ holds the exact registry grant current, locks the exact outbox, atomically
 validates and acknowledges the complete lease set, and only then exposes bytes
 to the HTTP stack. A projection-only response performs the same outbox cut with
 an empty lease set, so a recovery marker installed after handler selection
-still wins. Pending, error, cancellation, grant retirement, leaf
+still wins. A pending body poll retains the whole batch without exposing a
+frame. A ready error, cancellation, grant retirement, leaf
 expiry/revocation/reset, a higher-priority marker, or any stale lease exposes
 no frame and releases the whole batch for retry or exact purge. This first-body
 cut uses the connection act's publication handle once; the registered
