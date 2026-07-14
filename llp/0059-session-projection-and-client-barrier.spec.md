@@ -724,6 +724,10 @@ authority because it owns no invalidation scope. Data-only deployment seeds
 rerun retained queries even when the storage witness correctly reports no
 authorization event. Any activation preprojection failure keeps mode admission
 closed instead of using ordinary mutation fanout's diagnostic-only fallback.
+If an affected unscoped connection already has durable predecessor frames,
+activation atomically replaces that backlog with the existing connection-wide
+clear-retained overflow sentinel (including its room-resync preservation), so
+no unstamped old frame can transfer after the successor cut.
 
 Queued live deltas are different by design. Production/enqueue is allowed
 inside `with_snapback`'s global write guard and therefore MUST NOT acquire any

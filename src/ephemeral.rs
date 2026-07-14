@@ -4097,6 +4097,44 @@ impl LocalEphemeralBackend {
         self.enqueue_durable_message(connection_id, DurableMessage::new(payload))
     }
 
+    /// Retire an unfenced predecessor durable backlog at a sessions
+    /// deployment cut. Authority-independent live frames intentionally carry
+    /// no authorization stamp, so they cannot be filtered by the normal
+    /// stream-generation drain. Escalating a nonempty queue through the
+    /// existing sticky overflow path atomically drops those frames, preserves
+    /// pending room resync epochs, and leaves one connection-wide
+    /// clear-retained sentinel.
+    ///
+    /// @ref LLP 0058#same-mode-provisioning — no unscoped predecessor live
+    /// payload may transfer after successor activation.
+    pub(crate) fn invalidate_durable_backlog_for_activation(&self, connection_id: &str) -> bool {
+        let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
+        let Some(outbox) = outbox else {
+            return false;
+        };
+        let overflow = {
+            let mut queue = lock(&outbox);
+            if queue.durable.is_empty() {
+                return false;
+            }
+            queue.overflow(None)
+        };
+        if overflow.overflowed {
+            self.shared
+                .counters
+                .outbox_overflows
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        if overflow.resync_count > 0 {
+            self.shared
+                .counters
+                .resync_required
+                .fetch_add(overflow.resync_count as u64, Ordering::Relaxed);
+        }
+        self.shared.delivery.wake(connection_id);
+        true
+    }
+
     pub(crate) fn enqueue_authorized_durable(
         &self,
         connection_id: impl Into<String>,

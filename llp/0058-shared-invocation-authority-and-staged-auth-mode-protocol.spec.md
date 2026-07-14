@@ -719,6 +719,14 @@ snapshots include the committed rows. Preprojection errors are propagated to
 the transition; the ordinary post-commit mutation fanout's diagnostic-only
 fallback is forbidden at this activation boundary.
 
+Unscoped predecessor frames already queued for one of those connections are
+also unfenced. Before removing the subscription, activation converts any
+nonempty durable backlog through the existing sticky-overflow transition: all
+old lanes are cleared, pending room resync epochs are preserved, and one
+connection-wide `outbox_overflow`/`clearRetained` sentinel remains. Therefore
+an old `live_replace` or `live_delta` cannot transfer ahead of the activation
+resync after the successor cut.
+
 A confirmed rollback reopens the unchanged deployment under a fresh admission
 epoch. An ambiguous durable outcome, function/publication failure after a known
 commit, invalidation projection failure, or mode-state publication failure
@@ -1372,7 +1380,10 @@ pending/quarantined and in-process sessions carriers cannot fall through to
 the raw loader. Deterministic live cases exhaust projection sequencing and
 prove admission stays closed, terminally resync both changed-to-protected and
 removed authority-independent subscriptions, and prove an ordinary data-only
-seed refreshes an auth-scoped snapshot without advancing authorization.
+seed refreshes an auth-scoped snapshot without advancing authorization. The
+authority-independent case leaves a predecessor `live_replace` queued and
+proves activation replaces it with a clear-retained sentinel rather than
+letting it transfer after reopen.
 
 ### Stage, consume, poison, and downgrade
 

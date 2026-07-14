@@ -2809,6 +2809,10 @@ impl LocalSnapback {
                     "settled sessions activation checked transition-owned admission before commit",
                 );
                 self.begin_live_delivery_frame(self.subscriptions.len());
+                if activation_changed {
+                    self.invalidate_unscoped_live_subscriptions_for_activation(admission)
+                        .map_err(ModeCommitFailure::Uncertain)?;
+                }
                 let already_resynced = if let Some(authorization) =
                     authorization.as_ref().filter(|event| event.witness.event)
                 {
@@ -2821,10 +2825,6 @@ impl LocalSnapback {
                 } else {
                     BTreeSet::new()
                 };
-                if activation_changed {
-                    self.invalidate_unscoped_live_subscriptions_for_activation(admission)
-                        .map_err(ModeCommitFailure::Uncertain)?;
-                }
                 if seed_outcome == NetworkSeedOutcome::Seeded {
                     self.notify_live_subscriptions_in_frame(&[], &already_resynced, admission)
                         .map_err(ModeCommitFailure::Uncertain)?;
@@ -8083,6 +8083,16 @@ impl LocalSnapback {
         let _publication = admission.effect_guard("activation live resync publication")?;
         let snapshot_version = self.db.current_version().ok();
         let received_at_ms = now_millis();
+        let overflowed_connections = subscriptions
+            .iter()
+            .map(|subscription| subscription.connection_id.as_str())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|connection_id| {
+                self.ephemeral
+                    .invalidate_durable_backlog_for_activation(connection_id)
+            })
+            .collect::<BTreeSet<_>>();
         for (subscription, payload) in subscriptions.iter().zip(payloads) {
             self.subscriptions.remove(&subscription.id);
             self.receipts.push_global(
@@ -8102,11 +8112,15 @@ impl LocalSnapback {
                 }
                 .into_value(),
             );
-            self.ephemeral
-                .enqueue_durable(subscription.connection_id.clone(), payload);
-            self.live_delivery.total_deliveries += 1;
-            self.live_delivery.last_deliveries += 1;
+            if !overflowed_connections.contains(subscription.connection_id.as_str()) {
+                self.ephemeral
+                    .enqueue_durable(subscription.connection_id.clone(), payload);
+                self.live_delivery.total_deliveries += 1;
+                self.live_delivery.last_deliveries += 1;
+            }
         }
+        self.live_delivery.total_deliveries += overflowed_connections.len() as u64;
+        self.live_delivery.last_deliveries += overflowed_connections.len();
         self.refresh_auth_scoped_live_connections();
         self.refresh_cron_active();
         Ok(())
@@ -10079,6 +10093,16 @@ mod tests {
         );
         drain_live_stream_through_test_sink(&mut snapback, "activation-independent-changed");
         drain_live_stream_through_test_sink(&mut snapback, "activation-independent-removed");
+        snapback.ephemeral.enqueue_durable(
+            "activation-independent-changed",
+            serde_json::to_vec(&crate::live_wire::LiveEnvelope::LiveReplace {
+                subscription_id: changed.subscription_id.clone(),
+                function: "independentChanged".to_owned(),
+                version: 1,
+                rows: vec![json!({ "value": "queued-predecessor" })],
+            })
+            .expect("serialize queued predecessor frame"),
+        );
 
         let mut protected = FunctionDefinition::new(
             "independentChanged",
@@ -10127,26 +10151,30 @@ mod tests {
                 .subscriptions
                 .contains_key(&removed.subscription_id)
         );
-        for (connection_id, subscription_id) in [
-            (
-                "activation-independent-changed",
-                changed.subscription_id.as_str(),
-            ),
-            (
-                "activation-independent-removed",
-                removed.subscription_id.as_str(),
-            ),
-        ] {
-            let frames = drain_live_stream_through_test_sink(&mut snapback, connection_id);
-            assert!(frames.iter().any(|frame| {
-                serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
-                    frame["kind"] == "resync_required"
-                        && frame["reason"] == "auth_deployment_activated"
-                        && frame["subscription_id"] == subscription_id
-                        && frame["clear_retained"] == true
-                })
-            }));
-        }
+        let changed_frames =
+            drain_live_stream_through_test_sink(&mut snapback, "activation-independent-changed");
+        assert!(changed_frames.iter().all(|frame| {
+            serde_json::from_str::<Value>(frame).is_ok_and(|frame| frame["kind"] != "live_replace")
+        }));
+        assert!(changed_frames.iter().any(|frame| {
+            serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
+                frame["kind"] == "resync_required"
+                    && frame["reason"] == "outbox_overflow"
+                    && frame["subscription_id"].is_null()
+                    && frame["clear_retained"] == true
+            })
+        }));
+
+        let removed_frames =
+            drain_live_stream_through_test_sink(&mut snapback, "activation-independent-removed");
+        assert!(removed_frames.iter().any(|frame| {
+            serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
+                frame["kind"] == "resync_required"
+                    && frame["reason"] == "auth_deployment_activated"
+                    && frame["subscription_id"] == removed.subscription_id
+                    && frame["clear_retained"] == true
+            })
+        }));
     }
 
     #[test]
