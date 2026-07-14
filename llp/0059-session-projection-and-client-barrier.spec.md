@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -302,6 +302,7 @@ invalidates all predecessor grants, so no retired stream fence can validate.
 At rebuild, the process samples `(epochNow, monotonicNow)` and calculates:
 
 ```text
+epochNow = max(wallClockSample, durableSessionClockFloor)
 remaining = max(0, durableExpiresAt - epochNow)
 monotonicDeadline = monotonicNow + remaining
 ```
@@ -316,6 +317,47 @@ sliding use, but may never extend it beyond what the prior process authorized.
 The worker uses `(sessionId, generation)` compare semantics when consuming a
 deadline entry. A stale deadline from rotation, extension, revocation, or id
 reuse cannot expire a newer generation.
+
+### Durable session clock floor
+
+Every session lifetime decision reads the wall clock — sliding expiry,
+absolute expiry, superseded-token grace, provider and challenge deadlines, and
+startup rebuild all compare against `epochNow`. A monotonic in-process time
+alone cannot defend these across a restart: the monotonic clock resets, so a
+restart must re-derive lifetimes from durable wall-clock timestamps, and a
+backward wall-clock move (operator error, NTP correction, or a hostile local
+clock change) between stop and start would otherwise let a lower `epochNow`
+reclassify a session the prior process had already slid or absolute-expired
+past as current again. Startup GC deletes only at absolute expiry, so a
+sliding-expired but absolute-live row survives to be rebuilt.
+
+To make time non-decreasing across restarts, the instance persists a durable
+**session clock floor** in `_snapback_meta['auth_session_clock_floor_ms']`: the
+maximum epoch the process has ever committed. The rule is:
+
+- The process holds a non-decreasing in-memory floor. Every `now_ms()` read is
+  `max(wallClockSample, floor)` and raises the floor to that value, so the
+  epoch any lifetime decision observes is monotone for the life of the process
+  and never below the durable floor.
+- Startup, before deriving any deadline or serving, raises the durable floor to
+  at least the current sample, seeds the in-memory floor from the resulting
+  (possibly higher) durable value, and rebuilds the projection at that floored
+  `epochNow`.
+- Every maintenance/GC pass persists the advancing floor atomically with its
+  reclamation write, so forward progress made while serving survives a later
+  restart up to the maintenance cadence.
+
+Consequently, once either authoritative deadline terminalizes a session
+generation at some epoch `E` the process has committed to the floor, no ordinary
+restart can rebuild that generation as current under any lower wall sample:
+`epochNow >= E` always. The floor only ever fails **closed** — it can make a
+lifetime decision expire sooner, never later, consistent with "restart may
+under-extend but may never extend prior authority." A spuriously high durable
+floor (e.g. a transient clock spike persisted before correction) can therefore
+over-expire sessions until real time catches up; this conservative,
+availability-only residual is preferred over any risk of reviving terminal
+authority, and an operator can recover by advancing real time or reissuing
+sessions. The floor is not a secret and carries no per-session state.
 
 ## Two-phase mutation protocol
 
@@ -423,7 +465,10 @@ operations. Neither substitutes for the other.
   `expires_at_ms` already proves the state, so expiry does not invent a
   generation bump or require a write to become authoritative. Any later
   GC/bookkeeping write is detached, and restart derives the same terminal
-  result from durable expiry.
+  result from durable expiry — the durable session clock floor guarantees the
+  restart's `epochNow` is at least the epoch at which the deadline was observed,
+  so the comparison against `expires_at_ms` cannot be undone by a backward wall
+  move.
 - **Bearer rotation:** `Begin` adds a `TokenSupersede { predecessorDigest }`
   pending overlay owned by its ticket; token resolution treats that predecessor
   as unavailable even though the base token index still says current. The

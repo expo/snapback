@@ -15,6 +15,7 @@ use std::collections::hash_map::RandomState;
 use std::fmt;
 use std::hash::{BuildHasher, Hasher as _};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rusqlite::{Connection, OptionalExtension as _, Transaction, params};
@@ -741,6 +742,13 @@ pub struct AuthProvider {
     mailbox: CaptureMailbox,
     random: Arc<dyn RandomSource>,
     clock: Arc<dyn AuthClock>,
+    /// Process-local non-decreasing epoch floor. Every `now_ms()` read is
+    /// clamped up to it, so a backward wall-clock move can never lower the
+    /// epoch any auth lifetime decision observes. Startup seeds it from the
+    /// durable floor and maintenance persists its forward progress.
+    ///
+    /// @ref LLP 0059#durable-session-clock-floor
+    session_clock_floor_ms: AtomicU64,
     dummy_key: AuthKeyMaterial,
     dummy_address: CanonicalAddress,
     dummy_token_hash: TokenHash,
@@ -795,6 +803,7 @@ impl AuthProvider {
             mailbox,
             random,
             clock,
+            session_clock_floor_ms: AtomicU64::new(0),
             dummy_key,
             dummy_address,
             dummy_token_hash,
@@ -810,8 +819,30 @@ impl AuthProvider {
         self.profile
     }
 
+    /// Sample the wall clock clamped up to the process-local floor. The
+    /// returned epoch is non-decreasing for the life of the process and never
+    /// below the durable floor seeded at startup, so no auth lifetime decision
+    /// (session sliding/absolute expiry, superseded-token grace, provider and
+    /// challenge deadlines) can observe a rolled-back time.
+    ///
+    /// @ref LLP 0059#durable-session-clock-floor — time cannot roll back into
+    /// a live session; a backward wall move only ever fails closed.
     pub fn now_ms(&self) -> u64 {
-        self.clock.epoch_ms()
+        let sample = self.clock.epoch_ms();
+        // fetch_max returns the previous value; the observed epoch is the max
+        // of that and the fresh sample.
+        let previous = self.session_clock_floor_ms.fetch_max(sample, Ordering::AcqRel);
+        previous.max(sample)
+    }
+
+    /// Raise the process-local clock floor to at least `floor_ms`. Startup
+    /// calls this with the durable floor so request-time reads never sample
+    /// below authority the previous process already terminalized.
+    ///
+    /// @ref LLP 0059#durable-session-clock-floor
+    pub(crate) fn seed_session_clock_floor(&self, floor_ms: u64) {
+        self.session_clock_floor_ms
+            .fetch_max(floor_ms, Ordering::AcqRel);
     }
 
     pub(crate) fn monotonic_now(&self) -> Instant {

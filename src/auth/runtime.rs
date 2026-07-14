@@ -248,12 +248,30 @@ impl AuthRuntime {
     ///
     /// @ref LLP 0059#startup-rebuild-and-deadline-derivation — migration,
     /// snapshot validation, invariant checking, and publication are pre-bind.
+    ///
+    /// Before deriving any deadline, advance and read the durable auth-clock
+    /// floor and seed the provider's process-local floor from it. The
+    /// projection is then rebuilt at `max(sample, durable_floor)`, so a
+    /// backward wall-clock move across restart can never reclassify a session
+    /// the previous process already terminalized as current again.
+    ///
+    /// @ref LLP 0059#durable-session-clock-floor — restart may under-extend but
+    /// may never extend prior authority; the floor makes lifetime decisions
+    /// fail closed under a lower epoch sample.
     pub(crate) fn build_coordinator(
         &self,
         snapback: &mut LocalSnapback,
     ) -> SnapbackResult<Arc<AuthCoordinator>> {
         let database = snapback.auth_database_mut();
         let incarnation = database.ensure_authorization_stream_incarnation()?;
+        if self.catalog_ready {
+            // Raise the durable floor to at least this startup's sample, then
+            // seed the process clock from the resulting (possibly higher)
+            // floor before any session deadline is derived or served.
+            let sample = self.provider.now_ms();
+            let floor = database.advance_auth_session_clock_floor(sample)?;
+            self.provider.seed_session_clock_floor(floor);
+        }
         let source = if self.catalog_ready {
             database.session_projection_source()?
         } else {
@@ -403,6 +421,7 @@ mod tests {
     use super::*;
     use crate::auth::backup::create_backup;
     use crate::auth::crypto::{OsRandom, SessionBearer};
+    use crate::auth::invocation::ResolvedAppAuthority;
     use crate::auth::keyring::AUTH_KEY_ROTATION_AGE_MS;
     use crate::auth::lifecycle::{
         RestoreDeclaration, activate_catalog, apply_declared_restore, restore_declaration_path,
@@ -1041,6 +1060,199 @@ mod tests {
             keyring.load_existing().unwrap().key_count,
             2,
             "the due key rotation occurs only after backup releases maintenance"
+        );
+    }
+
+    fn ready_runtime_with_clock(clock: Arc<RuntimeManualClock>) -> (AuthRuntime, Arc<AuthProvider>) {
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                Arc::new(AuthKeyringStore::in_memory()),
+                Arc::new(OsRandom),
+                clock,
+            )
+            .unwrap(),
+        );
+        let runtime = AuthRuntime {
+            provider: provider.clone(),
+            catalog_ready: true,
+            startup_diagnostic: None,
+        };
+        (runtime, provider)
+    }
+
+    fn insert_lifetime_session(
+        snapback: &mut LocalSnapback,
+        expires_at_ms: u64,
+        absolute_expires_at_ms: u64,
+    ) -> String {
+        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let bearer_text = bearer.expose_secret().to_owned();
+        let token_hash = bearer.token_hash();
+        let user_id = uuid::Uuid::now_v7().to_string();
+        let identity_id = uuid::Uuid::now_v7().to_string();
+        let session_id = uuid::Uuid::now_v7().to_string();
+        let authority_instance_id = uuid::Uuid::now_v7().to_string();
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|transaction| {
+                transaction.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 100)",
+                    params![user_id],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
+                     VALUES(?1, ?2, 'email-code', ?3, 100)",
+                    params![identity_id, user_id, format!("{identity_id}@example.com")],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms, revoked_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, 1, 100, 100, ?6, ?7, NULL)",
+                    params![
+                        session_id,
+                        user_id,
+                        identity_id,
+                        authority_instance_id,
+                        token_hash.as_bytes().as_slice(),
+                        expires_at_ms as i64,
+                        absolute_expires_at_ms as i64,
+                    ],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        bearer_text
+    }
+
+    fn activated_memory_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        activate_catalog(
+            snapback.auth_database_mut(),
+            &AuthKeyringStore::in_memory(),
+            50,
+            &OsRandom,
+        )
+        .unwrap();
+        snapback
+    }
+
+    /// A backward wall-clock move across restart must not revive a session the
+    /// prior process already slid past. ENG-24982.
+    #[tokio::test]
+    async fn restart_backward_wall_move_cannot_revive_a_slid_session() {
+        let mut snapback = activated_memory_snapback();
+        // Sliding expiry 200, absolute expiry 300; the exact repro shape.
+        let bearer = insert_lifetime_session(&mut snapback, 200, 300);
+
+        // Process 1 reaches epoch 250, where the sliding deadline is terminal.
+        // Building the coordinator advances and persists the durable floor.
+        let (runtime1, provider1) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+        let coordinator1 = runtime1.build_coordinator(&mut snapback).unwrap();
+        assert_eq!(
+            coordinator1
+                .resolve_required_bearer(&bearer, provider1.now_ms(), provider1.monotonic_now())
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+            "the running process already treats the session as terminal at epoch 250"
+        );
+        assert_eq!(
+            snapback.auth_database_mut().auth_session_clock_floor().unwrap(),
+            250,
+            "the running process persisted its advancing clock floor"
+        );
+
+        // Process 2 restarts after the wall clock moved back to 150. Startup GC
+        // retains the row (300 > 150) but the rebuild must still fail closed.
+        assert!(
+            runtime1
+                .run_startup_gc(&mut snapback)
+                .await
+                .unwrap()
+                .unwrap()
+                .sessions_deleted
+                == 0
+        );
+        let (runtime2, provider2) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
+        let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
+        assert_eq!(
+            provider2.now_ms(),
+            250,
+            "the process clock floor is seeded from the durable floor, not the lower sample"
+        );
+        assert_eq!(
+            coordinator2
+                .resolve_required_bearer(&bearer, provider2.now_ms(), provider2.monotonic_now())
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+            "a rolled-back restart must not rebuild the slid session as current"
+        );
+    }
+
+    /// Ordinary forward time across restart still expires a slid session and
+    /// keeps a still-live one. ENG-24982.
+    #[tokio::test]
+    async fn restart_forward_time_expires_slid_and_keeps_live_sessions() {
+        let mut snapback = activated_memory_snapback();
+        let slid = insert_lifetime_session(&mut snapback, 200, 300);
+        let live = insert_lifetime_session(&mut snapback, 4_000, 5_000);
+
+        let (runtime1, _) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+        runtime1.build_coordinator(&mut snapback).unwrap();
+
+        // Restart with the wall clock genuinely advanced to 260.
+        let (runtime2, provider2) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(260)));
+        let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
+        assert_eq!(provider2.now_ms(), 260, "forward time is honored past the floor");
+        assert_eq!(
+            coordinator2
+                .resolve_required_bearer(&slid, provider2.now_ms(), provider2.monotonic_now())
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+        assert!(
+            matches!(
+                coordinator2
+                    .resolve_required_bearer(&live, provider2.now_ms(), provider2.monotonic_now())
+                    .unwrap()
+                    .authority(),
+                ResolvedAppAuthority::Session { generation: 1, .. }
+            ),
+            "a session whose deadlines are still ahead of the floor stays current"
+        );
+    }
+
+    /// The floor must not over-expire a session whose deadlines are still in
+    /// the future after a backward wall move. ENG-24982.
+    #[tokio::test]
+    async fn restart_backward_move_keeps_a_still_future_session_live() {
+        let mut snapback = activated_memory_snapback();
+        // Sliding 400, absolute 500: still ahead of the process-1 epoch 250.
+        let live = insert_lifetime_session(&mut snapback, 400, 500);
+
+        let (runtime1, _) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+        runtime1.build_coordinator(&mut snapback).unwrap();
+
+        let (runtime2, provider2) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
+        let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
+        assert_eq!(provider2.now_ms(), 250, "effective epoch is the durable floor");
+        assert!(
+            matches!(
+                coordinator2
+                    .resolve_required_bearer(&live, provider2.now_ms(), provider2.monotonic_now())
+                    .unwrap()
+                    .authority(),
+                ResolvedAppAuthority::Session { generation: 1, .. }
+            ),
+            "the floor fails closed only for deadlines it has passed, not future ones"
         );
     }
 }

@@ -22,6 +22,12 @@ pub(crate) const AUTH_CATALOG_VERSION: &str = "1";
 pub(crate) const AUTH_GC_BATCH: usize = 512;
 const META_AUTH_CATALOG_VERSION: &str = "auth_catalog_version";
 pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declaration_id";
+/// Durable non-decreasing floor for every auth lifetime decision that reads
+/// the wall clock. Persisted so a backward wall-clock move across restart can
+/// never make the effective epoch fall below one the process already used.
+/// @ref LLP 0059#durable-session-clock-floor
+const META_AUTH_SESSION_CLOCK_FLOOR_MS: &str = "auth_session_clock_floor_ms";
+const MAX_SAFE_TIMESTAMP_MS: u64 = 9_007_199_254_740_991;
 #[cfg(test)]
 const AUTH_ACTIVATION_STEPS: usize = AUTH_TABLES.len() + AUTH_INDEXES.len() + 1;
 
@@ -463,9 +469,41 @@ impl LocalDatabase {
         }
     }
 
-    /// Delete expired durable auth state in bounded direct-path batches.
+    /// Read the durable non-decreasing auth-clock floor. A missing key means
+    /// no floor has been recorded yet and returns zero. Corrupt or
+    /// out-of-range values fail closed as catalog corruption.
+    ///
+    /// @ref LLP 0059#durable-session-clock-floor — restart seeds the process
+    /// clock floor from this value so a lower wall sample cannot revive
+    /// terminal authority.
+    pub(crate) fn auth_session_clock_floor(&self) -> SnapbackResult<u64> {
+        self.with_auth_read(read_session_clock_floor_on)
+    }
+
+    /// Raise the durable auth-clock floor to at least `observed_ms` and return
+    /// the resulting floor. The floor only ever moves forward; a lower
+    /// `observed_ms` (a backward wall-clock sample) leaves the stored value
+    /// unchanged and still returns the higher persisted floor.
+    ///
+    /// @ref LLP 0059#durable-session-clock-floor — every startup and every
+    /// maintenance pass advances this monotone floor.
+    pub(crate) fn advance_auth_session_clock_floor(
+        &mut self,
+        observed_ms: u64,
+    ) -> SnapbackResult<u64> {
+        if observed_ms > MAX_SAFE_TIMESTAMP_MS {
+            return Err(corrupt(
+                "auth session clock floor time is outside the portable timestamp range",
+            ));
+        }
+        self.with_auth_transaction(|tx| advance_session_clock_floor_on(tx, observed_ms))
+    }
+
+    /// Delete expired durable auth state in bounded direct-path batches. The
+    /// same maintenance transaction advances the durable auth-clock floor so
+    /// the running process's forward progress survives restart.
     pub(crate) fn auth_gc(&mut self, now_ms: u64) -> SnapbackResult<AuthGcResult> {
-        if now_ms > 9_007_199_254_740_991 {
+        if now_ms > MAX_SAFE_TIMESTAMP_MS {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_CATALOG_CORRUPT",
                 "auth",
@@ -473,6 +511,10 @@ impl LocalDatabase {
             ));
         }
         self.with_auth_transaction(|tx| {
+            // @ref LLP 0059#durable-session-clock-floor — persist the advancing
+            // clock floor atomically with reclamation so a later restart cannot
+            // sample below it.
+            advance_session_clock_floor_on(tx, now_ms)?;
             let orphan_tombstones: i64 = tx.query_row(
                 "SELECT COUNT(*)
                  FROM _auth_session_tokens AS token
@@ -1273,6 +1315,45 @@ fn normalize_schema_sql(sql: &str) -> String {
         .collect()
 }
 
+/// Read the persisted auth-clock floor within a caller-owned transaction.
+/// A missing key is the zero floor; any stored value is validated as an
+/// in-range non-negative integer or fails closed as catalog corruption.
+fn read_session_clock_floor_on(conn: &Connection) -> SnapbackResult<u64> {
+    let stored: Option<String> = conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![META_AUTH_SESSION_CLOCK_FLOOR_MS],
+            |row| row.get(0),
+        )
+        .optional()?;
+    match stored {
+        None => Ok(0),
+        Some(text) => {
+            let value: u64 = text
+                .parse()
+                .ok()
+                .filter(|value| *value <= MAX_SAFE_TIMESTAMP_MS)
+                .ok_or_else(|| corrupt("auth session clock floor is not a portable timestamp"))?;
+            Ok(value)
+        }
+    }
+}
+
+/// Raise the persisted auth-clock floor to at least `observed_ms` and return
+/// the resulting floor. The stored value never decreases.
+fn advance_session_clock_floor_on(tx: &Transaction<'_>, observed_ms: u64) -> SnapbackResult<u64> {
+    let current = read_session_clock_floor_on(tx)?;
+    let floor = current.max(observed_ms);
+    if floor != current {
+        tx.execute(
+            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![META_AUTH_SESSION_CLOCK_FLOOR_MS, floor.to_string()],
+        )?;
+    }
+    Ok(floor)
+}
+
 fn corrupt(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_CATALOG_CORRUPT", "auth", message)
 }
@@ -1307,6 +1388,60 @@ mod tests {
                 row.get(0)
             })
             .expect("count rows")
+    }
+
+    #[test]
+    fn auth_session_clock_floor_is_durable_and_never_decreases() {
+        let mut db = catalog_database();
+        assert_eq!(
+            db.auth_session_clock_floor().unwrap(),
+            0,
+            "an unrecorded floor reads as zero"
+        );
+
+        assert_eq!(db.advance_auth_session_clock_floor(250).unwrap(), 250);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 250);
+
+        // A lower observation (a backward wall-clock sample) never lowers the
+        // durable floor and still reports the higher persisted value.
+        assert_eq!(db.advance_auth_session_clock_floor(150).unwrap(), 250);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 250);
+
+        // Forward progress advances it.
+        assert_eq!(db.advance_auth_session_clock_floor(400).unwrap(), 400);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 400);
+
+        // GC also advances the same durable floor.
+        db.auth_gc(600).unwrap();
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 600);
+        db.auth_gc(500).unwrap();
+        assert_eq!(
+            db.auth_session_clock_floor().unwrap(),
+            600,
+            "a GC pass at a lower epoch never rolls the floor back"
+        );
+
+        // Out-of-range observations fail closed.
+        assert_eq!(
+            db.advance_auth_session_clock_floor(MAX_SAFE_TIMESTAMP_MS + 1)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_CATALOG_CORRUPT"
+        );
+
+        // A corrupt stored value fails closed on read.
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, 'not-a-number')
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![META_AUTH_SESSION_CLOCK_FLOOR_MS],
+            )
+            .unwrap();
+        assert_eq!(
+            db.auth_session_clock_floor().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_CATALOG_CORRUPT"
+        );
     }
 
     struct RecordingRestoreInterlock {
