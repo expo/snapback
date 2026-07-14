@@ -88,6 +88,7 @@ const handshake = (authority = anonymous) => ({
     authorityInstanceId: authority.kind === 'session' ? authority.sessionId : INCARNATION,
     sessionGeneration: authority.kind === 'session' ? 1 : 0,
   },
+  authorizedLease: null,
 });
 
 const credential = (token, authority, refreshAfter = 20_000) => ({

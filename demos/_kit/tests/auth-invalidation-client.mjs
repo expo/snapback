@@ -59,6 +59,7 @@ const handshake = {
     authorityInstanceId: INCARNATION,
     sessionGeneration: 1,
   },
+  authorizedLease: null,
 };
 
 const witness = (version) => ({

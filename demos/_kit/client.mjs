@@ -492,6 +492,44 @@ const projectQueuedReplayAvailability = (value) => {
   };
 };
 
+const projectAuthorizedLeaseFacts = (value) => {
+  if (!exactRecord(value, [
+    'protocolVersion',
+    'defaultMs',
+    'hardMaxMs',
+    'configuredMs',
+    'clamps',
+    'renewal',
+    'timeBasis',
+    'clockRollback',
+  ])) return null;
+  if (
+    value.protocolVersion !== 1
+    || !safeUnsignedInteger(value.defaultMs)
+    || !safeUnsignedInteger(value.hardMaxMs)
+    || !safeUnsignedInteger(value.configuredMs)
+    || value.defaultMs > value.hardMaxMs
+    || value.configuredMs > value.hardMaxMs
+    || !Array.isArray(value.clamps)
+    || value.clamps.length !== 2
+    || value.clamps[0] !== 'session'
+    || value.clamps[1] !== 'provider'
+    || value.renewal !== 'full-revalidation'
+    || value.timeBasis !== 'server-absolute+client-request-elapsed'
+    || value.clockRollback !== 'delete-before-read'
+  ) return null;
+  return {
+    protocolVersion: 1,
+    defaultMs: value.defaultMs,
+    hardMaxMs: value.hardMaxMs,
+    configuredMs: value.configuredMs,
+    clamps: ['session', 'provider'],
+    renewal: 'full-revalidation',
+    timeBasis: 'server-absolute+client-request-elapsed',
+    clockRollback: 'delete-before-read',
+  };
+};
+
 const projectAuthSessionResponse = (value) => {
   if (!exactRecord(value, [
     'protocolVersion',
@@ -509,12 +547,16 @@ const projectAuthSessionResponse = (value) => {
     'transports',
     'authority',
     'authorityDescriptor',
+    'authorizedLease',
   ])) return null;
 
   const clientProtocols = value.clientProtocols;
   const availability = value.availability;
   const provider = value.provider;
   const authority = value.authority;
+  const authorizedLease = value.authorizedLease === null
+    ? null
+    : projectAuthorizedLeaseFacts(value.authorizedLease);
   if (
     value.protocolVersion !== 1
     || typeof value.serverStartupNonce !== 'string'
@@ -549,6 +591,7 @@ const projectAuthSessionResponse = (value) => {
     || value.transports[0] !== 'bearer'
     || !exactRecord(authority, ['userId', 'sessionId', 'isAuthenticated'])
     || !authorityDescriptorIsValid(value.authorityDescriptor)
+    || (value.authorizedLease !== null && authorizedLease === null)
     || typeof authority.isAuthenticated !== 'boolean'
     || (authority.isAuthenticated
       ? (
@@ -596,6 +639,7 @@ const projectAuthSessionResponse = (value) => {
       isAuthenticated: authority.isAuthenticated,
     },
     authorityDescriptor: { ...value.authorityDescriptor },
+    authorizedLease,
   };
 };
 

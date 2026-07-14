@@ -58,6 +58,7 @@ const handshake = ({
     authorityInstanceId: AUTHORITY,
     sessionGeneration: activeMode === 'sessions' ? 1 : 0,
   },
+  authorizedLease: null,
 });
 
 try {
