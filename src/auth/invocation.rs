@@ -467,6 +467,8 @@ impl HandlerAuthProjection {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InvocationSource {
     BootstrapHandshake,
+    AuthRefresh,
+    AuthLogout,
     HttpQuery,
     HttpMutation,
     HttpAction,
@@ -510,8 +512,10 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 29] = [
         Self::BootstrapHandshake,
+        Self::AuthRefresh,
+        Self::AuthLogout,
         Self::HttpQuery,
         Self::HttpMutation,
         Self::HttpAction,
@@ -556,6 +560,8 @@ impl InvocationSource {
                 InvocationTarget::Function(FunctionKindConstraint::Any)
             }
             Self::BootstrapHandshake
+            | Self::AuthRefresh
+            | Self::AuthLogout
             | Self::StandaloneAcknowledgement
             | Self::ConnectionOpen
             | Self::ConnectionClose
@@ -1059,6 +1065,9 @@ fn source_allows_authority(
                 ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session { .. }
             ),
         },
+        InvocationSource::AuthRefresh | InvocationSource::AuthLogout => {
+            mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
+        }
         InvocationSource::HttpQuery
         | InvocationSource::HttpMutation
         | InvocationSource::HttpAction
@@ -1357,6 +1366,9 @@ mod tests {
                     (AuthMode::Dev, Kind::Anonymous)
                         | (AuthMode::Sessions, Kind::Anonymous | Kind::Session)
                 ),
+                InvocationSource::AuthRefresh | InvocationSource::AuthLogout => {
+                    mode == AuthMode::Sessions && matches!(kind, Kind::Session)
+                }
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation
                 | InvocationSource::HttpAction

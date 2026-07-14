@@ -4362,6 +4362,8 @@ async fn session_live_protocol_refusal(
 fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
     match spec.path {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
+        "/auth/refresh" => Some(InvocationSource::AuthRefresh),
+        "/auth/logout" => Some(InvocationSource::AuthLogout),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
@@ -4569,9 +4571,19 @@ async fn prepare_registered_route_authority(
                     let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
                     let provider = installed_auth_provider(runtime)?;
                     let now_ms = provider.now_ms();
-                    let prepared = coordinator
-                        .resolve_required_bearer(&bearer, now_ms, provider.monotonic_now())
-                        .map_err(ApiError::from)?;
+                    let prepared = if matches!(
+                        source,
+                        InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+                    ) {
+                        coordinator.resolve_family_bearer(&bearer, now_ms, provider.monotonic_now())
+                    } else {
+                        coordinator.resolve_required_bearer(
+                            &bearer,
+                            now_ms,
+                            provider.monotonic_now(),
+                        )
+                    }
+                    .map_err(ApiError::from)?;
                     let (resolved, publication) = prepared.into_parts();
                     (resolved, Some(publication))
                 } else {
@@ -4934,6 +4946,64 @@ async fn enforce_registered_route_policy(
             return apply_registered_response_controls(effective, error.into_response());
         }
     };
+    let registered_source = registered_invocation_source(spec);
+    // @ref LLP 0058#gate-algorithm — provider SessionAuth resolves before body parsing.
+    // Provider operations carry no body authority. Resolve their required
+    // family bearer through the shared gate before reading or parsing the
+    // handler body, and retain that exact authority through final response
+    // publication. This is intentionally narrower than optional-user app
+    // operations, whose wire-authority presence must be inspected first.
+    let early_prepared_authority = if effective.path_policy == RoutePolicy::SessionAuth {
+        let Some(source) = registered_source else {
+            return finish_registered_response(
+                effective,
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "a SessionAuth route has no registered invocation source",
+                ))
+                .into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        };
+        match prepare_registered_route_authority(
+            Some(source),
+            effective,
+            &runtime,
+            route_admission.as_ref(),
+            request.headers(),
+            None,
+            None,
+        )
+        .await
+        {
+            Ok(Some(authority)) => Some(authority),
+            Ok(None) => {
+                return finish_registered_response(
+                    effective,
+                    ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "a SessionAuth route did not produce prepared authority",
+                    ))
+                    .into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
+            Err(error) => {
+                return finish_registered_response(
+                    effective,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
+        }
+    } else {
+        None
+    };
     // @ref LLP 0031#enforcement — authenticate every connection carrier
     // before bounded JSON inspection. Body-carried connection ids get a
     // second exact id↔bearer check after decoding; an attacker-controlled
@@ -5030,7 +5100,12 @@ async fn enforce_registered_route_policy(
     let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         || connection_id_in_body
         || operation_deferred
-        || registered_invocation_source(spec).is_some()
+        || registered_source.is_some_and(|source| {
+            !matches!(
+                source,
+                InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+            )
+        })
         || effective.effect_policy == EffectPolicy::SecretReadMintProof;
     let connection_open_bearer = (spec.path == "/connection/open")
         .then(|| OwnedPresentedSessionBearer::from_headers(request.headers()));
@@ -5432,25 +5507,29 @@ async fn enforce_registered_route_policy(
     } else {
         None
     };
-    let prepared_authority = match prepare_registered_route_authority(
-        invocation_source,
-        selected_policy,
-        &runtime,
-        route_admission.as_ref(),
-        request.headers(),
-        policy_body.as_ref(),
-        resolved_connection_authority,
-    )
-    .await
-    {
-        Ok(authority) => authority,
-        Err(error) => {
-            return finish_registered_response(
-                response_policy,
-                error.into_response(),
-                route_admission.as_ref(),
-                None,
-            );
+    let prepared_authority = if let Some(authority) = early_prepared_authority {
+        Some(authority)
+    } else {
+        match prepare_registered_route_authority(
+            invocation_source,
+            selected_policy,
+            &runtime,
+            route_admission.as_ref(),
+            request.headers(),
+            policy_body.as_ref(),
+            resolved_connection_authority,
+        )
+        .await
+        {
+            Ok(authority) => authority,
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
         }
     };
     let prepared_authority = prepared_authority.map(|authority| {
@@ -6112,18 +6191,17 @@ async fn auth_exchange(
     Ok(Json(response))
 }
 
-/// Rotate one exact bearer after provider admission. Item 4 supplies the
-/// central resolved-session authority gate; direct handler tests cover this
-/// item-3 projection while that gate remains deliberately fenced.
+/// Rotate one exact bearer after central resolved-session authority admission.
 ///
 /// @ref LLP 0057#rotation — refresh rotates the current token and publishes
 /// the same closed credential response as exchange.
 async fn auth_refresh(
     State(runtime): State<AppState>,
-    Extension(route_admission): Extension<AdmissionLease>,
+    Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<CredentialResponse>, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
@@ -6151,9 +6229,9 @@ async fn auth_refresh(
             PlannedRefresh::Rotate(plan) => {
                 let carrier = coordinator.premark_rotation(plan).map_err(ApiError::from)?;
                 let commit_plan = carrier.plan().commit_plan();
-                let effect_admission = route_admission.clone();
+                let effect_authority = authority.clone();
                 let attempt = with_snapback(&runtime.snapback, move |snapback| {
-                    match effect_admission.effect_guard("auth refresh rotation transaction") {
+                    match effect_authority.effect_guard("auth refresh rotation transaction") {
                         Ok(_effect) => admission
                             .commit_planned_rotation(snapback.auth_database_mut(), &commit_plan),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
@@ -6177,9 +6255,9 @@ async fn auth_refresh(
                     .premark_revocation(plan)
                     .map_err(ApiError::from)?;
                 let commit_plan = carrier.plan().clone();
-                let effect_admission = route_admission.clone();
+                let effect_authority = authority.clone();
                 let attempt = with_snapback(&runtime.snapback, move |snapback| {
-                    match effect_admission.effect_guard("auth refresh reuse transaction") {
+                    match effect_authority.effect_guard("auth refresh reuse transaction") {
                         Ok(_effect) => admission.commit_planned_revocation(
                             snapback.auth_database_mut(),
                             &commit_plan,
@@ -6217,10 +6295,11 @@ async fn auth_refresh(
 /// empty 204 response and never aliases a bearer through JSON or query input.
 async fn auth_logout(
     State(runtime): State<AppState>,
-    Extension(route_admission): Extension<AdmissionLease>,
+    Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::AuthLogout)?;
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
@@ -6250,9 +6329,9 @@ async fn auth_logout(
             .premark_revocation(plan)
             .map_err(ApiError::from)?;
         let commit_plan = carrier.plan().clone();
-        let effect_admission = route_admission.clone();
+        let effect_authority = authority.clone();
         let attempt = with_snapback(&runtime.snapback, move |snapback| {
-            match effect_admission.effect_guard("auth logout transaction") {
+            match effect_authority.effect_guard("auth logout transaction") {
                 Ok(_effect) => admission.commit_planned_revocation(
                     snapback.auth_database_mut(),
                     &commit_plan,
@@ -6283,6 +6362,27 @@ async fn auth_logout(
         }
     }
     Err(auth_provider_unavailable())
+}
+
+fn require_provider_session_authority(
+    authority: &PreparedAuthority,
+    expected_source: InvocationSource,
+) -> Result<(), ApiError> {
+    authority
+        .validate_admission("provider session operation")
+        .map_err(ApiError::from)?;
+    if authority.source() != expected_source
+        || authority.active_mode() != AuthMode::Sessions
+        || !matches!(authority.resolved(), ResolvedAppAuthority::Session { .. })
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_INVOCATION_SOURCE_INVALID",
+            "auth",
+            "provider session operation requires exact shared-gate authority",
+        )
+        .into());
+    }
+    Ok(())
 }
 
 /// Opaque revoke-only alarm. Every bearer shape enters the provider's fixed
@@ -11691,8 +11791,8 @@ mod tests {
         SCHEMA_V1_PREFIX,
     };
     use crate::auth::provider::{
-        AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider,
-        AuthProviderProfile,
+        AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS,
+        AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider, AuthProviderProfile,
     };
     use crate::cron::CronRunOutcome;
     use crate::diagnostic::SnapbackError;
@@ -11710,6 +11810,7 @@ mod tests {
     use axum::body::{Body, Bytes, to_bytes};
     use axum::extract::{Extension, State};
     use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header};
+    use axum::response::IntoResponse as _;
     use futures_util::StreamExt as _;
     use serde_json::{Value, json};
     use std::collections::BTreeSet;
@@ -11883,6 +11984,15 @@ mod tests {
         }
     }
 
+    fn activate_test_sessions(state: AppState) -> AppState {
+        state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            )
+            .expect("activate composed sessions runtime")
+    }
+
     fn pending_sessions_state(quarantined: bool) -> AuthModeStateRecord {
         let generation = 8;
         AuthModeStateRecord {
@@ -11944,6 +12054,35 @@ mod tests {
         )
     }
 
+    fn prepared_provider_route_authority(
+        state: &AppState,
+        source: InvocationSource,
+        bearer: &str,
+    ) -> Extension<PreparedAuthority> {
+        assert!(matches!(
+            source,
+            InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+        ));
+        let provider = state.auth_provider.as_ref().expect("provider");
+        let coordinator = state.auth_coordinator.as_ref().expect("coordinator");
+        let prepared = coordinator
+            .resolve_family_bearer(bearer, provider.now_ms(), provider.monotonic_now())
+            .expect("resolve provider-route bearer through projection");
+        let (resolved, publication) = prepared.into_parts();
+        Extension(
+            InvocationGate::prepare_admitted_authority(
+                source,
+                AuthMode::Sessions,
+                state.server.profile,
+                test_route_admission(state).0,
+                &WireAuthorityFields::default(),
+                resolved,
+            )
+            .expect("prepare provider-route authority")
+            .with_fenced_publication(publication),
+        )
+    }
+
     fn auth_http_request(
         method: &str,
         uri: &str,
@@ -11963,6 +12102,23 @@ mod tests {
             builder = builder.header(IMPERSONATION_CAPABILITY_HEADER, impersonation);
         }
         builder.body(Body::from(body)).expect("auth HTTP request")
+    }
+
+    fn offer_auth_client_protocol(request: &mut Request<Body>) {
+        request.headers_mut().insert(
+            HeaderName::from_static("x-snapback-auth-client-protocol"),
+            HeaderValue::from_static("1"),
+        );
+    }
+
+    fn session_auth_http_request(uri: &str, body: Vec<u8>, bearer: &str) -> Request<Body> {
+        let mut request = auth_http_request("POST", uri, body, true, None, None);
+        offer_auth_client_protocol(&mut request);
+        request.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {bearer}")).expect("bearer header"),
+        );
+        request
     }
 
     async fn response_json(response: axum::response::Response) -> serde_json::Value {
@@ -13815,24 +13971,29 @@ mod tests {
         assert_eq!(response_json(repaired).await["authProvider"], "available");
     }
 
-    /// @ref LLP 0057#rotation — direct handler acceptance pins the item-3 bearer,
-    /// body, status, and credential projection while item 4 deliberately
-    /// keeps registered SessionAuth routes centrally fenced.
+    /// @ref LLP 0057#rotation — the registered provider routes pin the exact
+    /// bearer, body, status, and credential projection through the shared
+    /// SessionAuth gate.
     #[tokio::test]
-    async fn auth_refresh_and_logout_handlers_enforce_exact_carriers_and_statuses() {
+    async fn auth_refresh_and_logout_routes_enforce_exact_carriers_and_statuses() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
         let initial = mint_test_credential(&state, "refresh@example.com").await;
         let initial_token = initial["token"].as_str().unwrap().to_owned();
+        let router = app(state);
 
-        let refreshed = super::auth_refresh(
-            State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&initial_token)),
-            Ok(Bytes::from_static(br#"{}"#)),
-        )
-        .await
-        .expect("refresh current bearer");
-        let refreshed = serde_json::to_value(refreshed.0).expect("serialize refresh response");
+        let refreshed = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/refresh",
+                br#"{}"#.to_vec(),
+                &initial_token,
+            ))
+            .await
+            .expect("refresh current bearer");
+        let refreshed_status = refreshed.status();
+        let refreshed = response_json(refreshed).await;
+        assert_eq!(refreshed_status, StatusCode::OK, "{refreshed}");
         assert_eq!(
             refreshed
                 .as_object()
@@ -13866,82 +14027,316 @@ mod tests {
         let current_token = refreshed["token"].as_str().unwrap().to_owned();
         assert_ne!(current_token, initial_token);
 
-        let superseded = super::auth_refresh(
-            State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&initial_token)),
-            Ok(Bytes::from_static(br#"{}"#)),
-        )
-        .await
-        .expect_err("in-grace predecessor cannot rotate twice");
+        let superseded = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/refresh",
+                br#"{}"#.to_vec(),
+                &initial_token,
+            ))
+            .await
+            .expect("in-grace predecessor response");
+        assert_eq!(superseded.status(), StatusCode::CONFLICT);
         assert_eq!(
-            superseded.0.diagnostic.code,
+            response_json(superseded).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_REFRESH_SUPERSEDED"
         );
 
-        let mut duplicate = auth_provider_headers(None);
-        duplicate.append(
+        let mut duplicate =
+            auth_http_request("POST", "/auth/refresh", br#"{}"#.to_vec(), true, None, None);
+        offer_auth_client_protocol(&mut duplicate);
+        duplicate.headers_mut().append(
             header::AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {current_token}")).unwrap(),
         );
-        duplicate.append(
+        duplicate.headers_mut().append(
             header::AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {current_token}")).unwrap(),
         );
-        for headers in [
-            auth_provider_headers(None),
-            {
-                let mut headers = auth_provider_headers(None);
-                headers.insert(
-                    header::AUTHORIZATION,
-                    HeaderValue::from_static("Basic not-a-bearer"),
-                );
-                headers
-            },
-            duplicate,
-        ] {
-            let error = super::auth_refresh(
-                State(state.clone()),
-                test_route_admission(&state),
-                headers,
-                Ok(Bytes::from_static(br#"{}"#)),
-            )
-            .await
-            .expect_err("only one exact bearer header is accepted");
-            assert_eq!(error.0.diagnostic.code, "SNAPBACK_AUTH_REQUIRED");
+        let mut missing =
+            auth_http_request("POST", "/auth/refresh", br#"{}"#.to_vec(), true, None, None);
+        offer_auth_client_protocol(&mut missing);
+        let malformed = {
+            let mut request =
+                auth_http_request("POST", "/auth/refresh", br#"{}"#.to_vec(), true, None, None);
+            offer_auth_client_protocol(&mut request);
+            request.headers_mut().insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_static("Basic not-a-bearer"),
+            );
+            request
+        };
+        for request in [missing, malformed, duplicate] {
+            let response = router
+                .clone()
+                .oneshot(request)
+                .await
+                .expect("invalid bearer response");
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUIRED"
+            );
         }
 
-        let body_alias = super::auth_logout(
-            State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&current_token)),
-            Ok(Bytes::from_static(br#"{"token":"body-alias"}"#)),
-        )
-        .await
-        .expect_err("logout body is the exact empty object");
+        let body_alias = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{"token":"body-alias"}"#.to_vec(),
+                &current_token,
+            ))
+            .await
+            .expect("closed logout body response");
+        assert_eq!(body_alias.status(), StatusCode::BAD_REQUEST);
         assert_eq!(
-            body_alias.0.diagnostic.code,
+            response_json(body_alias).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_REQUEST_INVALID"
         );
 
-        let logout = super::auth_logout(
-            State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&current_token)),
-            Ok(Bytes::from_static(br#"{}"#)),
-        )
-        .await
-        .expect("logout current bearer");
+        let logout = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &current_token,
+            ))
+            .await
+            .expect("logout current bearer");
         assert_eq!(logout.status(), StatusCode::NO_CONTENT);
-        let repeated = super::auth_logout(
+        let repeated = router
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &current_token,
+            ))
+            .await
+            .expect("repeated logout response");
+        assert_eq!(repeated.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(repeated).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+    }
+
+    /// @ref LLP 0058#gate-algorithm — required provider-route credentials are
+    /// resolved before the closed body is parsed; only a valid live bearer may
+    /// reach the provider DTO parser.
+    #[tokio::test]
+    async fn session_auth_credentials_precede_refresh_and_logout_body_errors() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
+        let credential = mint_test_credential(&state, "precedence@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let unknown = SessionBearer::generate(&OsRandom)
+            .unwrap()
+            .expose_secret()
+            .to_owned();
+        let router = app(state);
+
+        for uri in ["/auth/refresh", "/auth/logout"] {
+            let mut missing = auth_http_request(
+                "POST",
+                uri,
+                vec![b'x'; super::AUTH_REQUEST_BODY_LIMIT + 1],
+                true,
+                None,
+                None,
+            );
+            offer_auth_client_protocol(&mut missing);
+            let malformed = {
+                let mut request =
+                    auth_http_request("POST", uri, br#"{"#.to_vec(), true, None, None);
+                offer_auth_client_protocol(&mut request);
+                request.headers_mut().insert(
+                    header::AUTHORIZATION,
+                    HeaderValue::from_static("Basic not-a-bearer"),
+                );
+                request
+            };
+            let unknown = session_auth_http_request(uri, br#"{"#.to_vec(), &unknown);
+            for request in [missing, malformed, unknown] {
+                let response = router
+                    .clone()
+                    .oneshot(request)
+                    .await
+                    .expect("credential-precedence response");
+                assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+                assert_eq!(
+                    response_json(response).await["diagnostic"]["code"],
+                    "SNAPBACK_AUTH_REQUIRED"
+                );
+            }
+
+            let valid = router
+                .clone()
+                .oneshot(session_auth_http_request(uri, br#"{"#.to_vec(), &bearer))
+                .await
+                .expect("valid bearer malformed-body response");
+            assert_eq!(valid.status(), StatusCode::BAD_REQUEST);
+            assert_eq!(
+                response_json(valid).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUEST_INVALID"
+            );
+        }
+
+        let logout = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .expect("terminalize precedence fixture");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+        for uri in ["/auth/refresh", "/auth/logout"] {
+            let response = router
+                .clone()
+                .oneshot(session_auth_http_request(uri, br#"{"#.to_vec(), &bearer))
+                .await
+                .expect("terminal credential precedence response");
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_SESSION_EXPIRED"
+            );
+        }
+    }
+
+    /// @ref LLP 0059#operation-specific-publication — a refresh may commit its
+    /// successor, but a revocation that wins before the finite-response handoff
+    /// fences the credential bytes from publication.
+    #[tokio::test]
+    async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
+        let initial = mint_test_credential(&state, "refresh-fence@example.com").await;
+        let predecessor = initial["token"].as_str().unwrap().to_owned();
+        let refresh_authority =
+            prepared_provider_route_authority(&state, InvocationSource::AuthRefresh, &predecessor)
+                .0;
+        let refreshed = super::auth_refresh(
             State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&current_token)),
+            Extension(refresh_authority.clone()),
+            auth_provider_headers(Some(&predecessor)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
         .await
-        .expect_err("revoked session cannot log out twice");
-        assert_eq!(repeated.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+        .expect("refresh commits before publication pause");
+        let successor = refreshed.0.token().expose_secret().to_owned();
+
+        let logout_authority =
+            prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &successor).0;
+        let logout = super::auth_logout(
+            State(state),
+            Extension(logout_authority),
+            auth_provider_headers(Some(&successor)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect("revocation wins before refresh response handoff");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+
+        let refresh_policy = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/auth/refresh")
+            .expect("registered refresh route")
+            .effective_for(PolicyAuthMode::Sessions);
+        let response = super::finish_registered_response(
+            refresh_policy,
+            refreshed.into_response(),
+            Some(refresh_authority.admission_lease()),
+            Some(&refresh_authority),
+        );
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let body = response_json(response).await;
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_AUTH_SESSION_EXPIRED");
+        let serialized = serde_json::to_string(&body).unwrap();
+        assert!(!serialized.contains(&predecessor));
+        assert!(!serialized.contains(&successor));
+    }
+
+    /// @ref LLP 0057#rotation — the shared gate resolves an attributable
+    /// predecessor from the projection without applying ordinary-use grace;
+    /// the refresh state machine owns the outside-grace family revocation.
+    #[tokio::test]
+    async fn refresh_gate_preserves_outside_grace_reuse_revocation() {
+        let start_ms = super::now_millis();
+        let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+        let mut snapback = LocalSnapback::memory().expect("manual-clock refresh fixture");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            start_ms,
+            &OsRandom,
+        )
+        .expect("activate manual-clock auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                clock.clone(),
+            )
+            .expect("construct manual-clock provider"),
+        );
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        let state = activate_test_sessions(
+            AppState::from_snapback(snapback, context)
+                .with_policy_auth_mode(PolicyAuthMode::Sessions)
+                .with_auth_provider(provider),
+        );
+        let initial = mint_test_credential(&state, "reuse@example.com").await;
+        let predecessor = initial["token"].as_str().unwrap().to_owned();
+        let router = app(state);
+
+        let rotated = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/refresh",
+                br#"{}"#.to_vec(),
+                &predecessor,
+            ))
+            .await
+            .expect("initial rotation response");
+        assert_eq!(rotated.status(), StatusCode::OK);
+        let successor = response_json(rotated).await["token"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+
+        clock.set(start_ms + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1);
+        let reused = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/refresh",
+                br#"{}"#.to_vec(),
+                &predecessor,
+            ))
+            .await
+            .expect("outside-grace reuse response");
+        assert_eq!(reused.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(reused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+
+        let successor_after_reuse = router
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &successor,
+            ))
+            .await
+            .expect("revoked successor response");
+        assert_eq!(successor_after_reuse.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(successor_after_reuse).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
     }
 
     /// @ref LLP 0057#logout-ordinary-supersession-and-family-alarm — every bearer class publishes the
@@ -13949,6 +14344,7 @@ mod tests {
     #[tokio::test]
     async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
         let initial = mint_test_credential(&state, "alarm@example.com").await;
         let predecessor = initial["token"].as_str().unwrap().to_owned();
         let unknown = SessionBearer::generate(&OsRandom)
@@ -13984,7 +14380,7 @@ mod tests {
         assert_eq!(response_json(response).await["accepted"], true);
         let rotated = super::auth_refresh(
             State(state.clone()),
-            test_route_admission(&state),
+            prepared_provider_route_authority(&state, InvocationSource::AuthRefresh, &predecessor),
             auth_provider_headers(Some(&predecessor)),
             Ok(Bytes::from_static(br#"{}"#)),
         )
@@ -14009,15 +14405,19 @@ mod tests {
             assert_eq!(response_json(response).await["accepted"], true);
             assert!(started.elapsed() >= Duration::from_millis(20));
         }
-        let revoked = super::auth_logout(
-            State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&successor)),
-            Ok(Bytes::from_static(br#"{}"#)),
-        )
-        .await
-        .expect_err("tombstone alarm revoked the successor family");
-        assert_eq!(revoked.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+        let revoked = app(state.clone())
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &successor,
+            ))
+            .await
+            .expect("tombstone alarm revoked-family response");
+        assert_eq!(revoked.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(revoked).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
 
         let invalid_body = super::auth_family_alarm(
             State(state.clone()),
@@ -14069,20 +14469,17 @@ mod tests {
     #[tokio::test]
     async fn registered_session_auth_routes_resolve_projection_and_publish_logout() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
         let credential = mint_test_credential(&state, "registered-session@example.com").await;
         let bearer = credential["token"].as_str().unwrap().to_owned();
         let router = app(state);
 
+        let mut missing_request =
+            auth_http_request("POST", "/auth/logout", br#"{}"#.to_vec(), true, None, None);
+        offer_auth_client_protocol(&mut missing_request);
         let missing = router
             .clone()
-            .oneshot(auth_http_request(
-                "POST",
-                "/auth/logout",
-                br#"{}"#.to_vec(),
-                true,
-                None,
-                None,
-            ))
+            .oneshot(missing_request)
             .await
             .expect("missing registered bearer response");
         assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
@@ -14091,12 +14488,7 @@ mod tests {
             "SNAPBACK_AUTH_REQUIRED"
         );
 
-        let mut logout =
-            auth_http_request("POST", "/auth/logout", br#"{}"#.to_vec(), true, None, None);
-        logout.headers_mut().insert(
-            header::AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {bearer}")).unwrap(),
-        );
+        let logout = session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &bearer);
         let response = router
             .clone()
             .oneshot(logout)
@@ -16559,16 +16951,21 @@ globalThis.__snapbackHandlers = {
         let reopened = response_json(reopened).await;
         assert_eq!(reopened, opened);
 
-        let rotated = super::auth_refresh(
-            State(state.clone()),
-            test_route_admission(&state),
-            auth_provider_headers(Some(&predecessor)),
-            Ok(Bytes::from_static(br#"{}"#)),
-        )
-        .await
-        .expect("rotate bearer after grant");
-        let rotated = serde_json::to_value(rotated.0).expect("serialize rotated credential");
-        let successor = rotated["token"].as_str().expect("successor token");
+        let rotated = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/refresh",
+                br#"{}"#.to_vec(),
+                &predecessor,
+            ))
+            .await
+            .expect("rotate bearer after grant");
+        assert_eq!(rotated.status(), StatusCode::OK);
+        let rotated = response_json(rotated).await;
+        let successor = rotated["token"]
+            .as_str()
+            .expect("successor token")
+            .to_owned();
         let refused = router
             .clone()
             .oneshot(connection_open_request(Some(&predecessor), json!({})))
@@ -16582,7 +16979,7 @@ globalThis.__snapbackHandlers = {
 
         let successor_reuse = router
             .oneshot(connection_open_request(
-                Some(successor),
+                Some(&successor),
                 json!({
                     "connectionId": opened["connectionId"],
                     "previousToken": opened["connectionToken"],

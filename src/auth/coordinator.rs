@@ -17,7 +17,8 @@ use super::provider::{
 use super::session_projection::{
     AuthorizationStreamIncarnation, BoundConnectionSessionIdentity, ExpiredSession,
     FencedPublication, MutationTicket, PendingMutationKind, ProjectedConnectionTokenResolution,
-    ProjectedTokenResolution, RevocationReason, SessionProjection, TokenDigest,
+    ProjectedSessionAuthority, ProjectedTokenResolution, RevocationReason, SessionProjection,
+    TokenDigest,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -687,29 +688,39 @@ impl AuthCoordinator {
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
-        if topology
-            .rebuild_required_sessions
-            .contains(&authority.session_id)
-        {
+        topology.prepare_bearer_authority(authority)
+    }
+
+    /// @ref LLP 0057#rotation — family operations own supersession outcomes.
+    /// Resolve a bearer for an operation that owns the token-family state
+    /// machine. Unlike ordinary finite use, refresh and logout must admit an
+    /// attributable superseded token regardless of grace age so their durable
+    /// planner can select the exact refresh-reuse or logout outcome. Resolution
+    /// remains projection-only and returns the same final-publication fence.
+    pub(crate) fn resolve_family_bearer(
+        &self,
+        bearer: &str,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<PreparedBearerAuthority> {
+        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let digest = TokenDigest::from_token_hash(&bearer.token_hash());
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
             return Err(projection_unavailable());
         }
-        let publication = topology
-            .projection
-            .session_publication_fence(&authority.session_id, authority.generation)?;
-        Ok(PreparedBearerAuthority {
-            authority: ResolvedAppAuthority::Session {
-                user_id: authority.user_id,
-                session_id: authority.session_id,
-                provider: authority.provider,
-                generation: authority.generation,
-                authority_instance_id: authority.authority_instance_id,
-                session_not_after_ms: authority
-                    .expires_at_ms
-                    .min(authority.absolute_expires_at_ms),
-                provider_not_after_ms: None,
-            },
-            publication,
-        })
+        let authority =
+            match topology
+                .projection
+                .resolve_token(&digest, epoch_now_ms, monotonic_now)?
+            {
+                ProjectedTokenResolution::Current(authority)
+                | ProjectedTokenResolution::Superseded { authority, .. } => authority,
+                ProjectedTokenResolution::Terminal => return Err(session_expired()),
+                ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
+                ProjectedTokenResolution::Unknown => return Err(auth_required()),
+            };
+        topology.prepare_bearer_authority(authority)
     }
 
     /// Bind an anonymous finite publication to the current authorization
@@ -950,6 +961,35 @@ impl CoordinatorTopology {
         } else {
             Ok(())
         }
+    }
+
+    fn prepare_bearer_authority(
+        &self,
+        authority: ProjectedSessionAuthority,
+    ) -> SnapbackResult<PreparedBearerAuthority> {
+        if self
+            .rebuild_required_sessions
+            .contains(&authority.session_id)
+        {
+            return Err(projection_unavailable());
+        }
+        let publication = self
+            .projection
+            .session_publication_fence(&authority.session_id, authority.generation)?;
+        Ok(PreparedBearerAuthority {
+            authority: ResolvedAppAuthority::Session {
+                user_id: authority.user_id,
+                session_id: authority.session_id,
+                provider: authority.provider,
+                generation: authority.generation,
+                authority_instance_id: authority.authority_instance_id,
+                session_not_after_ms: authority
+                    .expires_at_ms
+                    .min(authority.absolute_expires_at_ms),
+                provider_not_after_ms: None,
+            },
+            publication,
+        })
     }
 }
 
