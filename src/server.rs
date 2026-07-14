@@ -15175,6 +15175,8 @@ globalThis.__snapbackHandlers = {
                 provider: provider.clone(),
                 generation: *generation,
                 authority_instance_id: Uuid::now_v7().to_string(),
+                session_not_after_ms: u64::MAX,
+                provider_not_after_ms: None,
             },
         };
         PreparedConnectionOpenAuthority {

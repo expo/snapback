@@ -9627,6 +9627,8 @@ globalThis.__snapbackHandlers = {
                 provider: "email-code".to_owned(),
                 generation: 1,
                 authority_instance_id: authority_instance_id.to_owned(),
+                session_not_after_ms: 10_000,
+                provider_not_after_ms: None,
             },
         )
         .expect("prepare session authority")

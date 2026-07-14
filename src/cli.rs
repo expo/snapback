@@ -1595,8 +1595,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .reserve_invalidation_boot_issuer(&mut snapback, &target_profile_id, &app_id)
             .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?;
         snapback.install_auth_invalidation(issuer.clone(), authorization, version_stream)?;
-        auth_program_readiness =
-            runtime_auth_program_readiness(secret_read_process_prerequisites, true, false);
         Some(issuer)
     } else {
         None
@@ -1614,14 +1612,24 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ephemeral.clone(),
         server_context,
     );
-    let app_state = app_state
-        .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
-        .map_err(anyhow::Error::new)?
-        .with_auth_runtime(&auth_runtime, auth_coordinator.clone());
+    let app_state = app_state.with_auth_runtime(&auth_runtime, auth_coordinator.clone());
     let app_state = match auth_invalidation {
         Some(issuer) => app_state.with_auth_invalidation(issuer),
         None => app_state,
     };
+    // The lease route shares the installed provider/keyring service and the
+    // boot-local invalidation issuer. Publish item 8's readiness fact only
+    // after both request-side services inhabit the clone-shared AppState; no
+    // handshake can advertise a lease path that startup has not installed.
+    let authorized_lease_ready = auth_mode_state.active == crate::manifest::AuthMode::Sessions;
+    auth_program_readiness = runtime_auth_program_readiness(
+        secret_read_process_prerequisites,
+        authorized_lease_ready,
+        authorized_lease_ready,
+    );
+    let app_state = app_state
+        .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
+        .map_err(anyhow::Error::new)?;
     let app_state = match secret_read_proof_root {
         Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
             secret_read_operator,
@@ -3382,6 +3390,11 @@ mod tests {
         assert!(after_invalidation.authority_descriptor);
         assert!(after_invalidation.authorization_invalidation);
         assert!(!after_invalidation.authorized_lease);
+
+        let after_lease_install = runtime_auth_program_readiness(true, true, true);
+        assert!(after_lease_install.authority_descriptor);
+        assert!(after_lease_install.authorization_invalidation);
+        assert!(after_lease_install.authorized_lease);
     }
 
     fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDescriptor {

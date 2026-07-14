@@ -165,6 +165,8 @@ mod tests {
                 provider: "email-code".to_owned(),
                 generation: 7,
                 authority_instance_id: SESSION_AUTHORITY.to_owned(),
+                session_not_after_ms: 10_000,
+                provider_not_after_ms: None,
             },
             AuthMode::Sessions,
         );
