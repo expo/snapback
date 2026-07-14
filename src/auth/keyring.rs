@@ -1,7 +1,7 @@
 //! Versioned auth-code keyring storage and rotation.
 
-// @ref LLP 0055#keyring-protocol — format-1 keyrings are closed, owner-only, atomically replaced deployment sidecars.
-// @ref LLP 0055#concurrency-locks-and-linearization — the keyring lock spans revalidation, rotation, and digest-key use.
+// @ref LLP 0057#keyring-protocol — format-1 keyrings are closed, owner-only, atomically replaced deployment sidecars.
+// @ref LLP 0057#concurrency-locks-and-linearization — the keyring lock spans revalidation, rotation, and digest-key use.
 
 use std::collections::BTreeSet;
 use std::ffi::OsString;

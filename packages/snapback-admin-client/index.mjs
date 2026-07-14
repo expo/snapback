@@ -271,7 +271,7 @@ function projectConsoleCredential(value, forbiddenMaster = '') {
     credential: value.credential,
     expiresAtMs: value.expiresAtMs,
   };
-  // @ref LLP 0058#c1-the-v1-custody-claim — an exact response shape still
+  // @ref LLP 0060#c1-the-v1-custody-claim — an exact response shape still
   // fails closed when the derived value would persist its minting authority.
   if (forbiddenMaster && projected.credential.includes(forbiddenMaster)) return null;
   return projected;
@@ -318,7 +318,7 @@ function sensitiveAdminField(name) {
 function addSecret(secrets, value) {
   if (typeof value !== 'string' && typeof value !== 'number') return;
   const text = String(value);
-  // @ref LLP 0058#c1-the-v1-custody-claim — known operator carriers have no
+  // @ref LLP 0060#c1-the-v1-custody-claim — known operator carriers have no
   // redaction length floor, and secret-bearing success keys fail closed.
   // These values come from known secret-bearing carriers, not heuristic
   // discovery. Even a one-byte operator token or config value remains secret.

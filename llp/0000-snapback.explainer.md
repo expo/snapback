@@ -6,8 +6,8 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-14 (auth-program implementation reconciliation: the complete local item-1-through-item-8 train now has executable route policy, provider/session state, staged shared authority, connection/revocation coordination, protected-query invalidation, authority-descriptor/two-axis storage, and lease-bounded retained reads; LLP 0058 keeps hosted auth honestly disabled on the local bearer target; this records implementation without accepting the Draft implementation Specs). 2026-07-13 (earlier latest: ENG-24596 records the implemented-but-activation-fenced local auth provider core under LLP 0055 and adds it to the root lineage; earlier: the ratification ledger narrowly refines the 2026-07-02 auth/sync decision in favor of LLP 0053's acceptance-gated authorization-invalidation contract while preserving server authority, fail-closed stale handling, user-switch wipe, and fresh authorized snapshots; earlier: the deliberate All Aboard no-subscriber window records settled idle-to-zero evidence for the Cloudflare proof, and the root index gains LLP 0050; earlier: LLP 0049 added — the All Aboard Cloudflare live-data plan tying deploy-time secrets, action egress, and warm polling to the Cloudflare proof; earlier: the Cloudflare durable-store decision ratified — everything on Durable Objects, ledgered below; LLP 0048 added — the V8 conformance twin executing the DK-5 re-decision, ledgered below; earlier: gap-closure RFCs LLP 0039-0047 added for auth, Cloudflare, packaged dev loop, MCP, offline replay, assets, notifications, Postgres, and hosted execution limits. Earlier, 2026-07-05: related index gains LLP 0038, a whole-system review. Earlier, 2026-07-02: decision ledger: DK-5 twin deferred and DK-9 store-agnostic client store decided (X2/X4); @snapback/* namespace and DK-10 adapter-owned live push decided — the P5/P6 close-out artifacts re-landed 2026-07-03 via ENG-22680; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; same day: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation — and DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0034 and LLP 0037; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
-**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, LLP 0038, LLP 0039, LLP 0040, LLP 0041, LLP 0042, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0048, LLP 0049, LLP 0050, LLP 0051, LLP 0052, LLP 0053, LLP 0055, LLP 0056, LLP 0057, LLP 0058, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
+**Revised:** 2026-07-14 (auth-program implementation reconciliation: the complete local item-1-through-item-8 train now has executable route policy, provider/session state, staged shared authority, connection/revocation coordination, protected-query invalidation, authority-descriptor/two-axis storage, and lease-bounded retained reads; LLP 0060 keeps hosted auth honestly disabled on the local bearer target; this records implementation without accepting the Draft implementation Specs). 2026-07-13 (earlier latest: ENG-24596 records the implemented-but-activation-fenced local auth provider core under LLP 0057 and adds it to the root lineage; earlier: the ratification ledger narrowly refines the 2026-07-02 auth/sync decision in favor of LLP 0053's acceptance-gated authorization-invalidation contract while preserving server authority, fail-closed stale handling, user-switch wipe, and fresh authorized snapshots; earlier: the deliberate All Aboard no-subscriber window records settled idle-to-zero evidence for the Cloudflare proof, and the root index gains LLP 0050; earlier: LLP 0049 added — the All Aboard Cloudflare live-data plan tying deploy-time secrets, action egress, and warm polling to the Cloudflare proof; earlier: the Cloudflare durable-store decision ratified — everything on Durable Objects, ledgered below; LLP 0048 added — the V8 conformance twin executing the DK-5 re-decision, ledgered below; earlier: gap-closure RFCs LLP 0039-0047 added for auth, Cloudflare, packaged dev loop, MCP, offline replay, assets, notifications, Postgres, and hosted execution limits. Earlier, 2026-07-05: related index gains LLP 0038, a whole-system review. Earlier, 2026-07-02: decision ledger: DK-5 twin deferred and DK-9 store-agnostic client store decided (X2/X4); @snapback/* namespace and DK-10 adapter-owned live push decided — the P5/P6 close-out artifacts re-landed 2026-07-03 via ENG-22680; LLP 0036 → Accepted; LLP 0011 v1 auth/sync direction ratified; same day: DK-1/E3 host-plan mutation isolation decided — Option A, client-supplied read_set baseline by design, pending Charlie's ratification (DK-1 fully resolved); DK-3 op-log deltas landed and DK-4 warm-VM leg shipped; DK-2 commit-version graduation decided — LLP 0007 §Commit-version graduation — and DK-7 schema source of truth decided — LLP 0037; related index gains LLP 0034 and LLP 0037; related LLP index and follow-on list updated for LLP 0036; earlier: related LLP index updated for LLP 0031, LLP 0032, LLP 0033, and LLP 0035)
+**Related:** LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0017, LLP 0018, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0023, LLP 0024, LLP 0025, LLP 0026, LLP 0027, LLP 0028, LLP 0029, LLP 0030, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, LLP 0038, LLP 0039, LLP 0040, LLP 0041, LLP 0042, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0048, LLP 0049, LLP 0050, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, https://github.com/ccheever/ibex, https://github.com/expo/valet, https://github.com/ccheever/llp
 
 ## Summary
 
@@ -348,7 +348,7 @@ corpus does not rely on scattered "pending Charlie" notes.
   closed; acceptance removes that blocker without claiming implementation.
   Landing item 6 still follows item 5, and item 8 still follows items 5–7.
 - **2026-07-13:** ENG-24596 implements auth-program item 3's local provider
-  core under [LLP 0055](./0055-auth-provider-protocol.spec.md): the protected
+  core under [LLP 0057](./0057-auth-provider-protocol.spec.md): the protected
   catalog and keyring, email-code challenges, session-token families,
   capture mailbox, lifecycle/GC, collision rescue, and quiesced physical
   backup/declared restore now have executable Rust authorities, generated DTO
@@ -360,7 +360,7 @@ corpus does not rely on scattered "pending Charlie" notes.
   collision-rescue operator path remains reachable because it repairs the
   condition that can prevent ordinary startup.
 - **2026-07-14:** the ordered auth-program implementation through ENG-24607 is
-  now composed on the local target. LLP 0056's staged mode and shared invocation
+  now composed on the local target. LLP 0058's staged mode and shared invocation
   gate make server-derived handler authority the only sessions source; LLP
   0057's connection-bound projection, two-phase revocation, and
   `AuthCoordinator` close the activation fence; LLP 0053's accepted item-6/item-8
@@ -848,13 +848,13 @@ written) for at least:
   the first product auth slice — and the umbrella for the auth program — is
   [`0039-auth-vertical-slice.rfc.md`](./0039-auth-vertical-slice.rfc.md), whose
   implemented item-3 provider protocol is
-  [`0055-auth-provider-protocol.spec.md`](./0055-auth-provider-protocol.spec.md)
+  [`0057-auth-provider-protocol.spec.md`](./0057-auth-provider-protocol.spec.md)
   and whose implemented shared invocation/staged-mode protocol is
-  [`0056-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md`](./0056-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md).
+  [`0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md`](./0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md).
   Session projection and the client clear barrier are implemented under
-  [LLP 0057](./0057-session-projection-and-client-barrier.spec.md);
+  [LLP 0059](./0059-session-projection-and-client-barrier.spec.md);
   hosted deployment and client-page credential security are owned by
-  [`0058-hosted-auth-security.rfc.md`](./0058-hosted-auth-security.rfc.md). Its
+  [`0060-hosted-auth-security.rfc.md`](./0060-hosted-auth-security.rfc.md). Its
   **authorization invalidation** half (dependency classification, permission
   epochs, resync dispositions, retained/offline authorization) was split out to
   [`0053-authorization-invalidation.rfc.md`](./0053-authorization-invalidation.rfc.md)

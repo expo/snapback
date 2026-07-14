@@ -4,9 +4,9 @@
 //! caller first obtains one storage snapshot, builds and validates the whole
 //! projection here, and only then publishes it behind the item-5 coordinator.
 //!
-//! @ref LLP 0057#server-authority-model — the process projection contains
+//! @ref LLP 0059#server-authority-model — the process projection contains
 //! only durable identifiers, token digests, deadlines, and shared fences.
-//! @ref LLP 0057#two-phase-mutation-protocol — unique tickets, rather than a
+//! @ref LLP 0059#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
 
 use crate::auth::crypto::TokenHash;
@@ -306,7 +306,7 @@ pub(crate) struct ProjectedSessionAuthority {
 /// Exact immutable identity copied from one stored session grant for
 /// projection revalidation.
 ///
-/// @ref LLP 0057#grant-shape — every grant identity field participates in the
+/// @ref LLP 0059#grant-shape — every grant identity field participates in the
 /// revalidation comparison; the mutable deadline is deliberately excluded.
 pub(crate) struct BoundConnectionSessionIdentity<'a> {
     expected_incarnation: &'a AuthorizationStreamIncarnation,
@@ -502,7 +502,7 @@ impl FencedPublication {
     /// Consume one prepared buffer into its synchronous handoff only if the
     /// exact authority is still live at the linearization cut.
     ///
-    /// @ref LLP 0057#act-time-validation — stream/session validation and the
+    /// @ref LLP 0059#act-time-validation — stream/session validation and the
     /// leaf publication are one guarded operation, never check-then-act.
     pub(crate) fn try_publish<T>(
         &self,
@@ -991,7 +991,7 @@ impl SessionProjection {
     /// retains only the redacted bucket key for a known but blocked token so
     /// rejected attempts cannot escape the exact session throttle.
     ///
-    /// @ref LLP 0057#reuse-and-mismatch — every canonical open is indexed in
+    /// @ref LLP 0059#reuse-and-mismatch — every canonical open is indexed in
     /// the process projection and current, superseded, blocked, and unknown
     /// tokens consume their specified independent buckets.
     pub(crate) fn classify_connection_token(

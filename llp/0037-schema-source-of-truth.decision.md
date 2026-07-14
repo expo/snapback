@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
 **Revised:** 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
-**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0055
+**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057
 
 ## Summary
 
@@ -148,7 +148,7 @@ shape, so the override does not become a second authority.
 Committed artifacts now include schema/function/capability manifests,
 diagnostics, inspect state (full and public projection), storage info, the
 `hostOpsResult` and host-ready descriptors, and the closed auth request,
-mailbox, credential, alarm, mint-session, and rescue DTOs listed in LLP 0055.
+mailbox, credential, alarm, mint-session, and rescue DTOs listed in LLP 0057.
 The host-ops envelope is no longer deferred: LLP 0024's first slice and
 ENG-24596's auth operations both use the generated schema.
 Each committed schema carries the Snapback schema version on its `$id`.

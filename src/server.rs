@@ -3488,7 +3488,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             public_route("GET", "/health", ResponseSensitivity::PublicProjection),
             get(health),
         ),
-        // @ref LLP 0056#bootstrap-handshake — discovery is the sole auth path
+        // @ref LLP 0058#bootstrap-handshake — discovery is the sole auth path
         // available in every mode and while a transition is pending.
         RegisteredRoute::new(
             RouteSpec::new(
@@ -3515,7 +3515,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             public_route("GET", "/inspect", ResponseSensitivity::PublicProjection),
             get(inspect),
         ),
-        // @ref LLP 0055#routes-operations-and-dtos — provider routes carry
+        // @ref LLP 0057#routes-operations-and-dtos — provider routes carry
         // closed, independently enforced credential and response axes. Item 3
         // installs their state machines; item 4 supplies persisted activation.
         RegisteredRoute::new(
@@ -3765,7 +3765,7 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
-        // @ref LLP 0055#routes-operations-and-dtos — capture plaintext is an
+        // @ref LLP 0057#routes-operations-and-dtos — capture plaintext is an
         // exact operator-only projection requiring both AdminWrite and the
         // independent, process-bound impersonation capability.
         RegisteredRoute::new(
@@ -3881,7 +3881,7 @@ fn apply_registered_response_controls(
     effective: EffectiveRoutePolicy,
     mut response: Response,
 ) -> Response {
-    // @ref LLP 0058#c2-defenses-that-do-not-change-the-boundary — observable
+    // @ref LLP 0060#c2-defenses-that-do-not-change-the-boundary — observable
     // browser defenses for Snapback-owned pages, without claiming that these
     // headers make an app-origin-readable bearer XSS-proof.
     let headers = response.headers_mut();
@@ -4170,13 +4170,13 @@ fn auth_diagnostic_app_route(path: &str) -> bool {
 /// Central app-data availability fence. System/operator routes retain their
 /// own registered policies; the one pending recovery branch is selected and
 /// authorized later by the `/app/ensure` operation gate.
-// @ref LLP 0058#d1-plaintext-listener-fence — repeat the startup transport
+// @ref LLP 0060#d1-plaintext-listener-fence — repeat the startup transport
 // refusal for embedded/router composition without claiming proxy/TLS posture.
 fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<SnapbackError> {
     if spec.class != RouteClass::AppData {
         return None;
     }
-    // @ref LLP 0058#d5-hosted-readiness-is-conjunctive — the local target
+    // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — the local target
     // cannot turn operator flags or proxy topology into hosted edge authority.
     // CLI composition refuses pre-bind; this repeats the refusal for embedded
     // routers while leaving diagnostic health/identity reachable.
@@ -4297,7 +4297,7 @@ fn live_function_name(spec: RouteSpec, path: &str) -> Option<&str> {
 /// proved authority-independent durable live function, or an unprotected
 /// ephemeral room, may cross the live gate in that interval.
 ///
-/// @ref LLP 0056#live-and-replay-admission-before-later-items — refuse
+/// @ref LLP 0058#live-and-replay-admission-before-later-items — refuse
 ///   auth-scoped live before query/materialization until invalidation exists.
 async fn session_live_protocol_refusal(
     spec: RouteSpec,
@@ -5547,7 +5547,7 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
 /// exact supported protocol offers; every presented session credential is
 /// still validated on this request.
 ///
-/// @ref LLP 0056#exact-response-dto — this handler publishes the closed v1
+/// @ref LLP 0058#exact-response-dto — this handler publishes the closed v1
 /// response authority and never includes bearer or provider internals.
 async fn auth_session(
     State(runtime): State<AppState>,
@@ -5695,7 +5695,7 @@ fn auth_runtime_now(runtime: &AppState) -> (u64, Instant) {
     )
 }
 
-/// Record one LLP 0055 qualifying use after the connection act itself has
+/// Record one LLP 0057 qualifying use after the connection act itself has
 /// passed its exact grant/session fence. Bearer classification never reaches
 /// this path: the immutable session id and generation came from the projection
 /// and the provider transaction can only extend that exact durable row.
@@ -5991,7 +5991,7 @@ fn presented_session_bearer(headers: &HeaderMap) -> PresentedSessionBearer<'_> {
 /// bound is checked before serde, and deserializing the original bytes keeps
 /// duplicate-field rejection observable by the typed visitor.
 ///
-/// @ref LLP 0055#routes-operations-and-dtos — provider requests are closed,
+/// @ref LLP 0057#routes-operations-and-dtos — provider requests are closed,
 /// camelCase DTOs with a 4 KiB request-body ceiling.
 fn parse_auth_json<T: serde::de::DeserializeOwned>(
     headers: &HeaderMap,
@@ -6015,7 +6015,7 @@ fn parse_auth_json<T: serde::de::DeserializeOwned>(
 /// Request-code admission (maintenance + address stripe) is acquired before
 /// entering the outer app-instance lock and moved into the blocking closure.
 ///
-/// @ref LLP 0055#email-code-provider — challenge creation commits before the
+/// @ref LLP 0057#email-code-provider — challenge creation commits before the
 /// capture response is published and never enters the app event stream.
 async fn auth_request_code(
     State(runtime): State<AppState>,
@@ -6045,7 +6045,7 @@ async fn auth_request_code(
 /// shared maintenance, then the canonical-address stripe, then a fresh writer
 /// transaction. Missing rows still take the uniform writer+HMAC path.
 ///
-/// @ref LLP 0055#email-code-provider — preliminary lookup selects locks and
+/// @ref LLP 0057#email-code-provider — preliminary lookup selects locks and
 /// key material only; authorization comes from the rechecked transaction.
 async fn auth_exchange(
     State(runtime): State<AppState>,
@@ -6116,7 +6116,7 @@ async fn auth_exchange(
 /// central resolved-session authority gate; direct handler tests cover this
 /// item-3 projection while that gate remains deliberately fenced.
 ///
-/// @ref LLP 0055#rotation — refresh rotates the current token and publishes
+/// @ref LLP 0057#rotation — refresh rotates the current token and publishes
 /// the same closed credential response as exchange.
 async fn auth_refresh(
     State(runtime): State<AppState>,
@@ -6213,7 +6213,7 @@ async fn auth_refresh(
 /// response is intentionally empty; the committed revocation remains an
 /// explicit item-5 projection seam.
 ///
-/// @ref LLP 0055#session-and-token-family-protocol — logout succeeds with an
+/// @ref LLP 0057#session-and-token-family-protocol — logout succeeds with an
 /// empty 204 response and never aliases a bearer through JSON or query input.
 async fn auth_logout(
     State(runtime): State<AppState>,
@@ -6289,7 +6289,7 @@ async fn auth_logout(
 /// transaction and waits for its admission-selected publication deadline.
 /// The optional revocation is internal and never influences the response.
 ///
-/// @ref LLP 0055#logout-ordinary-supersession-and-family-alarm — malformed, unknown, current,
+/// @ref LLP 0057#logout-ordinary-supersession-and-family-alarm — malformed, unknown, current,
 /// tombstone, and already-revoked bearers all publish the same delayed 202.
 async fn auth_family_alarm(
     State(runtime): State<AppState>,
@@ -6428,7 +6428,7 @@ async fn auth_family_alarm(
 /// installed proof as a structural backstop; the registered route is what
 /// authenticates both independent authority axes before query parsing.
 ///
-/// @ref LLP 0055#capture-mailbox — mailbox lookup performs shared
+/// @ref LLP 0057#capture-mailbox — mailbox lookup performs shared
 /// maintenance, peek, address-stripe acquisition, and an exact re-read.
 async fn auth_mailbox(
     State(runtime): State<AppState>,
@@ -8064,7 +8064,7 @@ async fn inspect(
 /// Add process-composed auth facts to the capability authority without
 /// placing socket/ready-file state inside `LocalSnapback`.
 ///
-/// @ref LLP 0056#activation-readiness-and-later-item-fences — the exact
+/// @ref LLP 0058#activation-readiness-and-later-item-fences — the exact
 /// `authProgramReadiness` object is a server-owned runtime fact.
 pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &AppState) {
     let facts = inspect
@@ -8360,9 +8360,9 @@ async fn auth_host_result(
 /// secret-read, session, or impersonation credential for either required
 /// axis.
 ///
-/// @ref LLP 0055#concurrency-locks-and-linearization — maintenance/address
+/// @ref LLP 0057#concurrency-locks-and-linearization — maintenance/address
 /// admission precedes the outer app lock for mint and rescue.
-/// @ref LLP 0055#routes-operations-and-dtos — both host operations use closed
+/// @ref LLP 0057#routes-operations-and-dtos — both host operations use closed
 /// args and the ordinary hostOpsResult envelope.
 async fn execute_auth_host_operation(
     runtime: &AppState,
@@ -8692,7 +8692,7 @@ async fn host_ops_handler(
 /// acquired before the app mutex; the shared stream is blocked before SQLite;
 /// all auxiliary process capabilities are cleared only after exact finalize.
 ///
-/// @ref LLP 0057#reset-restore-and-stream-publication — destructive authority
+/// @ref LLP 0059#reset-restore-and-stream-publication — destructive authority
 /// changes use premark → durable attempt → exact finalize.
 async fn coordinated_app_reset(
     runtime: &AppState,
@@ -8722,7 +8722,7 @@ async fn coordinated_app_reset(
             "authentication projection is unavailable",
         )
     })?;
-    // @ref LLP 0055#concurrency-locks-and-linearization — reset takes
+    // @ref LLP 0057#concurrency-locks-and-linearization — reset takes
     // exclusive auth maintenance before the app/database writer.
     let maintenance = provider.exclusive_maintenance().await;
     let carrier = coordinator.premark_stream_reset()?;
@@ -10699,7 +10699,7 @@ fn handle_live_socket_text_authorized(
     // refused before the room registration exists until item 6 installs the
     // authorization-invalidation protocol. Public rooms remain available.
     //
-    // @ref LLP 0056#live-and-replay-admission-before-later-items — protected
+    // @ref LLP 0058#live-and-replay-admission-before-later-items — protected
     //   ephemeral registration is unavailable before item 6 on every transport.
     if matches!(policy_mode, PolicyAuthMode::Sessions)
         && !authorization_invalidation_ready
@@ -13333,7 +13333,7 @@ mod tests {
         );
     }
 
-    /// @ref LLP 0055#routes-operations-and-dtos — the HTTP projection enforces the
+    /// @ref LLP 0057#routes-operations-and-dtos — the HTTP projection enforces the
     /// exact 4 KiB ceiling and collapses every closed-DTO parse failure to the
     /// non-reflective auth diagnostic.
     #[tokio::test]
@@ -13399,7 +13399,7 @@ mod tests {
         }
     }
 
-    /// @ref LLP 0055#email-code-provider — exercise the real request transaction,
+    /// @ref LLP 0057#email-code-provider — exercise the real request transaction,
     /// exact gated mailbox projection, and known/unknown two-pass exchange
     /// paths through the registered router.
     #[tokio::test]
@@ -13586,7 +13586,7 @@ mod tests {
         );
     }
 
-    /// @ref LLP 0055#catalog-write-and-lifecycle-rules — the dedicated reset holds
+    /// @ref LLP 0057#catalog-write-and-lifecycle-rules — the dedicated reset holds
     /// exclusive maintenance, clears capture plaintext only after commit, and
     /// retains both catalog and keyring (proved by issuing again afterward).
     #[tokio::test]
@@ -13645,7 +13645,7 @@ mod tests {
         );
     }
 
-    /// @ref LLP 0055#concurrency-locks-and-linearization — the multiplexed reset
+    /// @ref LLP 0057#concurrency-locks-and-linearization — the multiplexed reset
     /// projection observes the same post-commit mailbox boundary as its direct
     /// route; a negative host-op envelope is not a committed reset.
     #[tokio::test]
@@ -13815,7 +13815,7 @@ mod tests {
         assert_eq!(response_json(repaired).await["authProvider"], "available");
     }
 
-    /// @ref LLP 0055#rotation — direct handler acceptance pins the item-3 bearer,
+    /// @ref LLP 0057#rotation — direct handler acceptance pins the item-3 bearer,
     /// body, status, and credential projection while item 4 deliberately
     /// keeps registered SessionAuth routes centrally fenced.
     #[tokio::test]
@@ -13944,7 +13944,7 @@ mod tests {
         assert_eq!(repeated.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
     }
 
-    /// @ref LLP 0055#logout-ordinary-supersession-and-family-alarm — every bearer class publishes the
+    /// @ref LLP 0057#logout-ordinary-supersession-and-family-alarm — every bearer class publishes the
     /// same delayed response, while only an attributable tombstone revokes.
     #[tokio::test]
     async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
@@ -14033,7 +14033,7 @@ mod tests {
         );
     }
 
-    /// @ref LLP 0055#routes-operations-and-dtos — active dev refusal precedes the
+    /// @ref LLP 0057#routes-operations-and-dtos — active dev refusal precedes the
     /// installed provider, bearer, and even an over-limit malformed body.
     #[tokio::test]
     async fn auth_http_dev_refusal_precedes_provider_and_body_handling() {
@@ -14063,7 +14063,7 @@ mod tests {
         }
     }
 
-    /// @ref LLP 0057#projected-session — registered required
+    /// @ref LLP 0059#projected-session — registered required
     /// session routes resolve their bearer through the process projection and
     /// publish the terminating logout response through its committed outcome.
     #[tokio::test]
@@ -14109,7 +14109,7 @@ mod tests {
         );
     }
 
-    /// @ref LLP 0057#operation-specific-publication — a successful finite app
+    /// @ref LLP 0059#operation-specific-publication — a successful finite app
     /// request records authenticated use under the same prepared authority and
     /// publishes the later deadline only after the durable outcome is known.
     #[tokio::test]
@@ -14172,7 +14172,7 @@ mod tests {
             .expect("sliding use moved the projected deadline past its original value");
     }
 
-    /// @ref LLP 0055#host-operation-dtos — mint projects the exact credential as a
+    /// @ref LLP 0057#host-operation-dtos — mint projects the exact credential as a
     /// named host-ops datum and records its administrative issue provenance;
     /// active Dev keeps the operation unavailable until item 4 activates
     /// Sessions.
@@ -14377,7 +14377,7 @@ mod tests {
         );
     }
 
-    /// @ref LLP 0055#host-operation-dtos — ordinary dormant collisions use the
+    /// @ref LLP 0057#host-operation-dtos — ordinary dormant collisions use the
     /// shared rescue core and exact six-field metadata projection; unlike the
     /// stored-manifest recovery router, ordinary service remains live.
     #[tokio::test]
@@ -15910,7 +15910,7 @@ globalThis.__snapbackHandlers = {
         registry.lock().assert_grant_indexes_consistent();
     }
 
-    /// @ref LLP 0057#reuse-and-mismatch — previous-token reuse is exact over
+    /// @ref LLP 0059#reuse-and-mismatch — previous-token reuse is exact over
     /// every immutable authority field; the cached deadline alone is mutable.
     #[test]
     fn connection_previous_token_reuse_compares_every_authority_field() {
@@ -16159,7 +16159,7 @@ globalThis.__snapbackHandlers = {
         );
     }
 
-    /// @ref LLP 0057#connection-bound-authority — the three closed source
+    /// @ref LLP 0059#connection-bound-authority — the three closed source
     /// buckets have exact independent limits and an inclusive 60-second drop.
     #[test]
     fn connection_open_throttle_has_exact_closed_bucket_boundaries() {
@@ -16232,7 +16232,7 @@ globalThis.__snapbackHandlers = {
         assert!(state.session_open_attempts.contains_key(&survivor));
     }
 
-    /// @ref LLP 0057#connection-bound-authority — exact generation
+    /// @ref LLP 0059#connection-bound-authority — exact generation
     /// invalidation cleans both LRU and reverse indexes without touching a
     /// sibling session or anonymous grant.
     #[test]
@@ -16318,7 +16318,7 @@ globalThis.__snapbackHandlers = {
         state.assert_grant_indexes_consistent();
     }
 
-    /// @ref LLP 0057#act-time-validation — a prepared predecessor cannot
+    /// @ref LLP 0059#act-time-validation — a prepared predecessor cannot
     /// destructively drain data after its grant id is replaced under the same
     /// public connection id.
     #[test]
@@ -16375,7 +16375,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(messages.len(), 1);
     }
 
-    /// @ref LLP 0057#fenced-effects-and-live-closure — a stream premark wins
+    /// @ref LLP 0059#fenced-effects-and-live-closure — a stream premark wins
     /// the final grant act even when verification cloned the predecessor first.
     #[test]
     fn prepared_connection_act_loses_to_concurrent_stream_premark() {
@@ -16472,7 +16472,7 @@ globalThis.__snapbackHandlers = {
         (authority, deadline_ms)
     }
 
-    /// @ref LLP 0057#connection-bound-authority — current-bearer opens resolve
+    /// @ref LLP 0059#connection-bound-authority — current-bearer opens resolve
     /// solely through the projection, store only the closed grant authority,
     /// record one qualifying use, and reject a superseded predecessor.
     #[tokio::test]
@@ -16594,7 +16594,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(response_json(successor_reuse).await, opened);
     }
 
-    /// @ref LLP 0057#connection-bound-authority — even a semantically rejected
+    /// @ref LLP 0059#connection-bound-authority — even a semantically rejected
     /// body consumes the exact projected session source before returning.
     #[tokio::test]
     async fn rejected_connection_open_bodies_still_consume_session_budget() {

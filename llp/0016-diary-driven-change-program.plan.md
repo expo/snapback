@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
 **Revised:** 2026-07-14 (corpus reconciliation: schema-source and Exact manifest ownership are decided, WebSocket push and the local authorized-sync/items-6/8 proof are implemented, and the remaining artifact-mapping and demo-product breadth are separated from obsolete blockers). 2026-07-14 (ENG-24606 reconciliation: the card-game rung now proves real session-isolated finite and live hidden-hand delivery, logout blanking, and cold-process retained display only through an unexpired signed authorization lease; full permission-changing ACL/protected-room and game-product breadth remain outside this demo). 2026-07-13 (ENG-24605 adds `demos/card-game` as a finite authenticated-query and authority-store proof only; the full authorization-aware partial-sync rung remains gated on items 6/8 and is not claimed). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, LLP 0053, LLP 0057, Diary 0001, Diary 0006, Diary 0013, Exact 0263, Exact 0265
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, LLP 0053, LLP 0059, Diary 0001, Diary 0006, Diary 0013, Exact 0263, Exact 0265
 
 ## Summary
 
@@ -101,7 +101,7 @@ the detail Plan governs.
 | 4 — App-grade realtime | Auth-aware matcher (LLP 0011/0053); LLP 0008 | Snapback core | LLP 0020 Phase 4 | Foothold: equality matcher plus WebSocket `live_replace`; protected local auth invalidation ships, while range/non-equality matcher breadth remains |
 | 5 — Contract data ergonomics | Phase 1 | Exact/Contract | LLP 0021 Phase 5 | Not started |
 | 6 — React/Expo pressure test | Phase 1 | Snapback adapters | This Plan (Change Program; no detail Plan yet) | Not started |
-| X — Authorized sync | LLP 0011 model; LLP 0053 protocol; auth items 5–8 | Snapback core + auth program | LLP 0011 + LLP 0053 + LLP 0057 | Implemented for the local card-game proof: principal-isolated finite/live reads, logout barrier, invalidation, two-axis storage, and signed-lease retained display |
+| X — Authorized sync | LLP 0011 model; LLP 0053 protocol; auth items 5–8 | Snapback core + auth program | LLP 0011 + LLP 0053 + LLP 0059 | Implemented for the local card-game proof: principal-isolated finite/live reads, logout barrier, invalidation, two-axis storage, and signed-lease retained display |
 
 ## Evidence
 

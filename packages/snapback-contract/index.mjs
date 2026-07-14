@@ -113,7 +113,7 @@ import {
 // A physical format-5 store is one durable barrier participant even when an
 // app mounts several Contract surfaces over it. The coordinator owns the
 // transition; surfaces merely hold references to this shared registration.
-// @ref LLP 0057#participant-contract — duplicate surfaces must not race the
+// @ref LLP 0059#participant-contract — duplicate surfaces must not race the
 //   store's expected-epoch transition CAS.
 const durableStoreRegistrations = new WeakMap();
 const durableQueryAuthorizationTails = new WeakMap();
@@ -670,7 +670,7 @@ export async function createSnapbackContractSurface({
           }
         : {}),
     };
-    // @ref LLP 0056#kit-ordering — a cold offline boot reads the last durable
+    // @ref LLP 0058#kit-ordering — a cold offline boot reads the last durable
     // mode/authorization tuple before attempting discovery. That tuple can
     // authorize only lease-validated retained bytes; it never admits online
     // work or queued replay.
@@ -2237,7 +2237,7 @@ export async function createSnapbackContractSurface({
     };
 
     if (coordinator) {
-      // @ref LLP 0057#exposure-invariant — a surface is either entirely at its
+      // @ref LLP 0059#exposure-invariant — a surface is either entirely at its
       //   settled capture or explicitly blank while the successor is prepared.
       unregisterSurfaceParticipant = registerContractParticipant(client, coordinator, {
         name: `snapback-contract-surface:${surfaceRootId}`,

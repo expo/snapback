@@ -17,7 +17,7 @@
     "contract/signalReady.mutation.ts",
     "contract/signalReady.mutation.contract-meta.ts"
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:4d881d8d6f5bdb4d0cb8674bf64f69c014cfe0e030d4666b1586d67ed01dea8a",
+  "bundleHash": "snapback.v1:sessions:function:sha256:072aad2a00bf9688bb7f81a8cbc3f198f6574931c78fcd33a9e2512b22588ecc",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -39,8 +39,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:12afaa6967ce339e0191a8e6dce8791e87fe4f660d11fbe812c9190755b2e279",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:451cd769823c829935c4f17e6a724b7440334f6c1120b89250418ce9266daa8f",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e8410d6aedcceba805bfede53ca85fcef84ba5270ba8868d7460d7e44b1e0a54",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:09458ea7f9a519f8892a43286456d29e78aea1d9bc37c6f906dc98180cb9331a",
   "schemaVersion": "snapback.v0",
   "tables": [
     "hands",

@@ -178,7 +178,7 @@ struct TargetReservationRecord {
 /// not yet exist. Unlike [`DatabaseInstanceLock`], this guard pins the existing
 /// parent directory and keeps the persistent sibling lock entry tied to that
 /// exact directory capability.
-// @ref LLP 0055#restore — restore is offline under the target-instance lock and publishes one complete required-absent directory.
+// @ref LLP 0057#restore — restore is offline under the target-instance lock and publishes one complete required-absent directory.
 pub(crate) struct TargetInstanceReservation {
     parent: File,
     parent_path: PathBuf,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
 
-// @ref LLP 0055#keyring-and-crypto — a second language pins the exact v1
+// @ref LLP 0057#keyring-and-crypto — a second language pins the exact v1
 // canonicalization, length-prefix, HMAC, base64url, checksum, and token-hash
 // bytes consumed by the Rust provider.
 

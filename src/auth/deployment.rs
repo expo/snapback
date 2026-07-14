@@ -88,7 +88,7 @@ pub enum BrowserCredentialPosture {
 
 /// Closed hosted-auth capability descriptor authored by the serving target.
 ///
-/// @ref LLP 0058#d5-hosted-readiness-is-conjunctive — every deployment fact
+/// @ref LLP 0060#d5-hosted-readiness-is-conjunctive — every deployment fact
 /// and the browser credential posture is independent and fail-closed.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

@@ -8,8 +8,8 @@
 **Revised:** 2026-07-13 (ENG-24603 through ENG-24607: reconciled the item-5
 through item-8 auth handshake, authority-descriptor, invalidation, authorized-
 lease, client-custody, hosted-capability, and diagnostic registrations into the
-shared adapter contract); 2026-07-13 (ENG-24597: registered LLP 0056's staged-mode,
-invocation-gate, startup, and capability-refusal diagnostic classes); 2026-07-13 (ENG-24596: registered LLP 0055's implemented
+shared adapter contract); 2026-07-13 (ENG-24597: registered LLP 0058's staged-mode,
+invocation-gate, startup, and capability-refusal diagnostic classes); 2026-07-13 (ENG-24596: registered LLP 0057's implemented
 auth-provider diagnostic family and deliberate HTTP status classes while
 preserving the `hostOpsResult` transport projection); 2026-07-13 (ENG-24594: registered the adapter-visible
 `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` refusal and the temporary pre-staged-mode
@@ -25,7 +25,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0053, LLP 0055, LLP 0056, LLP 0057, LLP 0058
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060
 
 ## Summary
 
@@ -364,7 +364,7 @@ The first stable code families are `SCHEMA_*`, `FUNCTION_*`, `QUERY_*`,
 implementation, but changing an emitted code is a compatibility event.
 `HANDLER_*` covers normalized JavaScript handler failures such as ambient
 capability denial and arbitrary handler throws, so adapters never receive raw
-runtime errors as the integration contract. LLP 0055 owns the item-3
+runtime errors as the integration contract. LLP 0057 owns the item-3
 `SNAPBACK_AUTH_*` spellings and secret-safe detail boundaries; later auth items
 extend that family rather than inventing an adapter-specific dialect.
 
@@ -552,11 +552,11 @@ explicit `null`; a valid bearer never makes that body shape acceptable.
 capability backstop: a route or operation whose effective policy requires an
 uninstalled later-item authority, coordinator, descriptor, or retained-read
 contract refuses instead of falling through to a weaker credential. LLP 0031
-owns the policy matrix; LLP 0056 owns item 4's exact activation and admission
+owns the policy matrix; LLP 0058 owns item 4's exact activation and admission
 fences.
 
 ENG-24596 adds the following stable item-3 status classes from
-[LLP 0055](./0055-auth-provider-protocol.spec.md). These mappings apply when a
+[LLP 0057](./0057-auth-provider-protocol.spec.md). These mappings apply when a
 diagnostic is the top-level served HTTP error. A core host operation that ran
 still returns HTTP 200 with the ordinary `hostOpsResult` envelope and expresses
 the operation failure through `ok: false` plus `diagnostics[]`.
@@ -576,7 +576,7 @@ The mapper allow-lists these codes; an unrecognized diagnostic remains a 500.
 No status or structured detail may reveal an email address, challenge code,
 session token or digest, key identifier/material, or impersonation capability.
 
-ENG-24597 adds LLP 0056's item-4 classes. `SNAPBACK_AUTH_MODE_PENDING`,
+ENG-24597 adds LLP 0058's item-4 classes. `SNAPBACK_AUTH_MODE_PENDING`,
 `SNAPBACK_AUTH_POLICY_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`,
 `SNAPBACK_CAPABILITY_UNSUPPORTED`, and
 `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` are HTTP 503 when they are the
@@ -591,7 +591,7 @@ diagnostics and imply no HTTP response:
 `SNAPBACK_AUTH_MODE_DOWNGRADE`, `SNAPBACK_AUTH_MODE_STATE_CORRUPT`,
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED`,
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, and
-`SNAPBACK_AUTH_TRANSPORT_INSECURE`. Adapters may display only LLP 0056's closed
+`SNAPBACK_AUTH_TRANSPORT_INSECURE`. Adapters may display only LLP 0058's closed
 safe details: versions, modes, public identity hashes, capability ids,
 transition generation, and blocker names. Artifact source/body/seed, carrier
 paths, credentials, identity addresses, provider secrets, and key material are
@@ -672,7 +672,7 @@ The remaining served HTTP mappings are deliberately allow-listed:
 An item-6/8 corruption code not deliberately assigned a client class remains a
 500 or a pre-bind refusal. Adapters must not reinterpret that conservative
 default as bad request data. Public details remain identifier- and secret-free
-as specified by LLP 0053, LLP 0057, and LLP 0058.
+as specified by LLP 0053, LLP 0059, and LLP 0060.
 
 ## Runtime State
 
@@ -909,7 +909,7 @@ without the closed-tuple paired-artifact preflight, the exact predecessor
 diagnostic proof, and the `MODE_PENDING` recovery gate. This broader Spec remains
 Draft; ENG-24593 authorized no status transition.
 
-ENG-24596 likewise makes no status transition. It implements the LLP 0055
+ENG-24596 likewise makes no status transition. It implements the LLP 0057
 provider core and registers its adapter-visible diagnostics, but provider
 activation still depends on the item-4 staged mode/shared invocation gate and
 the item-5 connection/revocation coordinator.

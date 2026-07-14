@@ -6,9 +6,9 @@
 //! counts each root admission exactly once, and makes every effect acquire the
 //! same mutex used to retire an epoch.
 
-// @ref LLP 0056#stage-ordering — staging closes admission, waits at one exact
+// @ref LLP 0058#stage-ordering — staging closes admission, waits at one exact
 // monotonic deadline, and retires/cancels the old epoch without killing a thread.
-// @ref LLP 0056#gate-algorithm — commit and publication revalidate both the
+// @ref LLP 0058#gate-algorithm — commit and publication revalidate both the
 // durable transition generation and process-local admission epoch atomically.
 
 use crate::auth::mode::{AppDataAvailability, AuthModeStateRecord, AuthModeStatus};

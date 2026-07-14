@@ -1,8 +1,8 @@
 //! Protected SQLite auth catalog and the direct storage lane beneath app data.
 //!
-//! @ref LLP 0055#reserved-namespace-and-catalog-recognition — catalog state is
+//! @ref LLP 0057#reserved-namespace-and-catalog-recognition — catalog state is
 //! inspected without mutation and recognized exactly before auth effects run.
-//! @ref LLP 0055#catalog-write-and-lifecycle-rules — auth writes never use app
+//! @ref LLP 0057#catalog-write-and-lifecycle-rules — auth writes never use app
 //! mutation, journal, version, receipt, or live-delivery machinery.
 
 use super::{LocalDatabase, is_auth_reserved_identifier};
@@ -435,7 +435,7 @@ impl LocalDatabase {
     /// the coordinator. No projection/topology value enters this method; the
     /// caller has already installed a ticket and released every fence lock.
     ///
-    /// @ref LLP 0057#rollback-and-ambiguous-commit — only a proven rollback
+    /// @ref LLP 0059#rollback-and-ambiguous-commit — only a proven rollback
     /// exact-unmarks; a commit error is reconciled or left unavailable.
     pub(crate) fn attempt_auth_transaction<T>(
         &mut self,
@@ -587,7 +587,7 @@ impl LocalDatabase {
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
         restore_transaction_step_completed(1)?;
 
-        // @ref LLP 0057#reset-restore-and-stream-publication — a first
+        // @ref LLP 0059#reset-restore-and-stream-publication — a first
         // application rotates authorization authority in this same
         // destructive transaction; an idempotent declaration returns above
         // without rotating again. The closed hook also produces the exact
@@ -601,7 +601,7 @@ impl LocalDatabase {
         super::auth_invalidation::rotate_data_version_stream_in(&tx)?;
         restore_transaction_step_completed(2)?;
 
-        // @ref LLP 0055#restore — the declaration id is written last in the
+        // @ref LLP 0057#restore — the declaration id is written last in the
         // same transaction as revocation and challenge destruction.
         tx.execute(
             "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
@@ -682,7 +682,7 @@ impl LocalDatabase {
 /// relying on drop could exact-unmark a projection ticket while the durable
 /// outcome remained uncertain.
 ///
-/// @ref LLP 0057#rollback-and-ambiguous-commit — exact compare-unmark requires
+/// @ref LLP 0059#rollback-and-ambiguous-commit — exact compare-unmark requires
 /// a known rollback or an exact durable predecessor proof.
 fn rollback_auth_transaction<T>(
     tx: Transaction<'_>,
@@ -702,7 +702,7 @@ fn rollback_auth_transaction<T>(
 }
 
 /// Install catalog v1 inside a caller-owned transaction. The caller has
-/// already established usable keyring state; this seam lets LLP 0056 commit
+/// already established usable keyring state; this seam lets LLP 0058 commit
 /// catalog activation together with manifest relocation and mode settlement.
 pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     match inspect_auth_catalog_on(tx)? {
@@ -721,7 +721,7 @@ pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResul
         activation_step_completed(activation_step)?;
         activation_step += 1;
     }
-    // The marker remains the final catalog statement. The outer LLP 0056
+    // The marker remains the final catalog statement. The outer LLP 0058
     // transaction may append mode metadata only after this exact-ready proof.
     tx.execute(
         "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",

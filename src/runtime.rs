@@ -2123,7 +2123,7 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_HANDLER_STALE_CONTINUATION"
         | "SNAPBACK_CONFIG_UNDECLARED"
         | "SNAPBACK_CONFIG_MISSING"
-        // @ref LLP 0056#complete-gate-coverage — an action's nested
+        // @ref LLP 0058#complete-gate-coverage — an action's nested
         // runMutation requirement failure keeps its typed auth code inside
         // the ordinary FunctionRunResult envelope.
         | "SNAPBACK_AUTH_REQUIRED"

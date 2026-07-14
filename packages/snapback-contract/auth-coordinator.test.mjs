@@ -1,4 +1,4 @@
-// LLP 0057 item-5 browser custody and local barrier conformance.
+// LLP 0059 item-5 browser custody and local barrier conformance.
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

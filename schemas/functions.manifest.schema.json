@@ -95,7 +95,7 @@
       ]
     },
     "AuthRequirement": {
-      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0056#closed-function-requirement — closed values fail at manifest parse.",
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0058#closed-function-requirement — closed values fail at manifest parse.",
       "enum": [
         "public",
         "optional-user",

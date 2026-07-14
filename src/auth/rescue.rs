@@ -3,7 +3,7 @@
 //! Database catalog access stays in `storage::auth_rescue`; this module owns
 //! request validation, result shape, and the deliberately tiny SQL rewriter.
 
-// @ref LLP 0055#transactional-algorithm — rescue replaces only leading schema-object identifiers and never text-replaces literals or comments.
+// @ref LLP 0057#transactional-algorithm — rescue replaces only leading schema-object identifiers and never text-replaces literals or comments.
 
 use crate::auth::wire::RescueCollidingTableRequest;
 use crate::diagnostic::{SnapbackError, SnapbackResult};

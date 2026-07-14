@@ -5,7 +5,7 @@
 //! so the underlying credential wrappers remain non-serializable and cannot
 //! accidentally enter a generic log or diagnostic envelope.
 //!
-//! @ref LLP 0055#routes-operations-and-dtos — Rust serde + schemars types are
+//! @ref LLP 0057#routes-operations-and-dtos — Rust serde + schemars types are
 //! the wire authority, and every provider object is closed.
 
 use crate::auth::crypto::{SessionBearer, VerificationCode};

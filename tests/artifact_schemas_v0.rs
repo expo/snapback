@@ -205,10 +205,10 @@ fn dk7_committed_public_instances_match_rust_types() {
     }
 }
 
-/// @ref LLP 0055#routes-operations-and-dtos — provider and operator objects are closed wire contracts. Keep a
+/// @ref LLP 0057#routes-operations-and-dtos — provider and operator objects are closed wire contracts. Keep a
 /// consumer-side fixture for every schema, not only the Rust schemars drift
 /// check, so camelCase or `additionalProperties` drift is caught here too.
-/// @ref LLP 0056#exact-response-dto — bootstrap discovery is an independently
+/// @ref LLP 0058#exact-response-dto — bootstrap discovery is an independently
 /// closed, generated response rather than an ad hoc server object.
 #[test]
 fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {

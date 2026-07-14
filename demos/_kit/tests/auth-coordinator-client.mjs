@@ -1,4 +1,4 @@
-// SnapbackClient + LLP 0057 AuthCoordinator network race sentinel.
+// SnapbackClient + LLP 0059 AuthCoordinator network race sentinel.
 
 import assert from 'node:assert/strict';
 

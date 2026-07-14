@@ -22,7 +22,7 @@ impl LocalDatabase {
     /// or preserve and return the exact existing incarnation. Corrupt state is
     /// never repaired in place.
     ///
-    /// @ref LLP 0057#durable-authorization-stream — migration precedes bind
+    /// @ref LLP 0059#durable-authorization-stream — migration precedes bind
     /// but remains separate from read-only auth-mode/collision inspection.
     pub(crate) fn ensure_authorization_stream_incarnation(
         &mut self,
@@ -58,7 +58,7 @@ impl LocalDatabase {
     /// returned source remains raw and unpublished until detached validation
     /// in `SessionProjection::rebuild` succeeds.
     ///
-    /// @ref LLP 0057#startup-rebuild-and-deadline-derivation — session rows,
+    /// @ref LLP 0059#startup-rebuild-and-deadline-derivation — session rows,
     /// identity bindings, tombstones, markers, and incarnation share one read
     /// snapshot; no partial projection escapes.
     pub(crate) fn session_projection_source(&mut self) -> SnapbackResult<ProjectionSource> {
@@ -226,7 +226,7 @@ pub(super) fn advance_authorization_epoch_in(
 /// Rotate inside the caller's destructive transaction and reset the epoch.
 /// The caller decides publication only after its commit is known successful.
 ///
-/// @ref LLP 0057#reset-restore-and-stream-publication — reset/restore writes
+/// @ref LLP 0059#reset-restore-and-stream-publication — reset/restore writes
 /// the successor incarnation in the same transaction as destructive state.
 pub(super) fn rotate_authorization_stream_incarnation_in(
     tx: &Transaction<'_>,

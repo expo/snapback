@@ -1418,7 +1418,7 @@ function invalidateQueriesForAuthorityTransition(state, { deleteRows }) {
     }
     query.authorityGeneration = nextInvalidationGeneration(query.authorityGeneration);
     query.queryGeneration = nextInvalidationGeneration(query.queryGeneration);
-    // @ref LLP 0057#transition-barrier — same-principal/new-session keeps the
+    // @ref LLP 0059#transition-barrier — same-principal/new-session keeps the
     //   physical rows quarantined, but the predecessor descriptor must stop
     //   binding them during the clearing epoch before resume installs the
     //   successor descriptor.
@@ -1453,7 +1453,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
   return {
     version: SNAPBACK_CLIENT_STORE_VERSION,
 
-    // @ref LLP 0057#format-3-and-authority-tags — the coordinator epoch/key
+    // @ref LLP 0059#format-3-and-authority-tags — the coordinator epoch/key
     //   owns the expected-authority CAS around store mutations.
     async bindAuthority({ authorityEpoch, authorityKey, authMode = 'sessions' }) {
       if (!Number.isSafeInteger(authorityEpoch) || authorityEpoch < 0) {
@@ -1706,7 +1706,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         const unknownPrincipal = state.principalScope === null
           && hasPrivacyBearingState(state);
 
-        // @ref LLP 0057#format-3-and-authority-tags — establish the principal
+        // @ref LLP 0059#format-3-and-authority-tags — establish the principal
         //   boundary before considering queue authority. A different, missing,
         //   or unprovable predecessor principal deletes every privacy-bearing
         //   namespace; no later descriptor may make those bytes attributable.
@@ -3002,7 +3002,7 @@ function principalScopeForAuthority(authority) {
   };
 }
 
-// @ref LLP 0057#participant-contract — the durable participant derives queue
+// @ref LLP 0059#participant-contract — the durable participant derives queue
 //   handling from the exact predecessor/successor authorities. Callers cannot
 //   opt a delete row into payload-bearing stranding.
 function authorityQueueTransition(previous, next) {

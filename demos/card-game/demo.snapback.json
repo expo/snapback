@@ -63,8 +63,8 @@
     ]
   },
   "capabilityGaps": [
-    "a hosted target implementing LLP 0058's external TLS, trusted effective source, shared throttling, and multi-replica invalidation facts",
-    "sender-constrained browser credentials; bearer v1 remains explicitly XSS-exposed under LLP 0058",
+    "a hosted target implementing LLP 0060's external TLS, trusted effective source, shared throttling, and multi-replica invalidation facts",
+    "sender-constrained browser credentials; bearer v1 remains explicitly XSS-exposed under LLP 0060",
     "complete game rules and UI"
   ],
   "notClaiming": [

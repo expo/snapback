@@ -4,7 +4,7 @@
 //! `LocalSnapback`, load a manifest or bundle, construct the app router, or
 //! reach a generic host-operation dispatcher.
 
-// @ref LLP 0055#reachability — a declared physical auth-table collision may expose only typed health and the selected, doubly-gated rescue host operation.
+// @ref LLP 0057#reachability — a declared physical auth-table collision may expose only typed health and the selected, doubly-gated rescue host operation.
 
 use crate::admin::{ServerContext, ServerProfile};
 use crate::admin_impersonation::{

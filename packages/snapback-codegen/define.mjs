@@ -55,7 +55,7 @@ const TARGET_CAPABILITIES = new Set([
 ]);
 
 function authoredFunctionAuth(spec, kind) {
-  // @ref LLP 0056#closed-function-requirement — authoring accepts only the
+  // @ref LLP 0058#closed-function-requirement — authoring accepts only the
   // closed requirement and authority-independence spellings the Rust parser owns.
   const fields = {};
   if (spec.auth !== undefined) {
@@ -190,7 +190,7 @@ export function defineSchema(tables, options = {}) {
     assert(ephemeralDef && ephemeralDef[EPHEMERAL], 'defineSchema option "ephemeral" must be defineEphemeral(...)');
   }
   let auth;
-  // @ref LLP 0056#closed-auth-mode — auth mode is must-understand, including
+  // @ref LLP 0058#closed-auth-mode — auth mode is must-understand, including
   // unknown members on the otherwise additive schema authoring object.
   if (options.auth !== undefined) {
     assert(options.auth && typeof options.auth === 'object' && !Array.isArray(options.auth), 'defineSchema option "auth" must be an object');

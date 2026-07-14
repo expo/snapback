@@ -477,7 +477,7 @@
       };
     } catch (_) {}
     var args = trustedJsonParse(argsJson || "{}");
-    // @ref LLP 0056#handlerauthprojection — authority is copied from the
+    // @ref LLP 0058#handlerauthprojection — authority is copied from the
     // closed Rust projection into an own-property-only null-prototype object.
     // Freeze nested roles before freezing the projection, so application code
     // cannot mutate authority in place or inherit polluted Object.prototype

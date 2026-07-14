@@ -955,7 +955,7 @@ pub fn validate_cron_manifest(manifest: &FunctionManifest) -> Vec<Diagnostic> {
                 if function.kind == FunctionKind::Action
                     && function.effective_auth_requirement() == AuthRequirement::Authenticated =>
             {
-                // @ref LLP 0056#closed-function-requirement — cron executes as
+                // @ref LLP 0058#closed-function-requirement — cron executes as
                 // `System`, which carries no app user; reject an impossible
                 // authenticated target before the scheduler can admit it.
                 diagnostics.push(cron_error(

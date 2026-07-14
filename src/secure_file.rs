@@ -81,7 +81,7 @@ pub(crate) fn validate_strict_owner_only_descriptor(file: &File) -> io::Result<(
     validate_open_file_strict(file)
 }
 
-// @ref LLP 0055#keyring-protocol — strict auth files fail closed on ACL-bearing inodes, and unsupported descriptor-level ACL validation never exposes bytes.
+// @ref LLP 0057#keyring-protocol — strict auth files fail closed on ACL-bearing inodes, and unsupported descriptor-level ACL validation never exposes bytes.
 #[cfg(target_os = "macos")]
 fn validate_no_extended_acl(file: &File) -> io::Result<()> {
     use std::os::fd::AsRawFd as _;
@@ -308,7 +308,7 @@ pub(crate) fn open_strict_owner_only(path: &Path) -> io::Result<File> {
 /// they carry. The opened object must therefore be a single-link regular file
 /// owned by the effective user, have no group/other write bit or extended ACL,
 /// and remain the path's exact inode and size through the bounded read.
-// @ref LLP 0056#cold-startup-artifact-carrier — executable deployment authority is read once through a stable, non-writable inode.
+// @ref LLP 0058#cold-startup-artifact-carrier — executable deployment authority is read once through a stable, non-writable inode.
 #[cfg(unix)]
 pub(crate) fn read_trusted_executable_artifact(
     path: &Path,
