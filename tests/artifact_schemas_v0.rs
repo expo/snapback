@@ -22,6 +22,7 @@ use serde_json::{Value, json};
 use std::fs;
 use std::path::PathBuf;
 
+use snapback::auth::deployment::HostedAuthCapabilities;
 use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
     DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DATA_TIER_PROFILE_FILE,
@@ -670,6 +671,10 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         &serde_json::to_value(CapabilityManifest::local_v0(vec!["postgres".to_owned()])).unwrap(),
     );
     assert_validates(
+        "auth.hosted-capabilities.schema.json",
+        &serde_json::to_value(HostedAuthCapabilities::local_target()).unwrap(),
+    );
+    assert_validates(
         "diagnostic.schema.json",
         &serde_json::to_value(
             Diagnostic::error("SNAPBACK_TEST", "storage", "boom")
@@ -696,6 +701,22 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         "inspect.public.schema.json",
         &serde_json::to_value(PublicInspect::from(inspect)).unwrap(),
     );
+}
+
+#[test]
+fn hosted_auth_capability_descriptor_is_closed() {
+    let local = serde_json::to_value(HostedAuthCapabilities::local_target()).unwrap();
+    assert_validates("auth.hosted-capabilities.schema.json", &local);
+
+    let mut unknown_field = local.clone();
+    unknown_field["operatorAssertedTls"] = json!(true);
+    assert_rejects("auth.hosted-capabilities.schema.json", &unknown_field);
+    assert!(serde_json::from_value::<HostedAuthCapabilities>(unknown_field).is_err());
+
+    let mut unknown_value = local;
+    unknown_value["externalTls"] = json!("proxyConfigured");
+    assert_rejects("auth.hosted-capabilities.schema.json", &unknown_value);
+    assert!(serde_json::from_value::<HostedAuthCapabilities>(unknown_value).is_err());
 }
 
 #[test]

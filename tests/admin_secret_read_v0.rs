@@ -395,6 +395,7 @@ fn sessions_app(profile: ServerProfile) -> (axum::Router, SecretReadOperator) {
             host: "127.0.0.1".to_owned(),
             port: 4287,
             loopback: true,
+            auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
             started: Instant::now(),
             started_at_ms: 0,

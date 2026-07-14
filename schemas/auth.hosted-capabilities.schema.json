@@ -1,0 +1,70 @@
+{
+  "$defs": {
+    "AuthenticationThrottle": {
+      "enum": [
+        "processLocal",
+        "sharedEnforced"
+      ],
+      "type": "string"
+    },
+    "BrowserCredentialPosture": {
+      "description": "The strongest browser credential claim the target can honestly advertise.\n\nA restrictive CSP does not upgrade bearer v1: app-origin script can still\nread or exercise the coordinator's IndexedDB/page-memory credential.",
+      "enum": [
+        "bearerV1XssExposed",
+        "senderConstrainedV2"
+      ],
+      "type": "string"
+    },
+    "EffectiveSource": {
+      "enum": [
+        "unavailable",
+        "trusted"
+      ],
+      "type": "string"
+    },
+    "ExternalTls": {
+      "enum": [
+        "unavailable",
+        "enforced"
+      ],
+      "type": "string"
+    },
+    "SessionInvalidation": {
+      "enum": [
+        "singleProcess",
+        "multiReplicaConvergent"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-capabilities.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0057#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
+  "properties": {
+    "authenticationThrottle": {
+      "$ref": "#/$defs/AuthenticationThrottle"
+    },
+    "clientCredentialPosture": {
+      "$ref": "#/$defs/BrowserCredentialPosture"
+    },
+    "effectiveSource": {
+      "$ref": "#/$defs/EffectiveSource"
+    },
+    "externalTls": {
+      "$ref": "#/$defs/ExternalTls"
+    },
+    "sessionInvalidation": {
+      "$ref": "#/$defs/SessionInvalidation"
+    }
+  },
+  "required": [
+    "externalTls",
+    "effectiveSource",
+    "authenticationThrottle",
+    "sessionInvalidation",
+    "clientCredentialPosture"
+  ],
+  "title": "HostedAuthCapabilities",
+  "type": "object"
+}

@@ -347,6 +347,10 @@ pub struct ServerContext {
     pub port: u16,
     pub loopback: bool,
     pub profile: ServerProfile,
+    /// Must-understand exposure requested at process composition. The local
+    /// target can satisfy only `local`; `hosted` is rejected before bind and
+    /// repeated by request middleware for embedded composition.
+    pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
     pub pid: u32,
     pub started: Instant,
     pub started_at_ms: u64,
@@ -379,6 +383,7 @@ impl fmt::Debug for ServerContext {
             .field("port", &self.port)
             .field("loopback", &self.loopback)
             .field("profile", &self.profile)
+            .field("auth_deployment", &self.auth_deployment)
             .field("pid", &self.pid)
             .field("started_at_ms", &self.started_at_ms)
             .field("admin_token_configured", &self.admin_token.is_some())
@@ -402,6 +407,7 @@ impl ServerContext {
             port,
             loopback,
             profile: env_profile(loopback),
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
             started: Instant::now(),
             started_at_ms: now_millis(),
@@ -421,6 +427,7 @@ impl ServerContext {
             port: 0,
             loopback: true,
             profile: env_profile(true),
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
             started: Instant::now(),
             started_at_ms: now_millis(),
@@ -439,6 +446,14 @@ impl ServerContext {
         self.admin_token = Some(resolved.token.clone());
         self.admin_token_minted = resolved.minted;
         self.admin_token_file = resolved.file.clone();
+    }
+
+    pub fn with_auth_deployment(
+        mut self,
+        deployment: crate::auth::deployment::AuthDeploymentTarget,
+    ) -> Self {
+        self.auth_deployment = deployment;
+        self
     }
 
     pub fn uptime_ms(&self) -> u64 {

@@ -18,6 +18,7 @@
 use serde_json::Value;
 
 use crate::admin::AdminInspect;
+use crate::auth::deployment::HostedAuthCapabilities;
 use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
 use crate::auth::wire::{
@@ -86,6 +87,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "capability.manifest.schema.json",
             schemars::schema_for!(CapabilityManifest),
+        ),
+        finish(
+            "auth.hosted-capabilities.schema.json",
+            schemars::schema_for!(HostedAuthCapabilities),
         ),
         finish("diagnostic.schema.json", schemars::schema_for!(Diagnostic)),
         finish("inspect.schema.json", schemars::schema_for!(InspectState)),

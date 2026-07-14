@@ -60,7 +60,7 @@ use crate::storage::auth::AuthTransactionAttempt;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{DefaultBodyLimit, Extension, OriginalUri, Path, Query, State};
-use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{MethodRouter, get, post};
@@ -3890,11 +3890,56 @@ fn apply_registered_response_controls(
     effective: EffectiveRoutePolicy,
     mut response: Response,
 ) -> Response {
+    // @ref LLP 0057#c2-defenses-that-do-not-change-the-boundary — observable
+    // browser defenses for Snapback-owned pages, without claiming that these
+    // headers make an app-origin-readable bearer XSS-proof.
+    let headers = response.headers_mut();
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        HeaderName::from_static("permissions-policy"),
+        HeaderValue::from_static(
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=()",
+        ),
+    );
+    headers.insert(
+        HeaderName::from_static("x-frame-options"),
+        HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        HeaderName::from_static("x-permitted-cross-domain-policies"),
+        HeaderValue::from_static("none"),
+    );
+    if effective.response_sensitivity == ResponseSensitivity::StaticPublic {
+        // The one embedded setup script is admitted by its exact SHA-256. The
+        // drift test recomputes this value from the served bytes. Styles remain
+        // inline-compatible for the setup fallback and React style props.
+        headers.insert(
+            HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static(
+                "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'sha256-Mdh+CvPmWuhMomim7Anb9lHVlGA8auuZMPC9Vz49C3E='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; require-trusted-types-for 'script'; trusted-types snapback",
+            ),
+        );
+        headers.insert(
+            HeaderName::from_static("cross-origin-opener-policy"),
+            HeaderValue::from_static("same-origin"),
+        );
+        headers.insert(
+            HeaderName::from_static("cross-origin-resource-policy"),
+            HeaderValue::from_static("same-origin"),
+        );
+    }
     if !matches!(
         effective.response_sensitivity,
         ResponseSensitivity::StaticPublic | ResponseSensitivity::PublicProjection
     ) {
-        response.headers_mut().insert(
+        headers.insert(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-store, private"),
         );
@@ -4113,7 +4158,21 @@ fn auth_diagnostic_app_route(path: &str) -> bool {
 // @ref LLP 0057#d1-plaintext-listener-fence — repeat the startup transport
 // refusal for embedded/router composition without claiming proxy/TLS posture.
 fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<SnapbackError> {
-    if spec.class != RouteClass::AppData || auth_diagnostic_app_route(spec.path) {
+    if spec.class != RouteClass::AppData {
+        return None;
+    }
+    // @ref LLP 0057#d5-hosted-readiness-is-conjunctive — the local target
+    // cannot turn operator flags or proxy topology into hosted edge authority.
+    // CLI composition refuses pre-bind; this repeats the refusal for embedded
+    // routers while leaving diagnostic health/identity reachable.
+    if runtime.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted
+        && !matches!(spec.path, "/" | "/health")
+    {
+        return Some(crate::auth::deployment::deployment_unsupported(
+            crate::auth::deployment::HostedAuthCapabilities::local_target(),
+        ));
+    }
+    if auth_diagnostic_app_route(spec.path) {
         return None;
     }
     if auth_transition_pending(runtime) && spec.path != "/app/ensure" {
@@ -11336,6 +11395,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
         | "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
         | "SNAPBACK_AUTH_MODE_PENDING"
+        | "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
         | "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED"
         | "SNAPBACK_AUTH_CLOCK_ROLLBACK"
@@ -11490,6 +11550,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SCHEMA_EMPTY_INDEX"
         | "SNAPBACK_SCHEMA_FIELD_RETYPED"
         | "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION"
+        | "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING"
+        | "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE"
+        | "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN"
         | "SNAPBACK_SCHEMA_PARSE_FAILED"
         | "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING"
         | "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE"
@@ -12777,6 +12840,104 @@ mod tests {
         assert_eq!(
             response_json(refused).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+    }
+
+    #[tokio::test]
+    async fn hosted_auth_configuration_is_fail_closed_in_embedded_composition() {
+        let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let router = app(state);
+
+        for path in ["/inspect", "/auth/session"] {
+            let refused = router
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(refused.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
+            let body = response_json(refused).await;
+            assert_eq!(
+                body["diagnostic"]["code"], "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED",
+                "{path}"
+            );
+            assert_eq!(
+                body["diagnostic"]["details"]["blockers"],
+                serde_json::json!([
+                    "externalTls",
+                    "effectiveSource",
+                    "authenticationThrottle",
+                    "sessionInvalidation",
+                    "clientCredentialPosture",
+                ]),
+                "{path}"
+            );
+        }
+
+        for path in ["/", "/health"] {
+            let diagnostic = router
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(diagnostic.status(), StatusCode::OK, "{path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn snapback_static_pages_ship_a_hash_pinned_restrictive_csp() {
+        use base64::Engine as _;
+        use sha2::{Digest as _, Sha256};
+
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/admin/setup")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let csp = response
+            .headers()
+            .get("content-security-policy")
+            .and_then(|value| value.to_str().ok())
+            .unwrap()
+            .to_owned();
+        assert!(csp.contains("default-src 'none'"), "{csp}");
+        assert!(csp.contains("object-src 'none'"), "{csp}");
+        assert!(csp.contains("frame-ancestors 'none'"), "{csp}");
+        assert!(csp.contains("require-trusted-types-for 'script'"), "{csp}");
+        assert!(!csp.contains("unsafe-eval"), "{csp}");
+        let script_directive = csp
+            .split(';')
+            .find(|directive| directive.trim_start().starts_with("script-src "))
+            .unwrap();
+        assert!(!script_directive.contains("unsafe-inline"), "{csp}");
+        assert_eq!(response.headers()["x-content-type-options"], "nosniff");
+        assert_eq!(response.headers()["referrer-policy"], "no-referrer");
+        assert_eq!(response.headers()["x-frame-options"], "DENY");
+        assert_eq!(
+            response.headers()["cross-origin-resource-policy"],
+            "same-origin"
+        );
+
+        let bytes = to_bytes(response.into_body(), 2 * 1024 * 1024)
+            .await
+            .unwrap();
+        let html = std::str::from_utf8(&bytes).unwrap();
+        let script = html
+            .split_once("<script>")
+            .and_then(|(_, suffix)| suffix.split_once("</script>"))
+            .map(|(script, _)| script)
+            .expect("one embedded setup script");
+        let digest = base64::engine::general_purpose::STANDARD.encode(Sha256::digest(script));
+        assert!(
+            csp.contains(&format!("'sha256-{digest}'")),
+            "the served inline script changed without updating its CSP hash: {csp}"
         );
     }
 
@@ -14569,6 +14730,9 @@ mod tests {
         "SNAPBACK_SCHEMA_EMPTY_INDEX",
         "SNAPBACK_SCHEMA_FIELD_RETYPED",
         "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION",
+        "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING",
+        "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE",
+        "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN",
         "SNAPBACK_SCHEMA_PARSE_FAILED",
         "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING",
         "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE",
@@ -14694,6 +14858,7 @@ mod tests {
         "SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED",
         "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+        "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED",
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
         "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
         "SNAPBACK_AUTH_MODE_PENDING",

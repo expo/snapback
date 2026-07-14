@@ -14,6 +14,11 @@ const SESSION_A = '018f0d90-7b32-7a22-8c33-445566778899';
 const SESSION_B = '018f0d90-7b33-7a22-8c33-445566778899';
 const USER_A = '018f0d90-7b34-7a22-8c33-445566778899';
 const USER_B = '018f0d90-7b35-7a22-8c33-445566778899';
+const BEARER_A = 'sbs_CLIENT_BEARER_A_SECRET_SENTINEL_MUST_NOT_ESCAPE';
+const BEARER_B = 'sbs_CLIENT_BEARER_B_SECRET_SENTINEL_MUST_NOT_ESCAPE';
+const BEARER_C = 'sbs_CLIENT_BEARER_C_SECRET_SENTINEL_MUST_NOT_ESCAPE';
+const ADMIN_SECRET = 'sba_CLIENT_ADMIN_SECRET_SENTINEL_MUST_NOT_ESCAPE';
+const CLIENT_SECRETS = [BEARER_A, BEARER_B, BEARER_C, ADMIN_SECRET];
 
 const anonymous = {
   kind: 'anonymous',
@@ -99,8 +104,8 @@ const response = (body, status = 200) => ({
   text: async () => JSON.stringify(body),
 });
 
-const diagnosticResponse = (code, status = 401) => response({
-  diagnostic: { code, message: code },
+const diagnosticResponse = (code, status = 401, { message = code, details = {} } = {}) => response({
+  diagnostic: { code, message, details },
 }, status);
 
 const authorization = (init) => init?.headers?.authorization ?? null;
@@ -115,7 +120,10 @@ const coordinator = new AuthCoordinator({
   broadcastChannelFactory: null,
   hintStorage: null,
 });
-const db = new SnapbackClient('http://stub', { authCoordinator: coordinator });
+const db = new SnapbackClient('http://stub', {
+  authCoordinator: coordinator,
+  adminToken: ADMIN_SECRET,
+});
 const surfaceResumeWitnesses = [];
 const unregisterSurfaceProbe = db.registerAuthBarrierParticipant({
   name: 'test-contract-surface',
@@ -129,11 +137,12 @@ const unregisterSurfaceProbe = db.registerAuthBarrierParticipant({
 });
 
 let bearerAuthority = new Map([
-  ['bearer-a', sessionA],
-  ['bearer-b', sessionB],
-  ['bearer-c', sessionB],
+  [BEARER_A, sessionA],
+  [BEARER_B, sessionB],
+  [BEARER_C, sessionB],
 ]);
 let calls = [];
+const rawUrls = [];
 let queryMode = 'success';
 let supersededHook = null;
 let delayedQueryResolve = null;
@@ -147,16 +156,23 @@ const prepareDelayedQuery = () => {
 };
 
 globalThis.fetch = async (url, init = {}) => {
+  rawUrls.push(String(url));
   const path = pathOf(url);
   const bearer = authorization(init)?.replace(/^Bearer /, '') ?? null;
   calls.push({ path, bearer, body: init.body ? JSON.parse(init.body) : null });
   if (path === '/auth/session') {
     return response(handshake(bearer ? bearerAuthority.get(bearer) : anonymous));
   }
-  if (path === '/auth/exchange') return response(credential('bearer-a', sessionA, 10_000));
-  if (path === '/auth/refresh') return response(credential('bearer-c', sessionA, 30_000));
+  if (path === '/auth/exchange') return response(credential(BEARER_A, sessionA, 10_000));
+  if (path === '/auth/refresh') return response(credential(BEARER_C, sessionA, 30_000));
   if (path === '/auth/logout') return response({ revoked: true });
   if (path === '/auth/family-alarm') return response({ accepted: true });
+  if (path === '/_snapback/api/schema/load') {
+    return diagnosticResponse('SNAPBACK_TEST_ADMIN_ECHO', 500, {
+      message: `server echoed ${ADMIN_SECRET}`,
+      details: { adminToken: ADMIN_SECRET },
+    });
+  }
   if (path === '/query/list') {
     if (queryMode === 'delayed') {
       delayedQueryStartedResolve();
@@ -166,6 +182,20 @@ globalThis.fetch = async (url, init = {}) => {
       queryMode = 'success';
       await supersededHook?.();
       return diagnosticResponse('SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED');
+    }
+    if (queryMode === 'echo-secret-error') {
+      queryMode = 'success';
+      return diagnosticResponse('SNAPBACK_TEST_BEARER_ECHO', 500, {
+        message: `server echoed ${bearer}`,
+        details: { bearer },
+      });
+    }
+    if (queryMode === 'throw-secret-error') {
+      queryMode = 'success';
+      const error = new Error(`adapter echoed ${bearer}`);
+      error.name = `Adapter${bearer}`;
+      error.code = `E_${bearer}`;
+      throw error;
     }
     return response({ rows: [{ bearer }] });
   }
@@ -186,15 +216,51 @@ try {
   assert.equal(Object.hasOwn(exchanged, 'token'), false);
   assert.equal(exchanged.session.id, SESSION_A);
   assert.equal(coordinator.capture().authorityEpoch, 1);
-  assert.equal(coordinator.settledView().bearer, 'bearer-a');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  assert.equal(storage.snapshot(APP).bearer, BEARER_A);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/exchange', '/auth/session']);
   assert.equal(surfaceResumeWitnesses.at(-1), '/auth/session');
 
   calls = [];
   const authenticated = await db.query('list', { userId: 'forged' });
-  assert.deepEqual(authenticated.rows, [{ bearer: 'bearer-a' }]);
-  assert.equal(calls[0].bearer, 'bearer-a');
+  assert.deepEqual(authenticated.rows, [{ bearer: BEARER_A }]);
+  assert.equal(calls[0].bearer, BEARER_A);
   assert.equal(Object.hasOwn(calls[0].body, 'auth'), false);
+
+  // A hostile/misconfigured receiver cannot make a request credential escape
+  // through the client error object. Diagnostic codes remain actionable.
+  queryMode = 'echo-secret-error';
+  let bearerError;
+  await assert.rejects(db.query('list'), (error) => {
+    bearerError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_TEST_BEARER_ECHO';
+  });
+  assert.equal(JSON.stringify({
+    message: bearerError.message,
+    diagnostic: bearerError.diagnostic,
+  }).includes(BEARER_A), false);
+
+  queryMode = 'throw-secret-error';
+  let transportError;
+  await assert.rejects(db.query('list'), (error) => {
+    transportError = error;
+    return true;
+  });
+  assert.equal(JSON.stringify({
+    name: transportError.name,
+    message: transportError.message,
+    code: transportError.code,
+  }).includes(BEARER_A), false);
+
+  let adminError;
+  await assert.rejects(db.loadSchema({}), (error) => {
+    adminError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_TEST_ADMIN_ECHO';
+  });
+  assert.equal(JSON.stringify({
+    message: adminError.message,
+    diagnostic: adminError.diagnostic,
+  }).includes(ADMIN_SECRET), false);
 
   // A delayed success under A cannot publish after B settles. The network
   // promise deliberately ignores AbortSignal to prove the final capture gate.
@@ -206,7 +272,7 @@ try {
   const captureA = coordinator.capture();
   await coordinator.transition(captureA, {
     authority: sessionB,
-    bearer: 'bearer-b',
+    bearer: BEARER_B,
     refreshAfterMs: 20_000,
   }, 'test_switch_to_b');
   delayedQueryResolve(response({ rows: [{ leaked: 'a' }] }));
@@ -221,14 +287,14 @@ try {
   const captureB = coordinator.capture();
   await coordinator.transition(captureB, {
     authority: sessionA,
-    bearer: 'bearer-a',
+    bearer: BEARER_A,
     refreshAfterMs: 10_000,
   }, 'test_switch_back_to_a');
   delayedQueryResolve(diagnosticResponse('SNAPBACK_AUTH_SESSION_EXPIRED'));
   await assert.rejects(delayedTerminal, (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE');
   assert.equal(coordinator.settledView().authority.sessionId, SESSION_A);
-  bearerAuthority.set('bearer-b', sessionA);
-  bearerAuthority.set('bearer-c', sessionA);
+  bearerAuthority.set(BEARER_B, sessionA);
+  bearerAuthority.set(BEARER_C, sessionA);
 
   // A peer rotation during a request leaves the authority epoch intact. The
   // superseded response waits for the new custody revision and retries once.
@@ -241,15 +307,15 @@ try {
   await peer.synchronize();
   const beforeRotation = peer.capture();
   supersededHook = () => peer.compareAndRotateBearer(beforeRotation, {
-      bearer: 'bearer-b',
+      bearer: BEARER_B,
       refreshAfterMs: 20_000,
     });
   queryMode = 'superseded';
   calls = [];
   const retried = await db.query('list');
-  assert.deepEqual(retried.rows, [{ bearer: 'bearer-b' }]);
+  assert.deepEqual(retried.rows, [{ bearer: BEARER_B }]);
   assert.equal(coordinator.capture().authorityEpoch, beforeRotation.authorityEpoch);
-  assert(calls.some(({ path, bearer }) => path === '/query/list' && bearer === 'bearer-b'));
+  assert(calls.some(({ path, bearer }) => path === '/query/list' && bearer === BEARER_B));
   supersededHook = null;
   await peer.close();
 
@@ -258,7 +324,7 @@ try {
   calls = [];
   const refreshed = await db.authRefresh();
   assert.equal(Object.hasOwn(refreshed, 'token'), false);
-  assert.equal(coordinator.settledView().bearer, 'bearer-c');
+  assert.equal(storage.snapshot(APP).bearer, BEARER_C);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/refresh']);
 
   // Logout completes the server revocation before the delete barrier and
@@ -267,8 +333,29 @@ try {
   const loggedOut = await db.authLogout();
   assert.equal(loggedOut.revoked, true);
   assert.equal(coordinator.settledView().authority.kind, 'anonymous');
-  assert.equal(coordinator.settledView().bearer, null);
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/auth/logout', '/auth/session']);
+
+  // The item-5 client-secret sentinel covers every ordinary app-visible auth
+  // result/error and every requested URL. Authorization headers and the
+  // documented transactional custody record are the deliberate v1 carriers.
+  for (const value of [
+    exchanged,
+    refreshed,
+    loggedOut,
+    bearerError,
+    transportError,
+    adminError,
+    rawUrls,
+  ]) {
+    const observable = value instanceof Error
+      ? { message: value.message, diagnostic: value.diagnostic, receipt: value.receipt }
+      : value;
+    const bytes = JSON.stringify(observable);
+    for (const secret of CLIENT_SECRETS) {
+      assert.equal(bytes.includes(secret), false, `client secret escaped: ${secret}`);
+    }
+  }
 } finally {
   globalThis.fetch = originalFetch;
   await unregisterSurfaceProbe();

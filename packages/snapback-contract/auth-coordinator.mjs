@@ -516,7 +516,6 @@ export class AuthCoordinator {
     return Object.freeze({
       ...capture,
       authority: clone(this.#record.authority),
-      bearer: this.#record.bearer,
       refreshAfterMs: this.#record.refreshAfterMs,
     });
   }

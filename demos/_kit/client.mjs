@@ -191,6 +191,108 @@ const markAuthorityCapture = (value, capture) => {
   return value;
 };
 
+const CLIENT_SECRET_REDACTION = '[REDACTED]';
+
+const normalizedFieldName = (name) => String(name ?? '')
+  .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+  .replace(/[^A-Za-z0-9]+/g, '_')
+  .toLowerCase();
+
+const sensitiveProtocolField = (name) => {
+  const normalized = normalizedFieldName(name);
+  return normalized === 'token'
+    || normalized.endsWith('_token')
+    || normalized === 'bearer'
+    || normalized.endsWith('_bearer')
+    || normalized === 'credential'
+    || normalized.endsWith('_credential')
+    || normalized === 'lease'
+    || normalized.endsWith('_lease')
+    || normalized === 'proof'
+    || normalized.endsWith('_proof')
+    || normalized === 'secret'
+    || normalized.endsWith('_secret')
+    || normalized === 'private_key'
+    || normalized.endsWith('_private_key')
+    || normalized === 'key_material'
+    || normalized.endsWith('_key_material')
+    || normalized === 'login_code'
+    || normalized === 'challenge_code';
+};
+
+const addSecret = (secrets, value) => {
+  if (typeof value !== 'string' && typeof value !== 'number') return;
+  const text = String(value);
+  // Very short values create destructive false positives in diagnostic copy;
+  // protocol credentials and email codes are always at least four bytes.
+  if (text.length >= 4) secrets.add(text);
+};
+
+const collectRequestSecrets = (body, headers) => {
+  const secrets = new Set();
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    const normalized = normalizedFieldName(name);
+    if (
+      normalized === 'authorization'
+      || sensitiveProtocolField(name)
+    ) {
+      addSecret(secrets, value);
+      if (normalized === 'authorization') {
+        addSecret(secrets, String(value).replace(/^Bearer\s+/i, ''));
+      }
+    }
+  }
+  const visit = (value, field = null) => {
+    if (field === 'code' || sensitiveProtocolField(field)) addSecret(secrets, value);
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, field);
+    } else if (value && typeof value === 'object') {
+      for (const [name, item] of Object.entries(value)) visit(item, name);
+    }
+  };
+  visit(body);
+  return secrets;
+};
+
+const redactKnownSecrets = (text, secrets) => {
+  let redacted = String(text ?? '');
+  for (const secret of secrets) redacted = redacted.replaceAll(secret, CLIENT_SECRET_REDACTION);
+  return redacted;
+};
+
+const sanitizeProtocolErrorValue = (value, secrets, field = null) => {
+  if (sensitiveProtocolField(field)) return CLIENT_SECRET_REDACTION;
+  if (typeof value === 'string') return redactKnownSecrets(value, secrets);
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeProtocolErrorValue(item, secrets));
+  }
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([name, item]) => [
+      name,
+      sanitizeProtocolErrorValue(item, secrets, name),
+    ]),
+  );
+};
+
+const sanitizeTransportError = (error, secrets) => {
+  const safe = new Error(redactKnownSecrets(error?.message ?? String(error), secrets));
+  safe.name = redactKnownSecrets(error?.name ?? 'Error', secrets);
+  if (error?.code !== undefined) {
+    safe.code = sanitizeProtocolErrorValue(error.code, secrets);
+  }
+  if (error?.status !== undefined) {
+    safe.status = sanitizeProtocolErrorValue(error.status, secrets);
+  }
+  if (error?.diagnostic !== undefined) {
+    safe.diagnostic = sanitizeProtocolErrorValue(error.diagnostic, secrets);
+  }
+  if (error?.receipt !== undefined) {
+    safe.receipt = sanitizeProtocolErrorValue(error.receipt, secrets);
+  }
+  return safe;
+};
+
 const authHandshakeRequired = (path) => !(
   path === '/health'
   || path === '/inspect'
@@ -1046,13 +1148,20 @@ export class SnapbackClient {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
     };
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: Object.keys(merged).length > 0 ? merged : undefined,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
-    });
-    const text = await res.text();
+    const requestSecrets = collectRequestSecrets(body, merged);
+    let res;
+    let text;
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: Object.keys(merged).length > 0 ? merged : undefined,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal,
+      });
+      text = await res.text();
+    } catch (error) {
+      throw sanitizeTransportError(error, requestSecrets);
+    }
     // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
     //   trusting the body as JSON, so a proxy 502 HTML page surfaces as a
     //   structured diagnostic instead of a bare SyntaxError.
@@ -1066,19 +1175,25 @@ export class SnapbackClient {
       }
     }
     if (!res.ok) {
-      const diag = json && json.diagnostic
+      const rawDiagnostic = json && json.diagnostic
         ? json.diagnostic
         : parseError
-          ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(text)}` }
+          ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}` }
           : { code: `HTTP_${res.status}`, message: text };
+      const diag = sanitizeProtocolErrorValue(rawDiagnostic, requestSecrets);
       const error = new Error(`${diag.code}: ${diag.message ?? ''}`);
       error.diagnostic = diag;
       error.status = res.status;
-      if (json?.receipt) error.receipt = json.receipt;
+      if (json?.receipt) {
+        error.receipt = sanitizeProtocolErrorValue(json.receipt, requestSecrets);
+      }
       throw error;
     }
     if (parseError) {
-      const diag = { code: 'SNAPBACK_RESPONSE_NOT_JSON', message: `HTTP ${res.status} response is not JSON: ${bodySnippet(text)}` };
+      const diag = {
+        code: 'SNAPBACK_RESPONSE_NOT_JSON',
+        message: `HTTP ${res.status} response is not JSON: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}`,
+      };
       const error = new Error(`${diag.code}: ${diag.message}`);
       error.diagnostic = diag;
       error.status = res.status;

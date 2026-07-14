@@ -2534,6 +2534,13 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub auth_protocols: Option<AuthProtocols>,
+    /// Target-authored deployment and browser-security facts. App artifacts
+    /// and operator input may consume this descriptor but cannot assert it.
+    ///
+    /// @ref LLP 0057#d5-hosted-readiness-is-conjunctive — hosted auth is an
+    /// exact conjunction; local loopback and production profile are not facts.
+    #[serde(default, rename = "hostedAuth", alias = "hosted_auth")]
+    pub hosted_auth: crate::auth::deployment::HostedAuthCapabilities,
     #[serde(rename = "storageEngine", alias = "storage_engine")]
     pub storage_engine: String,
     #[serde(rename = "runtimeEngine", alias = "runtime_engine")]
@@ -2686,6 +2693,7 @@ impl CapabilityManifest {
             ],
             supported_capabilities: Vec::new(),
             auth_protocols: Some(AuthProtocols::V1),
+            hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
             runtime_engine: "ibex".to_owned(),
             local_server_lifecycle: true,

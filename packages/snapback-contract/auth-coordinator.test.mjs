@@ -18,6 +18,7 @@ const SESSION_A = '018f0d90-7b12-7a22-8c33-445566778899';
 const SESSION_B = '018f0d90-7b13-7a22-8c33-445566778899';
 const USER_A = '018f0d90-7b14-7a22-8c33-445566778899';
 const USER_B = '018f0d90-7b15-7a22-8c33-445566778899';
+const BEARER_SENTINEL = 'sbs_CLIENT_BEARER_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 
 const anonymous = (authMode = 'sessions') => ({
   kind: 'anonymous',
@@ -229,7 +230,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   const unregisterB = coordinator.registerParticipant(participant('b'));
   const sessionCapture = await coordinator.transition(
     anonymousCapture,
-    successor(session(), 'bearer-a', 10_000),
+    successor(session(), BEARER_SENTINEL, 10_000),
     'login',
   );
   assert.deepEqual(log, [
@@ -245,7 +246,10 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     'a:resume:1',
   ]);
   assert.equal(sessionCapture.authorityEpoch, 1);
-  assert.equal(coordinator.settledView().bearer, 'bearer-a');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  assert.equal(storage.snapshot(APP).bearer, BEARER_SENTINEL);
+  assert.equal(JSON.stringify(sessionCapture).includes(BEARER_SENTINEL), false);
+  assert.equal(JSON.stringify(coordinator.settledView()).includes(BEARER_SENTINEL), false);
   assert.equal((await coordinator.compareAndCommit(anonymousCapture, () => 'late')).committed, false);
   assert.deepEqual(await coordinator.compareAndClear(anonymousCapture, 'late_terminal'), { cleared: false });
   await unregisterA();
@@ -372,11 +376,15 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
 // Wakeups and hints are secret-free; the bearer exists only in custody.
 for (const message of hub.messages) {
   assert.equal(JSON.stringify(message).includes('bearer'), false);
+  assert.equal(JSON.stringify(message).includes(BEARER_SENTINEL), false);
   assert.deepEqual(Object.keys(message).sort(), [
     'appIdHash', 'authorityEpoch', 'formatVersion', 'phase', 'revision',
   ]);
 }
-for (const bytes of hintBytes.values()) assert.equal(bytes.includes('bearer'), false);
+for (const bytes of hintBytes.values()) {
+  assert.equal(bytes.includes('bearer'), false);
+  assert.equal(bytes.includes(BEARER_SENTINEL), false);
+}
 
 // Refresh ownership spans the network callback and exact durable replacement.
 // A second context reloads after the first settles and cannot invoke its stale

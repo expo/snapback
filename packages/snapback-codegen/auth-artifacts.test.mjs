@@ -133,6 +133,13 @@ assert.throws(
   // with it. The Rust-declared capability and legacy artifact index retain
   // their own v0 schema until their independent formats migrate.
   assert.equal(capabilities.schemaVersion, 'snapback.v0');
+  assert.deepEqual(capabilities.hostedAuth, {
+    authenticationThrottle: 'processLocal',
+    clientCredentialPosture: 'bearerV1XssExposed',
+    effectiveSource: 'unavailable',
+    externalTls: 'unavailable',
+    sessionInvalidation: 'singleProcess',
+  });
   assert.equal(contract.schemaVersion, 'snapback.v1');
   assert.equal(artifacts.schemaVersion, 'snapback.v0');
 }

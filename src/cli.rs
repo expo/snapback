@@ -397,6 +397,12 @@ pub struct Args {
     /// This is never accepted by the production profile.
     #[arg(long)]
     pub allow_insecure_dev_auth: bool,
+
+    /// Require the serving target to enforce the complete hosted-auth edge and
+    /// browser contract. The local target refuses this must-understand request;
+    /// loopback plus a reverse proxy is not an attestation.
+    #[arg(long, value_enum, default_value = "local")]
+    pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
 }
 
 impl Default for Args {
@@ -412,6 +418,7 @@ impl Default for Args {
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
         }
     }
 }
@@ -1301,6 +1308,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
+    // @ref LLP 0057#d5-hosted-readiness-is-conjunctive — reject an explicit
+    // hosted request before opening target state; operator config is a request,
+    // never authority for target-owned TLS/proxy/throttle/invalidation facts.
+    crate::auth::deployment::validate_auth_deployment(
+        args.auth_deployment,
+        crate::auth::deployment::HostedAuthCapabilities::local_target(),
+    )?;
     let (prepared_database_path, mut startup_target_reservation) = if args.memory {
         (None, None)
     } else {
@@ -1496,7 +1510,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // can make sessions active. The listener is still absent; later
     // ready-descriptor publication remains the final admission cut.
     let loopback = bind_ip.is_loopback();
-    let mut server_context = ServerContext::new(bind_ip.to_string(), 0, loopback);
+    let mut server_context = ServerContext::new(bind_ip.to_string(), 0, loopback)
+        .with_auth_deployment(args.auth_deployment);
     debug_assert_eq!(server_context.profile, startup_profile);
     let mut minted_token = None;
     if loopback && server_context.admin_token.is_none() {
@@ -1906,7 +1921,8 @@ async fn run_auth_collision_recovery(
     impersonation_temp_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     crate::auth::recovery::validate_loopback_bind_ip(bind_ip)?;
-    let mut server_context = ServerContext::new(bind_ip.to_string(), 0, true);
+    let mut server_context =
+        ServerContext::new(bind_ip.to_string(), 0, true).with_auth_deployment(args.auth_deployment);
 
     // Profiles that can never expose recovery fail before token minting or any
     // other startup publication.
@@ -3623,6 +3639,8 @@ mod tests {
             "deployment.auth.json",
             "--allow-auth-downgrade",
             "--allow-insecure-dev-auth",
+            "--auth-deployment",
+            "hosted",
         ]);
         match cli.command {
             Some(HostCommand::Start(args)) => {
@@ -3633,6 +3651,10 @@ mod tests {
                 assert!(args.allow_auth_downgrade);
                 assert!(!args.clear_desired_auth_mode);
                 assert!(args.allow_insecure_dev_auth);
+                assert_eq!(
+                    args.auth_deployment,
+                    crate::auth::deployment::AuthDeploymentTarget::Hosted
+                );
             }
             other => panic!("expected start command, got {other:?}"),
         }
@@ -3646,6 +3668,29 @@ mod tests {
             ])
             .is_err(),
             "unstage and downgrade-consume authority are mutually exclusive"
+        );
+    }
+
+    #[tokio::test]
+    async fn hosted_auth_request_refuses_before_database_creation() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("must-not-exist.sqlite3");
+        let error = super::run(Args {
+            db: database.clone(),
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Hosted,
+            ..Args::default()
+        })
+        .await
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED"),
+            "{error:#}"
+        );
+        assert!(
+            !database.exists(),
+            "hosted refusal must precede target creation or mutation"
         );
     }
 
@@ -4096,6 +4141,7 @@ mod tests {
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
         })
         .await
         .expect_err("restored rows must not reach a listener without declaration authority");
@@ -4114,6 +4160,7 @@ mod tests {
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
         }));
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         while !ready.exists() {

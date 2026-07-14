@@ -132,6 +132,7 @@ fn exposed_context(token: &str) -> ServerContext {
         host: "0.0.0.0".to_owned(),
         port: 4287,
         loopback: false,
+        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
         profile: ServerProfile::Dev,
         pid: std::process::id(),
         started: Instant::now(),

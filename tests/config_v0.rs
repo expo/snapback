@@ -406,6 +406,7 @@ fn context(loopback: bool, token: Option<&str>) -> ServerContext {
         host: if loopback { "127.0.0.1" } else { "0.0.0.0" }.to_owned(),
         port: 4288,
         loopback,
+        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
         pid: std::process::id(),
         started: Instant::now(),
         started_at_ms: 0,
