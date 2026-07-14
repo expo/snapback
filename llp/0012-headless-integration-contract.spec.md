@@ -5,7 +5,10 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (ENG-24597: registered LLP 0055's staged-mode,
+**Revised:** 2026-07-13 (ENG-24603 through ENG-24607: reconciled the item-5
+through item-8 auth handshake, authority-descriptor, invalidation, authorized-
+lease, client-custody, hosted-capability, and diagnostic registrations into the
+shared adapter contract); 2026-07-13 (ENG-24597: registered LLP 0055's staged-mode,
 invocation-gate, startup, and capability-refusal diagnostic classes); 2026-07-13 (ENG-24596: registered LLP 0054's implemented
 auth-provider diagnostic family and deliberate HTTP status classes while
 preserving the `hostOpsResult` transport projection); 2026-07-13 (ENG-24594: registered the adapter-visible
@@ -22,7 +25,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0054, LLP 0055
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0053, LLP 0054, LLP 0055, LLP 0056, LLP 0057
 
 ## Summary
 
@@ -594,6 +597,83 @@ transition generation, and blocker names. Artifact source/body/seed, carrier
 paths, credentials, identity addresses, provider secrets, and key material are
 forbidden.
 
+### Auth v1 registrations after item 4
+
+ENG-24603 through ENG-24607 register the remaining local auth-program surface
+here rather than leaving each adapter to reconstruct it from implementation
+details. The committed JSON Schemas are the physical authorities for these
+wire artifacts:
+
+- `auth.session.output.schema.json` for the exact bootstrap projection,
+  including `authorizationStreamIncarnation`, the closed availability axes,
+  and `authorityDescriptor`;
+- `connection.open.input.schema.json` and `connection.grant.schema.json` for a
+  delegated connection bearer bound to the resolved anonymous or session
+  authority;
+- `live.envelope.schema.json` and `live.socket-server.schema.json` for durable
+  authorization-invalidation obligations and identifier-free terminal auth
+  closure;
+- `authorization-invalidation.ack.*.schema.json` and
+  `authorization-invalidation.manual-retry.*.schema.json` for the two explicit
+  obligation-resolution routes; and
+- `authorized-lease.schema.json` plus `authorized-lease.query.*.schema.json`
+  for a full-revalidation snapshot and its exact offline-retention lease.
+
+All four auth negotiation headers use protocol value `1`:
+`x-snapback-auth-client-protocol`,
+`x-snapback-auth-invalidation-protocol`,
+`x-snapback-authority-descriptor-protocol`, and
+`x-snapback-authorized-lease-protocol`. A server advertises each accepted value
+and each independently available operation class in `GET /auth/session`.
+Possessing one protocol does not imply another; an adapter may not infer
+retained/offline admission from finite-request admission. Successful bootstrap
+and credential responses are exact closed projections: an unknown root or
+nested field is a protocol error, and request or successor credentials must
+not appear in the app-visible result.
+
+The adapter/store authority is deliberately two-dimensional. `userId` is the
+principal/data scope and controls retained rows; `authorityInstanceId` is the
+queue scope and controls whether a queued mutation may execute. Same-user
+re-login may preserve rows while suspending the predecessor queue. A valid but
+different descriptor produces `SNAPBACK_AUTH_STALE_RESULT` and requires an
+explicit discard-or-re-record decision; it is never an automatic retry. The
+descriptor is a consistency input, not a credential, and credential validity
+is resolved first.
+
+The single client `AuthCoordinator` owns bearer custody and every authority
+transition. All requests, callbacks, optimistic reconciliation, retained
+writes, and live delivery compare a captured authority before publication.
+Only `compareAndClear(expectedAuthority)` may clear, so a predecessor's late
+success or failure cannot expose bytes under, or erase, a successor. Client-
+local custody, stale-capture, fence, and store diagnostics do not acquire an
+HTTP status merely because they share the `SNAPBACK_*` namespace.
+
+The target-owned capability projection adds the exact `hostedAuth` deployment
+descriptor: external TLS, trustworthy effective-source derivation,
+authentication throttle scope, session-invalidation topology, and browser
+credential posture. Hosted deployment readiness is the conjunction of the
+first four; hosted-browser readiness additionally requires sender constraint.
+The local target reports its actual unsupported states and never upgrades
+bearer v1 to an XSS-resistant posture because CSP is present.
+
+The remaining served HTTP mappings are deliberately allow-listed:
+
+| HTTP / locus | Item-5-through-item-8 and hosted auth diagnostics |
+| --- | --- |
+| 400 | `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`, `SNAPBACK_AUTH_MUTABLE_INPUT_DENIED`, `SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT`, `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`, `SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED`, `SNAPBACK_AUTH_UNDECLARABLE_RETENTION`, `SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID`, `SNAPBACK_AUTHORIZED_LEASE_INVALID`, `SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE`, `SNAPBACK_AUTH_STALE_RESULT` |
+| 401 | `SNAPBACK_CONNECTION_AUTHORITY_MISMATCH`, `SNAPBACK_AUTH_STREAM_RESET` (finite-route projection; the live form is a terminal frame) |
+| 403 | `SNAPBACK_AUTH_PERMISSION_DENIED`, `SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID` |
+| 409 | `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE`, `SNAPBACK_AUTH_INVALIDATION_PENDING`, `SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE`, `SNAPBACK_AUTH_RESNAPSHOT_REQUIRED`, `SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED`, `SNAPBACK_AUTH_RETRY_NOT_PENDING`, `SNAPBACK_AUTHORIZED_LEASE_BOUNDARY_MISMATCH`, `SNAPBACK_AUTHORIZED_LEASE_EXPIRED`, `SNAPBACK_AUTHORIZED_LEASE_REQUEST_REUSED`, `SNAPBACK_AUTHORIZED_LEASE_STALE` |
+| 429 | `SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED`, `SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY`, `SNAPBACK_AUTH_THROTTLED` |
+| 503 | `SNAPBACK_AUTH_CLOCK_ROLLBACK`, `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED`, `SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED`, `SNAPBACK_AUTHORIZATION_VERSION_CORRUPT`, `SNAPBACK_AUTHORIZED_LEASE_KEY_UNAVAILABLE`, `SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT`, `SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE`, `SNAPBACK_AUTH_PROJECTION_CORRUPT`, `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`, `SNAPBACK_AUTH_REVOCATION_UNCERTAIN`, `SNAPBACK_AUTH_RETRY_EXHAUSTED`, `SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT`, `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` |
+| startup / no bind | `SNAPBACK_AUTH_TRANSPORT_INSECURE` and durable projection/incarnation corruption; no client-authentication response exists |
+| reserved hosted/v2 | `SNAPBACK_AUTH_SOURCE_UNTRUSTED`, `SNAPBACK_AUTH_INVALIDATION_LAGGING`, `SNAPBACK_AUTH_SENDER_PROOF_REQUIRED`, `SNAPBACK_AUTH_SENDER_PROOF_INVALID`, `SNAPBACK_AUTH_SENDER_PROOF_REPLAYED`; the local bearer-v1 target must not emit these as implemented capability |
+
+An item-6/8 corruption code not deliberately assigned a client class remains a
+500 or a pre-bind refusal. Adapters must not reinterpret that conservative
+default as bad request data. Public details remain identifier- and secret-free
+as specified by LLP 0053, LLP 0056, and LLP 0057.
+
 ## Runtime State
 
 Runtime state channels should include:
@@ -834,7 +914,18 @@ provider core and registers its adapter-visible diagnostics, but provider
 activation still depends on the item-4 staged mode/shared invocation gate and
 the item-5 connection/revocation coordinator.
 
+ENG-24603 through ENG-24607 likewise make no status transition for this broad
+Spec. They complete the local auth v1 registrations above, including the
+independently negotiated item-6/8 surfaces and honest hosted-readiness refusal.
+
 ## Changelog
+
+- **2026-07-13 (ENG-24603 through ENG-24607 auth-program reconciliation).**
+  Registered the exact remaining auth wire artifacts, four independent
+  protocol headers, two-axis client authority, single-coordinator publication
+  barrier, hosted capability descriptor, and deliberate HTTP/client/startup
+  diagnostic loci. This closes the shared-registry debt without changing this
+  Spec's Draft status.
 
 - **2026-07-13 (ENG-24593 post-review bounded corrections; focused exact
   confirmation complete).** Closed artifact/auth compatibility to exactly
