@@ -601,11 +601,18 @@ async fn root_homepage_is_embedded_html() {
 
 #[tokio::test]
 async fn root_path_reports_non_loopback_admin_state() {
-    let app = app_with_context(seeded_snapback(), exposed_context(None));
+    // This test exercises the homepage's admin-access projection, not the
+    // production transport fence. Opt in to the explicit development-only
+    // plaintext override so a non-loopback harness can reach that projection.
+    let app = snapback::server::app(
+        AppState::from_snapback(seeded_snapback(), exposed_context(None))
+            .with_insecure_dev_auth_override(true),
+    );
 
     let resp = app.oneshot(get("/")).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
+    let status = resp.status();
     let body = text(resp).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
     assert!(body.contains("Admin API disabled on this non-loopback bind"));
 }
 
@@ -1932,9 +1939,13 @@ async fn outbox_drain_and_live_subscribe_demand_the_connection_token() {
         .await
         .unwrap();
     assert_eq!(rejected.status(), StatusCode::NOT_FOUND);
-    let rejected: ErrorResponse = serde_json::from_value(json(rejected).await)
+    let rejected_json = json(rejected).await;
+    let rejected: ErrorResponse = serde_json::from_value(rejected_json)
         .expect("rejected mutation matches the typed error/receipt authority");
-    assert!(rejected.receipt.is_some());
+    assert!(
+        rejected.receipt.is_none(),
+        "unknown functions fail in the shared invocation gate before the provider receipt boundary"
+    );
 
     // Bare drain: 401 (token required).
     let bare = app
