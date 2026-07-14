@@ -768,6 +768,11 @@ try {
     await db.reset();
     await db.seed(seed);
     const correlation = { actionInvocationId: 'act_join_1', rootId: 'root_join_1', bindingIds: ['todos'] };
+    const preGateCorrelation = {
+      actionInvocationId: 'act_pre_gate_1',
+      rootId: 'root_pre_gate_1',
+      bindingIds: ['todos'],
+    };
     const observed = [];
     const offReceipt = db.onReceipt((receipt) => observed.push(receipt));
     try {
@@ -778,16 +783,38 @@ try {
       assertEqual(response.receipt.correlation, correlation, 'correlation echoed verbatim');
       assert(response.receipt.snapshotVersion === response.version, 'one-version story: receipt matches the commit version');
 
-      // A rejected mutation still yields a joinable receipt.
+      // @ref LLP 0058#gate-algorithm — an unknown function is refused before
+      // handler evaluation and therefore before the provider receipt boundary.
+      // Keep that pre-gate refusal distinct from a known mutation rejected by
+      // its handler, which still must yield a joinable receipt.
+      let unknown = null;
+      try {
+        await db.mutate('doesNotExist', {
+          args: {},
+          userId: ADA,
+          correlation: preGateCorrelation,
+        });
+      } catch (error) {
+        unknown = error;
+      }
+      assertEqual(unknown?.diagnostic?.code, 'SNAPBACK_UNKNOWN_FUNCTION', 'unknown function refusal');
+      assert(unknown?.receipt == null, 'pre-gate unknown function has no receipt');
+      assert(
+        !db.receipts().some((receipt) => receipt.correlation?.actionInvocationId === 'act_pre_gate_1'),
+        'pre-gate refusal does not enter the client receipt ring',
+      );
+
+      // A known mutation rejected after the shared gate still yields a receipt.
       let rejected = null;
       try {
-        await db.mutate('doesNotExist', { args: {}, userId: ADA, correlation });
+        await db.mutate('createTodo', { args: { title: '' }, userId: ADA, correlation });
       } catch (error) {
         rejected = error;
       }
       assert(rejected?.receipt, 'rejected mutation carries its receipt on the error');
+      assertEqual(rejected.diagnostic?.code, 'SNAPBACK_HANDLER_FAILED', 'known handler rejection');
       assertEqual(rejected.receipt.outcome, 'rejected', 'rejected outcome');
-      assert(typeof rejected.receipt.rollbackReason === 'string', 'rollback reason is the diagnostic code');
+      assertEqual(rejected.receipt.rollbackReason, rejected.diagnostic.code, 'rollback reason is the diagnostic code');
       assertEqual(rejected.receipt.correlation, correlation, 'rejected correlation echoed');
 
       // The kit ring + onReceipt observed both; the join key survives.
@@ -800,6 +827,10 @@ try {
       assert(
         debug.global.some((receipt) => receipt.correlation?.actionInvocationId === 'act_join_1'),
         'server receipts route exposes the echoed correlation',
+      );
+      assert(
+        !debug.global.some((receipt) => receipt.correlation?.actionInvocationId === 'act_pre_gate_1'),
+        'pre-gate refusal does not enter the server receipt ring',
       );
       return { kitJoined: joined.length, serverGlobal: debug.global.length };
     } finally {
