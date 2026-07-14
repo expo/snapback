@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0055, LLP 0056, LLP 0057
 
 ## Summary
@@ -43,6 +43,15 @@ This RFC makes three decisions:
    before Snapback advertises an XSS-hardened hosted-browser posture, and their
    guarantee is off-device replay resistance—not immunity to an attacker
    executing inside the live page.
+
+ENG-24607 implements the **local enforcement and claim-honesty boundary** for
+those decisions: pre-bind plaintext refusal, a target-owned capability
+descriptor, must-understand refusal of unsupported hosted composition,
+Snapback-owned CSP/security headers, and credential non-exposure sentinels. It
+does not implement end-to-end edge TLS attestation, trustworthy proxy-source
+derivation, shared throttling, multi-replica invalidation convergence, a hosted
+control plane, or sender-constrained browser credentials. No current target may
+advertise those future facts.
 
 This document does not thaw or reinterpret LLP 0039. It owns the companion
 contract that LLP 0039 deliberately left open.
@@ -504,13 +513,14 @@ material.
 
 ## Status
 
-**Draft.** ENG-24607 assigns ownership and implements the current local
-plaintext fence, target-owned capability descriptor, must-understand hosted
-composition refusal, Snapback-owned CSP baseline, and credential non-exposure
-sentinel. It does not make the local target hosted-ready and does not claim
-sender constraint before v2 exists. A hosted target must satisfy the
-conjunctive acceptance matrix above; a future browser v2 must receive its own
-wire/storage spec and review before activation.
+**Draft.** ENG-24607 assigns ownership and implements only the current local
+enforcement/claim-honesty boundary: the plaintext fence, target-owned capability
+descriptor, must-understand hosted-composition refusal, Snapback-owned CSP
+baseline, and credential non-exposure sentinel. It does not make the local
+target hosted-ready and does not claim sender constraint before v2 exists.
+There is no hosted auth deployment in this implementation. A future hosted
+target must implement and prove every conjunctive edge fact above; a future
+browser v2 must receive its own wire/storage spec and review before activation.
 
 The review evidence includes exact live-server hash admission for both operator
 documents, execution of the embedded setup program, a successful production
@@ -518,6 +528,11 @@ admin build, and a clean Chrome 150 run of both complete credential-recovery
 boot paths with zero unintentional policy violations, console errors, or
 runtime exceptions. The intentional sink probe confirms the browser enforces
 Trusted Types rather than merely receiving the header.
+
+That evidence validates the implemented local boundary only. It is not evidence
+for public-edge TLS/source derivation, shared throttle state, replica
+convergence, or sender-constrained custody, and it does not ratify this RFC on
+the author's behalf.
 
 ## Changelog
 

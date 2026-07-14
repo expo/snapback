@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0058
 
 ## Summary
@@ -43,9 +43,11 @@ The item has five load-bearing claims:
 4. The first successful sessions activation permanently relocates the manifest
    and poisons the legacy key, so a pre-auth binary fails parsing instead of
    silently reopening under body authority.
-5. Item 4 does **not** make sessions enableable. The production readiness bit
-   stays false until item 5 installs connection binding, revocation projection,
-   and the client `AuthCoordinator`.
+5. At the item-4 landing boundary, item 4 did **not** make sessions enableable.
+   The production readiness bit stayed false until item 5 installed connection
+   binding, revocation projection, and the client `AuthCoordinator`. Item 5 has
+   since landed; this statement preserves the item boundary rather than claiming
+   this Spec owns later activation.
 
 ## Scope and ownership
 
@@ -72,10 +74,10 @@ This Spec consumes without re-owning:
 - LLP 0031's effective route/operation policy and response controls;
 - LLP 0055's provider resolver, session-family outcomes, auth catalog,
   keyring, collision check, and `ImpersonationCapability`;
-- LLP 0053's future authorization-invalidation declarations, dispositions,
-  obligations, and retained lease; and
-- LLP 0039 item 5's future connection-bound authority, revocation projection,
-  and client coordinator.
+- LLP 0053's authorization-invalidation declarations, dispositions,
+  obligations, and retained lease, subsequently implemented by items 6/8; and
+- LLP 0057's subsequently implemented item-5 connection-bound authority,
+  revocation projection, and client coordinator.
 
 This Spec does not implement or specify hosted coordinator security. A hosted
 sessions handler's must-understand invocation marker, handler-first deployment
@@ -167,8 +169,9 @@ It is valid only for `Query` or `LiveQuery`. It does not mean public, retained,
 or replayable; it means only that one live result is invariant under caller
 authority.
 
-Until LLP 0053 item 6 installs the complete protected-query profile and oracle,
-item 4 accepts `true` only for a HostPlan whose closed IR:
+At the item-4 boundary, before LLP 0053 item 6 installed the complete
+protected-query profile and oracle, item 4 accepted `true` only for a HostPlan
+whose closed IR:
 
 - contains no auth expression or `authScopeField`;
 - has `authRequirement: "public"`;
@@ -178,9 +181,11 @@ item 4 accepts `true` only for a HostPlan whose closed IR:
   authenticated fixtures in dev/test acceptance.
 
 No declaration is inferred from a missing auth expression, a public route, an
-empty read set, or a currently anonymous caller. An opaque Ibex live query is
-auth-scoped until item 6 can validate it. A false declaration is a manifest-load
-error in dev/test when the fixture disagrees and a capability refusal elsewhere.
+empty read set, or a currently anonymous caller. At that boundary an opaque
+Ibex live query was auth-scoped because item 4 could not validate it; current
+protected-query admission is owned by LLP 0053. A false declaration is a
+manifest-load error in dev/test when the fixture disagrees and a capability
+refusal elsewhere.
 
 ### The two admissible tuples
 
@@ -929,7 +934,9 @@ Session-mode DTOs are closed variants, not legacy structs with fields ignored:
 and `User` derive only from the bound authority. A missing required dimension
 (for example anonymous + `User`) fails explicitly; it never becomes a shared
 synthetic key. Collections with `RequireRoomPermission` refuse registration with
-`SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` until item 6.
+`SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` at the item-4 boundary. Item 6 now owns
+protected-room admission; `KeyMode::Custom` remains refused until separately
+designed.
 
 ### Live owner and replacement predicate
 
@@ -963,7 +970,9 @@ subscription for either anonymous or authenticated authorities.
 
 ### Live and replay admission before later items
 
-The shared gate enforces the landing matrix rather than relying on kit manners:
+This is the historical landing matrix that allowed each later item to unlock
+only its own axis. The shared gate enforced it rather than relying on kit
+manners; items 5–8 have since consumed the named fences:
 
 - before item 5 readiness, sessions cannot activate at all;
 - after item 5 but before item 6, every auth-scoped durable subscribe/resume and
@@ -1106,9 +1115,9 @@ complete a fresh handshake before:
 Health may precede the handshake. Offline cold boot may render only according
 to the last durably stored mode/authorization metadata, marked stale, and does
 not count as handshake completion. A changed mode, startup nonce, or authority
-invalidates the cached result. Item 5's `AuthCoordinator` owns the actual clear
-barrier; until item 5 exists, the server's activation-readiness bit prevents a
-sessions mode that would need that barrier.
+invalidates the cached result. Item 5's now-installed `AuthCoordinator` owns the
+actual clear barrier; at the item-4 boundary, the activation-readiness bit kept
+sessions unavailable until that barrier existed.
 
 The kit never treats capability-manifest support as current app mode and never
 uses a successful handshake from one process after reconnecting to another.
@@ -1379,10 +1388,11 @@ subscription id and query args. A same-authority but different grant also fails.
 The exact same owner/grant may resume or supersede; the owner comparison and act
 are atomic. No absent-field short circuit appears in the implementation.
 
-Before item 6, an auth-scoped initial subscribe and resume fail before initial
-query execution and consume no subscription capacity. A proved
-`authorityIndependent` HostPlan positive control succeeds once item 5 is
-present. A false/opaque declaration fails rather than broadening the exception.
+The historical pre-item-6 case proves an auth-scoped initial subscribe and
+resume fail before initial query execution and consume no subscription
+capacity. A proved `authorityIndependent` HostPlan positive control succeeds
+once item 5 is present. A false/opaque declaration fails rather than broadening
+the exception; current protected admission additionally follows LLP 0053.
 
 ### Handshake and later-item fences
 
@@ -1447,14 +1457,15 @@ acceptance outcomes may not vary without revising this Draft and its fixtures.
 
 ## Open questions
 
-No open question grants implementation latitude for item 4. Later items may
-revise these explicit extension points:
+No open question grants implementation latitude for item 4. The explicit
+extension points listed when this Spec was authored were subsequently consumed:
 
-- item 7 adds the authority descriptor and may extend the handshake response;
-- item 6 replaces item 4's narrow HostPlan-only authority-independence proof
+- item 7 added the authority descriptor and extended the handshake response;
+- item 6 replaced item 4's narrow HostPlan-only authority-independence proof
   with LLP 0053's complete protected-query profile;
-- item 8 owns retained lease/store protocols; and
-- ENG-24607 owns hosted deployment security and the client-page XSS posture.
+- item 8 added the retained lease/store protocols; and
+- ENG-24607 assigned hosted deployment security and client-page XSS posture to
+  LLP 0058 while deliberately leaving actual hosted capability future.
 
 Cookies, opaque-Ibex authority-independence proofs, persisted trusted function
 artifacts, and a general must-understand mechanism remain out of scope. None is
@@ -1462,8 +1473,13 @@ a fallback when the pinned v1 mechanism refuses.
 
 ## Status
 
-Draft. This Spec is foundational and security-sensitive and should receive an
-LLP review scaled to its stakes before item 4 is called complete. Executable
-pair matrices, actual-predecessor runs, crash injection, route/operation parity,
-and cross-transport authority negatives are the acceptance authority; prose-only
-implementation is insufficient.
+**Draft.** ENG-24597/item 4 is implemented. Executable pair matrices,
+actual-predecessor runs, crash injection, route/operation parity, and
+cross-transport authority negatives provide its implementation evidence; prose
+alone would not have been sufficient. LLP 0057/item 5 has subsequently closed
+the activation fence for an explicitly staged local sessions deployment.
+
+Implementation completion does not make this foundational, security-sensitive
+Spec Accepted. It still needs an LLP review scaled to its stakes and explicit
+author ratification; this reconciliation performs neither on the author's
+behalf.

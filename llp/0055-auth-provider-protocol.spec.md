@@ -5,7 +5,7 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
+**Revised:** 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053
 
 ## Summary
@@ -42,6 +42,10 @@ This is a local-target v1 Spec. Provider delivery in `prod`, hosted/distributed
 throttling and invalidation, cookies, OAuth, and the client-page XSS posture stay
 outside this item exactly as LLP 0039 states.
 
+ENG-24596 implements this item-3 contract and its acceptance vectors. That is
+an implementation/evidence statement, not an author ratification or a status
+transition: the document remains Draft and LLP 0039 remains frozen.
+
 ## Scope and ownership
 
 This document owns:
@@ -59,14 +63,17 @@ This document owns:
 - the consistent physical backup and declared-restore procedure; and
 - generated and adversarial acceptance matrices for those state machines.
 
-This document exposes, but does not implement, seams owned by later items:
+At the item-3 landing boundary this document exposed, but did not implement,
+seams owned by later items. Those consumers have since landed without moving
+their ownership into this Spec:
 
-- item 4 calls the read-only collision check at stage time and catalog/keyring
-  activation at consume time; provider routes remain typed `MODE_DEV` refusals
-  until item 4 supplies active mode;
-- item 5 consumes session/revocation outcomes in the in-memory projection and
-  adds the authorization-stream incarnation to reset and declared restore;
-- item 7 turns `authority_instance_id` into the public authority descriptor;
+- item 4 now calls the read-only collision check at stage time and catalog/keyring
+  activation at consume time; provider routes retain typed `MODE_DEV` refusals
+  whenever dev remains the active mode;
+- item 5 now consumes session/revocation outcomes in the in-memory projection
+  and adds the authorization-stream incarnation to reset and declared restore;
+- item 7 now projects `authority_instance_id` through the public authority
+  descriptor;
 - LLP 0053 owns authorization invalidation and retained/offline admission.
 
 ## Normative vocabulary and constants
@@ -861,9 +868,11 @@ into application service in-process.
 | host-op `auth.mintSession` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | `CredentialSecret` |
 | host-op `auth.rescueCollidingTable` | AdminWrite | AdminCredential | `ImpersonationCapability` via its header | operator metadata |
 
-Mailbox access and session minting are available in dev/test/demo (with mint
-still activation-fenced until item 4). Collision rescue is deliberately
-dev/test-only on both the ordinary and recovery-server projections.
+Mailbox access and session minting are available in dev/test/demo. At the
+item-3 boundary mint was activation-fenced pending item 4; the current composed
+target instead requires settled, available sessions mode plus all independent
+operator gates. Collision rescue is deliberately dev/test-only on both the
+ordinary and recovery-server projections.
 
 `public typed, no-store` is a distinct response-sensitivity classification.
 It is neither a cacheable `PublicProjection` nor mislabeled operator metadata;
@@ -1330,7 +1339,13 @@ explicit later-version questions and are not implementation latitude here:
 
 ## Status
 
-Draft. This Spec should receive an LLP review scaled to the stakes before item 3
-is called complete. Its executable vectors, state-model traces, and failure
-injection suite are the acceptance authority; prose-only implementation is not
-sufficient.
+**Draft.** ENG-24596/item 3 is implemented: the protected catalog and keyring,
+email-code provider, capture mailbox, session-family state machine, operator
+impersonation carrier, collision rescue, and quiesced database-plus-keyring
+backup/declared restore are exercised by executable vectors, state-model traces,
+and failure injection. Those artifacts are the implementation acceptance
+authority; prose alone would not have been sufficient.
+
+Implementation completion does not make this Spec Accepted. It still needs an
+LLP review scaled to its security stakes and explicit author ratification; this
+reconciliation performs neither on the author's behalf.

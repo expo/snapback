@@ -320,6 +320,7 @@ resolved session or bound connection grant.
 | `GET /_snapback/api/health` | `AdminRead` (tokenless loopback remains the LLP 0017 compatibility posture) | unchanged | serve | typed admin metadata only |
 | `POST /_snapback/api/console/credential` | `AdminWrite`; the configured/master credential is presented once | unchanged; neither a session nor a secret-read lease substitutes | serve if the admin gate succeeds | short-lived process-bound ordinary console credential; `CredentialSecret`, no-store |
 | `POST /_snapback/api/admin-secret-read/mint` | `AdminWrite` **plus `SecretReadMintProof`** bound to the exact finite scopes, TTL, and row/byte budgets | unchanged; a URL, console credential, session, or unbound proof cannot select/mint | serve only if both independent gates succeed | short-lived scoped `sbrl_` lease; `CredentialSecret`, no-store |
+| `GET /_snapback/api/auth/mailbox` | `AdminWrite` **plus `ImpersonationCapability`**; capture-provider profiles only | unchanged; a session, ordinary console credential, or secret-read lease cannot substitute for either axis | serve only if both independent gates and the provider-profile gate succeed | exact captured code projection; `CredentialSecret`, no-store |
 | `GET /_snapback/api/inspect` and host-op `app.inspect` | write-grade admin bearer under the shipped sensitive-read compatibility rule | `AdminSecretRead`; ordinary admin/console credentials are insufficient | serve if the stronger gate succeeds | app-derived and operator-secret full projection |
 | `GET /_snapback/api/receipts` | `AdminRead` | `AdminSecretRead`; the raw receipt shape can carry correlation and scope | serve if the stronger gate succeeds | app-derived raw receipt data |
 | `GET /_snapback/api/data/{table}` | `AdminRead`, row/byte caps still apply | `AdminSecretRead`; live lease must name the table, have no wildcard, and retain row/byte budget | serve if the stronger gate succeeds | raw app- and possibly identity-derived rows |
@@ -332,6 +333,8 @@ resolved session or bound connection grant.
 | `POST /_snapback/api/config/set`, `/unset`, `/verify` | `AdminWrite` | unchanged; no session/admin credential substitution | serve | effect/admin metadata; config values never echo |
 | outer `POST /_snapback/api/host-ops` | operation-specific; unknown/unbuilt operations take the stronger gate | operation-specific; outer route is not authority for a weaker inner branch | serve only for a permitted operation | operation-specific |
 | host-ops `app.reset`, `schema.load`, `functions.load` | `AdminWrite`, non-prod | unchanged; no caller identity | serve if gates succeed | effect/admin metadata |
+| host-ops `auth.mintSession` | registered but `Unavailable` in `dev`; `AdminWrite` alone cannot mint | `AdminWrite` **plus `ImpersonationCapability`**, settled available sessions mode, and non-prod profile | refuse unless the sessions overlay and every independent gate are active | exact minted session credential; `CredentialSecret`, no-store |
+| host-ops `auth.rescueCollidingTable` | `AdminWrite` **plus `ImpersonationCapability`**; dev/test only | same independent gates and dev/test-only profile | serve only if both gates and the profile gate succeed | typed operator metadata; no credential echo |
 | host-ops `function.explain` | `AdminRead`; an optional user selector is dev-only client assertion | `AdminSecretRead`; anonymous projection; reject the user selector because the frozen 0039 impersonation surface names `function.run`, not explain | serve if stronger gate succeeds | app-derived dry-run report |
 | host-ops `function.run` query without identity selector | `AdminRead` | `AdminSecretRead`; anonymous projection plus `adminBypass`; refuse on `prod` | serve if stronger gate succeeds | app-derived handler result |
 | host-ops `function.run` mutation without identity selector | `AdminWrite` | `AdminWrite`; anonymous projection plus `adminBypass`; refuse on `prod` | serve if gate succeeds | app-derived result behind explicit write credential |
@@ -529,15 +532,13 @@ caveats are recorded rather than hidden:
   caller-named key regardless of expiry. LLP 0017 specifies an admin "delete a
   specific entry" control and still lists it as an open capability gap; that gated
   operation is unbuilt and out of scope here.
-- *"Own entry" is aspirational under the current policy.* The check is "may you
-  publish to this scope," not "do you own this entry." Under the `AllowAll` default
-  the demos use, any client that may publish may delete *any* entry in the
-  collection. The store already tracks `owner_connections` (and uses it correctly
-  on disconnect) but `delete` ignores it. True own-entry semantics are a separate
-  hardening — compare `request.connection_id` against the caller via
-  `owner_connections` — that should be sequenced *before or with* the LLP 0030
-  proxy switch that forwards delete wide-open (see Open questions), not treated as
-  unrelated.
+- *Own-entry enforcement is implemented.* After the publish-parity scope check,
+  delete derives the caller's owner from server-bound request metadata for the
+  collection key mode and compares it with the stored record owner. A mismatch is
+  `Unauthorized` before removal or fan-out. Connection/custom keys bind ownership
+  to the authenticated connection; session/user keys bind it to the corresponding
+  server-resolved identity. The proxy therefore does not turn `AllowAll` publish
+  scope into authority to delete another owner's entry.
 
 **D2 — `/connections/{id}/disconnect` is system/control; move it under
 `/_snapback/api/*`.** The handler takes the connection id from the path and calls
@@ -616,14 +617,16 @@ These are different operations. `/ephemeral/collections/ensure` is *validate-onl
 — it errors if the named definitions are not already loaded or do not match, and
 mutates nothing — so it is a compatibility read the app legitimately makes at boot
 (the cursors demo boots with it); it stays app-data at the root.
-`/ephemeral/collections` (register) is an unconditional, ungated overwrite of a
+`/ephemeral/collections` (register) was an unconditional, ungated overwrite of a
 collection's definition *including its `publish`/`subscribe` `AccessPolicy`* — the
 ephemeral twin of `schema.load`, and a privilege-downgrade vector (it can reset a
 `RequireRoomPermission` collection to `AllowAll`). It has no caller, and collection
 definitions already ride in each app's `schema.manifest.json` (`ephemeralCollections`,
-loaded via `replace_collections`), so its job belongs to `schema.load`. Retire it
-(preferred, since it is dead) or, if a standalone ephemeral-definition load is ever
-wanted, gate it under `/_snapback/api/*`.
+loaded via `replace_collections`), so its job belongs to `schema.load`. The root
+register route is retired and the absence check prevents its return. Only the
+validate-only `/ephemeral/collections/ensure` app route remains. Any future
+standalone definition load requires a newly specified and admin-gated system
+operation; it may not revive the retired root overwrite.
 
 **D5 — Migrated writes are flat `subsystem/verb` under `/_snapback/api/*`, not
 nested under `/admin/`.** The gated replacements are `/_snapback/api/schema/load`,
@@ -841,20 +844,14 @@ row-level/user auth remains LLP 0011 land — the grant authenticates the
 
 ## Open questions
 
-- **Own-entry delete hardening sequencing (D1).** Should the `owner_connections`
-  check that turns delete into a true own-entry operation land *before* the LLP
-  0030 proxy starts forwarding `/ephemeral/delete`? Under `AllowAll` the forwarded
-  route lets any publisher delete any entry; that is acceptable for the cursor
-  demos but should be a conscious sequencing call, not a default.
+The former D1 sequencing question and D4 retire-or-gate choice are resolved:
+own-entry delete enforcement and root register-route retirement have landed.
+
 - **How far to shrink public `/inspect` (D3).** Keep the benign operational
   counters (`ephemeral.*`, `liveDelivery.*`, `storage.version`) on the public read
   for the acceptance tests, or repoint those reads to the gated twin and let the
   public payload collapse to the pure identity descriptor? The sensitive fields go
   either way; this is about how small the public surface ultimately gets.
-- **`/ephemeral/collections` (register): retire or gate (D4)?** Retiring is
-  cleanest since it is dead and its job is `schema.load`'s; gating it under
-  `/_snapback/api/*` is the fallback only if a standalone ephemeral-definition load
-  turns out to be wanted.
 - **Static console on non-loopback binds (carried from the GPT-5 review).** Should
   `/_snapback/admin*` shell/assets be disabled or token-gated when the server binds
   a non-loopback address, or is public shell/asset serving acceptable as long as
@@ -865,16 +862,18 @@ row-level/user auth remains LLP 0011 land — the grant authenticates the
 Active and implemented (accepted in the LLP 0032 R1 batch): LLP 0032
 S1 landed the migration and the declared route registry with its enforcement
 tests (registry-invariant, retired-root-absent, WebSocket message-kind, and the
-field-level public-inspect trim), verified against a running server. The
-own-entry-delete-vs-proxy sequencing (Open questions) and a cross-family review
-of the revised spec remain outstanding but do not block the implementation.
+field-level public-inspect trim), verified against a running server. D1 now
+enforces owner equality from server-bound request metadata and D4's root register
+route is retired. A fresh cross-family review of the revised spec remains
+outstanding but does not block the implemented contract.
 
 ENG-24594 extends that active contract from a descriptive registry to
 router-owned `RegisteredRoute` entries, centralized per-entry middleware, the
 independent policy axes, exhaustive operation metadata, and the full auth-mode
-matrix above. This extension is implemented only when its metadata-derived
-acceptance suite passes; it does not by itself enable session mode, whose staged
-runtime activation remains later in LLP 0039's landing order.
+matrix above. Its metadata-derived acceptance suite now passes. Classification
+alone does not activate sessions, but the later staged-mode, projection,
+invalidation, descriptor, and lease work in LLP 0056/0057/0053 has landed and may
+consume the overlay in an explicitly staged local sessions deployment.
 
 The five ambiguous classifications are settled (see Resolved
 decisions), and the spec drove the route-registry implementation —
@@ -882,5 +881,4 @@ the gated `/_snapback/api/{schema/load, functions/load, app/reset}` equivalents
 retired the ungated root aliases without breaking the demos and tests that called
 them (they repoint through the kit client). A fresh cross-family review of the
 revised spec (the one independent pass — the GPT-5 review above — predates these
-decisions) and the author's call on the own-entry-delete sequencing remain the
-outstanding follow-ups.
+decisions) remains the outstanding follow-up.

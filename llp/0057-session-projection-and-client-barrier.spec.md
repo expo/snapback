@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0055, LLP 0056
 
 ## Summary
@@ -48,9 +48,10 @@ The item has six load-bearing claims:
 5. The browser has one `AuthCoordinator` custody owner per app. Every async
    completion compares its captured authority epoch before it can expose data,
    mutate durable state, reconnect, or clear the current authority.
-6. Item 5 makes online finite session requests available, but it does not yet
-   admit auth-scoped live queries, retained reads, or queued replay. Those
-   remain gated by later landing items.
+6. At its landing boundary, item 5 made online finite session requests
+   available but did not yet admit auth-scoped live queries, retained reads, or
+   queued replay. Items 6–8 have since landed and compose those independent
+   capabilities; this Spec still owns only the item-5 mechanisms.
 
 ## Provenance and source boundary
 
@@ -67,14 +68,23 @@ The item has six load-bearing claims:
   terminal auth frame; `packages/snapback-contract/client-store.mjs` format 2
   has a write generation and user fingerprint but no authority epoch; and
   `packages/snapback-contract/index.mjs` has no shared transition barrier.
+- **[observed — Snapback commits `2d75ff7`, `40fd84e`, `e608c58`, and
+  `c4b3989`, plus executable suites, 2026-07-14]** The durable session
+  projection/coordinator lives in `src/auth/{session_projection,coordinator}.rs`;
+  provider, reset, expiry, connection, outbox, and live paths use its tickets and
+  final fences; `packages/snapback-contract/auth-coordinator.mjs` and
+  `client-store.mjs` implement transactional custody/barrier participation; and
+  the coordinator, IndexedDB custody, store-authority, Contract, and kit suites
+  exercise the transition and delayed-completion races.
 - **[inferred — implementation mechanism pending author ratification]** Exact
   ticket encodings, leaf-fence layout, leased outbox drain, custody record,
-  fallback lease timings, and diagnostic allocation below are the author's
-  proposed implementation choices. They preserve 0039's required outcomes but
-  remain Draft until ratified by implementation and review evidence.
+  fallback lease timings, and diagnostic allocation below were proposed
+  implementation choices and are now implemented. They preserve 0039's required
+  outcomes, but implementation evidence alone does not ratify this Draft.
 
-No statement tagged `observed` claims that item 5 already exists. The commit is
-the baseline whose gaps this Spec closes.
+The first observation is the pre-item baseline; the second records the landed
+implementation. Neither thaws LLP 0039/0053 or accepts this document on the
+author's behalf.
 
 ## Scope and ownership
 
@@ -105,14 +115,15 @@ This Spec consumes without re-owning:
   supersession grace, cap, refresh-family alarm, reset, and restore primitives;
 - LLP 0056's shared invocation gate, staged mode, four protocol headers, and
   readiness object;
-- LLP 0053's future invalidation declarations and later-item dispositions; and
+- LLP 0053's invalidation declarations and item-6/item-8 dispositions; and
 - LLP 0043's independent `retainedReads` and `queuedReplay` policy axes.
 
 This Spec does not enable hosted or multi-replica sessions. Distributed
 projection coherence, a hosted coordinator, trusted-proxy/TLS posture, and the
-client-page XSS contract remain separately owned. It also does not implement
-the item-6 protected-query oracle, the item-7 public authority descriptor or
-authorized lease, or item-8 retained/offline invalidation.
+client-page XSS contract remain separately owned. It also does not own the
+subsequently implemented item-6 protected-query oracle, item-7 public authority
+descriptor/two-axis store, or item-8 authorized-lease and retained/offline
+invalidation protocols.
 
 ## Normative vocabulary and constants
 
@@ -186,8 +197,9 @@ auth-capable server binds any app-data listener, in both dev and sessions mode.
 The read-only item-4 stage-time collision inspection does not create it or any
 other metadata. Sessions mode additionally requires a complete session
 projection. Dev mode preserves the same incarnation through an ordinary
-restart, but reset rotates it exactly as sessions mode does, so item 7 can later
-key its dev authority instance without making restart look like reset. Absence
+restart, but reset rotates it exactly as sessions mode does, so the subsequently
+landed item 7 can key its dev authority instance without making restart look
+like reset. The reset/restart distinction remains the governing input. Absence
 in a pre-item-5 database means there is no continuity to preserve: startup
 creates a fresh incarnation, and clients that previously observed no matching
 incarnation clear their privacy-bearing state. Malformed, duplicate, or
@@ -1284,6 +1296,14 @@ not wipe principal-scoped data, although no such retained data is admitted yet.
 It implements the epoch/disposition interface now so later items can safely add
 producers; it does not manufacture those outcomes early.
 
+That matrix is the historical item-5 boundary, not the current composed local
+target. With the independently negotiated later protocols installed, item 6
+sets `authScopedLive:true` for admitted protected profiles, item 7 sets
+`queuedReplay:true` for admitted descriptor-bound work, and item 8 sets
+`retainedReads:true` for admitted retainable queries with an exact signed lease.
+No axis is inferred from another, and missing protocol/capability evidence keeps
+only its owning axis false.
+
 ## Contract and kit barrier participation
 
 ### Participant contract
@@ -1598,9 +1618,11 @@ wall-clock sleeps are not proof of ordering.
 2. The complete item-1-through-item-5 readiness matrix is generated and tested.
    Each omitted module/wiring/worker keeps its owning fact false and therefore
    keeps `sessionActivationReady` false. No override can force it true.
-3. With readiness true, online finite anonymous/authenticated requests work.
-   Auth-scoped live, retained reads, and queued replay remain refused; the
-   conservative authority-independent live exception is unchanged.
+3. At the item-5 boundary, readiness true admits online finite
+   anonymous/authenticated requests while auth-scoped live, retained reads, and
+   queued replay remain refused; the conservative authority-independent live
+   exception is unchanged. The current composed target admits each later axis
+   only through its separate item-6/item-7/item-8 negotiation and proof.
 4. Dev-to-sessions and sessions-to-dev tests prove that no predecessor grant,
    session data, client epoch, outbox entry, or Contract callback crosses the
    mode transition while ordinary incarnation continuity is preserved. Reset
@@ -1608,24 +1630,24 @@ wall-clock sleeps are not proof of ordering.
 
 ## Implementation handoff
 
-The implementation should land in dependency order without splitting a safety
+The implementation landed in this dependency order without splitting a safety
 invariant across an externally enableable commit:
 
-1. add authorization-stream storage/migration and detached projection rebuild;
-2. add leaf fences, tickets, mutation planning, and rewire every LLP 0055
+1. added authorization-stream storage/migration and detached projection rebuild;
+2. added leaf fences, tickets, mutation planning, and rewired every LLP 0055
    revocation/rotation/reset/restore call site;
-3. extend connection bindings, reverse indexes, publication stamps, leased
+3. extended connection bindings, reverse indexes, publication stamps, leased
    drain, notifier terminal events, and typed live errors;
-4. add custody storage, coordinator ownership/transition recovery, client-store
+4. added custody storage, coordinator ownership/transition recovery, client-store
    format 3, and mandatory kit/Contract participants;
-5. revise the closed handshake DTO, install real readiness probes, and run the
+5. revised the closed handshake DTO, installed real readiness probes, and ran the
    full interleaving and activation matrix; and
-6. run `./ref-check --verbose` and add non-mechanical `@ref LLP 0057#...`
+6. ran `./ref-check --verbose` and added non-mechanical `@ref LLP 0057#...`
    annotations at each non-obvious ticket, lock-order, fence, custody, and
    epoch-CAS implementation boundary.
 
-Intermediate commits may compile and test, but sessions activation stays
-unavailable until all six stages and acceptance obligations are present. A
+Intermediate commits were allowed to compile and test, but sessions activation
+stayed unavailable until all six stages and acceptance obligations were present. A
 compatibility shim may read old state only as explicitly specified above; it
 cannot emulate readiness or bypass a fence.
 
@@ -1637,9 +1659,14 @@ Spec without weakening this one:
 
 - whether a future browser implementation adds a `SharedWorker` fast path;
 - the internal batching size for leased outbox drains;
-- garbage-collection cadence for unreachable client-store epoch segments; and
-- later LLP 0053 disposition outcomes once item 8 admits retained reads.
+- garbage-collection cadence for unreachable client-store epoch segments.
 
-This document remains **Draft** while its inferred mechanisms await author
-ratification and executable implementation evidence. It does not make LLP 0039
-or LLP 0053 unfrozen and it does not accept itself on the author's behalf.
+ENG-24603/item 5 and its executable evidence have landed: durable projection,
+two-phase mutation publication, connection and effect fences, authorization
+stream handshake, browser custody/coordinator, Contract/store participation,
+and delayed-predecessor race suites. Item 8 is no longer a future decision here;
+LLP 0053 and LLP 0043 own its implemented dispositions and signed-lease path.
+
+This document remains **Draft** pending explicit author ratification and review
+scaled to its security stakes. Implementation evidence does not make LLP 0039
+or LLP 0053 unfrozen and does not accept this Spec on the author's behalf.

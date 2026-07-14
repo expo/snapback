@@ -76,11 +76,27 @@ DK-9's stored contract rather than re-enumerating it:
 
 When offline, a subscribed query may return retained rows immediately if:
 
-- the query shape is retainable;
-- the result was authorized for the current auth context, and its stored
-  authorization epoch is not known-stale;
-- the stored `(stream, version)` cursor is valid for the target profile;
-- the capability manifest allows retention for that query.
+- the query is in the installed LLP 0053 protected profile and is explicitly
+  proved retainable; syncability or a matching principal alone is insufficient;
+- the current query instance, principal, authorization pair, issuer, activation
+  hash, version stream, accepted snapshot version, and optional authority
+  descriptor exactly match the stored composite witness;
+- the store holds the complete server-MACed `AuthorizedLease`, its request
+  reservation, and a valid derived client deadline. The configured duration is
+  at most the 24-hour hard maximum and is clamped by session/provider expiry;
+- the serialized client clock has not moved behind its durable high-water and
+  current time is strictly before the derived deadline. Equality is expiry and
+  commits the query-instance delete tombstone before read or render; and
+- the stored `(stream, version)` cursor and target capability facts are valid,
+  with no pending query-authorization fence that blocks release.
+
+A missing, malformed, expired, wrong-principal, wrong-query-instance,
+wrong-witness, wrong-target, wrong-activation, rollback-tainted, or invalid-MAC
+lease deletes the current query instance before exposure. Heartbeat, delta,
+session refresh, reconnect, mutation success, and ACK never renew it. Only a
+fresh full authorization revalidation and snapshot may renew, after the server
+atomically proves the captured data head, authorization pair, activation hash,
+and absence of a pending obligation still match.
 
 The UI must know the result is retained/stale. Reconnect always asks the server
 for a fresh authoritative snapshot or resume path before clearing stale state.
@@ -274,12 +290,25 @@ Neither migration infers one authority axis from the other.
   preserves both.
 - A non-retainable query reports a capability diagnostic rather than silently
   acting local-first.
+- A cold process renders an auth-scoped retained query only through the exact
+  current query instance and an unexpired signed `AuthorizedLease`; missing,
+  malformed, wrong-bound, rollback-tainted, and equality-expired leases commit
+  delete-before-render.
+- Lease renewal paused after capturing data head 99 loses to a `public →
+  private` write at head 100: it mints no lease and discards the stale snapshot.
+  If reservation wins first, the later write raises the normal LLP 0053
+  obligation and fences the connected result.
+- Heartbeat, delta, refresh, reconnect, mutation success, and ACK leave the
+  deadline unchanged. Only a later full revalidation at an exact current head,
+  with no pending obligation, can atomically install a replacement lease and
+  snapshot.
 
 ## Open Questions
 
-- Is "retainable" exactly the syncable-live subset 0008 already pins, or a
-  strict subset of it in milestone 1? (The broad "which shapes?" question is
-  answered by 0008; only this refinement is open.)
+Retainability is no longer an open subset choice: LLP 0053 defines a strict
+protected/retainable profile, and item 8 requires that proof plus the signed
+lease protocol. Syncable-live status alone never admits retained display.
+
 - Should retained rows be encrypted at rest on mobile by default?
 - How should generated clients expose conflict UI facts without dictating UI?
 
@@ -287,12 +316,17 @@ Neither migration infers one authority axis from the other.
 
 Draft, with the first closed-IR single-query M1/M2 slice implemented by
 ENG-23965, hardened by ENG-24376, and the format-5 authority split implemented
-by ENG-24605. Shipped evidence covers retained stale boot, reload persistence,
+by ENG-24605. ENG-24606/item 8 implements the mandatory query-authorization
+namespace, signed-lease issuance and client custody, exact deadline deletion,
+rollback protection, and full-revalidation-only renewal. Shipped evidence covers
+retained stale boot, reload persistence,
 ordered create/toggle/delete replay, lost-response exactly-once settlement,
 auth wipe/mismatch, artifact/target/reset-stream quarantine, reverse-completion
 write ordering, exact ledger consumption, and
 authoritative convergence, format-3 quarantine, refresh stability,
 same-principal/new-session row preservation with queue stranding, and
-different-principal deletion. The broader acceptance rows (richer conflict UI and
-the explicitly later delta-resume-with-pending milestone) remain future work;
-they do not widen the shipped Parity predicate.
+different-principal deletion, cold-process lease-valid display, equality expiry,
+malformed/wrong-bound lease refusal, clock rollback, and the renewal/head race.
+The broader acceptance rows (richer conflict UI and the explicitly later
+delta-resume-with-pending milestone) remain future work; they do not widen the
+shipped Parity predicate or ratify this Draft on the author's behalf.

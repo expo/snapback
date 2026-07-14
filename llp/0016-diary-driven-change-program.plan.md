@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-14 (ENG-24606 reconciliation: the card-game rung now proves real session-isolated finite and live hidden-hand delivery, logout blanking, and cold-process retained display only through an unexpired signed authorization lease; full permission-changing ACL/protected-room and game-product breadth remain outside this demo). 2026-07-13 (ENG-24605 adds `demos/card-game` as a finite authenticated-query and authority-store proof only; the full authorization-aware partial-sync rung remains gated on items 6/8 and is not claimed). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Revised:** 2026-07-14 (corpus reconciliation: schema-source and Exact manifest ownership are decided, WebSocket push and the local authorized-sync/items-6/8 proof are implemented, and the remaining artifact-mapping and demo-product breadth are separated from obsolete blockers). 2026-07-14 (ENG-24606 reconciliation: the card-game rung now proves real session-isolated finite and live hidden-hand delivery, logout blanking, and cold-process retained display only through an unexpired signed authorization lease; full permission-changing ACL/protected-room and game-product breadth remain outside this demo). 2026-07-13 (ENG-24605 adds `demos/card-game` as a finite authenticated-query and authority-store proof only; the full authorization-aware partial-sync rung remains gated on items 6/8 and is not claimed). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, LLP 0053, LLP 0057, Diary 0001, Diary 0006, Diary 0013, Exact 0263, Exact 0265
 
 ## Summary
@@ -14,11 +14,12 @@ The first Snapback todo diary proves that the product direction is working in
 the places that matter most for agent-authored apps: structured diagnostics,
 honest capability reports, deterministic reset/seed, generated artifacts, a
 current-value-plus-subscription seam, and cross-surface validation. It also
-shows that the paved road is still mostly scaffolding: real JavaScript
-`ctx.db` handlers are missing, the typed client/manifest package does not
-exist, Contract/Exact needs a first-class adapter, realtime is still coarse and
-poll-driven, and Exact-side Contract data ergonomics need to become boring
-defaults rather than demo-specific discoveries.
+originally showed that the paved road was mostly scaffolding: real JavaScript
+`ctx.db` handlers, typed artifacts, a Contract/Exact adapter, and push realtime
+were missing. Those gaps now have implementation footholds recorded in the
+phase table. Full artifact mapping, resource-limit hardening, broader matcher
+shapes, React/Expo adoption, and Exact-side Contract ergonomics remain program
+work rather than reasons to repeat the diary's point-in-time diagnosis.
 
 This Plan turns the diary into a change program. It does not replace the
 subsystem LLPs. Instead, it records the order of work implied by the diary,
@@ -67,19 +68,23 @@ gaps they depend on are closed or honestly reported.
 
 The real dependencies are:
 
-- **Phase 1 (typed artifacts) is the long pole.** Phase 3 (Contract adapter),
-  Phase 5 (Contract ergonomics), and Phase 6 (React) all consume generated
-  descriptors, so none of them can reach its acceptance gate until Phase 1
-  lands. Phase 1 is itself blocked on two decisions in Open Questions: the
-  single source-of-truth schema, and a written `ContractDataManifest` shape (no
-  LLP defines it yet).
+- **Phase 1 (typed artifacts) remains the long pole for broader adoption, but
+  its former decision blockers are closed.** LLP 0037 ratifies Rust serde types
+  plus generated committed JSON Schemas as the source of truth for
+  Snapback-owned artifacts. Exact 0263 §4.2 defines and owns
+  `ContractDataManifest`; LLP 0021 owns Snapback's validated projection onto
+  that shape. The remaining work is to freeze/extend the mapping and consumer
+  evidence, not to choose either schema authority.
 - **Phase 2 (`ctx.db` handlers) is independent of Phase 1** and gated instead by
   LLP 0009's execution envelope. Phases 1 and 2 together unblock Todo v1.
 - **Phase 4 (realtime) is independent of Phases 1–3** but gates the kanban and
   messaging slices, and its dependency matcher must be authorization-aware from
   the start (see Cross-cutting constraints).
-- **Authorized sync gates the card-game slice** and is not yet sequenced by any
-  numbered phase; see Cross-cutting constraints.
+- **Authorized sync is a composed cross-cutting workstream.** LLP 0053 and auth
+  landing items 5–8 now implement the local target's protected-query,
+  invalidation, two-axis store, and signed-lease path. The card-game rung
+  consumes that path; broader permission-language and game-product scope remain
+  separate work.
 
 Phase numbers below are program-local; the **Authoritative detail** column names
 the Plan that owns each phase's required changes and acceptance gates (the
@@ -89,14 +94,14 @@ the detail Plan governs.
 | Phase | Depends on | Primary owner | Authoritative detail | Status |
 | --- | --- | --- | --- | --- |
 | 0 — Freeze v0 contracts | — | Snapback core | LLP 0020 Phase 0 | Behaviors exist in the v0 server; not yet frozen as contracts |
-| 1 — Typed generated artifacts | Source-of-truth schema decision; `ContractDataManifest` spec | Snapback core | LLP 0020 Phase 1 (Snapback artifacts) + LLP 0021 Phase 1 (`ContractDataManifest`) | Foothold: todo demos emit typed Snapback artifacts plus generated Contract projection |
+| 1 — Typed generated artifacts | LLP 0037 Rust-first decision; Exact 0263 shape; LLP 0021 projection | Snapback core | LLP 0020 Phase 1 (Snapback artifacts) + LLP 0021 Phase 1 (`ContractDataManifest`) | Foothold: todo demos emit typed Snapback artifacts plus a validated generated Contract projection; full mapping remains open |
 | 2 — `ctx.db` handlers | LLP 0009 envelope | Snapback core | LLP 0020 Phase 2 | Foothold: todo handlers run through embedded Ibex `ctx.db`; resource-limit hardening remains |
 | 2′ — Read-set capture | Phase 2 | Snapback core | LLP 0020 Phase 3 | Foothold: handler-captured reads validate stale mutations; read-your-writes overlay remains |
 | 3 — Contract adapter | Phase 1 | Snapback adapters | LLP 0021 Phases 0, 2, 3, 4 | Foothold: todo demos import `packages/snapback-contract/`; todo/admin surfaces consume generated Contract bindings; admin consumes shared system-surface bridge machinery; Exact conformance and admin client/view-model consolidation remain |
-| 4 — App-grade realtime | Auth-aware matcher (LLP 0011); LLP 0008 | Snapback core | LLP 0020 Phase 4 | Foothold: equality matcher plus WebSocket `live_replace` stream; permission epochs and range/non-equality matcher remain |
+| 4 — App-grade realtime | Auth-aware matcher (LLP 0011/0053); LLP 0008 | Snapback core | LLP 0020 Phase 4 | Foothold: equality matcher plus WebSocket `live_replace`; protected local auth invalidation ships, while range/non-equality matcher breadth remains |
 | 5 — Contract data ergonomics | Phase 1 | Exact/Contract | LLP 0021 Phase 5 | Not started |
 | 6 — React/Expo pressure test | Phase 1 | Snapback adapters | This Plan (Change Program; no detail Plan yet) | Not started |
-| X — Authorized sync | LLP 0011 mechanics | Snapback core + LLP 0011 | LLP 0011 + LLP 0020 Phase 4 | Not sequenced; gates card-game slice |
+| X — Authorized sync | LLP 0011 model; LLP 0053 protocol; auth items 5–8 | Snapback core + auth program | LLP 0011 + LLP 0053 + LLP 0057 | Implemented for the local card-game proof: principal-isolated finite/live reads, logout barrier, invalidation, two-axis storage, and signed-lease retained display |
 
 ## Evidence
 
@@ -194,8 +199,10 @@ enter the initial snapshot, realtime delta, or retained local store. So the
 Phase 4 matcher cannot be designed as a pure data-dependency matcher with auth
 bolted on afterward: a matcher that re-notifies on a row a subscriber cannot
 see leaks the row's existence. Phase 4 must compose dependency matching with
-per-subscriber auth filtering and must honor `resync_required` on permission
-change (LLP 0011). Ephemeral presence/cursor/typing state is not durable
+per-subscriber auth filtering and LLP 0053's exact witnessed obligations,
+dispositions, quarantine/delete fences, authenticated ACK, and fresh-snapshot
+release. A generic `resync_required` or coarse epoch is not proof of delivery
+and cannot release protected bytes. Ephemeral presence/cursor/typing state is not durable
 live-query realtime; it is owned by LLP 0013 and must not be absorbed into the
 Phase 4 durable path.
 
@@ -212,18 +219,21 @@ and a new cold process renders retained rows only before the exact signed-lease
 deadline.
 
 That is a concrete local-target authorized-sync proof, not a complete game or a
-universal permission language. Permission-changing ACL fan-out, the protected-
-room kick trace, custom-key room authorization, a browser UI, and hosted auth
-remain outside this rung and must retain their own gates.
+universal permission language. The card-game rung is no longer blocked on auth
+items 6/8. Permission-changing ACL fan-out and protected-room acceptance remain
+separately owned protocol evidence rather than claims of this demo; custom-key
+room authorization, a browser UI, and hosted auth remain outside the rung.
 
-### `ContractDataManifest` has no specification yet
+### `ContractDataManifest` ownership and projection are settled
 
-The Summary, the Pain-to-change Map, and Phases 1 and 3 all refer to a
-`ContractDataManifest`, but no LLP defines its shape or versioning — LLP 0012
-defines `schemaManifest`, `functionManifest`, and `capabilityManifest`, not
-this. The Phase 1 and Phase 3 Contract-side acceptance gates depend on it. A
-shared-boundary spec for `ContractDataManifest` (shape, `artifactKind`, version
-handshake) is a prerequisite for those gates and is listed in Open Questions.
+Exact 0263 §4.2 defines and owns the Contract-facing shape and its
+`manifestVersion`. LLP 0037 governs only Snapback-owned artifacts and chooses
+Rust serde types plus generated committed schemas for them. LLP 0021 owns the
+validated mapping from those native manifests onto Exact's shape. Snapback's
+native `artifactKind`/`schemaVersion` discipline is not imposed on the
+Exact-owned manifest. Freezing the complete mapping and extending consumer
+coverage remain implementation work, not an unresolved schema-ownership
+decision.
 
 ## Principles
 
@@ -353,8 +363,9 @@ Acceptance gate:
 
 ### Shared boundary owns
 
-- `ContractDataManifest` shape and versioning (currently unspecified — see
-  Cross-cutting constraints);
+- the validated mapping and version handshake between Snapback's LLP 0012/0037
+  artifacts and Exact's Exact-0263-owned `ContractDataManifest`; Exact owns the
+  shape and `manifestVersion`, while Snapback owns its projection;
 - provider diagnostic handoff;
 - the application of LLP 0012's Online vs Parity capability classes to Contract
   data binding, and the version handshake between them;
@@ -435,22 +446,23 @@ Two standing corpus rules (adopted 2026-07-01 via LLP 0032 R3/R6):
 
 ## Risks
 
-- **R1 — Phase 1 is blocked on two undecided inputs.** The single
-  source-of-truth schema and the `ContractDataManifest` shape are both open, and
-  Phase 1 cannot reach its Contract-side gate without them. *Mitigation:*
-  resolve both before Phase 1 starts; the schema choice is large enough to
-  warrant its own Decision LLP.
+- **R1 — Artifact projection can drift across ownership boundaries.** LLP 0037
+  settles Snapback's Rust-first source and Exact 0263 settles the Contract-facing
+  shape, but the projection can still lag either side. *Mitigation:* LLP 0021's
+  generated-schema drift gate, Exact project checks, shared freshness hash, and
+  structured mismatch diagnostics gate each mapping change.
 - **R2 — Phase 3 depends on another repository.** The Contract adapter and
   Exact resolution depend on Exact-side work (Exact 0263 / 0265), so Snapback
   cannot fully close Phase 3 alone. *Mitigation:* keep Exact resolution
   capability-based so a missing or stale checkout is a structured diagnostic,
   and keep Snapback core tests free of any Exact dependency (already a
   Non-Goal).
-- **R3 — Authorized sync is required by a planned demo but unsequenced.** The
-  card-game slice presupposes LLP 0011 enforcement that no phase delivers, and
-  LLP 0011's rule language is itself open. *Mitigation:* sequence authorized
-  sync (row X) as a gating workstream that lands with the Phase 4 matcher; do
-  not admit the card-game slice as proof until then.
+- **R3 — A narrow authorized-sync proof can be mistaken for a general
+  permission system.** The local card-game rung now exercises protected finite
+  and live reads plus lease-bounded retention, but it does not supply arbitrary
+  RLS syntax, every matcher shape, custom-key room authorization, or hosted
+  deployment. *Mitigation:* keep row X's implemented predicate explicit and
+  retain separate gates for each broader claim.
 - **R4 — Handler execution could ship outside the LLP 0009 envelope.** Wiring
   `ctx.db` for ergonomics without isolation and resource limits would ship
   unvetted code execution. *Mitigation:* 0009's envelope is folded into LLP 0020
@@ -468,21 +480,13 @@ Two standing corpus rules (adopted 2026-07-01 via LLP 0032 R3/R6):
 
 ## Open Questions
 
-- **[Blocks Phase 1]** Which schema definition should be the single source of
-  truth for Rust and TypeScript artifact types? Should one package expose
-  framework entry points, or should each adapter publish separately, and what
-  are the package names? *Proposed:* settle the source-of-truth choice as a
-  Decision LLP before Phase 1.
-- **[Blocks the Phase 1 and Phase 3 Contract gates]** What is the
-  `ContractDataManifest` shape, `artifactKind`, and version handshake? No LLP
-  defines it today; it needs a shared-boundary spec.
-- **[Blocks Phase 4]** Should the first push transport be SSE, WebSocket, or
-  both under one subscription abstraction? LLP 0008 leaves the carrier
-  pluggable.
-- **[Blocks the card-game slice]** When does authorized sync land relative to
-  Phase 4, and is the dependency matcher authorization-aware from its first
-  version? It must be — LLP 0008's dependency summary already includes auth
-  predicates that affected visibility.
+The former schema-source, `ContractDataManifest` ownership, first push-carrier,
+and local authorized-sync/card-game sequencing questions are resolved by LLP
+0037, Exact 0263 + LLP 0021, the shipped WebSocket carrier, and LLP 0053/items
+5–8 respectively. They are not current blockers.
+
+- How much of the remaining Snapback-to-Exact manifest mapping must be frozen
+  before Phase 1 moves beyond its current foothold?
 - The Online vs Parity capability classes are already defined in LLP 0012, so
   the open part is narrower than this Plan first implied: only the
   **Contract-data-binding version handshake** built on top of those classes
@@ -506,10 +510,16 @@ On 2026-06-26 it received a cross-family review-and-revise pass from Claude
 `llp/reviews/0016-diary-driven-change-program.claude.md`. That pass added the
 security (LLP 0009) and authorization (LLP 0011) dependencies, reconciled the
 demo ladder with LLP 0015, grounded the Online vs Parity vocabulary in LLP
-0012, flagged the unspecified `ContractDataManifest`, and added the sequencing,
+0012, flagged the then-unspecified `ContractDataManifest`, and added the sequencing,
 cross-cutting-constraint, and risk sections. Because that same pass also edited
 the document, it is not an independent read of the revised text. A GPT-5
 companion review and Charlie's read remain the honest completion of the loop.
+
+The 2026-07-14 reconciliation records that the schema source, Exact manifest
+ownership, WebSocket carrier, and local auth sequencing called out by that
+historical review have since been decided or implemented. This Plan remains
+Draft because mapping breadth, later adapters, and the review loop are not
+thereby complete.
 
 On 2026-06-27, after the LLP 0020 review flagged that this umbrella and LLP 0020
 were tracking the same core phases in parallel (and diverging on numbering), the

@@ -313,7 +313,10 @@ reauthorization**. `quarantine` is a conforming immediate clear while authority
 is uncertain (bytes remain suspended and unreadable); trusted denial or boundary
 proof escalates to `delete`. This is the ratification 0053 previously inferred
 but did not own. LLP 0053 is Accepted, so its review gate no longer blocks items
-6 or 8; their remaining dependency and implementation gates still apply.
+6 or 8. Their local dependency and implementation gates have now landed:
+item 6 installs protected-query/room invalidation and item 8 installs the signed
+lease/store protocol. Hosted, distributed, and broader permission-language
+claims retain their separate gates.
 
 Function-level checks also gain one trusted failure surface. LLP 0004 owns the
 generated spelling and this RFC owns the semantic API:
@@ -385,10 +388,12 @@ The first auth acceptance tests should prove:
 
 ## Open Questions
 
+The first built-in method is no longer open: LLP 0055 implements the local
+passwordless email-code provider and capture mailbox. Magic-link, password,
+OAuth, passkey, and external-provider ordering remain later product choices.
+
 - Which analyzable permission-rule subset should later graduate from
   server-directed resubscribe to precise live `remove` deltas?
-- What built-in auth methods ship first: email code, magic link, password,
-  OAuth, passkey, or a local dev provider?
 - Are roles a core primitive or app-level data by default?
 - How are organizations and teams modeled?
 - What is the first source syntax for permission rules? (Valet used structured,
