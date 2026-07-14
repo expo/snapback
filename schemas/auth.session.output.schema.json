@@ -113,6 +113,34 @@
       ],
       "type": "object"
     },
+    "AuthorityDescriptor": {
+      "additionalProperties": false,
+      "description": "Opaque server-issued consistency descriptor for one queued mutation.\nPossession grants no authority; the invocation gate first resolves a live\ncredential and only then compares this value with its prepared authority.\n\n@ref LLP 0039#replay-parity-and-the-authority-instance-id — this is a\n  dedicated MutationRequest channel, never a ctx-answer-ledger member.",
+      "properties": {
+        "authorityInstanceId": {
+          "maxLength": 36,
+          "minLength": 36,
+          "type": "string"
+        },
+        "descriptorVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sessionGeneration": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "descriptorVersion",
+        "authorityInstanceId",
+        "sessionGeneration"
+      ],
+      "type": "object"
+    },
     "ClientProtocols": {
       "additionalProperties": false,
       "properties": {
@@ -243,6 +271,10 @@
     "authority": {
       "$ref": "#/$defs/AuthSessionAuthority"
     },
+    "authorityDescriptor": {
+      "$ref": "#/$defs/AuthorityDescriptor",
+      "description": "Consistency only: possession never authorizes an invocation."
+    },
     "authorizationStreamIncarnation": {
       "type": "string"
     },
@@ -300,7 +332,8 @@
     "availability",
     "provider",
     "transports",
-    "authority"
+    "authority",
+    "authorityDescriptor"
   ],
   "title": "AuthSessionResponse",
   "type": "object"

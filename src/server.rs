@@ -8,6 +8,7 @@ use crate::auth::coordinator::{
     ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::SessionBearer;
+use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
@@ -5358,8 +5359,9 @@ async fn auth_session(
     }
     let offers = AuthClientProtocolOffers::from_headers(&headers);
     let state = runtime.auth_mode_state();
-    let (projection, captured_incarnation) = match authority {
+    let (resolved_authority, projection, captured_incarnation) = match authority {
         Some(Extension(authority)) => (
+            authority.resolved().clone(),
             authority.projection().clone(),
             authority
                 .authorization_stream_incarnation()
@@ -5400,7 +5402,11 @@ async fn auth_session(
                     }
                 }
             };
-            (HandlerAuthProjection::from_authority(&resolved), None)
+            (
+                resolved.clone(),
+                HandlerAuthProjection::from_authority(&resolved),
+                None,
+            )
         }
     };
     let provider_ready = runtime.auth_catalog_ready
@@ -5408,16 +5414,19 @@ async fn auth_session(
             .auth_provider
             .as_ref()
             .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
+    let authorization_stream_incarnation = match captured_incarnation {
+        Some(incarnation) => incarnation,
+        None => installed_auth_coordinator(&runtime)?
+            .authorization_stream_incarnation()
+            .map_err(ApiError::from)?,
+    };
+    let authority_descriptor =
+        descriptor_for_resolved_authority(&resolved_authority, &authorization_stream_incarnation)?;
     let response = AuthSessionResponse::from_facts(
         AuthSessionFacts {
             server_startup_nonce: runtime.server_startup_nonce().to_owned(),
             transition_generation: state.transition_generation,
-            authorization_stream_incarnation: match captured_incarnation {
-                Some(incarnation) => incarnation,
-                None => installed_auth_coordinator(&runtime)?
-                    .authorization_stream_incarnation()
-                    .map_err(ApiError::from)?,
-            },
+            authorization_stream_incarnation,
             active_mode: state.active,
             desired_mode: state.desired,
             mode_state: state.mode_state,
@@ -5434,6 +5443,7 @@ async fn auth_session(
                 session_id: projection.session_id().map(str::to_owned),
                 is_authenticated: projection.is_authenticated(),
             },
+            authority_descriptor,
         },
         offers,
     );

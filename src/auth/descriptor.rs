@@ -22,6 +22,16 @@ pub fn descriptor_for_authority(
     authority: &PreparedAuthority,
     authorization_stream_incarnation: &str,
 ) -> SnapbackResult<AuthorityDescriptor> {
+    descriptor_for_resolved_authority(authority.resolved(), authorization_stream_incarnation)
+}
+
+/// Construct the same descriptor for discovery paths that have already
+/// resolved a credential but intentionally do not hold an admission lease
+/// (notably the diagnostic handshake while ordinary admission is closed).
+pub fn descriptor_for_resolved_authority(
+    authority: &ResolvedAppAuthority,
+    authorization_stream_incarnation: &str,
+) -> SnapbackResult<AuthorityDescriptor> {
     canonical_uuid_v7(authorization_stream_incarnation).map_err(|()| {
         SnapbackError::error(
             "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
@@ -29,7 +39,7 @@ pub fn descriptor_for_authority(
             "authorization-stream incarnation is not a canonical UUIDv7",
         )
     })?;
-    let (authority_instance_id, session_generation) = match authority.resolved() {
+    let (authority_instance_id, session_generation) = match authority {
         ResolvedAppAuthority::Session {
             authority_instance_id,
             generation,

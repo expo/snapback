@@ -263,6 +263,11 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
                     "userId": null,
                     "sessionId": null,
                     "isAuthenticated": false
+                },
+                "authorityDescriptor": {
+                    "descriptorVersion": 1,
+                    "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000001",
+                    "sessionGeneration": 0
                 }
             }),
         ),

@@ -3590,6 +3590,8 @@ fn planned_session_issuance_transaction(
             created_at: plan.projected.created_at_ms,
             expires_at: plan.projected.expires_at_ms,
             absolute_expires_at: plan.projected.absolute_expires_at_ms,
+            authority_instance_id: plan.projected.authority_instance_id.clone(),
+            generation: plan.projected.generation,
         },
         committed_revocation,
     })
@@ -3913,6 +3915,8 @@ fn reconcile_planned_issuance(
                 created_at: session.created_at_ms,
                 expires_at: session.expires_at_ms,
                 absolute_expires_at: session.absolute_expires_at_ms,
+                authority_instance_id: session.authority_instance_id.clone(),
+                generation: session.generation,
             },
             committed_revocation,
         });

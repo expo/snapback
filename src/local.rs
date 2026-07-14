@@ -8726,13 +8726,12 @@ mod tests {
         SCHEMA_V1_PREFIX,
     };
     use crate::manifest::{
-        ActionPlan, AuthManifest, AuthMode, ConfigEntryDefinition, CronActivationPolicy,
-        CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
-        CronSchedule, AuthorityDescriptor, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr,
-        FilterOp,
-        FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
-        HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
-        SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
+        ActionPlan, AuthManifest, AuthMode, AuthorityDescriptor, ConfigEntryDefinition,
+        CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
+        CronRetryMode, CronRetryPolicy, CronSchedule, CtxAnswerLedger, FieldManifest, FieldType,
+        FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+        HandlerInput, HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep,
+        QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
