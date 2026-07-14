@@ -2255,15 +2255,16 @@ async fn admin_data(
 }
 
 async fn admin_run_function(
-    State(snapback): State<SharedSnapback>,
-    State(ctx): State<Arc<ServerContext>>,
-    State(policy_mode): State<PolicyAuthMode>,
-    State(secret_reads): State<SecretReadLeaseRegistry>,
+    State(state): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Path(name): Path<String>,
     Json(mut input): Json<HandlerInput>,
 ) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
+    let snapback = state.snapback.clone();
+    let ctx = state.server.clone();
+    let policy_mode = state.active_policy_auth_mode();
+    let secret_reads = state.secret_reads.clone();
     // @ref LLP 0039#authority-resolution — session-mode administrative
     // invocation never borrows a supplied app identity; the envelope records
     // the explicit bypass and query reads consume scoped secret authority.
@@ -2274,7 +2275,7 @@ async fn admin_run_function(
     // (ENG-23324); everything else runs under the lock as before.
     enum Routed {
         Done(Box<crate::local::FunctionRunResult>),
-        Action(crate::local::AppActionStage),
+        Action(Box<crate::local::AppActionStage>),
     }
     let routed = {
         let name = name.clone();
@@ -2316,7 +2317,9 @@ async fn admin_run_function(
                 return Ok(
                     match snapback.stage_app_action_with_authority(&name, authority) {
                         crate::local::StagedAppAction::Done(result) => Routed::Done(result),
-                        crate::local::StagedAppAction::Ready(stage) => Routed::Action(stage),
+                        crate::local::StagedAppAction::Ready(stage) => {
+                            Routed::Action(Box::new(stage))
+                        }
                     },
                 );
             }
@@ -2333,7 +2336,7 @@ async fn admin_run_function(
     let mut result = match routed {
         Routed::Done(result) => *result,
         Routed::Action(stage) => {
-            crate::server::run_staged_app_action(&snapback, &name, input, stage, "admin").await
+            crate::server::run_staged_app_action(&snapback, &name, input, *stage, "admin").await
         }
     };
     if policy_mode == PolicyAuthMode::Sessions {

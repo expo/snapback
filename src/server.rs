@@ -1143,6 +1143,38 @@ struct PreparedConnectionOpenAuthority {
     managed_authority: bool,
 }
 
+struct ConnectionOpenAttempt<'a> {
+    suggested: Option<String>,
+    previous_token: Option<&'a str>,
+    allow_suggested: bool,
+    prepared: PreparedConnectionOpenAuthority,
+    now_ms: u64,
+    monotonic_now: Instant,
+    auth_invalidation_protocol: Option<u32>,
+}
+
+impl<'a> ConnectionOpenAttempt<'a> {
+    fn new(
+        suggested: Option<String>,
+        previous_token: Option<&'a str>,
+        allow_suggested: bool,
+        prepared: PreparedConnectionOpenAuthority,
+        now_ms: u64,
+        monotonic_now: Instant,
+        auth_invalidation_protocol: Option<u32>,
+    ) -> Self {
+        Self {
+            suggested,
+            previous_token,
+            allow_suggested,
+            prepared,
+            now_ms,
+            monotonic_now,
+            auth_invalidation_protocol,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 struct OpenedConnectionGrant {
     grant: ConnectionGrant,
@@ -1366,32 +1398,11 @@ impl ConnectionRegistryState {
         ))
     }
 
-    fn insert(
-        &mut self,
-        connection_id: String,
-        grant_id: String,
-        token: String,
-        authority: BoundGrantAuthority,
-        managed_authority: bool,
-        now_ms: u64,
-        authorization_invalidation: Option<
-            crate::auth::invalidation::AuthorizationInvalidationConnection,
-        >,
-    ) {
-        self.unused.insert((now_ms, connection_id.clone()));
-        self.index_grant(&connection_id, &authority);
-        self.grants.insert(
-            connection_id,
-            ConnectionGrantRecord {
-                grant_id,
-                token,
-                last_use_ms: now_ms,
-                used: false,
-                managed_authority,
-                authority,
-                authorization_invalidation,
-            },
-        );
+    fn insert(&mut self, connection_id: String, record: ConnectionGrantRecord) {
+        self.unused
+            .insert((record.last_use_ms, connection_id.clone()));
+        self.index_grant(&connection_id, &record.authority);
+        self.grants.insert(connection_id, record);
     }
 
     fn index_grant(&mut self, connection_id: &str, authority: &BoundGrantAuthority) {
@@ -1464,7 +1475,7 @@ impl ConnectionRegistryState {
                 })
                 .unwrap_or(CONNECTION_OPEN_WINDOW);
             let millis = remaining.as_millis().max(1);
-            let seconds = ((millis + 999) / 1_000).min(u128::from(u64::MAX)) as u64;
+            let seconds = millis.div_ceil(1_000).min(u128::from(u64::MAX)) as u64;
             return Err(seconds.max(1));
         }
         bucket.push_back(now);
@@ -1918,14 +1929,17 @@ impl ConnectionRegistry {
     /// registry is empty, so the suggestion is simply adopted afresh.
     fn open_prepared(
         &self,
-        suggested: Option<String>,
-        previous_token: Option<&str>,
-        allow_suggested: bool,
-        prepared: PreparedConnectionOpenAuthority,
-        now_ms: u64,
-        monotonic_now: Instant,
-        auth_invalidation_protocol: Option<u32>,
+        attempt: ConnectionOpenAttempt<'_>,
     ) -> SnapbackResult<OpenedConnectionGrant> {
+        let ConnectionOpenAttempt {
+            suggested,
+            previous_token,
+            allow_suggested,
+            prepared,
+            now_ms,
+            monotonic_now,
+            auth_invalidation_protocol,
+        } = attempt;
         let stale = prepared.bound.stale_error();
         let publication = prepared.bound.publication().clone();
         publication
@@ -2017,12 +2031,15 @@ impl ConnectionRegistry {
                 };
                 grants.insert(
                     connection_id.clone(),
-                    grant_id.clone(),
-                    connection_token.clone(),
-                    prepared.bound,
-                    prepared.managed_authority,
-                    now_ms,
-                    authorization_invalidation.clone(),
+                    ConnectionGrantRecord {
+                        grant_id: grant_id.clone(),
+                        token: connection_token.clone(),
+                        authority: prepared.bound,
+                        managed_authority: prepared.managed_authority,
+                        last_use_ms: now_ms,
+                        used: false,
+                        authorization_invalidation: authorization_invalidation.clone(),
+                    },
                 );
                 Ok(OpenedConnectionGrant {
                     grant: ConnectionGrant {
@@ -2141,7 +2158,7 @@ impl ConnectionRegistry {
     ) -> SnapbackResult<ConnectionGrant> {
         let (incarnation, publication) =
             FencedPublication::anonymous_for_unmanaged_dev_connection();
-        self.open_prepared(
+        self.open_prepared(ConnectionOpenAttempt::new(
             suggested,
             previous_token,
             allow_suggested,
@@ -2156,18 +2173,8 @@ impl ConnectionRegistry {
             now_millis(),
             Instant::now(),
             None,
-        )
+        ))
         .map(|opened| opened.grant)
-    }
-
-    pub(crate) fn authorization_invalidation(
-        &self,
-        connection_id: &str,
-    ) -> Option<crate::auth::invalidation::AuthorizationInvalidationConnection> {
-        self.lock()
-            .grants
-            .get(connection_id)
-            .and_then(|record| record.authorization_invalidation.clone())
     }
 
     fn resolve_room_connection_authority(
@@ -2540,24 +2547,6 @@ fn connection_id_from_request_path(path: &str) -> Option<&str> {
         .or_else(|| path.strip_prefix("/outbox/"))
 }
 
-#[derive(Default, Deserialize)]
-struct ConnectionTokenQuery {
-    #[serde(default)]
-    connection_token: Option<String>,
-}
-
-impl std::fmt::Debug for ConnectionTokenQuery {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ConnectionTokenQuery")
-            .field(
-                "connection_token",
-                &self.connection_token.as_ref().map(|_| "[REDACTED]"),
-            )
-            .finish()
-    }
-}
-
 /// `POST /connection/open` — the connection handshake (ENG-23442). Public by
 /// design: it GRANTS a capability rather than exercising one, exactly like
 /// `/app/ensure`. The profile decides whether a caller-suggested id may be
@@ -2585,15 +2574,17 @@ async fn open_connection(
     let opened = {
         let _effect = admission.effect_guard("connection grant publication")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-        runtime.connections.open_prepared(
-            suggested,
-            previous_token.as_deref(),
-            allow_suggested,
-            prepared.clone(),
-            epoch_now_ms,
-            monotonic_now,
-            auth_invalidation_protocol,
-        )?
+        runtime
+            .connections
+            .open_prepared(ConnectionOpenAttempt::new(
+                suggested,
+                previous_token.as_deref(),
+                allow_suggested,
+                prepared.clone(),
+                epoch_now_ms,
+                monotonic_now,
+                auth_invalidation_protocol,
+            ))?
     };
     let deadline = match record_connection_authenticated_use(&runtime, use_key, &admission).await {
         Ok(deadline) => deadline,
@@ -4290,7 +4281,7 @@ fn session_online_protocol_refusal(
     None
 }
 
-fn live_function_name<'a>(spec: RouteSpec, path: &'a str) -> Option<&'a str> {
+fn live_function_name(spec: RouteSpec, path: &str) -> Option<&str> {
     let suffix = match spec.path {
         "/live/{name}/subscribe" => "/subscribe",
         "/live/{name}/resume" => "/resume",
@@ -9402,7 +9393,10 @@ async fn subscribe_live(
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
-        ..LiveInvalidationAdmission::default()
+        #[cfg(test)]
+        session_mode: false,
+        #[cfg(test)]
+        authority_subject: None,
     };
     let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.subscribe_live_prepared_with_invalidation(&name, input, authority, invalidation)
@@ -9425,7 +9419,10 @@ async fn resume_live(
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
-        ..LiveInvalidationAdmission::default()
+        #[cfg(test)]
+        session_mode: false,
+        #[cfg(test)]
+        authority_subject: None,
     };
     let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.resume_live_prepared_with_invalidation(&name, input, authority, invalidation)
@@ -9484,14 +9481,16 @@ async fn stream_live(
         .on_upgrade(move |socket| {
             live_stream(
                 socket,
-                runtime,
-                connection_act,
-                connection_id,
-                policy_mode,
-                authorization_invalidation_ready,
-                admission,
-                active_mode,
-                admission_epoch,
+                LiveStreamTask {
+                    runtime,
+                    connection_act,
+                    connection_id,
+                    policy_mode,
+                    authorization_invalidation_ready,
+                    admission_controller: admission,
+                    active_mode,
+                    admission_epoch,
+                },
             )
         })
 }
@@ -9664,8 +9663,7 @@ async fn send_live_with_admission(
     }
 }
 
-async fn live_stream(
-    socket: WebSocket,
+struct LiveStreamTask {
     runtime: AppState,
     connection_act: PreparedConnectionAct,
     connection_id: String,
@@ -9673,8 +9671,20 @@ async fn live_stream(
     authorization_invalidation_ready: bool,
     admission_controller: AuthAdmissionController,
     active_mode: AuthMode,
-    mut admission_epoch: u64,
-) {
+    admission_epoch: u64,
+}
+
+async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
+    let LiveStreamTask {
+        runtime,
+        connection_act,
+        connection_id,
+        policy_mode,
+        authorization_invalidation_ready,
+        admission_controller,
+        active_mode,
+        mut admission_epoch,
+    } = task;
     let state = runtime.snapback.clone();
     let ephemeral = runtime.ephemeral.clone();
     let connections = runtime.connections.clone();
@@ -9743,17 +9753,17 @@ async fn live_stream(
                 .unwrap_or(false)
         });
     if !initial_current
-        || drain_and_send(
-            &state,
-            &ephemeral,
-            &connection_id,
+        || drain_and_send(LiveDrain {
+            state: &state,
+            ephemeral: &ephemeral,
+            connection_id: &connection_id,
             generation,
-            &writer,
-            &initial_admission,
-            &connections,
-            &connection_act,
+            writer: &writer,
+            admission: &initial_admission,
+            connections: &connections,
+            connection_act: &connection_act,
             reproject_authorization,
-        )
+        })
         .await
         .is_break()
     {
@@ -10029,17 +10039,17 @@ async fn live_stream(
             if !current {
                 break 'stream;
             }
-            if drain_and_send(
-                &state,
-                &ephemeral,
-                &connection_id,
+            if drain_and_send(LiveDrain {
+                state: &state,
+                ephemeral: &ephemeral,
+                connection_id: &connection_id,
                 generation,
-                &writer,
-                &admission,
-                &connections,
-                &connection_act,
+                writer: &writer,
+                admission: &admission,
+                connections: &connections,
+                connection_act: &connection_act,
                 reproject_authorization,
-            )
+            })
             .await
             .is_break()
             {
@@ -10096,17 +10106,30 @@ async fn teardown_live_stream(
 /// Drain a connection's outbox and send each message. The drain reaches the
 /// room authority's per-connection queue directly — no global mutex (L9).
 /// Returns `Break` if the socket send failed (the caller should tear down).
-async fn drain_and_send(
-    state: &SharedSnapback,
-    ephemeral: &EphemeralApi,
-    connection_id: &str,
+struct LiveDrain<'a> {
+    state: &'a SharedSnapback,
+    ephemeral: &'a EphemeralApi,
+    connection_id: &'a str,
     generation: u64,
-    writer: &mpsc::Sender<AdmittedLiveWrite>,
-    admission: &AdmissionLease,
-    connections: &ConnectionRegistry,
-    connection_act: &PreparedConnectionAct,
+    writer: &'a mpsc::Sender<AdmittedLiveWrite>,
+    admission: &'a AdmissionLease,
+    connections: &'a ConnectionRegistry,
+    connection_act: &'a PreparedConnectionAct,
     reproject_authorization: bool,
-) -> std::ops::ControlFlow<()> {
+}
+
+async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
+    let LiveDrain {
+        state,
+        ephemeral,
+        connection_id,
+        generation,
+        writer,
+        admission,
+        connections,
+        connection_act,
+        reproject_authorization,
+    } = drain;
     // Re-run durable projections before acquiring room permits: a prepared
     // authorization commit holds the write lane while waiting for those
     // permits, so taking one and then waiting on `with_snapback` would invert
@@ -10543,6 +10566,7 @@ impl From<String> for LiveSocketResponse {
     }
 }
 
+#[cfg(test)]
 fn handle_live_socket_text(
     ephemeral: &EphemeralApi,
     connection_id: &str,
@@ -10928,11 +10952,10 @@ async fn drain_outbox(
     {
         let projection_connection = connection_act.connection_id.clone();
         let rerun_admission = admission.clone();
-        let projections = with_snapback(&runtime.snapback, move |snapback| {
+        with_snapback(&runtime.snapback, move |snapback| {
             snapback.authorization_invalidation_frames(&projection_connection, &rerun_admission)
         })
-        .await?;
-        projections
+        .await?
     } else {
         Vec::new()
     };
@@ -11599,9 +11622,6 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE"
         | "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN"
         | "SNAPBACK_SCHEMA_PARSE_FAILED"
-        | "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING"
-        | "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE"
-        | "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN"
         | "SNAPBACK_SCHEMA_SYSTEM_FIELD"
         | "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND"
         | "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION"
@@ -11650,7 +11670,7 @@ mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
         ACTION_WORKER_LIMIT_MAX, AdmissionLease, CRON_DISPATCH_CONCURRENCY_DEFAULT,
-        CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionTokenQuery, DetachedActionHost,
+        CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
         DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
         SharedSnapback, app, configured_action_worker_limit, configured_cron_dispatch_concurrency,
         coordinated_app_reset, dispatch_cron_tick_background, parse_action_watchdog_timeout,
@@ -14508,13 +14528,6 @@ mod tests {
         let open_debug = format!("{open:?}");
         assert!(!open_debug.contains(SENTINEL), "{open_debug}");
         assert!(open_debug.contains("[REDACTED]"), "{open_debug}");
-
-        let query = ConnectionTokenQuery {
-            connection_token: Some(SENTINEL.to_owned()),
-        };
-        let query_debug = format!("{query:?}");
-        assert!(!query_debug.contains(SENTINEL), "{query_debug}");
-        assert!(query_debug.contains("[REDACTED]"), "{query_debug}");
     }
 
     fn has_cfg_test(attributes: &[syn::Attribute]) -> bool {
@@ -14909,9 +14922,6 @@ mod tests {
         "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE",
         "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN",
         "SNAPBACK_SCHEMA_PARSE_FAILED",
-        "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING",
-        "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE",
-        "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN",
         "SNAPBACK_SCHEMA_SYSTEM_FIELD",
         "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND",
         "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION",
@@ -15088,6 +15098,7 @@ mod tests {
         "SNAPBACK_AUTH_INVALIDATION_RETIREMENT_INVALID",
         "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
         "SNAPBACK_BENCH_EPHEMERAL",
+        "SNAPBACK_BENCH_READ_LANE_STALLED",
         "SNAPBACK_BENCH_TEMPDIR",
         "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
         "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
@@ -15974,7 +15985,7 @@ globalThis.__snapbackHandlers = {
         for mismatch in mismatches {
             let registry = ConnectionRegistry::default();
             let opened = registry
-                .open_prepared(
+                .open_prepared(ConnectionOpenAttempt::new(
                     Some("exact-authority".to_owned()),
                     None,
                     true,
@@ -15982,10 +15993,10 @@ globalThis.__snapbackHandlers = {
                     1,
                     Instant::now(),
                     None,
-                )
+                ))
                 .expect("seed exact grant");
             let error = registry
-                .open_prepared(
+                .open_prepared(ConnectionOpenAttempt::new(
                     Some(opened.grant.connection_id.clone()),
                     Some(&opened.grant.connection_token),
                     true,
@@ -15993,7 +16004,7 @@ globalThis.__snapbackHandlers = {
                     2,
                     Instant::now(),
                     None,
-                )
+                ))
                 .expect_err("identity drift must invalidate and refuse reuse");
             assert_eq!(
                 error.diagnostic.code,
@@ -16006,7 +16017,7 @@ globalThis.__snapbackHandlers = {
 
         let registry = ConnectionRegistry::default();
         let opened = registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some("deadline-only".to_owned()),
                 None,
                 true,
@@ -16014,7 +16025,7 @@ globalThis.__snapbackHandlers = {
                 1,
                 Instant::now(),
                 None,
-            )
+            ))
             .expect("seed deadline grant");
         let later = synthetic_session_bound(
             &incarnation,
@@ -16026,7 +16037,7 @@ globalThis.__snapbackHandlers = {
             publication,
         );
         let reused = registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some(opened.grant.connection_id.clone()),
                 Some(&opened.grant.connection_token),
                 false,
@@ -16034,7 +16045,7 @@ globalThis.__snapbackHandlers = {
                 2,
                 Instant::now(),
                 None,
-            )
+            ))
             .expect("deadline-only change reuses exact grant");
         assert_eq!(reused.grant, opened.grant);
         assert_eq!(reused.grant_id, opened.grant_id);
@@ -16092,7 +16103,7 @@ globalThis.__snapbackHandlers = {
             })
         };
         let legacy = registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some("legacy".to_owned()),
                 None,
                 true,
@@ -16100,11 +16111,11 @@ globalThis.__snapbackHandlers = {
                 1,
                 Instant::now(),
                 None,
-            )
+            ))
             .expect("legacy grant");
         assert!(legacy.grant.authorization_invalidation.is_none());
         let negotiated = registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some("negotiated".to_owned()),
                 None,
                 true,
@@ -16112,7 +16123,7 @@ globalThis.__snapbackHandlers = {
                 2,
                 Instant::now(),
                 Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
-            )
+            ))
             .expect("negotiated grant");
         let descriptor = negotiated
             .grant
@@ -16136,7 +16147,7 @@ globalThis.__snapbackHandlers = {
             6
         );
         let reopened = registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some(negotiated.grant.connection_id.clone()),
                 Some(&negotiated.grant.connection_token),
                 false,
@@ -16144,7 +16155,7 @@ globalThis.__snapbackHandlers = {
                 3,
                 Instant::now(),
                 Some(1),
-            )
+            ))
             .expect("idempotent reopen");
         assert_eq!(
             reopened.grant.authorization_invalidation,
@@ -16238,7 +16249,7 @@ globalThis.__snapbackHandlers = {
         let second_session = Uuid::now_v7().to_string();
         for connection_id in ["session-a-1", "session-a-2"] {
             registry
-                .open_prepared(
+                .open_prepared(ConnectionOpenAttempt::new(
                     Some(connection_id.to_owned()),
                     None,
                     true,
@@ -16254,11 +16265,11 @@ globalThis.__snapbackHandlers = {
                     1,
                     Instant::now(),
                     None,
-                )
+                ))
                 .expect("session grant");
         }
         registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some("session-b".to_owned()),
                 None,
                 true,
@@ -16274,10 +16285,10 @@ globalThis.__snapbackHandlers = {
                 1,
                 Instant::now(),
                 None,
-            )
+            ))
             .expect("sibling session grant");
         registry
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some("anonymous".to_owned()),
                 None,
                 true,
@@ -16288,7 +16299,7 @@ globalThis.__snapbackHandlers = {
                 1,
                 Instant::now(),
                 None,
-            )
+            ))
             .expect("anonymous grant");
         registry.lock().assert_grant_indexes_consistent();
 
@@ -16385,7 +16396,7 @@ globalThis.__snapbackHandlers = {
             .expect("prepare anonymous connection");
         let opened = state
             .connections
-            .open_prepared(
+            .open_prepared(ConnectionOpenAttempt::new(
                 Some("premark-race".to_owned()),
                 None,
                 true,
@@ -16393,7 +16404,7 @@ globalThis.__snapbackHandlers = {
                 super::now_millis(),
                 Instant::now(),
                 None,
-            )
+            ))
             .expect("open managed grant");
         let act = state
             .connections
@@ -16501,40 +16512,41 @@ globalThis.__snapbackHandlers = {
             after_deadline > before_deadline,
             "a successful current-bearer open is a qualifying sliding use"
         );
-        let state_guard = state.connections.lock();
-        let record = state_guard
-            .grants
-            .get(&connection_id)
-            .expect("stored grant");
-        let BoundGrantAuthority::Session {
-            session_id,
-            user_id,
-            provider,
-            generation,
-            deadline_ms,
-            ..
-        } = &record.authority
-        else {
-            panic!("current bearer must mint a session grant")
-        };
-        let ResolvedAppAuthority::Session {
-            session_id: projected_session_id,
-            user_id: projected_user_id,
-            provider: projected_provider,
-            generation: projected_generation,
-            ..
-        } = projected
-        else {
-            panic!("fixture bearer must project session authority")
-        };
-        assert_eq!(session_id, &projected_session_id);
-        assert_eq!(user_id, &projected_user_id);
-        assert_eq!(provider, &projected_provider);
-        assert_eq!(*generation, projected_generation);
-        assert_eq!(*deadline_ms, after_deadline);
-        assert!(!format!("{:?}", record.authority).contains(&predecessor));
-        state_guard.assert_grant_indexes_consistent();
-        drop(state_guard);
+        {
+            let state_guard = state.connections.lock();
+            let record = state_guard
+                .grants
+                .get(&connection_id)
+                .expect("stored grant");
+            let BoundGrantAuthority::Session {
+                session_id,
+                user_id,
+                provider,
+                generation,
+                deadline_ms,
+                ..
+            } = &record.authority
+            else {
+                panic!("current bearer must mint a session grant")
+            };
+            let ResolvedAppAuthority::Session {
+                session_id: projected_session_id,
+                user_id: projected_user_id,
+                provider: projected_provider,
+                generation: projected_generation,
+                ..
+            } = projected
+            else {
+                panic!("fixture bearer must project session authority")
+            };
+            assert_eq!(session_id, &projected_session_id);
+            assert_eq!(user_id, &projected_user_id);
+            assert_eq!(provider, &projected_provider);
+            assert_eq!(*generation, projected_generation);
+            assert_eq!(*deadline_ms, after_deadline);
+            assert!(!format!("{:?}", record.authority).contains(&predecessor));
+            state_guard.assert_grant_indexes_consistent();
+        }
 
         let reopened = router
             .clone()
