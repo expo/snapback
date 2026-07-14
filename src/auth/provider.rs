@@ -729,6 +729,11 @@ impl fmt::Debug for PlannedChallengeConsumption {
     }
 }
 
+// The issue variant intentionally owns the complete secret-bearing plan until
+// the coordinator commits or rejects it. Boxing would add an allocation and
+// obscure that short-lived ownership boundary solely to shrink the reject
+// representation.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum PlannedExchange {
     Reject,
     Issue(ProviderSessionIssuancePlan),
@@ -3426,7 +3431,7 @@ fn planned_session_issuance_transaction(
         let Some((key, submitted_code)) = exchange_proof else {
             return Err(internal_state_snapback());
         };
-        let durable: Option<(String, Vec<u8>, String, i64, i64, i64, bool, bool)> = transaction
+        let durable = transaction
             .query_row(
                 "SELECT canonical_address, code_digest, key_id, attempts,
                         max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
@@ -3434,32 +3439,30 @@ fn planned_session_issuance_transaction(
                  FROM _auth_verification_codes WHERE challenge_id = ?1",
                 params![challenge.challenge_id],
                 |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                        row.get(5)?,
-                        row.get(6)?,
-                        row.get(7)?,
-                    ))
+                    Ok(ChallengeTransactionRow {
+                        address: row.get(0)?,
+                        code_digest: Zeroizing::new(row.get(1)?),
+                        key_id: row.get(2)?,
+                        attempts: row.get(3)?,
+                        max_attempts: row.get(4)?,
+                        expires_at_ms: row.get(5)?,
+                        consumed: row.get(6)?,
+                        superseded: row.get(7)?,
+                    })
                 },
             )
             .optional()?;
-        let Some((address, digest, key_id, attempts, max_attempts, expires, consumed, superseded)) =
-            durable
-        else {
+        let Some(durable) = durable else {
             return Ok(PlannedIssuanceCommit::PredecessorChanged);
         };
-        if address != plan.address.as_str()
-            || digest.as_slice() != challenge.code_digest
-            || key_id != challenge.key_id
-            || u32::try_from(attempts).ok() != Some(challenge.expected_attempts)
-            || u32::try_from(max_attempts).ok() != Some(challenge.max_attempts)
-            || u64::try_from(expires).ok() != Some(challenge.expires_at_ms)
-            || consumed
-            || superseded
+        if durable.address != plan.address.as_str()
+            || durable.code_digest.as_slice() != challenge.code_digest
+            || durable.key_id != challenge.key_id
+            || u32::try_from(durable.attempts).ok() != Some(challenge.expected_attempts)
+            || u32::try_from(durable.max_attempts).ok() != Some(challenge.max_attempts)
+            || u64::try_from(durable.expires_at_ms).ok() != Some(challenge.expires_at_ms)
+            || durable.consumed
+            || durable.superseded
             || plan.now_ms >= challenge.expires_at_ms
             || challenge.expected_attempts >= challenge.max_attempts
         {
@@ -4418,11 +4421,18 @@ mod tests {
     }
 
     #[test]
-    fn persistent_keyring_verifies_an_independently_bound_authorized_lease() {
+    fn file_backed_keyring_reopens_and_verifies_an_independently_bound_authorized_lease() {
         let now_ms = 1_800_000_000_000;
-        let (provider, _database) = provider_database(now_ms);
+        let directory = tempfile::tempdir().expect("keyring directory");
+        let database_path = directory.path().join("provider.sqlite");
+        let issuing_keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
+        issuing_keyring
+            .load_or_mint_initial(now_ms, &OsRandom)
+            .expect("initial file-backed keyring");
+        let issuing_provider = AuthProvider::new(AuthProviderProfile::Test, issuing_keyring)
+            .expect("issuing auth provider");
         let incarnation = "01890f3c-9d5b-7000-8000-000000000001".to_owned();
-        let lease = provider
+        let lease = issuing_provider
             .issue_authorized_lease_at(
                 AuthorizedLeaseIssue {
                     lease_id: "lease_provider_1".to_owned(),
@@ -4459,9 +4469,17 @@ mod tests {
                 "local-dev-sqlite-ibex",
                 "provider-test",
             )
-            .expect("issue through persistent keyring");
+            .expect("issue through file-backed keyring");
+        drop(issuing_provider);
+
+        let verifying_keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
+        verifying_keyring
+            .load_existing()
+            .expect("reopen file-backed keyring");
+        let verifying_provider = AuthProvider::new(AuthProviderProfile::Test, verifying_keyring)
+            .expect("verifying auth provider");
         let expectation = AuthorizedLeaseExpectation::from(&lease);
-        let verified = provider
+        let verified = verifying_provider
             .verify_authorized_lease_at(
                 &lease,
                 &expectation,
@@ -4476,7 +4494,7 @@ mod tests {
 
         let mut wrong_binding = expectation;
         wrong_binding.query_key = "myHand:{game=2}".to_owned();
-        let error = provider
+        let error = verifying_provider
             .verify_authorized_lease_at(
                 &lease,
                 &wrong_binding,
