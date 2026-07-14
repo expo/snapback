@@ -1,4 +1,4 @@
-// Composed format-5 LLP 0056/0053 principal/data + authority-instance/queue tests.
+// Composed format-5 LLP 0057/0053 principal/data + authority-instance/queue tests.
 
 import assert from 'node:assert/strict';
 
@@ -527,7 +527,7 @@ const coordinatorAt = async (authority) => {
   assert.equal(bound.legacyV2Stranded[0].replayable, false);
 }
 
-// The real coordinator participant derives every LLP 0056 transition-table
+// The real coordinator participant derives every LLP 0057 transition-table
 // row from the exact predecessor/successor authorities. Mounting the successor
 // authorization scope must not resurrect any collection the durable barrier
 // deleted or redacted.

@@ -462,7 +462,7 @@ fn reset_and_seed_transaction(
     seed: Option<SeedData>,
     successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
 ) -> SnapbackResult<Option<MutationOutput>> {
-    // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state is
+    // @ref LLP 0055#catalog-write-and-lifecycle-rules — auth state is
     // deleted in dependency order inside the same transaction as app reset,
     // while the protected catalog DDL and marker remain installed.
     auth::reset_auth_catalog_in(tx)?;
@@ -488,7 +488,7 @@ fn reset_and_seed_transaction(
         "DELETE FROM _snapback_meta WHERE key = ?1",
         params![META_CRON_STATE],
     )?;
-    // @ref LLP 0056#reset-restore-and-stream-publication — the successor is
+    // @ref LLP 0057#reset-restore-and-stream-publication — the successor is
     // durable in the same transaction as every destructive reset effect.
     auth_stream::rotate_authorization_stream_incarnation_in(tx, successor)?;
     tx.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
@@ -531,10 +531,10 @@ impl LocalDatabase {
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
         let path = path.as_ref().to_path_buf();
         let conn = Connection::open(&path)?;
-        // @ref LLP 0055#corrupt-state-boundary — inspect and cross-validate all
+        // @ref LLP 0056#corrupt-state-boundary — inspect and cross-validate all
         // four mode keys before WAL configuration or any additive infra write.
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
-        // @ref LLP 0054#reservation — a stored manifest is an admission
+        // @ref LLP 0055#reservation — a stored manifest is an admission
         // boundary on every reopen, not only when a new schema is applied.
         // Probe and validate it before WAL configuration or any additive infra
         // migration so a reserved-name database reaches the collision-recovery
@@ -4455,7 +4455,7 @@ fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
 /// case. Keep this predicate shared by manifest and runtime name resolvers so
 /// no casing variant becomes an alternate path into the protected catalog.
 ///
-/// @ref LLP 0054#reservation — absolute ASCII-case-insensitive reservation.
+/// @ref LLP 0055#reservation — absolute ASCII-case-insensitive reservation.
 pub(crate) fn is_auth_reserved_identifier(value: &str) -> bool {
     let folded = value.to_ascii_lowercase();
     folded == "_auth" || folded.starts_with("_auth_")

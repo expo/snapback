@@ -4,8 +4,8 @@
 //! backup. Restore is offline under the target instance lock. This module owns
 //! artifact validation/publication, never process routing or CLI policy.
 
-// @ref LLP 0054#consistent-backup — one quiescence boundary binds an online SQLite image to the exact validated keyring bytes.
-// @ref LLP 0054#restore — a restored instance directory is staged owner-only and published by one same-filesystem rename.
+// @ref LLP 0055#consistent-backup — one quiescence boundary binds an online SQLite image to the exact validated keyring bytes.
+// @ref LLP 0055#restore — a restored instance directory is staged owner-only and published by one same-filesystem rename.
 
 use crate::auth::crypto::{AuthKeyId, RandomSource, encode_base64url};
 use crate::auth::keyring::AuthKeyringStore;

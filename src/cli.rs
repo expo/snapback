@@ -26,7 +26,7 @@ const DEFAULT_PORT_RANGE_END: u16 = 4387;
 /// The one-file cold-start carrier for a complete deployment pair. Keeping
 /// the outer DTO closed prevents a second, unvalidated authority channel from
 /// being smuggled beside the exact schema/functions/seed tuple.
-// @ref LLP 0055#cold-startup-artifact-carrier — one trusted file carries the complete deployment generation.
+// @ref LLP 0056#cold-startup-artifact-carrier — one trusted file carries the complete deployment generation.
 pub(crate) fn read_auth_startup_artifacts(
     path: &Path,
 ) -> crate::diagnostic::SnapbackResult<crate::auth::mode::StartupArtifacts> {
@@ -93,7 +93,7 @@ fn quarantine_pending_startup(
 /// Resolve the four durable auth-mode keys and the one cold artifact carrier
 /// before listener bind. Valid pending failures become a durable diagnostic
 /// posture; settled-state failures remain nonmutating startup refusals.
-// @ref LLP 0055#consume-ordering-dev-to-sessions — every fallible pair/provider/readiness operation precedes consume and listener bind.
+// @ref LLP 0056#consume-ordering-dev-to-sessions — every fallible pair/provider/readiness operation precedes consume and listener bind.
 async fn compose_auth_mode_startup(
     args: &Args,
     snapback: &mut LocalSnapback,
@@ -302,7 +302,7 @@ async fn compose_auth_mode_startup(
     }
 }
 
-// @ref LLP 0057#d1-plaintext-listener-fence — sessions have no plaintext
+// @ref LLP 0058#d1-plaintext-listener-fence — sessions have no plaintext
 // non-loopback override; desired sessions are fenced before listener bind too.
 fn validate_auth_transport(
     bind_ip: IpAddr,
@@ -666,7 +666,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
 /// Run physical backup only after acquiring the same instance lock a server
 /// owns. The process-local maintenance gate is acquired before opening the
 /// database, so keyring validation and SQLite backup share one quiesced unit.
-// @ref LLP 0054#consistent-backup — the CLI refuses live ownership and publishes SQLite plus exact keyring bytes atomically.
+// @ref LLP 0055#consistent-backup — the CLI refuses live ownership and publishes SQLite plus exact keyring bytes atomically.
 async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::Result<()> {
     let database_path = resolve_database_path(database_path)?;
     anyhow::ensure!(
@@ -711,7 +711,7 @@ async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::R
 /// Restore always targets a database inside a wholly absent instance
 /// directory. The returned UUIDv7 is deliberately non-secret and is the only
 /// value the next startup may consume as destructive restore authority.
-// @ref LLP 0054#restore — restore publishes one new directory and requires a matching pre-bind startup declaration.
+// @ref LLP 0055#restore — restore publishes one new directory and requires a matching pre-bind startup declaration.
 fn auth_restore(backup_directory: &Path, target_database: &Path) -> anyhow::Result<()> {
     let backup_directory = std::fs::canonicalize(backup_directory).with_context(|| {
         format!(
@@ -1295,7 +1295,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    // @ref LLP 0057#d5-hosted-readiness-is-conjunctive — reject an explicit
+    // @ref LLP 0058#d5-hosted-readiness-is-conjunctive — reject an explicit
     // hosted request before opening target state; operator config is a request,
     // never authority for target-owned TLS/proxy/throttle/invalidation facts.
     crate::auth::deployment::validate_auth_deployment(
@@ -1441,7 +1441,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // Assemble exactly one provider before listener bind. This is inspection,
     // not activation: an uninitialized catalog remains dormant and no keyring
     // is minted; a marked catalog validates only its existing sibling.
-    // @ref LLP 0054#activation-ordering — startup never activates the auth catalog or replaces a lost ReadyV1 keyring.
+    // @ref LLP 0055#activation-ordering — startup never activates the auth catalog or replaces a lost ReadyV1 keyring.
     let startup_profile = ServerProfile::for_bind_ip(bind_ip);
     let mut auth_runtime = crate::auth::runtime::AuthRuntime::inspect(
         &mut snapback,
@@ -1454,7 +1454,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // A restored directory is quarantined until the exact declaration emitted
     // by `auth restore` is consumed. This runs under the instance lock and
     // before listener bind, so no request can observe backed-up sessions.
-    // @ref LLP 0054#restore — declared restore is an idempotent pre-bind revocation/purge transaction; omission never silently serves the backup.
+    // @ref LLP 0055#restore — declared restore is an idempotent pre-bind revocation/purge transaction; omission never silently serves the backup.
     if let Some(db_path) = database_path.as_deref() {
         let declaration_path = crate::auth::lifecycle::restore_declaration_path(db_path)?;
         let declaration_present = match std::fs::symlink_metadata(&declaration_path) {
@@ -1597,7 +1597,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     // Rebuild from the exact post-compose, post-restore, post-GC durable state
     // before ownership moves into SharedSnapback or a listener can serve.
-    // @ref LLP 0056#startup-rebuild-and-deadline-derivation — pre-bind publication is all-or-nothing.
+    // @ref LLP 0057#startup-rebuild-and-deadline-derivation — pre-bind publication is all-or-nothing.
     let auth_coordinator = auth_runtime.build_coordinator(&mut snapback)?;
 
     // A sessions deployment cannot publish an app-data listener until its
@@ -1669,7 +1669,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let auth_terminal_sink = app_state.auth_terminal_lifecycle.expiry_sink();
     // The expiry authority is process-critical in sessions mode. Construct it,
     // wait for its running handshake, and only then bind any listener.
-    // @ref LLP 0056#startup-rebuild-and-deadline-derivation — a sessions
+    // @ref LLP 0057#startup-rebuild-and-deadline-derivation — a sessions
     //   listener cannot exist without a supervised terminal worker.
     let mut auth_expiry_worker = crate::auth::runtime::spawn_auth_expiry_worker(
         auth_coordinator.clone(),
@@ -1894,7 +1894,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 /// admission has failed and the read-only catalog probe classified that exact
 /// failure. Every eligibility/authority input is settled before listener bind;
 /// this function never constructs `LocalSnapback` or the ordinary app router.
-// @ref LLP 0054#reachability — recovery startup exposes only health and the selected, AdminWrite+sbic-gated rescue carrier, and remains restart-required after success.
+// @ref LLP 0055#reachability — recovery startup exposes only health and the selected, AdminWrite+sbic-gated rescue carrier, and remains restart-required after success.
 #[allow(clippy::too_many_arguments)]
 async fn run_auth_collision_recovery(
     args: &Args,
@@ -3953,7 +3953,7 @@ mod tests {
                 .unwrap_err();
         assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_TRANSPORT_INSECURE");
 
-        // This proves only the local listener rule. LLP 0057 deliberately does
+        // This proves only the local listener rule. LLP 0058 deliberately does
         // not infer anything about a reverse proxy from a loopback address.
         super::validate_auth_transport(
             "::1".parse().unwrap(),

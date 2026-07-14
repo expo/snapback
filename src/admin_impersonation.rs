@@ -5,7 +5,7 @@
 //! the owner-only ready-file sibling, then the server drops it. Ordinary admin,
 //! console, secret-read, session, and keyring material are never accepted here.
 //!
-//! @ref LLP 0054#impersonationcapability-carrier — one independent per-boot
+//! @ref LLP 0055#impersonationcapability-carrier — one independent per-boot
 //!   `sbic_` gates every impersonation effect and is never a browser credential.
 //! @ref LLP 0031#independent-policy-axes — the effect capability composes with,
 //!   but cannot replace, the operation's ordinary AdminWrite path credential.

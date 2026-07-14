@@ -86,7 +86,7 @@ export default defineSchema({ todos });
   assert(diagnostics.some((d) => d.code === 'SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING'));
 }
 
-// LLP 0054 reservation is ASCII-case-insensitive at both codegen scopes.
+// LLP 0055 reservation is ASCII-case-insensitive at both codegen scopes.
 for (const table of ['_auth', '_auth_users', '_AUTH_USERS', '_AuTh_Users']) {
   const diagnostics = await invalidCase({
     schema: `

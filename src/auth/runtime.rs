@@ -5,13 +5,13 @@
 //! provider, reports its closed readiness fact, and coordinates lifecycle work
 //! ahead of the outer app-instance lock.
 //!
-//! @ref LLP 0054#activation-ordering — ordinary startup never creates a
+//! @ref LLP 0055#activation-ordering — ordinary startup never creates a
 //! catalog or replaces a missing keyring for an already-marked catalog.
-//! @ref LLP 0054#garbage-collection — ReadyV1 runs bounded startup and
+//! @ref LLP 0055#garbage-collection — ReadyV1 runs bounded startup and
 //! 30-second maintenance passes; an uninitialized catalog stays dormant.
-//! @ref LLP 0054#concurrency-locks-and-linearization — exclusive auth
+//! @ref LLP 0055#concurrency-locks-and-linearization — exclusive auth
 //! maintenance is acquired before the outer app-instance/database lock.
-//! @ref LLP 0054#security-and-redaction — readiness exposes one closed public
+//! @ref LLP 0055#security-and-redaction — readiness exposes one closed public
 //! fact and a redacted diagnostic, never keyring details.
 
 use std::path::Path;
@@ -246,7 +246,7 @@ impl AuthRuntime {
     /// have an empty session topology but still participate in reset/restart
     /// incarnation continuity.
     ///
-    /// @ref LLP 0056#startup-rebuild-and-deadline-derivation — migration,
+    /// @ref LLP 0057#startup-rebuild-and-deadline-derivation — migration,
     /// snapshot validation, invariant checking, and publication are pre-bind.
     pub(crate) fn build_coordinator(
         &self,
@@ -305,7 +305,7 @@ pub(crate) async fn run_periodic_gc_pass(
     let now_ms = provider.now_ms();
     // Durable deletion follows, and can never race ahead of, process-local
     // terminalization. A projection failure aborts this pass before SQLite.
-    // @ref LLP 0056#operation-specific-publication — the projection owns live
+    // @ref LLP 0057#operation-specific-publication — the projection owns live
     // expiry authority; GC only reclaims rows after that authority is closed.
     let expired = coordinator
         .expire_due(now_ms, provider.monotonic_now())

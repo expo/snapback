@@ -1,4 +1,4 @@
-# LLP 0056: Session projection and client authority barrier protocol
+# LLP 0057: Session projection and client authority barrier protocol
 
 **Type:** Spec
 **Status:** Draft
@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
 **Revised:** 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
-**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0054, LLP 0055
+**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0055, LLP 0056
 
 ## Summary
 
@@ -26,7 +26,7 @@ and client compare-and-commit mechanics that 0039 deliberately delegates in
 The existing corpus already covers the topic at design altitude: LLP 0011 owns
 the parent auth model, LLP 0039 owns the program and landing order, LLP 0043
 owns the two-axis offline policy, LLP 0052 owns Contract's host-state boundary,
-LLP 0054 owns durable provider/session state, and LLP 0055 owns staged mode and
+LLP 0055 owns durable provider/session state, and LLP 0056 owns staged mode and
 the bootstrap handshake. A companion Spec is nevertheless required because
 none of those documents defines item 5's executable crash and interleaving
 protocol, and both 0039 and 0053 are frozen.
@@ -101,9 +101,9 @@ This Spec owns:
 This Spec consumes without re-owning:
 
 - LLP 0031's route and operation policies;
-- LLP 0054's provider DTOs, credential hashing, durable session rows,
+- LLP 0055's provider DTOs, credential hashing, durable session rows,
   supersession grace, cap, refresh-family alarm, reset, and restore primitives;
-- LLP 0055's shared invocation gate, staged mode, four protocol headers, and
+- LLP 0056's shared invocation gate, staged mode, four protocol headers, and
   readiness object;
 - LLP 0053's future invalidation declarations and later-item dispositions; and
 - LLP 0043's independent `retainedReads` and `queuedReplay` policy axes.
@@ -147,7 +147,7 @@ duplicate keys and unknown fields.
 | Terminal WebSocket close code | `4401` |
 | Terminal WebSocket close reason | `auth_error` |
 
-`projectionStartupId` is distinct from LLP 0055's opaque
+`projectionStartupId` is distinct from LLP 0056's opaque
 `serverStartupNonce`; this Spec neither defines nor re-encodes that handshake
 value. The ticket counter begins at one and is never reused in a process.
 Counter overflow fails the affected mutation closed with
@@ -204,7 +204,7 @@ undeclared external mechanism has no continuity guarantee.
 ### Projected session
 
 `SessionProjection` is the one-process authorization authority around LLP
-0054's durable catalog. It contains no plaintext bearer, verification code,
+0055's durable catalog. It contains no plaintext bearer, verification code,
 email address, or admin credential.
 
 ```rust
@@ -256,7 +256,7 @@ invariants are normative:
 
 - `by_session` has at most one canonical entry per durable session id.
 - A live session has exactly one `Current` token digest. Superseded token
-  tombstones remain distinguishable through LLP 0054's grace/absolute horizon
+  tombstones remain distinguishable through LLP 0055's grace/absolute horizon
   and can trigger a family alarm, but never mint a new connection grant.
 - `deadline_index` has exactly one entry matching each current session's
   generation and effective in-memory deadline.
@@ -401,7 +401,7 @@ operations. Neither substitutes for the other.
 ### Operation-specific publication
 
 - **Logout, cap eviction, and refresh-family alarm:** `Begin` blocks the exact
-  session generation. Commit records LLP 0054's revocation and token outcome.
+  session generation. Commit records LLP 0055's revocation and token outcome.
   Finalize installs the terminal state and generation and then invalidates every
   grant/effect for the predecessor generation.
 - **Expiry:** observation of either authoritative deadline installs
@@ -420,12 +420,12 @@ operations. Neither substitutes for the other.
   from predecessor-current to predecessor-superseded/successor-current.
   Rollback restores predecessor availability by exact overlay/ticket removal
   only if no sibling terminal state won. The session generation remains LLP
-  0054's durable value unless that owning protocol advances it.
+  0055's durable value unless that owning protocol advances it.
 - **Sliding-use extension:** a positive use may commit a coalesced durable
   extension without a precommit unavailability marker because failure leaves a
   shorter safe deadline. It publishes a later deadline only after commit and
   only if `(sessionId, generation)` still matches. In-memory extensions that do
-  not cross LLP 0054's coalescing threshold remain bounded by the absolute
+  not cross LLP 0055's coalescing threshold remain bounded by the absolute
   expiry and disappear on restart. The no-write path updates
   `deadline_index` and the leaf together under topology-then-session lock after
   the qualifying act. The coalesced-write path releases all projection locks,
@@ -446,7 +446,7 @@ rewired so their only public success path includes propagation. A route,
 refresh handler, alarm, or cap path cannot acknowledge success after durable
 commit while discarding projection finalization.
 
-The exact sliding-use callers remain LLP 0054's: a successfully authenticated
+The exact sliding-use callers remain LLP 0055's: a successfully authenticated
 app-data request, a current-bearer connection open, and generation-valid
 live-socket liveness extend the session. An ordinary request accepted with a
 superseded token inside its ten-second grace is also an authenticated use.
@@ -554,9 +554,9 @@ grant contains neither bearer digest, plaintext bearer, email address,
 
 Grant opening resolves a presented bearer through `SessionProjection`. Only a
 current token with an available, unexpired session can mint a session grant. A
-superseded token remains attributable for LLP 0054's tiered request/refresh and
+superseded token remains attributable for LLP 0055's tiered request/refresh and
 family-alarm rules but never mints or renews a grant during its grace interval.
-This narrow grant rule does not change LLP 0054's ordinary finite-request rule:
+This narrow grant rule does not change LLP 0055's ordinary finite-request rule:
 a superseded family token is honored inside its inclusive ten-second grace,
 fails `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` outside grace, and cannot be used to
 refresh a delegated connection capability.
@@ -602,7 +602,7 @@ exact-`previousToken` attempts. Ordering is exact:
 
 The invalid buckets are separate from session buckets, so a hostile anonymous
 local page cannot consume every current session's open allowance. Malformed and
-unknown credentials retain LLP 0054's same public invalid-credential response;
+unknown credentials retain LLP 0055's same public invalid-credential response;
 throttling returns only HTTP 429 `SNAPBACK_AUTH_THROTTLED`, with no bucket kind,
 token classification, session fact, or identifier. A superseded token may map
 to its known session bucket for accounting while still being refused a grant.
@@ -638,7 +638,7 @@ Possession of a random grant token is necessary but insufficient. A
 connection-token act first clones its binding snapshot and leaf handle under
 the registry mutex and releases it. A direct finite bearer request instead
 carries the projection-resolved `PreparedAuthority` and leaf handles from the
-shared LLP 0055 invocation gate; it does not invent a connection grant. Both
+shared LLP 0056 invocation gate; it does not invent a connection grant. Both
 paths then:
 
 1. validate matching stream incarnation under `StreamFence`;
@@ -679,7 +679,7 @@ type EffectFenceV1 = {
 is null only for a direct finite bearer request; queued, live, outbox,
 ephemeral, and room effects require a non-null bound grant. Finite-response
 buffers, durable outbox entries, live result frames, ephemeral effects, room
-receipts, and delayed callback envelopes use the stamp. LLP 0055's live-owner
+receipts, and delayed callback envelopes use the stamp. LLP 0056's live-owner
 predicate stores the same bound owner at subscribe time.
 
 Direct app/database work produces an unpublished buffer.
@@ -807,7 +807,7 @@ rather than walking per-session markers:
 6. after known rollback, exact compare-unmark the stream ticket and retain the
    predecessor incarnation.
 
-Declared physical restore is pre-bind and follows LLP 0054's validated
+Declared physical restore is pre-bind and follows LLP 0055's validated
 declaration path. Before any database mutation, startup validates the strict
 `restore-declaration.json`, its owner-only file identity, the exact
 `--restored-from-backup <declarationId>` argument, and the canonical UUIDv7.
@@ -880,7 +880,7 @@ anonymous, and
 session. The JSON uses the already-canonical string spellings and no whitespace
 or trailing newline. This digest is not a bearer and is safe only as a local
 comparison key. Client authority deliberately contains neither provider nor
-session generation because LLP 0055's item-5 handshake exposes neither and item
+session generation because LLP 0056's item-5 handshake exposes neither and item
 7 owns the public generation-bearing authority descriptor. Server grants still
 bind both fields internally. The bearer remains private coordinator custody.
 Rotating a bearer for the same exact authority updates custody revision but
@@ -1143,7 +1143,7 @@ loss of ownership aborts immediately and permits a successor to recover:
    same next epoch, move pending authority/bearer into current fields, clear
    pending fields, and increment revision.
 9. Broadcast `settled`, reload the owner context's settled record, call local
-   `resume`, obtain a fresh LLP 0055 handshake and connection grant, then
+   `resume`, obtain a fresh LLP 0056 handshake and connection grant, then
    resubscribe only permitted surfaces. Receiving/resuming peer contexts reload
    independently. A context's exposure resumes only after its own mandatory
    participants report readiness.
@@ -1179,9 +1179,9 @@ On bearer supersession for the same exact session authority, the coordinator
 does not transition epochs. It waits up to 2000 monotonic milliseconds for a
 newer settled custody revision, woken by broadcast and backed by durable reload.
 If a current successor bearer appears, it retries the failed operation once.
-If no successor exists, it invokes LLP 0054's family-alarm path and calls
+If no successor exists, it invokes LLP 0055's family-alarm path and calls
 `POST /auth/family-alarm` with the suspect bearer before compare-and-clearing the
-still-current capture. Failure or loss of the alarm retains LLP 0054's named
+still-current capture. Failure or loss of the alarm retains LLP 0055's named
 stolen-successor residual; it does not justify clearing first. The coordinator
 does not log out simply because another tab rotated first.
 
@@ -1193,7 +1193,7 @@ uses the same bounded wait/reload and never clears a healthy family. Refresh
 alone records no sliding use.
 
 On boot, every participant begins blank. The coordinator acquires ownership,
-loads settled custody, performs LLP 0055's handshake using the exact current
+loads settled custody, performs LLP 0056's handshake using the exact current
 bearer if present, and compares the returned stream incarnation and session
 projection, active mode, and app-data availability before opening a grant or
 resuming Contract. A valid same authority settles without advancing epoch.
@@ -1353,7 +1353,7 @@ not by a false instantaneous-global-blank claim.
 
 ### Bootstrap response revision
 
-LLP 0055's closed `GET /auth/session` success body gains the required field:
+LLP 0056's closed `GET /auth/session` success body gains the required field:
 
 ```ts
 authorizationStreamIncarnation: CanonicalUuidV7
@@ -1368,14 +1368,14 @@ continuity across ordinary restart, not session-credential continuity or a
 user-bearing authority.
 
 The existing four protocol headers remain mandatory. Item 5 does not increment
-the auth client protocol because protocol 1 was reserved by LLP 0055 for this
+the auth client protocol because protocol 1 was reserved by LLP 0056 for this
 client sequence; it completes that sequence. The server still returns
 `SNAPBACK_AUTH_CLIENT_PROTOCOL_REQUIRED` before auth resolution for a missing or
 unsupported header.
 
 ### Readiness facts
 
-Item 5 changes exactly these LLP 0055 runtime facts from false to true when and
+Item 5 changes exactly these LLP 0056 runtime facts from false to true when and
 only when their named implementation and executable probes are installed:
 
 ```json
@@ -1396,7 +1396,7 @@ only when their named implementation and executable probes are installed:
   acceptance in at least two contexts.
 
 No manifest field, environment variable, dev flag, or mocked readiness object
-may assert one early. `sessionActivationReady` remains derived as LLP 0055
+may assert one early. `sessionActivationReady` remains derived as LLP 0056
 defines and becomes true only when every item-1-through-item-5 prerequisite is
 true. A projection that has not completed rebuild or a terminal worker that is
 not running prevents sessions-mode listener bind rather than merely clearing a
@@ -1406,7 +1406,7 @@ With the full derived readiness true, item 5 admits authenticated and anonymous
 online finite request/response through the shared invocation gate. It continues
 to reject auth-scoped live subscriptions, retained reads, and queued replay with
 their existing capability diagnostics. `authorityIndependent` live behavior
-remains only the conservative LLP 0055 exception; item 5 does not broaden it.
+remains only the conservative LLP 0056 exception; item 5 does not broaden it.
 
 ## Diagnostics and safe exposure
 
@@ -1433,7 +1433,7 @@ digest, address, code, or custody secrets.
 The existing `SNAPBACK_AUTH_SESSION_EXPIRED` (covering both expired and
 revoked sessions), provider-family alarm, mode, and protocol
 diagnostics retain their owning definitions. On public finite routes,
-projection lookup still follows LLP 0054's uniform invalid-credential posture;
+projection lookup still follows LLP 0055's uniform invalid-credential posture;
 it does not reveal whether a token is current, superseded, revoked, or absent.
 
 ## Executable acceptance
@@ -1486,7 +1486,7 @@ wall-clock sleeps are not proof of ordering.
    incarnation and durable sessions.
 2. A current bearer mints a grant. A superseded bearer within grace does not
    mint one, while an ordinary finite request with that same bearer is honored
-   under LLP 0054. Outside grace it produces credential-superseded recovery;
+   under LLP 0055. Outside grace it produces credential-superseded recovery;
    missing successor custody calls the family alarm before clear. Revoked,
    expired, malformed, and random bearers have indistinguishable public posture.
 3. Exercise the 16,384-entry cap, unused/used LRU, idle expiry, source throttle,
@@ -1609,7 +1609,7 @@ The implementation should land in dependency order without splitting a safety
 invariant across an externally enableable commit:
 
 1. add authorization-stream storage/migration and detached projection rebuild;
-2. add leaf fences, tickets, mutation planning, and rewire every LLP 0054
+2. add leaf fences, tickets, mutation planning, and rewire every LLP 0055
    revocation/rotation/reset/restore call site;
 3. extend connection bindings, reverse indexes, publication stamps, leased
    drain, notifier terminal events, and typed live errors;
@@ -1617,7 +1617,7 @@ invariant across an externally enableable commit:
    format 3, and mandatory kit/Contract participants;
 5. revise the closed handshake DTO, install real readiness probes, and run the
    full interleaving and activation matrix; and
-6. run `./ref-check --verbose` and add non-mechanical `@ref LLP 0056#...`
+6. run `./ref-check --verbose` and add non-mechanical `@ref LLP 0057#...`
    annotations at each non-obvious ticket, lock-order, fence, custody, and
    epoch-CAS implementation boundary.
 

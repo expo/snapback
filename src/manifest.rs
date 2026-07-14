@@ -68,7 +68,7 @@ fn is_false(value: &bool) -> bool {
 /// closed: a mode changes who is allowed to supply invocation authority and an
 /// unknown spelling therefore cannot be treated as an additive field.
 ///
-/// @ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.
+/// @ref LLP 0056#closed-auth-mode — auth mode is a must-understand closed value.
 #[derive(
     Clone,
     Copy,
@@ -117,7 +117,7 @@ pub struct AuthManifest {
 /// Absence in a legacy function is represented by
 /// [`FunctionDefinition::effective_auth_requirement`] as `optional-user`.
 ///
-/// @ref LLP 0055#closed-function-requirement — closed values fail at manifest parse.
+/// @ref LLP 0056#closed-function-requirement — closed values fail at manifest parse.
 #[derive(
     Clone,
     Copy,
@@ -2324,7 +2324,7 @@ impl ArtifactVersion {
 /// Separate version/mode arrays are dimension reports and never imply a
 /// Cartesian-product authorization.
 ///
-/// @ref LLP 0055#the-two-admissible-tuples — exactly v0+dev and v1+sessions.
+/// @ref LLP 0056#the-two-admissible-tuples — exactly v0+dev and v1+sessions.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SupportedArtifactAuthPair {
@@ -2338,7 +2338,7 @@ pub struct SupportedArtifactAuthPair {
 /// App artifacts retain string fields for v0 compatibility; every v1 string
 /// is parsed through this enum before target support is consulted.
 ///
-/// @ref LLP 0055#the-two-admissible-tuples — the v1 registry is closed to eight ids.
+/// @ref LLP 0056#the-two-admissible-tuples — the v1 registry is closed to eight ids.
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
@@ -2537,7 +2537,7 @@ pub struct CapabilityManifest {
     /// Target-authored deployment and browser-security facts. App artifacts
     /// and operator input may consume this descriptor but cannot assert it.
     ///
-    /// @ref LLP 0057#d5-hosted-readiness-is-conjunctive — hosted auth is an
+    /// @ref LLP 0058#d5-hosted-readiness-is-conjunctive — hosted auth is an
     /// exact conjunction; local loopback and production profile are not facts.
     #[serde(default, rename = "hostedAuth", alias = "hosted_auth")]
     pub hosted_auth: crate::auth::deployment::HostedAuthCapabilities,

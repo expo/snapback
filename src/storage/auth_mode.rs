@@ -1,10 +1,10 @@
-//! SQLite persistence for LLP 0055's four-key staged auth-mode protocol.
+//! SQLite persistence for LLP 0056's four-key staged auth-mode protocol.
 
-// @ref LLP 0055#the-four-keys — these exact metadata keys are the sole durable
+// @ref LLP 0056#the-four-keys — these exact metadata keys are the sole durable
 // mode authority and are always cross-validated before mutation.
-// @ref LLP 0055#corrupt-state-boundary — corrupt state is a read-only startup
+// @ref LLP 0056#corrupt-state-boundary — corrupt state is a read-only startup
 // refusal; quarantine is reserved for a valid pending snapshot.
-// @ref LLP 0055#crash-and-publication-traces — each state transition has one
+// @ref LLP 0056#crash-and-publication-traces — each state transition has one
 // SQLite commit boundary and no guessed repair path.
 
 use super::{
@@ -751,7 +751,7 @@ impl LocalDatabase {
     /// `activeDeployment` one transaction. Unlike the cold-start carrier seam,
     /// a repeated network provision may carry seed data for an existing app;
     /// it is applied only when every named target is empty.
-    // @ref LLP 0055#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
+    // @ref LLP 0056#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
     pub(crate) fn apply_same_mode_network_deployment_classified(
         &mut self,
         deployment: DeploymentIdentity,

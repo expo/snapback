@@ -1,4 +1,4 @@
-# LLP 0054: Auth catalog and provider protocol
+# LLP 0055: Auth catalog and provider protocol
 
 **Type:** Spec
 **Status:** Draft

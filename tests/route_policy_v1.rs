@@ -294,8 +294,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
     }
 }
 
-/// @ref LLP 0054#routes-operations-and-dtos — the five provider paths have
-/// closed independent carrier/response classifications. LLP 0055 adds the
+/// @ref LLP 0055#routes-operations-and-dtos — the five provider paths have
+/// closed independent carrier/response classifications. LLP 0056 adds the
 /// rootless bootstrap handshake; active dev refuses only the provider paths
 /// before inspecting bearer or body shape.
 #[tokio::test]
@@ -813,7 +813,7 @@ async fn impersonation_host_request(
         .expect("impersonation host request")
 }
 
-/// @ref LLP 0054#impersonationcapability-carrier — the selected operation's
+/// @ref LLP 0055#impersonationcapability-carrier — the selected operation's
 /// AdminWrite and independent effect axes are both mandatory and cannot
 /// substitute for each other or leak into an ordinary selected operation.
 #[tokio::test]

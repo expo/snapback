@@ -4,9 +4,9 @@
 //! this module. Keeping that boundary above these pure services lets server,
 //! offline CLI, and recovery startup share one exact lifecycle implementation.
 
-// @ref LLP 0054#activation-ordering — a usable keyring precedes the catalog marker, while an already-marked catalog never mints a lost ring.
-// @ref LLP 0054#garbage-collection — durable rows, capture plaintext, and retired keys share one bounded startup/30-second maintenance pass.
-// @ref LLP 0054#restore — a durable UUIDv7 declaration makes destructive restore startup idempotent.
+// @ref LLP 0055#activation-ordering — a usable keyring precedes the catalog marker, while an already-marked catalog never mints a lost ring.
+// @ref LLP 0055#garbage-collection — durable rows, capture plaintext, and retired keys share one bounded startup/30-second maintenance pass.
+// @ref LLP 0055#restore — a durable UUIDv7 declaration makes destructive restore startup idempotent.
 
 use crate::auth::crypto::RandomSource;
 use crate::auth::keyring::{AuthKeyringStore, KeyringError, KeyringSummary};

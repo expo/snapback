@@ -107,7 +107,7 @@
         value.credential.length <= 5 || !Number.isSafeInteger(value.expiresAtMs) ||
         value.expiresAtMs < 0) return null;
     var projected = { credential: value.credential, expiresAtMs: value.expiresAtMs };
-    // @ref LLP 0057#c1-the-v1-custody-claim — exact shape is insufficient when
+    // @ref LLP 0058#c1-the-v1-custody-claim — exact shape is insufficient when
     // the derived value would persist its submitted minting authority.
     if (forbiddenMaster && projected.credential.indexOf(forbiddenMaster) !== -1) return null;
     return projected;
@@ -127,7 +127,7 @@
   function addSecret(secrets, value) {
     if (typeof value !== "string" && typeof value !== "number") return;
     var text = String(value);
-    // @ref LLP 0057#c1-the-v1-custody-claim — known operator carriers have no
+    // @ref LLP 0058#c1-the-v1-custody-claim — known operator carriers have no
     // redaction length floor, and secret-bearing success keys fail closed.
     // Every value here came from a known secret-bearing request carrier. A
     // one-byte admin token or submitted config value is still a secret.

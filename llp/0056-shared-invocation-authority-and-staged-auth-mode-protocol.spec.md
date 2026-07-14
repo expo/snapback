@@ -1,4 +1,4 @@
-# LLP 0055: Shared invocation authority and staged auth-mode protocol
+# LLP 0056: Shared invocation authority and staged auth-mode protocol
 
 **Type:** Spec
 **Status:** Draft
@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
 **Revised:** 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0054, LLP 0057
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0058
 
 ## Summary
 
@@ -25,10 +25,10 @@ that 0039 deliberately left to an implementing Spec in
 
 The existing corpus already covers the topic at design altitude: LLP 0011 owns
 the parent auth model, LLP 0031 owns route policy, LLP 0039 owns the program and
-landing order, and LLP 0054 owns provider/session state. A new document is still
+landing order, and LLP 0055 owns provider/session state. A new document is still
 required because none of those documents may safely be extended with item 4's
 exact crash protocol: 0039 is frozen, 0031 is the route registry rather than the
-mode authority, and 0054 explicitly exposes this work as a later-item seam.
+mode authority, and 0055 explicitly exposes this work as a later-item seam.
 
 The item has five load-bearing claims:
 
@@ -70,7 +70,7 @@ This Spec owns:
 This Spec consumes without re-owning:
 
 - LLP 0031's effective route/operation policy and response controls;
-- LLP 0054's provider resolver, session-family outcomes, auth catalog,
+- LLP 0055's provider resolver, session-family outcomes, auth catalog,
   keyring, collision check, and `ImpersonationCapability`;
 - LLP 0053's future authorization-invalidation declarations, dispositions,
   obligations, and retained lease; and
@@ -80,7 +80,7 @@ This Spec consumes without re-owning:
 This Spec does not implement or specify hosted coordinator security. A hosted
 sessions handler's must-understand invocation marker, handler-first deployment
 interleavings, TLS/trusted-proxy posture, and multi-replica invalidation belong
-to [LLP 0057](./0057-hosted-auth-security.rfc.md). Item 4 remains a local
+to [LLP 0058](./0058-hosted-auth-security.rfc.md). Item 4 remains a local
 Rust-target protocol.
 
 ## Normative vocabulary and constants
@@ -327,7 +327,7 @@ effect. It resolves, in order:
 7. every `requiredCapabilities` entry and static target-support fact (the
    separate item-5 activation-readiness check is consume-time);
 8. mode-specific manifest rules, including cron, live, and ephemeral rules;
-9. the LLP 0054 collision/catalog check when sessions is requested; and
+9. the LLP 0055 collision/catalog check when sessions is requested; and
 10. only then identity equality, DDL, mode-state writes, function replacement,
     or seed.
 
@@ -600,7 +600,7 @@ Before binding any listener, startup:
 2. reads the single startup carrier and performs the full pair preflight;
 3. requires its identity to equal `requestedDeployment` byte-for-byte;
 4. prepares/compiles the function generation without making it callable;
-5. reruns LLP 0054's catalog collision, catalog readiness, and keyring checks;
+5. reruns LLP 0055's catalog collision, catalog readiness, and keyring checks;
 6. requires the complete `sessionActivationReady` predicate below;
 7. in one SQLite transaction, activates the auth catalog, writes the staged
    schema to `schema_manifest_capability_aware`, writes the permanent poison to
@@ -679,7 +679,7 @@ Consume of a staged v0-dev downgrade fails
 the flag, startup:
 
 1. preflights and prepares the exact requested v0-dev carrier;
-2. revokes every durable session through LLP 0054's revoke-all transaction;
+2. revokes every durable session through LLP 0055's revoke-all transaction;
 3. clears only process-local capture-mailbox entries and connection grants
    available at pre-bind;
 4. writes the v0 manifest to the capability-aware key, leaves the legacy poison
@@ -748,7 +748,7 @@ AdminBypass { reason }
 System
 ```
 
-This value is server-only. A session comes only from LLP 0054 credential
+This value is server-only. A session comes only from LLP 0055 credential
 resolution. Dev impersonation comes from a registered dev body-authority
 resolver. The LLP 0031 direct runner may select that body user after its
 ordinary `AdminRead` or `AdminWrite` check and does **not** require
@@ -759,7 +759,7 @@ distinguishes `directRunnerBodyUser` from `hostOperationImpersonation`.
 `AdminBypass` grants an operator access path but no app identity. `System`
 carries no user.
 
-Item 4 retains `authorityInstanceId` internally because LLP 0054 already stores
+Item 4 retains `authorityInstanceId` internally because LLP 0055 already stores
 it, but does not expose an authority descriptor or use the id as authentication;
 item 7 owns that wire/store contract.
 
@@ -867,7 +867,7 @@ atomically at write commit and response/live publication. A stage or timed-out
 barrier that retires an epoch therefore prevents late success, callback, or
 nested work from crossing the boundary.
 
-Credential precedence under sessions remains LLP 0039/0054's: a current bearer,
+Credential precedence under sessions remains LLP 0039/0055's: a current bearer,
 otherwise anonymous; malformed/unknown is `SNAPBACK_AUTH_REQUIRED`;
 expired/revoked is `SNAPBACK_AUTH_SESSION_EXPIRED`; ordinary superseded use
 beyond grace is `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED`. A legacy body field is
@@ -1085,7 +1085,7 @@ malformed, or older invalidation offer fails its protected surface with LLP
 0053's `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`; before item 6, the
 server reports `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` instead.
 
-`provider.available` additionally requires settled sessions and LLP 0054
+`provider.available` additionally requires settled sessions and LLP 0055
 provider readiness. Provider unavailability never leaks keyring details.
 `authority` is the same `HandlerAuthProjection` constructor used by handlers.
 Item 7 may add a versioned descriptor as an additive field only after revising
@@ -1120,10 +1120,10 @@ Item 4 removes item 3's placeholder refusal only when all of these are true:
 - active and desired mode are both `sessions` and state is settled/available;
 - server profile is `dev`, `test`, or `demo` (not `prod`);
 - ordinary `AdminWrite` succeeds;
-- the independent LLP 0054 `ImpersonationCapability` succeeds; and
+- the independent LLP 0055 `ImpersonationCapability` succeeds; and
 - the provider is ready.
 
-The operation takes only the closed email args from LLP 0054, runs the normal
+The operation takes only the closed email args from LLP 0055, runs the normal
 find-or-create identity and session-mint transaction, returns
 `CredentialSecret` under `Cache-Control: no-store`, and records
 `issuedBy: admin`. It accepts no app-data body authority. Rescue remains
@@ -1238,7 +1238,7 @@ pins the producer semantics and safe-detail boundary.
 | `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` | actual pre-auth predecessor rejects the v1 header |
 | `SNAPBACK_CAPABILITY_UNSUPPORTED` | requested pair/required capability unsupported by knowing target |
 
-Existing LLP 0054 credential diagnostics retain their meanings and precedence.
+Existing LLP 0055 credential diagnostics retain their meanings and precedence.
 Mode/artifact failures include only expected/observed versions, modes, identity
 hash strings, capability names, and transition generation. They never include
 artifact source, function body, seed values, path-bearing parse text, token,

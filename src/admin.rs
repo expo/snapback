@@ -115,7 +115,7 @@ pub enum ServerProfile {
 /// One local-plaintext transport decision shared by pre-bind CLI composition
 /// and request middleware used by embedded/test routers.
 ///
-/// @ref LLP 0057#d1-plaintext-listener-fence — staging sessions is enough to
+/// @ref LLP 0058#d1-plaintext-listener-fence — staging sessions is enough to
 /// close a non-loopback plaintext listener; the dev override never applies to
 /// either active or desired sessions.
 pub(crate) fn validate_plaintext_auth_transport(
@@ -875,7 +875,7 @@ impl AppState {
 
     /// Install the validated pre-bind mode authority and readiness facts.
     ///
-    /// @ref LLP 0055#activation-readiness-and-later-item-fences — readiness is
+    /// @ref LLP 0056#activation-readiness-and-later-item-fences — readiness is
     /// server-owned and the activation bit is derived, never caller asserted.
     pub fn with_auth_runtime_facts(
         mut self,
@@ -1013,7 +1013,7 @@ impl AppState {
     /// Pre-bind transport validation used by the CLI composition lane. The
     /// request middleware repeats the same policy as defense in depth.
     ///
-    /// @ref LLP 0057#d1-plaintext-listener-fence — this local listener check
+    /// @ref LLP 0058#d1-plaintext-listener-fence — this local listener check
     /// does not attest a public reverse proxy or any hosted edge capability.
     pub fn validate_auth_transport(&self) -> Result<(), SnapbackError> {
         let state = self.auth_mode_state();

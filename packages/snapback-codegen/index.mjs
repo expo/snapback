@@ -48,7 +48,7 @@ const HEADER = generatedByHeader();
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
-// @ref LLP 0054#reservation — SQLite folds ASCII identifier case, so every
+// @ref LLP 0055#reservation — SQLite folds ASCII identifier case, so every
 // spelling of the protected auth namespace is rejected at authoring time.
 const isAuthReservedIdentifier = (name) => {
   const folded = name.toLowerCase();
@@ -299,7 +299,7 @@ function validateTargetArtifactAuthSupport(manifest, version, authMode, required
 }
 
 export function targetArtifactAuthProblems(manifest, version, authMode, required) {
-  // @ref LLP 0055#the-two-admissible-tuples — dimension arrays do not grant
+  // @ref LLP 0056#the-two-admissible-tuples — dimension arrays do not grant
   // their Cartesian product; the exact pair and every positive capability do.
   const problems = [];
   const versions = Array.isArray(manifest.supportedArtifactVersions)
@@ -2968,7 +2968,7 @@ function sha256Framed(domain, items) {
 
 /** Pure identity authority used by codegen and golden-vector tests. V0 keeps
  * its historical domains/truncation byte-for-byte; only the closed v1+sessions
- * tuple enters the disjoint serialized namespaces from LLP 0012/0055. */
+ * tuple enters the disjoint serialized namespaces from LLP 0012/0056. */
 export function computeArtifactIdentityStrings({
   artifactVersion,
   authMode,
@@ -2977,7 +2977,7 @@ export function computeArtifactIdentityStrings({
   schemaContentItems,
   bundleContentItems,
 }) {
-  // @ref LLP 0055#disjoint-v1-identity-strings — preserve v0's domains and
+  // @ref LLP 0056#disjoint-v1-identity-strings — preserve v0's domains and
   // truncation; v1 sessions uses the three exact full-digest namespaces.
   if (artifactVersion === SCHEMA_VERSION && authMode === 'dev') {
     return {

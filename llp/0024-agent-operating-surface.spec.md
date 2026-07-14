@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
 **Revised:** 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0054
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0055
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
 > built).** The `snapback` CLI and the host-ops HTTP endpoint
@@ -32,7 +32,7 @@
 >   closed generated DTOs. Mint is available only in dev/demo/test; rescue is
 >   narrower and available only in dev/test. Rescue remains reachable in
 >   `dev`; mint fails closed there until item 4 activates
->   `sessions`. LLP 0054 owns their exact provider and rescue semantics.
+>   `sessions`. LLP 0055 owns their exact provider and rescue semantics.
 > - **Pinned, not built:** `host.restart`, `schema.reload`,
 >   `functions.reload`, `function.explain`, `acceptance.run` — requested
 >   over HTTP they return a structured `SNAPBACK_HOST_OP_UNIMPLEMENTED`
@@ -275,7 +275,7 @@ Unknown operations fail closed at `AdminWrite`. The multiplexed endpoint and
 dedicated aliases resolve this table against the same installed function kind,
 so selecting a transport cannot change the token requirement (ENG-24561).
 
-The two LLP 0054 operator operations add a second, independent effect gate.
+The two LLP 0055 operator operations add a second, independent effect gate.
 `auth.mintSession` and `auth.rescueCollidingTable` require all of:
 
 1. their exact operation profile — dev/demo/test for `auth.mintSession`, but
@@ -292,7 +292,7 @@ normal envelope. `auth.mintSession` returns `CredentialSecret`, applies
 its success envelope records `authority.reason: "issuedBy: admin"`.
 `auth.rescueCollidingTable` returns only operator metadata and remains available
 in `dev` so an operator can repair a dormant collision without enabling
-sessions. Stored-manifest collisions that prevent normal open use LLP 0054's
+sessions. Stored-manifest collisions that prevent normal open use LLP 0055's
 separate loopback recovery posture and still require restart after rescue.
 
 ## CLI Projection

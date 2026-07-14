@@ -40,7 +40,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-capabilities.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0057#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
+  "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0058#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
   "properties": {
     "authenticationThrottle": {
       "$ref": "#/$defs/AuthenticationThrottle"

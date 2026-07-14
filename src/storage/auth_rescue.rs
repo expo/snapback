@@ -4,7 +4,7 @@
 //! SQLite schema editor. Any shape that cannot be proved equivalent is left
 //! for offline operator repair.
 
-// @ref LLP 0054#transactional-algorithm — rescue scans dependencies, copies and proves a multiset, rewrites the manifest, and drops the source in one IMMEDIATE transaction.
+// @ref LLP 0055#transactional-algorithm — rescue scans dependencies, copies and proves a multiset, rewrites the manifest, and drops the source in one IMMEDIATE transaction.
 
 use super::auth::{
     AuthCatalogState, auth_catalog_marker, inspect_auth_catalog_on,
@@ -83,7 +83,7 @@ impl LocalDatabase {
     /// may enter the closed collision-recovery posture. The probe opens SQLite
     /// read-only, accepts no stored manifest, and performs no infra migration.
     ///
-    /// @ref LLP 0054#reachability — recovery startup is available only when
+    /// @ref LLP 0055#reachability — recovery startup is available only when
     /// stored-manifest admission failed solely because one or more declared,
     /// physically present tables occupy the protected auth namespace.
     pub(crate) fn auth_collision_recovery_eligible(

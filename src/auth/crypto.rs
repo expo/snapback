@@ -1,6 +1,6 @@
 //! Exact v1 encodings and secret-bearing authentication types.
 
-// @ref LLP 0054#binary-and-textual-encodings — auth identifiers, code digests, and bearer spellings are versioned protocol bytes.
+// @ref LLP 0055#binary-and-textual-encodings — auth identifiers, code digests, and bearer spellings are versioned protocol bytes.
 // @ref LLP 0009#secrets — secret material crosses Rust boundaries only through explicit redacted, zeroizing wrappers.
 
 use std::fmt;

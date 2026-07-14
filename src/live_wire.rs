@@ -138,7 +138,7 @@ pub enum LiveSocketServerFrame {
     /// it only to the capture that owns this socket and then treats close code
     /// 4401 as terminal rather than reconnectable.
     ///
-    /// @ref LLP 0056#typed-terminal-auth-error — terminal live closure is a
+    /// @ref LLP 0057#typed-terminal-auth-error — terminal live closure is a
     ///   closed, identifier-free wire event.
     AuthError {
         code: LiveAuthErrorCode,

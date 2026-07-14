@@ -1,4 +1,4 @@
-// LLP 0056 IndexedDB custody ownership and fencing conformance.
+// LLP 0057 IndexedDB custody ownership and fencing conformance.
 
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
@@ -100,7 +100,7 @@ class DeterministicLockManager {
   await Promise.all([first.close(), second.close()]);
 }
 
-// @ref LLP 0056#cross-context-ownership — an expired fallback holder is
+// @ref LLP 0057#cross-context-ownership — an expired fallback holder is
 // fenced in the same transaction as custody CAS, and its later best-effort
 // release cannot expire or overwrite the successor holder's lease.
 {

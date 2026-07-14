@@ -299,7 +299,7 @@ impl AuthCoordinator {
     /// ticket. The returned carrier owns no lock and may cross the provider
     /// transaction boundary safely.
     ///
-    /// @ref LLP 0056#plan-begin-commit-finalize — the leaf is blocked before
+    /// @ref LLP 0057#plan-begin-commit-finalize — the leaf is blocked before
     /// commit begins, and no projection/fence guard enters SQLite.
     pub(crate) fn premark_revocation(
         &self,
@@ -378,7 +378,7 @@ impl AuthCoordinator {
     /// transaction begins. The carrier owns no lock and binds one exact
     /// predecessor/successor pair across SQLite commit.
     ///
-    /// @ref LLP 0056#reset-restore-and-stream-publication — reset uses the
+    /// @ref LLP 0057#reset-restore-and-stream-publication — reset uses the
     /// same premark/commit/finalize protocol as session leaf mutations.
     pub(crate) fn premark_stream_reset(&self) -> SnapbackResult<PremarkedStreamReset> {
         let mut topology = self.lock_topology()?;
@@ -743,7 +743,7 @@ impl AuthCoordinator {
     /// projection. Superseded and blocked tokens retain only their throttle
     /// key and can never mint or renew a connection grant.
     ///
-    /// @ref LLP 0056#connection-bound-authority — connection open never falls
+    /// @ref LLP 0057#connection-bound-authority — connection open never falls
     /// through to provider/SQLite resolution and only an exact current leaf
     /// yields a grant publication fence.
     pub(crate) fn classify_connection_bearer(

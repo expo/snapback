@@ -1721,7 +1721,7 @@ pub struct LocalSnapback {
     // are hashes, not manifest bodies, so they can never supply a missing
     // `/app/ensure` half after restart. The cache is deliberately tiny: at
     // most the active and requested deployment can be useful.
-    // @ref LLP 0055#complete-candidate-pair-preflight — one-half provisioning may use only a same-boot, fully preflighted sibling.
+    // @ref LLP 0056#complete-candidate-pair-preflight — one-half provisioning may use only a same-boot, fully preflighted sibling.
     preflighted_artifact_pairs: VecDeque<PreflightedArtifactPair>,
     // ENG-22752: starts false and flips when the first functions manifest
     // loads (provision/ensure). Distinguishes "no app has booted yet" from
@@ -1767,7 +1767,7 @@ pub struct LocalSnapback {
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
-    // @ref LLP 0055#stage-ordering — every finite app-data, cron, nested, and
+    // @ref LLP 0056#stage-ordering — every finite app-data, cron, nested, and
     // live-rerun entry holds one process-local admission epoch through its
     // final commit/publication boundary.
     admission: AdmissionController,
@@ -1941,7 +1941,7 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
         // @ref LLP 0028#execution-the-action-class — actions commit durable
         // writes by invoking ordinary mutations, preserving the commit/fan-out path.
-        // @ref LLP 0055#complete-gate-coverage — nested mutations inherit the
+        // @ref LLP 0056#complete-gate-coverage — nested mutations inherit the
         // already-resolved outer authority and apply the target requirement.
         // The embedded runtime calls host functions synchronously on the same
         // thread; this pointer is valid only for the duration of one action run.
@@ -1969,8 +1969,8 @@ impl LocalSnapback {
     /// before taking the outer app-instance lock that lends this database.
     /// The returned storage type exposes only exact-catalog auth operations;
     /// it does not expose a raw SQLite connection to the server layer.
-    // @ref LLP 0054#catalog-write-and-lifecycle-rules — auth state bypasses app journals, receipts, versions, and live delivery.
-    // @ref LLP 0054#concurrency-locks-and-linearization — provider coordination precedes the outer app/database lock.
+    // @ref LLP 0055#catalog-write-and-lifecycle-rules — auth state bypasses app journals, receipts, versions, and live delivery.
+    // @ref LLP 0055#concurrency-locks-and-linearization — provider coordination precedes the outer app/database lock.
     pub(crate) fn auth_database_mut(&mut self) -> &mut LocalDatabase {
         &mut self.db
     }
@@ -2023,7 +2023,7 @@ impl LocalSnapback {
     /// schema, functions, cron, config, or auth-mode state. The returned
     /// identity is safe to pin durably only because every artifact-owned and
     /// target-owned predicate has already run against these exact values.
-    // @ref LLP 0055#complete-candidate-pair-preflight — hashes are evidence only after the complete pair and target capability registry validate.
+    // @ref LLP 0056#complete-candidate-pair-preflight — hashes are evidence only after the complete pair and target capability registry validate.
     pub(crate) fn preflight_auth_artifacts(
         &mut self,
         artifacts: &StartupArtifacts,
@@ -2226,7 +2226,7 @@ impl LocalSnapback {
     /// the staged-mode transaction. The swap itself contains no fallible
     /// artifact or schema-reference work; secondary cron/config persistence
     /// failures remain ordinary diagnostics after the generation is live.
-    // @ref LLP 0055#consume-ordering-dev-to-sessions — the prepared generation publishes only after the durable consume cut.
+    // @ref LLP 0056#consume-ordering-dev-to-sessions — the prepared generation publishes only after the durable consume cut.
     pub(crate) fn publish_preflighted_functions(
         &mut self,
         manifest: FunctionManifest,
@@ -2551,7 +2551,7 @@ impl LocalSnapback {
     /// validates the complete pair and target registry, and returns owned
     /// bytes that can cross the admission barrier. No schema, function,
     /// mode-state, or seed effect occurs here.
-    // @ref LLP 0055#stage-ordering — mode staging preflights before closing admission and repeats under the write lane.
+    // @ref LLP 0056#stage-ordering — mode staging preflights before closing admission and repeats under the write lane.
     pub(crate) fn prepare_auth_provision(
         &mut self,
         requested_mode: EnsureAppMode,
@@ -3578,7 +3578,7 @@ impl LocalSnapback {
         authority_descriptor: Option<AuthorityDescriptor>,
         authority: PreparedAuthority,
     ) -> SnapbackResult<MutationCommit> {
-        // @ref LLP 0055#gate-algorithm — function lookup and requirement
+        // @ref LLP 0056#gate-algorithm — function lookup and requirement
         // enforcement precede replay-settlement lookup and every effect.
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
@@ -6958,7 +6958,7 @@ impl LocalSnapback {
         })
     }
 
-    // @ref LLP 0055#gate-algorithm — retry-registry writes are durable auth
+    // @ref LLP 0056#gate-algorithm — retry-registry writes are durable auth
     // effects, so each transaction must revalidate the admitted epoch at its
     // own publication boundary.
     fn run_authorization_retry_transaction<T>(
@@ -7392,7 +7392,7 @@ impl LocalSnapback {
         connection_id: &str,
         admission: &AdmissionLease,
     ) -> SnapbackResult<Vec<String>> {
-        // @ref LLP 0055#gate-algorithm — a re-query validates and publishes
+        // @ref LLP 0056#gate-algorithm — a re-query validates and publishes
         // through the same admission lease itself. Never hold the admission
         // mutex while invoking it: managed leases use a non-reentrant mutex,
         // so the outer drain must compute first and acquire only narrow guards

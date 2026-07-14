@@ -391,7 +391,7 @@ const LIVE_TERMINAL_AUTH_REASONS = new Set([
   'mode_transition',
 ]);
 
-// @ref LLP 0056#typed-terminal-auth-error — the identifier-free frame applies
+// @ref LLP 0057#typed-terminal-auth-error — the identifier-free frame applies
 //   only to the authority capture that owns this socket and never reconnects.
 const liveTerminalAuthError = (frame) => {
   const valid = frame?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR
@@ -673,7 +673,7 @@ const projectSessionResponse = (value) => {
   };
 };
 
-// @ref LLP 0057#c1-the-v1-custody-claim — successful exchange/refresh
+// @ref LLP 0058#c1-the-v1-custody-claim — successful exchange/refresh
 // projections exclude both request proofs and issued credentials.
 const valueContainsSecret = (value, secret) => {
   if (typeof secret !== 'string' && typeof secret !== 'number') return false;
@@ -853,7 +853,7 @@ export class SnapbackClient {
   /// is process- and generation-scoped by the returned nonce/generation; the
   /// cache is cleared on every authority change and terminal mode/credential
   /// diagnostic. Connection and subscribe boundaries request a fresh value.
-  // @ref LLP 0055#kit-ordering — no online boundary relies on capability-manifest mode guesses.
+  // @ref LLP 0056#kit-ordering — no online boundary relies on capability-manifest mode guesses.
   authSession({ force = false } = {}) {
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
     if (!force && this.__authSessionLastSuccessful) {
@@ -1642,7 +1642,7 @@ export class SnapbackClient {
     await this.authSession();
     const capture = this.authCoordinator.capture();
     const bearer = this.authCoordinator.credentialFor(capture).bearer;
-    // @ref LLP 0057#c1-the-v1-custody-claim — exact empty 204 is the only
+    // @ref LLP 0058#c1-the-v1-custody-claim — exact empty 204 is the only
     // public logout success; malformed 2xx still clears captured custody.
     const response = await this.#trackedFetchJson(
       'POST',

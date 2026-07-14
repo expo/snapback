@@ -4,11 +4,11 @@
 //! module owns provider state transitions plus the process-local coordination
 //! that must be acquired before the outer app-instance/database lock.
 //!
-//! @ref LLP 0054#email-code-provider — request, exchange, provisioning, and
+//! @ref LLP 0055#email-code-provider — request, exchange, provisioning, and
 //! session issuance are one non-enumerating provider state machine.
-//! @ref LLP 0054#concurrency-locks-and-linearization — maintenance, address,
+//! @ref LLP 0055#concurrency-locks-and-linearization — maintenance, address,
 //! keyring, and SQLite locks are acquired in that order.
-//! @ref LLP 0054#security-and-redaction — provider secrets never enter Debug,
+//! @ref LLP 0055#security-and-redaction — provider secrets never enter Debug,
 //! diagnostics, the app journal, or generic serializable state.
 
 use std::collections::hash_map::RandomState;
@@ -1970,9 +1970,9 @@ impl AuthMaintenanceGuard {
 
     /// Prepare the only fallible external half of first catalog activation.
     /// The staged-mode consume transaction installs the SQLite catalog marker;
-    /// publishing a usable keyring first preserves LLP 0054's one-way ordering
+    /// publishing a usable keyring first preserves LLP 0055's one-way ordering
     /// without creating a second provider or escaping this maintenance guard.
-    // @ref LLP 0054#activation-ordering — usable key material precedes the catalog marker and is never reminted for a marked catalog.
+    // @ref LLP 0055#activation-ordering — usable key material precedes the catalog marker and is never reminted for a marked catalog.
     pub(crate) fn prepare_catalog_activation(&self) -> SnapbackResult<()> {
         self.provider
             .keyring

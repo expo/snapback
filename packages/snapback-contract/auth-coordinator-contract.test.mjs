@@ -1,4 +1,4 @@
-// LLP 0056 item-5 Contract participation: delayed A work cannot alter B.
+// LLP 0057 item-5 Contract participation: delayed A work cannot alter B.
 
 import assert from 'node:assert/strict';
 

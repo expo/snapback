@@ -5,9 +5,9 @@
 //! or erases itself on drop. The provider's address stripe and maintenance gate
 //! live above this module; this map never waits for either while locked.
 //!
-//! @ref LLP 0054#capture-mailbox — capture is bounded, process-local, and
+//! @ref LLP 0055#capture-mailbox — capture is bounded, process-local, and
 //!   erased on consume, supersede, committed reset, expiry, or process exit.
-//! @ref LLP 0054#concurrency-locks-and-linearization — mailbox publication and
+//! @ref LLP 0055#concurrency-locks-and-linearization — mailbox publication and
 //!   erasure occur after the durable transaction while the address stripe is
 //!   still held.
 

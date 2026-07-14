@@ -3,9 +3,9 @@
 //! Storage owns atomic persistence; this module owns protocol-shaped values and
 //! validation that does not require a database connection.
 
-// @ref LLP 0055#exact-mode-state-record — mode authority is one closed,
+// @ref LLP 0056#exact-mode-state-record — mode authority is one closed,
 // generation-stamped record rather than a collection of optional flags.
-// @ref LLP 0055#cold-startup-artifact-carrier — one closed carrier contains a
+// @ref LLP 0056#cold-startup-artifact-carrier — one closed carrier contains a
 // complete schema/function pair and never credentials.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};

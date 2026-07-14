@@ -5,11 +5,11 @@
 **Systems:** Notifications, Runtime, API, Security, Auth, Cron, Developer experience, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (ENG-24596 final audit: retained this RFC's auth-mailbox handoff and durability-boundary ownership while delegating the exact process-local protocol to LLP 0054); 2026-07-13 (ENG-24596: reassigned auth challenge capture to LLP 0054's process-local mailbox and prohibited plaintext auth codes in durable notification intents); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-13 (ENG-24596 final audit: retained this RFC's auth-mailbox handoff and durability-boundary ownership while delegating the exact process-local protocol to LLP 0055); 2026-07-13 (ENG-24596: reassigned auth challenge capture to LLP 0055's process-local mailbox and prohibited plaintext auth codes in durable notification intents); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
 `reviews/0045-notifications-outbox.claude.md`: runner pinned to 0028's cron
 machinery, delivery grants grounded in 0036's `uses` model, auth-code handoff
 with 0039 recorded; initial same day)
-**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0027, LLP 0028, LLP 0029, LLP 0036, LLP 0038, LLP 0039, LLP 0054
+**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0027, LLP 0028, LLP 0029, LLP 0036, LLP 0038, LLP 0039, LLP 0055
 
 ## Summary
 
@@ -21,7 +21,7 @@ SMS, and push providers.
 The first slice is email-first with ordinary notification capture, then
 provider delivery once secrets/config grants exist. This document owns that
 notifications capture adapter, the durable intent lifecycle, and the auth-code
-delivery handoff/durability boundary. [LLP 0054](./0054-auth-provider-protocol.spec.md)
+delivery handoff/durability boundary. [LLP 0055](./0055-auth-provider-protocol.spec.md)
 is the implementing delegate for the exact item-3 bounded process-local mailbox
 protocol. Its plaintext verification codes are never durable notification
 intents. A future provider adapter may accept only an ephemeral/capture-class
@@ -74,7 +74,7 @@ path. If a dedicated durable work queue is designed later it needs its own
 LLP; this outbox becomes its first consumer.
 
 Auth challenge capture is deliberately outside this sweep. This RFC owns that
-handoff decision and its durable/non-durable boundary; LLP 0054 owns the exact
+handoff decision and its durable/non-durable boundary; LLP 0055 owns the exact
 current process-local mechanics. Its challenge transaction publishes plaintext
 only to the in-memory mailbox after commit, so no retry row, rendered code, or
 recoverable durable payload crosses into the notifications runner.
@@ -91,7 +91,7 @@ redaction and never-pooled-VM rules with no new grant identity class.
 The first channel is email:
 
 - local capture adapter for ordinary notification intents in dev and tests;
-- an ephemeral provider handoff that may deliver an LLP 0054 auth-code payload
+- an ephemeral provider handoff that may deliver an LLP 0055 auth-code payload
   without storing the plaintext in an outbox row;
 - SMTP or provider-API adapter later;
 - provider credentials through LLP 0036 config/secrets;
@@ -147,7 +147,7 @@ provider; they do not authorize app code to contact arbitrary recipients.
 - A local app can enqueue an email notification and read it from a local capture
   mailbox in tests.
 - Auth verification-code plaintext is absent from durable notification intents,
-  retry state, diagnostics, and provider message records; only LLP 0054's
+  retry state, diagnostics, and provider message records; only LLP 0055's
   process-local mailbox or a future ephemeral provider handle may carry it.
 - Duplicate idempotency keys do not send duplicate messages.
 - A failed provider attempt records a structured diagnostic and retry state.

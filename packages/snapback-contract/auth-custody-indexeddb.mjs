@@ -1,7 +1,7 @@
 // IndexedDB custody storage with Web Locks ownership and a transactionally
 // fenced lease fallback.
 //
-// @ref LLP 0056#cross-context-ownership — localStorage is only a wakeup hint;
+// @ref LLP 0057#cross-context-ownership — localStorage is only a wakeup hint;
 //   custody and fallback lease CAS live in the same IndexedDB transaction.
 
 import {

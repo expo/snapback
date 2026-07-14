@@ -180,7 +180,7 @@
       "type": "object"
     },
     "AuthMode": {
-      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0055#closed-auth-mode — auth mode is a must-understand closed value.",
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0056#closed-auth-mode — auth mode is a must-understand closed value.",
       "enum": [
         "dev",
         "sessions"
@@ -221,7 +221,7 @@
       "type": "object"
     },
     "AuthRequirement": {
-      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0055#closed-function-requirement — closed values fail at manifest parse.",
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0056#closed-function-requirement — closed values fail at manifest parse.",
       "enum": [
         "public",
         "optional-user",
@@ -330,7 +330,7 @@
             "externalTls": "unavailable",
             "sessionInvalidation": "singleProcess"
           },
-          "description": "Target-authored deployment and browser-security facts. App artifacts\nand operator input may consume this descriptor but cannot assert it.\n\n@ref LLP 0057#d5-hosted-readiness-is-conjunctive — hosted auth is an\nexact conjunction; local loopback and production profile are not facts."
+          "description": "Target-authored deployment and browser-security facts. App artifacts\nand operator input may consume this descriptor but cannot assert it.\n\n@ref LLP 0058#d5-hosted-readiness-is-conjunctive — hosted auth is an\nexact conjunction; local loopback and production profile are not facts."
         },
         "liveSubscriptions": {
           "type": "boolean"
@@ -1722,7 +1722,7 @@
     },
     "HostedAuthCapabilities": {
       "additionalProperties": false,
-      "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0057#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
+      "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0058#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
       "properties": {
         "authenticationThrottle": {
           "$ref": "#/$defs/AuthenticationThrottle"
@@ -2593,7 +2593,7 @@
     },
     "SupportedArtifactAuthPair": {
       "additionalProperties": false,
-      "description": "One explicitly supported schema/function-version and auth-mode tuple.\nSeparate version/mode arrays are dimension reports and never imply a\nCartesian-product authorization.\n\n@ref LLP 0055#the-two-admissible-tuples — exactly v0+dev and v1+sessions.",
+      "description": "One explicitly supported schema/function-version and auth-mode tuple.\nSeparate version/mode arrays are dimension reports and never imply a\nCartesian-product authorization.\n\n@ref LLP 0056#the-two-admissible-tuples — exactly v0+dev and v1+sessions.",
       "properties": {
         "authMode": {
           "$ref": "#/$defs/AuthMode"
@@ -2652,7 +2652,7 @@
       "type": "object"
     },
     "TargetCapabilityId": {
-      "description": "The exact target-capability vocabulary understood by paired-v1 manifests.\nApp artifacts retain string fields for v0 compatibility; every v1 string\nis parsed through this enum before target support is consulted.\n\n@ref LLP 0055#the-two-admissible-tuples — the v1 registry is closed to eight ids.",
+      "description": "The exact target-capability vocabulary understood by paired-v1 manifests.\nApp artifacts retain string fields for v0 compatibility; every v1 string\nis parsed through this enum before target support is consulted.\n\n@ref LLP 0056#the-two-admissible-tuples — the v1 registry is closed to eight ids.",
       "enum": [
         "auth.sessions.v1",
         "cron",

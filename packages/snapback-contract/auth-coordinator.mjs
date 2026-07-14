@@ -1,6 +1,6 @@
 // Cross-context browser authority custody and the local exposure barrier.
 //
-// @ref LLP 0056#client-custody-and-authcoordinator — bearer custody is one
+// @ref LLP 0057#client-custody-and-authcoordinator — bearer custody is one
 //   durable, serialized state machine per canonical app id; app participants
 //   never own independent current-auth state.
 
@@ -610,7 +610,7 @@ export class AuthCoordinator {
    * caller may use the returned capture only to validate durable retained
    * state. Every later online boundary still enters synchronize/authSession.
    *
-   * @ref LLP 0055#kit-ordering — offline cold boot is authorized by the last
+   * @ref LLP 0056#kit-ordering — offline cold boot is authorized by the last
    *   durable mode/authority metadata, not by a fabricated handshake.
    */
   async restoreOffline() {

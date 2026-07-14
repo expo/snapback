@@ -1,4 +1,4 @@
-# LLP 0057: Hosted auth deployment and client-page security
+# LLP 0058: Hosted auth deployment and client-page security
 
 **Type:** RFC
 **Status:** Draft
@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
 **Revised:** 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
-**Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0054, LLP 0055, LLP 0056
+**Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0055, LLP 0056, LLP 0057
 
 ## Summary
 
@@ -66,7 +66,7 @@ It consumes without re-owning:
 - LLP 0030/0031's local dev proxy and route-taxonomy boundaries;
 - LLP 0039's authority, session, connection, and activation model;
 - LLP 0053's authorization-invalidation stream; and
-- LLP 0056's session projection, two-phase revocation, and client clear barrier.
+- LLP 0057's session projection, two-phase revocation, and client clear barrier.
 
 It does not design a hosting control plane, certificate provisioner, global
 rate-limit database, or multi-region topology. Those implementations may vary
