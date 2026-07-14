@@ -8278,10 +8278,9 @@ impl LocalSnapback {
                             projection.resolution,
                             None,
                         ))
+                        && !append_frame(crate::ephemeral::DurableMessage::new(frame))?
                     {
-                        if !append_frame(crate::ephemeral::DurableMessage::new(frame))? {
-                            break 'subscriptions;
-                        }
+                        break 'subscriptions;
                     }
                     continue;
                 }
@@ -8335,13 +8334,12 @@ impl LocalSnapback {
                                     rows: query.output.rows,
                                 }),
                             ))
-                    {
-                        if !append_frame(crate::ephemeral::DurableMessage::authorized(
+                        && !append_frame(crate::ephemeral::DurableMessage::authorized(
                             frame,
                             proof.authorization,
-                        ))? {
-                            break 'subscriptions;
-                        }
+                        ))?
+                    {
+                        break 'subscriptions;
                     }
                 }
                 Err(failure) => {
@@ -8365,10 +8363,9 @@ impl LocalSnapback {
                                     projection.resolution,
                                     None,
                                 ))
+                            && !append_frame(crate::ephemeral::DurableMessage::new(frame))?
                         {
-                            if !append_frame(crate::ephemeral::DurableMessage::new(frame))? {
-                                break 'subscriptions;
-                            }
+                            break 'subscriptions;
                         }
                         continue;
                     }
@@ -8400,10 +8397,9 @@ impl LocalSnapback {
                                 projection.resolution,
                                 None,
                             ))
+                        && !append_frame(crate::ephemeral::DurableMessage::new(frame))?
                     {
-                        if !append_frame(crate::ephemeral::DurableMessage::new(frame))? {
-                            break 'subscriptions;
-                        }
+                        break 'subscriptions;
                     }
                 }
             }

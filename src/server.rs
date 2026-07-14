@@ -897,6 +897,8 @@ pub(crate) async fn execute_cron_claim_detached(
     .await
 }
 
+type ConnectionRetirementSink = Arc<dyn Fn(BoundConnectionTerminalCapture) + Send + Sync + 'static>;
+
 /// Transport-level connection grants (ENG-23442). Connection ids used to be
 /// caller-chosen bearerless capabilities: knowledge of an id alone was enough
 /// to drain `/outbox/{id}` or attach `/live/{id}/stream` and read another
@@ -921,11 +923,7 @@ pub struct ConnectionRegistry {
     grants: Arc<std::sync::Mutex<ConnectionRegistryState>>,
     invalidation_issuer:
         Arc<std::sync::Mutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>>,
-    retirement_sink: Arc<
-        std::sync::Mutex<
-            Option<Arc<dyn Fn(BoundConnectionTerminalCapture) + Send + Sync + 'static>>,
-        >,
-    >,
+    retirement_sink: Arc<std::sync::Mutex<Option<ConnectionRetirementSink>>>,
 }
 
 #[derive(Default)]
@@ -10238,19 +10236,32 @@ fn offer_terminal_live_write(
     let _ = terminal_writer.try_send(event);
 }
 
+#[derive(Clone, Copy)]
+struct LiveHandoffCut<'a> {
+    writer: &'a mpsc::Sender<AdmittedLiveWrite>,
+    notify: &'a crate::ephemeral::DeliveryNotifier,
+    connection_id: &'a str,
+    generation: u64,
+    connections: &'a ConnectionRegistry,
+    connection_act: &'a PreparedConnectionAct,
+}
+
 async fn send_live_with_admission(
-    writer: &mpsc::Sender<AdmittedLiveWrite>,
+    cut: LiveHandoffCut<'_>,
     message: Message,
     admission: &AdmissionLease,
     publication_authority: Option<RealtimePublicationPermit>,
     outbox_lease: Option<crate::ephemeral::OutboxDrainLease>,
     projection_outbox: Option<&EphemeralApi>,
-    notify: &crate::ephemeral::DeliveryNotifier,
-    connection_id: &str,
-    generation: u64,
-    connections: &ConnectionRegistry,
-    connection_act: &PreparedConnectionAct,
 ) -> LiveHandoffOutcome {
+    let LiveHandoffCut {
+        writer,
+        notify,
+        connection_id,
+        generation,
+        connections,
+        connection_act,
+    } = cut;
     let (completed, completion) = oneshot::channel();
     // The complete frame crosses into the bounded writer queue under the same
     // mutex that retires an epoch. Socket I/O may await afterward, but no frame
@@ -10390,6 +10401,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         connection_id.clone(),
         generation,
     ));
+    let handoff_cut = LiveHandoffCut {
+        writer: &writer,
+        notify: &notify,
+        connection_id: &connection_id,
+        generation,
+        connections: &connections,
+        connection_act: &connection_act,
+    };
     let authorization_invalidation_negotiated =
         active_mode == AuthMode::Sessions && connection_act.authorization_invalidation.is_some();
     // Session invalidation is level-triggered, so its safety-net tick is also
@@ -10513,7 +10532,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                             Ok(room_authorization) => room_authorization,
                             Err(response) => {
                                 if send_live_with_admission(
-                                    &writer,
+                                    handoff_cut,
                                     Message::Text(response.text.into()),
                                     &admission,
                                     response
@@ -10521,11 +10540,6 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                         .map(RealtimePublicationPermit::Room),
                                     None,
                                     None,
-                                    &notify,
-                                    &connection_id,
-                                    generation,
-                                    &connections,
-                                    &connection_act,
                                 )
                                 .await
                                     != LiveHandoffOutcome::Sent
@@ -10563,7 +10577,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         let outer_room_authority =
                             room_authorization.and_then(|authorization| authorization.permit);
                         if send_live_with_admission(
-                            &writer,
+                            handoff_cut,
                             Message::Text(response.text.into()),
                             &admission,
                             response
@@ -10572,11 +10586,6 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                 .map(RealtimePublicationPermit::Room),
                             None,
                             None,
-                            &notify,
-                            &connection_id,
-                            generation,
-                            &connections,
-                            &connection_act,
                         ).await != LiveHandoffOutcome::Sent {
                             break 'stream;
                         }
@@ -10703,17 +10712,12 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                             .is_ok()
                     });
                 if !current || send_live_with_admission(
-                    &writer,
+                    handoff_cut,
                     Message::Ping(Vec::new().into()),
                     &admission,
                     None,
                     None,
                     None,
-                    &notify,
-                    &connection_id,
-                    generation,
-                    &connections,
-                    &connection_act,
                 ).await != LiveHandoffOutcome::Sent {
                     break 'stream;
                 }
@@ -10850,6 +10854,14 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         connection_act,
         reproject_authorization,
     } = drain;
+    let handoff_cut = LiveHandoffCut {
+        writer,
+        notify,
+        connection_id,
+        generation,
+        connections,
+        connection_act,
+    };
     // Re-run durable projections before acquiring publication permits: a
     // prepared authorization commit holds the write lane while waiting for
     // them, so taking one and then waiting on `with_snapback` would invert the
@@ -10920,17 +10932,12 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
             continue;
         };
         match send_live_with_admission(
-            writer,
+            handoff_cut,
             Message::Text(message.into()),
             admission,
             publication_authority,
             Some(outbox_lease),
             None,
-            notify,
-            connection_id,
-            generation,
-            connections,
-            connection_act,
         )
         .await
         {
@@ -10949,17 +10956,12 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
             continue;
         };
         match send_live_with_admission(
-            writer,
+            handoff_cut,
             Message::Text(message.into()),
             admission,
             publication_authority,
             None,
             Some(ephemeral),
-            notify,
-            connection_id,
-            generation,
-            connections,
-            connection_act,
         )
         .await
         {
@@ -17060,17 +17062,19 @@ mod tests {
         let admission = test_route_admission(&state).0;
         let (writer, mut writes) = tokio::sync::mpsc::channel(1);
         let outcome = super::send_live_with_admission(
-            &writer,
+            super::LiveHandoffCut {
+                writer: &writer,
+                notify: &notifier,
+                connection_id: &opened.connection_id,
+                generation,
+                connections: &state.connections,
+                connection_act: &act,
+            },
             super::Message::Text("direct-projection".into()),
             &admission,
             None,
             None,
             Some(&state.ephemeral),
-            &notifier,
-            &opened.connection_id,
-            generation,
-            &state.connections,
-            &act,
         )
         .await;
         assert_eq!(outcome, super::LiveHandoffOutcome::Superseded);

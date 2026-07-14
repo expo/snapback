@@ -2418,7 +2418,8 @@ impl OutboundQueue {
         let markers = self
             .overflow_marker_leases
             .iter()
-            .filter_map(|(marker, lease_id)| lease_ids.contains(lease_id).then(|| marker.clone()))
+            .filter(|(_, lease_id)| lease_ids.contains(lease_id))
+            .map(|(marker, _)| marker.clone())
             .collect::<Vec<_>>();
         for marker in markers {
             self.overflow_marker_leases.remove(&marker);
@@ -2588,8 +2589,7 @@ impl OutboundQueue {
         // While selected, the global one-batch rule parks every competing HTTP
         // or WS drain until acceptance/release, so poison cannot be bypassed or
         // overtaken by a later physical frame.
-        if poisoned_overflow_signal.is_some() {
-            let effect_fence = poisoned_overflow_signal.expect("checked poison fence");
+        if let Some(effect_fence) = poisoned_overflow_signal {
             self.select_marker(
                 OverflowMarkerLeaseKey::Poison,
                 RealtimeEnvelope::Durable(overflow_sentinel(Some(effect_fence))),
@@ -5795,10 +5795,10 @@ impl LocalEphemeralBackend {
         }
         let removed = {
             let mut queue = lock(&outbox);
-            if !leases.is_empty() && queue.active_lease_effect_fence.as_ref() != Some(effect_fence)
+            if (!leases.is_empty()
+                && queue.active_lease_effect_fence.as_ref() != Some(effect_fence))
+                || queue.recovery_marker_preempts(Some(effect_fence), batch_marker_priority)
             {
-                false
-            } else if queue.recovery_marker_preempts(Some(effect_fence), batch_marker_priority) {
                 false
             } else {
                 queue.acknowledge_leases(&ids)
