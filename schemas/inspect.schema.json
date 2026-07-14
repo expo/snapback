@@ -1252,6 +1252,7 @@
           "type": "integer"
         },
         "pendingDurableMessages": {
+          "description": "Physical durable frames plus out-of-band overflow/poison signals that\nwill materialize as durable clear-retained frames at an eligible drain.",
           "format": "uint",
           "minimum": 0,
           "type": "integer"
