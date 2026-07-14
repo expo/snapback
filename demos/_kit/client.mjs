@@ -411,6 +411,247 @@ const safeNextCounter = (value, code, label) => {
   return value + 1;
 };
 
+const exactRecord = (value, keys) => (
+  value !== null
+  && typeof value === 'object'
+  && !Array.isArray(value)
+  && Object.keys(value).length === keys.length
+  && keys.every((key) => Object.hasOwn(value, key))
+);
+
+const safeUnsignedInteger = (value) => Number.isSafeInteger(value) && value >= 0;
+const nullableString = (value) => value === null || typeof value === 'string';
+const nullableProtocolV1 = (value) => value === null || value === 1;
+
+const projectOnlineAvailability = (value) => {
+  if (
+    !exactRecord(value, ['available', 'reason'])
+    || typeof value.available !== 'boolean'
+    || !nullableString(value.reason)
+  ) return null;
+  return { available: value.available, reason: value.reason };
+};
+
+const projectAuthScopedLiveAvailability = (value) => {
+  if (
+    !exactRecord(value, ['available', 'minimumAuthInvalidationProtocol', 'reason'])
+    || typeof value.available !== 'boolean'
+    || !nullableProtocolV1(value.minimumAuthInvalidationProtocol)
+    || !nullableString(value.reason)
+  ) return null;
+  return {
+    available: value.available,
+    minimumAuthInvalidationProtocol: value.minimumAuthInvalidationProtocol,
+    reason: value.reason,
+  };
+};
+
+const projectRetainedReadAvailability = (value) => {
+  if (
+    !exactRecord(value, [
+      'available',
+      'minimumAuthInvalidationProtocol',
+      'minimumAuthorizedLeaseProtocol',
+      'reason',
+    ])
+    || typeof value.available !== 'boolean'
+    || !nullableProtocolV1(value.minimumAuthInvalidationProtocol)
+    || !nullableProtocolV1(value.minimumAuthorizedLeaseProtocol)
+    || !nullableString(value.reason)
+  ) return null;
+  return {
+    available: value.available,
+    minimumAuthInvalidationProtocol: value.minimumAuthInvalidationProtocol,
+    minimumAuthorizedLeaseProtocol: value.minimumAuthorizedLeaseProtocol,
+    reason: value.reason,
+  };
+};
+
+const projectQueuedReplayAvailability = (value) => {
+  if (
+    !exactRecord(value, ['available', 'minimumAuthorityDescriptorProtocol', 'reason'])
+    || typeof value.available !== 'boolean'
+    || !nullableProtocolV1(value.minimumAuthorityDescriptorProtocol)
+    || !nullableString(value.reason)
+  ) return null;
+  return {
+    available: value.available,
+    minimumAuthorityDescriptorProtocol: value.minimumAuthorityDescriptorProtocol,
+    reason: value.reason,
+  };
+};
+
+const projectAuthSessionResponse = (value) => {
+  if (!exactRecord(value, [
+    'protocolVersion',
+    'serverStartupNonce',
+    'authorizationStreamIncarnation',
+    'transitionGeneration',
+    'activeMode',
+    'desiredMode',
+    'modeState',
+    'appDataAvailability',
+    'quarantineCode',
+    'clientProtocols',
+    'availability',
+    'provider',
+    'transports',
+    'authority',
+    'authorityDescriptor',
+  ])) return null;
+
+  const clientProtocols = value.clientProtocols;
+  const availability = value.availability;
+  const provider = value.provider;
+  const authority = value.authority;
+  if (
+    value.protocolVersion !== 1
+    || typeof value.serverStartupNonce !== 'string'
+    || value.serverStartupNonce.length === 0
+    || typeof value.authorizationStreamIncarnation !== 'string'
+    || value.authorizationStreamIncarnation.length === 0
+    || !safeUnsignedInteger(value.transitionGeneration)
+    || !['dev', 'sessions'].includes(value.activeMode)
+    || !['dev', 'sessions'].includes(value.desiredMode)
+    || !['settled', 'pendingRestart', 'quarantined'].includes(value.modeState)
+    || !['available', 'refusedPending'].includes(value.appDataAvailability)
+    || !nullableString(value.quarantineCode)
+    || !exactRecord(clientProtocols, [
+      'authClient',
+      'authInvalidation',
+      'authorityDescriptor',
+      'authorizedLease',
+    ])
+    || !Object.values(clientProtocols).every(nullableProtocolV1)
+    || !exactRecord(availability, [
+      'onlineRequestResponse',
+      'authScopedLive',
+      'retainedReads',
+      'queuedReplay',
+    ])
+    || !exactRecord(provider, ['key', 'available'])
+    || typeof provider.key !== 'string'
+    || provider.key.length === 0
+    || typeof provider.available !== 'boolean'
+    || !Array.isArray(value.transports)
+    || value.transports.length !== 1
+    || value.transports[0] !== 'bearer'
+    || !exactRecord(authority, ['userId', 'sessionId', 'isAuthenticated'])
+    || !authorityDescriptorIsValid(value.authorityDescriptor)
+    || typeof authority.isAuthenticated !== 'boolean'
+    || (authority.isAuthenticated
+      ? (
+          typeof authority.userId !== 'string'
+          || authority.userId.length === 0
+          || typeof authority.sessionId !== 'string'
+          || authority.sessionId.length === 0
+        )
+      : authority.userId !== null || authority.sessionId !== null)
+  ) return null;
+
+  const onlineRequestResponse = projectOnlineAvailability(availability.onlineRequestResponse);
+  const authScopedLive = projectAuthScopedLiveAvailability(availability.authScopedLive);
+  const retainedReads = projectRetainedReadAvailability(availability.retainedReads);
+  const queuedReplay = projectQueuedReplayAvailability(availability.queuedReplay);
+  if (!onlineRequestResponse || !authScopedLive || !retainedReads || !queuedReplay) return null;
+
+  return {
+    protocolVersion: 1,
+    serverStartupNonce: value.serverStartupNonce,
+    authorizationStreamIncarnation: value.authorizationStreamIncarnation,
+    transitionGeneration: value.transitionGeneration,
+    activeMode: value.activeMode,
+    desiredMode: value.desiredMode,
+    modeState: value.modeState,
+    appDataAvailability: value.appDataAvailability,
+    quarantineCode: value.quarantineCode,
+    clientProtocols: {
+      authClient: clientProtocols.authClient,
+      authInvalidation: clientProtocols.authInvalidation,
+      authorityDescriptor: clientProtocols.authorityDescriptor,
+      authorizedLease: clientProtocols.authorizedLease,
+    },
+    availability: {
+      onlineRequestResponse,
+      authScopedLive,
+      retainedReads,
+      queuedReplay,
+    },
+    provider: { key: provider.key, available: provider.available },
+    transports: ['bearer'],
+    authority: {
+      userId: authority.userId,
+      sessionId: authority.sessionId,
+      isAuthenticated: authority.isAuthenticated,
+    },
+    authorityDescriptor: { ...value.authorityDescriptor },
+  };
+};
+
+const projectSessionResponse = (value) => {
+  if (
+    !exactRecord(value, [
+      'id',
+      'userId',
+      'provider',
+      'createdAt',
+      'expiresAt',
+      'absoluteExpiresAt',
+    ])
+    || typeof value.id !== 'string'
+    || value.id.length === 0
+    || typeof value.userId !== 'string'
+    || value.userId.length === 0
+    || typeof value.provider !== 'string'
+    || value.provider.length === 0
+    || !safeUnsignedInteger(value.createdAt)
+    || !safeUnsignedInteger(value.expiresAt)
+    || !safeUnsignedInteger(value.absoluteExpiresAt)
+  ) return null;
+  return {
+    id: value.id,
+    userId: value.userId,
+    provider: value.provider,
+    createdAt: value.createdAt,
+    expiresAt: value.expiresAt,
+    absoluteExpiresAt: value.absoluteExpiresAt,
+  };
+};
+
+const valueContainsSecret = (value, secret) => {
+  if (typeof secret !== 'string' || secret.length < 4) return false;
+  if (typeof value === 'string') return value.includes(secret);
+  if (Array.isArray(value)) return value.some((item) => valueContainsSecret(item, secret));
+  if (!value || typeof value !== 'object') return false;
+  return Object.values(value).some((item) => valueContainsSecret(item, secret));
+};
+
+const projectCredentialResponse = (value) => {
+  if (
+    !exactRecord(value, ['tokenType', 'token', 'refreshAfter', 'session'])
+    || value.tokenType !== 'Bearer'
+    || typeof value.token !== 'string'
+    || value.token.length === 0
+    || !safeUnsignedInteger(value.refreshAfter)
+  ) return null;
+  const session = projectSessionResponse(value.session);
+  if (!session) return null;
+  const projected = {
+    tokenType: 'Bearer',
+    token: value.token,
+    refreshAfter: value.refreshAfter,
+    session,
+  };
+  if (valueContainsSecret(credentialPublicProjection(projected), projected.token)) return null;
+  return projected;
+};
+
+const credentialPublicProjection = (credential) => ({
+  tokenType: credential.tokenType,
+  refreshAfter: credential.refreshAfter,
+  session: { ...credential.session },
+});
+
 const clientAuthorityFromHandshake = (session) => {
   const base = {
     authMode: session.activeMode,
@@ -573,12 +814,12 @@ export class SnapbackClient {
         undefined,
         this.#authOfferHeaders(true),
       );
-      this.#validateAuthSession(session);
+      const projected = this.#validateAuthSession(session, this.bearerToken);
       if (this.__authSessionCacheGeneration === cacheGeneration) {
-        this.__authSessionLastSuccessful = session;
+        this.__authSessionLastSuccessful = projected;
         this.__authSessionCapture = null;
       }
-      return session;
+      return projected;
     } catch (error) {
       if (
         this.__authSessionCacheGeneration === cacheGeneration
@@ -653,34 +894,9 @@ export class SnapbackClient {
     return headers;
   }
 
-  #validateAuthSession(session) {
-    const descriptorRequired = session?.clientProtocols?.authorityDescriptor === 1
-      || session?.availability?.queuedReplay?.minimumAuthorityDescriptorProtocol === 1;
-    const valid = session
-      && session.protocolVersion === 1
-      && typeof session.serverStartupNonce === 'string'
-      && session.serverStartupNonce.length > 0
-      && Number.isSafeInteger(session.transitionGeneration)
-      && session.transitionGeneration >= 0
-      && (session.activeMode === 'dev' || session.activeMode === 'sessions')
-      && (session.desiredMode === 'dev' || session.desiredMode === 'sessions')
-      && session.availability
-      && session.authority;
-    const descriptorValid = !descriptorRequired
-      || authorityDescriptorIsValid(session?.authorityDescriptor);
-    const coordinatedValid = !this.authCoordinator || (
-      typeof session.authorizationStreamIncarnation === 'string'
-      && session.authorizationStreamIncarnation.length > 0
-      && typeof session.authority.isAuthenticated === 'boolean'
-      && (
-        !session.authority.isAuthenticated
-        || (
-          typeof session.authority.userId === 'string'
-          && typeof session.authority.sessionId === 'string'
-        )
-      )
-    );
-    if (valid && coordinatedValid && descriptorValid) return;
+  #validateAuthSession(session, requestBearer = null) {
+    const projected = projectAuthSessionResponse(session);
+    if (projected && !valueContainsSecret(projected, requestBearer)) return projected;
     const diagnostic = {
       code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
       message: 'GET /auth/session returned an invalid protocol-v1 response',
@@ -747,8 +963,7 @@ export class SnapbackClient {
       undefined,
       this.#authOfferHeaders(true, bearer),
     );
-    this.#validateAuthSession(session);
-    return session;
+    return this.#validateAuthSession(session, bearer);
   }
 
   async #coordinatedAuthSession({
@@ -828,16 +1043,8 @@ export class SnapbackClient {
   }
 
   #validateCredentialResponse(response) {
-    const valid = response
-      && response.tokenType === 'Bearer'
-      && typeof response.token === 'string'
-      && response.token.length > 0
-      && Number.isSafeInteger(response.refreshAfter)
-      && response.session
-      && typeof response.session.id === 'string'
-      && typeof response.session.userId === 'string'
-      && authorityDescriptorIsValid(response.authorityDescriptor);
-    if (valid) return response;
+    const projected = projectCredentialResponse(response);
+    if (projected) return projected;
     const error = new Error(
       'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid credential response',
     );
@@ -1259,12 +1466,7 @@ export class SnapbackClient {
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
     }, 'login');
-    return {
-      tokenType: response.tokenType,
-      refreshAfter: response.refreshAfter,
-      session: response.session,
-      authorityDescriptor: { ...response.authorityDescriptor },
-    };
+    return credentialPublicProjection(response);
   }
 
   async authRefresh() {
@@ -1311,12 +1513,7 @@ export class SnapbackClient {
           return {
             bearer: response.token,
             refreshAfterMs: response.refreshAfter,
-            value: {
-              tokenType: response.tokenType,
-              refreshAfter: response.refreshAfter,
-              session: response.session,
-              authorityDescriptor: { ...response.authorityDescriptor },
-            },
+            value: credentialPublicProjection(response),
           };
         },
       );

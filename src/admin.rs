@@ -19,20 +19,21 @@ use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
 use crate::diagnostic::SnapbackError;
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
-use crate::manifest::{FunctionKind, HandlerInput};
+use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{
     ApiError, AuthTerminalLifecycle, ConnectionRegistry, EffectPolicy, HealthResponse,
     InvocationAuthority, PolicyAuthMode, PolicyAuthPosture, RegisteredRoute, ResponseSensitivity,
     RoutePolicy, SessionModeOverlay, SharedSnapback, committed_mode_terminal_reason,
-    system_api_route, system_static_route,
+    static_public_content_security_policy, system_api_route, system_static_route,
 };
 use anyhow::Context as _;
 use axum::Json;
 use axum::extract::{Extension, FromRef, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, HeaderName, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeSet, HashMap};
@@ -109,6 +110,39 @@ pub enum ServerProfile {
     Demo,
     Test,
     Prod,
+}
+
+/// One local-plaintext transport decision shared by pre-bind CLI composition
+/// and request middleware used by embedded/test routers.
+///
+/// @ref LLP 0057#d1-plaintext-listener-fence — staging sessions is enough to
+/// close a non-loopback plaintext listener; the dev override never applies to
+/// either active or desired sessions.
+pub(crate) fn validate_plaintext_auth_transport(
+    loopback: bool,
+    profile: ServerProfile,
+    active: AuthMode,
+    desired: AuthMode,
+    allow_insecure_dev_auth: bool,
+) -> Result<(), SnapbackError> {
+    if loopback {
+        return Ok(());
+    }
+    if active == AuthMode::Sessions || desired == AuthMode::Sessions {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+            "auth-mode",
+            "desired or active sessions cannot serve app data on a plaintext non-loopback bind",
+        ));
+    }
+    if profile == ServerProfile::Prod || !allow_insecure_dev_auth {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+            "auth-mode",
+            "dev auth on a non-loopback listener requires the explicit non-production override",
+        ));
+    }
+    Ok(())
 }
 
 impl ServerProfile {
@@ -982,19 +1016,27 @@ impl AppState {
     /// @ref LLP 0057#d1-plaintext-listener-fence — this local listener check
     /// does not attest a public reverse proxy or any hosted edge capability.
     pub fn validate_auth_transport(&self) -> Result<(), SnapbackError> {
-        let override_allowed =
-            self.allow_insecure_dev_auth && !matches!(self.server.profile, ServerProfile::Prod);
-        if !self.server.loopback
-            && (matches!(self.active_policy_auth_mode(), PolicyAuthMode::Sessions)
-                || !override_allowed)
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_TRANSPORT_INSECURE",
-                "auth",
-                "the active auth mode cannot serve app data on a plaintext non-loopback bind",
-            ));
-        }
-        Ok(())
+        let state = self.auth_mode_state();
+        let posture = self.policy_auth_posture();
+        let active =
+            if state.active == AuthMode::Sessions || posture.active == PolicyAuthMode::Sessions {
+                AuthMode::Sessions
+            } else {
+                AuthMode::Dev
+            };
+        let desired =
+            if state.desired == AuthMode::Sessions || posture.desired == PolicyAuthMode::Sessions {
+                AuthMode::Sessions
+            } else {
+                AuthMode::Dev
+            };
+        validate_plaintext_auth_transport(
+            self.server.loopback,
+            self.server.profile,
+            active,
+            desired,
+            self.allow_insecure_dev_auth,
+        )
     }
 
     /// Install the exact provider instance and readiness posture assembled
@@ -1753,7 +1795,14 @@ async fn console(State(ctx): State<Arc<ServerContext>>) -> Response {
     if let Some(dist) = &ctx.admin_dist
         && let Ok(bytes) = read_admin_asset(dist, "index.html").await
     {
-        return ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], bytes).into_response();
+        let digests = inline_script_sha256_digests(&bytes);
+        let mut response =
+            ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], bytes).into_response();
+        response.headers_mut().insert(
+            HeaderName::from_static("content-security-policy"),
+            static_public_content_security_policy(digests.iter().map(String::as_str)),
+        );
+        return response;
     }
     (
         StatusCode::SERVICE_UNAVAILABLE,
@@ -1761,6 +1810,36 @@ async fn console(State(ctx): State<Arc<ServerContext>>) -> Response {
         MISSING_ADMIN_DIST_HTML,
     )
         .into_response()
+}
+
+/// Hash the exact inline script bytes in a built admin document. External
+/// scripts normally have an empty body and need no hash; retaining only
+/// non-empty bodies also admits the Exact manifest data block on engines that
+/// apply `script-src` to non-executable script elements.
+pub(crate) fn inline_script_sha256_digests(bytes: &[u8]) -> Vec<String> {
+    let Ok(html) = std::str::from_utf8(bytes) else {
+        return Vec::new();
+    };
+    let mut digests = Vec::new();
+    let mut rest = html;
+    while let Some(open_start) = rest.find("<script") {
+        rest = &rest[open_start + "<script".len()..];
+        let Some(open_end) = rest.find('>') else {
+            break;
+        };
+        let body_and_suffix = &rest[open_end + 1..];
+        let Some(close_start) = body_and_suffix.find("</script>") else {
+            break;
+        };
+        let body = &body_and_suffix[..close_start];
+        if !body.is_empty() {
+            digests.push(
+                base64::engine::general_purpose::STANDARD.encode(Sha256::digest(body.as_bytes())),
+            );
+        }
+        rest = &body_and_suffix[close_start + "</script>".len()..];
+    }
+    digests
 }
 
 /// Serve the embedded setup wizard (`/_snapback/admin/setup`) — system-static

@@ -89,8 +89,92 @@
   "use strict";
   var CONSOLE_STORAGE_KEY = "snapback_console_credential_v1";
   var LEGACY_MASTER_STORAGE_KEY = "snapback_admin_token";
+  var CREDENTIAL_REDACTION = "[REDACTED]";
   var store = loadConsoleCredential();
   var $ = function (sel) { return document.querySelector(sel); };
+
+  function exactRecord(value, keys) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    var actual = Object.keys(value).sort();
+    var expected = keys.slice().sort();
+    return actual.length === expected.length && actual.every(function (key, index) {
+      return key === expected[index];
+    });
+  }
+  function projectConsoleCredential(value) {
+    if (!exactRecord(value, ["credential", "expiresAtMs"])) return null;
+    if (typeof value.credential !== "string" || value.credential.indexOf("sbcc_") !== 0 ||
+        value.credential.length <= 5 || !Number.isSafeInteger(value.expiresAtMs) ||
+        value.expiresAtMs < 0) return null;
+    return { credential: value.credential, expiresAtMs: value.expiresAtMs };
+  }
+  function normalizedFieldName(name) {
+    return String(name || "")
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      .replace(/[^A-Za-z0-9]+/g, "_")
+      .toLowerCase();
+  }
+  function sensitiveField(name) {
+    var normalized = normalizedFieldName(name);
+    return normalized === "authorization" || normalized === "value" ||
+      /_(value|token|bearer|credential|lease|proof|secret|private_key|key_material)$/.test(normalized) ||
+      /^(token|bearer|credential|lease|proof|secret|private_key|key_material)$/.test(normalized);
+  }
+  function addSecret(secrets, value) {
+    if (typeof value !== "string" && typeof value !== "number") return;
+    var text = String(value);
+    if (text.length >= 4 && secrets.indexOf(text) === -1) secrets.push(text);
+  }
+  function knownSecrets() {
+    var secrets = [];
+    addSecret(secrets, store && store.credential);
+    return secrets;
+  }
+  function collectRequestSecrets(options) {
+    var secrets = knownSecrets();
+    var requestHeaders = options && options.headers;
+    Object.keys(requestHeaders || {}).forEach(function (name) {
+      if (sensitiveField(name)) addSecret(secrets, requestHeaders[name]);
+    });
+    var body = options && options.body;
+    if (typeof body === "string") {
+      try { body = JSON.parse(body); } catch (_) { body = null; }
+    }
+    function visit(value, field) {
+      if (sensitiveField(field)) addSecret(secrets, value);
+      if (Array.isArray(value)) {
+        value.forEach(function (item) { visit(item, field); });
+      } else if (value && typeof value === "object") {
+        Object.keys(value).forEach(function (name) { visit(value[name], name); });
+      }
+    }
+    visit(body, null);
+    return secrets;
+  }
+  function redactKnownSecrets(value, secrets) {
+    var redacted = String(value == null ? "" : value);
+    secrets.forEach(function (secret) {
+      redacted = redacted.split(secret).join(CREDENTIAL_REDACTION);
+    });
+    return redacted;
+  }
+  function sanitizeKnownSecrets(value, secrets) {
+    if (typeof value === "string") return redactKnownSecrets(value, secrets);
+    if (Array.isArray(value)) {
+      return value.map(function (item) { return sanitizeKnownSecrets(item, secrets); });
+    }
+    if (!value || typeof value !== "object") return value;
+    var safe = {};
+    Object.keys(value).forEach(function (name) {
+      safe[name] = sanitizeKnownSecrets(value[name], secrets);
+    });
+    return safe;
+  }
+  function sanitizeError(error, secrets) {
+    var safe = new Error(redactKnownSecrets(error && error.message != null ? error.message : error, secrets));
+    if (error && error.code != null) safe.code = redactKnownSecrets(error.code, secrets);
+    return safe;
+  }
 
   function headers(json) {
     var out = json ? { "content-type": "application/json" } : {};
@@ -104,12 +188,12 @@
       localStorage.removeItem(LEGACY_MASTER_STORAGE_KEY);
       var raw = localStorage.getItem(CONSOLE_STORAGE_KEY);
       if (!raw) return { credential: "", expiresAtMs: 0 };
-      var record = JSON.parse(raw);
-      if (!record.credential || !Number.isFinite(record.expiresAtMs) || record.expiresAtMs <= Date.now()) {
+      var record = projectConsoleCredential(JSON.parse(raw));
+      if (!record || record.expiresAtMs <= Date.now()) {
         localStorage.removeItem(CONSOLE_STORAGE_KEY);
         return { credential: "", expiresAtMs: 0 };
       }
-      return { credential: String(record.credential), expiresAtMs: record.expiresAtMs };
+      return record;
     } catch (_) {
       return { credential: "", expiresAtMs: 0 };
     }
@@ -134,27 +218,37 @@
     return api("/_snapback/api/console/credential", {
       method: "POST",
       headers: { "x-snapback-admin-token": masterToken }
-    }).then(function (minted) {
-      if (!minted || !minted.credential || !Number.isFinite(minted.expiresAtMs) || minted.expiresAtMs <= Date.now()) {
+    }, true).then(function (minted) {
+      var credential = projectConsoleCredential(minted);
+      if (!credential || credential.expiresAtMs <= Date.now()) {
         throw new Error("Console credential exchange returned an invalid response.");
       }
-      replaceConsoleCredential({
-        credential: String(minted.credential),
-        expiresAtMs: minted.expiresAtMs
-      });
+      replaceConsoleCredential(credential);
     });
   }
-  function api(path, options) {
+  function api(path, options, preserveCredentialResponse) {
+    var secrets = collectRequestSecrets(options || {});
     return fetch(path, options).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (body) {
+      return res.text().then(function (text) {
+        var body = {};
+        var parseFailed = false;
+        if (text) {
+          try { body = JSON.parse(text); } catch (_) { parseFailed = true; }
+        }
         if (!res.ok) {
           var diagnostic = body && body.diagnostic;
-          var error = new Error((diagnostic && diagnostic.message) || ("HTTP " + res.status));
-          error.code = diagnostic && diagnostic.code;
+          var rawMessage = diagnostic && diagnostic.message;
+          var error = new Error(redactKnownSecrets(rawMessage || ("HTTP " + res.status), secrets));
+          error.code = redactKnownSecrets(diagnostic && diagnostic.code, secrets);
           throw error;
         }
-        return body;
+        if (parseFailed) throw new Error("HTTP " + res.status + " response is not JSON.");
+        return preserveCredentialResponse ? body : sanitizeKnownSecrets(body, secrets);
+      }, function (error) {
+        throw sanitizeError(error, secrets);
       });
+    }, function (error) {
+      throw sanitizeError(error, secrets);
     });
   }
   function el(tag, attrs, children) {

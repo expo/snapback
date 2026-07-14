@@ -310,26 +310,13 @@ fn validate_auth_transport(
     state: &crate::auth::mode::AuthModeStateRecord,
     allow_insecure_dev_auth: bool,
 ) -> crate::diagnostic::SnapbackResult<()> {
-    use crate::manifest::AuthMode;
-
-    if bind_ip.is_loopback() {
-        return Ok(());
-    }
-    if state.active == AuthMode::Sessions || state.desired == AuthMode::Sessions {
-        return Err(crate::diagnostic::SnapbackError::error(
-            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
-            "auth-mode",
-            "sessions mode cannot bind a plaintext non-loopback listener",
-        ));
-    }
-    if profile == ServerProfile::Prod || !allow_insecure_dev_auth {
-        return Err(crate::diagnostic::SnapbackError::error(
-            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
-            "auth-mode",
-            "dev auth on a non-loopback listener requires the explicit non-production override",
-        ));
-    }
-    Ok(())
+    crate::admin::validate_plaintext_auth_transport(
+        bind_ip.is_loopback(),
+        profile,
+        state.active,
+        state.desired,
+        allow_insecure_dev_auth,
+    )
 }
 
 /// Compose the build facts installed by the production serve path. The

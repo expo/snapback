@@ -3,9 +3,11 @@
 import { SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 9 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 10 });
 const originalFetch = globalThis.fetch;
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
+const AUTHORIZATION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
+const BEARER_SENTINEL = 'sbs_HANDSHAKE_SUCCESS_SENTINEL_MUST_NOT_ESCAPE';
 
 const response = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -24,6 +26,7 @@ const handshake = ({
 } = {}) => ({
   protocolVersion: 1,
   serverStartupNonce: nonce,
+  authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
   transitionGeneration: generation,
   activeMode,
   desiredMode,
@@ -292,6 +295,28 @@ try {
     assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_MODE_PENDING');
     assertEqual(calls.map(({ path }) => path), ['/auth/session']);
     return { blocked: true };
+  });
+
+  await suite.check('poisoned successful handshakes reject unknown root and nested bearer fields', async () => {
+    for (const nested of [false, true]) {
+      globalThis.fetch = async () => {
+        const poisoned = handshake({ activeMode: 'sessions' });
+        if (nested) poisoned.authority.bearer = BEARER_SENTINEL;
+        else poisoned.bearer = BEARER_SENTINEL;
+        return response(poisoned);
+      };
+      const db = new SnapbackClient('http://stub', { bearerToken: BEARER_SENTINEL });
+      const error = await assertThrows(
+        () => db.authSession({ force: true }),
+        'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+        `expected ${nested ? 'nested' : 'root'} poison refusal`,
+      );
+      assert(!JSON.stringify({
+        message: error.message,
+        diagnostic: error.diagnostic,
+      }).includes(BEARER_SENTINEL), 'handshake refusal never republishes the bearer');
+    }
+    return { rejectedShapes: 2 };
   });
 } finally {
   globalThis.fetch = originalFetch;

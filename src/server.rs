@@ -3917,15 +3917,17 @@ fn apply_registered_response_controls(
         HeaderValue::from_static("none"),
     );
     if effective.response_sensitivity == ResponseSensitivity::StaticPublic {
-        // The one embedded setup script is admitted by its exact SHA-256. The
-        // drift test recomputes this value from the served bytes. Styles remain
-        // inline-compatible for the setup fallback and React style props.
-        headers.insert(
-            HeaderName::from_static("content-security-policy"),
-            HeaderValue::from_static(
-                "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'sha256-Mdh+CvPmWuhMomim7Anb9lHVlGA8auuZMPC9Vz49C3E='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; require-trusted-types-for 'script'; trusted-types snapback",
-            ),
-        );
+        // The setup page has one embedded script. The built Exact shell has
+        // build-specific inline bootstrap/manifest blocks and installs its own
+        // exact-byte hashes in the handler. Never overwrite that narrower
+        // response-specific policy with the setup fallback.
+        let csp = HeaderName::from_static("content-security-policy");
+        if !headers.contains_key(&csp) {
+            headers.insert(
+                csp,
+                static_public_content_security_policy([SETUP_SCRIPT_SHA256]),
+            );
+        }
         headers.insert(
             HeaderName::from_static("cross-origin-opener-policy"),
             HeaderValue::from_static("same-origin"),
@@ -3945,6 +3947,28 @@ fn apply_registered_response_controls(
         );
     }
     response
+}
+
+const SETUP_SCRIPT_SHA256: &str = "36I3okOvH/8EY6Jpsa8zQfrWNaprUA1yXZqkz5aSj5A=";
+
+/// Construct the one restrictive policy shared by Snapback-owned documents,
+/// admitting only same-origin external scripts and explicitly hashed inline
+/// bytes supplied by the concrete response handler.
+pub(crate) fn static_public_content_security_policy<'a>(
+    inline_script_sha256: impl IntoIterator<Item = &'a str>,
+) -> HeaderValue {
+    let mut value = String::from(
+        "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'",
+    );
+    for digest in inline_script_sha256 {
+        value.push_str(" 'sha256-");
+        value.push_str(digest);
+        value.push('\'');
+    }
+    value.push_str(
+        "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; require-trusted-types-for 'script'; trusted-types snapback",
+    );
+    HeaderValue::try_from(value).expect("base64 SHA-256 digests form a valid CSP header")
 }
 
 const POLICY_BODY_PEEK_LIMIT: usize = 2 * 1024 * 1024;
@@ -4172,6 +4196,38 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
             crate::auth::deployment::HostedAuthCapabilities::local_target(),
         ));
     }
+    // Health is the sole request-path diagnostic that may remain reachable on
+    // an already-composed insecure listener. Apply the shared transport fence
+    // before the `/` and bootstrap-handshake diagnostic exemptions so neither
+    // active nor merely desired sessions can consume a bearer over plaintext.
+    if spec.path == "/health" {
+        return None;
+    }
+    let mode_state = runtime.auth_mode_state();
+    let policy_posture = runtime.policy_auth_posture();
+    let transport_active = if mode_state.active == crate::manifest::AuthMode::Sessions
+        || policy_posture.active == PolicyAuthMode::Sessions
+    {
+        crate::manifest::AuthMode::Sessions
+    } else {
+        crate::manifest::AuthMode::Dev
+    };
+    let transport_desired = if mode_state.desired == crate::manifest::AuthMode::Sessions
+        || policy_posture.desired == PolicyAuthMode::Sessions
+    {
+        crate::manifest::AuthMode::Sessions
+    } else {
+        crate::manifest::AuthMode::Dev
+    };
+    if let Err(error) = crate::admin::validate_plaintext_auth_transport(
+        runtime.server.loopback,
+        runtime.server.profile,
+        transport_active,
+        transport_desired,
+        runtime.allow_insecure_dev_auth,
+    ) {
+        return Some(error);
+    }
     if auth_diagnostic_app_route(spec.path) {
         return None;
     }
@@ -4192,17 +4248,6 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
             "auth",
             "production profile refuses app data while auth mode is dev",
         ));
-    }
-    if !runtime.server.loopback {
-        let insecure_dev_override = runtime.allow_insecure_dev_auth
-            && !matches!(runtime.server.profile, ServerProfile::Prod);
-        if policy_mode == PolicyAuthMode::Sessions || !insecure_dev_override {
-            return Some(SnapbackError::error(
-                "SNAPBACK_AUTH_TRANSPORT_INSECURE",
-                "auth",
-                "the active auth mode cannot serve app data on a plaintext non-loopback bind",
-            ));
-        }
     }
     None
 }
@@ -12844,6 +12889,86 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn plaintext_handshake_fence_precedes_bearer_resolution_for_active_and_desired_sessions()
+    {
+        const BEARER_SENTINEL: &str = "sbs_PLAINTEXT_HANDSHAKE_SENTINEL_MUST_NOT_BE_CONSUMED";
+
+        async fn handshake(router: axum::Router, bearer: Option<&str>) -> (StatusCode, Value) {
+            let mut request = Request::builder().uri("/auth/session");
+            if let Some(bearer) = bearer {
+                request = request.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
+            }
+            let response = router
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            let status = response.status();
+            (status, response_json(response).await)
+        }
+
+        let (mut active, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        Arc::make_mut(&mut active.server).loopback = false;
+        let active = active.with_insecure_dev_auth_override(true);
+        assert_eq!(
+            active
+                .validate_auth_transport()
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        let (status, body) = handshake(app(active), Some(BEARER_SENTINEL)).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        assert!(!body.to_string().contains(BEARER_SENTINEL));
+
+        let (mut desired, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        desired
+            .publish_auth_mode_state(pending_sessions_state(false))
+            .unwrap();
+        Arc::make_mut(&mut desired.server).loopback = false;
+        let desired = desired.with_insecure_dev_auth_override(true);
+        assert_eq!(
+            desired
+                .validate_auth_transport()
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        let desired_router = app(desired);
+        let health = desired_router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(health.status(), StatusCode::OK);
+        let (status, body) = handshake(desired_router, Some(BEARER_SENTINEL)).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        assert!(!body.to_string().contains(BEARER_SENTINEL));
+
+        let (mut dev, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        Arc::make_mut(&mut dev.server).loopback = false;
+        let dev = dev.with_insecure_dev_auth_override(true);
+        let (status, body) = handshake(app(dev), None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["activeMode"], "dev");
+        assert_eq!(body["authority"]["isAuthenticated"], false);
+    }
+
+    #[tokio::test]
     async fn hosted_auth_configuration_is_fail_closed_in_embedded_composition() {
         let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
         Arc::make_mut(&mut state.server).auth_deployment =
@@ -12939,6 +13064,56 @@ mod tests {
             csp.contains(&format!("'sha256-{digest}'")),
             "the served inline script changed without updating its CSP hash: {csp}"
         );
+
+        // The built Exact shell has build-specific inline manifest/bootstrap
+        // blocks. Its handler must hash the exact served bytes and the shared
+        // middleware must preserve that response-specific policy.
+        let dist = tempfile::tempdir().unwrap();
+        let admin_html = concat!(
+            "<!doctype html><script type=\"application/json\">\n",
+            "{\"buildId\":\"fixture\"}\n",
+            "</script><script>\n",
+            "globalThis.__exactAppBasePath = '/_snapback/admin';\n",
+            "</script><script type=\"module\" src=\"/assets/main.js\"></script>",
+        );
+        std::fs::write(dist.path().join("index.html"), admin_html).unwrap();
+        let expected_digests = crate::admin::inline_script_sha256_digests(admin_html.as_bytes());
+        assert_eq!(expected_digests.len(), 2);
+        let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        Arc::make_mut(&mut state.server).admin_dist = Some(dist.path().to_owned());
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/admin")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let csp = response
+            .headers()
+            .get("content-security-policy")
+            .and_then(|value| value.to_str().ok())
+            .unwrap()
+            .to_owned();
+        for digest in &expected_digests {
+            assert!(
+                csp.contains(&format!("'sha256-{digest}'")),
+                "built admin inline bytes are not admitted by their response CSP: {csp}"
+            );
+        }
+        let script_directive = csp
+            .split(';')
+            .find(|directive| directive.trim_start().starts_with("script-src "))
+            .unwrap();
+        assert_eq!(script_directive.matches("'sha256-").count(), 2, "{csp}");
+        assert!(!script_directive.contains("unsafe-inline"), "{csp}");
+        assert!(csp.contains("require-trusted-types-for 'script'"), "{csp}");
+        let body = to_bytes(response.into_body(), 2 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert_eq!(body.as_ref(), admin_html.as_bytes());
     }
 
     #[tokio::test]

@@ -23,14 +23,36 @@ const response = (body, status = 200) => ({
 const handshake = {
   protocolVersion: 1,
   serverStartupNonce: 'startup-auth-invalidation',
+  authorizationStreamIncarnation: INCARNATION,
   transitionGeneration: 1,
   activeMode: 'sessions',
   desiredMode: 'sessions',
   modeState: 'settled',
+  appDataAvailability: 'available',
+  quarantineCode: null,
+  clientProtocols: {
+    authClient: 1,
+    authInvalidation: 1,
+    authorityDescriptor: null,
+    authorizedLease: null,
+  },
   availability: {
     onlineRequestResponse: { available: true, reason: null },
     authScopedLive: { available: true, minimumAuthInvalidationProtocol: 1, reason: null },
+    retainedReads: {
+      available: false,
+      minimumAuthInvalidationProtocol: 1,
+      minimumAuthorizedLeaseProtocol: 1,
+      reason: null,
+    },
+    queuedReplay: {
+      available: false,
+      minimumAuthorityDescriptorProtocol: 1,
+      reason: null,
+    },
   },
+  provider: { key: 'email-code', available: true },
+  transports: ['bearer'],
   authority: { userId: 'user_1', sessionId: 'session_1', isAuthenticated: true },
 };
 

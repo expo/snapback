@@ -12,6 +12,7 @@
 
 const CONSOLE_STORAGE_KEY = 'snapback_console_credential_v1';
 const LEGACY_MASTER_STORAGE_KEY = 'snapback_admin_token';
+const CREDENTIAL_REDACTION = '[REDACTED]';
 
 export class AdminClient {
   constructor(baseUrl, { token } = {}) {
@@ -43,25 +44,26 @@ export class AdminClient {
       undefined,
       { 'x-snapback-admin-token': masterToken },
       false,
+      false,
+      true,
     );
-    if (
-      !minted ||
-      typeof minted.credential !== 'string' ||
-      !minted.credential ||
-      !Number.isFinite(minted.expiresAtMs) ||
-      minted.expiresAtMs <= Date.now()
-    ) {
+    const credential = projectConsoleCredential(minted);
+    if (!credential || credential.expiresAtMs <= Date.now()) {
       throw responseShapeError('console credential exchange returned an invalid credential');
     }
     this.masterToken = '';
-    this.#replaceConsoleCredential({
-      credential: minted.credential,
-      expiresAtMs: minted.expiresAtMs,
-    });
+    this.#replaceConsoleCredential(credential);
   }
 
   setSecretReadLease(lease) {
     this.secretReadLease = String(lease ?? '').trim();
+  }
+
+  // UI boundaries use the same projection as the transport. Returning a new
+  // Error also drops hostile custom properties and a stack whose first line
+  // might otherwise retain a reflected credential.
+  sanitizeError(error) {
+    return sanitizeAdminError(error, this.#knownSecrets());
   }
 
   async #req(
@@ -71,6 +73,7 @@ export class AdminClient {
     explicitHeaders = {},
     includeCredential = true,
     includeSecretRead = false,
+    preserveCredentialResponse = false,
   ) {
     const headers = { ...explicitHeaders };
     if (includeCredential && this.masterToken) {
@@ -82,12 +85,19 @@ export class AdminClient {
       headers['x-snapback-secret-read-lease'] = this.secretReadLease;
     }
     if (body !== undefined) headers['content-type'] = 'application/json';
-    const res = await fetch(this.baseUrl + path, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-    const text = await res.text();
+    const requestSecrets = collectAdminSecrets(body, headers, this.#knownSecrets());
+    let res;
+    let text;
+    try {
+      res = await fetch(this.baseUrl + path, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      text = await res.text();
+    } catch (error) {
+      throw sanitizeAdminError(error, requestSecrets);
+    }
     // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
     //   trusting the body as JSON, so a proxy 502 HTML page surfaces as a
     //   structured diagnostic instead of a bare SyntaxError.
@@ -101,11 +111,12 @@ export class AdminClient {
       }
     }
     if (!res.ok) {
-      const d = json && json.diagnostic
+      const rawDiagnostic = json && json.diagnostic
         ? json.diagnostic
         : parseError
-          ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(text)}` }
+          ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}` }
           : { code: `HTTP_${res.status}`, message: text };
+      const d = sanitizeErrorValue(rawDiagnostic, requestSecrets);
       const error = new Error(`${d.code}: ${d.message ?? ''}`);
       error.diagnostic = d;
       // Consoles branch on auth failures (token banner) — expose the status.
@@ -113,13 +124,29 @@ export class AdminClient {
       throw error;
     }
     if (parseError) {
-      const d = { code: 'SNAPBACK_RESPONSE_NOT_JSON', message: `HTTP ${res.status} response is not JSON: ${bodySnippet(text)}` };
+      const d = {
+        code: 'SNAPBACK_RESPONSE_NOT_JSON',
+        message: `HTTP ${res.status} response is not JSON: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}`,
+      };
       const error = new Error(`${d.code}: ${d.message}`);
       error.diagnostic = d;
       error.status = res.status;
       throw error;
     }
-    return json;
+    // The credential exchange consumes its exact closed response internally.
+    // Every public return value replaces a credential reflected by a broken
+    // receiver, even on HTTP 2xx.
+    return preserveCredentialResponse
+      ? json
+      : sanitizeKnownSecrets(json, requestSecrets);
+  }
+
+  #knownSecrets() {
+    const secrets = new Set();
+    addSecret(secrets, this.masterToken);
+    addSecret(secrets, this.consoleCredential);
+    addSecret(secrets, this.secretReadLease);
+    return secrets;
   }
 
   #activeConsoleCredential() {
@@ -202,16 +229,12 @@ function storedConsoleCredential() {
     const raw = localStorage.getItem(CONSOLE_STORAGE_KEY);
     if (!raw) return null;
     const record = JSON.parse(raw);
-    if (
-      typeof record?.credential !== 'string' ||
-      !record.credential ||
-      !Number.isFinite(record.expiresAtMs) ||
-      record.expiresAtMs <= Date.now()
-    ) {
+    const projected = projectConsoleCredential(record);
+    if (!projected || projected.expiresAtMs <= Date.now()) {
       localStorage.removeItem(CONSOLE_STORAGE_KEY);
       return null;
     }
-    return record;
+    return projected;
   } catch {
     return null;
   }
@@ -231,6 +254,136 @@ function responseShapeError(message) {
   const error = new Error(`SNAPBACK_RESPONSE_INVALID: ${message}`);
   error.diagnostic = { code: 'SNAPBACK_RESPONSE_INVALID', message };
   return error;
+}
+
+function projectConsoleCredential(value) {
+  if (!exactRecord(value, ['credential', 'expiresAtMs'])) return null;
+  if (
+    typeof value.credential !== 'string' ||
+    !value.credential.startsWith('sbcc_') ||
+    value.credential.length <= 'sbcc_'.length ||
+    !Number.isSafeInteger(value.expiresAtMs) ||
+    value.expiresAtMs < 0
+  ) {
+    return null;
+  }
+  return {
+    credential: value.credential,
+    expiresAtMs: value.expiresAtMs,
+  };
+}
+
+function exactRecord(value, keys) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return actual.length === expected.length
+    && actual.every((key, index) => key === expected[index]);
+}
+
+function normalizedFieldName(name) {
+  return String(name ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .toLowerCase();
+}
+
+function sensitiveAdminField(name) {
+  const normalized = normalizedFieldName(name);
+  return normalized === 'authorization'
+    || normalized === 'value'
+    || normalized.endsWith('_value')
+    || normalized === 'token'
+    || normalized.endsWith('_token')
+    || normalized === 'bearer'
+    || normalized.endsWith('_bearer')
+    || normalized === 'credential'
+    || normalized.endsWith('_credential')
+    || normalized === 'lease'
+    || normalized.endsWith('_lease')
+    || normalized === 'proof'
+    || normalized.endsWith('_proof')
+    || normalized === 'secret'
+    || normalized.endsWith('_secret')
+    || normalized === 'private_key'
+    || normalized.endsWith('_private_key')
+    || normalized === 'key_material'
+    || normalized.endsWith('_key_material');
+}
+
+function addSecret(secrets, value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return;
+  const text = String(value);
+  // Avoid destructive replacement of ordinary short words. Snapback-issued
+  // credentials and operator secrets are materially longer than this floor.
+  if (text.length >= 4) secrets.add(text);
+}
+
+function collectAdminSecrets(body, headers, initialSecrets = new Set()) {
+  const secrets = new Set(initialSecrets);
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    if (sensitiveAdminField(name)) addSecret(secrets, value);
+  }
+  const visit = (value, field = null) => {
+    if (sensitiveAdminField(field)) addSecret(secrets, value);
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, field);
+    } else if (value && typeof value === 'object') {
+      for (const [name, item] of Object.entries(value)) visit(item, name);
+    }
+  };
+  visit(body);
+  return secrets;
+}
+
+function redactKnownSecrets(value, secrets) {
+  let redacted = String(value ?? '');
+  for (const secret of secrets) {
+    redacted = redacted.replaceAll(secret, CREDENTIAL_REDACTION);
+  }
+  return redacted;
+}
+
+function sanitizeKnownSecrets(value, secrets, seen = new WeakSet()) {
+  if (typeof value === 'string') return redactKnownSecrets(value, secrets);
+  if (Array.isArray(value)) return value.map((item) => sanitizeKnownSecrets(item, secrets, seen));
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return '[CIRCULAR]';
+  seen.add(value);
+  const safe = {};
+  for (const [name, item] of Object.entries(value)) {
+    safe[name] = sanitizeKnownSecrets(item, secrets, seen);
+  }
+  seen.delete(value);
+  return safe;
+}
+
+function sanitizeErrorValue(value, secrets, field = null, seen = new WeakSet()) {
+  if (sensitiveAdminField(field)) return CREDENTIAL_REDACTION;
+  if (typeof value === 'string') return redactKnownSecrets(value, secrets);
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeErrorValue(item, secrets, field, seen));
+  }
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return '[CIRCULAR]';
+  seen.add(value);
+  const safe = {};
+  for (const [name, item] of Object.entries(value)) {
+    safe[name] = sanitizeErrorValue(item, secrets, name, seen);
+  }
+  seen.delete(value);
+  return safe;
+}
+
+function sanitizeAdminError(error, secrets) {
+  const safe = new Error(redactKnownSecrets(error?.message ?? String(error), secrets));
+  safe.name = redactKnownSecrets(error?.name ?? 'Error', secrets);
+  if (error?.code !== undefined) safe.code = sanitizeErrorValue(error.code, secrets);
+  if (error?.status !== undefined) safe.status = sanitizeErrorValue(error.status, secrets);
+  if (error?.diagnostic !== undefined) {
+    safe.diagnostic = sanitizeErrorValue(error.diagnostic, secrets);
+  }
+  return safe;
 }
 
 function bodySnippet(text, limit = 200) {

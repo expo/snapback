@@ -40,6 +40,15 @@ function showFatal(message: string): void {
   if (root) renderFatal(document, message);
 }
 
+function logFailure(failure: Error): void {
+  const diagnostic = 'diagnostic' in failure && failure.diagnostic
+    && typeof failure.diagnostic === 'object'
+    ? failure.diagnostic as { code?: unknown }
+    : null;
+  const code = typeof diagnostic?.code === 'string' ? ` ${diagnostic.code}` : '';
+  console.error(`[snapback-admin]${code}: ${failure.message}`);
+}
+
 async function boot(client: AdminClient): Promise<void> {
   const surface = await createAdminSurface({
     runtime: contractRuntime,
@@ -56,17 +65,19 @@ async function start(): Promise<void> {
   try {
     await boot(client);
   } catch (error) {
-    console.error(error);
-    if (renderCredentialRecovery(client, error)) return;
-    showFatal(error instanceof Error ? error.message : String(error));
+    const safe = client.sanitizeError(error);
+    logFailure(safe);
+    if (renderCredentialRecovery(client, safe)) return;
+    showFatal(safe.message);
   }
 }
 
 function renderCredentialRecovery(client: AdminClient, failure: unknown): boolean {
-  if (typeof document === 'undefined' || !isUnauthorized(failure)) return false;
-  const message = failure instanceof Error ? failure.message : String(failure);
-  const diagnostic = failure && typeof failure === 'object' && 'diagnostic' in failure
-    ? failure.diagnostic
+  const safe = client.sanitizeError(failure);
+  if (typeof document === 'undefined' || !isUnauthorized(safe)) return false;
+  const message = safe.message;
+  const diagnostic = 'diagnostic' in safe
+    ? safe.diagnostic
     : null;
   const code = diagnostic && typeof diagnostic === 'object' && 'code' in diagnostic
     ? diagnostic.code
@@ -87,7 +98,9 @@ function renderCredentialRecovery(client: AdminClient, failure: unknown): boolea
         try {
           await boot(client);
         } catch (next) {
-          if (!renderCredentialRecovery(client, next)) throw next;
+          if (!renderCredentialRecovery(client, next)) {
+            throw client.sanitizeError(next);
+          }
         }
       },
     });
@@ -100,7 +113,9 @@ function renderCredentialRecovery(client: AdminClient, failure: unknown): boolea
       try {
         await boot(client);
       } catch (next) {
-        if (!renderCredentialRecovery(client, next)) throw next;
+        if (!renderCredentialRecovery(client, next)) {
+          throw client.sanitizeError(next);
+        }
       }
     },
   });
@@ -116,8 +131,12 @@ function isUnauthorized(failure: unknown): boolean {
 }
 
 start().catch((error) => {
-  console.error(error);
-  showFatal(error instanceof Error ? error.message : String(error));
+  // This boundary runs only for pre-client bootstrap failures. Keep the
+  // console and DOM projection scalar instead of retaining arbitrary Error
+  // properties from dependencies.
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[snapback-admin]: ${message}`);
+  showFatal(message);
 });
 
 if (import.meta.hot) {

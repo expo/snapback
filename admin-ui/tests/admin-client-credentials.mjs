@@ -37,8 +37,10 @@ globalThis.indexedDB = {
 };
 
 const requests = [];
+let fetchOverride = null;
 globalThis.fetch = async (url, options = {}) => {
   requests.push({ url, options });
+  if (fetchOverride) return fetchOverride(url, options);
   if (url.endsWith('/console/credential')) {
     return response(200, {
       credential: DERIVED,
@@ -144,6 +146,68 @@ assert.equal(
 );
 assert.equal(storage.has('snapback_console_credential_v1'), false);
 
+// A broken receiver/proxy can reflect any credential carrier in a transport
+// exception, non-JSON response, structured diagnostic, or even HTTP-200 body.
+// The shared client owns the last boundary before those values reach the UI.
+fetchOverride = async () => {
+  const error = new Error(`transport retained ${MASTER}`);
+  error.code = `MASTER_${MASTER}`;
+  error.diagnostic = {
+    code: 'SNAPBACK_TRANSPORT_FAILED',
+    message: `master=${MASTER}`,
+    adminToken: MASTER,
+  };
+  throw error;
+};
+const masterFailure = await captureFailure(() => client.setToken(MASTER));
+assertCredentialAbsent(masterFailure, MASTER, 'master transport failure');
+assert.match(masterFailure.message, /\[REDACTED\]/);
+
+fetchOverride = async () => ({
+  ok: false,
+  status: 502,
+  async text() {
+    return `<html>proxy reflected ${DERIVED}</html>`;
+  },
+});
+const derivedFailure = await captureFailure(() => reloaded.configStatus());
+assertCredentialAbsent(derivedFailure, DERIVED, 'derived non-JSON response');
+assert.equal(derivedFailure.status, 502);
+
+fetchOverride = async () => response(401, {
+  diagnostic: {
+    code: 'SNAPBACK_ADMIN_SECRET_READ_REQUIRED',
+    message: `lease ${SECRET_READ} was rejected`,
+    details: {
+      secretReadLease: SECRET_READ,
+      nested: [`again ${SECRET_READ}`],
+    },
+  },
+});
+const leaseFailure = await captureFailure(() => client.scanTable('privateRows'));
+assertCredentialAbsent(leaseFailure, SECRET_READ, 'secret-read diagnostic');
+assert.equal(leaseFailure.diagnostic.details.secretReadLease, '[REDACTED]');
+
+fetchOverride = async (_url, options) => response(200, {
+  reflected: Object.values(options.headers).join(' / '),
+});
+const reflectedMaster = await headless.inspect();
+assertCredentialAbsent(reflectedMaster, MASTER, 'master HTTP-200 response');
+assert.deepEqual(reflectedMaster, { reflected: '[REDACTED]' });
+const reflectedSession = await client.inspect();
+assertCredentialAbsent(reflectedSession, DERIVED, 'derived HTTP-200 response');
+assertCredentialAbsent(reflectedSession, SECRET_READ, 'secret-read HTTP-200 response');
+assert.deepEqual(reflectedSession, { reflected: '[REDACTED] / [REDACTED]' });
+
+fetchOverride = async () => response(200, {
+  credential: DERIVED,
+  expiresAtMs: Date.now() + 60_000,
+  reflectedMaster: MASTER,
+});
+const poisonedExchange = await captureFailure(() => client.setToken(MASTER));
+assert.equal(poisonedExchange.diagnostic.code, 'SNAPBACK_RESPONSE_INVALID');
+assertCredentialAbsent(poisonedExchange, MASTER, 'poisoned credential exchange');
+
 delete globalThis.fetch;
 delete globalThis.indexedDB;
 delete globalThis.localStorage;
@@ -159,4 +223,31 @@ function response(status, body) {
       return JSON.stringify(body);
     },
   };
+}
+
+async function captureFailure(operation) {
+  try {
+    await operation();
+  } catch (error) {
+    return error;
+  }
+  assert.fail('expected operation to fail');
+}
+
+function assertCredentialAbsent(value, credential, label) {
+  const projection = value instanceof Error
+    ? {
+        name: value.name,
+        message: value.message,
+        stack: value.stack,
+        code: value.code,
+        status: value.status,
+        diagnostic: value.diagnostic,
+      }
+    : value;
+  assert.equal(
+    JSON.stringify(projection).includes(credential),
+    false,
+    `${label} must not retain the credential`,
+  );
 }

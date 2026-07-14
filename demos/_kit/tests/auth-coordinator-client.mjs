@@ -144,6 +144,7 @@ let bearerAuthority = new Map([
 let calls = [];
 const rawUrls = [];
 let queryMode = 'success';
+let credentialPoison = null;
 let supersededHook = null;
 let delayedQueryResolve = null;
 let delayedQueryStartedResolve = null;
@@ -163,7 +164,12 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === '/auth/session') {
     return response(handshake(bearer ? bearerAuthority.get(bearer) : anonymous));
   }
-  if (path === '/auth/exchange') return response(credential(BEARER_A, sessionA, 10_000));
+  if (path === '/auth/exchange') {
+    const issued = credential(BEARER_A, sessionA, 10_000);
+    if (credentialPoison === 'root') issued.leakedBearer = BEARER_A;
+    if (credentialPoison === 'nested') issued.session.leakedBearer = BEARER_A;
+    return response(issued);
+  }
   if (path === '/auth/refresh') return response(credential(BEARER_C, sessionA, 30_000));
   if (path === '/auth/logout') return response({ revoked: true });
   if (path === '/auth/family-alarm') return response({ accepted: true });
@@ -208,6 +214,27 @@ try {
   assert.deepEqual(initial.rows, [{ bearer: null }]);
   assert.equal(coordinator.capture().authorityEpoch, 0);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/query/list']);
+
+  // A 200 response remains untrusted: both root and nested credential
+  // extensions are rejected before token custody advances, and the generic
+  // refusal itself never republishes the poisoned bearer.
+  for (credentialPoison of ['root', 'nested']) {
+    let poisonError;
+    await assert.rejects(
+      db.authExchange({ challengeId: 'challenge-poison', code: '123456' }),
+      (error) => {
+        poisonError = error;
+        return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+      },
+    );
+    assert.equal(coordinator.capture().authorityEpoch, 0);
+    assert.equal(storage.snapshot(APP).bearer, null);
+    assert.equal(JSON.stringify({
+      message: poisonError.message,
+      diagnostic: poisonError.diagnostic,
+    }).includes(BEARER_A), false);
+  }
+  credentialPoison = null;
 
   // Exchange installs token custody and runs transport resume before exposing
   // the session projection. The token never appears in the returned object.
