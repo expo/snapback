@@ -616,7 +616,7 @@ export async function createSnapbackContractSurface({
           }
         : {}),
     };
-    const storeAuthorization = offlineReplayEligible
+    let storeAuthorization = offlineReplayEligible
       && typeof client.currentAuthorizationScope === 'function'
       ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
       : null;
@@ -629,6 +629,11 @@ export async function createSnapbackContractSurface({
     let offlineReplayEnabled = offlineReplayEligible
       && retainedIdentityComplete
       && (!coordinatedSessionsMode || sessionQueueCapable);
+    // Retained rows are the principal/data axis. Item 7 must not widen it in
+    // sessions mode; item 8 replaces this false branch with AuthorizedLease.
+    let retainedReadsEnabled = offlineReplayEligible
+      && retainedIdentityComplete
+      && !coordinatedSessionsMode;
     if (clientStore) {
       if (storeAuthorization && typeof clientStore.scopeAuthorization === 'function') {
         await clientStore.scopeAuthorization(storeAuthorization, storeAuthorityCapture);
@@ -772,7 +777,7 @@ export async function createSnapbackContractSurface({
 
     let retainedWriteTail = Promise.resolve();
     const retainRows = (rows, version = maxServerRowVersion(rows), capture = authorityCapture) => {
-      if (!offlineReplayEnabled) return retainedWriteTail;
+      if (!retainedReadsEnabled) return retainedWriteTail;
       const expectation = expectationForCapture(capture);
       const record = {
         rows,
@@ -919,7 +924,7 @@ export async function createSnapbackContractSurface({
     };
 
     let initial;
-    const retained = offlineReplayEnabled
+    const retained = retainedReadsEnabled
       ? await clientStore.getRetainedQuery(storeQueryKey, expectationForCapture(authorityCapture))
       : null;
     try {
@@ -1549,6 +1554,9 @@ export async function createSnapbackContractSurface({
       offlineReplayEnabled = offlineReplayEligible
         && retainedIdentityComplete
         && (!coordinatedSessionsMode || refreshedQueueCapable);
+      retainedReadsEnabled = offlineReplayEligible
+        && retainedIdentityComplete
+        && !coordinatedSessionsMode;
       storeAuthFingerprint = snapbackAuthFingerprint(activeUserId ?? null);
       Object.assign(storeExpectation, {
         authFingerprint: storeAuthFingerprint,
@@ -1572,6 +1580,10 @@ export async function createSnapbackContractSurface({
           versionStreamId: storeExpectation.versionStreamId,
         }, expectationForCapture(capture));
       }
+      // The predecessor descriptor has already been retired/stranded by the
+      // durable store transition above. Only now may new enqueues capture the
+      // settled successor descriptor.
+      storeAuthorization = refreshedAuthorization;
 
       let rows;
       let version;
@@ -1825,7 +1837,7 @@ export async function createSnapbackContractSurface({
     return {
       adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
       get capabilityClass() {
-        return offlineReplayEnabled
+        return offlineReplayEnabled && retainedReadsEnabled
           ? SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS
           : SNAPBACK_CONTRACT_CAPABILITY_CLASS;
       },
