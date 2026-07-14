@@ -15,7 +15,10 @@ import {
 
 const APP = 'snapback.test/store-authority';
 const INCARNATION = '018f0d90-7b21-7a22-8c33-445566778899';
+const INCARNATION_2 = '018f0d90-7b28-7a22-8c33-445566778899';
 const SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
+const SESSION_2 = '018f0d90-7b29-7a22-8c33-445566778899';
+const SESSION_3 = '018f0d90-7b2a-7a22-8c33-445566778899';
 const USER = '018f0d90-7b23-7a22-8c33-445566778899';
 const AUTHORITY_1 = '018f0d90-7b24-7a22-8c33-445566778899';
 const AUTHORITY_2 = '018f0d90-7b25-7a22-8c33-445566778899';
@@ -48,6 +51,39 @@ const descriptor = (authorityInstanceId, sessionGeneration = 1) => ({
 
 const expectCode = async (code, operation) => {
   await assert.rejects(operation, (error) => error?.code === code);
+};
+
+const authorityPrincipal = (authority) => ({
+  authMode: authority.authMode,
+  authorizationStreamIncarnation: authority.authorizationStreamIncarnation,
+  userId: authority.kind === 'session' ? authority.userId : null,
+});
+
+const successorFor = (authority) => authority.kind === 'session'
+  ? { authority, bearer: `bearer:${authority.sessionId}`, refreshAfterMs: 10_000 }
+  : { authority, bearer: null, refreshAfterMs: null };
+
+const coordinatorAt = async (authority) => {
+  const coordinator = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const bootstrap = {
+    kind: 'anonymous',
+    authMode: authority.authMode,
+    authorizationStreamIncarnation: authority.authorizationStreamIncarnation,
+  };
+  let capture = await coordinator.establishAnonymous(bootstrap);
+  if (authority.kind === 'session') {
+    capture = await coordinator.transition(
+      capture,
+      successorFor(authority),
+      'test_setup_session',
+    );
+  }
+  return { coordinator, capture };
 };
 
 // Format 3 did not possess a server-issued queue authority. Fully validate,
@@ -134,6 +170,36 @@ const expectCode = async (code, operation) => {
     }),
     /queryAuthorization is reserved/,
   );
+}
+
+// Descriptor replacement without a server-resolved user is not evidence of a
+// same-principal new session. Direct scoping fails closed instead of retaining
+// an anonymous payload for re-record.
+{
+  const anonymousScope = {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: INCARNATION,
+    userId: null,
+  };
+  const anonymousStore = createMemorySnapbackClientStore();
+  await anonymousStore.scopeAuthorization({
+    principalScope: anonymousScope,
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  });
+  await anonymousStore.enqueueMutation({
+    id: 'cm_anonymous_descriptor_change',
+    function: 'write',
+    args: { secret: 'anonymous-unproven-payload' },
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  });
+  await anonymousStore.scopeAuthorization({
+    principalScope: anonymousScope,
+    authorityDescriptor: descriptor(AUTHORITY_2),
+  });
+  const state = await anonymousStore.snapshot();
+  assert.deepEqual(state.pending, []);
+  assert.deepEqual(state.stranded, []);
+  assert.equal(JSON.stringify(state).includes('anonymous-unproven-payload'), false);
 }
 
 // Item 6 and item 7 independently allocated format 4. Format 5 recognizes
@@ -255,6 +321,10 @@ const expectCode = async (code, operation) => {
     }],
     ['partial-item7', (state) => {
       delete state.queryAuthorization;
+    }],
+    ['null-item7-axes', (state) => {
+      state.principalScope = null;
+      state.authorityDescriptor = null;
     }],
     ['neither-axis', (state) => {
       delete state.principalScope;
@@ -442,6 +512,334 @@ const expectCode = async (code, operation) => {
   assert.equal(bound.legacyV2Stranded.length, 1);
   assert.equal(bound.legacyV2Stranded[0].id, 'cm_anonymous');
   assert.equal(bound.legacyV2Stranded[0].replayable, false);
+}
+
+// The real coordinator participant derives every LLP 0056 transition-table
+// row from the exact predecessor/successor authorities. Mounting the successor
+// authorization scope must not resurrect any collection the durable barrier
+// deleted or redacted.
+{
+  const sessionA = {
+    kind: 'session',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: INCARNATION,
+    sessionId: SESSION,
+    userId: USER,
+  };
+  const rows = [
+    {
+      name: 'anonymous_to_authenticated',
+      previous: anonymous,
+      next: sessionA,
+      expected: 'redacted',
+    },
+    {
+      name: 'authenticated_to_different_user',
+      previous: sessionA,
+      next: {
+        ...sessionA,
+        sessionId: SESSION_3,
+        userId: USER_2,
+      },
+      expected: 'delete',
+    },
+    {
+      name: 'same_user_new_session',
+      previous: sessionA,
+      next: { ...sessionA, sessionId: SESSION_2 },
+      expected: 'rerecordable',
+    },
+    {
+      name: 'authenticated_to_anonymous',
+      previous: sessionA,
+      next: anonymous,
+      expected: 'delete',
+    },
+    {
+      name: 'dev_to_sessions',
+      previous: { ...anonymous, authMode: 'dev' },
+      next: anonymous,
+      expected: 'redacted',
+    },
+    {
+      name: 'sessions_to_dev',
+      previous: sessionA,
+      next: { ...anonymous, authMode: 'dev' },
+      expected: 'delete',
+    },
+    {
+      name: 'authorization_incarnation_changed',
+      previous: sessionA,
+      next: {
+        ...sessionA,
+        authorizationStreamIncarnation: INCARNATION_2,
+      },
+      expected: 'delete',
+    },
+  ];
+
+  for (const row of rows) {
+    const { coordinator, capture: predecessor } = await coordinatorAt(row.previous);
+    let mounted = createMemorySnapbackClientStore();
+    await mounted.bindAuthority({
+      authorityEpoch: predecessor.authorityEpoch,
+      authorityKey: predecessor.authorityKey,
+      authMode: row.previous.authMode,
+    });
+    await mounted.scopeAuthorization({
+      principalScope: authorityPrincipal(row.previous),
+      authorityDescriptor: descriptor(AUTHORITY_1),
+    }, predecessor);
+    await mounted.putRetainedQuery('private', {
+      rows: [{ secret: `private/${row.name}/retained` }],
+      ...predecessor,
+    });
+    const queue = await mounted.captureMutationQueue(predecessor);
+    const failed = await mounted.enqueueMutation({
+      id: `cm_${row.name}_failed`,
+      function: 'privateWrite',
+      args: { secret: `private/${row.name}/failed` },
+      authorityDescriptor: descriptor(AUTHORITY_1),
+      ...predecessor,
+      ...queue,
+    });
+    await mounted.settleMutation(failed.id, {
+      status: 'failed',
+      ...predecessor,
+      ...queue,
+    });
+    const acknowledged = await mounted.enqueueMutation({
+      id: `cm_${row.name}_ack`,
+      function: 'privateWrite',
+      authFingerprint: `auth:${row.name}`,
+      authorityDescriptor: descriptor(AUTHORITY_1),
+      ...predecessor,
+      ...queue,
+    });
+    await mounted.settleMutation(acknowledged.id, {
+      status: 'confirmed',
+      ...predecessor,
+      ...queue,
+    });
+    await mounted.enqueueMutation({
+      id: `cm_${row.name}_pending`,
+      function: 'privateWrite',
+      args: { secret: `private/${row.name}/pending` },
+      authorityDescriptor: descriptor(AUTHORITY_1),
+      ...predecessor,
+      ...queue,
+    });
+    const seeded = await mounted.snapshot();
+    seeded.stranded.push({
+      id: `cm_${row.name}_already_stranded`,
+      function: 'privateWrite',
+      sequence: 100,
+      args: { secret: `private/${row.name}/already-stranded` },
+      predecessorPrincipalScope: authorityPrincipal(row.previous),
+      replayable: false,
+      rerecordable: true,
+      discardOnly: false,
+    });
+    seeded.stranded.push({
+      id: `cm_${row.name}_unknown_stranded`,
+      function: 'privateWrite',
+      sequence: 104,
+      args: { secret: `private/${row.name}/unknown-stranded` },
+      replayable: false,
+    });
+    for (const [field, suffix, sequence] of [
+      ['legacyV2Stranded', 'legacy2', 101],
+      ['legacyV3Stranded', 'legacy3', 102],
+      ['legacyV4Stranded', 'legacy4', 103],
+    ]) {
+      seeded[field].push({
+        id: `cm_${row.name}_${suffix}`,
+        function: 'privateWrite',
+        sequence,
+        args: { secret: `private/${row.name}/${suffix}` },
+        replayable: false,
+      });
+    }
+    mounted = createMemorySnapbackClientStore({ state: seeded });
+    const unregister = coordinator.registerParticipant(
+      createSnapbackClientStoreAuthParticipant(mounted),
+    );
+    try {
+      const successor = await coordinator.transition(
+        predecessor,
+        successorFor(row.next),
+        row.name,
+      );
+      assert.deepEqual(await mounted.authorityScope(), {
+        authorityEpoch: successor.authorityEpoch,
+        authorityKey: successor.authorityKey,
+      }, `${row.name}: durable authority`);
+
+      // Model the real Contract resume/mount path after the coordinator's
+      // durable barrier has installed the successor epoch.
+      await mounted.scopeAuthorization({
+        principalScope: authorityPrincipal(row.next),
+        authorityDescriptor: descriptor(AUTHORITY_3),
+      }, successor);
+      const state = await mounted.snapshot();
+      assert.deepEqual(state.pending, [], `${row.name}: pending`);
+      assert.deepEqual(state.failed, [], `${row.name}: failed`);
+      assert.deepEqual(state.acknowledged, [], `${row.name}: acknowledgements`);
+      assert.deepEqual(state.legacyV2Stranded, [], `${row.name}: legacy v2`);
+      assert.deepEqual(state.legacyV3Stranded, [], `${row.name}: legacy v3`);
+      assert.deepEqual(state.legacyV4Stranded, [], `${row.name}: legacy v4`);
+
+      const bytes = JSON.stringify(state);
+      if (row.expected === 'rerecordable') {
+        assert.equal(Object.keys(state.retained).length, 1, `${row.name}: retained`);
+        assert.deepEqual(
+          state.stranded.map((entry) => entry.id).sort(),
+          [
+            `cm_${row.name}_already_stranded`,
+            `cm_${row.name}_failed`,
+            `cm_${row.name}_pending`,
+          ].sort(),
+        );
+        for (const id of [`cm_${row.name}_failed`, `cm_${row.name}_pending`]) {
+          const entry = state.stranded.find((candidate) => candidate.id === id);
+          assert.equal(entry.rerecordable, true, `${row.name}: ${id} rerecordable`);
+          assert.equal(entry.discardOnly, false, `${row.name}: ${id} payload visible`);
+          assert.deepEqual(entry.predecessorPrincipalScope, authorityPrincipal(row.previous));
+        }
+        assert.equal(bytes.includes(`private/${row.name}/pending`), true);
+        assert.equal(bytes.includes(`private/${row.name}/failed`), true);
+        assert.equal(bytes.includes(`private/${row.name}/unknown-stranded`), false);
+      } else {
+        assert.deepEqual(state.retained, {}, `${row.name}: retained deleted`);
+        assert.equal(
+          bytes.includes(`private/${row.name}/`),
+          false,
+          `${row.name}: no predecessor privacy bytes`,
+        );
+        if (row.expected === 'redacted') {
+          assert.deepEqual(
+            state.stranded.map((entry) => entry.id).sort(),
+            [`cm_${row.name}_failed`, `cm_${row.name}_pending`].sort(),
+          );
+          for (const entry of state.stranded) {
+            assert.equal(entry.replayable, false);
+            assert.equal(entry.discardOnly, true);
+            assert.equal(Object.hasOwn(entry, 'args'), false);
+          }
+        } else {
+          assert.deepEqual(state.stranded, [], `${row.name}: stranded deleted`);
+        }
+      }
+    } finally {
+      await unregister();
+      await coordinator.close();
+    }
+  }
+}
+
+// Recovery cannot prove the clearing transition's predecessor authority. Even
+// when the pending successor names the same user, the real recovery barrier
+// deletes payload-bearing queues instead of inferring the ordinary table row.
+{
+  const custodyState = { custody: {} };
+  const owner = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const bootstrap = await owner.establishAnonymous(anonymous);
+  const sessionA = {
+    kind: 'session',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: INCARNATION,
+    sessionId: SESSION,
+    userId: USER,
+  };
+  const predecessor = await owner.transition(
+    bootstrap,
+    successorFor(sessionA),
+    'recovery_setup',
+  );
+  let recoveringStore = createMemorySnapbackClientStore();
+  await recoveringStore.bindAuthority({
+    authorityEpoch: predecessor.authorityEpoch,
+    authorityKey: predecessor.authorityKey,
+    authMode: 'sessions',
+  });
+  await recoveringStore.scopeAuthorization({
+    principalScope: authorityPrincipal(sessionA),
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  }, predecessor);
+  await recoveringStore.putRetainedQuery('private', {
+    rows: [{ secret: 'private/recovery/retained' }],
+    ...predecessor,
+  });
+  const queue = await recoveringStore.captureMutationQueue(predecessor);
+  await recoveringStore.enqueueMutation({
+    id: 'cm_recovery_pending',
+    function: 'privateWrite',
+    args: { secret: 'private/recovery/pending' },
+    authorityDescriptor: descriptor(AUTHORITY_1),
+    ...predecessor,
+    ...queue,
+  });
+  const seeded = await recoveringStore.snapshot();
+  seeded.stranded.push({
+    id: 'cm_recovery_stranded',
+    function: 'privateWrite',
+    sequence: 20,
+    args: { secret: 'private/recovery/stranded' },
+    predecessorPrincipalScope: authorityPrincipal(sessionA),
+    replayable: false,
+    rerecordable: true,
+    discardOnly: false,
+  });
+  recoveringStore = createMemorySnapbackClientStore({ state: seeded });
+
+  owner.registerParticipant({
+    name: 'fail-before-durable-store',
+    async commitDurable() {
+      throw new Error('leave custody in clearing for recovery');
+    },
+  });
+  const sameUserNextSession = { ...sessionA, sessionId: SESSION_2 };
+  await assert.rejects(
+    owner.transition(
+      predecessor,
+      successorFor(sameUserNextSession),
+      'recovery_unknown_predecessor',
+    ),
+    { code: 'SNAPBACK_AUTH_TRANSITION_FAILED' },
+  );
+
+  const recovery = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const unregister = recovery.registerParticipant(
+    createSnapbackClientStoreAuthParticipant(recoveringStore),
+  );
+  try {
+    const successor = await recovery.synchronize();
+    await recoveringStore.scopeAuthorization({
+      principalScope: authorityPrincipal(sameUserNextSession),
+      authorityDescriptor: descriptor(AUTHORITY_3),
+    }, successor);
+    const state = await recoveringStore.snapshot();
+    assert.deepEqual(state.retained, {});
+    assert.deepEqual(state.pending, []);
+    assert.deepEqual(state.failed, []);
+    assert.deepEqual(state.acknowledged, []);
+    assert.deepEqual(state.stranded, []);
+    assert.equal(JSON.stringify(state).includes('private/recovery/'), false);
+  } finally {
+    await unregister();
+    await recovery.close();
+    await owner.close();
+  }
 }
 
 const store = createMemorySnapbackClientStore();

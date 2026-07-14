@@ -95,7 +95,7 @@ import {
   snapbackAuthFingerprint,
 } from './client-store.mjs';
 
-// A physical format-3 store is one durable barrier participant even when an
+// A physical format-5 store is one durable barrier participant even when an
 // app mounts several Contract surfaces over it. The coordinator owns the
 // transition; surfaces merely hold references to this shared registration.
 // @ref LLP 0056#participant-contract — duplicate surfaces must not race the
@@ -580,7 +580,7 @@ export async function createSnapbackContractSurface({
     // Queued replay is the authority-instance axis. Item 7 enables it in
     // sessions mode only when the handshake and current store scope both
     // prove the exact descriptor protocol; retained reads remain independent.
-    // @ref LLP 0039#storage-scope-is-two-dimensional — principal data and
+    // @ref LLP 0039#replay-parity-and-the-authority-instance-id — principal data and
     // descriptor-bound queued custody have independent admission facts.
     let coordinatedSessionsMode = coordinator?.authority?.authMode === 'sessions';
     let authSession = coordinatedSessionsMode && typeof client.authSession === 'function'

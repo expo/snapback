@@ -456,7 +456,11 @@ function legacyV4PredecessorShape(state) {
   if (state.version !== 4) return null;
   const fields = Object.keys(state).sort().join(',');
   if (fields === LEGACY_V4_ITEM6_FIELDS) return 'item6';
-  if (fields === LEGACY_V4_ITEM7_FIELDS) return 'item7';
+  if (
+    fields === LEGACY_V4_ITEM7_FIELDS
+    && state.principalScope !== null
+    && state.authorityDescriptor !== null
+  ) return 'item7';
   return 'ambiguous';
 }
 
@@ -1012,6 +1016,27 @@ function rerecordableStrandedMutation(entry, state, reason) {
   };
 }
 
+function sanitizeStrandedForPrincipal(state, principalScope) {
+  state.stranded = state.stranded.flatMap((entry) => {
+    const provenRerecordable = principalScope.userId !== null
+      && entry.replayable === false
+      && entry.rerecordable === true
+      && entry.discardOnly === false
+      && isRecord(entry.predecessorPrincipalScope)
+      && stableJson(entry.predecessorPrincipalScope) === stableJson(principalScope);
+    if (provenRerecordable) return [clone(entry)];
+    if (entry.replayable === false && entry.discardOnly === true) {
+      return [redactedStrandedMutation(
+        entry,
+        state,
+        typeof entry.reason === 'string' ? entry.reason : 'stranded_discard_only',
+        typeof entry.disposition === 'string' ? entry.disposition : 'delete',
+      )];
+    }
+    return [];
+  });
+}
+
 function clearLegacyQueueNamespaces(state) {
   state.legacyV2Stranded = [];
   state.legacyV3Stranded = [];
@@ -1052,7 +1077,11 @@ function strandCurrentQueue(
     ? (entry) => rerecordableStrandedMutation(entry, state, reason)
     : (entry) => redactedStrandedMutation(entry, state, reason, disposition);
   state.stranded.push(...[...state.pending, ...state.failed].map(strand));
-  clearCurrentQueue(state);
+  // Queue invalidation callers retain their unresolved obligation roots and
+  // unrelated settlement receipts. Authority-boundary callers clear those
+  // namespaces explicitly around this payload transformation.
+  state.pending = [];
+  state.failed = [];
 }
 
 function expectationForObligation(obligation) {
@@ -1134,7 +1163,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       nextEpoch,
       nextAuthorityKey,
       disposition = 'delete',
-      strandQueued = false,
+      queueTransition = 'delete',
+      transitionReason = 'authority_boundary_delete',
+      retainPrincipalData = false,
       nextPrincipalScope = null,
     }) {
       if (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0) {
@@ -1153,6 +1184,19 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           { disposition },
         );
       }
+      if (![
+        'delete',
+        'strand-redacted',
+        'strand-rerecordable',
+      ].includes(queueTransition)) {
+        throw new TypeError('transitionAuthority received an invalid queueTransition');
+      }
+      if (typeof transitionReason !== 'string' || transitionReason.length === 0) {
+        throw new TypeError('transitionAuthority requires a transitionReason');
+      }
+      if (typeof retainPrincipalData !== 'boolean') {
+        throw new TypeError('transitionAuthority retainPrincipalData must be boolean');
+      }
       if (nextPrincipalScope !== null) {
         assertPrincipalScope(nextPrincipalScope, 'nextPrincipalScope');
       }
@@ -1163,19 +1207,34 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         if (state.authorityEpoch !== expectedEpoch) {
           throw staleStoreAuthorityError('authority transition');
         }
-        advanceQueueGeneration(state, nextEpoch);
-        state.queueAuthorization.pendingByScope = {};
-        if (strandQueued) {
-          strandCurrentQueue(state, 'authority_instance_changed', disposition);
-        }
         const samePrincipal = state.principalScope !== null
           && nextPrincipalScope !== null
           && stableJson(state.principalScope) === stableJson(nextPrincipalScope);
-        if (!samePrincipal) state.retained = {};
-        state.pending = [];
-        state.failed = [];
+        const preservePrincipalData = retainPrincipalData && samePrincipal;
+        advanceQueueGeneration(state, nextEpoch);
+        state.queueAuthorization.pendingByScope = {};
+        clearLegacyQueueNamespaces(state);
+        if (queueTransition === 'strand-rerecordable' && preservePrincipalData) {
+          sanitizeStrandedForPrincipal(state, state.principalScope);
+          strandCurrentQueue(
+            state,
+            transitionReason,
+            'strand',
+            { rerecordable: true },
+          );
+        } else if (queueTransition === 'strand-redacted') {
+          // Anonymous/dev predecessor payloads cannot be exposed to a successor
+          // principal. Preserve only discard-only evidence that work existed.
+          state.stranded = [];
+          strandCurrentQueue(state, transitionReason, 'strand');
+        } else {
+          // This includes a caller attempting a rerecordable strand without
+          // exact principal continuity: fail closed to the table's delete row.
+          clearAllQueueNamespaces(state);
+        }
         state.acknowledged = [];
-        if (!samePrincipal) state.authFingerprint = null;
+        if (!preservePrincipalData) state.retained = {};
+        if (!preservePrincipalData) state.authFingerprint = null;
         state.principalScope = clone(nextPrincipalScope);
         state.authorityDescriptor = null;
         state.authorityEpoch = nextEpoch;
@@ -1311,6 +1370,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           // Legacy queues have no format-5 proof connecting them to this
           // principal, even when the modern principal itself is unchanged.
           clearLegacyQueueNamespaces(state);
+          if (state.principalScope !== null) {
+            sanitizeStrandedForPrincipal(state, state.principalScope);
+          }
         }
 
         const authorityChanged = state.authorityDescriptor !== null
@@ -1323,9 +1385,11 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
             || state.acknowledged.length > 0
           );
         const exactSamePrincipal = state.principalScope !== null
+          && state.principalScope.userId !== null
           && stableJson(state.principalScope) === stableJson(principalScope);
         if (!principalChanged && !unknownPrincipal && authorityChanged) {
           advanceQueueGeneration(state);
+          state.queueAuthorization.pendingByScope = {};
           if (exactSamePrincipal) {
             strandCurrentQueue(
               state,
@@ -1336,6 +1400,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           } else {
             clearAllQueueNamespaces(state);
           }
+          state.acknowledged = [];
         } else if (!principalChanged && !unknownPrincipal && unknownAuthority) {
           advanceQueueGeneration(state);
           // A transition participant may deliberately leave already-stranded
@@ -1845,10 +1910,97 @@ export function createLocalStorageSnapbackClientStore({
   });
 }
 
+function isExactClientAuthority(authority) {
+  if (!isRecord(authority)) return false;
+  if (authority.authMode !== 'dev' && authority.authMode !== 'sessions') return false;
+  if (!UUID_V7_PATTERN.test(authority.authorizationStreamIncarnation ?? '')) return false;
+  if (authority.kind === 'anonymous') {
+    return Object.keys(authority).sort().join(',')
+      === 'authMode,authorizationStreamIncarnation,kind';
+  }
+  return authority.kind === 'session'
+    && authority.authMode === 'sessions'
+    && Object.keys(authority).sort().join(',')
+      === 'authMode,authorizationStreamIncarnation,kind,sessionId,userId'
+    && UUID_V7_PATTERN.test(authority.sessionId ?? '')
+    && UUID_V7_PATTERN.test(authority.userId ?? '');
+}
+
+function principalScopeForAuthority(authority) {
+  if (!isExactClientAuthority(authority)) return null;
+  return {
+    authMode: authority.authMode,
+    authorizationStreamIncarnation: authority.authorizationStreamIncarnation,
+    userId: authority.kind === 'session' ? authority.userId : null,
+  };
+}
+
+// @ref LLP 0056#participant-contract — the durable participant derives queue
+//   handling from the exact predecessor/successor authorities. Callers cannot
+//   opt a delete row into payload-bearing stranding.
+function authorityQueueTransition(previous, next) {
+  if (!isExactClientAuthority(previous) || !isExactClientAuthority(next)) {
+    return {
+      queueTransition: 'delete',
+      transitionReason: 'authority_predecessor_unknown',
+      retainPrincipalData: false,
+    };
+  }
+  if (
+    previous.authorizationStreamIncarnation
+      !== next.authorizationStreamIncarnation
+  ) {
+    return {
+      queueTransition: 'delete',
+      transitionReason: 'authorization_incarnation_changed',
+      retainPrincipalData: false,
+    };
+  }
+  if (previous.authMode === 'dev' && next.authMode === 'sessions') {
+    return {
+      queueTransition: 'strand-redacted',
+      transitionReason: 'dev_to_sessions',
+      retainPrincipalData: false,
+    };
+  }
+  if (previous.authMode === 'sessions' && next.authMode === 'dev') {
+    return {
+      queueTransition: 'delete',
+      transitionReason: 'sessions_to_dev',
+      retainPrincipalData: false,
+    };
+  }
+  if (previous.kind === 'anonymous' && next.kind === 'session') {
+    return {
+      queueTransition: 'strand-redacted',
+      transitionReason: 'anonymous_to_authenticated',
+      retainPrincipalData: false,
+    };
+  }
+  if (
+    previous.kind === 'session'
+    && next.kind === 'session'
+    && previous.userId === next.userId
+    && previous.sessionId !== next.sessionId
+  ) {
+    return {
+      queueTransition: 'strand-rerecordable',
+      transitionReason: 'same_principal_new_session',
+      retainPrincipalData: true,
+    };
+  }
+  return {
+    queueTransition: 'delete',
+    transitionReason: previous.kind === 'session' && next.kind === 'anonymous'
+      ? 'authenticated_to_anonymous'
+      : 'principal_changed',
+    retainPrincipalData: false,
+  };
+}
+
 /** Register one physical client store as the coordinator's durable participant. */
 export function createSnapbackClientStoreAuthParticipant(store, {
   name = 'snapback-client-store',
-  strandQueued = () => false,
 } = {}) {
   if (!store || typeof store.transitionAuthority !== 'function') {
     throw new TypeError('client-store auth participant requires a format-5 store');
@@ -1859,22 +2011,17 @@ export function createSnapbackClientStoreAuthParticipant(store, {
     blank() {},
     clearMemory() {},
     async commitDurable(context) {
+      const transition = authorityQueueTransition(
+        context.previousAuthority,
+        context.nextAuthority,
+      );
       await store.transitionAuthority({
         expectedEpoch: context.expectedEpoch,
         nextEpoch: context.nextEpoch,
         nextAuthorityKey: context.nextAuthorityKey,
         disposition: context.disposition,
-        strandQueued: strandQueued(context) === true,
-        nextPrincipalScope: context.nextAuthority
-          ? {
-              authMode: context.nextAuthority.authMode,
-              authorizationStreamIncarnation:
-                context.nextAuthority.authorizationStreamIncarnation,
-              userId: context.nextAuthority.kind === 'session'
-                ? context.nextAuthority.userId
-                : null,
-            }
-          : null,
+        ...transition,
+        nextPrincipalScope: principalScopeForAuthority(context.nextAuthority),
       });
     },
     async resume() {},

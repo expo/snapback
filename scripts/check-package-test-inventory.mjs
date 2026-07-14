@@ -57,6 +57,7 @@ const inventories = [
       'query-authorization.test.mjs',
       'render-first.test.mjs',
       'retained-identity.test.mjs',
+      'session-queue-axis.test.mjs',
       'surface-construction-failure.test.mjs',
     ],
   },
@@ -116,7 +117,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-  assert.equal(total, 39, 'reviewed package/admin test count changed');
+  assert.equal(total, 40, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
