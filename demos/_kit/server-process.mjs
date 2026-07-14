@@ -27,7 +27,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -60,6 +60,13 @@ export async function startServer({
   // rejected by the child's bind failure rather than adopted. Ordinary starts
   // keep port zero and the OS-assigned isolation policy.
   bindPortExactly = false,
+  // Closed cold-start carrier used by sessions-mode acceptance tests. The
+  // child validates ownership, exact schema/functions identity, and shape.
+  startupArtifacts = null,
+  // Test-only capability handoff for the email-code capture mailbox. The
+  // value is read only from the mechanical ready-file sibling after the
+  // ready nonce has been verified against the live child.
+  captureImpersonationCapability = false,
   startupTimeoutMs = 60_000,
 } = {}) {
   return startServerWithDeps({
@@ -70,6 +77,8 @@ export async function startServer({
     provenance,
     binaryProvenance,
     bindPortExactly,
+    startupArtifacts,
+    captureImpersonationCapability,
     startupTimeoutMs,
   }, {});
 }
@@ -90,10 +99,19 @@ async function startServerWithDeps({
   provenance = null,
   binaryProvenance = null,
   bindPortExactly = false,
+  startupArtifacts = null,
+  captureImpersonationCapability = false,
   startupTimeoutMs = 60_000,
 } = {}, deps = {}) {
   if (bindPortExactly && (!Number.isInteger(port) || port < 1 || port > 65_535)) {
     throw new TypeError('bindPortExactly requires an explicit TCP port from 1 through 65535');
+  }
+  let resolvedStartupArtifacts = null;
+  if (startupArtifacts !== null) {
+    if (typeof startupArtifacts !== 'string' || startupArtifacts.length === 0) {
+      throw new TypeError('startupArtifacts must be a non-empty path');
+    }
+    resolvedStartupArtifacts = resolve(cwd, startupArtifacts);
   }
   const fetchImpl = deps.fetchImpl ?? fetch;
   const requestedBaseUrl = `http://127.0.0.1:${port}`;
@@ -110,7 +128,7 @@ async function startServerWithDeps({
       cwd,
       fetchImpl,
     });
-    if (verdict.ok) {
+    if (verdict.ok && !captureImpersonationCapability) {
       console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
       return serverHandle({
         baseUrl: requestedBaseUrl,
@@ -119,8 +137,11 @@ async function startServerWithDeps({
         stop: async () => {},
       });
     }
+    const reason = verdict.ok
+      ? 'this test requires the new child\'s process-bound impersonation sidecar'
+      : verdict.reason;
     console.error(
-      `PROVENANCE MISMATCH: a server answers /health on :${port} but ${verdict.reason}. ` +
+      `PROVENANCE MISMATCH: a server answers /health on :${port} but ${reason}. ` +
         'NOT reusing it — the new server will use an OS-assigned isolated port (ENG-22757/ENG-24378).',
     );
   } else if (!bindPortExactly && occupied) {
@@ -152,6 +173,9 @@ async function startServerWithDeps({
   ];
   if (db === ':memory:') args.push('--memory');
   else args.push('--db', db);
+  if (resolvedStartupArtifacts !== null) {
+    args.push('--startup-artifacts', resolvedStartupArtifacts);
+  }
 
   const childEnv = {
     ...process.env,
@@ -215,12 +239,16 @@ async function startServerWithDeps({
         });
         if (verified.ok) {
           const baseUrl = ready.serverUrl.replace(/\/$/, '');
+          const impersonationCapability = captureImpersonationCapability
+            ? readSpawnedImpersonationCapability(ready, readyFile)
+            : null;
           let stopPromise = null;
           return serverHandle({
             baseUrl,
             adminToken,
             reused: false,
             startupNonce: ready.startupNonce,
+            impersonationCapability,
             stop: () => {
               if (!stopPromise) {
                 stopPromise = stopChild(child, deps.stopOptions).finally(cleanup);
@@ -252,7 +280,14 @@ async function startServerWithDeps({
   }
 }
 
-function serverHandle({ baseUrl, adminToken, reused, stop, startupNonce = null }) {
+function serverHandle({
+  baseUrl,
+  adminToken,
+  reused,
+  stop,
+  startupNonce = null,
+  impersonationCapability = null,
+}) {
   const credentials = Object.freeze({ adminToken });
   return {
     baseUrl,
@@ -261,8 +296,29 @@ function serverHandle({ baseUrl, adminToken, reused, stop, startupNonce = null }
     clientOptions: credentials,
     reused,
     startupNonce,
+    impersonationCapability,
     stop,
   };
+}
+
+function readSpawnedImpersonationCapability(ready, readyFile) {
+  const advertised = ready?.impersonationCapabilityFile;
+  const expected = `${readyFile}.impersonation`;
+  if (
+    typeof advertised !== 'string'
+    || realpathSync(advertised) !== realpathSync(expected)
+  ) {
+    throw new Error('snapback ready file does not name its mechanical impersonation sidecar');
+  }
+  const capability = readFileSync(expected, 'utf8');
+  if (
+    capability.length === 0
+    || capability.length > 128
+    || !/^sbic_[A-Za-z0-9_-]+\.[0-9a-f]{8}$/.test(capability)
+  ) {
+    throw new Error('snapback impersonation sidecar is malformed');
+  }
+  return capability;
 }
 
 function resolveTestAdminToken(env) {

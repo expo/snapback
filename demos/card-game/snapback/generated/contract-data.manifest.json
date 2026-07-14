@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:3b2f9f228130f2ce",
+  "bundleHash": "snapback.v1:sessions:function:sha256:37896c82c1949f97e3eb817e3b0724eabd911b6666542ee29b6129ba36d72726",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,9 +15,62 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "3af5065ecebb9a575388cbbe376c3478e15a9fbbbfba7671850c90bed33d548c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5cfb9ac7c969f6f4084de296445fff281827805fd553ac6f212c43e6c20aa46f",
   "manifestVersion": 2,
   "mutations": {
+    "acceptHandCard": {
+      "argOrder": [
+        "gameId",
+        "position",
+        "card"
+      ],
+      "args": {
+        "card": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "gameId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "position": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "hands"
+      ],
+      "name": "acceptHandCard",
+      "optimistic": true,
+      "plan": {
+        "return_value": null,
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "hands",
+              "values": {
+                "card": {
+                  "Arg": "card"
+                },
+                "gameId": {
+                  "Arg": "gameId"
+                },
+                "ownerId": "AuthUserId",
+                "position": {
+                  "Arg": "position"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "hands"
+      ]
+    },
     "signalReady": {
       "argOrder": [
         "gameId",
@@ -133,6 +186,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:af7c6cca5bfdd537",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:c47548f3bcdfbe0af9c0c80d44f0b7c3ee953cfe5a67b8969a3e5d13db898595",
   "schemaVersion": "snapback.v0"
 }

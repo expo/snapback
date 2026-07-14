@@ -16,6 +16,24 @@ import {
   v,
 } from '../../_kit/define.mjs';
 
+// Acceptance setup deliberately goes through the same session authority as
+// the read: callers can add only rows stamped with their server-derived user.
+// This is demo setup, not a claim about a complete game's dealer protocol.
+export const acceptHandCard = defineMutation({
+  auth: 'authenticated',
+  args: {
+    gameId: v.string(),
+    position: v.integer(),
+    card: v.string(),
+  },
+  plan: insert('hands', {
+    gameId: arg('gameId'),
+    ownerId: authUserId(),
+    position: arg('position'),
+    card: arg('card'),
+  }),
+});
+
 export const myHand = defineQuery({
   auth: 'authenticated',
   table: 'hands',

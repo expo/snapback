@@ -42,13 +42,18 @@ const server = createServer((req, res) => {
 const listen = () => server.listen(bindPort, '127.0.0.1', () => {
   const port = server.address().port;
   const tmp = readyFile + '.tmp';
-  writeFileSync(tmp, JSON.stringify({
+  const descriptor = {
     ready: true,
     serverUrl: 'http://127.0.0.1:' + port,
     port,
     pid: process.pid,
     startupNonce: nonce,
-  }));
+  };
+  if (process.env.FIXTURE_IMPERSONATION === '1') {
+    descriptor.impersonationCapabilityFile = readyFile + '.impersonation';
+    writeFileSync(descriptor.impersonationCapabilityFile, 'sbic_fixture_capability.1234abcd');
+  }
+  writeFileSync(tmp, JSON.stringify(descriptor));
   renameSync(tmp, readyFile);
 });
 if (process.env.FIXTURE_RESISTANT_DESCENDANT === '1') {
@@ -119,6 +124,38 @@ try {
   assert.equal(first.credentials.adminToken, first.adminToken);
   assert.equal(first.clientOptions.adminToken, first.adminToken);
   assert.equal(process.env.SNAPBACK_ADMIN_TOKEN, undefined, 'startup does not contaminate global credentials');
+
+  const startupCarrier = join(scratch, 'startup-artifacts.json');
+  writeFileSync(startupCarrier, '{}');
+  let observedArgs = null;
+  const capabilityServer = await __startServerForTests({
+    port: 0,
+    cwd: scratch,
+    startupArtifacts: startupCarrier,
+    captureImpersonationCapability: true,
+    startupTimeoutMs: 2_000,
+  }, {
+    ...deps,
+    launchSpec: ({ args, readyFile, cwd, env }) => {
+      observedArgs = args;
+      return {
+        command: process.execPath,
+        args: [fixture, readyFile, args[args.indexOf('--port') + 1]],
+        cwd,
+        env: {
+          ...env,
+          FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+          FIXTURE_IMPERSONATION: '1',
+        },
+      };
+    },
+  });
+  running.push(capabilityServer);
+  assert.deepEqual(
+    observedArgs.slice(observedArgs.indexOf('--startup-artifacts')),
+    ['--startup-artifacts', startupCarrier],
+  );
+  assert.equal(capabilityServer.impersonationCapability, 'sbic_fixture_capability.1234abcd');
 
   const restartPort = Number(new URL(first.baseUrl).port);
   await first.stop();

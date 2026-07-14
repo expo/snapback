@@ -1,4 +1,4 @@
-// Finite hidden-card slice for the auth program.
+// Finite hidden-card slice for the session-auth program.
 //
 // Hands are ordinary authenticated reads, deliberately not live queries: item
 // 7 proves server-derived principal isolation and the client-store axes, while
@@ -22,4 +22,4 @@ export default defineSchema({
     userId: v.string(),
     ready: v.boolean(),
   }).index('by_game', ['gameId']),
-});
+}, { auth: { mode: 'sessions' } });

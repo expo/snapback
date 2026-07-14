@@ -30,6 +30,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
+  acceptHandCard: FunctionReference<'acceptHandCard', 'Mutation', { gameId: string; position: number; card: string }>;
   myHand: FunctionReference<'myHand', 'Query', { gameId: string }>;
   signalReady: FunctionReference<'signalReady', 'Mutation', { gameId: string; ready: boolean }>;
   ephemeral: GeneratedEphemeral;

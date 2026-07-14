@@ -1,17 +1,23 @@
 {
   "app": {
-    "description": "A finite authenticated hand query plus one queued ready signal, used to prove principal/data and authority-instance/queue scoping without claiming revocation-safe live delivery.",
+    "description": "A real sessions-mode hidden-hand query proving server-derived principal isolation before the live retained-query layer is enabled.",
     "name": "Hidden-card auth slice"
   },
   "appId": "card-game",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "3af5065ecebb9a575388cbbe376c3478e15a9fbbbfba7671850c90bed33d548c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5cfb9ac7c969f6f4084de296445fff281827805fd553ac6f212c43e6c20aa46f",
   "portabilityFlags": [],
-  "schemaHash": "sha256:af7c6cca5bfdd537",
-  "schemaVersion": "snapback.v0",
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:c47548f3bcdfbe0af9c0c80d44f0b7c3ee953cfe5a67b8969a3e5d13db898595",
+  "schemaVersion": "snapback.v1",
   "tables": [
     {
       "fields": [

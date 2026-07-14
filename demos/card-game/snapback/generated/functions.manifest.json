@@ -1,10 +1,65 @@
 {
   "appId": "card-game",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:3b2f9f228130f2ce",
+  "bundleHash": "snapback.v1:sessions:function:sha256:37896c82c1949f97e3eb817e3b0724eabd911b6666542ee29b6129ba36d72726",
   "config": [],
   "cronJobs": [],
   "functions": [
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "acceptHandCard",
+      "exportedName": "acceptHandCard",
+      "id": "card-game:acceptHandCard",
+      "kind": "Mutation",
+      "name": "acceptHandCard",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "hands",
+                  "values": {
+                    "card": {
+                      "Arg": "card"
+                    },
+                    "gameId": {
+                      "Arg": "gameId"
+                    },
+                    "ownerId": "AuthUserId",
+                    "position": {
+                      "Arg": "position"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "hands",
+        "tables": [
+          "hands"
+        ]
+      }
+    },
     {
       "authRequirement": "authenticated",
       "authorizationDependence": [
@@ -120,7 +175,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "3af5065ecebb9a575388cbbe376c3478e15a9fbbbfba7671850c90bed33d548c",
-  "schemaVersion": "snapback.v0",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5cfb9ac7c969f6f4084de296445fff281827805fd553ac6f212c43e6c20aa46f",
+  "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

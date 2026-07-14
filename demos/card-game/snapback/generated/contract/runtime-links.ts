@@ -2,6 +2,7 @@
 // @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.
 
 export interface SnapbackContractLinks {
+  acceptHandCard(args: { gameId: string; position: number; card: string }): unknown;
   myHand(args: { gameId: string }): unknown;
   signalReady(args: { gameId: string; ready: boolean }): unknown;
 }
