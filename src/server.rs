@@ -9185,8 +9185,8 @@ async fn live_stream(
         connection_id.clone(),
         generation,
     ));
-    let reproject_authorization = active_mode == AuthMode::Sessions
-        && connection_act.authorization_invalidation.is_some();
+    let reproject_authorization =
+        active_mode == AuthMode::Sessions && connection_act.authorization_invalidation.is_some();
     // Session invalidation is level-triggered, so its safety-net tick is also
     // the bounded re-fire. Dev retains the lower-traffic 30s fallback.
     let heartbeat_ms = if reproject_authorization {
@@ -9571,8 +9571,7 @@ async fn drain_and_send(
         };
         let Ok(Some(messages)) =
             connection_act.try_act(connections, now_millis(), Instant::now(), || {
-                Ok(ephemeral
-                    .drain_live_stream_for_send_if_current(connection_id, generation))
+                Ok(ephemeral.drain_live_stream_for_send_if_current(connection_id, generation))
             })
         else {
             return std::ops::ControlFlow::Break(());
@@ -10038,9 +10037,7 @@ fn handle_live_socket_text(
             request_id,
             request,
         } => match ephemeral.publish(request, now_millis()) {
-            Ok(outcome) => {
-                socket_ack(request_id, "publish", json!({ "outcome": outcome })).into()
-            }
+            Ok(outcome) => socket_ack(request_id, "publish", json!({ "outcome": outcome })).into(),
             Err(error) => {
                 socket_error(request_id, "publish", diagnostic_from_ephemeral(error)).into()
             }
@@ -10191,12 +10188,7 @@ async fn drain_outbox(
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     {
         let _effect = admission.effect_guard("HTTP outbox connection verification")?;
-        connection_act.try_act(
-            &runtime.connections,
-            epoch_now_ms,
-            monotonic_now,
-            || Ok(()),
-        )?;
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     }
     let projections = if authority.active_mode() == AuthMode::Sessions
         && connection_act.authorization_invalidation.is_some()
@@ -10214,16 +10206,11 @@ async fn drain_outbox(
     let admitted = {
         let _effect = admission.effect_guard("HTTP outbox drain publication")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-        connection_act.try_act(
-            &runtime.connections,
-            epoch_now_ms,
-            monotonic_now,
-            || {
-                Ok(runtime
-                    .ephemeral
-                    .drain_outbox_for_send_if_active(&connection_act.connection_id))
-            },
-        )?
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            Ok(runtime
+                .ephemeral
+                .drain_outbox_for_send_if_active(&connection_act.connection_id))
+        })?
     };
     let mut room_authority = Vec::new();
     let mut drained = match admitted {

@@ -99,6 +99,7 @@ export const LIVE_DURABLE_KINDS = Object.freeze({
   AUTHORIZATION_INVALIDATION: 'authorization_invalidation',
 });
 export const LIVE_SOCKET_KINDS = Object.freeze({
+  AUTH_ERROR: 'auth_error',
   PONG: 'pong',
   EPHEMERAL_ACK: 'ephemeral_ack',
   EPHEMERAL_ERROR: 'ephemeral_error',
@@ -225,6 +226,41 @@ const SUPERSEDED_AUTH_CODES = new Set([
   'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
   'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
 ]);
+
+const LIVE_TERMINAL_AUTH_CODES = new Set([
+  'SNAPBACK_AUTH_SESSION_EXPIRED',
+  'SNAPBACK_AUTH_STREAM_RESET',
+  'SNAPBACK_AUTH_MODE_PENDING',
+]);
+const LIVE_TERMINAL_AUTH_REASONS = new Set([
+  'expired',
+  'revoked',
+  'reset',
+  'restore',
+  'downgrade',
+  'mode_transition',
+]);
+
+// @ref LLP 0056#typed-terminal-auth-error — the identifier-free frame applies
+//   only to the authority capture that owns this socket and never reconnects.
+const liveTerminalAuthError = (frame) => {
+  const valid = frame?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR
+    && LIVE_TERMINAL_AUTH_CODES.has(frame.code)
+    && LIVE_TERMINAL_AUTH_REASONS.has(frame.reason);
+  const code = valid ? frame.code : 'SNAPBACK_AUTH_LIVE_FRAME_INVALID';
+  const message = valid
+    ? `the authenticated live transport ended (${frame.reason})`
+    : 'the live transport received a malformed terminal auth frame';
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = {
+    code,
+    message,
+    details: valid ? { reason: frame.reason } : {},
+  };
+  error.terminalAuth = valid;
+  return error;
+};
 
 const safeNextCounter = (value, code, label) => {
   if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
@@ -1456,6 +1492,21 @@ export class SnapbackClient {
             authorityCapture
             && !this.authCoordinator?.isCurrent?.(authorityCapture)
           ) throw staleAuthorityError();
+          if (update?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
+            const error = liveTerminalAuthError(update);
+            fail(error);
+            this.__authSession = null;
+            this.__authSessionCapture = null;
+            if (
+              error.terminalAuth
+              && authorityCapture
+              && this.authCoordinator?.isCurrent?.(authorityCapture)
+            ) {
+              void this.authCoordinator.compareAndClear(authorityCapture, update.code).catch(() => {});
+            }
+            try { ws.close(4401, 'auth_error'); } catch { /* terminal latch already owns failure */ }
+            return;
+          }
           markAuthorityCapture(update, authorityCapture);
           const waiter = waiters.shift();
           if (waiter) waiter.resolve(update);
@@ -3005,6 +3056,10 @@ class LiveStreamManager {
         this.#loseSocket(ws, staleAuthorityError());
         return;
       }
+      if (frame?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
+        this.#closeForAuthError(ws, frame);
+        return;
+      }
       markAuthorityCapture(frame, this.authorityCapture);
       this.#dispatch(frame);
     });
@@ -3052,6 +3107,27 @@ class LiveStreamManager {
     // fake-healthy on a destroyed outbox.
     this.#emitState('lost', { wasOpen });
     this.#scheduleReconnect();
+  }
+
+  #closeForAuthError(ws, frame) {
+    if (this.ws !== ws) return;
+    const error = liveTerminalAuthError(frame);
+    const capture = this.authorityCapture;
+    this.client.__authSession = null;
+    this.client.__authSessionCapture = null;
+    this.close(error, {
+      error,
+      terminal: true,
+      code: error.code,
+      reason: frame?.reason ?? null,
+    });
+    if (
+      error.terminalAuth
+      && capture
+      && this.client.authCoordinator?.isCurrent?.(capture)
+    ) {
+      void this.client.authCoordinator.compareAndClear(capture, frame.code).catch(() => {});
+    }
   }
 
   #scheduleReconnect() {
@@ -3214,7 +3290,7 @@ class LiveStreamManager {
     }
   }
 
-  close() {
+  close(error = null, detail = {}) {
     if (this.closed) return;
     this.closed = true;
     this.#stopHeartbeat();
@@ -3232,8 +3308,8 @@ class LiveStreamManager {
         // best-effort teardown
       }
     }
-    this.#failPendingRequests(new Error('Snapback live stream closed'));
-    this.#emitState('closed');
+    this.#failPendingRequests(error ?? new Error('Snapback live stream closed'));
+    this.#emitState('closed', detail);
     this.durableListeners.clear();
     this.ephemeralListeners.clear();
     this.stateListeners.clear();

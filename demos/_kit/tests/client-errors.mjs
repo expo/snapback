@@ -282,6 +282,61 @@ try {
     return { message: later.message };
   });
 
+  await suite.check('item5: raw live streams latch typed terminal auth frames', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_terminal_raw');
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_terminal_raw');
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+    ws.dispatch('message', { data: JSON.stringify({
+      kind: 'auth_error',
+      code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
+      reason: 'expired',
+    }) });
+    const error = await assertThrows(
+      () => stream.nextUpdate(50),
+      'SNAPBACK_AUTH_SESSION_EXPIRED',
+      'terminal auth frame must reject instead of entering the durable queue',
+    );
+    assertEqual(ws.closeCalls, 1, 'terminal frame closes its exact raw socket');
+    return { code: error.code, closeCalls: ws.closeCalls };
+  });
+
+  await suite.check('item5: managed terminal auth frames close without reconnect', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_terminal_managed');
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const states = [];
+    const manager = db.liveStreamManager('conn_terminal_managed', {
+      reconnectBaseDelayMs: 1,
+      reconnectMaxDelayMs: 1,
+    });
+    manager.onState((state, detail) => states.push({ state, detail }));
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    ws.dispatch('message', { data: JSON.stringify({
+      kind: 'auth_error',
+      code: 'SNAPBACK_AUTH_STREAM_RESET',
+      reason: 'reset',
+    }) });
+    await waitFor(
+      () => states.some(({ state, detail }) => state === 'closed' && detail?.terminal),
+      'terminal managed-socket close',
+    );
+    await sleep(10);
+    assertEqual(
+      FakeWebSocket.instances.length,
+      before + 1,
+      'terminal close never enters the reconnect loop',
+    );
+    assertEqual(manager.isOpen(), false, 'terminal manager remains closed');
+    return { states: states.map(({ state }) => state), sockets: 1 };
+  });
+
   await suite.check('eng_24372: a timed-out reader does not consume the next frame', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_timeout_frame');
