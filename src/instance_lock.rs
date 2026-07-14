@@ -342,6 +342,15 @@ impl std::fmt::Debug for TargetInstanceReservation {
     }
 }
 
+impl Drop for TargetInstanceReservation {
+    fn drop(&mut self) {
+        // `flock` survives duplicated descriptors, including the interval
+        // between fork and exec. Release the reservation deliberately instead
+        // of relying on this guard's descriptor being the final open copy.
+        let _ = platform::unlock(&self.lock_file);
+    }
+}
+
 impl TargetInstanceReservation {
     /// Reserve the instance containing `db_path` without creating that
     /// instance. Unsupported hosts fail before creating a lock or target.
@@ -1447,6 +1456,25 @@ mod tests {
         assert!(lock_path.is_file(), "stale lock entries are never unlinked");
         TargetInstanceReservation::acquire(&db_path).expect("closed stale record can be reused");
         assert!(!db_path.parent().unwrap().exists());
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn dropping_target_reservation_unlocks_before_inherited_descriptors_close() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("restored").join("snapback.db");
+        let reservation = TargetInstanceReservation::acquire(&db_path).expect("reservation");
+        let inherited_descriptor = reservation
+            .lock_file
+            .try_clone()
+            .expect("duplicate reservation descriptor");
+
+        drop(reservation);
+        let reacquired = TargetInstanceReservation::acquire(&db_path)
+            .expect("guard drop explicitly unlocks before inherited descriptors close");
+
+        drop(reacquired);
+        drop(inherited_descriptor);
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
