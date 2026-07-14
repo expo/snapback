@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
+import { cloudflareClientOptions } from '../client-options.mjs';
 
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
@@ -121,7 +122,7 @@ async function main() {
   const mock = await startMockUpstream();
   const proof = await startProof({ app: 'all-aboard', port: 0, bindings: SECRET_BINDINGS });
   const base = await proof.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   try {
     await client.ensureApp({ seed });
 

@@ -2,6 +2,28 @@
   "artifactKind": "capabilityManifest",
   "schemaVersion": "snapback.v0",
   "targetProfileId": "cloudflare-do-sqlite-v8",
+  "supportedArtifactVersions": [
+    "snapback.v0"
+  ],
+  "supportedAuthModes": [
+    "dev"
+  ],
+  "supportedArtifactAuthPairs": [
+    {
+      "schemaVersion": "snapback.v0",
+      "authMode": "dev"
+    }
+  ],
+  "supportedCapabilities": [
+    "live_subscriptions"
+  ],
+  "hostedAuth": {
+    "externalTls": "unavailable",
+    "effectiveSource": "unavailable",
+    "authenticationThrottle": "processLocal",
+    "sessionInvalidation": "singleProcess",
+    "clientCredentialPosture": "bearerV1XssExposed"
+  },
   "storageEngine": "durable-object-sqlite",
   "runtimeEngine": "v8",
   "localServerLifecycle": false,

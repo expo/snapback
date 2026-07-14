@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
+import { cloudflareClientOptions } from '../client-options.mjs';
 
 const FEED_KEY = 'test-511-key-cron';
 const WARM_POLL_MS = 1200;
@@ -86,7 +87,7 @@ async function main() {
     },
   });
   const base = await proof.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   const cronStatus = async () => (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
   try {
     await client.ensureApp({ seed });

@@ -12,8 +12,8 @@
 //     the committed generated artifacts (`artifacts.json` bundleHash).
 //   - `verifyViteProvenance` hits the dev-only source probe
 //     (`VITE_SOURCE_PROBE_PATH`, served by a tiny plugin in each surface's
-//     vite config) and compares the served checkout root and the API origin
-//     the surface was started against.
+//     vite config) and compares the served checkout root, API origin, and any
+//     required target profile the surface was started against.
 //
 // Both return `{ ok, reason, ... }` verdicts; they never throw on network
 // failure — an unreachable or identity-less server is a NOT-ok verdict
@@ -27,7 +27,7 @@ import { createServer } from 'node:net';
 import { join } from 'node:path';
 
 /// Dev-only provenance probe path served by the demo surfaces' vite configs.
-/// The response shape is `{ app, surface, root, apiOrigin }` with `root`
+/// The response shape is `{ app, surface, root, apiOrigin, targetProfile? }` with `root`
 /// already realpath-resolved on the serving side.
 export const VITE_SOURCE_PROBE_PATH = '/__snapback/source';
 
@@ -97,10 +97,13 @@ export async function verifyApiProvenance(apiUrl, { appId, bundleHash }) {
 
 /// Verdict on reusing an already-running Vite dev server. `ok: true` only when
 /// the probe answers AND it serves this checkout's surface tree AND it was
-/// started against the API origin this run is using (`apiOrigin` is baked into
-/// the bundle as `__SNAPBACK_API_ORIGIN__` at Vite start, so a mismatch means
-/// the reused surface would talk to the wrong backend).
-export async function verifyViteProvenance(viteUrl, { app, surface, root, apiOrigin }) {
+/// started against the API origin and, when supplied, target profile this run
+/// is using (both are baked into the bundle at Vite start, so a mismatch means
+/// the reused surface would use the wrong backend semantics).
+export async function verifyViteProvenance(
+  viteUrl,
+  { app, surface, root, apiOrigin, targetProfile },
+) {
   let info;
   try {
     const res = await fetch(`${viteUrl}${VITE_SOURCE_PROBE_PATH}`, { signal: AbortSignal.timeout(2000) });
@@ -142,6 +145,12 @@ export async function verifyViteProvenance(viteUrl, { app, surface, root, apiOri
     return {
       ok: false,
       reason: `it was started against API origin ${info.apiOrigin}, but this run uses ${apiOrigin}`,
+    };
+  }
+  if (targetProfile && info.targetProfile !== targetProfile) {
+    return {
+      ok: false,
+      reason: `it was started for target profile ${info.targetProfile ?? '?'}, but this run requires ${targetProfile}`,
     };
   }
   return { ok: true, info };

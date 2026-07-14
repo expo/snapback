@@ -2825,6 +2825,27 @@ impl CapabilityManifest {
     /// declared platform/deployment facts here; decisive measurements live in
     /// the generated benchmark/acceptance reports, not in this static
     /// manifest.
+    pub fn cloudflare_do_sqlite_v8_declared() -> Self {
+        Self::cloudflare_do_sqlite_v8(serde_json::json!({
+            "platform": "cloudflare-workers",
+            "storage": "durable-object-sqlite",
+            "liveTransport": "durable-object-websocket-hibernation",
+            "versionAuthority": "coordinator-durable-object",
+            "commit": "single-transactionSync (version + rows + journal)",
+            "maxRowBytes": 2_000_000,
+            "maxObjectStorageBytes": 10_000_000_000_i64,
+            "maxSubscriptionsGlobal": 2_048,
+            "maxSubscriptionsPerConnection": 64,
+            "maxSubscriptionArgsBytes": 32_768,
+            "maxLegacyProofSockets": 128,
+            "maxAcceptedSockets": 256,
+            "maxSocketsPerConnection": 2,
+            "wallClockNote": "enforced by the platform (object/request kill); measured value in the benchmark report",
+            "codeHotLoad": "missing — deployed Workers forbid dynamic eval; an app-code change is a deploy",
+            "handlerHarness": "single-sourced LLP 0048 harness (packages/snapback-harness)",
+        }))
+    }
+
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();

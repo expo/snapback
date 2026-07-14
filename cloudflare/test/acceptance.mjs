@@ -44,11 +44,29 @@ async function main() {
     const manifest = await client.inspect();
     check('capability manifest served with the proof profile id',
       manifest.targetProfileId === 'cloudflare-do-sqlite-v8' &&
-        manifest.offlineRetention === false && manifest.optimisticReplay === false,
+        manifest.offlineRetention === false && manifest.optimisticReplay === false &&
+        manifest.supportedArtifactVersions?.join(',') === 'snapback.v0' &&
+        manifest.supportedAuthModes?.join(',') === 'dev' &&
+        manifest.supportedArtifactAuthPairs?.length === 1 &&
+        manifest.supportedArtifactAuthPairs[0]?.schemaVersion === 'snapback.v0' &&
+        manifest.supportedArtifactAuthPairs[0]?.authMode === 'dev' &&
+        manifest.supportedCapabilities?.join(',') === 'live_subscriptions' &&
+        !Object.hasOwn(manifest, 'authProtocols') &&
+        manifest.hostedAuth?.externalTls === 'unavailable' &&
+        manifest.hostedAuth?.effectiveSource === 'unavailable' &&
+        manifest.hostedAuth?.authenticationThrottle === 'processLocal' &&
+        manifest.hostedAuth?.sessionInvalidation === 'singleProcess' &&
+        manifest.hostedAuth?.clientCredentialPosture === 'bearerV1XssExposed',
       JSON.stringify({
         targetProfileId: manifest.targetProfileId,
         offlineRetention: manifest.offlineRetention,
         optimisticReplay: manifest.optimisticReplay,
+        supportedArtifactVersions: manifest.supportedArtifactVersions,
+        supportedAuthModes: manifest.supportedAuthModes,
+        supportedArtifactAuthPairs: manifest.supportedArtifactAuthPairs,
+        supportedCapabilities: manifest.supportedCapabilities,
+        authProtocols: manifest.authProtocols,
+        hostedAuth: manifest.hostedAuth,
       }));
     check('manifest names code_hot_load as a missing capability',
       Array.isArray(manifest.capabilityGaps) && manifest.capabilityGaps.includes('code_hot_load'),

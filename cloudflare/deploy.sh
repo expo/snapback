@@ -36,6 +36,11 @@ case "$app" in
     ;;
 esac
 
+if [[ "$app" == "all-aboard" && -n "${EXACT_ALL_ABOARD_SOURCE_ROOT:-}" ]]; then
+  echo "EXACT_ALL_ABOARD_SOURCE_ROOT is acceptance-only and must be unset for Cloudflare deploys." >&2
+  exit 2
+fi
+
 # @ref LLP 0049#config-and-secrets — production mutations must be performed by the exact Wrangler resolved by
 # the committed root lock. Never let npx install or select a tool while a
 # deployment transaction (or secret stdin) is in flight.
@@ -60,7 +65,7 @@ if [[ "$app" == "all-aboard" ]]; then
   # Browser Surface), so the generated bindings address the page's own
   # origin — never a hand-written data path.
   echo "==> building the All Aboard Contract web bundle (same-origin bindings)"
-  (cd ../demos/all-aboard/surfaces/contract && bun install --frozen-lockfile >/dev/null && SNAPBACK_ALL_ABOARD_API=same-origin bun run build)
+  (cd ../demos/all-aboard/surfaces/contract && bun install --frozen-lockfile >/dev/null && SNAPBACK_ALL_ABOARD_API=same-origin SNAPBACK_ALL_ABOARD_TARGET_PROFILE=cloudflare-do-sqlite-v8 bun run build)
 fi
 
 # Service bindings are circular (gateway <-> handler), so a FIRST deploy to a

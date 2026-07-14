@@ -22,6 +22,10 @@ import {
 } from '../../snapback/generated/contract/runtime-links';
 import { setRouteEstimateTransport } from './data';
 import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
+import {
+  snapbackNativeBaseUrl,
+  snapbackTargetClientOptions,
+} from './snapback-target';
 
 function createApp<T extends Record<string, unknown>>(config: T): T {
   return config;
@@ -42,15 +46,12 @@ let routerHandle: AllAboardRouterHandle | null = null;
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
 
 function snapbackBaseUrl(): string {
-  if (typeof __SNAPBACK_API_ORIGIN__ === 'string' && __SNAPBACK_API_ORIGIN__.length > 0) {
-    return __SNAPBACK_API_ORIGIN__;
-  }
   const origin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
-  return typeof origin === 'string' && origin.length > 0 ? `${origin}/snapback` : '/snapback';
+  return snapbackNativeBaseUrl(__SNAPBACK_API_ORIGIN__, origin);
 }
 
 async function boot(): Promise<void> {
-  const client = new SnapbackClient(snapbackBaseUrl());
+  const client = new SnapbackClient(snapbackBaseUrl(), snapbackTargetClientOptions());
   setRouteEstimateTransport(async (args) => {
     const run = await client.action('routeEstimate', { args });
     if (!run?.ok) {

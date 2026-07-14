@@ -10,11 +10,35 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const sourceCloudflareRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const sourceRepoRoot = path.resolve(sourceCloudflareRoot, '..');
+const contractSurfaceRoot = path.join(sourceRepoRoot, 'demos/all-aboard/surfaces/contract');
+const deploySource = fs.readFileSync(path.join(sourceCloudflareRoot, 'deploy.sh'), 'utf8');
 assert.doesNotMatch(
   fs.readFileSync(path.join(sourceCloudflareRoot, 'wrangler.jsonc'), 'utf8'),
   /\bnpx\s+wrangler\b/,
   'operator-facing deploy config must not recommend an auto-installing production controller',
 );
+assert.match(
+  deploySource,
+  /SNAPBACK_ALL_ABOARD_TARGET_PROFILE=cloudflare-do-sqlite-v8\s+bun run build/,
+  'the hosted All Aboard bundle must select the pre-auth Cloudflare target explicitly',
+);
+for (const [entry, baseResolver] of [
+  ['main.ts', 'snapbackWebBaseUrl'],
+  ['native.ts', 'snapbackNativeBaseUrl'],
+]) {
+  const source = fs.readFileSync(path.join(contractSurfaceRoot, entry), 'utf8');
+  assert.match(
+    source,
+    /new SnapbackClient\(snapbackBaseUrl\(\), snapbackTargetClientOptions\(\)\)/,
+    `${entry} must construct the production client through the target-profile options`,
+  );
+  assert.match(
+    source,
+    new RegExp(`${baseResolver}\\(__SNAPBACK_API_ORIGIN__, origin\\)`),
+    `${entry} must resolve its API origin through the target profile`,
+  );
+}
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'snapback-deploy-test-'));
 const bin = path.join(temp, 'bin');
 fs.mkdirSync(bin);
@@ -223,6 +247,7 @@ function run(name, extra = {}) {
     MOCK_COMPAT_MARKER: marker,
     MOCK_EXISTING: 'wrangler.handler.jsonc,wrangler.jsonc',
     MOCK_SECRET_STATE: 'absent',
+    EXACT_ALL_ABOARD_SOURCE_ROOT: '',
     ...extra,
   };
   const result = spawnSync('bash', ['deploy.sh'], {
@@ -256,7 +281,154 @@ function rollbackConfigs(result) {
     .map((args) => args[args.indexOf('--config') + 1]);
 }
 
+function javascriptBundleText(root) {
+  const pending = [root];
+  const files = [];
+  while (pending.length > 0) {
+    const directory = pending.pop();
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) pending.push(absolute);
+      else if (entry.isFile() && entry.name.endsWith('.js')) files.push(absolute);
+    }
+  }
+  return files.sort().map((file) => fs.readFileSync(file, 'utf8')).join('\n');
+}
+
+function nativeModuleSources(outDir) {
+  const startupPath = path.join(
+    outDir,
+    '__exact/native/mac-appkit-hermes/startup.js',
+  );
+  const startup = fs.readFileSync(startupPath, 'utf8');
+  const marker = 'const __exactDevModules = ';
+  const start = startup.indexOf(marker);
+  assert.notEqual(start, -1, 'native startup must embed its compiled module table');
+  const valueStart = start + marker.length;
+  const valueEnd = startup.indexOf(';\n', valueStart);
+  assert.notEqual(valueEnd, -1, 'native startup module table must have a bounded terminator');
+  return JSON.parse(startup.slice(valueStart, valueEnd));
+}
+
+function buildContractProfile(
+  profile,
+  configuredOrigin = profile === 'cloudflare-do-sqlite-v8'
+    ? 'same-origin'
+    : 'http://127.0.0.1:4420',
+) {
+  const originLabel = configuredOrigin === 'same-origin' ? 'same-origin' : 'direct';
+  const outDir = path.join(temp, `contract-${profile}-${originLabel}`);
+  const result = spawnSync(
+    'bun',
+    [
+      '--bun',
+      'node_modules/.bin/vite',
+      'build',
+      '--config',
+      'vite.config.ts',
+      '--outDir',
+      outDir,
+      '--emptyOutDir',
+    ],
+    {
+      cwd: contractSurfaceRoot,
+      env: {
+        ...process.env,
+        EXACT_ALL_ABOARD_SOURCE_ROOT: '',
+        SNAPBACK_ALL_ABOARD_API: configuredOrigin,
+        SNAPBACK_ALL_ABOARD_TARGET_PROFILE: profile,
+      },
+      encoding: 'utf8',
+      timeout: 120_000,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  assert.equal(
+    result.status,
+    0,
+    `${profile} production bundle failed:\n${result.stdout}${result.stderr}`,
+  );
+  // Native startup files embed a source-module dictionary for the host and
+  // therefore contain both dead branches. The deployed Cloudflare static
+  // surface is the web assets directory; inspect its executed bundle only.
+  return {
+    web: javascriptBundleText(path.join(outDir, 'assets')),
+    nativeModules: nativeModuleSources(outDir),
+  };
+}
+
 try {
+  const install = spawnSync(
+    'bun',
+    ['install', '--frozen-lockfile', '--cwd', contractSurfaceRoot],
+    { encoding: 'utf8', timeout: 180_000, maxBuffer: 64 * 1024 * 1024 },
+  );
+  assert.equal(
+    install.status,
+    0,
+    `All Aboard surface frozen install failed:\n${install.stdout}${install.stderr}`,
+  );
+  const cloudflareBundle = buildContractProfile('cloudflare-do-sqlite-v8');
+  assert.match(
+    cloudflareBundle.web,
+    /the Cloudflare proof target does not support session credential custody/,
+    'the production Cloudflare bundle must retain the explicit pre-auth client factory',
+  );
+  assert.match(
+    cloudflareBundle.nativeModules['/snapback-target.ts']?.source ?? '',
+    /return "cloudflare-do-sqlite-v8";/,
+    'the production module must compile the Cloudflare target-profile define',
+  );
+  assert.match(
+    cloudflareBundle.nativeModules['/native.ts']?.source ?? '',
+    /snapbackNativeBaseUrl/,
+    'the production Cloudflare native entry must resolve same-origin through the host origin',
+  );
+  assert.match(
+    cloudflareBundle.nativeModules['/native.ts']?.source ?? '',
+    /"same-origin"/,
+    'the production Cloudflare native entry must pass the deployment origin sentinel to the resolver',
+  );
+  const localBundle = buildContractProfile('local-dev-sqlite-ibex');
+  assert.match(
+    localBundle.nativeModules['/snapback-target.ts']?.source ?? '',
+    /return "local-dev-sqlite-ibex";/,
+    'the local production module must compile the auth-capable target-profile define',
+  );
+  assert.match(
+    localBundle.nativeModules['/native.ts']?.source ?? '',
+    /snapbackNativeBaseUrl/,
+    'the local native entry must resolve through the same profile-aware origin helper',
+  );
+  assert.match(
+    localBundle.nativeModules['/native.ts']?.source ?? '',
+    /http:\/\/127\.0\.0\.1:4420/,
+    'the local native entry must retain its explicit auth-capable API origin',
+  );
+  const localSameOriginBundle = buildContractProfile(
+    'local-dev-sqlite-ibex',
+    'same-origin',
+  );
+  assert.match(
+    localSameOriginBundle.nativeModules['/snapback-target.ts']?.source ?? '',
+    /return "local-dev-sqlite-ibex";/,
+    'the local same-origin production module must remain on the local target profile',
+  );
+  assert.match(
+    localSameOriginBundle.nativeModules['/native.ts']?.source ?? '',
+    /"same-origin"/,
+    'the local native entry must pass same-origin to the profile-aware /snapback resolver',
+  );
+
+  const sourceOverride = run('source-override-refused', {
+    SNAPBACK_CF_APP: 'all-aboard',
+    EXACT_ALL_ABOARD_SOURCE_ROOT: '/tmp/acceptance-only-exact-checkout',
+  });
+  assert.notEqual(sourceOverride.status, 0);
+  assert.match(sourceOverride.output, /acceptance-only and must be unset/);
+  assert.deepEqual(sourceOverride.calls, []);
+  assert.equal(sourceOverride.compatChecked, false);
+
   // The deployment must fail before compatibility checks or any remote call
   // when the local locked tool is absent or has the wrong version.
   const savedWrangler = fs.readFileSync(wranglerBin);

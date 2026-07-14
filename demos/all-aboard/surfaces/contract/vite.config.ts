@@ -25,14 +25,21 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Page-visible API origin (injected into the browser bundle). `same-origin`
-// makes the kit use relative `/snapback/*` paths so a Tailscale/LAN Vite host
-// stays same-origin and avoids Snapback's loopback-only CORS.
+// lets the target-profile resolver use `/snapback/*` behind local Vite and
+// gateway-root paths on Cloudflare, avoiding loopback-only CORS in both cases.
 const snapbackApiOrigin = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
 // Upstream the Vite `/snapback` proxy actually dials. When the page origin is
 // `same-origin`, the proxy still needs a real localhost API target.
 const snapbackProxyTarget =
   process.env.SNAPBACK_ALL_ABOARD_API_PROXY ??
   (snapbackApiOrigin === 'same-origin' ? 'http://127.0.0.1:4420' : snapbackApiOrigin);
+const snapbackTargetProfile =
+  process.env.SNAPBACK_ALL_ABOARD_TARGET_PROFILE ?? 'local-dev-sqlite-ibex';
+if (!['local-dev-sqlite-ibex', 'cloudflare-do-sqlite-v8'].includes(snapbackTargetProfile)) {
+  throw new Error(
+    `unsupported SNAPBACK_ALL_ABOARD_TARGET_PROFILE ${JSON.stringify(snapbackTargetProfile)}`,
+  );
+}
 
 // ENG-22753: dev-only source-provenance probe. The acceptance suites reuse an
 // already-running Vite only after this probe proves it serves THIS checkout's
@@ -61,6 +68,7 @@ const sourceProvenanceProbe = {
           surface: 'contract',
           root: realpathSync(__dirname),
           apiOrigin: snapbackApiOrigin,
+          targetProfile: snapbackTargetProfile,
         }),
       );
     });
@@ -148,6 +156,7 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     // ws:true proxy below logs the forward, then the tunnel hangs), which
     // would leave the stream transport permanently connecting.
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackApiOrigin),
+    __SNAPBACK_TARGET_PROFILE__: JSON.stringify(snapbackTargetProfile),
   },
   resolve: {
     alias: sourceAliases(exactSourceRoot, command),

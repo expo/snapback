@@ -16,6 +16,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
+import {
+  cloudflareClientOptions,
+} from '../client-options.mjs';
+import { snapbackBaseUrlForTarget } from '../../demos/_kit/target-origin.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -24,12 +28,127 @@ const functionsManifest = readJson('demos/all-aboard/snapback/generated/function
 const seed = readJson('demos/all-aboard/snapback/seed.json');
 const manifestSchema = readJson('schemas/capability.manifest.schema.json');
 const deploymentIdentity = readJson('cloudflare/generated/deployment-identity.all-aboard.json');
+const baseTargetManifest = readJson(
+  'cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json',
+);
+const allAboardTargetManifest = readJson(
+  'cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json',
+);
+
+for (const key of [
+  'targetProfileId',
+  'supportedArtifactVersions',
+  'supportedAuthModes',
+  'supportedArtifactAuthPairs',
+  'hostedAuth',
+]) {
+  assert.deepEqual(
+    allAboardTargetManifest[key],
+    baseTargetManifest[key],
+    `All Aboard must not override the base target's ${key} authority fact`,
+  );
+}
+assert.equal(
+  Object.hasOwn(allAboardTargetManifest, 'authProtocols'),
+  false,
+  'All Aboard must not add auth protocols absent from its base target',
+);
+
+assert.throws(
+  () => cloudflareClientOptions({ authClientProtocol: 1 }),
+  /does not support authClientProtocol/,
+  'the target-owned client factory must reject attempts to re-enable auth negotiation',
+);
+assert.throws(
+  () => cloudflareClientOptions({ bearerToken: 'must-not-be-accepted' }),
+  /does not support session credential custody/,
+  'the target-owned client factory must reject misleading session credentials',
+);
+let bearerReads = 0;
+const accessorOptions = cloudflareClientOptions({
+  get bearerToken() {
+    bearerReads += 1;
+    return bearerReads === 1 ? null : 'must-not-bypass-the-guard';
+  },
+});
+assert.equal(bearerReads, 1, 'client option accessors are snapshotted exactly once');
+assert.equal(accessorOptions.bearerToken, null, 'a later accessor value cannot bypass validation');
+assert.equal(
+  snapbackBaseUrlForTarget({
+    configuredOrigin: 'same-origin',
+    serverOrigin: 'https://snapback.example.test/',
+    surface: 'native',
+    targetProfile: 'cloudflare-do-sqlite-v8',
+  }),
+  'https://snapback.example.test',
+  'native same-origin startup uses the deployed gateway root without a /snapback prefix',
+);
+assert.equal(
+  snapbackBaseUrlForTarget({
+    configuredOrigin: 'same-origin',
+    serverOrigin: 'https://snapback.example.test/',
+    surface: 'web',
+    targetProfile: 'cloudflare-do-sqlite-v8',
+  }),
+  '',
+  'Cloudflare web same-origin paths address the gateway root',
+);
+assert.equal(
+  snapbackBaseUrlForTarget({
+    configuredOrigin: 'same-origin',
+    serverOrigin: 'http://local.example.test/',
+    surface: 'web',
+    targetProfile: 'local-dev-sqlite-ibex',
+  }),
+  '/snapback',
+  'local web same-origin paths retain the Vite /snapback proxy prefix',
+);
+assert.equal(
+  snapbackBaseUrlForTarget({
+    configuredOrigin: 'same-origin',
+    serverOrigin: 'http://local.example.test/',
+    surface: 'native',
+    targetProfile: 'local-dev-sqlite-ibex',
+  }),
+  'http://local.example.test/snapback',
+  'local native same-origin paths retain the host /snapback proxy prefix',
+);
+assert.equal(
+  snapbackBaseUrlForTarget({
+    configuredOrigin: 'http://127.0.0.1:4420',
+    serverOrigin: undefined,
+    surface: 'web',
+    targetProfile: 'local-dev-sqlite-ibex',
+  }),
+  'http://127.0.0.1:4420',
+  'an explicit local API origin remains direct',
+);
+assert.throws(
+  () => snapbackBaseUrlForTarget({
+    configuredOrigin: 'same-origin',
+    serverOrigin: undefined,
+    surface: 'native',
+    targetProfile: 'cloudflare-do-sqlite-v8',
+  }),
+  /same-origin native startup requires an Exact server origin/,
+  'native same-origin startup fails closed when the host supplies no origin',
+);
+assert.throws(
+  () => snapbackBaseUrlForTarget({
+    configuredOrigin: 'same-origin',
+    serverOrigin: 'https://snapback.example.test',
+    surface: 'web',
+    targetProfile: 'future-unknown-target',
+  }),
+  /unsupported Snapback target profile/,
+  'unknown target profiles cannot inherit local or hosted origin semantics',
+);
 
 function readJson(rel) {
   return JSON.parse(fs.readFileSync(path.join(repoRoot, rel), 'utf8'));
 }
 
-const EXPECTED_CHECKS = 18;
+const EXPECTED_CHECKS = 19;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -53,11 +172,38 @@ function validateManifestShape(manifest) {
 async function main() {
   const proof = await startProof({ app: 'all-aboard', port: 0 });
   const base = await proof.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const nativeFetch = globalThis.fetch;
+  const requestedPaths = [];
+  globalThis.fetch = (input, init) => {
+    const target = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
+    requestedPaths.push(new URL(target, base).pathname);
+    return nativeFetch.call(globalThis, input, init);
+  };
+  const client = new SnapbackClient(
+    base,
+    cloudflareClientOptions({ adminToken: ADMIN_TOKEN }),
+  );
   try {
     // --- capability reporting -------------------------------------------
     const manifest = await client.inspect();
-    check('capability manifest served and schema-shaped', validateManifestShape(manifest) === null);
+    check(
+      'capability manifest is schema-shaped and declares the pre-auth target exactly',
+      validateManifestShape(manifest) === null &&
+        manifest.supportedArtifactVersions?.length === 1 &&
+        manifest.supportedArtifactVersions[0] === 'snapback.v0' &&
+        manifest.supportedAuthModes?.length === 1 &&
+        manifest.supportedAuthModes[0] === 'dev' &&
+        manifest.supportedArtifactAuthPairs?.length === 1 &&
+        manifest.supportedArtifactAuthPairs[0]?.schemaVersion === 'snapback.v0' &&
+        manifest.supportedArtifactAuthPairs[0]?.authMode === 'dev' &&
+        manifest.supportedCapabilities?.join(',') === 'cron,live_subscriptions' &&
+        !Object.hasOwn(manifest, 'authProtocols') &&
+        manifest.hostedAuth?.externalTls === 'unavailable' &&
+        manifest.hostedAuth?.effectiveSource === 'unavailable' &&
+        manifest.hostedAuth?.authenticationThrottle === 'processLocal' &&
+        manifest.hostedAuth?.sessionInvalidation === 'singleProcess' &&
+        manifest.hostedAuth?.clientCredentialPosture === 'bearerV1XssExposed',
+    );
     check(
       'manifest declares the earned live-data facts with named partial limits (Phase 4 honesty)',
       manifest.outboundActions === true &&
@@ -80,6 +226,10 @@ async function main() {
     // --- queries ----------------------------------------------------------
     const stations = await client.query('stationsQuery', {});
     check('stationsQuery returns the seeded corridor in order', stations.rows.length === 21 && stations.rows[0].stationId === 'san-francisco');
+    check(
+      'Cloudflare target client never probes the unsupported auth handshake',
+      !requestedPaths.includes('/auth/session'),
+    );
     const stopTimes = await client.query('stopTimesByStation', { args: { stationId: 'palo-alto' } });
     check(
       'stopTimesByStation filters by argument',
@@ -165,6 +315,7 @@ async function main() {
     }
     console.log(`\nall-aboard cloudflare acceptance: ${checks}/${EXPECTED_CHECKS} checks passed`);
   } finally {
+    globalThis.fetch = nativeFetch;
     await proof.dispose();
   }
 }

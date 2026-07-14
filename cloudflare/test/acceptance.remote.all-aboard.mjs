@@ -14,6 +14,7 @@
 // most of it waiting out one real warm-poll cadence.
 import fs from 'node:fs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
+import { cloudflareClientOptions } from '../client-options.mjs';
 
 const BASE = (process.env.SNAPBACK_PROOF_URL || '').replace(/\/$/, '');
 const ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || '';
@@ -48,7 +49,7 @@ function leaksKey(text) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-  const client = new SnapbackClient(BASE, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(BASE, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
 
   // --- cold start + static assets ----------------------------------------
   const t0 = Date.now();

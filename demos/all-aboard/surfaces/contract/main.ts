@@ -46,6 +46,10 @@ import {
 import { installDirections } from './directions';
 import { setRouteEstimateTransport } from './data';
 import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
+import {
+  snapbackTargetClientOptions,
+  snapbackWebBaseUrl,
+} from './snapback-target';
 import { installTrainSelectionTransition } from './transitions';
 
 let routerHandle: AllAboardRouterHandle | null = null;
@@ -131,23 +135,8 @@ const logTiming = (label: string, at: number | null) => {
 declare const __SNAPBACK_API_ORIGIN__: string | undefined;
 
 function snapbackBaseUrl(): string {
-  // Prefer the direct API origin (live WebSocket + HTTP under loopback CORS;
-  // the bun-vite proxy cannot complete WebSocket upgrades — see
-  // vite.config.ts). Fall back to the /snapback proxy path when absent.
-  //
-  // 'same-origin' is the LLP 0049 deployment hook (§Realtime And Browser
-  // Surface): the Cloudflare gateway serves this bundle itself and the
-  // generated bindings address the page's own origin — an empty base makes
-  // every kit path relative, and the kit resolves its WebSocket URL against
-  // the page origin. Build with SNAPBACK_ALL_ABOARD_API=same-origin.
-  if (__SNAPBACK_API_ORIGIN__ === 'same-origin') {
-    return '';
-  }
-  if (typeof __SNAPBACK_API_ORIGIN__ === 'string' && __SNAPBACK_API_ORIGIN__.length > 0) {
-    return __SNAPBACK_API_ORIGIN__;
-  }
   const origin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
-  return typeof origin === 'string' && origin.length > 0 ? `${origin}/snapback` : '/snapback';
+  return snapbackWebBaseUrl(__SNAPBACK_API_ORIGIN__, origin);
 }
 
 // The Exact dev server serves its own generated HTML shell (index.html is not
@@ -295,7 +284,7 @@ async function mountBoard(client: SnapbackClient): Promise<void> {
   await firstBoardPaintReady;
 }
 
-const client = new SnapbackClient(snapbackBaseUrl());
+const client = new SnapbackClient(snapbackBaseUrl(), snapbackTargetClientOptions());
 setRouteEstimateTransport(async (args) => {
   const run = await client.action('routeEstimate', { args });
   if (!run?.ok) {

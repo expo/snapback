@@ -2106,3 +2106,35 @@ ordinary acceptance ceiling stays 2200 ms, and the clock-real 2600 ms static
 evaluation regression remains red under that default. This keeps the hosted
 clean-clone lane stable without weakening the tighter development signal or
 hiding whether paint still precedes backend work.
+
+## 2026-07-13 (twelfth entry) — make the auth target choice explicit
+
+The auth program made the shared `SnapbackClient` discover protocol v1 before
+online work. That was ergonomic on the local target—the generated surface
+picked up the new handshake without app-specific glue—but it exposed an honest
+Cloudflare boundary: the narrow proof still declares `external_auth` missing
+and has no `/auth/session` route. Its All Aboard bundle was therefore probing a
+protocol the deployed target does not implement. Treating the resulting 404
+(or the static asset fallback's HTML 200) as permission to downgrade would
+have hidden receiver skew, so the fix is an explicit build-time target profile
+and a target-owned client factory that disables all four auth protocols.
+
+What felt good was that the same surface source remains usable on both targets:
+local/native builds retain auth discovery, while the Cloudflare deploy selects
+its pre-auth profile in one command. The canonical Cloudflare acceptance now
+records every client fetch and proves the real query path never asks for
+`/auth/session`. What felt bad was that the checked-in Cloudflare capability
+manifests had drifted behind the Rust target declaration; regenerating them
+also surfaced the missing v0/dev-only tuple and all-negative hosted-auth facts.
+The dual web/native production build found two more target seams worth making
+explicit: native `same-origin` must resolve to the host-supplied gateway origin
+rather than the literal sentinel, and Vite reuse provenance must include the
+target profile as well as the API origin.
+
+Compared with a React client configured directly for Convex or Supabase, this
+adds an explicit target-profile seam that those hosted SDKs usually choose for
+the application. The extra configuration is friction, but it preserves a
+useful property for Snapback: one client cannot silently reinterpret a missing
+security protocol as an anonymous legacy server. Exact was neutral here; its
+Vite build-time define was a convenient carrier, while the auth decision and
+the Cloudflare capability truth remained Snapback-owned.

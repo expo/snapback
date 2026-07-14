@@ -124,7 +124,13 @@ async function ensureVite() {
     // Same rule as the API server (ENG-22753): a Vite answering on the port is
     // reused only when its source-provenance probe proves it serves THIS
     // checkout's surface tree against THIS run's API origin.
-    const verdict = await verifyViteProvenance(viteUrl, { app: 'all-aboard', surface: 'contract', root: surfaceDir, apiOrigin: apiUrl });
+    const verdict = await verifyViteProvenance(viteUrl, {
+      app: 'all-aboard',
+      surface: 'contract',
+      root: surfaceDir,
+      apiOrigin: apiUrl,
+      targetProfile: 'local-dev-sqlite-ibex',
+    });
     if (verdict.ok) {
       console.log(`REUSED Vite at :${port} (root ${verdict.info.root}, api ${verdict.info.apiOrigin})`);
       return;
@@ -137,7 +143,15 @@ async function ensureVite() {
     viteUrl = `http://127.0.0.1:${port}`;
   }
   const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--config', 'vite.config.ts', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-    { cwd: surfaceDir, env: { ...process.env, SNAPBACK_ALL_ABOARD_API: apiUrl }, stdio: ['ignore', 'ignore', 'pipe'] });
+    {
+      cwd: surfaceDir,
+      env: {
+        ...process.env,
+        SNAPBACK_ALL_ABOARD_API: apiUrl,
+        SNAPBACK_ALL_ABOARD_TARGET_PROFILE: 'local-dev-sqlite-ibex',
+      },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
   cleanups.push(() => child.kill('SIGTERM'));
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) { if (await urlOk(viteUrl)) return; if (child.exitCode !== null) throw new Error('Vite exited'); await sleep(500); }

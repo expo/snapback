@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
+import { cloudflareClientOptions } from '../client-options.mjs';
 
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 let fetches = 0;
@@ -36,7 +37,7 @@ const proof = await startProof({
 
 try {
   const base = await proof.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   const post = async (path) => {
     const response = await fetch(`${base}${path}`, { method: 'POST' });
     return response.json();
@@ -180,7 +181,7 @@ const atomicFinish = await startProof({
 });
 try {
   const base = await atomicFinish.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   const postJson = async (path, body = {}) => {
     const response = await fetch(`${base}${path}`, {
       method: 'POST',
@@ -276,7 +277,7 @@ const resetRace = await startProof({
 });
 try {
   const base = await resetRace.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   await client.ensureApp({ seed });
   const postJson = async (path, body = {}) => {
     const response = await fetch(`${base}${path}`, {

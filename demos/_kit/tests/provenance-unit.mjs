@@ -128,13 +128,36 @@ try {
 
   const surfaceRoot = realpathSync(scratch);
   const apiOrigin = 'http://127.0.0.1:4420';
-  const probeBody = { app: 'all-aboard', surface: 'contract', root: surfaceRoot, apiOrigin };
+  const targetProfile = 'local-dev-sqlite-ibex';
+  const probeBody = {
+    app: 'all-aboard',
+    surface: 'contract',
+    root: surfaceRoot,
+    apiOrigin,
+    targetProfile,
+  };
 
   await suite.check('Vite verdict: matching app/surface/root/apiOrigin is ok', async () => {
     const vite = await stub({ [VITE_SOURCE_PROBE_PATH]: probeBody });
-    const verdict = await verifyViteProvenance(vite.url, { app: 'all-aboard', surface: 'contract', root: scratch, apiOrigin });
+    const verdict = await verifyViteProvenance(vite.url, {
+      app: 'all-aboard', surface: 'contract', root: scratch, apiOrigin, targetProfile,
+    });
     assert(verdict.ok, `expected ok, got: ${verdict.reason}`);
     assertEqual(verdict.info.root, surfaceRoot, 'probe root round-trips realpathed');
+    return verdict;
+  });
+
+  await suite.check('Vite verdict: a different target profile is not ok', async () => {
+    const vite = await stub({
+      [VITE_SOURCE_PROBE_PATH]: { ...probeBody, targetProfile: 'cloudflare-do-sqlite-v8' },
+    });
+    const verdict = await verifyViteProvenance(vite.url, {
+      app: 'all-aboard', surface: 'contract', root: scratch, apiOrigin, targetProfile,
+    });
+    assert(
+      !verdict.ok && /target profile/.test(verdict.reason),
+      `expected target-profile verdict: ${verdict.reason}`,
+    );
     return verdict;
   });
 

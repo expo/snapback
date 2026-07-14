@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
+import { cloudflareClientOptions } from '../client-options.mjs';
 
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
@@ -18,7 +19,7 @@ const proof = await startProof({
 
 try {
   const base = await proof.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   await client.ensureApp({ seed });
   const before = await client.query('feedState', {});
 
@@ -61,7 +62,10 @@ const hugeTimeout = await startProof({
   bindings: { SNAPBACK_ACTION_TIMEOUT_MS: '18446744073709551615' },
 });
 try {
-  const client = new SnapbackClient(await hugeTimeout.url(), { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(
+    await hugeTimeout.url(),
+    cloudflareClientOptions({ adminToken: ADMIN_TOKEN }),
+  );
   await client.ensureApp({ seed });
   const outcome = await client.action('probeLateMutation', {
     args: { url: `http://127.0.0.1:${quickServer.address().port}/quick` },
@@ -97,7 +101,7 @@ const resetProof = await startProof({
 });
 try {
   const base = await resetProof.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   await client.ensureApp({ seed });
   const action = client.action('probeLateMutation', {
     args: { url: `http://127.0.0.1:${slowServer.address().port}/slow` },

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
+import { cloudflareClientOptions } from '../client-options.mjs';
 
 // Keep transport failures attributable. This suite intentionally drives both
 // Miniflare loopback HTTP and a local egress echo server; an unlabelled undici
@@ -47,7 +48,7 @@ const production = await startProof({
 });
 try {
   const base = await production.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   const attackerStation = { ...seed.tables.stations[0], name: 'ATTACKER CONTROLLED' };
   const [attack, legitimate] = await Promise.all([
     jsonFetch(base, '/app/ensure', { seed: { tables: { stations: [attackerStation] } } }),
@@ -148,7 +149,7 @@ const testing = await startProof({
 });
 try {
   const base = await testing.url();
-  const client = new SnapbackClient(base, { adminToken: ADMIN_TOKEN });
+  const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   await client.ensureApp({ seed });
   const testAction = (name, args = {}) => jsonFetch(base, '/__test/action', { name, args });
   const payload = await jsonFetch(base, '/__test/secrets-payload', { name: 'probeSecrets' });

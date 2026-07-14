@@ -1,11 +1,13 @@
 // LLP 0032 P2: the capability manifest has one source of truth — the Rust
-// core. The committed schemas/capability.manifest.local-dev-sqlite-ibex.json
-// is generated from `CapabilityManifest::local_v0_declared()` and embedded
-// verbatim by codegen (packages/snapback-codegen), which asserts — never
-// authors — capabilities. These tests are the drift gates on both edges.
+// core. The committed local and Cloudflare manifests are generated from their
+// `CapabilityManifest` constructors; the local one is embedded verbatim by
+// codegen (packages/snapback-codegen), which asserts — never authors —
+// capabilities. These tests are the drift gates on both edges.
 //
-// Regenerate the committed file with:
+// Regenerate the committed files with:
 //   SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_
+//   cargo run --bin snapback-cf-manifest -- --out \
+//     cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json
 //
 // @ref LLP 0037#decision-ratified-2026-07-02 — Rust types are the source of
 //   truth for shared artifacts; the committed file is generated, and drift
@@ -20,6 +22,11 @@ use std::path::PathBuf;
 fn committed_manifest_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("schemas/capability.manifest.local-dev-sqlite-ibex.json")
+}
+
+fn committed_cloudflare_manifest_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json")
 }
 
 fn declared_manifest_json() -> Value {
@@ -69,6 +76,29 @@ fn p2_committed_capability_manifest_matches_the_declared_server_manifest() {
         committed, declared,
         "the committed capability manifest drifted from the server declaration; regenerate with \
          SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_ and re-run codegen for the demos"
+    );
+}
+
+#[test]
+fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
+    let path = committed_cloudflare_manifest_path();
+    let committed: Value = serde_json::from_str(&fs::read_to_string(&path).expect(
+        "Cloudflare capability manifest is missing; regenerate with cargo run --bin \
+             snapback-cf-manifest -- --out \
+             cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
+    ))
+    .expect("parse committed Cloudflare capability manifest");
+    let declared = sorted_keys(
+        serde_json::to_value(CapabilityManifest::cloudflare_do_sqlite_v8_declared())
+            .expect("serialize declared Cloudflare capability manifest"),
+    );
+
+    assert_eq!(
+        sorted_keys(committed),
+        declared,
+        "the committed Cloudflare capability manifest drifted from its Rust target declaration; \
+         regenerate it with cargo run --bin snapback-cf-manifest -- --out \
+         cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
     );
 }
 
