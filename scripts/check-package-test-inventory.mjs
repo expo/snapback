@@ -70,13 +70,16 @@ const inventories = [
     packageDir: 'admin-ui',
     testDir: 'tests',
     suffix: '.mjs',
+    scriptNames: ['test', 'test:browser-security'],
     expectedFiles: [
+      'tests/acceptance/csp-browser.mjs',
       'tests/admin-client-credentials.mjs',
       'tests/auth-prompt.mjs',
       'tests/contract-bindings.mjs',
       'tests/dev-serve-react-esm.mjs',
       'tests/fatal-rendering.mjs',
       'tests/kv-layout.mjs',
+      'tests/setup-credential-errors.mjs',
       'tests/static-metadata.mjs',
     ],
   },
@@ -85,8 +88,12 @@ const inventories = [
 export function inspectInventory({ root = ROOT, inventory }) {
   const packageRoot = join(root, inventory.packageDir);
   const packageJson = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
-  const command = packageJson.scripts?.test;
-  assert.equal(typeof command, 'string', `${inventory.id} must declare scripts.test`);
+  const scriptNames = inventory.scriptNames ?? ['test'];
+  const commands = scriptNames.map((name) => {
+    const command = packageJson.scripts?.[name];
+    assert.equal(typeof command, 'string', `${inventory.id} must declare scripts.${name}`);
+    return command;
+  });
 
   const discovered = [];
   const pending = [join(packageRoot, inventory.testDir)];
@@ -101,7 +108,9 @@ export function inspectInventory({ root = ROOT, inventory }) {
     }
   }
   discovered.sort();
-  const declared = [...command.matchAll(/(?:^|&&)\s*node\s+([^\s&]+\.mjs)(?=\s|$)/g)]
+  const declared = commands.flatMap((command) => [
+    ...command.matchAll(/(?:^|&&)\s*node\s+([^\s&]+\.mjs)(?=\s|$)/g),
+  ])
     .map((match) => match[1].replace(/^\.\//, ''))
     .sort();
 
@@ -114,14 +123,14 @@ export function inspectInventory({ root = ROOT, inventory }) {
   assert.deepEqual(
     declared,
     discovered,
-    `${inventory.id} scripts.test must name every maintained ${inventory.suffix} exactly once`,
+    `${inventory.id} configured test scripts must name every maintained ${inventory.suffix} exactly once`,
   );
   return { id: inventory.id, count: discovered.length, files: discovered };
 }
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 44, 'reviewed package/admin test count changed');
+assert.equal(total, 46, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
