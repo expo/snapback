@@ -204,6 +204,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/action/{name}"),
         ("POST", "/app/ensure"),
         ("POST", "/connection/open"),
+        ("POST", "/live/authorization-invalidation/acknowledge"),
+        ("POST", "/live/authorization-invalidation/manual-retry"),
         ("POST", "/live/{name}/subscribe"),
         ("POST", "/live/{name}/resume"),
         ("POST", "/live/{name}/unsubscribe"),
@@ -1292,6 +1294,29 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/live/authorization-invalidation/acknowledge"),
+            SessionBodyProbe {
+                uri: "/live/authorization-invalidation/acknowledge",
+                base: json!({
+                    "connectionId": "policy_probe",
+                    "ackToken": "missing_ack"
+                }),
+                forbidden_fields: vec![vec!["auth"]],
+            },
+        ),
+        (
+            ("POST", "/live/authorization-invalidation/manual-retry"),
+            SessionBodyProbe {
+                uri: "/live/authorization-invalidation/manual-retry",
+                base: json!({
+                    "connectionId": "policy_probe",
+                    "subscriptionId": "missing_subscription",
+                    "manualRetryId": "policy_probe_retry"
+                }),
+                forbidden_fields: vec![vec!["auth"]],
+            },
+        ),
+        (
             ("POST", "/live/{name}/subscribe"),
             SessionBodyProbe {
                 uri: "/live/missing_function/subscribe",
@@ -2122,6 +2147,29 @@ fn connection_probes() -> BTreeMap<(&'static str, &'static str), ConnectionProbe
         "permissions": []
     });
     BTreeMap::from([
+        (
+            ("POST", "/live/authorization-invalidation/acknowledge"),
+            ConnectionProbe {
+                uri: "/live/authorization-invalidation/acknowledge",
+                body: Some(json!({
+                    "connectionId": "policy_probe",
+                    "ackToken": "missing_ack"
+                })),
+                websocket_upgrade: false,
+            },
+        ),
+        (
+            ("POST", "/live/authorization-invalidation/manual-retry"),
+            ConnectionProbe {
+                uri: "/live/authorization-invalidation/manual-retry",
+                body: Some(json!({
+                    "connectionId": "policy_probe",
+                    "subscriptionId": "missing_subscription",
+                    "manualRetryId": "policy_probe_retry"
+                })),
+                websocket_upgrade: false,
+            },
+        ),
         (
             ("POST", "/live/{name}/subscribe"),
             ConnectionProbe {

@@ -1,9 +1,10 @@
 //! LLP 0032 P6: the host-ops first slice. One operation endpoint
 //! (`POST /_snapback/api/host-ops`), one `hostOpsResult` envelope per call,
-//! served ops app.inspect / app.reset / schema.load / functions.load /
+//! served ops app.inspect / schema.load / functions.load /
 //! function.run / function.explain; pinned-not-built ops fail closed with a
-//! structured diagnostic; the readiness descriptor validates for LLP 0030
-//! attach. The mutationDryRun explain kind has its own suite in
+//! structured diagnostic; app.reset fails closed unless it executes through
+//! the authorization-stream coordinator; the readiness descriptor validates
+//! for LLP 0030 attach. The mutationDryRun explain kind has its own suite in
 //! `tests/dry_run_v0.rs`.
 
 use serde_json::{Value, json};
@@ -31,6 +32,16 @@ fn envelope(snapback: &mut LocalSnapback, body: Value) -> Value {
         Some("http://127.0.0.1:0".to_owned()),
     );
     serde_json::to_value(&result).expect("envelope serializes")
+}
+
+fn assert_reset_projection_unavailable(result: &Value) {
+    assert_eq!(result["ok"], json!(false), "app.reset: {result}");
+    assert_eq!(result["data"], json!({}), "app.reset: {result}");
+    assert_eq!(
+        result["diagnostics"][0]["code"],
+        json!("SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"),
+        "app.reset: {result}"
+    );
 }
 
 #[test]
@@ -67,19 +78,20 @@ fn p6_served_ops_round_trip_through_envelopes() {
     );
     assert!(functions["data"]["functionCount"].as_u64().unwrap() >= 4);
 
-    // app.reset with a seed
+    // A raw host-op reset has no authorization-stream coordinator and must
+    // fail closed without applying its otherwise-valid seed.
     let seed_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("demos/todo/snapback/seed.json");
     let seed: Value =
         serde_json::from_str(&fs::read_to_string(seed_path).expect("read seed")).expect("seed");
+    let before_reset = functions["artifacts"]["databaseVersion"].clone();
     let reset = envelope(
         &mut snapback,
         json!({ "operation": "app.reset", "seed": seed }),
     );
-    assert_eq!(reset["ok"], json!(true), "app.reset: {reset}");
-    assert_eq!(reset["data"]["seeded"], json!(true));
-    assert_eq!(reset["authority"]["mode"], json!("devAdminBypass"));
+    assert_reset_projection_unavailable(&reset);
+    assert_eq!(reset["artifacts"]["databaseVersion"], before_reset);
 
-    // function.run — a query as a dev user
+    // function.run — a query as a dev user. The rejected reset did not seed.
     let query = envelope(
         &mut snapback,
         json!({ "operation": "function.run", "function": "listTodos", "userId": "user_ada" }),
@@ -90,6 +102,7 @@ fn p6_served_ops_round_trip_through_envelopes() {
         query["data"]["functionResult"]["rows"].is_array(),
         "query rows present"
     );
+    assert_eq!(query["data"]["functionResult"]["rows"], json!([]));
 
     // function.run — a mutation, then observe the version advance
     let before = query["artifacts"]["databaseVersion"].as_u64().unwrap();
@@ -125,29 +138,31 @@ fn p6_served_ops_round_trip_through_envelopes() {
 }
 
 #[test]
-fn host_ops_reset_and_seed_roll_back_as_one_operation() {
+fn host_ops_reset_fails_closed_before_seed_validation() {
     let mut snapback = LocalSnapback::memory().unwrap();
     let loaded = envelope(
         &mut snapback,
         json!({ "operation": "schema.load", "schema": generated("schema.manifest.json") }),
     );
     assert_eq!(loaded["ok"], true);
-    let initial_seed: Value = serde_json::from_str(
-        &fs::read_to_string(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("demos/todo/snapback/seed.json"),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        envelope(
-            &mut snapback,
-            json!({ "operation": "app.reset", "seed": initial_seed })
-        )["ok"],
-        true
+    let functions = envelope(
+        &mut snapback,
+        json!({ "operation": "functions.load", "functions": generated("functions.manifest.json") }),
     );
+    assert_eq!(functions["ok"], true);
+    let created = envelope(
+        &mut snapback,
+        json!({
+            "operation": "function.run",
+            "function": "createTodo",
+            "args": { "title": "preserved" },
+            "userId": "user_1"
+        }),
+    );
+    assert_eq!(created["ok"], true, "create fixture: {created}");
     let before = snapback.scan_table("todos", 100, 0).unwrap();
-    assert!(!before.rows.is_empty());
+    assert_eq!(before.rows.len(), 1);
+    let version_before = snapback.durable_version();
 
     let rejected = envelope(
         &mut snapback,
@@ -159,11 +174,12 @@ fn host_ops_reset_and_seed_roll_back_as_one_operation() {
             ] } }
         }),
     );
-    assert_eq!(rejected["ok"], false, "{rejected}");
+    assert_reset_projection_unavailable(&rejected);
+    assert_eq!(snapback.durable_version(), version_before);
     assert_eq!(
         snapback.scan_table("todos", 100, 0).unwrap().rows,
         before.rows,
-        "host-ops must preserve the pre-reset database on seed failure"
+        "host-ops must preserve the database when reset projection is unavailable"
     );
 }
 

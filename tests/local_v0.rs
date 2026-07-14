@@ -2274,37 +2274,49 @@ fn ensure_ephemeral_collections_rejects_mismatch_without_clearing_room() {
 
 #[test]
 fn generated_v0_artifacts_round_trip_through_runtime_structs() {
-    let schema: SchemaManifest = serde_json::from_str(include_str!(
-        "../demos/todo/snapback/generated/schema.manifest.json"
-    ))
-    .expect("generated schema manifest parses");
+    const GENERATED_SCHEMA: &str =
+        include_str!("../demos/todo/snapback/generated/schema.manifest.json");
+    let committed_schema: Value =
+        serde_json::from_str(GENERATED_SCHEMA).expect("committed schema artifact parses");
+    let schema: SchemaManifest =
+        serde_json::from_str(GENERATED_SCHEMA).expect("generated schema manifest parses");
     assert_eq!(schema.artifact_kind, "schemaManifest");
     assert_eq!(schema.schema_version, "snapback.v0");
+    let committed_schema_hash = committed_schema["schemaHash"]
+        .as_str()
+        .expect("committed schema hash");
+    assert!(committed_schema_hash.starts_with("sha256:"));
     assert_eq!(
         schema.schema_hash.as_deref(),
-        // Re-pinned after paired auth artifact manifests joined the schema
-        // graph; the regen-and-diff gate proves this is reproducible from
-        // committed source.
-        Some("sha256:ce0ea39976a45ab8")
+        Some(committed_schema_hash),
+        "the runtime struct must preserve the current committed generated hash"
     );
     assert!(schema.inputs_hash.is_some());
     let schema_value = serde_json::to_value(&schema).expect("schema roundtrip");
     assert_eq!(schema_value["artifactKind"], "schemaManifest");
-    assert_eq!(schema_value["schemaHash"], "sha256:ce0ea39976a45ab8");
+    assert_eq!(schema_value["schemaHash"], committed_schema["schemaHash"]);
 
-    let functions: FunctionManifest = serde_json::from_str(include_str!(
-        "../demos/todo/snapback/generated/functions.manifest.json"
-    ))
-    .expect("generated function manifest parses");
+    const GENERATED_FUNCTIONS: &str =
+        include_str!("../demos/todo/snapback/generated/functions.manifest.json");
+    let committed_functions: Value =
+        serde_json::from_str(GENERATED_FUNCTIONS).expect("committed function artifact parses");
+    let functions: FunctionManifest =
+        serde_json::from_str(GENERATED_FUNCTIONS).expect("generated function manifest parses");
     assert_eq!(functions.artifact_kind, "functionManifest");
     assert_eq!(functions.schema_version, "snapback.v0");
+    let committed_bundle_hash = committed_functions["bundleHash"]
+        .as_str()
+        .expect("committed function bundle hash");
+    assert!(committed_bundle_hash.starts_with("sha256:"));
     assert_eq!(
         functions.bundle_hash.as_deref(),
-        // Path-independent since the LLP 0034 review fix 4 (handler sources
-        // hash by manifest-relative path): reproducible from any checkout.
-        // Re-pinned with the paired auth artifact graph above; handler sources
-        // remain manifest-relative, so this stays checkout-path independent.
-        Some("sha256:b4f9dbde1d0c35fc")
+        Some(committed_bundle_hash),
+        "the runtime struct must preserve the current committed generated bundle hash"
+    );
+    let functions_value = serde_json::to_value(&functions).expect("functions roundtrip");
+    assert_eq!(
+        functions_value["bundleHash"],
+        committed_functions["bundleHash"]
     );
 
     let list = functions

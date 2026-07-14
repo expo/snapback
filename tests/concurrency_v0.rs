@@ -331,9 +331,15 @@ async fn l6_memory_instance_falls_back_to_the_write_lane() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn l7_exec_guard_refuses_blocking_work_on_async_workers() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let mut snapback = LocalSnapback::open(dir.path().join("l7-guard.sqlite3")).expect("open");
-    configure(&mut snapback);
-    let lane = snapback.read_lane();
+    let db_path = dir.path().join("l7-guard.sqlite3");
+    let lane = tokio::task::spawn_blocking(move || {
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        let mut snapback = LocalSnapback::open(db_path).expect("open");
+        configure(&mut snapback);
+        snapback.read_lane()
+    })
+    .await
+    .expect("setup");
 
     let result = tokio::spawn(async move {
         // Deliberately wrong: read-lane work on an async worker.
