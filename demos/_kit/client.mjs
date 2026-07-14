@@ -1912,10 +1912,20 @@ export class SnapbackClient {
       ) ?? null;
     };
 
-    const retireQueueScopes = async (retired) => {
-      const scopes = retired.map((entry) => entry.scopeId).filter(Boolean);
-      if (scopes.length === 0) return null;
-      return authorizationQueue?.retireScopes?.(scopes) ?? null;
+    const prepareQueueResolution = async (value, snapshotValue = null) => {
+      if (value.maxDisposition === 'retain') return null;
+      return authorizationQueue?.prepareResolution?.(
+        value,
+        snapshotValue === null ? null : authorizationSnapshot(snapshotValue),
+      ) ?? null;
+    };
+
+    const retireQueueScopes = async (retired, snapshotValue = null) => {
+      if (retired.length === 0) return null;
+      return authorizationQueue?.retireScopes?.(
+        retired,
+        snapshotValue === null ? null : authorizationSnapshot(snapshotValue),
+      ) ?? null;
     };
 
     const enqueueAuthorizationTask = (task) => {
@@ -1951,6 +1961,10 @@ export class SnapbackClient {
       return enqueueAuthorizationTask(async () => {
         await applyQueueObligation(projection.obligation);
         if (projection.resolution == null) return received;
+        // A durable retained-query adapter commits the successor snapshot and
+        // its no-lease fence before the process boundary can reveal it. The
+        // later ACK still waits for mutation-queue resolution as well.
+        await prepareQueueResolution(projection.resolution, snapshotValue);
         const applied = authorizationFence.applyResolution({
           fence: received.fence,
           resolution: projection.resolution,
@@ -1974,6 +1988,7 @@ export class SnapbackClient {
         }
         if (acknowledged?.outcome === 'discharged' || acknowledged?.outcome === 'duplicate') {
           authorizationFence.acknowledge(applied.ackToken);
+          await authorizationQueue?.acknowledged?.(projection.resolution, acknowledged);
           return applied;
         }
         await rejectStaleAcknowledgement(applied.ackToken);
@@ -1999,7 +2014,9 @@ export class SnapbackClient {
               freshSnapshot,
               commit: commitAuthorizationBoundary,
             });
-        if (result.status === 'retired') await retireQueueScopes(result.retired);
+        if (result.status === 'retired') {
+          await retireQueueScopes(result.retired, freshSnapshot);
+        }
         return result;
       })
     );

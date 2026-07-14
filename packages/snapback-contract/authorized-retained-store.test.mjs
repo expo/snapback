@@ -160,7 +160,7 @@ firstRequest = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
   leaseRequestId: 'request_100_retry',
   clientNowMs: 1_002,
 }, EXPECTED);
-const firstSnapshot = await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
+let firstSnapshot = await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
   fence: firstRequest.fence,
   lease: lease({
     storeId: initialized.namespace.clientStoreId,
@@ -178,6 +178,32 @@ assert.deepEqual(
   }, EXPECTED)).rows,
   [{ card: 'ace' }],
 );
+// Reserving a renewal advances the fence but leaves the complete old tuple
+// readable until the fresh response atomically replaces it. A network fault
+// therefore leaves old-or-new, never an unusable half-install.
+const inFlightRenewal = await store.beginAuthorizedLeaseRequest(QUERY_KEY, {
+  fence: firstSnapshot.fence,
+  leaseRequestId: 'request_100_inflight',
+  clientNowMs: 1_500,
+}, EXPECTED);
+assert.deepEqual(
+  (await store.getAuthorizedRetainedQuery(QUERY_KEY, {
+    fence: inFlightRenewal.fence,
+    clientNowMs: 1_500,
+  }, EXPECTED)).rows,
+  [{ card: 'ace' }],
+);
+firstSnapshot = await store.commitAuthorizedRetainedSnapshot(QUERY_KEY, {
+  fence: inFlightRenewal.fence,
+  lease: lease({
+    storeId: initialized.namespace.clientStoreId,
+    queryInstanceId: initialized.namespace.queryInstanceId,
+    requestId: inFlightRenewal.request.leaseRequestId,
+    version: 100,
+  }),
+  record: record(100),
+  clientNowMs: 1_500,
+}, EXPECTED);
 const deadlineBeforeDelta = (await store.snapshot())
   .queryAuthorization[QUERY_KEY].clientDeadlineMs;
 const deltaUpdate = await store.putAuthorizedRetainedQuery(QUERY_KEY, {

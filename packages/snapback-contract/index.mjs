@@ -105,6 +105,10 @@ import {
   retainedQueryKey,
   snapbackAuthFingerprint,
 } from './client-store.mjs';
+import {
+  authorizedLeaseActivationHash,
+  validateAuthorizedLeaseCapability,
+} from './authorized-lease.mjs';
 
 // A physical format-5 store is one durable barrier participant even when an
 // app mounts several Contract surfaces over it. The coordinator owns the
@@ -116,7 +120,7 @@ const durableQueryAuthorizationTails = new WeakMap();
 
 // @ref LLP 0053#client-fences — render/query generations and queued-mutation
 //   custody advance independently, serialized through the shared client store.
-function createContractQueryAuthorizationQueue(store, capture) {
+function createContractQueryAuthorizationQueue(store, capture, authorizedQuery = null) {
   if (!store) return null;
   const authority = capture
     ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
@@ -130,27 +134,41 @@ function createContractQueryAuthorizationQueue(store, capture) {
     );
     return attempted;
   };
-  const withQueueCapture = (operation) => serialize(async () => {
+  const withQueueCapture = async (operation) => {
     const queue = await store.captureMutationQueue(authority);
     return operation({ ...authority, ...queue });
-  });
+  };
   return Object.freeze({
     applyObligation(obligation) {
       if (obligation.maxDisposition === 'retain') return Promise.resolve(null);
-      return withQueueCapture((expected) => (
-        store.applyMutationQueueObligation(obligation, expected)
-      ));
+      return serialize(async () => {
+        await authorizedQuery?.applyObligation?.(obligation);
+        return withQueueCapture((expected) => (
+          store.applyMutationQueueObligation(obligation, expected)
+        ));
+      });
+    },
+    prepareResolution(resolution, snapshot) {
+      if (resolution.maxDisposition === 'retain') return Promise.resolve(null);
+      return serialize(() => authorizedQuery?.prepareResolution?.(resolution, snapshot) ?? null);
     },
     resolveObligation(resolution) {
       if (resolution.maxDisposition === 'retain') return Promise.resolve(null);
-      return withQueueCapture((expected) => (
+      return serialize(() => withQueueCapture((expected) => (
         store.resolveMutationQueueObligation(resolution, expected)
-      ));
+      )));
     },
-    retireScopes(scopes) {
-      return withQueueCapture((expected) => (
-        store.retireMutationQueueScopes(scopes, expected)
-      ));
+    retireScopes(retired, snapshot) {
+      const scopes = retired.map((entry) => entry.scopeId).filter(Boolean);
+      return serialize(async () => {
+        await authorizedQuery?.retireScopes?.(retired, snapshot);
+        return withQueueCapture((expected) => (
+          store.retireMutationQueueScopes(scopes, expected)
+        ));
+      });
+    },
+    acknowledged(resolution, acknowledgement) {
+      return authorizedQuery?.acknowledged?.(resolution, acknowledgement) ?? null;
     },
   });
 }
@@ -523,6 +541,7 @@ export async function createSnapbackContractSurface({
     // The adapter-stitched correlation (LLP 0034 §3.2): echoed verbatim on
     // every receipt this surface's operations produce.
     const surfaceCorrelation = { rootId: surfaceRootId, bindingIds: [boundaryKey] };
+    const surfaceConnectionId = connectionId ?? defaultContractConnectionId();
     let optimisticSeq = 0;
     let disposed = false;
     let barrierPaused = false;
@@ -582,22 +601,22 @@ export async function createSnapbackContractSurface({
     };
     const retainedIdentityComplete = Object.values(storeIdentity)
       .every((value) => typeof value === 'string' && value.length > 0);
-    const offlineReplayEligible = Boolean(
+    const retainedQueryEligible = Boolean(
       clientStore
       && descriptorIsLive
-      && everyMutationReplayable
       && manifest?.capabilities?.offlineReplay === true
     );
-    // Queued replay is the authority-instance axis. Item 7 enables it in
-    // sessions mode only when the handshake and current store scope both
-    // prove the exact descriptor protocol; retained reads remain independent.
-    // @ref LLP 0039#replay-parity-and-the-authority-instance-id — principal data and
-    // descriptor-bound queued custody have independent admission facts.
+    const offlineReplayEligible = retainedQueryEligible && everyMutationReplayable;
+    // Retained reads and queued writes are independent authorization axes.
+    // Sessions-mode replay requires the exact current descriptor, while only
+    // the exact AuthorizedLease capability enables session retention.
+    // @ref LLP 0039#storage-scope-is-two-dimensional — principal scope and
+    // authority-instance scope fence different durable material.
     let coordinatedSessionsMode = coordinator?.authority?.authMode === 'sessions';
     let authSession = coordinatedSessionsMode && typeof client.authSession === 'function'
       ? await client.authSession()
       : null;
-    if (offlineReplayEligible && !retainedIdentityComplete) {
+    if (retainedQueryEligible && !retainedIdentityComplete) {
       const diagnostic = publishDiagnostic(
         'SNAPBACK_RETAINED_IDENTITY_INCOMPLETE',
         'Offline retention requires appId, databaseId, targetProfileId, and versionStreamId; retained rows and queued writes are disabled.',
@@ -627,7 +646,7 @@ export async function createSnapbackContractSurface({
           }
         : {}),
     };
-    let storeAuthorization = offlineReplayEligible
+    let storeAuthorization = (offlineReplayEligible || retainedQueryEligible)
       && typeof client.currentAuthorizationScope === 'function'
       ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
       : null;
@@ -637,14 +656,86 @@ export async function createSnapbackContractSurface({
       && authSession?.clientProtocols?.authorityDescriptor === 1
       && storeAuthorization?.authorityDescriptor?.descriptorVersion === 1
     );
+    let authorizedLeaseFacts = null;
+    if (
+      coordinatedSessionsMode
+      && authSession?.availability?.retainedReads?.available === true
+      && authSession?.clientProtocols?.authInvalidation === 1
+      && authSession?.clientProtocols?.authorizedLease === 1
+    ) {
+      try {
+        authorizedLeaseFacts = validateAuthorizedLeaseCapability(authSession.authorizedLease);
+      } catch (error) {
+        const diagnostic = publishDiagnostic(
+          'SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED',
+          error instanceof Error ? error.message : String(error),
+          { query: queryName },
+        );
+        diagnostic.severity = 'warning';
+      }
+    }
+    const functionDescriptor = functionManifest?.functions?.find?.(
+      (entry) => entry?.name === queryName || entry?.exportedName === queryName,
+    ) ?? null;
+    const authorizationDependence = boundDescriptor?.authorizationDependence
+      ?? functionDescriptor?.authorizationDependence
+      ?? [];
+    const retainableUserOnly = boundDescriptor?.retainable === true
+      && JSON.stringify([...authorizationDependence].sort()) === '["userId"]';
+    const activationIdentity = {
+      schemaVersion: schemaManifest?.schemaVersion
+        ?? artifactIndex?.schemaVersion
+        ?? manifest?.schemaVersion
+        ?? null,
+      authMode: 'sessions',
+      appId: storeIdentity.appId,
+      schemaHash: storeExpectation.schemaHash,
+      bundleHash: functionManifest?.bundleHash
+        ?? artifactIndex?.bundleHash
+        ?? manifest?.bundleHash
+        ?? null,
+      inputsHash: functionManifest?.inputsHash
+        ?? schemaManifest?.inputsHash
+        ?? artifactIndex?.inputsHash
+        ?? manifest?.inputsHash
+        ?? null,
+    };
+    const activationIdentityComplete = Object.values(activationIdentity)
+      .every((value) => typeof value === 'string' && value.length > 0);
     let offlineReplayEnabled = offlineReplayEligible
       && retainedIdentityComplete
       && (!coordinatedSessionsMode || sessionQueueCapable);
-    // Retained rows are the principal/data axis. Item 7 must not widen it in
-    // sessions mode; item 8 replaces this false branch with AuthorizedLease.
-    let retainedReadsEnabled = offlineReplayEligible
+    let retainedReadsEnabled = retainedQueryEligible
       && retainedIdentityComplete
-      && !coordinatedSessionsMode;
+      && (
+        !coordinatedSessionsMode
+        || Boolean(
+          authorizedLeaseFacts
+          && retainableUserOnly
+          && activationIdentityComplete
+          && typeof activeUserId === 'string'
+          && storeAuthorization?.principalScope?.userId === activeUserId
+          && typeof client.authorizedLeaseQuery === 'function'
+          && typeof client.connectionGrant === 'function'
+          && typeof clientStore.initializeAuthorizedRetainedQuery === 'function'
+          && typeof clientStore.beginAuthorizedLeaseRequest === 'function'
+          && typeof clientStore.commitAuthorizedRetainedSnapshot === 'function'
+          && typeof clientStore.getAuthorizedRetainedQuery === 'function'
+        )
+      );
+    if (coordinatedSessionsMode && retainedQueryEligible && !retainedReadsEnabled) {
+      const diagnostic = publishDiagnostic(
+        'SNAPBACK_AUTHORIZED_RETENTION_UNAVAILABLE',
+        'Session retention requires a userId-only retainable live query, exact item-6/item-8 negotiation, and complete activation identity.',
+        {
+          query: queryName,
+          retainableUserOnly,
+          activationIdentityComplete,
+          retainedReadsAvailable: authSession?.availability?.retainedReads?.available === true,
+        },
+      );
+      diagnostic.severity = 'warning';
+    }
     if (clientStore) {
       if (storeAuthorization && typeof clientStore.scopeAuthorization === 'function') {
         await clientStore.scopeAuthorization(storeAuthorization, storeAuthorityCapture);
@@ -658,6 +749,23 @@ export async function createSnapbackContractSurface({
         databaseId: storeExpectation.databaseId,
         versionStreamId: storeExpectation.versionStreamId,
       }, storeAuthorityCapture);
+    }
+    let authorizedActivationHash = null;
+    let authorizedQueryNamespace = null;
+    let authorizedQueryFence = null;
+    let retained = null;
+    if (coordinatedSessionsMode && retainedReadsEnabled) {
+      authorizedActivationHash = authorizedLeaseActivationHash(activationIdentity);
+      try {
+        const captured = await clientStore.captureAuthorizedRetainedQuery(
+          storeQueryKey,
+          storeAuthorityCapture,
+        );
+        authorizedQueryNamespace = captured.namespace;
+        authorizedQueryFence = captured.fence;
+      } catch (error) {
+        if (error?.code !== 'SNAPBACK_AUTH_QUERY_FENCE_STALE') throw error;
+      }
     }
     let durablePendingCount = 0;
     let retainedOffline = false;
@@ -678,7 +786,6 @@ export async function createSnapbackContractSurface({
 
     let boundary = null;
     const liveCellObservers = new Set();
-    const surfaceConnectionId = connectionId ?? defaultContractConnectionId();
     ephemeralWiring = createSwappableEphemeralWiring(buildEphemeralWiring({
       client,
       manifest,
@@ -786,22 +893,197 @@ export async function createSnapbackContractSurface({
       if (!outcome.committed) throw staleContractAuthorityError();
     };
 
-    let retainedWriteTail = Promise.resolve();
-    const retainRows = (rows, version = maxServerRowVersion(rows), capture = authorityCapture) => {
-      if (!retainedReadsEnabled) return retainedWriteTail;
+    const retainedRecord = (rows, version, capture = authorityCapture) => {
       const expectation = expectationForCapture(capture);
-      const record = {
+      return {
         rows,
         version,
         cursor: { stream: expectation.versionStreamId, version },
         ...expectation,
       };
+    };
+
+    const ensureAuthorizedQueryOnline = async (capture = authorityCapture) => {
+      if (!coordinatedSessionsMode || !retainedReadsEnabled) return null;
+      const predecessorNamespace = authorizedQueryNamespace;
+      const grant = await client.connectionGrant(surfaceConnectionId);
+      const grantCapture = captureForTransportValue(client, capture, grant);
+      await preflightDurable(grantCapture);
+      const projection = grant.authorizationInvalidation;
+      if (!projection) {
+        const error = new Error(
+          'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED: connection grant lacks the negotiated authorization expectation',
+        );
+        error.code = 'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED';
+        throw error;
+      }
+      const initialized = await clientStore.initializeAuthorizedRetainedQuery(
+        storeQueryKey,
+        {
+          authorization: projection.authorization,
+          issuerId: projection.issuerId,
+          versionStream: projection.versionStream,
+          principalId: activeUserId,
+          activationHash: authorizedActivationHash,
+          appId: storeIdentity.appId,
+          targetProfileId: storeIdentity.targetProfileId,
+        },
+        authorityExpectation(grantCapture),
+      );
+      authorizedQueryNamespace = initialized.namespace;
+      authorizedQueryFence = initialized.fence;
+      if (
+        predecessorNamespace
+        && predecessorNamespace.queryInstanceId !== initialized.namespace.queryInstanceId
+      ) {
+        // A fresh authenticated expectation replaced the offline instance.
+        // Its deleted predecessor bytes cannot become a fallback merely
+        // because the subsequent full revalidation loses connectivity.
+        retained = null;
+      }
+      return initialized;
+    };
+
+    const renewAuthorizedSnapshot = async (capture = authorityCapture) => {
+      await ensureAuthorizedQueryOnline(capture);
+      const startedClientMs = Date.now();
+      const leaseRequestId = createClientMutationId('lease');
+      const reservation = await clientStore.beginAuthorizedLeaseRequest(
+        storeQueryKey,
+        {
+          fence: authorizedQueryFence,
+          leaseRequestId,
+          clientNowMs: startedClientMs,
+        },
+        authorityExpectation(capture),
+      );
+      authorizedQueryFence = reservation.fence;
+      const response = await client.authorizedLeaseQuery(queryName, {
+        args: queryArgs,
+        userId: activeUserId,
+        leaseRequestId,
+        authorizationNamespace: authorizedQueryNamespace,
+      });
+      const resultCapture = captureForTransportValue(client, capture, response);
+      await preflightDurable(resultCapture);
+      const version = response.version ?? maxServerRowVersion(response.rows);
+      const committed = await clientStore.commitAuthorizedRetainedSnapshot(
+        storeQueryKey,
+        {
+          fence: authorizedQueryFence,
+          lease: response.authorizedLease,
+          record: retainedRecord(response.rows, version, resultCapture),
+          clientNowMs: Date.now(),
+        },
+        authorityExpectation(resultCapture),
+      );
+      authorizedQueryFence = committed.fence;
+      return {
+        rows: response.rows,
+        version,
+        capture: resultCapture,
+      };
+    };
+
+    let authorizationRenewalTail = Promise.resolve();
+    const scheduleAuthorizedRenewal = (capture = authorityCapture) => {
+      if (!coordinatedSessionsMode || !retainedReadsEnabled) return authorizationRenewalTail;
+      authorizationRenewalTail = authorizationRenewalTail.then(async () => {
+        if (disposed || barrierPaused || (coordinator && !coordinator.isCurrent(capture))) return;
+        const renewed = await renewAuthorizedSnapshot(capture);
+        const overlaid = applyOptimisticOverlay(renewed.rows);
+        await commitCurrent(renewed.capture, () => {
+          lastServerRows = renewed.rows;
+          lastServerVersion = renewed.version;
+          queryAuthorizationHidden = false;
+          retainedOffline = false;
+          if (!disposed && boundary) boundary.write(boundaryKey, () => overlaid);
+        });
+      }).catch((error) => {
+        if (!coordinator || coordinator.isCurrent(capture)) {
+          publishDiagnostic(
+            'SNAPBACK_AUTHORIZED_LEASE_RENEWAL_FAILED',
+            error instanceof Error ? error.message : String(error),
+            { query: queryName },
+          );
+        }
+      });
+      return authorizationRenewalTail;
+    };
+
+    const authorizedQueryController = () => (
+      coordinatedSessionsMode && retainedReadsEnabled && authorizedQueryFence
+        ? {
+            async applyObligation(obligation) {
+              const result = await clientStore.receiveRetainedQueryObligation(
+                storeQueryKey,
+                obligation,
+                authorizedQueryFence,
+                authorityExpectation(authorityCapture),
+              );
+              authorizedQueryFence = result.fence;
+              return result;
+            },
+            async prepareResolution(resolution, snapshot) {
+              const result = await clientStore.applyRetainedQueryResolution(
+                storeQueryKey,
+                {
+                  fence: authorizedQueryFence,
+                  resolution,
+                  record: resolution.kind === 'terminalDelete'
+                    ? null
+                    : retainedRecord(snapshot.rows, snapshot.version, authorityCapture),
+                },
+                authorityExpectation(authorityCapture),
+              );
+              authorizedQueryFence = result.fence;
+              return result;
+            },
+            async retireScopes(retired, snapshot) {
+              const result = await clientStore.retireRetainedQueryScopes(
+                storeQueryKey,
+                {
+                  fence: authorizedQueryFence,
+                  retired,
+                  record: retainedRecord(snapshot.rows, snapshot.version, authorityCapture),
+                },
+                authorityExpectation(authorityCapture),
+              );
+              authorizedQueryFence = result.fence;
+              scheduleAuthorizedRenewal(authorityCapture);
+              return result;
+            },
+            acknowledged() {
+              scheduleAuthorizedRenewal(authorityCapture);
+            },
+          }
+        : null
+    );
+
+    let retainedWriteTail = Promise.resolve();
+    const retainRows = (rows, version = maxServerRowVersion(rows), capture = authorityCapture) => {
+      if (!retainedReadsEnabled) return retainedWriteTail;
+      const record = retainedRecord(rows, version, capture);
       // Serialize per surface/query key. A slower older persistence call can
       // never finish after and overwrite a newer version; the store also
       // compare-and-sets by (stream, version) for cross-instance races.
       retainedWriteTail = retainedWriteTail
         .then(async () => {
           await preflightDurable(capture);
+          if (coordinatedSessionsMode) {
+            if (!authorizedQueryFence) return null;
+            const retained = await clientStore.putAuthorizedRetainedQuery(
+              storeQueryKey,
+              {
+                fence: authorizedQueryFence,
+                record,
+                clientNowMs: Date.now(),
+              },
+              authorityExpectation(capture),
+            );
+            authorizedQueryFence = retained.fence;
+            return retained;
+          }
           return clientStore.putRetainedQuery(storeQueryKey, record);
         })
         .catch((error) => {
@@ -863,7 +1145,12 @@ export async function createSnapbackContractSurface({
         transport: 'stream',
         stream: liveStreamOptions,
         correlation: surfaceCorrelation,
-        authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
+        authorizationNamespace: authorizedQueryNamespace,
+        authorizationQueue: createContractQueryAuthorizationQueue(
+          clientStore,
+          capture,
+          authorizedQueryController(),
+        ),
         onAuthorizationBoundary: (rows, detail = {}) => {
           if (detail.kind === 'authorization_retain') return;
           if (
@@ -881,6 +1168,14 @@ export async function createSnapbackContractSurface({
             return;
           }
           if (detail.kind === 'authorization_snapshot') {
+            if (coordinatedSessionsMode && retainedReadsEnabled) {
+              // Resolution snapshots carry no lease. Keep the Contract
+              // boundary blank until the post-ACK full revalidation commits a
+              // replacement AuthorizedLease; the queue adapter schedules it.
+              queryAuthorizationHidden = true;
+              if (!disposed && boundary) boundary.write(boundaryKey, () => []);
+              return;
+            }
             queryAuthorizationHidden = false;
             writeServerRows(rows, detail.version, capture);
           }
@@ -935,11 +1230,49 @@ export async function createSnapbackContractSurface({
     };
 
     let initial;
-    const retained = retainedReadsEnabled
-      ? await clientStore.getRetainedQuery(storeQueryKey, expectationForCapture(authorityCapture))
-      : null;
+    if (retainedReadsEnabled) {
+      if (coordinatedSessionsMode && authorizedQueryFence) {
+        try {
+          retained = await clientStore.getAuthorizedRetainedQuery(
+            storeQueryKey,
+            { fence: authorizedQueryFence, clientNowMs: Date.now() },
+            expectationForCapture(authorityCapture),
+          );
+          if (retained?.fence) authorizedQueryFence = retained.fence;
+        } catch (error) {
+          // Missing, expired, rolled-back, or mismatched lease state has
+          // already been deleted by the store before this catch. Refresh the
+          // fence so an online full revalidation may establish new bytes.
+          const current = await clientStore.captureAuthorizedRetainedQuery(
+            storeQueryKey,
+            authorityExpectation(authorityCapture),
+          );
+          authorizedQueryNamespace = current.namespace;
+          authorizedQueryFence = current.fence;
+          publishDiagnostic(
+            error?.code ?? 'SNAPBACK_AUTHORIZED_LEASE_INVALID',
+            error instanceof Error ? error.message : String(error),
+            { query: queryName, deletedBeforeRead: true },
+          );
+        }
+      } else if (!coordinatedSessionsMode) {
+        retained = await clientStore.getRetainedQuery(
+          storeQueryKey,
+          expectationForCapture(authorityCapture),
+        );
+      }
+    }
     try {
-      if (wantLivePush) {
+      if (coordinatedSessionsMode && retainedReadsEnabled) {
+        const renewed = await renewAuthorizedSnapshot(authorityCapture);
+        initial = renewed.rows;
+        lastServerVersion = renewed.version;
+        if (wantLivePush) {
+          const handle = await openLive(authorityCapture);
+          initial = handle.rows;
+          lastServerVersion = handle.version ?? maxServerRowVersion(initial);
+        }
+      } else if (wantLivePush) {
         const handle = await openLive(authorityCapture);
         initial = handle.rows;
         lastServerVersion = handle.version ?? maxServerRowVersion(initial);
@@ -952,7 +1285,7 @@ export async function createSnapbackContractSurface({
         initial = snapshot.rows;
         lastServerVersion = snapshot.version ?? maxServerRowVersion(initial);
       }
-      retainRows(initial, lastServerVersion, authorityCapture);
+      if (!queryAuthorizationHidden) retainRows(initial, lastServerVersion, authorityCapture);
     } catch (error) {
       if (!retained) throw error;
       initial = retained.rows;
@@ -1562,12 +1895,34 @@ export async function createSnapbackContractSurface({
         && authSession?.clientProtocols?.authorityDescriptor === 1
         && refreshedAuthorization?.authorityDescriptor?.descriptorVersion === 1
       );
+      let refreshedLeaseFacts = null;
+      if (
+        coordinatedSessionsMode
+        && authSession?.availability?.retainedReads?.available === true
+        && authSession?.clientProtocols?.authInvalidation === 1
+        && authSession?.clientProtocols?.authorizedLease === 1
+      ) {
+        try {
+          refreshedLeaseFacts = validateAuthorizedLeaseCapability(authSession.authorizedLease);
+        } catch {
+          refreshedLeaseFacts = null;
+        }
+      }
       offlineReplayEnabled = offlineReplayEligible
         && retainedIdentityComplete
         && (!coordinatedSessionsMode || refreshedQueueCapable);
-      retainedReadsEnabled = offlineReplayEligible
+      retainedReadsEnabled = retainedQueryEligible
         && retainedIdentityComplete
-        && !coordinatedSessionsMode;
+        && (
+          !coordinatedSessionsMode
+          || Boolean(
+            refreshedLeaseFacts
+            && retainableUserOnly
+            && activationIdentityComplete
+            && typeof activeUserId === 'string'
+            && refreshedAuthorization?.principalScope?.userId === activeUserId
+          )
+        );
       storeAuthFingerprint = snapbackAuthFingerprint(activeUserId ?? null);
       Object.assign(storeExpectation, {
         authFingerprint: storeAuthFingerprint,
@@ -1596,9 +1951,33 @@ export async function createSnapbackContractSurface({
       // settled successor descriptor.
       storeAuthorization = refreshedAuthorization;
 
+      authorizedQueryNamespace = null;
+      authorizedQueryFence = null;
+      if (coordinatedSessionsMode && retainedReadsEnabled) {
+        try {
+          const current = await clientStore.captureAuthorizedRetainedQuery(
+            storeQueryKey,
+            authorityExpectation(capture),
+          );
+          authorizedQueryNamespace = current.namespace;
+          authorizedQueryFence = current.fence;
+        } catch (error) {
+          if (error?.code !== 'SNAPBACK_AUTH_QUERY_FENCE_STALE') throw error;
+        }
+      }
+
       let rows;
       let version;
-      if (wantLivePush) {
+      if (coordinatedSessionsMode && retainedReadsEnabled) {
+        const renewed = await renewAuthorizedSnapshot(capture);
+        rows = renewed.rows;
+        version = renewed.version;
+        if (wantLivePush) {
+          const handle = await openLive(capture);
+          rows = handle.rows;
+          version = handle.version ?? maxServerRowVersion(rows);
+        }
+      } else if (wantLivePush) {
         const handle = await openLive(capture);
         rows = handle.rows;
         version = handle.version ?? maxServerRowVersion(rows);
@@ -1830,6 +2209,9 @@ export async function createSnapbackContractSurface({
           durablePendingCount = 0;
           inFlightOptimistic.clear();
           retainedWriteTail = Promise.resolve();
+          authorizationRenewalTail = Promise.resolve();
+          authorizedQueryNamespace = null;
+          authorizedQueryFence = null;
           diagnostics.splice(stableDiagnosticCount);
           for (const record of liveCellObservers) record.lastCell = null;
         },
@@ -1896,7 +2278,12 @@ export async function createSnapbackContractSurface({
         return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
       },
       flush: async () => {
-        await Promise.all([...pending, retainedWriteTail, resumeTask]);
+        await Promise.all([
+          ...pending,
+          retainedWriteTail,
+          authorizationRenewalTail,
+          resumeTask,
+        ]);
       },
       dispose: () => {
         disposed = true;

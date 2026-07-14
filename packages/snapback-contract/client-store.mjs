@@ -15,6 +15,7 @@ import {
   validateAuthorizationVersion,
   validateCompositeWitness,
   validateIssuerId,
+  validateScopeId,
   validateResolutionTicket,
   validateResyncObligation,
 } from './auth-invalidation.mjs';
@@ -2145,6 +2146,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           );
         }
         const nextFence = advanceQueryGeneration(query);
+        const retained = ownEntry(state.retained, key);
+        if (retained) retained.queryGeneration = query.queryGeneration;
         query.leaseRequest = {
           leaseRequestId,
           queryInstanceId: query.queryInstanceId,
@@ -2424,6 +2427,107 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         commit(state);
         return clone({
           ackToken: resolution.ackToken,
+          disposition: query.effectiveDisposition,
+          fence: nextFence,
+        });
+      });
+    },
+
+    // Authenticated issuer/scope retirement is cleanup, not an ACK and not a
+    // lease renewal. The live fence has already proved the retirement against
+    // its covering fresh snapshot; this transaction removes only those exact
+    // durable roots and installs the same snapshot with no lease, so offline
+    // reads remain blocked until a later full revalidation.
+    async retireRetainedQueryScopes(key, {
+      fence,
+      retired,
+      record,
+    }, expected = {}) {
+      if (!Array.isArray(retired) || retired.length === 0) {
+        throw new TypeError('retireRetainedQueryScopes requires retired scope entries');
+      }
+      const normalized = retired.map((entry, index) => {
+        if (!isRecord(entry) || !Object.hasOwn(entry, 'scopeId')) {
+          throw new TypeError(`retired[${index}] must name scopeId`);
+        }
+        return {
+          scopeId: validateScopeId(entry.scopeId, `retired[${index}].scopeId`),
+          revision: entry.revision,
+        };
+      });
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'retained query scope retirement');
+        const query = requireQuery(state, key, fence, 'retained query scope retirement');
+        for (const entry of normalized) {
+          const scope = entry.scopeId;
+          if (scope.kind === 'connection') {
+            throw clientStoreStateError(
+              'SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID',
+              'a connection root must be expanded before retained-query retirement',
+            );
+          }
+          if (
+            scope.namespace.clientStoreId !== state.origin
+            || scope.namespace.queryKey !== key
+            || scope.namespace.queryInstanceId !== query.queryInstanceId
+          ) {
+            throw clientStoreStateError(
+              'SNAPBACK_AUTH_QUERY_FENCE_STALE',
+              'retirement names another retained query instance',
+            );
+          }
+          const pendingKey = scopeKey(scope);
+          const pending = query.pendingByScope[pendingKey];
+          if (
+            pending
+            && (entry.revision === null || entry.revision === undefined
+              || entry.revision >= pending.revision)
+          ) {
+            delete query.pendingByScope[pendingKey];
+          }
+        }
+        if (
+          !isRecord(record)
+          || !Array.isArray(record.rows)
+          || record.versionStreamId !== query.expectedVersionStream
+          || record.cursor?.stream !== query.expectedVersionStream
+          || !Number.isSafeInteger(record.version)
+          || record.version < 0
+          || record.cursor?.version !== record.version
+        ) {
+          throw clientStoreStateError(
+            'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE',
+            'retirement snapshot does not cover the retained data stream',
+          );
+        }
+        query.lease = null;
+        query.leaseRequest = null;
+        query.clientDeadlineMs = null;
+        query.effectiveDisposition = effectiveDisposition(query.pendingByScope);
+        query.accepted = {
+          witness: {
+            authorization: clone(query.expectedAuthorization),
+            data: {
+              versionStream: query.expectedVersionStream,
+              minCommitVersion: record.version,
+            },
+          },
+          authorizedLeaseHash: null,
+        };
+        const nextFence = advanceQueryGeneration(query);
+        setOwnEntry(state.retained, key, clone({
+          ...record,
+          ...(state.artifactScope ?? {}),
+          principalScope: clone(state.principalScope),
+          queryInstanceId: query.queryInstanceId,
+          authorityGeneration: query.authorityGeneration,
+          queryGeneration: query.queryGeneration,
+          authorityInstanceId: query.authorityInstanceId,
+          authorizedLeaseHash: null,
+          stale: false,
+        }));
+        commit(state);
+        return clone({
           disposition: query.effectiveDisposition,
           fence: nextFence,
         });
