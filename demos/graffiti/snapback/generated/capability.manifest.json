@@ -24,6 +24,13 @@
   "ephemeralLocalRoomAuthority": true,
   "ephemeralRealtime": true,
   "ephemeralWebSocketPublish": true,
+  "hostedAuth": {
+    "authenticationThrottle": "processLocal",
+    "clientCredentialPosture": "bearerV1XssExposed",
+    "effectiveSource": "unavailable",
+    "externalTls": "unavailable",
+    "sessionInvalidation": "singleProcess"
+  },
   "liveSubscriptions": true,
   "localServerLifecycle": true,
   "mutationIsolationMode": "handler-captured-read-set-validation",
