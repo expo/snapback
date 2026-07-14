@@ -322,6 +322,13 @@
       ],
       "type": "string"
     },
+    "AuthenticationThrottle": {
+      "enum": [
+        "processLocal",
+        "sharedEnforced"
+      ],
+      "type": "string"
+    },
     "AuthorizationInputDimension": {
       "description": "Closed caller-authority dimensions that a query result may depend on.\nRetention v1 accepts exactly `userId`; spelling the rejected dimensions is\nstill important because a manifest must describe why it is online-only\nrather than silently erasing session/provider/opaque dependence.\n\n@ref LLP 0053#retained-and-offline-authorization — retained rows survive a\n  same-user session replacement, so every other authority dimension is\n  deliberately ineligible.",
       "enum": [
