@@ -4,13 +4,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, MutexGuard, PoisonError, RwLock};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::sync::Notify;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason};
 use crate::storage::{
-    AuthorizationCommitInterlock, AuthorizationCommitWitness, AuthorizationVersion,
-    PreparedAuthorizationCommit,
+    AuthorizationCommitImpact, AuthorizationCommitInterlock, AuthorizationCommitWitness,
+    AuthorizationVersion, ChangeOp, PreparedAuthorizationCommit,
 };
 
 /// Recover from lock poisoning the way the rest of the codebase does: room and
@@ -1714,7 +1715,38 @@ pub struct RoomDependencyTicket {
 #[derive(Clone, Debug)]
 struct RoomDependencyPending {
     expected_authorization: AuthorizationVersion,
+    selector: RoomDependencySelector,
     affected_rooms: BTreeSet<RoomId>,
+}
+
+/// Conservative selector installed under the same registry admission gate as
+/// the affected-room barriers. Exact room ids cover inserts, deletes, and
+/// subject-only updates whose permission-backing scope is known. A scope-
+/// changing or otherwise untargetable write widens only to the collections
+/// backed by that table; activation/destructive events widen to every room.
+///
+/// @ref LLP 0053#ephemeral-room-authority-invalidation — the selector and
+///   matching room barriers install atomically under registry admission.
+#[derive(Clone, Debug, Default)]
+struct RoomDependencySelector {
+    all_protected_rooms: bool,
+    collections: BTreeSet<String>,
+    rooms: BTreeSet<RoomId>,
+}
+
+impl RoomDependencySelector {
+    fn all() -> Self {
+        Self {
+            all_protected_rooms: true,
+            ..Self::default()
+        }
+    }
+
+    fn matches(&self, room: &RoomId) -> bool {
+        self.all_protected_rooms
+            || self.collections.contains(&room.collection)
+            || self.rooms.contains(room)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1793,7 +1825,11 @@ impl Drop for RoomAuthorityPermit {
 impl RoomAuthorityRegistry {
     fn begin_protected_act(&self, room_id: &RoomId) -> Result<u64, EphemeralError> {
         let mut state = lock(&self.state);
-        if !state.dependencies.is_empty() {
+        if state
+            .dependencies
+            .values()
+            .any(|pending| pending.selector.matches(room_id))
+        {
             return Err(authority_pending_error());
         }
         let room = state.rooms.entry(room_id.clone()).or_default();
@@ -1853,9 +1889,10 @@ impl RoomAuthorityRegistry {
         }))
     }
 
-    fn prepare_all(
+    fn prepare(
         &self,
         expected_authorization: AuthorizationVersion,
+        selector: RoomDependencySelector,
     ) -> SnapbackResult<RoomDependencyTicket> {
         let mut state = lock(&self.state);
         let ticket_id = state.next_ticket;
@@ -1866,7 +1903,12 @@ impl RoomAuthorityRegistry {
                 "protected room dependency ticket sequence exhausted",
             )
         })?;
-        let affected_rooms = state.rooms.keys().cloned().collect::<BTreeSet<_>>();
+        let affected_rooms = state
+            .rooms
+            .keys()
+            .filter(|room| selector.matches(room))
+            .cloned()
+            .collect::<BTreeSet<_>>();
         for room_id in &affected_rooms {
             state
                 .rooms
@@ -1879,6 +1921,7 @@ impl RoomAuthorityRegistry {
             ticket_id,
             RoomDependencyPending {
                 expected_authorization: expected_authorization.clone(),
+                selector,
                 affected_rooms: affected_rooms.clone(),
             },
         );
@@ -2162,9 +2205,10 @@ struct EphemeralShared {
     /// level-triggered barriers observed by every sink.
     room_authority: Arc<RoomAuthorityRegistry>,
     /// The same authenticated issuer exposed by the handshake. Advancing its
-    /// expectation before removing a committed all-room dependency closes the
-    /// new-room window: a room absent at prepare sees either the global ticket
-    /// or the successor epoch, never a predecessor grant under a fresh control.
+    /// expectation before removing a committed dependency closes the new-room
+    /// window: an affected room absent at prepare sees either its matching
+    /// ticket or the successor epoch, never a predecessor grant under a fresh
+    /// control.
     authorization_issuer: StdMutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>,
 }
 
@@ -2231,9 +2275,10 @@ impl AuthorizationCommitInterlock for LocalEphemeralBackend {
     fn prepare(
         &self,
         witness: &AuthorizationCommitWitness,
+        impact: AuthorizationCommitImpact<'_>,
     ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
         debug_assert!(witness.event);
-        let ticket = self.prepare_room_authorization_event(witness.version.clone())?;
+        let ticket = self.prepare_room_authorization_impact(witness.version.clone(), impact)?;
         Ok(Box::new(PreparedRoomAuthorizationCommit {
             backend: self.clone(),
             ticket,
@@ -2354,16 +2399,118 @@ impl LocalEphemeralBackend {
         self.begin_room_authority_act(&collection, &room_id)
     }
 
-    /// Install one conservative all-protected-room dependency ticket and wait
-    /// for every single-use permit that entered before it to quiesce. The
-    /// returned ticket owns no lock and may safely span the durable commit.
+    /// Install one conservative all-protected-room dependency ticket. This is
+    /// retained as the explicit broad-event/test seam; ordinary app writes go
+    /// through [`Self::prepare_room_authorization_impact`] so unrelated rooms
+    /// remain live when their permission-backing scope is provably disjoint.
+    #[cfg(test)]
     pub(crate) fn prepare_room_authorization_event(
         &self,
         expected_authorization: AuthorizationVersion,
     ) -> SnapbackResult<RoomDependencyTicket> {
         self.shared
             .room_authority
-            .prepare_all(expected_authorization)
+            .prepare(expected_authorization, RoomDependencySelector::all())
+    }
+
+    fn prepare_room_authorization_impact(
+        &self,
+        expected_authorization: AuthorizationVersion,
+        impact: AuthorizationCommitImpact<'_>,
+    ) -> SnapbackResult<RoomDependencyTicket> {
+        let selector = self.room_dependency_selector(impact);
+        self.shared
+            .room_authority
+            .prepare(expected_authorization, selector)
+    }
+
+    fn room_dependency_selector(
+        &self,
+        impact: AuthorizationCommitImpact<'_>,
+    ) -> RoomDependencySelector {
+        let AuthorizationCommitImpact::AppWrites(changes) = impact else {
+            return RoomDependencySelector::all();
+        };
+        let collections = self
+            .shared
+            .collections
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .values()
+            .filter(|collection| collection_requires_room_permission(collection))
+            .filter_map(|collection| {
+                collection
+                    .permission_backing
+                    .as_ref()
+                    .map(|projection| (collection.clone(), projection.clone()))
+            })
+            .collect::<Vec<_>>();
+        let mut selector = RoomDependencySelector::default();
+        for change in changes {
+            for (collection, projection) in &collections {
+                if projection.table != change.table {
+                    continue;
+                }
+                let projection_fields = projection
+                    .scope_fields
+                    .values()
+                    .chain(std::iter::once(&projection.subject_field))
+                    .collect::<BTreeSet<_>>();
+                if matches!(change.op, ChangeOp::Update) {
+                    if change.changed_fields.is_empty() {
+                        selector.collections.insert(collection.name.clone());
+                        continue;
+                    }
+                    if change
+                        .changed_fields
+                        .iter()
+                        .all(|field| !projection_fields.contains(field))
+                    {
+                        continue;
+                    }
+                    // The post-image cannot identify the predecessor room
+                    // when a scope field itself moves, so widen to this one
+                    // collection rather than guessing away the old room.
+                    if change.changed_fields.iter().any(|field| {
+                        projection
+                            .scope_fields
+                            .values()
+                            .any(|scope_field| scope_field == field)
+                    }) {
+                        selector.collections.insert(collection.name.clone());
+                        continue;
+                    }
+                }
+                let Some(Value::Object(row)) = change.row.as_ref() else {
+                    selector.collections.insert(collection.name.clone());
+                    continue;
+                };
+                let scope = projection
+                    .scope_fields
+                    .iter()
+                    .map(|(scope_field, table_field)| {
+                        row.get(table_field)
+                            .and_then(Value::as_str)
+                            .map(|value| (scope_field.clone(), value.to_owned()))
+                    })
+                    .collect::<Option<Vec<_>>>();
+                let Some(scope) = scope else {
+                    selector.collections.insert(collection.name.clone());
+                    continue;
+                };
+                match room_id_for(collection, &Scope::from_pairs(scope)) {
+                    Ok(room) => {
+                        selector.rooms.insert(room);
+                    }
+                    Err(_) => {
+                        // Loaded definitions were validated, but fail closed
+                        // if a future definition shape defeats reconstruction.
+                        selector.collections.insert(collection.name.clone());
+                    }
+                }
+            }
+        }
+        selector
     }
 
     pub(crate) fn finalize_room_authorization_event(
@@ -5592,7 +5739,12 @@ mod tests {
             event: true,
             incarnation_rotated: false,
         };
-        let prepared = AuthorizationCommitInterlock::prepare(&backend, &witness).unwrap();
+        let prepared = AuthorizationCommitInterlock::prepare(
+            &backend,
+            &witness,
+            AuthorizationCommitImpact::AllProtectedRooms,
+        )
+        .unwrap();
         prepared.ambiguous();
 
         let error = backend

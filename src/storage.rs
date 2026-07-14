@@ -218,6 +218,21 @@ pub struct AuthorizationCommitWitness {
     pub incarnation_rotated: bool,
 }
 
+/// Process-local impact metadata for the protected-room commit interlock.
+///
+/// The durable authorization version intentionally remains one global pair,
+/// but an app-data event can still carry enough transaction-local facts to
+/// keep unrelated protected rooms live. Activation and destructive boundaries
+/// have no safe row selector and therefore conservatively target every room.
+///
+/// @ref LLP 0053#ephemeral-room-authority-invalidation — writers prepare a
+///   dependency selector before commit instead of globally suspending rooms.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum AuthorizationCommitImpact<'a> {
+    AllProtectedRooms,
+    AppWrites(&'a [ChangedRow]),
+}
+
 /// Process-local sink barrier paired with the durable authorization hook.
 /// Implementations install their level-triggered state before SQLite commit,
 /// hold no mutex across commit, and receive an explicit ambiguous outcome
@@ -226,6 +241,7 @@ pub(crate) trait AuthorizationCommitInterlock: Send + Sync {
     fn prepare(
         &self,
         witness: &AuthorizationCommitWitness,
+        impact: AuthorizationCommitImpact<'_>,
     ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>>;
 }
 
@@ -237,13 +253,14 @@ pub(crate) trait PreparedAuthorizationCommit: Send {
 fn commit_with_authorization_interlock(
     tx: Transaction<'_>,
     witness: &AuthorizationCommitWitness,
+    impact: AuthorizationCommitImpact<'_>,
     min_commit_version: u64,
     interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
 ) -> SnapbackResult<()> {
     let prepared = if witness.event {
         interlock
             .as_ref()
-            .map(|interlock| interlock.prepare(witness))
+            .map(|interlock| interlock.prepare(witness, impact))
             .transpose()?
     } else {
         None
@@ -1135,7 +1152,9 @@ impl LocalDatabase {
         let min_commit_version = seeded.as_ref().map_or(0, |output| output.version);
         let prepared = match authorization_interlock
             .as_ref()
-            .map(|interlock| interlock.prepare(&authorization))
+            .map(|interlock| {
+                interlock.prepare(&authorization, AuthorizationCommitImpact::AllProtectedRooms)
+            })
             .transpose()
         {
             Ok(prepared) => prepared,
@@ -1262,7 +1281,13 @@ impl LocalDatabase {
         } else {
             current_version
         };
-        commit_with_authorization_interlock(tx, &authorization, version, authorization_interlock)?;
+        commit_with_authorization_interlock(
+            tx,
+            &authorization,
+            AuthorizationCommitImpact::AppWrites(&changes),
+            version,
+            authorization_interlock,
+        )?;
 
         Ok(SeedCommit {
             output: MutationOutput {
@@ -1901,6 +1926,7 @@ impl LocalDatabase {
                 authorization
                     .as_ref()
                     .expect("an applied mutation has an authorization witness"),
+                AuthorizationCommitImpact::AppWrites(&changes),
                 version,
                 authorization_interlock,
             )?;
@@ -2208,6 +2234,7 @@ impl LocalDatabase {
                 authorization
                     .as_ref()
                     .expect("an applied mutation has an authorization witness"),
+                AuthorizationCommitImpact::AppWrites(&changes),
                 version,
                 authorization_interlock,
             )?;

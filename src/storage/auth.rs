@@ -398,6 +398,7 @@ impl LocalDatabase {
         super::commit_with_authorization_interlock(
             tx,
             &authorization,
+            super::AuthorizationCommitImpact::AllProtectedRooms,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -612,6 +613,7 @@ impl LocalDatabase {
         super::commit_with_authorization_interlock(
             tx,
             &authorization,
+            super::AuthorizationCommitImpact::AllProtectedRooms,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -1235,9 +1237,14 @@ mod tests {
         fn prepare(
             &self,
             witness: &crate::storage::AuthorizationCommitWitness,
+            impact: crate::storage::AuthorizationCommitImpact<'_>,
         ) -> SnapbackResult<Box<dyn crate::storage::PreparedAuthorizationCommit>> {
             assert!(witness.event);
             assert!(witness.incarnation_rotated);
+            assert!(matches!(
+                impact,
+                crate::storage::AuthorizationCommitImpact::AllProtectedRooms
+            ));
             self.prepared
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(Box::new(RecordingRestoreCommit {

@@ -21,16 +21,20 @@ use crate::ephemeral::{
     AdmittedRealtimeEnvelope, EphemeralErrorCode, RemoveReason, ResyncReason, RoomAuthorityPermit,
 };
 use crate::manifest::{
-    AuthManifest, AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, IndexManifest,
-    ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, TableManifest, TargetCapabilityId,
+    AuthManifest, AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, IbexModule,
+    IndexManifest, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, TableManifest,
+    TargetCapabilityId,
 };
+use crate::storage::AuthorizationVersion;
 use serde_json::{Map, Value, json};
 use std::sync::{Arc, Mutex, PoisonError, mpsc};
 use std::time::{Duration, Instant};
 
 const BOARD_ID: &str = "board-acceptance";
+const UNRELATED_BOARD_ID: &str = "board-unrelated";
 const CONNECTION_A: &str = "player-a";
 const CONNECTION_B: &str = "player-b";
+const CONNECTION_UNRELATED: &str = "player-b-unrelated-room";
 const USER_A: &str = "018f0d90-7b31-7a22-8c33-445566778899";
 const USER_B: &str = "018f0d90-7b32-7a22-8c33-445566778899";
 const SESSION_A: &str = "018f0d90-7b33-7a22-8c33-445566778899";
@@ -39,6 +43,9 @@ const AUTHORITY_A: &str = "018f0d90-7b35-7a22-8c33-445566778899";
 const AUTHORITY_B: &str = "018f0d90-7b36-7a22-8c33-445566778899";
 const MEMBER_A: &str = "member-a";
 const MEMBER_B: &str = "member-b";
+const MEMBER_B_UNRELATED: &str = "member-b-unrelated";
+const OPPONENT_MOVE: &str = "B:queen-of-spades";
+const OPPONENT_PRESENCE: &[u8] = b"B:opponent-private-presence";
 const APP_ID: &str = "card-game-acceptance";
 
 struct KickFixture {
@@ -46,6 +53,8 @@ struct KickFixture {
     ephemeral: EphemeralApi,
     room_auth_a: AuthContext,
     room_auth_b: AuthContext,
+    unrelated_room_auth_b: AuthContext,
+    unrelated_room_observed: AuthorizationVersion,
 }
 
 impl KickFixture {
@@ -71,8 +80,10 @@ impl KickFixture {
             .expect("publish the staged protected room definition");
         let diagnostics = snapback.load_functions(game_functions());
         assert!(
-            diagnostics.is_empty(),
-            "game functions load without diagnostics: {diagnostics:?}"
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
+            "game functions load without error diagnostics: {diagnostics:?}"
         );
         let [connection_a, connection_b] = install_invalidation(&mut snapback);
 
@@ -82,7 +93,7 @@ impl KickFixture {
                 durable_subscribe(CONNECTION_A, "store-a", 1),
                 session_authority(InvocationSource::LiveInitialQuery, USER_A),
                 LiveInvalidationAdmission {
-                    connection: Some(connection_a),
+                    connection: Some(connection_a.clone()),
                     session_mode: true,
                 },
             )
@@ -93,7 +104,7 @@ impl KickFixture {
                 durable_subscribe(CONNECTION_B, "store-b", 1),
                 session_authority(InvocationSource::LiveInitialQuery, USER_B),
                 LiveInvalidationAdmission {
-                    connection: Some(connection_b),
+                    connection: Some(connection_b.clone()),
                     session_mode: true,
                 },
             )
@@ -102,18 +113,62 @@ impl KickFixture {
         assert_eq!(durable_a.snapshot.rows[0]["_id"], MEMBER_A);
         assert_eq!(durable_b.snapshot.rows.len(), 1);
         assert_eq!(durable_b.snapshot.rows[0]["_id"], MEMBER_B);
+        let board_a = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "board",
+                board_subscribe(CONNECTION_A, "store-a", 2),
+                session_authority(InvocationSource::LiveInitialQuery, USER_A),
+                LiveInvalidationAdmission {
+                    connection: Some(connection_a),
+                    session_mode: true,
+                },
+            )
+            .expect("A subscribes to the durable board while a member");
+        let board_b = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "board",
+                board_subscribe(CONNECTION_B, "store-b", 2),
+                session_authority(InvocationSource::LiveInitialQuery, USER_B),
+                LiveInvalidationAdmission {
+                    connection: Some(connection_b),
+                    session_mode: true,
+                },
+            )
+            .expect("B subscribes to the durable board while a member");
+        for board in [&board_a, &board_b] {
+            assert_eq!(board.snapshot.rows.len(), 1);
+            assert_eq!(board.snapshot.rows[0]["move"], OPPONENT_MOVE);
+        }
 
         let ephemeral = snapback.ephemeral_api();
         let room_auth_a = register_room(&snapback, &ephemeral, CONNECTION_A, USER_A, 10);
         let room_auth_b = register_room(&snapback, &ephemeral, CONNECTION_B, USER_B, 11);
+        let (unrelated_room_auth_b, unrelated_room_observed) = snapback
+            .authorize_ephemeral_room_observed(
+                "gamePresence",
+                &room_scope_for(UNRELATED_BOARD_ID),
+                base_room_auth(USER_B),
+            )
+            .expect("lookup for an unrelated protected room completes before the kick");
         publish_presence(&snapback, &ephemeral, CONNECTION_A, USER_A, b"A:ready", 12)
             .expect("A publishes its pre-kick presence");
+        publish_presence(
+            &snapback,
+            &ephemeral,
+            CONNECTION_B,
+            USER_B,
+            OPPONENT_PRESENCE,
+            13,
+        )
+        .expect("B publishes opponent presence before the kick");
 
         Self {
             snapback: Arc::new(Mutex::new(snapback)),
             ephemeral,
             room_auth_a,
             room_auth_b,
+            unrelated_room_auth_b,
+            unrelated_room_observed,
         }
     }
 
@@ -128,10 +183,11 @@ impl KickFixture {
             .find(|(envelope, _)| {
                 matches!(
                     envelope,
-                    RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { .. })
+                    RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. })
+                        if entry.value == OPPONENT_PRESENCE
                 )
             })
-            .expect("A's pre-kick upsert reached destructive drain");
+            .expect("A's pre-kick opponent-presence frame reached destructive drain");
         let old_send_permit = old_send_permit.expect("protected frame carries send permit");
 
         let snapback = self.snapback.clone();
@@ -199,6 +255,65 @@ impl KickFixture {
             .expect_err("pending barrier rejects old-authority mutation/enqueue");
         assert_eq!(stale_publish.code, EphemeralErrorCode::AuthorityPending);
 
+        // L9 is room-selective, not a global protected-room pause. This
+        // registration performed its durable lookup before the write, then
+        // races admission/snapshot against the dependency ticket. Because the
+        // deleted row names BOARD_ID exactly, the unrelated room may register,
+        // publish, and drain while the affected room remains quiesced.
+        let unrelated_permit = self
+            .ephemeral
+            .begin_server_authorized_room_act("gamePresence", &room_scope_for(UNRELATED_BOARD_ID))
+            .expect("unrelated room admission remains live")
+            .expect("protected unrelated room returns a permit");
+        assert_eq!(
+            self.ephemeral.authorization_expectation_for_test(),
+            Some(self.unrelated_room_observed.clone())
+        );
+        let unrelated_snapshot = self
+            .ephemeral
+            .subscribe(
+                room_subscribe_for(
+                    CONNECTION_UNRELATED,
+                    self.unrelated_room_auth_b.clone(),
+                    UNRELATED_BOARD_ID,
+                ),
+                15,
+            )
+            .expect("unrelated room registers while affected room is pending");
+        assert!(matches!(
+            unrelated_snapshot,
+            EphemeralMessage::Snapshot {
+                room_authority_generation: 1,
+                ..
+            }
+        ));
+        drop(unrelated_permit);
+        self.ephemeral
+            .publish(
+                room_publish_for(
+                    CONNECTION_UNRELATED,
+                    USER_B,
+                    self.unrelated_room_auth_b.clone(),
+                    b"B:unrelated-live",
+                    UNRELATED_BOARD_ID,
+                ),
+                16,
+            )
+            .expect("unrelated room publishes while affected room is pending");
+        let unrelated_frames = self.ephemeral.drain_outbox(CONNECTION_UNRELATED);
+        assert!(unrelated_frames.iter().any(|frame| matches!(
+            frame,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
+                room_authority_generation: 1,
+                entry,
+                ..
+            }) if entry.value == b"B:unrelated-live"
+        )));
+        assert!(
+            done_rx.try_recv().is_err(),
+            "unrelated progress occurs while the affected permit still holds commit"
+        );
+
         drop(old_send_permit);
         let output = done_rx
             .recv_timeout(Duration::from_secs(2))
@@ -228,6 +343,11 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .ephemeral
         .pending_room_reauthorizations();
     assert_eq!(pending.len(), 1, "one protected game room is pending");
+    assert_eq!(
+        pending[0].room.scope,
+        room_scope(),
+        "the exact delete selector must not suspend the unrelated game room"
+    );
     assert_eq!(pending[0].obligation.min_commit_version, kick.version);
     let expectation = fixture
         .snapback
@@ -239,8 +359,22 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
 
     let frames_a = fixture.ephemeral.drain_outbox(CONNECTION_A);
     let frames_b = fixture.ephemeral.drain_outbox(CONNECTION_B);
-    assert_durable_kick_snapshot(&frames_a, kick.version, 0);
-    assert_durable_kick_snapshot(&frames_b, kick.version, 1);
+    assert_durable_kick_snapshot(&frames_a, "currentMembership", kick.version, 0);
+    assert_durable_kick_snapshot(&frames_b, "currentMembership", kick.version, 1);
+    assert_durable_kick_snapshot(&frames_a, "board", kick.version, 0);
+    let board_b = assert_durable_kick_snapshot(&frames_b, "board", kick.version, 1);
+    assert_eq!(board_b["snapshot"]["rows"][0]["move"], OPPONENT_MOVE);
+    assert!(
+        !serde_json::to_string(&frames_a)
+            .expect("A post-kick frames serialize")
+            .contains(OPPONENT_MOVE)
+            && !frames_a.iter().any(|frame| matches!(
+                frame,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. })
+                    if entry.value == OPPONENT_PRESENCE
+            )),
+        "the kicked player receives no durable board or ephemeral opponent state"
+    );
     assert!(
         frames_b.iter().all(|frame| !matches!(
             frame,
@@ -253,6 +387,33 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
     );
     assert_auth_changed(&frames_a, 2);
     assert_auth_changed(&frames_b, 2);
+    fixture
+        .ephemeral
+        .publish(
+            room_publish_for(
+                CONNECTION_UNRELATED,
+                USER_B,
+                fixture.unrelated_room_auth_b.clone(),
+                b"B:unrelated-after-commit",
+                UNRELATED_BOARD_ID,
+            ),
+            19,
+        )
+        .expect("unrelated room keeps generation-1 continuity after the kick");
+    assert!(
+        fixture
+            .ephemeral
+            .drain_outbox(CONNECTION_UNRELATED)
+            .iter()
+            .any(|frame| matches!(
+                frame,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
+                    room_authority_generation: 1,
+                    entry,
+                    ..
+                }) if entry.value == b"B:unrelated-after-commit"
+            ))
+    );
     let dropped_refires = fixture.ephemeral.drain_outbox(CONNECTION_B);
     assert_auth_changed(&dropped_refires, 2);
 
@@ -291,7 +452,7 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
             room_authority_generation: 2,
             entries,
             ..
-        }) if entries.is_empty()
+        }) if entries.len() == 1 && entries[0].value == OPPONENT_PRESENCE
     )));
 
     let denied = fixture
@@ -379,28 +540,57 @@ fn game_schema() -> SchemaManifest {
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(game_schema_hash()),
         inputs_hash: Some(game_inputs_hash()),
-        tables: vec![TableManifest {
-            name: "gameMembers".to_owned(),
-            fields: vec![
-                FieldManifest {
-                    name: "gameId".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                },
-                FieldManifest {
-                    name: "userId".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                },
-            ],
-            indexes: vec![IndexManifest {
-                name: "by_game_user".to_owned(),
-                fields: vec!["gameId".to_owned(), "userId".to_owned()],
-            }],
-            syncable: true,
-            permission_backing: true,
-            permission_fields: Some(vec!["gameId".to_owned(), "userId".to_owned()]),
-        }],
+        tables: vec![
+            TableManifest {
+                name: "gameMembers".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "gameId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_game_user".to_owned(),
+                    fields: vec!["gameId".to_owned(), "userId".to_owned()],
+                }],
+                syncable: true,
+                permission_backing: true,
+                permission_fields: Some(vec!["gameId".to_owned(), "userId".to_owned()]),
+            },
+            TableManifest {
+                name: "moves".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "gameId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "playerId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "move".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_game".to_owned(),
+                    fields: vec!["gameId".to_owned()],
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+            },
+        ],
         ephemeral_collections: vec![
             EphemeralCollection::local_cursor("gamePresence", "gameId")
                 .require_room_permission("game")
@@ -443,6 +633,23 @@ fn game_functions() -> FunctionManifest {
     current_membership.read_set_summary.mode = Some("singleTable".to_owned());
     current_membership.read_set_summary.auth_scope_field = Some("userId".to_owned());
 
+    let mut board = FunctionDefinition::new(
+        "board",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: GAME_HANDLER_SOURCE.to_owned(),
+            export: "board".to_owned(),
+        }),
+    );
+    board.auth_requirement = Some(AuthRequirement::Authenticated);
+    board.required_capabilities = vec![
+        TargetCapabilityId::LiveSubscriptions.to_string(),
+        TargetCapabilityId::IbexCtxDbHostBridge.to_string(),
+    ];
+    board.read_set_summary.primary_table = Some("moves".to_owned());
+    board.read_set_summary.tables = vec!["gameMembers".to_owned(), "moves".to_owned()];
+    board.read_set_summary.mode = Some("handlerDeclared".to_owned());
+
     let mut kick_member = FunctionDefinition::new(
         "kickMember",
         FunctionKind::Mutation,
@@ -463,7 +670,7 @@ fn game_functions() -> FunctionManifest {
         app_id: APP_ID.to_owned(),
         bundle_hash: Some(game_function_hash()),
         inputs_hash: Some(game_inputs_hash()),
-        functions: vec![current_membership, kick_member],
+        functions: vec![current_membership, board, kick_member],
         ..FunctionManifest::default()
     }
 }
@@ -493,23 +700,58 @@ fn game_inputs_hash() -> String {
 
 fn game_members() -> SeedData {
     SeedData {
-        tables: BTreeMap::from([(
-            "gameMembers".to_owned(),
-            vec![
-                Map::from_iter([
-                    ("_id".to_owned(), json!(MEMBER_A)),
+        tables: BTreeMap::from([
+            (
+                "gameMembers".to_owned(),
+                vec![
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(MEMBER_A)),
+                        ("gameId".to_owned(), json!(BOARD_ID)),
+                        ("userId".to_owned(), json!(USER_A)),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(MEMBER_B)),
+                        ("gameId".to_owned(), json!(BOARD_ID)),
+                        ("userId".to_owned(), json!(USER_B)),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(MEMBER_B_UNRELATED)),
+                        ("gameId".to_owned(), json!(UNRELATED_BOARD_ID)),
+                        ("userId".to_owned(), json!(USER_B)),
+                    ]),
+                ],
+            ),
+            (
+                "moves".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("move-opponent-private")),
                     ("gameId".to_owned(), json!(BOARD_ID)),
-                    ("userId".to_owned(), json!(USER_A)),
-                ]),
-                Map::from_iter([
-                    ("_id".to_owned(), json!(MEMBER_B)),
-                    ("gameId".to_owned(), json!(BOARD_ID)),
-                    ("userId".to_owned(), json!(USER_B)),
-                ]),
-            ],
-        )]),
+                    ("playerId".to_owned(), json!(USER_B)),
+                    ("move".to_owned(), json!(OPPONENT_MOVE)),
+                ])],
+            ),
+        ]),
     }
 }
+
+const GAME_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async board(ctx, args) {
+    const membership = await ctx.db
+      .query('gameMembers')
+      .withIndex('by_game_user')
+      .eq('gameId', args.gameId)
+      .eq('userId', ctx.auth.userId)
+      .first();
+    if (!membership) return [];
+    return await ctx.db
+      .query('moves')
+      .withIndex('by_game')
+      .eq('gameId', args.gameId)
+      .collect();
+  }
+};
+"#;
 
 fn install_invalidation(snapback: &mut LocalSnapback) -> [AuthorizationInvalidationConnection; 2] {
     let (authorization, version_stream, boot_sequence) = snapback
@@ -593,8 +835,32 @@ fn durable_subscribe(
     }
 }
 
+fn board_subscribe(
+    connection_id: &str,
+    client_store_id: &str,
+    query_instance_id: u64,
+) -> LiveSubscribeInput {
+    LiveSubscribeInput {
+        connection_id: connection_id.to_owned(),
+        input: HandlerInput {
+            args: json!({ "gameId": BOARD_ID }),
+            ..HandlerInput::default()
+        },
+        authorization_namespace: Some(QueryNamespace {
+            client_store_id: client_store_id.to_owned(),
+            query_key: format!("board:{{gameId:{BOARD_ID}}}"),
+            query_instance_id,
+        }),
+        supersedes: None,
+    }
+}
+
 fn room_scope() -> crate::ephemeral::Scope {
-    crate::ephemeral::Scope::from_pairs([("gameId", BOARD_ID)])
+    room_scope_for(BOARD_ID)
+}
+
+fn room_scope_for(game_id: &str) -> crate::ephemeral::Scope {
+    crate::ephemeral::Scope::from_pairs([("gameId", game_id)])
 }
 
 fn base_room_auth(user_id: &str) -> AuthContext {
@@ -701,9 +967,13 @@ fn publish_presence_locked(
 }
 
 fn room_subscribe(connection_id: &str, auth: AuthContext) -> SubscribeRequest {
+    room_subscribe_for(connection_id, auth, BOARD_ID)
+}
+
+fn room_subscribe_for(connection_id: &str, auth: AuthContext, game_id: &str) -> SubscribeRequest {
     SubscribeRequest {
         collection: "gamePresence".to_owned(),
-        scope: room_scope(),
+        scope: room_scope_for(game_id),
         connection_id: connection_id.to_owned(),
         auth,
     }
@@ -715,9 +985,19 @@ fn room_publish(
     auth: AuthContext,
     value: &[u8],
 ) -> PublishRequest {
+    room_publish_for(connection_id, user_id, auth, value, BOARD_ID)
+}
+
+fn room_publish_for(
+    connection_id: &str,
+    user_id: &str,
+    auth: AuthContext,
+    value: &[u8],
+    game_id: &str,
+) -> PublishRequest {
     PublishRequest {
         collection: "gamePresence".to_owned(),
-        scope: room_scope(),
+        scope: room_scope_for(game_id),
         connection_id: connection_id.to_owned(),
         session_id: Some(
             if user_id == USER_A {
@@ -735,7 +1015,12 @@ fn room_publish(
     }
 }
 
-fn assert_durable_kick_snapshot(frames: &[RealtimeEnvelope], version: u64, row_count: usize) {
+fn assert_durable_kick_snapshot(
+    frames: &[RealtimeEnvelope],
+    function: &str,
+    version: u64,
+    row_count: usize,
+) -> Value {
     let frame = frames
         .iter()
         .filter_map(|frame| match frame {
@@ -745,9 +1030,10 @@ fn assert_durable_kick_snapshot(frames: &[RealtimeEnvelope], version: u64, row_c
             RealtimeEnvelope::Ephemeral(_) => None,
         })
         .find(|frame| {
-            frame["kind"] == "authorization_invalidation" && frame["snapshot"].is_object()
+            frame["kind"] == "authorization_invalidation"
+                && frame["snapshot"]["function"] == function
         })
-        .expect("durable authorization invalidation snapshot frame");
+        .unwrap_or_else(|| panic!("durable authorization invalidation snapshot for {function}"));
     assert_eq!(
         frame["obligation"]["witness"]["data"]["minCommitVersion"],
         version
@@ -760,6 +1046,7 @@ fn assert_durable_kick_snapshot(frames: &[RealtimeEnvelope], version: u64, row_c
             .len(),
         row_count
     );
+    frame
 }
 
 fn assert_auth_changed(frames: &[RealtimeEnvelope], generation: u64) {

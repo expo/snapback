@@ -215,7 +215,9 @@ fn commit_mode_transaction<T>(
     let prepared = match authorization.as_ref() {
         Some((witness, _)) if witness.event => match interlock
             .as_ref()
-            .map(|interlock| interlock.prepare(witness))
+            .map(|interlock| {
+                interlock.prepare(witness, super::AuthorizationCommitImpact::AllProtectedRooms)
+            })
             .transpose()
         {
             Ok(prepared) => prepared,
@@ -555,6 +557,7 @@ impl LocalDatabase {
         super::commit_with_authorization_interlock(
             tx,
             &authorization,
+            super::AuthorizationCommitImpact::AllProtectedRooms,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -626,6 +629,7 @@ impl LocalDatabase {
         super::commit_with_authorization_interlock(
             tx,
             &authorization,
+            super::AuthorizationCommitImpact::AllProtectedRooms,
             min_commit_version,
             authorization_interlock,
         )?;
@@ -723,6 +727,11 @@ impl LocalDatabase {
                 super::commit_with_authorization_interlock(
                     tx,
                     &authorization,
+                    if activation_changed {
+                        super::AuthorizationCommitImpact::AllProtectedRooms
+                    } else {
+                        super::AuthorizationCommitImpact::AppWrites(&seeded_changes)
+                    },
                     min_commit_version,
                     authorization_interlock,
                 )?;
@@ -929,6 +938,7 @@ impl LocalDatabase {
                 super::commit_with_authorization_interlock(
                     tx,
                     &authorization,
+                    super::AuthorizationCommitImpact::AllProtectedRooms,
                     min_commit_version,
                     authorization_interlock,
                 )?;
