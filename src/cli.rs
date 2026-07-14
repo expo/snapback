@@ -66,6 +66,21 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
     )
 }
 
+/// Run a bounded synchronous startup transaction without occupying a Tokio
+/// worker. CLI composition owns `LocalSnapback` directly until listener bind,
+/// so the request-path `spawn_blocking` helpers cannot move a `'static` mutex
+/// guard here; `block_in_place` is the corresponding pre-bind handoff.
+fn startup_blocking<T>(work: impl FnOnce() -> T) -> T {
+    let run = || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        work()
+    };
+    match tokio::runtime::Handle::try_current().map(|handle| handle.runtime_flavor()) {
+        Ok(tokio::runtime::RuntimeFlavor::MultiThread) => tokio::task::block_in_place(run),
+        _ => run(),
+    }
+}
+
 fn quarantine_pending_startup(
     snapback: &mut LocalSnapback,
     error: crate::diagnostic::SnapbackError,
@@ -221,24 +236,27 @@ async fn compose_auth_mode_startup(
     match (snapshot.state.active, snapshot.state.desired) {
         (AuthMode::Dev, AuthMode::Sessions) => {
             if !readiness.session_activation_ready {
-                let error = snapback
-                    .auth_database_mut()
-                    .consume_sessions_auth_mode(readiness)
-                    .expect_err("item readiness must refuse sessions consume");
+                let error = startup_blocking(|| {
+                    snapback
+                        .auth_database_mut()
+                        .consume_sessions_auth_mode(readiness)
+                })
+                .expect_err("item readiness must refuse sessions consume");
                 snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
                 return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
             }
             let publication_generation = snapback.reserve_function_publication_generation()?;
             let provider = auth_runtime.provider();
             let maintenance = provider.exclusive_maintenance().await;
-            if let Err(error) = maintenance.prepare_catalog_activation() {
+            if let Err(error) = startup_blocking(|| maintenance.prepare_catalog_activation()) {
                 drop(maintenance);
                 return quarantine_pending_startup(snapback, error);
             }
-            let state = match snapback
-                .auth_database_mut()
-                .consume_sessions_auth_mode(readiness)
-            {
+            let state = match startup_blocking(|| {
+                snapback
+                    .auth_database_mut()
+                    .consume_sessions_auth_mode(readiness)
+            }) {
                 Ok(state) => state,
                 Err(error) => {
                     drop(maintenance);
@@ -253,10 +271,12 @@ async fn compose_auth_mode_startup(
         }
         (AuthMode::Sessions, AuthMode::Dev) => {
             let publication_generation = snapback.reserve_function_publication_generation()?;
-            let state = match snapback
-                .auth_database_mut()
-                .consume_dev_downgrade(args.allow_auth_downgrade, auth_runtime.provider().now_ms())
-            {
+            let now_ms = auth_runtime.provider().now_ms();
+            let state = match startup_blocking(|| {
+                snapback
+                    .auth_database_mut()
+                    .consume_dev_downgrade(args.allow_auth_downgrade, now_ms)
+            }) {
                 Ok(result) => result.state,
                 Err(error) => {
                     snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
@@ -3765,6 +3785,40 @@ mod tests {
             false,
         )
         .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn sessions_consume_offloads_sqlite_from_async_workers() {
+        use crate::auth::mode::AuthProgramReadiness;
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("app.sqlite3");
+        let carrier = directory.path().join("startup.json");
+        sessions_startup_carrier(&carrier);
+        let args = Args {
+            db: database.clone(),
+            startup_artifacts: Some(carrier),
+            ..Args::default()
+        };
+        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let readiness = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+
+        let state =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(state.active, AuthMode::Sessions);
+        assert!(runtime.catalog_ready());
     }
 
     #[cfg(unix)]
