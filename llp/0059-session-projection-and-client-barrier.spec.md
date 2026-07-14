@@ -216,7 +216,7 @@ undeclared external mechanism has no continuity guarantee.
 ### Projected session
 
 `SessionProjection` is the one-process authorization authority around LLP
-0055's durable catalog. It contains no plaintext bearer, verification code,
+0057's durable catalog. It contains no plaintext bearer, verification code,
 email address, or admin credential.
 
 ```rust
@@ -432,7 +432,7 @@ operations. Neither substitutes for the other.
   from predecessor-current to predecessor-superseded/successor-current.
   Rollback restores predecessor availability by exact overlay/ticket removal
   only if no sibling terminal state won. The session generation remains LLP
-  0055's durable value unless that owning protocol advances it.
+  0057's durable value unless that owning protocol advances it.
 - **Sliding-use extension:** a positive use may commit a coalesced durable
   extension without a precommit unavailability marker because failure leaves a
   shorter safe deadline. It publishes a later deadline only after commit and

@@ -1,7 +1,7 @@
 //! Durable authorization-stream metadata and detached projection snapshots.
 //!
 //! The migration is explicit rather than part of `LocalDatabase::open`: LLP
-//! 0056's stage-time collision inspection must remain read-only. Auth-capable
+//! 0058's stage-time collision inspection must remain read-only. Auth-capable
 //! startup calls the migration before bind, then sessions startup obtains one
 //! complete read transaction through `session_projection_source`.
 

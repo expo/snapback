@@ -28,7 +28,7 @@ the parent auth model, LLP 0031 owns route policy, LLP 0039 owns the program and
 landing order, and LLP 0057 owns provider/session state. A new document is still
 required because none of those documents may safely be extended with item 4's
 exact crash protocol: 0039 is frozen, 0031 is the route registry rather than the
-mode authority, and 0055 explicitly exposes this work as a later-item seam.
+mode authority, and 0057 explicitly exposes this work as a later-item seam.
 
 The item has five load-bearing claims:
 
@@ -936,7 +936,7 @@ atomically at write commit and response/live publication. A stage or timed-out
 barrier that retires an epoch therefore prevents late success, callback, or
 nested work from crossing the boundary.
 
-Credential precedence under sessions remains LLP 0039/0055's: a current bearer,
+Credential precedence under sessions remains LLP 0039/0057's: a current bearer,
 otherwise anonymous; malformed/unknown is `SNAPBACK_AUTH_REQUIRED`;
 expired/revoked is `SNAPBACK_AUTH_SESSION_EXPIRED`; ordinary superseded use
 beyond grace is `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED`. A legacy body field is

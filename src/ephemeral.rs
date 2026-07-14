@@ -1363,8 +1363,8 @@ struct OutboundQueue {
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1: the durable
     // and resync lanes are bounded like the ephemeral map. A subscriber that
     // never drains cannot accumulate unbounded query-result payloads; a lane at
-    // capacity converts the whole queue to a single resync signal (sticky until
-    // drained), never a silent drop.
+    // capacity converts the affected authority domain to one out-of-band resync
+    // signal (sticky until its eligible drain), never a silent drop.
     overflowed: bool,
     overflowed_effect_fences: BTreeSet<ConnectionEffectFence>,
 }
@@ -1390,6 +1390,24 @@ fn effect_fence_disposition(
         (Some(actual), Some(expected)) if actual == expected => None,
         (Some(_), Some(_)) => Some(FrameAuthorityDisposition::DropStale),
         (Some(_), None) => Some(FrameAuthorityDisposition::Retain),
+    }
+}
+
+fn overflow_sentinel(effect_fence: Option<ConnectionEffectFence>) -> DurableMessage {
+    // Typed since ENG-23891 (LLP 0051 D4). Wire note: the pre-typed frame
+    // spelled this field `clearRetained`; the typed envelope unified it to
+    // the durable lane's `clear_retained` (no shipped client read it).
+    let payload = serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
+        reason: "outbox_overflow".to_owned(),
+        subscription_id: None,
+        scope: None,
+        epoch: None,
+        clear_retained: true,
+    })
+    .unwrap_or_default();
+    match effect_fence {
+        Some(effect_fence) => DurableMessage::bound(payload, effect_fence),
+        None => DurableMessage::new(payload),
     }
 }
 
@@ -1464,10 +1482,13 @@ impl OutboundQueue {
             <= MAX_OUTBOX_RETAINED_BYTES
     }
 
-    /// Convert the queue to a single durable resync signal: the connection is
-    /// too far behind to replay its backlog, so drop all pending state and tell
-    /// the client to re-snapshot rather than losing updates silently. Sticky
-    /// until `drain` empties the queue.
+    /// Convert one queue authority domain to a durable resync signal: the
+    /// connection is too far behind to replay its backlog, so drop its pending
+    /// state and tell the client to re-snapshot rather than losing updates
+    /// silently. Signals live in out-of-band sticky state so one authority
+    /// domain's physical backlog cannot consume another domain's signal
+    /// capacity. Exact signals are materialized only by their matching drain;
+    /// the authority-independent signal is visible to any drain.
     ///
     /// @ref LLP 0008#realtime-delivery — overflow is a resync signal, never a drop.
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
@@ -1498,27 +1519,6 @@ impl OutboundQueue {
         self.ephemeral
             .retain(|_, message| message.effect_fence.as_ref() != effect_fence.as_ref());
         self.recompute_retained_bytes();
-        // Typed since ENG-23891 (LLP 0051 D4). Wire note: the pre-typed frame
-        // spelled this field `clearRetained`; the typed envelope unified it to
-        // the durable lane's `clear_retained` (no shipped client read it).
-        let sentinel_payload =
-            serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
-                reason: "outbox_overflow".to_owned(),
-                subscription_id: None,
-                scope: None,
-                epoch: None,
-                clear_retained: true,
-            })
-            .unwrap_or_default();
-        let sentinel = match effect_fence.clone() {
-            Some(fence) => DurableMessage::bound(sentinel_payload, fence),
-            None => DurableMessage::new(sentinel_payload),
-        };
-        let sentinel_bytes = retained_durable_queue_item_bytes(&sentinel);
-        if self.durable.len() < MAX_OUTBOX_BACKLOG && self.fits_bytes(0, sentinel_bytes) {
-            self.durable_bytes = self.durable_bytes.saturating_add(sentinel_bytes);
-            self.durable.push_back(sentinel);
-        }
         if let Some(effect_fence) = &effect_fence {
             self.overflowed_effect_fences.insert(effect_fence.clone());
         } else {
@@ -1697,8 +1697,8 @@ impl OutboundQueue {
     /// subscriptions that survive an ephemeral boundary (`apply_schema`
     /// leaves `LocalSnapback::subscriptions` fully live), so discarding them
     /// here would be a silent drop no resync signal ever repairs (ENG-23346).
-    /// An overflowed queue is left as-is: its durable lane already holds
-    /// exactly the sticky connection-wide resync sentinel.
+    /// An overflowed queue is left as-is: its out-of-band overflow marker
+    /// already represents the sticky resync signal.
     ///
     /// @ref LLP 0008#realtime-delivery — never a silent drop.
     fn clear_ephemeral_lanes(&mut self) {
@@ -1741,6 +1741,10 @@ impl OutboundQueue {
         mut classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
     ) -> Vec<RealtimeEnvelope> {
         let mut messages = Vec::new();
+        let unbound_overflow_signal = self.overflowed;
+        let exact_overflow_signal = expected_effect_fence
+            .filter(|effect_fence| self.overflowed_effect_fences.contains(*effect_fence))
+            .cloned();
         let mut retained_durable = VecDeque::new();
         while let Some(message) = self.durable.pop_front() {
             let disposition =
@@ -1755,6 +1759,21 @@ impl OutboundQueue {
             }
         }
         self.durable = retained_durable;
+        if unbound_overflow_signal {
+            // Authority-independent overflow is visible to either the legacy
+            // compatibility drain or the current exact grant, but never
+            // consumes a physical slot behind bound frames.
+            messages.push(RealtimeEnvelope::Durable(overflow_sentinel(None)));
+        }
+        if let Some(effect_fence) = &exact_overflow_signal {
+            // The signal is intentionally materialized only for the exact
+            // grant that overflowed. It consumes no shared queue capacity and
+            // therefore cannot be displaced by predecessor or successor
+            // frames that happen to share the readable connection id.
+            messages.push(RealtimeEnvelope::Durable(overflow_sentinel(Some(
+                effect_fence.clone(),
+            ))));
+        }
         let mut retained_resync = VecDeque::new();
         while let Some(message) = self.resync.pop_front() {
             let disposition =
@@ -1803,38 +1822,16 @@ impl OutboundQueue {
         }
         self.durable.shrink_to_fit();
         self.recompute_retained_bytes();
-        // Sticky overflow clears only after every retained protected frame is
-        // either delivered or invalidated by a newer authority generation.
-        self.overflowed = self.overflowed
-            && (self
-                .durable
-                .iter()
-                .any(|message| message.effect_fence().is_none())
-                || self
-                    .resync
-                    .iter()
-                    .any(|message| message.effect_fence.is_none())
-                || self
-                    .ephemeral
-                    .values()
-                    .any(|message| message.effect_fence.is_none()));
-        let retained_fences = self
-            .durable
-            .iter()
-            .filter_map(|message| message.effect_fence().cloned())
-            .chain(
-                self.resync
-                    .iter()
-                    .filter_map(|message| message.effect_fence.clone()),
-            )
-            .chain(
-                self.ephemeral
-                    .values()
-                    .filter_map(|message| message.effect_fence.clone()),
-            )
-            .collect::<BTreeSet<_>>();
-        self.overflowed_effect_fences
-            .retain(|effect_fence| retained_fences.contains(effect_fence));
+        if unbound_overflow_signal {
+            self.overflowed = false;
+        }
+        if let Some(exact_overflow_signal) = exact_overflow_signal {
+            // A matching exact drain consumed only this out-of-band signal.
+            // Other marked fences have independent recovery obligations even
+            // when their physical frames were discarded as stale for this
+            // drain, so preserve them until their own drain or exact purge.
+            self.overflowed_effect_fences.remove(&exact_overflow_signal);
+        }
         messages
     }
 
@@ -9345,6 +9342,147 @@ mod tests {
         assert!(payloads.iter().any(|payload| payload == b"new"));
         assert!(payloads.iter().any(|payload| payload == b"independent"));
         assert!(!payloads.iter().any(|payload| payload == b"old"));
+        assert!(
+            backend
+                .drain_outbox_for_send_bound("reused", &predecessor)
+                .is_empty(),
+            "exact purge must remove the predecessor's out-of-band overflow signal"
+        );
+    }
+
+    /// A predecessor can consume every physical slot in the shared readable-id
+    /// queue before the successor's first frame arrives. The successor's
+    /// overflow marker must still materialize a clear-retained signal only for
+    /// the successor's exact drain; otherwise that first frame disappears
+    /// silently when the drain discards the predecessor backlog as stale. Two
+    /// independently marked successors also retain separate signals.
+    #[test]
+    fn predecessor_filled_queue_cannot_displace_successor_overflow_signal() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        let parallel = ConnectionEffectFence::session("inc", "grant-parallel", "session", 3);
+
+        for _ in 0..MAX_OUTBOX_BACKLOG {
+            let outcome = backend.enqueue_durable_bound(
+                "reused",
+                b"predecessor".to_vec(),
+                predecessor.clone(),
+            );
+            assert!(!outcome.overflowed_now);
+        }
+        let outcome = backend.enqueue_durable_bound(
+            "reused",
+            b"successor-first-frame".to_vec(),
+            successor.clone(),
+        );
+        assert!(outcome.overflowed_now);
+        assert!(outcome.parked_behind_overflow);
+        let parallel_outcome = backend.enqueue_durable_bound(
+            "reused",
+            b"parallel-first-frame".to_vec(),
+            parallel.clone(),
+        );
+        assert!(parallel_outcome.overflowed_now);
+        assert!(parallel_outcome.parked_behind_overflow);
+
+        let payloads = backend
+            .drain_outbox_for_send_bound("reused", &successor)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                RealtimeEnvelope::Durable(message) => {
+                    assert_eq!(message.effect_fence(), Some(&successor));
+                    Some(message.payload)
+                }
+                RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(payloads.len(), 1);
+        let signal: serde_json::Value = serde_json::from_slice(&payloads[0]).unwrap();
+        assert_eq!(signal["kind"], "resync_required");
+        assert_eq!(signal["reason"], "outbox_overflow");
+        assert_eq!(signal["clear_retained"], true);
+
+        let parallel_payloads = backend
+            .drain_outbox_for_send_bound("reused", &parallel)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                RealtimeEnvelope::Durable(message) => {
+                    assert_eq!(message.effect_fence(), Some(&parallel));
+                    Some(message.payload)
+                }
+                RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(parallel_payloads.len(), 1);
+        let parallel_signal: serde_json::Value =
+            serde_json::from_slice(&parallel_payloads[0]).unwrap();
+        assert_eq!(parallel_signal["kind"], "resync_required");
+        assert_eq!(parallel_signal["reason"], "outbox_overflow");
+        assert_eq!(parallel_signal["clear_retained"], true);
+
+        backend.enqueue_durable_bound("reused", b"fresh".to_vec(), successor.clone());
+        let after = backend
+            .drain_outbox_for_send_bound("reused", &successor)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                RealtimeEnvelope::Durable(message) => Some(message.payload),
+                RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(after, vec![b"fresh".to_vec()]);
+    }
+
+    #[test]
+    fn bound_filled_queue_cannot_displace_unbound_overflow_signal() {
+        let backend = LocalEphemeralBackend::new();
+        let bound = ConnectionEffectFence::session("inc", "grant", "session", 1);
+
+        for _ in 0..MAX_OUTBOX_BACKLOG {
+            let outcome = backend.enqueue_durable_bound("shared", b"bound".to_vec(), bound.clone());
+            assert!(!outcome.overflowed_now);
+        }
+        let outcome = backend.enqueue_durable("shared", b"unbound-first-frame".to_vec());
+        assert!(outcome.overflowed_now);
+        assert!(outcome.parked_behind_overflow);
+
+        let unbound = backend.drain_outbox("shared");
+        assert_eq!(
+            unbound.len(),
+            1,
+            "the compatibility drain leaks no bound frame"
+        );
+        let RealtimeEnvelope::Durable(signal) = &unbound[0] else {
+            panic!("expected the unbound durable overflow signal");
+        };
+        assert!(signal.effect_fence().is_none());
+        let signal: serde_json::Value = serde_json::from_slice(&signal.payload).unwrap();
+        assert_eq!(signal["kind"], "resync_required");
+        assert_eq!(signal["reason"], "outbox_overflow");
+        assert_eq!(signal["clear_retained"], true);
+
+        let bound_payloads = backend
+            .drain_outbox_for_send_bound("shared", &bound)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                RealtimeEnvelope::Durable(message) => Some(message.payload),
+                RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(bound_payloads.len(), MAX_OUTBOX_BACKLOG);
+        assert!(
+            bound_payloads
+                .iter()
+                .all(|payload| payload.as_slice() == b"bound")
+        );
+
+        backend.enqueue_durable("shared", b"fresh".to_vec());
+        let after = backend.drain_outbox("shared");
+        assert_eq!(after.len(), 1);
+        let RealtimeEnvelope::Durable(message) = &after[0] else {
+            panic!("expected the fresh unbound message");
+        };
+        assert_eq!(message.payload.as_slice(), b"fresh");
     }
 
     #[test]

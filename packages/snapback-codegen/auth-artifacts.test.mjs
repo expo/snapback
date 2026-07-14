@@ -50,7 +50,7 @@ export const createTodo = defineMutation({
 });
 `;
 
-// LLP 0012/0056 golden vectors: domains, the four leading items, full digest
+// LLP 0012/0058 golden vectors: domains, the four leading items, full digest
 // width, and the legacy truncation/raw-input spellings are all pinned here.
 const vectorInput = {
   appId: 'golden-app',

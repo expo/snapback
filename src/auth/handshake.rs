@@ -5,6 +5,8 @@
 //! computation pure lets HTTP, tests, and the client sentinel share one exact
 //! matrix without turning a previous handshake into server-side state.
 
+// @ref LLP 0058#bootstrap-handshake — discovery advertises exact protocol readiness but never substitutes for per-request authority resolution.
+
 use axum::http::HeaderMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

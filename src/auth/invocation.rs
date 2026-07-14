@@ -5,6 +5,8 @@
 //! [`PreparedInvocation`]; application code never receives a wire credential
 //! or an operator bypass as identity.
 
+// @ref LLP 0058#shared-invocation-authority — one closed gate separates wire authority, resolved authority, and the immutable handler projection.
+
 use crate::admin::ServerProfile;
 use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
 use crate::auth::provider::ResolvedSession;

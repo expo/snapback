@@ -2968,7 +2968,7 @@ function sha256Framed(domain, items) {
 
 /** Pure identity authority used by codegen and golden-vector tests. V0 keeps
  * its historical domains/truncation byte-for-byte; only the closed v1+sessions
- * tuple enters the disjoint serialized namespaces from LLP 0012/0056. */
+ * tuple enters the disjoint serialized namespaces from LLP 0012/0058. */
 export function computeArtifactIdentityStrings({
   artifactVersion,
   authMode,
