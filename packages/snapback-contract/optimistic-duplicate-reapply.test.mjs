@@ -335,6 +335,13 @@ const milkRows = (surface) =>
   const fresh = [{ _id: 'todo_auth_2', title: 'fresh', completed: false, userId: 'u1', _version: 3 }];
   liveOptions.onAuthorizationBoundary(fresh, { kind: 'authorization_snapshot', version: 3 });
   assert.deepEqual(surface.boundary.current('todos'), fresh);
+
+  liveOptions.onAuthorizationBoundary([], {
+    kind: 'authorization_error',
+    version: 3,
+    error: new Error('injected durable queue failure'),
+  });
+  assert.deepEqual(surface.boundary.current('todos'), [], 'authorization faults also blank synchronously');
   surface.dispose();
 }
 

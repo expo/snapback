@@ -828,7 +828,11 @@ export async function createSnapbackContractSurface({
         authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
         onAuthorizationBoundary: (rows, detail = {}) => {
           if (detail.kind === 'authorization_retain') return;
-          if (detail.kind === 'authorization_quarantine' || detail.kind === 'authorization_delete') {
+          if (
+            detail.kind === 'authorization_quarantine'
+            || detail.kind === 'authorization_delete'
+            || detail.kind === 'authorization_error'
+          ) {
             queryAuthorizationHidden = true;
             if (detail.kind === 'authorization_delete') {
               lastServerRows = [];
@@ -2768,7 +2772,11 @@ async function createMultiLiveContractSurface({
         authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
         onAuthorizationBoundary: (rows, detail = {}) => {
           if (detail.kind === 'authorization_retain') return;
-          if (detail.kind === 'authorization_quarantine' || detail.kind === 'authorization_delete') {
+          if (
+            detail.kind === 'authorization_quarantine'
+            || detail.kind === 'authorization_delete'
+            || detail.kind === 'authorization_error'
+          ) {
             authorizationHidden.add(name);
             if (!disposed && boundary) boundary.write(name, () => []);
             return;
