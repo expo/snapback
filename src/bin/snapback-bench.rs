@@ -72,11 +72,11 @@ fn main() -> anyhow::Result<()> {
         report.ephemeral_publishes_per_sec, report.ephemeral_publish_us
     );
     println!(
-        "  read during a busy write (mutex):  {:>10.0} µs   (pre-L6 path: queues behind the write)",
+        "  synchronized write hold (mutex):   {:>10.0} µs   (pre-L6 path: queues behind the writer)",
         report.read_during_write_via_lock_us
     );
     println!(
-        "  read during a busy write (lane):   {:>10.0} µs   (L6 read lane: pooled WAL reader, pinned snapshot)",
+        "  synchronized write hold (lane):    {:>10.0} µs   (L6 read lane: pooled WAL reader, pinned snapshot)",
         report.read_during_write_via_read_lane_us
     );
     Ok(())

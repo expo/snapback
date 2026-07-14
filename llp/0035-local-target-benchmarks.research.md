@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-02 (§Idle cost added — the measured X5 scale-to-zero entry for the local target; same day: §M3: the DK-3 op-log-delta lever — matcher-based delta ~5 200× cheaper than the warm re-query, armed the trigger and then *landed* as the shipped `live_delta` path measured by the same function; earlier same day: §After warm VM DK-4 re-run; §L6+L7 re-run)
+**Revised:** 2026-07-13 (§Current measurement contract — finite-query DK-4 probe, protected-live fan-out interpretation, and synchronized L6 A/B; 2026-07-02: §Idle cost, §M3, §After warm VM, §L6+L7)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -49,6 +49,46 @@ concurrent writer to a queried table conflicts). These point sharply at DK-4
   (`m1_bench_smoke`) with 10× threshold headroom to catch order-of-magnitude
   regressions without flaking on shared-runner noise.
 
+## Current measurement contract (2026-07-13, protected-query enforcement)
+
+The dated result tables below remain the evidence produced by the runtime that
+existed on 2026-07-01 and 2026-07-02. The common auth invocation gate later made
+every auth-scoped `LiveQuery` use the protected fresh-realm profile. That exposed
+two stale benchmark assumptions and one timing approximation; the harness now
+uses these contracts:
+
+- **DK-4 warm/fresh is an ordinary finite query.** `noop` had accidentally been
+  registered as a `LiveQuery` by the benchmark's shared query constructor. Once
+  protected-query enforcement landed, both `vm_cost_us` and `warm_invoke_us`
+  therefore took the intentionally fresh path, so their ratio no longer tested
+  pooling. `noop` is now a non-retainable `Query`: the fresh measurement disables
+  pooling and the warm measurement leaves it enabled, while handler source and
+  input stay identical. This is the DK-4 eligible profile. The harness does not
+  weaken the protected profile or falsely mark a live query authority-independent
+  to recover a favorable number.
+- **Live fan-out is now a protected fresh-realm re-query.** `listTodos` remains
+  an auth-scoped `LiveQuery`, so current `fanout_us_per_affected_sub` and the
+  read-lane controls intentionally pay a fresh realm. The 2026-07-02 warm-fan-out
+  numbers describe that dated build, not the current execution profile. The
+  delta smoke comparison remains meaningful: it compares the shipped delta path
+  with the actual protected re-query path measured in the same run.
+- **The L6 A/B is causally synchronized, not clock calibrated.** A writer takes
+  the instance mutex and acknowledges acquisition over a rendezvous channel. A
+  global-mutex reader then starts its timer and signals that it is about to
+  attempt the lock. While the writer remains held, four read-lane control
+  queries complete; the writer is then released to commit and the queued
+  reader finishes. The queued timer necessarily encloses the control work,
+  while the lane metric is that work's per-query mean. This proves queueing
+  versus progress without sleeps, a
+  host-calibrated spin count, or an absolute millisecond floor. Its numeric
+  values are not directly comparable to the old constructed 400 ms window. A
+  generous 30-second receive timeout exists only to turn a lock-topology
+  regression into a failure instead of a wedged test; it does not size the
+  writer hold or participate in the reported metric.
+
+This correction changes the measurement contract and interpretation; it does
+not claim a new full-scale release result.
+
 Reproduce:
 
 ```
@@ -74,11 +114,12 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 
 ## L6+L7 re-run (2026-07-02, after the concurrency arc landed)
 
-The harness gained a `read_during_write` A/B (file-backed database; a busy
-mutation holds the write lane for 400 ms while one read runs each way, both
-paths measured in the same build) and was re-run at full scale after the
-reader-pool/offload arc ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
-L6+L7) landed. Two runs, same machine and method as above.
+The harness then gained a `read_during_write` A/B (file-backed database; a busy
+mutation held the write lane for a constructed 400 ms while one read ran each
+way, both paths measured in the same build) and was re-run at full scale after
+the reader-pool/offload arc
+([LLP 0032](./0032-decision-and-implementation-hardening.plan.md) L6+L7) landed.
+Two runs, same machine and method as above.
 
 | Metric | Before (design) | After (measured) | Meaning |
 | --- | --- | --- | --- |
@@ -93,7 +134,9 @@ this table to the DK-4 conclusion — the next read-latency lever is VM reuse,
 not concurrency. The mutex-path number is kept measurable on purpose (the
 harness reads through the global lock) so future regressions in either lane
 stay visible. The CI smoke lane asserts the split (lane read under half the
-busy window; mutex read over a quarter of it).
+busy window; mutex read over a quarter of it). That timing protocol has since
+been replaced by the causally synchronized contract above; the table remains a
+historical L6+L7 result.
 
 ## After warm VM (2026-07-02, DK-4 landed)
 
@@ -121,6 +164,12 @@ noise (warm invocation ~800–900 µs across both runs).
 | Fan-out ceiling @ 10 ms | ~2 affected subs/commit | **~5–6 affected subs/commit** | derived |
 | Read during a busy write — read lane | ~4 300–4 600 µs | ~6 000–7 200 µs | **a warm-pool miss by construction**: the harness's single warm VM is checked out by the busy writer (same bundle), so the one concurrent read pays a fresh create+setup — ≈ the fresh path, never queued. Steady-state concurrent readers warm their own VMs (the pool holds up to 4) |
 | Read during a busy write — global mutex | ~302 000–309 000 µs | ~300 000 µs | unchanged by design (still queues; kept measurable) |
+
+**Current-contract note (2026-07-13):** the live-query fan-out and read-lane
+interpretations in this dated table predate protected-query enforcement.
+`listTodos` is now intentionally fresh-realm because it is an auth-scoped
+`LiveQuery`; a current lane read is not a warm-pool miss caused by contention.
+The synchronized A/B described above supersedes the constructed 400 ms window.
 
 Reading the numbers:
 
@@ -195,8 +244,10 @@ Honest scope of the projection:
 
 The CI smoke lane asserts `fanout_delta_us_per_affected_sub × 2 <
 fanout_us_per_affected_sub` (both measured the same run, machine-independent) —
-it fails if op-log deltas ever stop decisively beating the re-query path, which
-is the whole premise of the lever.
+it fails if op-log deltas ever stop decisively beating the actual re-query path,
+which is the whole premise of the lever. The table above is the 2026-07-02 warm
+re-query result; current smoke runs exercise the protected fresh-realm live
+query described in §Current measurement contract.
 
 **Landed 2026-07-02.** The projection became the shipped path: live delivery
 emits an additive `live_delta` for the analyzable HostPlan subset instead of a

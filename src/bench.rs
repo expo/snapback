@@ -41,9 +41,6 @@ pub struct BenchConfig {
     pub conflict_trials: usize,
     /// Publishes for the ephemeral throughput measurement.
     pub ephemeral_publishes: usize,
-    /// How long the busy write runs in the read-during-write measurement (the
-    /// L6 before/after A/B).
-    pub busy_write_ms: u64,
 }
 
 impl BenchConfig {
@@ -55,7 +52,6 @@ impl BenchConfig {
             read_set_size: 50,
             conflict_trials: 200,
             ephemeral_publishes: 2_000,
-            busy_write_ms: 400,
         }
     }
 
@@ -68,14 +64,6 @@ impl BenchConfig {
             read_set_size: 4,
             conflict_trials: 8,
             ephemeral_publishes: 40,
-            // The busy window must dominate one read's own cost or the
-            // read-during-write assertions cannot discriminate queueing from
-            // slowness. Debug-build fresh-VM reads have ranged from ~90ms to
-            // 262ms on 2-core CI runners; 800ms left less than a 2x gap after
-            // writer calibration and the quarter-window entry delay. A 1600ms
-            // window restores decisive headroom while keeping this smoke-only
-            // proof bounded; the full research profile remains 400ms.
-            busy_write_ms: 1_600,
         }
     }
 }
@@ -96,7 +84,9 @@ pub struct BenchReport {
     pub vm_create_us: f64,
     /// Per-invocation cost on the DK-4 warm path (default-on): eval of the
     /// small invoke IIFE plus the per-invocation reset sweep, no VM create,
-    /// no module re-parse. Compare against `vm_cost_us` for the warm win.
+    /// no module re-parse. The probe is an ordinary finite query because
+    /// auth-scoped live queries deliberately use the protected fresh-realm
+    /// profile. Compare against `vm_cost_us` for the warm win.
     ///
     /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — proof: re-measure.
     pub warm_invoke_us: f64,
@@ -134,12 +124,13 @@ pub struct BenchReport {
     /// Ephemeral publish throughput (publishes/sec) and per-publish cost.
     pub ephemeral_publishes_per_sec: f64,
     pub ephemeral_publish_us: f64,
-    /// Read latency while a long write holds the write lane, reading through
-    /// the global mutex — the pre-L6 path, where every read queues behind the
-    /// write. Expected ≈ the write's remaining duration.
+    /// Read latency while a synchronized writer holds the write lane, reading
+    /// through the global mutex — the pre-L6 path, where every read queues.
+    /// The hold interval is causally bounded by read-lane control work rather
+    /// than a calibrated wall-clock delay.
     pub read_during_write_via_lock_us: f64,
-    /// Read latency during the same long write through the L6 read lane
-    /// (pooled WAL reader, pinned snapshot). Expected ≈ a standalone read.
+    /// Mean read latency during the same synchronized hold through the L6 read
+    /// lane (pooled WAL reader, pinned snapshot).
     pub read_during_write_via_read_lane_us: f64,
 }
 
@@ -161,21 +152,6 @@ globalThis.__snapbackHandlers = {
   async createOther(ctx, args) {
     return await ctx.db.insert('others', { label: args.label });
   },
-  async busySpin(ctx, args) {
-    // Calibration probe for busyCreate: burn args.iters and return quickly.
-    var sink = 0;
-    for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
-    return [{ sink: sink % 1000 }];
-  },
-  async busyCreate(ctx, args) {
-    // Clock-free busy spin: the deterministic tier denies Date.now at
-    // runtime (LLP 0051 Increment 2), so the writer burns a host-calibrated
-    // iteration count instead of busy-waiting on a wall clock. The bench
-    // only needs the write lock held for roughly the requested window.
-    var sink = 0;
-    for (var i = 0; i < args.iters; i++) { sink += (i * 31) % 97; }
-    return await ctx.db.insert('todos', { title: 'busy-' + (sink % 10), done: false });
-  }
 };
 "#;
 
@@ -191,7 +167,7 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
     let spurious_conflict_rate = measure_spurious_conflict(config)?;
     let (ephemeral_publishes_per_sec, ephemeral_publish_us) = measure_ephemeral(config)?;
     let (read_during_write_via_lock_us, read_during_write_via_read_lane_us) =
-        measure_read_during_write(config)?;
+        measure_read_during_write()?;
 
     Ok(BenchReport {
         iterations: config.iterations,
@@ -259,7 +235,7 @@ fn schema() -> SchemaManifest {
 }
 
 fn functions() -> FunctionManifest {
-    let query = |name: &str, table: &str| {
+    let live_query = |name: &str, table: &str| {
         let mut def = FunctionDefinition::new(
             name,
             FunctionKind::LiveQuery,
@@ -277,6 +253,18 @@ fn functions() -> FunctionManifest {
         def.read_set_summary.mode = Some("handlerDeclared".to_owned());
         def
     };
+    // DK-4 measures the reusable finite-query profile. Auth-scoped live
+    // queries intentionally use a protected fresh realm, so registering this
+    // no-data probe as LiveQuery would make the "warm" and forced-fresh
+    // measurements exercise the same path.
+    let noop = FunctionDefinition::new(
+        "noop",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: HANDLER_SOURCE.to_owned(),
+            export: "noop".to_owned(),
+        }),
+    );
     let mutation = |name: &str, table: &str| {
         let mut def = FunctionDefinition::new(
             name,
@@ -297,14 +285,12 @@ fn functions() -> FunctionManifest {
     };
     FunctionManifest {
         functions: vec![
-            query("noop", "todos"),
-            query("listTodos", "todos"),
-            query("listOthers", "others"),
+            noop,
+            live_query("listTodos", "todos"),
+            live_query("listOthers", "others"),
             mutation("createTodo", "todos"),
             mutation("touchTodo", "todos"),
             mutation("createOther", "others"),
-            mutation("busyCreate", "todos"),
-            query("busySpin", "todos"),
         ],
         ..FunctionManifest::default()
     }
@@ -351,11 +337,12 @@ fn measure_vm_cost(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f6
     Ok(micros_per(start, config.iterations))
 }
 
-/// The DK-4 warm-path per-invocation cost: the same trivial no-data query as
-/// `vm_cost_us`, but through the default warm pool — invoke-IIFE eval plus
-/// the reset sweep, no create, no module re-parse. The warm-up pays the
-/// one-time VM setup so the steady state is what live fan-out and repeat
-/// invocations actually cost.
+/// The DK-4 warm-path per-invocation cost: the same trivial no-data finite
+/// query as `vm_cost_us`, but through the default warm pool — invoke-IIFE eval
+/// plus the reset sweep, no create, no module re-parse. The finite-query kind
+/// matters: auth-scoped live queries intentionally use a protected fresh
+/// realm. The warm-up pays the one-time VM setup so repeat eligible
+/// invocations reach steady state.
 fn measure_warm_invoke(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
     let snapback = configured()?;
     for _ in 0..4 {
@@ -449,12 +436,13 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
 
 /// DK-3 / M3: the projected op-log-delta cost per affected subscription for the
 /// analyzable subset (single-table filtered query — the syncable-live subset of
-/// LLP 0008 §Reactivity). Today's fan-out re-runs the whole query in a (warm) VM
-/// per affected subscription (`fanout_us_per_affected_sub`); an op-log delta
-/// instead classifies each committed `ChangedRow` against the subscription's
-/// captured predicate with the live matcher — no VM, no re-query — and ships
-/// just the changed rows. This measures that classify+serialize cost using the
-/// real matcher (`row_matches_query_filters`), so the number is a faithful
+/// LLP 0008 §Reactivity). Today's fan-out re-runs the protected live query in a
+/// fresh realm per affected subscription (`fanout_us_per_affected_sub`); an
+/// op-log delta instead classifies each committed `ChangedRow` against the
+/// subscription's captured predicate with the live matcher — no VM, no
+/// re-query — and ships just the changed rows. This measures that
+/// classify+serialize cost using the real matcher
+/// (`row_matches_query_filters`), so the number is a faithful
 /// projection of the server-side delta cost, not a stub.
 ///
 /// Scenario: a filtered live query (`todos WHERE userId = <sub>`), a commit of
@@ -813,16 +801,17 @@ fn measure_ephemeral(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<
     Ok((per_sec, publish_us))
 }
 
-/// The L6 before/after A/B on one build: a busy mutation holds the write lane
-/// for `busy_write_ms` while a read runs (a) through the global mutex — the
-/// pre-L6 shape, which queues behind the write — and (b) through the read lane
-/// (pooled WAL reader, pinned snapshot), which does not. File-backed database:
-/// the read lane requires WAL.
+/// The L6 before/after A/B on one build. A writer acquires the global instance
+/// mutex, signals that acquisition, and holds it across a causally synchronized
+/// interval. A global-mutex reader begins waiting before four read-lane control
+/// queries run; only then is the writer released to commit. The global reader's
+/// timer therefore encloses the same work whose per-query mean is reported for
+/// the read lane. This proves the queueing topology without sleeps, calibrated
+/// spin loops, or machine-dependent absolute timing. File-backed database: the
+/// read lane requires WAL.
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
-fn measure_read_during_write(
-    config: &BenchConfig,
-) -> crate::diagnostic::SnapbackResult<(f64, f64)> {
+fn measure_read_during_write() -> crate::diagnostic::SnapbackResult<(f64, f64)> {
     let dir = std::env::temp_dir().join(format!(
         "snapback-bench-{}-{}",
         std::process::id(),
@@ -838,14 +827,13 @@ fn measure_read_during_write(
             format!("bench tempdir could not be created: {error}"),
         )
     })?;
-    let result = measure_read_during_write_at(&dir.join("bench.sqlite3"), config);
+    let result = measure_read_during_write_at(&dir.join("bench.sqlite3"));
     let _ = std::fs::remove_dir_all(&dir);
     result
 }
 
 fn measure_read_during_write_at(
     path: &std::path::Path,
-    config: &BenchConfig,
 ) -> crate::diagnostic::SnapbackResult<(f64, f64)> {
     let mut snapback = LocalSnapback::open(path)?;
     snapback.apply_schema(schema())?;
@@ -856,54 +844,86 @@ fn measure_read_during_write_at(
     lane.invoke_query("listTodos", args(json!({})))?;
 
     let shared = std::sync::Arc::new(std::sync::Mutex::new(snapback));
-    // Calibrate the clock-free busy spin (the deterministic tier denies
-    // Date.now inside handlers — LLP 0051 Increment 2): time a fixed
-    // iteration count, take the best of two runs (the second is warm), and
-    // scale to the requested window. Rounding down inflates the window,
-    // which only makes the queued-mutex lower bound safer.
-    let probe_iters: u64 = 200_000;
-    let mut best_probe_us = u64::MAX;
-    for _ in 0..2 {
+    let (writer_acquired_tx, writer_acquired_rx) = std::sync::mpsc::sync_channel(0);
+    let (release_writer_tx, release_writer_rx) = std::sync::mpsc::sync_channel(0);
+    let writer_shared = shared.clone();
+    let writer = std::thread::spawn(move || {
+        let mut snapback = writer_shared.lock().expect("bench writer lock");
+        writer_acquired_tx
+            .send(())
+            .expect("bench writer-acquired signal");
+        release_writer_rx
+            .recv()
+            .expect("bench writer-release signal");
+        snapback
+            .invoke_mutation("createTodo", args(json!({ "title": "held-writer" })))
+            .expect("bench synchronized mutation");
+    });
+    writer_acquired_rx
+        .recv()
+        .expect("bench writer-acquired acknowledgement");
+
+    // Start the pre-L6 reader while the writer definitely owns the mutex. The
+    // rendezvous send happens after its timer starts and before it attempts the
+    // lock, so everything the main thread does after `recv` is causally inside
+    // the reader's queued interval.
+    let (reader_ready_tx, reader_ready_rx) = std::sync::mpsc::sync_channel(0);
+    let reader_shared = shared.clone();
+    let queued_reader = std::thread::spawn(move || {
         let start = Instant::now();
-        shared
-            .lock()
-            .expect("bench probe lock")
-            .invoke_query("busySpin", args(json!({ "iters": probe_iters })))?;
-        best_probe_us = best_probe_us.min(start.elapsed().as_micros().max(1) as u64);
-    }
-    let iters_per_ms = ((probe_iters * 1_000) / best_probe_us).max(100);
-    let busy_ms = config.busy_write_ms;
-    let busy_iters = busy_ms * iters_per_ms;
-    let spawn_busy_writer = |shared: std::sync::Arc<std::sync::Mutex<LocalSnapback>>| {
-        std::thread::spawn(move || {
-            let mut snapback = shared.lock().expect("bench writer lock");
-            snapback
-                .invoke_mutation("busyCreate", args(json!({ "iters": busy_iters })))
-                .expect("bench busy mutation");
-        })
-    };
-    // Wait long enough for the writer to be inside the busy handler (VM
-    // creation is a few ms; a quarter of the busy window is far past it).
-    let entered = Duration::from_millis(busy_ms / 4);
+        reader_ready_tx
+            .send(())
+            .expect("bench queued-reader signal");
+        let snapback = reader_shared.lock().expect("bench reader lock");
+        snapback
+            .invoke_query("listTodos", args(json!({})))
+            .expect("bench queued read");
+        start.elapsed().as_micros() as f64
+    });
+    reader_ready_rx
+        .recv()
+        .expect("bench queued-reader acknowledgement");
 
-    // (a) The read lane: reads proceed while the write runs.
-    let writer = spawn_busy_writer(shared.clone());
-    std::thread::sleep(entered);
-    let start = Instant::now();
-    lane.invoke_query("listTodos", args(json!({})))?;
-    let via_read_lane_us = start.elapsed().as_micros() as f64;
-    writer.join().expect("bench writer thread");
+    // These reads are both the L6 measurement and the deterministic unit of
+    // work that keeps the writer held while the pre-L6 reader queues. Four
+    // samples leave a decisive relative gap without defining a wall-clock
+    // target; the global-reader timer necessarily encloses their total.
+    const READ_LANE_CONTROL_SAMPLES: usize = 4;
+    let (lane_done_tx, lane_done_rx) = std::sync::mpsc::sync_channel(1);
+    let lane_worker = std::thread::spawn(move || {
+        let lane_start = Instant::now();
+        let lane_result = (|| {
+            for _ in 0..READ_LANE_CONTROL_SAMPLES {
+                lane.invoke_query("listTodos", args(json!({})))?;
+            }
+            Ok::<(), crate::diagnostic::SnapbackError>(())
+        })();
+        let via_read_lane_us = micros_per(lane_start, READ_LANE_CONTROL_SAMPLES);
+        lane_done_tx
+            .send((lane_result, via_read_lane_us))
+            .expect("bench read-lane completion signal");
+    });
+    // This timeout is only a deadlock fail-safe: it is not reported as a
+    // metric or used to size the writer hold. A lane that accidentally starts
+    // taking the global mutex must fail instead of wedging the test process.
+    let lane_outcome = lane_done_rx.recv_timeout(Duration::from_secs(30));
 
-    // (b) The global mutex: the read queues behind the write's remainder.
-    let writer = spawn_busy_writer(shared.clone());
-    std::thread::sleep(entered);
-    let start = Instant::now();
-    {
-        let snapback = shared.lock().expect("bench reader lock");
-        snapback.invoke_query("listTodos", args(json!({})))?;
-    }
-    let via_lock_us = start.elapsed().as_micros() as f64;
+    // Always release and join both threads before propagating a lane error, so
+    // a failed benchmark invocation cannot strand a lock holder.
+    release_writer_tx
+        .send(())
+        .expect("bench writer-release acknowledgement");
     writer.join().expect("bench writer thread");
+    let via_lock_us = queued_reader.join().expect("bench reader thread");
+    lane_worker.join().expect("bench read-lane thread");
+    let (lane_result, via_read_lane_us) = lane_outcome.map_err(|error| {
+        crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_BENCH_READ_LANE_STALLED",
+            "bench",
+            format!("read lane did not complete during synchronized writer hold: {error}"),
+        )
+    })?;
+    lane_result?;
 
     Ok((via_lock_us, via_read_lane_us))
 }
@@ -919,6 +939,26 @@ fn ephemeral_err(error: crate::ephemeral::EphemeralError) -> crate::diagnostic::
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn benchmark_function_profiles_match_the_measurement_contract() {
+        let manifest = functions();
+        let noop = manifest
+            .functions
+            .iter()
+            .find(|function| function.name == "noop")
+            .expect("noop benchmark function");
+        assert_eq!(noop.kind, FunctionKind::Query);
+        assert!(!noop.is_protected_query());
+
+        let live = manifest
+            .functions
+            .iter()
+            .find(|function| function.name == "listTodos")
+            .expect("live benchmark function");
+        assert_eq!(live.kind, FunctionKind::LiveQuery);
+        assert!(live.is_protected_query());
+    }
 
     /// LLP 0032 M1 smoke lane: the harness runs at tiny scale, emits every
     /// metric, and each is within a generous order-of-magnitude bound. Timing
@@ -970,23 +1010,22 @@ mod tests {
         // if it regressed to fresh (silent fallback, broken reset burning
         // every VM) the ratio collapses toward 1.0 and this catches it. The
         // 0.75 bound is loose; the architectural gap (no create, no module
-        // re-parse) is several-fold. Compare against the full fresh path
-        // envelope measured in this run (creation plus fresh invocation), so
-        // host contention in a tiny smoke sample does not make the warm path
-        // look falsely regressed (ENG-23488).
-        let fresh_path_us = report.vm_create_us + report.vm_cost_us;
+        // re-parse) is several-fold. Both metrics invoke the same ordinary
+        // finite query; only the fresh measurement disables the pool. That
+        // keeps the comparison on DK-4's eligible path while protected live
+        // queries continue to get their intentional fresh realm.
         ensure!(
-            report.warm_invoke_us > 0.0 && report.warm_invoke_us < fresh_path_us * 0.75,
+            report.warm_invoke_us > 0.0 && report.warm_invoke_us < report.vm_cost_us * 0.75,
             "warm invocation must beat the fresh path decisively: {report:?}"
         );
         ensure!(report.single_writer_mutations_per_sec > 1.0, "{report:?}");
         ensure!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
         ensure!(report.fanout_us_per_affected_sub >= 0.0, "{report:?}");
         // DK-3: the op-log-delta projection must be positive and decisively
-        // cheaper than the warm re-query path (both measured this run, so the
-        // comparison is machine-independent). This is the number the revisit
-        // trigger is decided on; if deltas ever stopped beating the re-query
-        // the lever would be gone.
+        // cheaper than the protected live re-query path (both measured this
+        // run, so the comparison is machine-independent). This is the number
+        // the revisit trigger is decided on; if deltas ever stopped beating
+        // the re-query the lever would be gone.
         ensure!(report.fanout_delta_us_per_affected_sub > 0.0, "{report:?}");
         ensure!(
             report.fanout_delta_us_per_affected_sub * 2.0 < report.fanout_us_per_affected_sub,
@@ -1000,22 +1039,14 @@ mod tests {
             report.ephemeral_publishes_per_sec > 60.0,
             "ephemeral must sustain >60 Hz: {report:?}"
         );
-        // L6: during the same busy write, the read lane (a pooled reader that
-        // does not queue) must decisively beat the mutex path (which waits out
-        // the write). This is asserted *relative* — both are measured on the
-        // same runner in the same run — which reduces machine dependence and
-        // avoids a fixed lane ceiling. The smoke busy window is still sized to
-        // dominate a cold concurrent read on slow shared runners. The lock
-        // path's own lower bound confirms it genuinely queued behind the
-        // wall-clock busy window.
-        let busy_us = (BenchConfig::smoke().busy_write_ms * 1_000) as f64;
+        // L6: while a synchronized writer owns the mutex, the read lane (a
+        // pooled WAL reader that does not queue) must decisively beat the
+        // global-mutex reader. The queued reader's timer causally encloses four
+        // read-lane samples, so this relative assertion proves the topology
+        // without a sleep, calibrated busy loop, or fixed wall-clock floor.
         ensure!(
             report.read_during_write_via_read_lane_us * 2.0 < report.read_during_write_via_lock_us,
             "read lane must decisively beat the queued mutex path: {report:?}"
-        );
-        ensure!(
-            report.read_during_write_via_lock_us > busy_us / 4.0,
-            "the mutex path should have queued behind the busy write: {report:?}"
         );
         Ok(())
     }
