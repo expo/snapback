@@ -246,6 +246,18 @@ const isUnavailableAuthTransport = (error) => (
   && error?.code == null
 );
 
+// @ref LLP 0058#bootstrap-handshake — capability axes come only from echoes of
+// this client's own protocol offer. When the transport publishes its offer
+// tuple (`client.authProtocols`, as the kit does), a non-null echo the client
+// never offered is unsolicited and cannot enable queued replay, authority
+// descriptors, invalidation-backed surfaces, or retained reads. A generic
+// coordinator test double may omit authProtocols; its validated projection is
+// then its own responsibility.
+const offeredProtocolEchoV1 = (client, session, axis) => (
+  session?.clientProtocols?.[axis] === 1
+  && (client?.authProtocols == null || client.authProtocols[axis] === 1)
+);
+
 async function bootContractAuthority(client, coordinator, { durableOffline = false } = {}) {
   if (!coordinator) return { capture: null, durableAuthorityRestored: false };
   if (durableOffline && typeof coordinator.restoreOffline === 'function') {
@@ -706,15 +718,15 @@ export async function createSnapbackContractSurface({
     const sessionQueueCapable = Boolean(
       coordinatedSessionsMode
       && authSession?.availability?.queuedReplay?.available === true
-      && authSession?.clientProtocols?.authorityDescriptor === 1
+      && offeredProtocolEchoV1(client, authSession, 'authorityDescriptor')
       && storeAuthorization?.authorityDescriptor?.descriptorVersion === 1
     );
     let authorizedLeaseFacts = null;
     if (
       coordinatedSessionsMode
       && authSession?.availability?.retainedReads?.available === true
-      && authSession?.clientProtocols?.authInvalidation === 1
-      && authSession?.clientProtocols?.authorizedLease === 1
+      && offeredProtocolEchoV1(client, authSession, 'authInvalidation')
+      && offeredProtocolEchoV1(client, authSession, 'authorizedLease')
     ) {
       try {
         authorizedLeaseFacts = validateAuthorizedLeaseCapability(authSession.authorizedLease);
@@ -1954,15 +1966,15 @@ export async function createSnapbackContractSurface({
       const refreshedQueueCapable = Boolean(
         coordinatedSessionsMode
         && authSession?.availability?.queuedReplay?.available === true
-        && authSession?.clientProtocols?.authorityDescriptor === 1
+        && offeredProtocolEchoV1(client, authSession, 'authorityDescriptor')
         && refreshedAuthorization?.authorityDescriptor?.descriptorVersion === 1
       );
       let refreshedLeaseFacts = null;
       if (
         coordinatedSessionsMode
         && authSession?.availability?.retainedReads?.available === true
-        && authSession?.clientProtocols?.authInvalidation === 1
-        && authSession?.clientProtocols?.authorizedLease === 1
+        && offeredProtocolEchoV1(client, authSession, 'authInvalidation')
+        && offeredProtocolEchoV1(client, authSession, 'authorizedLease')
       ) {
         try {
           refreshedLeaseFacts = validateAuthorizedLeaseCapability(authSession.authorizedLease);

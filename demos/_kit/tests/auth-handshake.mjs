@@ -1,13 +1,24 @@
 // Bootstrap auth-handshake network sentinel (no server required).
 
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import { SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 11 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 15 });
 const originalFetch = globalThis.fetch;
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 const AUTHORIZATION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const BEARER_SENTINEL = 'sbs_HANDSHAKE_SUCCESS_SENTINEL_MUST_NOT_ESCAPE';
+const NUMERIC_BEARER_SENTINEL = '2915031750813250';
+const PROTOCOL_HEADERS = {
+  authClient: 'x-snapback-auth-client-protocol',
+  authInvalidation: 'x-snapback-auth-invalidation-protocol',
+  authorityDescriptor: 'x-snapback-authority-descriptor-protocol',
+  authorizedLease: 'x-snapback-authorized-lease-protocol',
+};
 
 const response = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -318,6 +329,170 @@ try {
       }).includes(BEARER_SENTINEL), 'handshake refusal never republishes the bearer');
     }
     return { rejectedShapes: 2 };
+  });
+
+  // ENG-24987: an echoed protocol version the request did not offer is not a
+  // capability; the whole response is rejected fail-closed, per axis.
+  await suite.check('non-null echoes the request did not offer reject the whole handshake', async () => {
+    const cases = [
+      { axis: 'authInvalidation', options: {} },
+      { axis: 'authorizedLease', options: {} },
+      { axis: 'authorityDescriptor', options: { authorityDescriptorProtocol: null } },
+    ];
+    for (const { axis, options } of cases) {
+      let observedHeaders = null;
+      globalThis.fetch = async (url, init) => {
+        assertEqual(new URL(url).pathname, '/auth/session');
+        observedHeaders = init.headers ?? {};
+        const poisoned = handshake({ activeMode: 'sessions' });
+        poisoned.clientProtocols[axis] = 1;
+        return response(poisoned);
+      };
+      const db = new SnapbackClient('http://stub', {
+        bearerToken: 'session-secret',
+        ...options,
+      });
+      const error = await assertThrows(
+        () => db.authSession(),
+        'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+        `expected the unsolicited ${axis} echo to reject the response`,
+      );
+      assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
+      assertEqual(
+        observedHeaders[PROTOCOL_HEADERS[axis]],
+        undefined,
+        `the request must not have offered ${axis}`,
+      );
+    }
+    return { rejectedAxes: cases.length };
+  });
+
+  await suite.check('an unsolicited auth-client echo fails the no-offer resume handshake', async () => {
+    // The only handshake a client can issue without offering the auth-client
+    // protocol is the custody resume of a coordinated legacy client whose
+    // custody another context installed. Its empty offer makes every non-null
+    // echo unsolicited, including authClient itself.
+    const coordinator = new AuthCoordinator({
+      appId: 'snapback.test/unsolicited-auth-client-echo',
+      storage: createMemoryAuthCustodyStorage(),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator: coordinator,
+      authClientProtocol: null,
+      authorityDescriptorProtocol: null,
+    });
+    const sessionId = '018f0d90-7b25-7a22-8c33-445566778899';
+    const userId = '018f0d90-7b26-7a22-8c33-445566778899';
+    let observedHeaders = null;
+    globalThis.fetch = async (url, init) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      observedHeaders = init.headers ?? {};
+      // The response matches the settling authority exactly, so the only
+      // invalid fact is the authClient echo — solicited for ordinary clients,
+      // unsolicited for this request, which carried no protocol offer at all.
+      const poisoned = handshake({ activeMode: 'sessions' });
+      poisoned.authority = { userId, sessionId, isAuthenticated: true };
+      poisoned.authorityDescriptor = {
+        descriptorVersion: 1,
+        authorityInstanceId: sessionId,
+        sessionGeneration: 1,
+      };
+      return response(poisoned);
+    };
+    try {
+      const anonymousCapture = await coordinator.establishAnonymous({
+        kind: 'anonymous',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+      });
+      const error = await assertThrows(
+        () => coordinator.transition(anonymousCapture, {
+          authority: {
+            kind: 'session',
+            authMode: 'sessions',
+            authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+            sessionId,
+            userId,
+          },
+          bearer: 'sbs_resume-bearer',
+          refreshAfterMs: 60_000,
+        }, 'test_unsolicited_auth_client_echo'),
+        'SNAPBACK_AUTH_TRANSITION_FAILED',
+        'the resume barrier must fail on the unsolicited auth-client echo',
+      );
+      assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_TRANSITION_FAILED');
+      for (const header of Object.values(PROTOCOL_HEADERS)) {
+        assertEqual(observedHeaders[header], undefined, `resume offered ${header}`);
+      }
+      return { rejected: true };
+    } finally {
+      await db.closeAuth();
+      await coordinator.close();
+    }
+  });
+
+  await suite.check('exactly offered echoes still project on every axis', async () => {
+    globalThis.fetch = async (url, init) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      for (const header of Object.values(PROTOCOL_HEADERS)) {
+        assertEqual(init.headers[header], '1', `expected the ${header} offer`);
+      }
+      const echoed = handshake({ activeMode: 'sessions' });
+      echoed.clientProtocols = {
+        authClient: 1,
+        authInvalidation: 1,
+        authorityDescriptor: 1,
+        authorizedLease: 1,
+      };
+      return response(echoed);
+    };
+    const db = new SnapbackClient('http://stub', {
+      bearerToken: 'session-secret',
+      authInvalidationProtocol: 1,
+      authorizedLeaseProtocol: 1,
+    });
+    const session = await db.authSession();
+    assertEqual(session.clientProtocols, {
+      authClient: 1,
+      authInvalidation: 1,
+      authorityDescriptor: 1,
+      authorizedLease: 1,
+    });
+    return { projectedAxes: 4 };
+  });
+
+  // ENG-24986: an all-numeric bearer reflected as a JSON number in an error
+  // diagnostic is compared in canonical string form and redacted.
+  await suite.check('numeric bearer reflections in error diagnostics are redacted', async () => {
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/auth/session') return response(handshake({ activeMode: 'sessions' }));
+      assertEqual(path, '/query/listTodos');
+      return response({
+        diagnostic: {
+          code: 'SNAPBACK_TEST_NUMERIC_ECHO',
+          message: 'request refused',
+          details: {
+            reflected: Number(NUMERIC_BEARER_SENTINEL),
+            nested: [Number(NUMERIC_BEARER_SENTINEL)],
+            text: `bearer ${NUMERIC_BEARER_SENTINEL}`,
+          },
+        },
+      }, 500);
+    };
+    const db = new SnapbackClient('http://stub', { bearerToken: NUMERIC_BEARER_SENTINEL });
+    const error = await assertThrows(
+      () => db.query('listTodos'),
+      'SNAPBACK_TEST_NUMERIC_ECHO',
+      'expected the sanitized server diagnostic',
+    );
+    const bytes = JSON.stringify({ message: error.message, diagnostic: error.diagnostic });
+    assert(!bytes.includes(NUMERIC_BEARER_SENTINEL), 'numeric bearer reflection escaped');
+    assertEqual(error.diagnostic.details.reflected, '[REDACTED]');
+    assertEqual(error.diagnostic.details.nested, ['[REDACTED]']);
+    return { redacted: true };
   });
 
   await suite.check('authorized-lease capability facts are exact v1 constants', async () => {

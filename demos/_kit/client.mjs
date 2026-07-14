@@ -448,6 +448,25 @@ const safeUnsignedInteger = (value) => Number.isSafeInteger(value) && value >= 0
 const nullableString = (value) => value === null || typeof value === 'string';
 const nullableProtocolV1 = (value) => value === null || value === 1;
 
+const AUTH_PROTOCOL_AXES = Object.freeze([
+  'authClient',
+  'authInvalidation',
+  'authorityDescriptor',
+  'authorizedLease',
+]);
+
+// @ref LLP 0058#bootstrap-handshake — `clientProtocols` echoes only exactly
+// supported versions this request offered. A non-null echo the request never
+// carried (or any version other than the locally supported v1) rejects the
+// entire response: Contract consumes these axes for queued replay and
+// retained reads, so an unsolicited echo must not become capability.
+const echoMatchesRequestOffer = (clientProtocols, requestOffer) => (
+  AUTH_PROTOCOL_AXES.every((axis) => {
+    const echo = clientProtocols[axis];
+    return echo === null || (echo === 1 && requestOffer?.[axis] === 1);
+  })
+);
+
 const projectOnlineAvailability = (value) => {
   if (
     !exactRecord(value, ['available', 'reason'])
@@ -544,7 +563,7 @@ const projectAuthorizedLeaseFacts = (value) => {
   };
 };
 
-const projectAuthSessionResponse = (value) => {
+const projectAuthSessionResponse = (value, requestOffer = null) => {
   if (!exactRecord(value, [
     'protocolVersion',
     'serverStartupNonce',
@@ -590,6 +609,7 @@ const projectAuthSessionResponse = (value) => {
       'authorizedLease',
     ])
     || !Object.values(clientProtocols).every(nullableProtocolV1)
+    || !echoMatchesRequestOffer(clientProtocols, requestOffer)
     || !exactRecord(availability, [
       'onlineRequestResponse',
       'authScopedLive',
@@ -897,13 +917,14 @@ export class SnapbackClient {
 
   async #uncoordinatedAuthSession({ cacheGeneration }) {
     try {
+      const offer = this.#authSessionOffer();
       const session = await this.#fetchJson(
         'GET',
         '/auth/session',
         undefined,
-        this.#authOfferHeaders(true),
+        this.#authOfferHeaders(true, undefined, offer),
       );
-      const projected = this.#validateAuthSession(session, this.bearerToken);
+      const projected = this.#validateAuthSession(session, this.bearerToken, offer);
       if (this.__authSessionCacheGeneration === cacheGeneration) {
         this.__authSessionLastSuccessful = projected;
         this.__authSessionCapture = null;
@@ -960,16 +981,28 @@ export class SnapbackClient {
     });
   }
 
-  #authOfferHeaders(includeAll = false, bearerOverride = undefined) {
+  // @ref LLP 0058#bootstrap-handshake — the offer tuple is captured once per
+  // request; the same object drives both the emitted headers and the echo
+  // validation for that exact network request.
+  #authSessionOffer() {
+    return Object.freeze({
+      authClient: this.authProtocols.authClient ?? null,
+      authInvalidation: this.authProtocols.authInvalidation ?? null,
+      authorityDescriptor: this.authProtocols.authorityDescriptor ?? null,
+      authorizedLease: this.authProtocols.authorizedLease ?? null,
+    });
+  }
+
+  #authOfferHeaders(includeAll = false, bearerOverride = undefined, offer = this.authProtocols) {
     const headers = {};
     const add = (name, version) => {
       if (version != null) headers[name] = String(version);
     };
-    add(AUTH_CLIENT_PROTOCOL_HEADER, this.authProtocols.authClient);
+    add(AUTH_CLIENT_PROTOCOL_HEADER, offer.authClient);
     if (includeAll) {
-      add(AUTH_INVALIDATION_PROTOCOL_HEADER, this.authProtocols.authInvalidation);
-      add(AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER, this.authProtocols.authorityDescriptor);
-      add(AUTHORIZED_LEASE_PROTOCOL_HEADER, this.authProtocols.authorizedLease);
+      add(AUTH_INVALIDATION_PROTOCOL_HEADER, offer.authInvalidation);
+      add(AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER, offer.authorityDescriptor);
+      add(AUTHORIZED_LEASE_PROTOCOL_HEADER, offer.authorizedLease);
     }
     const bearer = bearerOverride === undefined
       ? this.authCoordinator
@@ -983,8 +1016,8 @@ export class SnapbackClient {
     return headers;
   }
 
-  #validateAuthSession(session, requestBearer = null) {
-    const projected = projectAuthSessionResponse(session);
+  #validateAuthSession(session, requestBearer = null, requestOffer = null) {
+    const projected = projectAuthSessionResponse(session, requestOffer);
     if (projected && !valueContainsSecret(projected, requestBearer)) return projected;
     const diagnostic = {
       code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
@@ -1049,13 +1082,14 @@ export class SnapbackClient {
   }
 
   async #fetchAuthSessionWithBearer(bearer) {
+    const offer = this.#authSessionOffer();
     const session = await this.#trackedFetchJson(
       'GET',
       '/auth/session',
       undefined,
-      this.#authOfferHeaders(true, bearer),
+      this.#authOfferHeaders(true, bearer, offer),
     );
-    return this.#validateAuthSession(session, bearer);
+    return this.#validateAuthSession(session, bearer, offer);
   }
 
   async #coordinatedAuthSession({

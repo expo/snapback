@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0060
 
 ## Summary
@@ -1166,6 +1166,20 @@ shape no actual client accepts. Known residual looseness: the shared
 `descriptorVersion: 1` or the UUIDv7 instance-id grammar that the kit checks;
 tightening it would change mutation-input error classes and is deliberately out
 of this amendment's scope.
+
+The kit enforces the same closure from its side of the wire. Handshake
+validation receives the exact offer tuple that request carried — captured once
+per request and used for both the emitted headers and the echo comparison —
+and accepts a `clientProtocols` member only when it is null or equals an
+explicitly offered, locally supported version (v1). Any other non-null echo,
+including an echo of an axis the request never offered, rejects the entire
+response with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; a "helpful" or hostile server
+cannot grant a protocol the client did not negotiate. Contract consumes those
+echoed axes for queued replay, authority descriptors, and retained reads only
+through that validated projection, and when the transport publishes its offer
+tuple (`client.authProtocols`) Contract additionally cross-checks each echo
+against it, so an unsolicited echo can never enable a capability even behind a
+nonconforming client projection.
 
 Availability is computed, never caller asserted:
 

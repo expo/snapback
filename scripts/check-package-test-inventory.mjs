@@ -64,6 +64,7 @@ const inventories = [
       'retained-identity.test.mjs',
       'session-queue-axis.test.mjs',
       'surface-construction-failure.test.mjs',
+      'unsolicited-protocol-echo.test.mjs',
     ],
   },
   {
