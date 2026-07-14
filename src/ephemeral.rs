@@ -265,6 +265,58 @@ impl DeliveryNotifier {
 pub type Millis = u64;
 pub type ConnectionId = String;
 
+/// Internal owner identity for every delayed connection-scoped effect. The
+/// readable connection id is deliberately absent: it is a routing address that
+/// may be reused, while this value is the non-reusable authority incarnation
+/// that produced and may consume the effect.
+///
+/// @ref LLP 0059#fenced-effects-and-live-closure — queued, room, and outbox
+///   effects carry the complete stream/grant/session fence.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct ConnectionEffectFence {
+    authorization_stream_incarnation: Arc<str>,
+    connection_grant_id: Arc<str>,
+    authority: ConnectionEffectAuthority,
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum ConnectionEffectAuthority {
+    Anonymous,
+    Session {
+        session_id: Arc<str>,
+        generation: u64,
+    },
+}
+
+impl ConnectionEffectFence {
+    pub(crate) fn anonymous(
+        authorization_stream_incarnation: impl Into<Arc<str>>,
+        connection_grant_id: impl Into<Arc<str>>,
+    ) -> Self {
+        Self {
+            authorization_stream_incarnation: authorization_stream_incarnation.into(),
+            connection_grant_id: connection_grant_id.into(),
+            authority: ConnectionEffectAuthority::Anonymous,
+        }
+    }
+
+    pub(crate) fn session(
+        authorization_stream_incarnation: impl Into<Arc<str>>,
+        connection_grant_id: impl Into<Arc<str>>,
+        session_id: impl Into<Arc<str>>,
+        generation: u64,
+    ) -> Self {
+        Self {
+            authorization_stream_incarnation: authorization_stream_incarnation.into(),
+            connection_grant_id: connection_grant_id.into(),
+            authority: ConnectionEffectAuthority::Session {
+                session_id: session_id.into(),
+                generation,
+            },
+        }
+    }
+}
+
 #[derive(
     Clone,
     Debug,
@@ -923,6 +975,12 @@ pub struct DurableMessage {
     #[serde(skip)]
     #[schemars(skip)]
     authorization: Option<AuthorizationVersion>,
+    /// Exact non-wire owner of a queued connection effect. Production
+    /// connection-scoped queues always set it; `None` remains for explicitly
+    /// authority-independent traffic and legacy embedding seams.
+    #[serde(skip)]
+    #[schemars(skip)]
+    effect_fence: Option<ConnectionEffectFence>,
 }
 
 impl DurableMessage {
@@ -930,6 +988,7 @@ impl DurableMessage {
         Self {
             payload,
             authorization: None,
+            effect_fence: None,
         }
     }
 
@@ -937,11 +996,36 @@ impl DurableMessage {
         Self {
             payload,
             authorization: Some(authorization),
+            effect_fence: None,
+        }
+    }
+
+    pub(crate) fn bound(payload: Vec<u8>, effect_fence: ConnectionEffectFence) -> Self {
+        Self {
+            payload,
+            authorization: None,
+            effect_fence: Some(effect_fence),
+        }
+    }
+
+    pub(crate) fn authorized_bound(
+        payload: Vec<u8>,
+        authorization: AuthorizationVersion,
+        effect_fence: ConnectionEffectFence,
+    ) -> Self {
+        Self {
+            payload,
+            authorization: Some(authorization),
+            effect_fence: Some(effect_fence),
         }
     }
 
     fn authorization(&self) -> Option<&AuthorizationVersion> {
         self.authorization.as_ref()
+    }
+
+    fn effect_fence(&self) -> Option<&ConnectionEffectFence> {
+        self.effect_fence.as_ref()
     }
 }
 
@@ -986,13 +1070,29 @@ fn retained_resync_queue_item_bytes(message: &EphemeralMessage) -> usize {
 }
 
 fn retained_ephemeral_queue_item_bytes(
-    key: &(RoomId, EntryKey),
+    room: &RoomId,
+    entry_key: &EntryKey,
     message: &EphemeralMessage,
 ) -> usize {
     MAP_ENTRY_OVERHEAD
-        .saturating_add(retained_room_id_bytes(&key.0))
-        .saturating_add(retained_string_bytes(&key.1.0))
+        .saturating_add(retained_room_id_bytes(room))
+        .saturating_add(retained_string_bytes(&entry_key.0))
         .saturating_add(retained_ephemeral_message_bytes(message))
+}
+
+#[derive(Clone, Debug)]
+struct QueuedEphemeralMessage {
+    message: Arc<EphemeralMessage>,
+    effect_fence: Option<ConnectionEffectFence>,
+}
+
+impl QueuedEphemeralMessage {
+    fn new(message: Arc<EphemeralMessage>, effect_fence: Option<ConnectionEffectFence>) -> Self {
+        Self {
+            message,
+            effect_fence,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1125,6 +1225,7 @@ impl EntryRecord {
 struct SubscriberState {
     outbox: SharedOutbox,
     auth: AuthContext,
+    effect_fence: Option<ConnectionEffectFence>,
     retained_bytes: usize,
 }
 
@@ -1252,8 +1353,10 @@ impl RateBucket {
 #[derive(Clone, Debug)]
 struct OutboundQueue {
     durable: VecDeque<DurableMessage>,
-    resync: VecDeque<Arc<EphemeralMessage>>,
-    ephemeral: BTreeMap<(RoomId, EntryKey), Arc<EphemeralMessage>>,
+    resync: VecDeque<QueuedEphemeralMessage>,
+    // Coalescing includes the exact producer fence. A delayed predecessor
+    // update for the same room/key must not overwrite its successor's frame.
+    ephemeral: BTreeMap<(RoomId, EntryKey, Option<ConnectionEffectFence>), QueuedEphemeralMessage>,
     durable_bytes: usize,
     resync_bytes: usize,
     ephemeral_bytes: usize,
@@ -1263,6 +1366,7 @@ struct OutboundQueue {
     // capacity converts the whole queue to a single resync signal (sticky until
     // drained), never a silent drop.
     overflowed: bool,
+    overflowed_effect_fences: BTreeSet<ConnectionEffectFence>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1270,6 +1374,23 @@ enum FrameAuthorityDisposition {
     Send,
     Retain,
     DropStale,
+}
+
+/// Apply the connection-incarnation fence before any room or durable-stream
+/// authority check. Authority-independent frames remain eligible for the
+/// ordinary classifier. A bound frame is visible only to its exact grant;
+/// an unbound compatibility drain retains it, and a successor grant drops it
+/// as stale rather than adopting effects produced by the predecessor.
+fn effect_fence_disposition(
+    actual: Option<&ConnectionEffectFence>,
+    expected: Option<&ConnectionEffectFence>,
+) -> Option<FrameAuthorityDisposition> {
+    match (actual, expected) {
+        (None, _) => None,
+        (Some(actual), Some(expected)) if actual == expected => None,
+        (Some(_), Some(_)) => Some(FrameAuthorityDisposition::DropStale),
+        (Some(_), None) => Some(FrameAuthorityDisposition::Retain),
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -1304,7 +1425,30 @@ impl OutboundQueue {
             resync_bytes: 0,
             ephemeral_bytes: 0,
             overflowed: false,
+            overflowed_effect_fences: BTreeSet::new(),
         }
+    }
+
+    fn is_overflowed(&self, effect_fence: Option<&ConnectionEffectFence>) -> bool {
+        effect_fence.map_or(self.overflowed, |effect_fence| {
+            self.overflowed_effect_fences.contains(effect_fence)
+        })
+    }
+
+    fn recompute_retained_bytes(&mut self) {
+        self.durable_bytes = self.durable.iter().fold(0, |total, message| {
+            total.saturating_add(retained_durable_queue_item_bytes(message))
+        });
+        self.resync_bytes = self.resync.iter().fold(0, |total, message| {
+            total.saturating_add(retained_resync_queue_item_bytes(message.message.as_ref()))
+        });
+        self.ephemeral_bytes = self.ephemeral.iter().fold(0, |total, (key, message)| {
+            total.saturating_add(retained_ephemeral_queue_item_bytes(
+                &key.0,
+                &key.1,
+                message.message.as_ref(),
+            ))
+        });
     }
 
     fn retained_bytes(&self) -> usize {
@@ -1327,11 +1471,15 @@ impl OutboundQueue {
     ///
     /// @ref LLP 0008#realtime-delivery — overflow is a resync signal, never a drop.
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
-    fn overflow(&mut self, extra_ephemeral: Option<&EphemeralMessage>) -> QueueOverflow {
-        if self.overflowed {
+    fn overflow(
+        &mut self,
+        extra_ephemeral: Option<&EphemeralMessage>,
+        effect_fence: Option<ConnectionEffectFence>,
+    ) -> QueueOverflow {
+        if self.is_overflowed(effect_fence.as_ref()) {
             return QueueOverflow::default();
         }
-        let mut resync_epochs = self.pending_resync_epochs();
+        let mut resync_epochs = self.pending_resync_epochs(effect_fence.as_ref());
         if let Some(message) = extra_ephemeral
             && let Some((room, scope_epoch)) = message.resync_room_epoch()
             && let Some((_, room_authority_generation)) = message
@@ -1340,18 +1488,20 @@ impl OutboundQueue {
         {
             resync_epochs.insert(room, (scope_epoch, room_authority_generation));
         }
-        self.durable.clear();
-        self.durable.shrink_to_fit();
-        self.resync.clear();
-        self.resync.shrink_to_fit();
-        self.ephemeral.clear();
-        self.durable_bytes = 0;
-        self.resync_bytes = 0;
-        self.ephemeral_bytes = 0;
+        // Overflow belongs to one exact grant. Clearing the whole shared
+        // readable-id queue would let a delayed predecessor destroy a
+        // successor's frames.
+        self.durable
+            .retain(|message| message.effect_fence() != effect_fence.as_ref());
+        self.resync
+            .retain(|message| message.effect_fence.as_ref() != effect_fence.as_ref());
+        self.ephemeral
+            .retain(|_, message| message.effect_fence.as_ref() != effect_fence.as_ref());
+        self.recompute_retained_bytes();
         // Typed since ENG-23891 (LLP 0051 D4). Wire note: the pre-typed frame
         // spelled this field `clearRetained`; the typed envelope unified it to
         // the durable lane's `clear_retained` (no shipped client read it).
-        let sentinel = DurableMessage::new(
+        let sentinel_payload =
             serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
                 reason: "outbox_overflow".to_owned(),
                 subscription_id: None,
@@ -1359,15 +1509,29 @@ impl OutboundQueue {
                 epoch: None,
                 clear_retained: true,
             })
-            .unwrap_or_default(),
-        );
-        self.durable_bytes = retained_durable_queue_item_bytes(&sentinel);
-        self.durable.push_back(sentinel);
-        self.overflowed = true;
+            .unwrap_or_default();
+        let sentinel = match effect_fence.clone() {
+            Some(fence) => DurableMessage::bound(sentinel_payload, fence),
+            None => DurableMessage::new(sentinel_payload),
+        };
+        let sentinel_bytes = retained_durable_queue_item_bytes(&sentinel);
+        if self.durable.len() < MAX_OUTBOX_BACKLOG && self.fits_bytes(0, sentinel_bytes) {
+            self.durable_bytes = self.durable_bytes.saturating_add(sentinel_bytes);
+            self.durable.push_back(sentinel);
+        }
+        if let Some(effect_fence) = &effect_fence {
+            self.overflowed_effect_fences.insert(effect_fence.clone());
+        } else {
+            self.overflowed = true;
+        }
         let mut resync_count = 0;
         for (room, (scope_epoch, room_authority_generation)) in resync_epochs {
-            resync_count +=
-                self.record_overflow_resync_for_room(room, scope_epoch, room_authority_generation);
+            resync_count += self.record_overflow_resync_for_room(
+                room,
+                scope_epoch,
+                room_authority_generation,
+                effect_fence.clone(),
+            );
         }
         QueueOverflow {
             overflowed: true,
@@ -1377,16 +1541,20 @@ impl OutboundQueue {
 
     /// Push a non-coalescable message (resync/remove) into the resync lane,
     /// escalating to a full overflow signal if the lane is at capacity.
-    fn push_resync(&mut self, message: Arc<EphemeralMessage>) -> QueuePush {
-        if self.overflowed {
+    fn push_resync(
+        &mut self,
+        message: Arc<EphemeralMessage>,
+        effect_fence: Option<ConnectionEffectFence>,
+    ) -> QueuePush {
+        if self.is_overflowed(effect_fence.as_ref()) {
             return QueuePush {
-                resync_count: self.record_overflow_resync(message.as_ref()),
+                resync_count: self.record_overflow_resync(message.as_ref(), effect_fence),
                 ..QueuePush::default()
             };
         }
         let retained_bytes = retained_resync_queue_item_bytes(message.as_ref());
         if self.resync.len() >= MAX_OUTBOX_BACKLOG || !self.fits_bytes(0, retained_bytes) {
-            let overflow = self.overflow(Some(message.as_ref()));
+            let overflow = self.overflow(Some(message.as_ref()), effect_fence);
             return QueuePush {
                 resync_count: overflow.resync_count,
                 overflowed: overflow.overflowed,
@@ -1394,7 +1562,8 @@ impl OutboundQueue {
             };
         }
         self.resync_bytes = self.resync_bytes.saturating_add(retained_bytes);
-        self.resync.push_back(message);
+        self.resync
+            .push_back(QueuedEphemeralMessage::new(message, effect_fence));
         QueuePush {
             resync_count: 1,
             ..QueuePush::default()
@@ -1405,32 +1574,36 @@ impl OutboundQueue {
         &mut self,
         message: Arc<EphemeralMessage>,
         max_pending_ephemeral_keys: usize,
+        effect_fence: Option<ConnectionEffectFence>,
     ) -> QueuePush {
-        if self.overflowed {
+        if self.is_overflowed(effect_fence.as_ref()) {
             return QueuePush {
-                resync_count: self.record_overflow_resync(message.as_ref()),
+                resync_count: self.record_overflow_resync(message.as_ref(), effect_fence),
                 ..QueuePush::default()
             };
         }
         let Some(key) = message.coalesce_key() else {
-            let before = self.overflowed;
-            let result = self.push_resync(message);
+            let before = self.is_overflowed(effect_fence.as_ref());
+            let result = self.push_resync(message, effect_fence);
             return QueuePush {
                 resync_count: result.resync_count,
-                overflowed: self.overflowed && !before,
+                overflowed: result.overflowed && !before,
                 ..QueuePush::default()
             };
         };
+        let queue_key = (key.0.clone(), key.1.clone(), effect_fence.clone());
 
-        if !self.ephemeral.contains_key(&key) && self.ephemeral.len() >= max_pending_ephemeral_keys
+        if !self.ephemeral.contains_key(&queue_key)
+            && self.ephemeral.len() >= max_pending_ephemeral_keys
         {
             let mut resync_epochs = self
                 .ephemeral
                 .values()
+                .filter(|pending| pending.effect_fence.as_ref() == effect_fence.as_ref())
                 .filter_map(|pending| {
-                    let (room, _) = pending.coalesce_key()?;
-                    let epoch = pending.scope_epoch()?;
-                    let (_, generation) = pending.room_authority()?;
+                    let (room, _) = pending.message.coalesce_key()?;
+                    let epoch = pending.message.scope_epoch()?;
+                    let (_, generation) = pending.message.room_authority()?;
                     Some((room, (epoch, generation)))
                 })
                 .collect::<BTreeMap<_, _>>();
@@ -1443,18 +1616,22 @@ impl OutboundQueue {
                         .map_or(0, |(_, generation)| generation),
                 ),
             );
-            self.ephemeral.clear();
-            self.ephemeral_bytes = 0;
+            self.ephemeral
+                .retain(|_, pending| pending.effect_fence.as_ref() != effect_fence.as_ref());
+            self.recompute_retained_bytes();
 
             let mut resync_count: usize = 0;
             let mut overflowed = false;
             for (room, (scope_epoch, room_authority_generation)) in resync_epochs {
-                let result = self.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
-                    room,
-                    scope_epoch,
-                    room_authority_generation,
-                    reason: ResyncReason::QueueOverflow,
-                }));
+                let result = self.push_resync(
+                    Arc::new(EphemeralMessage::ResyncRequired {
+                        room,
+                        scope_epoch,
+                        room_authority_generation,
+                        reason: ResyncReason::QueueOverflow,
+                    }),
+                    effect_fence.clone(),
+                );
                 resync_count = resync_count.saturating_add(result.resync_count);
                 overflowed |= result.overflowed;
             }
@@ -1465,12 +1642,12 @@ impl OutboundQueue {
             };
         }
 
-        let retained_bytes = retained_ephemeral_queue_item_bytes(&key, message.as_ref());
-        let replaced_bytes = self.ephemeral.get(&key).map_or(0, |previous| {
-            retained_ephemeral_queue_item_bytes(&key, previous)
+        let retained_bytes = retained_ephemeral_queue_item_bytes(&key.0, &key.1, message.as_ref());
+        let replaced_bytes = self.ephemeral.get(&queue_key).map_or(0, |previous| {
+            retained_ephemeral_queue_item_bytes(&key.0, &key.1, previous.message.as_ref())
         });
         if !self.fits_bytes(replaced_bytes, retained_bytes) {
-            let overflow = self.overflow(Some(message.as_ref()));
+            let overflow = self.overflow(Some(message.as_ref()), effect_fence);
             return QueuePush {
                 resync_count: overflow.resync_count,
                 overflowed: overflow.overflowed,
@@ -1478,7 +1655,13 @@ impl OutboundQueue {
             };
         }
 
-        let coalesced = self.ephemeral.insert(key, message).is_some();
+        let coalesced = self
+            .ephemeral
+            .insert(
+                queue_key,
+                QueuedEphemeralMessage::new(message, effect_fence),
+            )
+            .is_some();
         self.ephemeral_bytes = self
             .ephemeral_bytes
             .saturating_sub(replaced_bytes)
@@ -1495,12 +1678,13 @@ impl OutboundQueue {
     ///
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
     fn push_durable(&mut self, message: DurableMessage) -> QueueOverflow {
-        if self.overflowed {
+        if self.is_overflowed(message.effect_fence()) {
             return QueueOverflow::default();
         }
         let retained_bytes = retained_durable_queue_item_bytes(&message);
         if self.durable.len() >= MAX_OUTBOX_BACKLOG || !self.fits_bytes(0, retained_bytes) {
-            return self.overflow(None);
+            let effect_fence = message.effect_fence().cloned();
+            return self.overflow(None, effect_fence);
         }
         self.durable_bytes = self.durable_bytes.saturating_add(retained_bytes);
         self.durable.push_back(message);
@@ -1525,16 +1709,44 @@ impl OutboundQueue {
         self.ephemeral_bytes = 0;
     }
 
+    /// Remove only frames produced for one exact connection grant. This is
+    /// safe after readable-id reuse: successor and authority-independent
+    /// traffic remain in the shared queue.
+    fn purge_effect_fence(&mut self, effect_fence: &ConnectionEffectFence) {
+        self.durable.retain(|message| {
+            message
+                .effect_fence()
+                .is_none_or(|actual| actual != effect_fence)
+        });
+        self.resync.retain(|message| {
+            message
+                .effect_fence
+                .as_ref()
+                .is_none_or(|actual| actual != effect_fence)
+        });
+        self.ephemeral.retain(|_, message| {
+            message
+                .effect_fence
+                .as_ref()
+                .is_none_or(|actual| actual != effect_fence)
+        });
+        self.recompute_retained_bytes();
+        self.overflowed_effect_fences.remove(effect_fence);
+    }
+
     fn drain_with_authority(
         &mut self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
         mut classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
         mut classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
     ) -> Vec<RealtimeEnvelope> {
-        let was_overflowed = self.overflowed;
         let mut messages = Vec::new();
         let mut retained_durable = VecDeque::new();
         while let Some(message) = self.durable.pop_front() {
-            match classify_durable(&message) {
+            let disposition =
+                effect_fence_disposition(message.effect_fence(), expected_effect_fence)
+                    .unwrap_or_else(|| classify_durable(&message));
+            match disposition {
                 FrameAuthorityDisposition::Send => {
                     messages.push(RealtimeEnvelope::Durable(message));
                 }
@@ -1545,9 +1757,12 @@ impl OutboundQueue {
         self.durable = retained_durable;
         let mut retained_resync = VecDeque::new();
         while let Some(message) = self.resync.pop_front() {
-            match classify_ephemeral(message.as_ref()) {
+            let disposition =
+                effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
+                    .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()));
+            match disposition {
                 FrameAuthorityDisposition::Send => {
-                    messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
+                    messages.push(RealtimeEnvelope::Ephemeral((*message.message).clone()));
                 }
                 FrameAuthorityDisposition::Retain => retained_resync.push_back(message),
                 FrameAuthorityDisposition::DropStale => {}
@@ -1561,7 +1776,10 @@ impl OutboundQueue {
         let mut retained_ephemeral = BTreeMap::new();
         let mut ephemeral = Vec::new();
         for (key, message) in std::mem::take(&mut self.ephemeral) {
-            match classify_ephemeral(message.as_ref()) {
+            let disposition =
+                effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
+                    .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()));
+            match disposition {
                 FrameAuthorityDisposition::Send => ephemeral.push(message),
                 FrameAuthorityDisposition::Retain => {
                     retained_ephemeral.insert(key, message);
@@ -1571,53 +1789,88 @@ impl OutboundQueue {
         }
         self.ephemeral = retained_ephemeral;
         ephemeral.sort_by(|left, right| {
-            left.resync_room_epoch()
-                .cmp(&right.resync_room_epoch())
-                .then_with(|| left.entry_version().cmp(&right.entry_version()))
+            left.message
+                .resync_room_epoch()
+                .cmp(&right.message.resync_room_epoch())
+                .then_with(|| {
+                    left.message
+                        .entry_version()
+                        .cmp(&right.message.entry_version())
+                })
         });
         for message in ephemeral {
-            messages.push(RealtimeEnvelope::Ephemeral((*message).clone()));
+            messages.push(RealtimeEnvelope::Ephemeral((*message.message).clone()));
         }
         self.durable.shrink_to_fit();
-        self.durable_bytes = self.durable.iter().fold(0_usize, |total, message| {
-            total.saturating_add(retained_durable_queue_item_bytes(message))
-        });
-        self.resync_bytes = self.resync.iter().fold(0_usize, |total, message| {
-            total.saturating_add(retained_resync_queue_item_bytes(message.as_ref()))
-        });
-        self.ephemeral_bytes = self
-            .ephemeral
-            .iter()
-            .fold(0_usize, |total, (key, message)| {
-                total.saturating_add(retained_ephemeral_queue_item_bytes(key, message.as_ref()))
-            });
+        self.recompute_retained_bytes();
         // Sticky overflow clears only after every retained protected frame is
         // either delivered or invalidated by a newer authority generation.
-        self.overflowed = was_overflowed
-            && (!self.durable.is_empty() || !self.resync.is_empty() || !self.ephemeral.is_empty());
+        self.overflowed = self.overflowed
+            && (self
+                .durable
+                .iter()
+                .any(|message| message.effect_fence().is_none())
+                || self
+                    .resync
+                    .iter()
+                    .any(|message| message.effect_fence.is_none())
+                || self
+                    .ephemeral
+                    .values()
+                    .any(|message| message.effect_fence.is_none()));
+        let retained_fences = self
+            .durable
+            .iter()
+            .filter_map(|message| message.effect_fence().cloned())
+            .chain(
+                self.resync
+                    .iter()
+                    .filter_map(|message| message.effect_fence.clone()),
+            )
+            .chain(
+                self.ephemeral
+                    .values()
+                    .filter_map(|message| message.effect_fence.clone()),
+            )
+            .collect::<BTreeSet<_>>();
+        self.overflowed_effect_fences
+            .retain(|effect_fence| retained_fences.contains(effect_fence));
         messages
     }
 
-    fn pending_resync_epochs(&self) -> BTreeMap<RoomId, (u64, u64)> {
+    fn pending_resync_epochs(
+        &self,
+        effect_fence: Option<&ConnectionEffectFence>,
+    ) -> BTreeMap<RoomId, (u64, u64)> {
         self.resync
             .iter()
             .chain(self.ephemeral.values())
+            .filter(|message| message.effect_fence.as_ref() == effect_fence)
             .filter_map(|message| {
-                let (room, epoch) = message.resync_room_epoch()?;
-                let (_, generation) = message.room_authority()?;
+                let (room, epoch) = message.message.resync_room_epoch()?;
+                let (_, generation) = message.message.room_authority()?;
                 Some((room, (epoch, generation)))
             })
             .collect()
     }
 
-    fn record_overflow_resync(&mut self, message: &EphemeralMessage) -> usize {
+    fn record_overflow_resync(
+        &mut self,
+        message: &EphemeralMessage,
+        effect_fence: Option<ConnectionEffectFence>,
+    ) -> usize {
         let Some((room, scope_epoch)) = message.resync_room_epoch() else {
             return 0;
         };
         let room_authority_generation = message
             .room_authority()
             .map_or(0, |(_, generation)| generation);
-        self.record_overflow_resync_for_room(room, scope_epoch, room_authority_generation)
+        self.record_overflow_resync_for_room(
+            room,
+            scope_epoch,
+            room_authority_generation,
+            effect_fence,
+        )
     }
 
     fn record_overflow_resync_for_room(
@@ -1625,14 +1878,15 @@ impl OutboundQueue {
         room: RoomId,
         scope_epoch: u64,
         room_authority_generation: u64,
+        effect_fence: Option<ConnectionEffectFence>,
     ) -> usize {
         let already_queued = self.resync.iter().any(|pending| {
             matches!(
-                pending.as_ref(),
+                pending.message.as_ref(),
                 EphemeralMessage::ResyncRequired {
                     room: pending_room,
                     ..
-                } if pending_room == &room
+                } if pending_room == &room && pending.effect_fence == effect_fence
             )
         });
         if already_queued {
@@ -1649,7 +1903,8 @@ impl OutboundQueue {
             return 0;
         }
         self.resync_bytes = self.resync_bytes.saturating_add(retained_bytes);
-        self.resync.push_back(message);
+        self.resync
+            .push_back(QueuedEphemeralMessage::new(message, effect_fence));
         1
     }
 }
@@ -1737,7 +1992,9 @@ pub struct RoomAuthorityResync {
 #[derive(Clone, Debug)]
 pub(crate) struct RoomSubscriberReauthorization {
     pub(crate) connection_id: ConnectionId,
+    #[cfg(test)]
     pub(crate) previous_auth: AuthContext,
+    pub(crate) effect_fence: Option<ConnectionEffectFence>,
 }
 
 #[derive(Clone, Debug)]
@@ -1751,10 +2008,12 @@ pub(crate) struct PendingRoomReauthorization {
 pub(crate) enum RoomSubscriberResolution {
     Authorized {
         connection_id: ConnectionId,
+        expected_effect_fence: Option<ConnectionEffectFence>,
         auth: AuthContext,
     },
     Denied {
         connection_id: ConnectionId,
+        expected_effect_fence: Option<ConnectionEffectFence>,
     },
 }
 
@@ -2183,6 +2442,7 @@ impl RoomAuthorityRegistry {
         self: &Arc<Self>,
         outbox: &SharedOutbox,
         admit_fenced: bool,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
     ) -> Vec<AdmittedRealtimeEnvelope> {
         // Registry admission precedes the outbox lock. Prepare cannot install
         // a dependency ticket until this destructive drain and its permit
@@ -2196,6 +2456,7 @@ impl RoomAuthorityRegistry {
         // may extract any frame whose publication depends on that stream.
         let admit_fenced = admit_fenced || state.durable_authorization.is_none();
         let messages = lock(outbox).drain_with_authority(
+            expected_effect_fence,
             |message| {
                 let Some(authorization) = message.authorization() else {
                     return FrameAuthorityDisposition::Send;
@@ -2811,7 +3072,9 @@ impl LocalEphemeralBackend {
                         .map(
                             |(connection_id, subscriber)| RoomSubscriberReauthorization {
                                 connection_id: connection_id.clone(),
+                                #[cfg(test)]
                                 previous_auth: subscriber.auth.clone(),
+                                effect_fence: subscriber.effect_fence.clone(),
                             },
                         )
                         .collect(),
@@ -2845,20 +3108,33 @@ impl LocalEphemeralBackend {
             return Ok(true);
         };
         let mut room = lock(&room_arc);
-        let expected = room.subscribers.keys().cloned().collect::<BTreeSet<_>>();
+        let expected = room
+            .subscribers
+            .iter()
+            .map(|(connection_id, subscriber)| {
+                (connection_id.clone(), subscriber.effect_fence.clone())
+            })
+            .collect::<BTreeSet<_>>();
         let resolved = resolutions
             .iter()
             .map(|resolution| match resolution {
-                RoomSubscriberResolution::Authorized { connection_id, .. }
-                | RoomSubscriberResolution::Denied { connection_id } => connection_id.clone(),
+                RoomSubscriberResolution::Authorized {
+                    connection_id,
+                    expected_effect_fence,
+                    ..
+                }
+                | RoomSubscriberResolution::Denied {
+                    connection_id,
+                    expected_effect_fence,
+                } => (connection_id.clone(), expected_effect_fence.clone()),
             })
             .collect::<BTreeSet<_>>();
         if expected != resolved || resolved.len() != resolutions.len() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE",
-                "ephemeral",
-                "room reauthorization must resolve every exact current subscriber once",
-            ));
+            // A readable connection id may have been replaced while durable
+            // permission checks ran. Keep the level-triggered obligation
+            // pending so maintenance resolves the replacement's exact fence;
+            // never apply the predecessor's result to it.
+            return Ok(false);
         }
 
         let mut denied_outboxes = Vec::new();
@@ -2867,6 +3143,7 @@ impl LocalEphemeralBackend {
             match resolution {
                 RoomSubscriberResolution::Authorized {
                     connection_id,
+                    expected_effect_fence: _,
                     auth,
                 } => {
                     let previous_retained_bytes = room
@@ -2887,7 +3164,10 @@ impl LocalEphemeralBackend {
                     subscriber.auth = auth.clone();
                     subscriber.retained_bytes = retained_bytes;
                 }
-                RoomSubscriberResolution::Denied { connection_id } => {
+                RoomSubscriberResolution::Denied {
+                    connection_id,
+                    expected_effect_fence: _,
+                } => {
                     let subscriber = room
                         .subscribers
                         .remove(connection_id)
@@ -2895,7 +3175,11 @@ impl LocalEphemeralBackend {
                     room.retained_bytes = room
                         .retained_bytes
                         .saturating_sub(subscriber.retained_bytes);
-                    denied_outboxes.push((connection_id.clone(), subscriber.outbox));
+                    denied_outboxes.push((
+                        connection_id.clone(),
+                        subscriber.outbox,
+                        subscriber.effect_fence,
+                    ));
                     denied_connections.push(connection_id.clone());
                 }
             }
@@ -2956,32 +3240,46 @@ impl LocalEphemeralBackend {
         let subscribers = room
             .subscribers
             .iter()
-            .map(|(connection_id, subscriber)| (connection_id.clone(), subscriber.outbox.clone()))
+            .map(|(connection_id, subscriber)| {
+                (
+                    connection_id.clone(),
+                    subscriber.outbox.clone(),
+                    subscriber.effect_fence.clone(),
+                )
+            })
             .collect::<Vec<_>>();
         let mut wakees = BTreeSet::new();
-        for (connection_id, outbox) in &subscribers {
+        for (connection_id, outbox, effect_fence) in &subscribers {
             let mut outbox = lock(outbox);
             for removal in &removals {
-                self.record_queue_push(outbox.push_resync(Arc::new(removal.clone())));
+                self.record_queue_push(
+                    outbox.push_resync(Arc::new(removal.clone()), effect_fence.clone()),
+                );
             }
-            self.record_queue_push(outbox.push_resync(Arc::new(EphemeralMessage::Snapshot {
-                room: room_id.clone(),
-                scope_epoch,
-                room_authority_generation,
-                high_water_version,
-                entries: entries.clone(),
-            })));
+            self.record_queue_push(outbox.push_resync(
+                Arc::new(EphemeralMessage::Snapshot {
+                    room: room_id.clone(),
+                    scope_epoch,
+                    room_authority_generation,
+                    high_water_version,
+                    entries: entries.clone(),
+                }),
+                effect_fence.clone(),
+            ));
             wakees.insert(connection_id.clone());
         }
-        for (connection_id, outbox) in denied_outboxes {
-            self.record_queue_push(lock(&outbox).push_resync(Arc::new(EphemeralMessage::Error {
-                room: Some(room_id.clone()),
-                room_authority_generation: Some(room_authority_generation),
-                error: EphemeralError::new(
-                    EphemeralErrorCode::PermissionDenied,
-                    "durable room permission was revoked",
-                ),
-            })));
+        for (connection_id, outbox, effect_fence) in denied_outboxes {
+            self.record_queue_push(lock(&outbox).push_resync(
+                Arc::new(EphemeralMessage::Error {
+                    room: Some(room_id.clone()),
+                    room_authority_generation: Some(room_authority_generation),
+                    error: EphemeralError::new(
+                        EphemeralErrorCode::PermissionDenied,
+                        "durable room permission was revoked",
+                    ),
+                }),
+                effect_fence,
+            ));
             wakees.insert(connection_id);
         }
 
@@ -3619,7 +3917,7 @@ impl LocalEphemeralBackend {
         request: SubscribeRequest,
         now_ms: Millis,
     ) -> Result<EphemeralMessage, EphemeralError> {
-        self.subscribe_with_room_authority(request, now_ms, None)
+        self.subscribe_with_room_authority_and_effect_fence(request, now_ms, None, None)
     }
 
     pub(crate) fn subscribe_with_room_authority(
@@ -3627,6 +3925,16 @@ impl LocalEphemeralBackend {
         request: SubscribeRequest,
         now_ms: Millis,
         admitted: Option<&RoomAuthorityPermit>,
+    ) -> Result<EphemeralMessage, EphemeralError> {
+        self.subscribe_with_room_authority_and_effect_fence(request, now_ms, admitted, None)
+    }
+
+    pub(crate) fn subscribe_with_room_authority_and_effect_fence(
+        &self,
+        request: SubscribeRequest,
+        now_ms: Millis,
+        admitted: Option<&RoomAuthorityPermit>,
+        effect_fence: Option<ConnectionEffectFence>,
     ) -> Result<EphemeralMessage, EphemeralError> {
         let _generation = self
             .shared
@@ -3723,6 +4031,7 @@ impl LocalEphemeralBackend {
                 SubscriberState {
                     outbox,
                     auth: request.auth.clone(),
+                    effect_fence: effect_fence.clone(),
                     retained_bytes: subscriber_bytes,
                 },
             );
@@ -3850,7 +4159,7 @@ impl LocalEphemeralBackend {
             let had_connection_room_edge = room.uses_connection(connection_id);
             if let Some(removed) = room.subscribers.remove(connection_id) {
                 room.retained_bytes = room.retained_bytes.saturating_sub(removed.retained_bytes);
-                subscribed_rooms.push((room_id.clone(), room.scope_epoch));
+                subscribed_rooms.push((room_id.clone(), room.scope_epoch, removed.effect_fence));
             }
             let mut owners_to_remove = Vec::new();
             let mut removed_owner_connections = 0_usize;
@@ -3968,21 +4277,25 @@ impl LocalEphemeralBackend {
             // inside `push_resync` would admit an ABBA deadlock.
             let subscribed_rooms = subscribed_rooms
                 .into_iter()
-                .map(|(room, scope_epoch)| {
+                .map(|(room, scope_epoch, effect_fence)| {
                     let generation = self.shared.room_authority.current_generation(&room);
-                    (room, scope_epoch, generation)
+                    (room, scope_epoch, generation, effect_fence)
                 })
                 .collect::<Vec<_>>();
             let outbox = self.ensure_outbox(connection_id);
             {
                 let mut outbox = lock(&outbox);
-                for (room, scope_epoch, room_authority_generation) in subscribed_rooms {
-                    let result = outbox.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
-                        room_authority_generation,
-                        room,
-                        scope_epoch,
-                        reason: ResyncReason::Disconnected,
-                    }));
+                for (room, scope_epoch, room_authority_generation, effect_fence) in subscribed_rooms
+                {
+                    let result = outbox.push_resync(
+                        Arc::new(EphemeralMessage::ResyncRequired {
+                            room_authority_generation,
+                            room,
+                            scope_epoch,
+                            reason: ResyncReason::Disconnected,
+                        }),
+                        effect_fence,
+                    );
                     if result.overflowed {
                         self.shared
                             .counters
@@ -4097,27 +4410,34 @@ impl LocalEphemeralBackend {
         self.enqueue_durable_message(connection_id, DurableMessage::new(payload))
     }
 
-    /// Retire an unfenced predecessor durable backlog at a sessions
-    /// deployment cut. Authority-independent live frames intentionally carry
-    /// no authorization stamp, so they cannot be filtered by the normal
-    /// stream-generation drain. Escalating a nonempty queue through the
-    /// existing sticky overflow path atomically drops those frames, preserves
-    /// pending room resync epochs, and leaves one connection-wide
-    /// clear-retained sentinel.
+    /// Retire one exact predecessor durable backlog at a sessions deployment
+    /// cut. Authority-independent live frames carry no authorization-version
+    /// stamp, but production still binds them to their connection effect
+    /// fence. Escalating that exact fence through the existing sticky overflow
+    /// path atomically drops its frames, preserves other grant incarnations
+    /// and pending room resync epochs, and leaves one clear-retained sentinel.
     ///
     /// @ref LLP 0058#same-mode-provisioning — no unscoped predecessor live
     /// payload may transfer after successor activation.
-    pub(crate) fn invalidate_durable_backlog_for_activation(&self, connection_id: &str) -> bool {
+    pub(crate) fn invalidate_durable_backlog_for_activation(
+        &self,
+        connection_id: &str,
+        effect_fence: Option<&ConnectionEffectFence>,
+    ) -> bool {
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         let Some(outbox) = outbox else {
             return false;
         };
         let overflow = {
             let mut queue = lock(&outbox);
-            if queue.durable.is_empty() {
+            if !queue
+                .durable
+                .iter()
+                .any(|message| message.effect_fence() == effect_fence)
+            {
                 return false;
             }
-            queue.overflow(None)
+            queue.overflow(None, effect_fence.cloned())
         };
         if overflow.overflowed {
             self.shared
@@ -4147,6 +4467,28 @@ impl LocalEphemeralBackend {
         )
     }
 
+    pub(crate) fn enqueue_durable_bound(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+        effect_fence: ConnectionEffectFence,
+    ) -> DurableEnqueueOutcome {
+        self.enqueue_durable_message(connection_id, DurableMessage::bound(payload, effect_fence))
+    }
+
+    pub(crate) fn enqueue_authorized_durable_bound(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+        authorization: AuthorizationVersion,
+        effect_fence: ConnectionEffectFence,
+    ) -> DurableEnqueueOutcome {
+        self.enqueue_durable_message(
+            connection_id,
+            DurableMessage::authorized_bound(payload, authorization, effect_fence),
+        )
+    }
+
     fn enqueue_durable_message(
         &self,
         connection_id: impl Into<String>,
@@ -4155,8 +4497,9 @@ impl LocalEphemeralBackend {
         let connection_id = connection_id.into();
         let outbox = self.ensure_outbox(&connection_id);
         let mut queue = lock(&outbox);
+        let effect_fence = message.effect_fence().cloned();
         let overflow = queue.push_durable(message);
-        let parked_behind_overflow = queue.overflowed;
+        let parked_behind_overflow = queue.is_overflowed(effect_fence.as_ref());
         drop(queue);
         if overflow.overflowed {
             self.shared
@@ -4181,6 +4524,39 @@ impl LocalEphemeralBackend {
         }
     }
 
+    /// Remove retained subscriber and queued state for one exact grant while
+    /// preserving any replacement that reused the readable connection id.
+    pub(crate) fn purge_connection_effects(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+    ) {
+        let touched = lock(&self.shared.connection_rooms)
+            .get(connection_id)
+            .cloned()
+            .unwrap_or_default();
+        for room_id in touched {
+            let room = lock(&self.shared.rooms).get(&room_id).cloned();
+            let Some(room) = room else {
+                continue;
+            };
+            let mut room = lock(&room);
+            let remove = room
+                .subscribers
+                .get(connection_id)
+                .is_some_and(|subscriber| subscriber.effect_fence.as_ref() == Some(effect_fence));
+            if remove && let Some(subscriber) = room.subscribers.remove(connection_id) {
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(subscriber.retained_bytes);
+            }
+            self.sync_connection_room_index_locked(&room, connection_id, &room_id);
+        }
+        if let Some(outbox) = lock(&self.shared.outboxes).get(connection_id).cloned() {
+            lock(&outbox).purge_effect_fence(effect_fence);
+        }
+    }
+
     /// Drain compatibility traffic that does not require an installed auth
     /// final-publication fence. In sessions, auth-scoped durable data and
     /// protected-room frames remain queued. A transport embedding must use
@@ -4194,7 +4570,11 @@ impl LocalEphemeralBackend {
         self.enqueue_room_authority_resyncs(Some(connection_id));
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
-            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox, false))
+            .map(|outbox| {
+                self.shared
+                    .room_authority
+                    .drain_outbox(&outbox, false, None)
+            })
             .unwrap_or_default()
             .into_iter()
             .map(|admitted| {
@@ -4210,7 +4590,26 @@ impl LocalEphemeralBackend {
         self.enqueue_room_authority_resyncs(Some(connection_id));
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
-            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox, true))
+            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox, true, None))
+            .unwrap_or_default()
+    }
+
+    /// Destructively drain only effects produced by the exact connection
+    /// grant. A readable connection id is intentionally insufficient: local
+    /// profiles may reuse it and terminal cleanup may race with replacement.
+    pub(crate) fn drain_outbox_for_send_bound(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
+        self.enqueue_room_authority_resyncs(Some(connection_id));
+        let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
+        outbox
+            .map(|outbox| {
+                self.shared
+                    .room_authority
+                    .drain_outbox(&outbox, true, Some(effect_fence))
+            })
             .unwrap_or_default()
     }
 
@@ -4242,14 +4641,15 @@ impl LocalEphemeralBackend {
                 if only_connection.is_some_and(|only| only != connection_id) {
                     continue;
                 }
-                let result = lock(&subscriber.outbox).push_resync(Arc::new(
-                    EphemeralMessage::ResyncRequired {
+                let result = lock(&subscriber.outbox).push_resync(
+                    Arc::new(EphemeralMessage::ResyncRequired {
                         room: room_id.clone(),
                         scope_epoch: room.scope_epoch,
                         room_authority_generation: resync.room_authority_generation,
                         reason: ResyncReason::AuthChanged,
-                    },
-                ));
+                    }),
+                    subscriber.effect_fence.clone(),
+                );
                 if result.resync_count > 0 {
                     self.shared
                         .counters
@@ -4295,6 +4695,19 @@ impl LocalEphemeralBackend {
             .delivery
             .act_if_current(connection_id, generation, || {
                 self.drain_outbox_for_send(connection_id)
+            })
+    }
+
+    pub(crate) fn drain_outbox_for_send_bound_if_current(
+        &self,
+        connection_id: &str,
+        generation: u64,
+        effect_fence: &ConnectionEffectFence,
+    ) -> Option<Vec<AdmittedRealtimeEnvelope>> {
+        self.shared
+            .delivery
+            .act_if_current(connection_id, generation, || {
+                self.drain_outbox_for_send_bound(connection_id, effect_fence)
             })
     }
 
@@ -4523,7 +4936,11 @@ impl LocalEphemeralBackend {
     fn wipe_rooms_signaling_resync(&self, reason: ResyncReason) {
         let room_ids: Vec<RoomId> = lock(&self.shared.rooms).keys().cloned().collect();
         let retired_room_ids = room_ids.iter().cloned().collect::<BTreeSet<_>>();
-        let mut resyncs: Vec<(ConnectionId, EphemeralMessage)> = Vec::new();
+        let mut resyncs: Vec<(
+            ConnectionId,
+            EphemeralMessage,
+            Option<ConnectionEffectFence>,
+        )> = Vec::new();
         for room_id in room_ids {
             // Retire under map+room held together, so an operation retrying
             // through the map sees either the live room or its absence —
@@ -4546,13 +4963,19 @@ impl LocalEphemeralBackend {
                     .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
             }
             let scope_epoch = room.scope_epoch;
-            let subscribers = room.subscribers.keys().cloned().collect::<Vec<_>>();
+            let subscribers = room
+                .subscribers
+                .iter()
+                .map(|(connection_id, subscriber)| {
+                    (connection_id.clone(), subscriber.effect_fence.clone())
+                })
+                .collect::<Vec<_>>();
             drop(room);
             // Prepare/final-send uses authority-registry before room state.
             // Read the generation only after releasing the room lock to keep
             // that global order during a destructive epoch wipe too.
             let room_authority_generation = self.shared.room_authority.current_generation(&room_id);
-            for connection_id in subscribers {
+            for (connection_id, effect_fence) in subscribers {
                 resyncs.push((
                     connection_id,
                     EphemeralMessage::ResyncRequired {
@@ -4561,6 +4984,7 @@ impl LocalEphemeralBackend {
                         scope_epoch,
                         reason: reason.clone(),
                     },
+                    effect_fence,
                 ));
             }
         }
@@ -4577,9 +5001,9 @@ impl LocalEphemeralBackend {
             lock(&outbox).clear_ephemeral_lanes();
         }
 
-        for (connection_id, message) in resyncs {
+        for (connection_id, message, effect_fence) in resyncs {
             let outbox = self.ensure_outbox(&connection_id);
-            let result = lock(&outbox).push_resync(Arc::new(message));
+            let result = lock(&outbox).push_resync(Arc::new(message), effect_fence);
             if result.overflowed {
                 self.shared
                     .counters
@@ -4778,7 +5202,13 @@ impl LocalEphemeralBackend {
         let recipients = room
             .subscribers
             .iter()
-            .map(|(connection_id, subscriber)| (connection_id.clone(), subscriber.outbox.clone()))
+            .map(|(connection_id, subscriber)| {
+                (
+                    connection_id.clone(),
+                    subscriber.outbox.clone(),
+                    subscriber.effect_fence.clone(),
+                )
+            })
             .collect::<Vec<_>>();
         if recipients.is_empty() {
             return;
@@ -4788,9 +5218,12 @@ impl LocalEphemeralBackend {
         let mut wakees = Vec::with_capacity(recipients.len());
         #[cfg(test)]
         self.pause_after_frame_construction_before_first_enqueue_for_test(message.as_ref());
-        for (connection_id, outbox) in recipients {
-            let result = lock(&outbox)
-                .push_ephemeral(message.clone(), collection.max_pending_ephemeral_keys);
+        for (connection_id, outbox, effect_fence) in recipients {
+            let result = lock(&outbox).push_ephemeral(
+                message.clone(),
+                collection.max_pending_ephemeral_keys,
+                effect_fence,
+            );
             if result.coalesced {
                 self.shared
                     .counters
@@ -6399,9 +6832,11 @@ mod tests {
                     vec![
                         RoomSubscriberResolution::Denied {
                             connection_id: "owner".to_owned(),
+                            expected_effect_fence: None,
                         },
                         RoomSubscriberResolution::Authorized {
                             connection_id: "survivor".to_owned(),
+                            expected_effect_fence: None,
                             auth: refreshed,
                         },
                     ],
@@ -6491,12 +6926,14 @@ mod tests {
         let resync = queue
             .resync
             .iter()
-            .map(|message| retained_resync_queue_item_bytes(message.as_ref()))
+            .map(|message| retained_resync_queue_item_bytes(message.message.as_ref()))
             .sum::<usize>();
         let ephemeral = queue
             .ephemeral
             .iter()
-            .map(|(key, message)| retained_ephemeral_queue_item_bytes(key, message.as_ref()))
+            .map(|(key, message)| {
+                retained_ephemeral_queue_item_bytes(&key.0, &key.1, message.message.as_ref())
+            })
             .sum::<usize>();
         assert_eq!(queue.durable_bytes, durable, "durable byte ledger drifted");
         assert_eq!(queue.resync_bytes, resync, "resync byte ledger drifted");
@@ -6719,7 +7156,7 @@ mod tests {
                 entry_version: 1,
             },
         });
-        queue.push_ephemeral(message, MAX_OUTBOX_BACKLOG);
+        queue.push_ephemeral(message, MAX_OUTBOX_BACKLOG, None);
         assert!(
             queue.ephemeral_bytes > 4_096,
             "cloned room/key metadata is charged"
@@ -6752,7 +7189,7 @@ mod tests {
                     .expect("test scope is routable"),
                 scope,
             };
-            queue.record_overflow_resync_for_room(room, 1, 0);
+            queue.record_overflow_resync_for_room(room, 1, 0, None);
         }
         assert_eq!(queue.resync.len(), MAX_OUTBOX_OVERFLOW_RESYNCS);
         assert_eq!(
@@ -6762,6 +7199,7 @@ mod tests {
         assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
 
         queue.drain_with_authority(
+            None,
             |_| FrameAuthorityDisposition::Send,
             |_| FrameAuthorityDisposition::Send,
         );
@@ -8874,5 +9312,148 @@ mod tests {
             .await
             .expect("push-before-wake must deliver every enqueue with no lost wakeup");
         consumer.abort();
+    }
+
+    /// A readable id is only an address. Predecessor cleanup and even a
+    /// predecessor-owned overflow may not remove the successor grant's queue
+    /// entry, while authority-independent traffic remains shared.
+    #[test]
+    fn exact_effect_purge_and_overflow_preserve_successor_and_independent_frames() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+
+        backend.enqueue_durable_bound("reused", b"old".to_vec(), predecessor.clone());
+        backend.enqueue_durable_bound("reused", b"new".to_vec(), successor.clone());
+        backend.enqueue_durable("reused", b"independent".to_vec());
+        for _ in 0..MAX_OUTBOX_BACKLOG {
+            let outcome = backend.enqueue_durable_bound("reused", vec![7; 32], predecessor.clone());
+            if outcome.overflowed_now {
+                break;
+            }
+        }
+
+        backend.purge_connection_effects("reused", &predecessor);
+        let payloads = backend
+            .drain_outbox_for_send_bound("reused", &successor)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                RealtimeEnvelope::Durable(message) => Some(message.payload),
+                RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(payloads.iter().any(|payload| payload == b"new"));
+        assert!(payloads.iter().any(|payload| payload == b"independent"));
+        assert!(!payloads.iter().any(|payload| payload == b"old"));
+    }
+
+    #[test]
+    fn effect_fenced_ephemeral_coalescing_cannot_overwrite_successor() {
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        let upsert = |value: &[u8], entry_version| {
+            Arc::new(EphemeralMessage::Upsert {
+                room: room(),
+                room_authority_generation: 1,
+                entry: EphemeralEntry {
+                    key: EntryKey("cursor".to_owned()),
+                    value: value.to_vec(),
+                    received_at_ms: 1,
+                    expires_at_ms: 10,
+                    scope_epoch: 1,
+                    entry_version,
+                },
+            })
+        };
+        let mut queue = OutboundQueue::new();
+        queue.push_ephemeral(
+            upsert(b"successor", 2),
+            MAX_OUTBOX_BACKLOG,
+            Some(successor.clone()),
+        );
+        // The delayed predecessor arrives last for the same room/key. Its
+        // coalescing domain must still be disjoint from the successor.
+        queue.push_ephemeral(
+            upsert(b"predecessor", 1),
+            MAX_OUTBOX_BACKLOG,
+            Some(predecessor.clone()),
+        );
+        assert_eq!(queue.ephemeral.len(), 2);
+
+        queue.purge_effect_fence(&predecessor);
+        let drained = queue.drain_with_authority(
+            Some(&successor),
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        let values = drained
+            .into_iter()
+            .filter_map(|message| match message {
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. }) => {
+                    Some(entry.value)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(values, vec![b"successor".to_vec()]);
+    }
+
+    /// A permission result resolved for one grant must not be installed on a
+    /// same-id replacement. The level-triggered room obligation stays pending
+    /// and the replacement is resolved on the next maintenance pass.
+    #[test]
+    fn room_reauthorization_replacement_fence_keeps_obligation_pending() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        backend
+            .subscribe_with_room_authority_and_effect_fence(
+                subscribe_request("same-id"),
+                1,
+                None,
+                Some(predecessor.clone()),
+            )
+            .unwrap();
+        let expected = authorization(1);
+        let ticket = backend
+            .prepare_room_authorization_event(expected.clone())
+            .unwrap();
+        let (_, obligation) = backend
+            .finalize_room_authorization_event(&ticket, expected, 11)
+            .unwrap()
+            .pop()
+            .unwrap();
+        let pending = backend.pending_room_reauthorizations().pop().unwrap();
+
+        let room_arc = lock(&backend.shared.rooms).get(&room()).cloned().unwrap();
+        lock(&room_arc)
+            .subscribers
+            .get_mut("same-id")
+            .unwrap()
+            .effect_fence = Some(successor.clone());
+
+        assert!(
+            !backend
+                .complete_room_reauthorization(
+                    &room(),
+                    obligation.room_authority_generation,
+                    vec![RoomSubscriberResolution::Authorized {
+                        connection_id: "same-id".to_owned(),
+                        expected_effect_fence: pending.subscribers[0].effect_fence.clone(),
+                        auth: auth_for(&scope()),
+                    }],
+                )
+                .unwrap()
+        );
+        assert_eq!(backend.pending_room_reauthorizations().len(), 1);
+        assert_eq!(
+            lock(&room_arc)
+                .subscribers
+                .get("same-id")
+                .unwrap()
+                .effect_fence,
+            Some(successor)
+        );
     }
 }

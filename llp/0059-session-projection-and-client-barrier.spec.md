@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -735,6 +735,37 @@ projection or leaf fence. It copies the producing `PreparedAuthority`/stored
 live-owner incarnation, grant id, session id, and generation into
 `EffectFenceV1`. Enqueue is not an authorization effect boundary; the atomic
 boundary is the later drain/send.
+
+The as-built internal representation is `ConnectionEffectFence`. It is stored
+on every retained `LiveSubscription` and protected-room subscriber and copied
+onto each recipient's durable, ephemeral, resync, or control queue item. The
+readable connection id remains only the routing address. An exact transport
+drain sends matching items, drops predecessor items after replacement, and
+leaves fenced items retained for compatibility drains that have no grant
+proof. Production connection-scoped enqueues always carry a fence; `None` is
+kept for authority-independent traffic and legacy embedding seams. Queue
+overflow, sticky resync state, and terminal purge are scoped to one exact
+effect fence; a delayed predecessor cannot clear or coalesce away a
+successor's queued effect. Non-exact grant retirement (including authority
+mismatch, generation invalidation, and stream reset) immediately places the
+local registry in mint-only posture, so readable-id adoption is unavailable
+while any delayed cleanup could remain.
+
+Protected-room reauthorization is split into four non-overlapping phases:
+snapshot `(connectionId, EffectFenceV1)` under room authority, resolve the
+current grant/session without `LocalSnapback`, query durable permission while
+holding only `LocalSnapback`, then exact-complete under room authority. A fence
+mismatch or subscriber-set change leaves the level-triggered obligation
+pending; a result resolved for a predecessor is never installed on a same-id
+replacement. This split also enforces the prohibited-overlap rule above:
+registry/coordinator locks are never acquired from beneath `LocalSnapback`.
+
+The bounded writer handoff has a 5000-monotonic-millisecond ordinary-send
+deadline as well as the terminal close deadline. A peer that does not read may
+therefore delay one accepted in-flight effect only to that bound. Timeout
+cancels the send, drops its admission and final-publication permits, closes the
+writer task, and allows authorization quiescence to finish; socket I/O never
+holds a projection, registry, or room lock.
 
 An auth operation that intentionally terminates its own authority needs one
 narrow completion rule. Successful finalization may mint a one-shot internal

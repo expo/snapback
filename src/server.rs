@@ -1026,6 +1026,29 @@ impl BoundGrantAuthority {
         }
     }
 
+    fn effect_fence(&self, grant_id: &str) -> crate::ephemeral::ConnectionEffectFence {
+        match self {
+            Self::Anonymous {
+                authorization_stream_incarnation,
+                ..
+            } => crate::ephemeral::ConnectionEffectFence::anonymous(
+                authorization_stream_incarnation.clone(),
+                grant_id.to_owned(),
+            ),
+            Self::Session {
+                authorization_stream_incarnation,
+                session_id,
+                generation,
+                ..
+            } => crate::ephemeral::ConnectionEffectFence::session(
+                authorization_stream_incarnation.clone(),
+                grant_id.to_owned(),
+                session_id.clone(),
+                *generation,
+            ),
+        }
+    }
+
     fn reverse_key(&self) -> GrantReverseKey {
         match self {
             Self::Anonymous {
@@ -1137,6 +1160,15 @@ enum GrantReverseKey {
     Session(BoundSessionKey),
 }
 
+enum ResolvedRoomConnectionAuthority {
+    Absent,
+    Current {
+        auth: Option<AuthContext>,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    },
+    Replaced,
+}
+
 #[derive(Clone, Debug)]
 struct PreparedConnectionOpenAuthority {
     resolved: ResolvedAppAuthority,
@@ -1207,6 +1239,10 @@ impl PreparedConnectionOpenAuthority {
 }
 
 impl PreparedConnectionAct {
+    fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
+        self.bound.effect_fence(&self.grant_id)
+    }
+
     fn authenticated_use_key(&self) -> Option<(String, u64)> {
         match &self.bound {
             BoundGrantAuthority::Anonymous { .. } => None,
@@ -1228,6 +1264,26 @@ pub(crate) struct BoundConnectionTerminalCapture {
     pub(crate) generation: Option<u64>,
 }
 
+impl BoundConnectionTerminalCapture {
+    fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
+        match (&self.session_id, self.generation) {
+            (Some(session_id), Some(generation)) => {
+                crate::ephemeral::ConnectionEffectFence::session(
+                    self.authorization_stream_incarnation.clone(),
+                    self.grant_id.clone(),
+                    session_id.clone(),
+                    generation,
+                )
+            }
+            (None, None) => crate::ephemeral::ConnectionEffectFence::anonymous(
+                self.authorization_stream_incarnation.clone(),
+                self.grant_id.clone(),
+            ),
+            _ => unreachable!("terminal capture preserves complete session authority"),
+        }
+    }
+}
+
 /// Clone-shared server half of item 5 terminal propagation. Registry removal
 /// invalidates every future act; notifier terminalization makes already-
 /// queued effects non-deliverable and wakes only the exact bound socket. The
@@ -1237,6 +1293,8 @@ pub(crate) struct BoundConnectionTerminalCapture {
 pub(crate) struct AuthTerminalLifecycle {
     connections: ConnectionRegistry,
     delivery: Arc<crate::ephemeral::DeliveryNotifier>,
+    ephemeral: EphemeralApi,
+    snapback: SharedSnapback,
 }
 
 pub(crate) fn committed_mode_terminal_reason(
@@ -1254,10 +1312,16 @@ pub(crate) fn committed_mode_terminal_reason(
 }
 
 impl AuthTerminalLifecycle {
-    pub(crate) fn new(connections: ConnectionRegistry, ephemeral: &EphemeralApi) -> Self {
+    pub(crate) fn new(
+        connections: ConnectionRegistry,
+        ephemeral: &EphemeralApi,
+        snapback: SharedSnapback,
+    ) -> Self {
         Self {
             connections,
             delivery: ephemeral.delivery_notifier(),
+            ephemeral: ephemeral.clone(),
+            snapback,
         }
     }
 
@@ -1342,6 +1406,21 @@ impl AuthTerminalLifecycle {
             close_by,
         };
         for capture in captures {
+            let effect_fence = capture.effect_fence();
+            self.ephemeral
+                .purge_connection_effects(&capture.connection_id, &effect_fence);
+            if let Ok(mut snapback) = self.snapback.try_lock() {
+                snapback.purge_connection_effects(&capture.connection_id, &effect_fence);
+            } else if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                let snapback = self.snapback.clone();
+                let connection_id = capture.connection_id.clone();
+                runtime.spawn(async move {
+                    snapback
+                        .lock()
+                        .await
+                        .purge_connection_effects(&connection_id, &effect_fence);
+                });
+            }
             let _ =
                 self.delivery
                     .terminalize_bound(&capture.connection_id, &capture.grant_id, event);
@@ -1665,7 +1744,9 @@ impl ConnectionRegistry {
                     .terminal_capture(connection_id.clone(), record.grant_id.clone())
             })
             .collect::<Vec<_>>();
+        let retired_any = !captures.is_empty();
         *state = ConnectionRegistryState::default();
+        state.pressure_mint_only = retired_any;
         *self
             .invalidation_issuer
             .lock()
@@ -1732,6 +1813,9 @@ impl ConnectionRegistry {
             .collect::<Vec<_>>();
         for connection_id in &ids {
             state.remove_grant(connection_id);
+        }
+        if !ids.is_empty() {
+            state.pressure_mint_only = true;
         }
         captures
     }
@@ -1958,6 +2042,7 @@ impl ConnectionRegistry {
                         .is_some_and(|existing| existing.authority.same_identity(&prepared.bound));
                     if !same_authority {
                         grants.remove_grant(id);
+                        grants.pressure_mint_only = true;
                         return Err(SnapbackError::error(
                             "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
                             "auth",
@@ -2181,23 +2266,31 @@ impl ConnectionRegistry {
     fn resolve_room_connection_authority(
         &self,
         connection_id: &str,
+        expected_effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
         coordinator: Option<&AuthCoordinator>,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<Option<AuthContext>> {
-        let (grant_id, managed_authority, bound) = {
+    ) -> SnapbackResult<ResolvedRoomConnectionAuthority> {
+        let (grant_id, managed_authority, bound, effect_fence) = {
             let state = self.lock();
             let Some(record) = state.grants.get(connection_id) else {
-                return Ok(None);
+                return Ok(ResolvedRoomConnectionAuthority::Absent);
             };
             (
                 record.grant_id.clone(),
                 record.managed_authority,
                 record.authority.clone(),
+                record.authority.effect_fence(&record.grant_id),
             )
         };
+        if expected_effect_fence.is_some_and(|expected| expected != &effect_fence) {
+            return Ok(ResolvedRoomConnectionAuthority::Replaced);
+        }
         if !managed_authority {
-            return Ok(None);
+            return Ok(ResolvedRoomConnectionAuthority::Current {
+                auth: None,
+                effect_fence,
+            });
         }
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
@@ -2210,7 +2303,10 @@ impl ConnectionRegistry {
                 ..
             } => {
                 let Some(coordinator) = coordinator else {
-                    return Ok(None);
+                    return Ok(ResolvedRoomConnectionAuthority::Current {
+                        auth: None,
+                        effect_fence,
+                    });
                 };
                 let Some(resolved) = coordinator.resolve_bound_connection_session(
                     authorization_stream_incarnation,
@@ -2222,7 +2318,10 @@ impl ConnectionRegistry {
                     monotonic_now,
                 )?
                 else {
-                    return Ok(None);
+                    return Ok(ResolvedRoomConnectionAuthority::Current {
+                        auth: None,
+                        effect_fence,
+                    });
                 };
                 resolved
             }
@@ -2230,16 +2329,18 @@ impl ConnectionRegistry {
         let current = bound
             .publication()
             .try_publish(epoch_now_ms, monotonic_now, || {
-                Ok(self
-                    .lock()
-                    .grants
-                    .get(connection_id)
-                    .is_some_and(|record| record.grant_id == grant_id))
+                Ok(self.lock().grants.get(connection_id).is_some_and(|record| {
+                    record.grant_id == grant_id
+                        && record.authority.effect_fence(&record.grant_id) == effect_fence
+                }))
             })?;
         if current != Some(true) {
-            return Ok(None);
+            return Ok(ResolvedRoomConnectionAuthority::Replaced);
         }
-        Ok(Some(ephemeral_auth_from_authority(&resolved)))
+        Ok(ResolvedRoomConnectionAuthority::Current {
+            auth: Some(ephemeral_auth_from_authority(&resolved)),
+            effect_fence,
+        })
     }
 
     /// Verify a presented token for one connection-scoped operation. Unknown
@@ -8023,27 +8124,63 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 // prune by TTL, LLP 0013 §TTL and leases).
                 ephemeral.cleanup_expired(now);
             }
-            // The journal prune is rusqlite work — off the async worker (L7).
+            // Resolve connection grants before entering the database owner.
+            // A room obligation remains pending if any readable id was
+            // replaced between snapshot and resolution; the next tick starts
+            // again from the replacement's exact effect fence.
             let connections = runtime.connections.clone();
             let coordinator = runtime.auth_coordinator.clone();
             let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            with_snapback(&state, move |snapback| {
+            let mut resolved_rooms = Vec::new();
+            for room in ephemeral.pending_room_reauthorizations() {
+                let mut fresh_authorities = Vec::with_capacity(room.subscribers.len());
+                let mut replaced = false;
+                for subscriber in &room.subscribers {
+                    match connections.resolve_room_connection_authority(
+                        &subscriber.connection_id,
+                        subscriber.effect_fence.as_ref(),
+                        coordinator.as_deref(),
+                        epoch_now_ms,
+                        monotonic_now,
+                    ) {
+                        Ok(ResolvedRoomConnectionAuthority::Absent) => {
+                            fresh_authorities.push(None);
+                        }
+                        Ok(ResolvedRoomConnectionAuthority::Current { auth, effect_fence })
+                            if subscriber.effect_fence.as_ref() == Some(&effect_fence) =>
+                        {
+                            fresh_authorities.push(auth);
+                        }
+                        Ok(ResolvedRoomConnectionAuthority::Current { .. })
+                        | Ok(ResolvedRoomConnectionAuthority::Replaced)
+                        | Err(_) => {
+                            replaced = true;
+                            break;
+                        }
+                    }
+                }
+                if !replaced {
+                    resolved_rooms.push((room, fresh_authorities));
+                }
+            }
+
+            // The permission query and journal prune are rusqlite work — off
+            // the async worker (L7). No registry/coordinator lock is acquired
+            // while LocalSnapback is held.
+            let planned = with_snapback(&state, move |snapback| {
                 if run_maintenance {
                     snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
                 }
-                // Room resync remains level-triggered until every exact
-                // subscriber is checked against a fresh, still-bound
-                // connection authority at or after the causing commit.
-                let _ = snapback.reauthorize_pending_ephemeral_rooms(
-                    |connection_id, _previous_auth| {
-                        connections.resolve_room_connection_authority(
-                            connection_id,
-                            coordinator.as_deref(),
-                            epoch_now_ms,
-                            monotonic_now,
-                        )
-                    },
-                );
+                let mut planned = Vec::new();
+                for (room, fresh_authorities) in resolved_rooms {
+                    let room_id = room.room.clone();
+                    let generation = room.obligation.room_authority_generation;
+                    if let Ok(resolutions) =
+                        snapback.resolve_pending_ephemeral_room_permissions(room, fresh_authorities)
+                    {
+                        planned.push((room_id, generation, resolutions));
+                    }
+                }
                 if run_maintenance {
                     // Best-effort; a transient prune error is retried on the
                     // next ordinary maintenance sweep.
@@ -8053,8 +8190,12 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                         JOURNAL_RETAIN_MS,
                     );
                 }
+                planned
             })
             .await;
+            for (room_id, generation, resolutions) in planned {
+                let _ = ephemeral.complete_room_reauthorization(&room_id, generation, resolutions);
+            }
         }
     })
 }
@@ -9635,6 +9776,7 @@ async fn subscribe_live(
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
+        effect_fence: Some(connection_act.effect_fence()),
         #[cfg(test)]
         session_mode: false,
     };
@@ -9673,6 +9815,7 @@ async fn resume_live(
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
+        effect_fence: Some(connection_act.effect_fence()),
         #[cfg(test)]
         session_mode: false,
     };
@@ -9805,6 +9948,16 @@ struct AdmittedLiveWrite {
 }
 
 const TERMINAL_AUTH_CLOSE_CODE: u16 = 4401;
+const LIVE_WRITE_HANDOFF_TIMEOUT: Duration = Duration::from_millis(5_000);
+
+async fn bounded_live_write<F, E>(write: F, close_by: tokio::time::Instant) -> bool
+where
+    F: std::future::Future<Output = Result<(), E>>,
+{
+    tokio::time::timeout_at(close_by, write)
+        .await
+        .is_ok_and(|result| result.is_ok())
+}
 
 async fn finish_terminal_live_write(
     sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
@@ -9852,8 +10005,16 @@ async fn live_socket_writer(
         let Some(write) = write else {
             break;
         };
+        let AdmittedLiveWrite {
+            message,
+            admission,
+            _publication_authority: publication_authority,
+            completed,
+        } = write;
         if !notify.is_deliverable(&connection_id, generation) {
-            let _ = write.completed.send(false);
+            let _ = completed.send(false);
+            drop(publication_authority);
+            drop(admission);
             if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
                 finish_terminal_live_write(&mut sender, event).await;
             }
@@ -9866,10 +10027,17 @@ async fn live_socket_writer(
                 terminal = Some(event);
                 false
             },
-            _ = write.admission.cancelled() => false,
-            result = sender.send(write.message) => result.is_ok(),
+            _ = admission.cancelled() => false,
+            sent = bounded_live_write(
+                sender.send(message),
+                tokio::time::Instant::now() + LIVE_WRITE_HANDOFF_TIMEOUT,
+            ) => sent,
         };
-        let _ = write.completed.send(sent);
+        let _ = completed.send(sent);
+        // Quiescence depends on these guards, not on the socket close. Drop
+        // them before a best-effort terminal frame or any subsequent await.
+        drop(publication_authority);
+        drop(admission);
         if let Some(event) = terminal {
             finish_terminal_live_write(&mut sender, event).await;
             break;
@@ -10131,7 +10299,10 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                     policy_mode,
                                     authorization_invalidation_ready,
                                     &connection_act.resolved,
-                                    room_authorization.as_ref(),
+                                    LiveSocketEffectContext {
+                                        protected_room: room_authorization.as_ref(),
+                                        effect_fence: Some(&connection_act.effect_fence()),
+                                    },
                                 )),
                             ) else {
                                 break 'stream;
@@ -10425,7 +10596,11 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         };
         let Ok(Some(messages)) =
             connection_act.try_act(connections, now_millis(), Instant::now(), || {
-                Ok(ephemeral.drain_live_stream_for_send_if_current(connection_id, generation))
+                Ok(ephemeral.drain_live_stream_for_send_bound_if_current(
+                    connection_id,
+                    generation,
+                    &connection_act.effect_fence(),
+                ))
             })
         else {
             return std::ops::ControlFlow::Break(());
@@ -10878,6 +11053,12 @@ struct LiveSocketResponse {
     room_authority: Option<RoomAuthorityPermit>,
 }
 
+#[derive(Clone, Copy, Default)]
+struct LiveSocketEffectContext<'a> {
+    protected_room: Option<&'a BoundRoomAuthorization>,
+    effect_fence: Option<&'a crate::ephemeral::ConnectionEffectFence>,
+}
+
 impl From<String> for LiveSocketResponse {
     fn from(text: String) -> Self {
         Self {
@@ -10903,7 +11084,7 @@ fn handle_live_socket_text(
         policy_mode,
         authorization_invalidation_ready,
         authority,
-        None,
+        LiveSocketEffectContext::default(),
     )
 }
 
@@ -10914,7 +11095,7 @@ fn handle_live_socket_text_authorized(
     policy_mode: PolicyAuthMode,
     authorization_invalidation_ready: bool,
     authority: &ResolvedAppAuthority,
-    protected_room: Option<&BoundRoomAuthorization>,
+    effect_context: LiveSocketEffectContext<'_>,
 ) -> LiveSocketResponse {
     if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
         return socket_error(
@@ -10985,7 +11166,10 @@ fn handle_live_socket_text_authorized(
             .into();
         }
     };
-    if let Some(auth) = protected_room.map(|authorization| authorization.auth.clone()) {
+    if let Some(auth) = effect_context
+        .protected_room
+        .map(|authorization| authorization.auth.clone())
+    {
         match &mut message {
             LiveSocketClientMessage::EphemeralSubscribe { request, .. }
             | LiveSocketClientMessage::EphemeralUnsubscribe { request, .. } => {
@@ -11000,8 +11184,9 @@ fn handle_live_socket_text_authorized(
             LiveSocketClientMessage::Ping { .. } => {}
         }
     }
-    let admitted_room_authority =
-        protected_room.and_then(|authorization| authorization.permit.as_ref());
+    let admitted_room_authority = effect_context
+        .protected_room
+        .and_then(|authorization| authorization.permit.as_ref());
     let operation_name = live_socket_operation_name(&message);
     let operation = operation_by_name(operation_name)
         .expect("every decoded live-socket variant must have registered policy");
@@ -11101,11 +11286,19 @@ fn handle_live_socket_text_authorized(
         LiveSocketClientMessage::EphemeralSubscribe {
             request_id,
             request,
-        } => match ephemeral.subscribe_with_room_authority(
-            request,
-            now_millis(),
-            admitted_room_authority,
-        ) {
+        } => match match effect_context.effect_fence {
+            Some(effect_fence) => ephemeral.subscribe_with_room_authority_and_effect_fence(
+                request,
+                now_millis(),
+                admitted_room_authority,
+                effect_fence.clone(),
+            ),
+            None => ephemeral.subscribe_with_room_authority(
+                request,
+                now_millis(),
+                admitted_room_authority,
+            ),
+        } {
             Ok(message) => admitted_socket_ack(
                 ephemeral,
                 request_id,
@@ -11313,9 +11506,10 @@ async fn drain_outbox(
         let _effect = admission.effect_guard("HTTP outbox drain publication")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
-            Ok(runtime
-                .ephemeral
-                .drain_outbox_for_send_if_active(&connection_act.connection_id))
+            Ok(runtime.ephemeral.drain_outbox_for_send_bound_if_active(
+                &connection_act.connection_id,
+                &connection_act.effect_fence(),
+            ))
         })?
     };
     let mut publication_authority = Vec::new();
@@ -11590,7 +11784,12 @@ async fn subscribe_ephemeral(
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
             runtime
                 .ephemeral
-                .subscribe_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
+                .subscribe_with_room_authority_and_effect_fence(
+                    request,
+                    epoch_now_ms,
+                    room_authority.as_ref(),
+                    connection_act.effect_fence(),
+                )
                 .map_err(ApiError::from_ephemeral)
         })?;
     Ok(retain_room_authority(
@@ -18071,6 +18270,10 @@ globalThis.__snapbackHandlers = {
             );
             let state = registry.lock();
             assert!(state.grants.is_empty());
+            assert!(
+                state.pressure_mint_only,
+                "non-exact previousToken retirement immediately disables readable-id adoption"
+            );
             state.assert_grant_indexes_consistent();
         }
 
@@ -18369,6 +18572,7 @@ globalThis.__snapbackHandlers = {
         assert!(!state.grants.contains_key("session-a-2"));
         assert!(state.grants.contains_key("session-b"));
         assert!(state.grants.contains_key("anonymous"));
+        assert!(state.pressure_mint_only);
         state.assert_grant_indexes_consistent();
         drop(state);
 
@@ -18402,6 +18606,14 @@ globalThis.__snapbackHandlers = {
             )
             .expect("prepare predecessor act");
         registry.clear_after_committed_reset();
+        // Force the historical reuse shape after asserting production's
+        // mint-only containment, so this test continues to exercise the
+        // independent act-time grant-id fence.
+        {
+            let mut grants = registry.lock();
+            assert!(grants.pressure_mint_only);
+            grants.pressure_mint_only = false;
+        }
         let replacement = registry
             .open(Some(first.connection_id.clone()), None, true)
             .expect("reuse wire id after reset");
@@ -18436,6 +18648,99 @@ globalThis.__snapbackHandlers = {
             })
             .expect("replacement owns queued data");
         assert_eq!(messages.len(), 1);
+    }
+
+    /// HTTP polling is not allowed to adopt delayed frames merely because a
+    /// local profile reused the readable id. Production containment mints;
+    /// this forced-reuse seam proves the exact drain remains safe anyway.
+    #[test]
+    fn polling_id_reuse_drops_predecessor_effects_and_delivers_successor() {
+        let state = AppState::detached(LocalSnapback::memory().expect("memory fixture"));
+        let registry = state.connections.clone();
+        let first = registry
+            .open(Some("poll-reuse".to_owned()), None, true)
+            .expect("predecessor grant");
+        let predecessor = registry
+            .prepare_act(
+                &first.connection_id,
+                Some(&first.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("predecessor act");
+        state.ephemeral.enqueue_durable_bound_for_test(
+            &first.connection_id,
+            b"predecessor".to_vec(),
+            predecessor.effect_fence(),
+        );
+
+        registry.clear_after_committed_reset();
+        {
+            let mut grants = registry.lock();
+            assert!(grants.pressure_mint_only);
+            grants.pressure_mint_only = false;
+        }
+        let replacement = registry
+            .open(Some(first.connection_id.clone()), None, true)
+            .expect("forced same-id replacement");
+        assert_eq!(replacement.connection_id, first.connection_id);
+        let current = registry
+            .prepare_act(
+                &replacement.connection_id,
+                Some(&replacement.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("replacement act");
+        state.ephemeral.enqueue_durable_bound_for_test(
+            &replacement.connection_id,
+            b"successor".to_vec(),
+            current.effect_fence(),
+        );
+        state.ephemeral.touch_connection(&replacement.connection_id);
+        let payloads = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(
+                &replacement.connection_id,
+                &current.effect_fence(),
+            )
+            .expect("active poll connection")
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                RealtimeEnvelope::Durable(message) => Some(message.payload),
+                RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(payloads, vec![b"successor".to_vec()]);
+    }
+
+    #[tokio::test]
+    async fn slow_socket_write_releases_its_handoff_at_the_monotonic_deadline() {
+        struct Release(Arc<AtomicBool>);
+        impl Drop for Release {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let released = Arc::new(AtomicBool::new(false));
+        let held = Release(released.clone());
+        let blocked = async move {
+            let _held = held;
+            std::future::pending::<Result<(), ()>>().await
+        };
+        assert!(
+            !super::bounded_live_write(blocked, tokio::time::Instant::now()).await,
+            "a non-reading peer may not hold auth quiescence indefinitely"
+        );
+        assert!(
+            released.load(Ordering::SeqCst),
+            "timeout cancellation releases admission/publication ownership"
+        );
     }
 
     /// @ref LLP 0059#fenced-effects-and-live-closure — a stream premark wins

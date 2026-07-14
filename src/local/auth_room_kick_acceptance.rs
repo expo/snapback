@@ -122,6 +122,7 @@ impl KickFixture {
                 session_authority(InvocationSource::LiveInitialQuery, USER_A),
                 LiveInvalidationAdmission {
                     connection: Some(connection_a.clone()),
+                    effect_fence: None,
                     session_mode: true,
                 },
             )
@@ -133,6 +134,7 @@ impl KickFixture {
                 session_authority(InvocationSource::LiveInitialQuery, USER_B),
                 LiveInvalidationAdmission {
                     connection: Some(connection_b.clone()),
+                    effect_fence: None,
                     session_mode: true,
                 },
             )
@@ -148,6 +150,7 @@ impl KickFixture {
                 session_authority(InvocationSource::LiveInitialQuery, USER_A),
                 LiveInvalidationAdmission {
                     connection: Some(connection_a),
+                    effect_fence: None,
                     session_mode: true,
                 },
             )
@@ -159,6 +162,7 @@ impl KickFixture {
                 session_authority(InvocationSource::LiveInitialQuery, USER_B),
                 LiveInvalidationAdmission {
                     connection: Some(connection_b),
+                    effect_fence: None,
                     session_mode: true,
                 },
             )

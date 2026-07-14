@@ -482,6 +482,7 @@ fn subscribe(
             session_authority(user, InvocationSource::LiveInitialQuery),
             LiveInvalidationAdmission {
                 connection: Some(connection.clone()),
+                effect_fence: None,
                 session_mode: true,
             },
         )

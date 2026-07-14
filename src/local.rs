@@ -1507,6 +1507,24 @@ impl EphemeralApi {
         outcome
     }
 
+    pub(crate) fn subscribe_with_room_authority_and_effect_fence(
+        &self,
+        request: SubscribeRequest,
+        now_ms: u64,
+        room_authority: Option<&crate::ephemeral::RoomAuthorityPermit>,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) -> Result<EphemeralMessage, crate::ephemeral::EphemeralError> {
+        let connection_id = request.connection_id.clone();
+        let outcome = self.store.subscribe_with_room_authority_and_effect_fence(
+            request,
+            now_ms,
+            room_authority,
+            Some(effect_fence),
+        );
+        self.activity.touch(&connection_id, now_ms);
+        outcome
+    }
+
     pub fn delete(
         &self,
         request: DeleteRequest,
@@ -1599,6 +1617,19 @@ impl EphemeralApi {
             })
     }
 
+    pub(crate) fn drain_outbox_for_send_bound_if_active(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) -> Option<Vec<crate::ephemeral::AdmittedRealtimeEnvelope>> {
+        self.activity
+            .act_if_active(connection_id, now_millis(), || {
+                self.store
+                    .drain_outbox_for_send_bound(connection_id, effect_fence)
+            })
+    }
+
+    #[cfg(test)]
     pub(crate) fn drain_outbox_for_send_if_active(
         &self,
         connection_id: &str,
@@ -1638,6 +1669,23 @@ impl EphemeralApi {
         let drained = self
             .store
             .drain_outbox_for_send_if_current(connection_id, generation)?;
+        if !drained.is_empty() {
+            self.activity.touch(connection_id, now_millis());
+        }
+        Some(drained)
+    }
+
+    pub(crate) fn drain_live_stream_for_send_bound_if_current(
+        &self,
+        connection_id: &str,
+        generation: u64,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) -> Option<Vec<crate::ephemeral::AdmittedRealtimeEnvelope>> {
+        let drained = self.store.drain_outbox_for_send_bound_if_current(
+            connection_id,
+            generation,
+            effect_fence,
+        )?;
         if !drained.is_empty() {
             self.activity.touch(connection_id, now_millis());
         }
@@ -1690,6 +1738,31 @@ impl EphemeralApi {
         self.store.cleanup_expired(now_ms);
     }
 
+    pub(crate) fn purge_connection_effects(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) {
+        self.store
+            .purge_connection_effects(connection_id, effect_fence);
+    }
+
+    pub(crate) fn pending_room_reauthorizations(
+        &self,
+    ) -> Vec<crate::ephemeral::PendingRoomReauthorization> {
+        self.store.pending_room_reauthorizations()
+    }
+
+    pub(crate) fn complete_room_reauthorization(
+        &self,
+        room_id: &crate::ephemeral::RoomId,
+        room_authority_generation: u64,
+        resolutions: Vec<crate::ephemeral::RoomSubscriberResolution>,
+    ) -> SnapbackResult<bool> {
+        self.store
+            .complete_room_reauthorization(room_id, room_authority_generation, resolutions)
+    }
+
     /// The delivery notifier the WebSocket task registers with (L8).
     pub fn delivery_notifier(&self) -> Arc<DeliveryNotifier> {
         self.store.delivery_notifier()
@@ -1703,6 +1776,17 @@ impl EphemeralApi {
     pub(crate) fn enqueue_durable_for_test(&self, connection_id: &str, payload: Vec<u8>) {
         self.store
             .enqueue_durable(connection_id.to_owned(), payload);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn enqueue_durable_bound_for_test(
+        &self,
+        connection_id: &str,
+        payload: Vec<u8>,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) {
+        self.store
+            .enqueue_durable_bound(connection_id.to_owned(), payload, effect_fence);
     }
 }
 
@@ -1970,6 +2054,7 @@ struct LiveSubscription {
     input: HandlerInput,
     read_dependencies: Vec<CapturedReadDependency>,
     authorization: Option<LiveSubscriptionAuthorization>,
+    effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
 }
 
 #[derive(Clone, Debug)]
@@ -1983,6 +2068,7 @@ struct LiveSubscriptionAuthorization {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct LiveInvalidationAdmission {
     pub(crate) connection: Option<AuthorizationInvalidationConnection>,
+    pub(crate) effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
     #[cfg(test)]
     pub(crate) session_mode: bool,
 }
@@ -2585,8 +2671,7 @@ impl LocalSnapback {
                 }) else {
                     continue;
                 };
-                self.ephemeral
-                    .enqueue_durable(subscription.connection_id.clone(), payload);
+                self.enqueue_subscription_durable(subscription, payload);
                 self.live_delivery.total_deliveries += 1;
                 self.live_delivery.last_deliveries += 1;
             }
@@ -4233,6 +4318,7 @@ impl LocalSnapback {
             ));
         }
         authority.validate_admission("live subscribe preparation")?;
+        let effect_fence = invalidation.effect_fence.clone();
         let authority_subject = authority.resolved().invalidation_subject();
         let retained_authority = authority.retain_live_owner()?;
         let publication_authority = authority.clone();
@@ -4466,6 +4552,7 @@ impl LocalSnapback {
                 input: subscription_input.clone(),
                 read_dependencies: query.read_dependencies,
                 authorization: subscription_authorization,
+                effect_fence,
             },
         );
         self.refresh_auth_scoped_live_connections();
@@ -4911,6 +4998,14 @@ impl LocalSnapback {
             ));
         }
 
+        // @ref LLP 0059#durable-and-ephemeral-outboxes — reconnect moves the
+        // retained producer to the successor connection *and* its exact
+        // effect fence before any resume-side frame can be constructed.
+        subscription.connection_id = input.connection_id.clone();
+        if invalidation.effect_fence.is_some() {
+            subscription.effect_fence = invalidation.effect_fence.clone();
+        }
+
         if let Some(mut authorization) = subscription.authorization.take() {
             let mut scope_retirements = Vec::new();
             if authority.active_mode() != AuthMode::Sessions {
@@ -5013,8 +5108,7 @@ impl LocalSnapback {
                     None,
                 ))
             {
-                self.ephemeral
-                    .enqueue_durable(input.connection_id.clone(), payload);
+                self.enqueue_subscription_durable(&subscription, payload);
             }
 
             subscription.authorization = Some(authorization.clone());
@@ -5065,6 +5159,7 @@ impl LocalSnapback {
                 stored.connection_id = input.connection_id;
                 stored.read_dependencies = query.read_dependencies;
                 stored.authorization = Some(authorization.clone());
+                stored.effect_fence = subscription.effect_fence.clone();
             }
             self.refresh_auth_scoped_live_connections();
             return Ok(LiveResumeOutput {
@@ -5109,6 +5204,7 @@ impl LocalSnapback {
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 stored.connection_id = input.connection_id;
                 stored.read_dependencies = query.read_dependencies;
+                stored.effect_fence = subscription.effect_fence.clone();
             }
             return Ok(LiveResumeOutput {
                 subscription_id: subscription.id,
@@ -5130,6 +5226,7 @@ impl LocalSnapback {
         self.touch_connection(&input.connection_id, now_millis());
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.connection_id = input.connection_id;
+            stored.effect_fence = subscription.effect_fence;
         }
         Ok(LiveResumeOutput {
             subscription_id: subscription.id,
@@ -6310,6 +6407,12 @@ impl LocalSnapback {
         // path (an async worker; the L7 exec guard forbids rusqlite there),
         // and a version-at-death fact is cosmetic — null is the honest value.
         let mut dropped_subscriptions = 0_usize;
+        let dropped_effect_fences = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+            .filter_map(|subscription| subscription.effect_fence.clone())
+            .collect::<BTreeSet<_>>();
         let retired_authorization_scopes = self
             .subscriptions
             .values()
@@ -6385,8 +6488,18 @@ impl LocalSnapback {
                 "clearRetained": true,
             }))
             .unwrap_or_default();
-            self.ephemeral
-                .enqueue_durable(connection_id.to_owned(), payload);
+            if dropped_effect_fences.is_empty() {
+                self.ephemeral
+                    .enqueue_durable(connection_id.to_owned(), payload);
+            } else {
+                for effect_fence in dropped_effect_fences {
+                    self.ephemeral.enqueue_durable_bound(
+                        connection_id.to_owned(),
+                        payload.clone(),
+                        effect_fence,
+                    );
+                }
+            }
         }
         // Losing the last watcher of a demand-gated live query disarms its cron
         // job (L5).
@@ -6557,6 +6670,78 @@ impl LocalSnapback {
         self.ephemeral.drain_outbox_for_send(connection_id)
     }
 
+    fn enqueue_subscription_durable(
+        &self,
+        subscription: &LiveSubscription,
+        payload: Vec<u8>,
+    ) -> crate::ephemeral::DurableEnqueueOutcome {
+        match subscription.effect_fence.clone() {
+            Some(effect_fence) => self.ephemeral.enqueue_durable_bound(
+                subscription.connection_id.clone(),
+                payload,
+                effect_fence,
+            ),
+            None => self
+                .ephemeral
+                .enqueue_durable(subscription.connection_id.clone(), payload),
+        }
+    }
+
+    fn enqueue_subscription_authorized_durable(
+        &self,
+        subscription: &LiveSubscription,
+        payload: Vec<u8>,
+        authorization: crate::storage::AuthorizationVersion,
+    ) -> crate::ephemeral::DurableEnqueueOutcome {
+        match subscription.effect_fence.clone() {
+            Some(effect_fence) => self.ephemeral.enqueue_authorized_durable_bound(
+                subscription.connection_id.clone(),
+                payload,
+                authorization,
+                effect_fence,
+            ),
+            None => self.ephemeral.enqueue_authorized_durable(
+                subscription.connection_id.clone(),
+                payload,
+                authorization,
+            ),
+        }
+    }
+
+    pub(crate) fn purge_connection_effects(
+        &mut self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) {
+        let retired_scopes = self
+            .subscriptions
+            .values()
+            .filter(|subscription| {
+                subscription.connection_id == connection_id
+                    && subscription.effect_fence.as_ref() == Some(effect_fence)
+            })
+            .filter_map(|subscription| {
+                subscription
+                    .authorization
+                    .as_ref()
+                    .map(|authorization| authorization.scope_id.clone())
+            })
+            .collect::<Vec<_>>();
+        self.subscriptions.retain(|_, subscription| {
+            subscription.connection_id != connection_id
+                || subscription.effect_fence.as_ref() != Some(effect_fence)
+        });
+        if let Some(state) = self.auth_invalidation.as_mut() {
+            for scope in retired_scopes {
+                let _ = state.obligations.retire_scope(&scope);
+            }
+        }
+        self.refresh_auth_scoped_live_connections();
+        self.refresh_cron_active();
+        self.ephemeral
+            .purge_connection_effects(connection_id, effect_fence);
+    }
+
     /// Record connection activity for the L2 reaper. @ref LLP 0032 L2.
     fn touch_connection(&mut self, connection_id: &str, now_ms: u64) {
         self.connections_last_seen.touch(connection_id, now_ms);
@@ -6669,6 +6854,7 @@ impl LocalSnapback {
         ))
     }
 
+    #[cfg(test)]
     pub(crate) fn reauthorize_pending_ephemeral_rooms<Resolve>(
         &mut self,
         mut resolve_connection: Resolve,
@@ -6679,59 +6865,84 @@ impl LocalSnapback {
         let pending = self.ephemeral.pending_room_reauthorizations();
         let mut completed = 0_usize;
         for room in pending {
-            let collection = self
+            let fresh = room
+                .subscribers
+                .iter()
+                .map(|subscriber| {
+                    resolve_connection(&subscriber.connection_id, &subscriber.previous_auth)
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            let room_id = room.room.clone();
+            let generation = room.obligation.room_authority_generation;
+            let resolutions = self.resolve_pending_ephemeral_room_permissions(room, fresh)?;
+            if self
                 .ephemeral
-                .collection_definition(&room.room.collection)
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
-                        "ephemeral",
-                        "pending room collection is no longer loaded",
-                    )
-                })?;
-            let projection = collection.permission_backing.as_ref().ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-                    "auth",
-                    "pending protected room lacks its durable permissionBacking projection",
-                )
-            })?;
-            let mut resolutions = Vec::with_capacity(room.subscribers.len());
-            for subscriber in room.subscribers {
-                let fresh =
-                    resolve_connection(&subscriber.connection_id, &subscriber.previous_auth)?;
-                let Some(fresh) = fresh else {
-                    resolutions.push(RoomSubscriberResolution::Denied {
-                        connection_id: subscriber.connection_id,
-                    });
-                    continue;
-                };
-                let granted = self.room_permission_projection_granted(
-                    projection,
-                    &room.room.scope,
-                    &fresh,
-                    room.obligation.min_commit_version,
-                )?;
-                if granted {
-                    resolutions.push(RoomSubscriberResolution::Authorized {
-                        connection_id: subscriber.connection_id,
-                        auth: collection.grant_projected_room_permission(fresh, &room.room.scope),
-                    });
-                } else {
-                    resolutions.push(RoomSubscriberResolution::Denied {
-                        connection_id: subscriber.connection_id,
-                    });
-                }
-            }
-            if self.ephemeral.complete_room_reauthorization(
-                &room.room,
-                room.obligation.room_authority_generation,
-                resolutions,
-            )? {
+                .complete_room_reauthorization(&room_id, generation, resolutions)?
+            {
                 completed = completed.saturating_add(1);
             }
         }
         Ok(completed)
+    }
+
+    pub(crate) fn resolve_pending_ephemeral_room_permissions(
+        &self,
+        room: crate::ephemeral::PendingRoomReauthorization,
+        fresh_authorities: Vec<Option<AuthContext>>,
+    ) -> SnapbackResult<Vec<RoomSubscriberResolution>> {
+        if room.subscribers.len() != fresh_authorities.len() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE",
+                "ephemeral",
+                "room permission phase requires one authority result per snapshotted subscriber",
+            ));
+        }
+        let collection = self
+            .ephemeral
+            .collection_definition(&room.room.collection)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+                    "ephemeral",
+                    "pending room collection is no longer loaded",
+                )
+            })?;
+        let projection = collection.permission_backing.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "pending protected room lacks its durable permissionBacking projection",
+            )
+        })?;
+        let mut resolutions = Vec::with_capacity(room.subscribers.len());
+        for (subscriber, fresh) in room.subscribers.into_iter().zip(fresh_authorities) {
+            let Some(fresh) = fresh else {
+                resolutions.push(RoomSubscriberResolution::Denied {
+                    connection_id: subscriber.connection_id,
+                    expected_effect_fence: subscriber.effect_fence,
+                });
+                continue;
+            };
+            let granted = self.room_permission_projection_granted(
+                projection,
+                &room.room.scope,
+                &fresh,
+                room.obligation.min_commit_version,
+            )?;
+            if granted {
+                resolutions.push(RoomSubscriberResolution::Authorized {
+                    connection_id: subscriber.connection_id,
+                    expected_effect_fence: subscriber.effect_fence,
+                    auth: collection.grant_projected_room_permission(fresh, &room.room.scope),
+                });
+            } else {
+                resolutions.push(RoomSubscriberResolution::Denied {
+                    connection_id: subscriber.connection_id,
+                    expected_effect_fence: subscriber.effect_fence,
+                });
+            }
+        }
+        Ok(resolutions)
     }
 
     fn room_permission_projection_granted(
@@ -7526,8 +7737,8 @@ impl LocalSnapback {
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
         }
-        let enqueue = self.ephemeral.enqueue_authorized_durable(
-            subscription.connection_id.clone(),
+        let enqueue = self.enqueue_subscription_authorized_durable(
+            subscription,
             payload,
             proof.authorization,
         );
@@ -7549,19 +7760,20 @@ impl LocalSnapback {
             .subscriptions
             .values()
             .filter(|subscription| subscription.connection_id == connection_id)
-            .filter_map(|subscription| {
-                subscription
-                    .authorization
-                    .as_ref()
-                    .map(|authorization| authorization.scope_id.clone())
-            })
+            .filter(|subscription| subscription.authorization.is_some())
+            .cloned()
             .collect::<Vec<_>>();
         if subscriptions.is_empty() {
             return Ok(());
         }
         let groups = subscriptions.iter().fold(
             BTreeMap::<(crate::auth::invalidation::IssuerId, u64), Vec<ScopeId>>::new(),
-            |mut groups, scope| {
+            |mut groups, subscription| {
+                let scope = &subscription
+                    .authorization
+                    .as_ref()
+                    .expect("filtered authorized subscription")
+                    .scope_id;
                 if let ScopeId::Subscription {
                     issuer_id,
                     connection_generation,
@@ -7604,18 +7816,27 @@ impl LocalSnapback {
                     .obligations
                     .register_connection_child(&root, child.clone())?;
                 if let Some(projection) = state.obligations.projection(&child) {
-                    projections.push(projection);
+                    let subscription = subscriptions
+                        .iter()
+                        .find(|subscription| {
+                            subscription
+                                .authorization
+                                .as_ref()
+                                .is_some_and(|authorization| authorization.scope_id == child)
+                        })
+                        .expect("group child came from a retained subscription")
+                        .clone();
+                    projections.push((subscription, projection));
                 }
             }
         }
-        for projection in projections {
+        for (subscription, projection) in projections {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
                 projection.resolution,
                 None,
             )) {
-                self.ephemeral
-                    .enqueue_durable(connection_id.to_owned(), payload);
+                self.enqueue_subscription_durable(&subscription, payload);
             }
         }
         Ok(())
@@ -7633,25 +7854,27 @@ impl LocalSnapback {
         admission: &AdmissionLease,
     ) -> SnapbackResult<bool> {
         let _publication = admission.effect_guard("authorization invalidation hint publication")?;
-        let scopes = self
+        let subscriptions = self
             .subscriptions
             .values()
             .filter(|subscription| subscription.connection_id == connection_id)
-            .filter_map(|subscription| {
-                subscription
-                    .authorization
-                    .as_ref()
-                    .map(|authorization| authorization.scope_id.clone())
-            })
+            .filter(|subscription| subscription.authorization.is_some())
+            .cloned()
             .collect::<Vec<_>>();
         let projections = self
             .auth_invalidation
             .as_ref()
             .map(|state| {
-                scopes
+                subscriptions
                     .iter()
-                    .filter_map(|scope| state.obligations.projection(scope))
-                    .map(|mut projection| {
+                    .filter_map(|subscription| {
+                        let scope = &subscription.authorization.as_ref()?.scope_id;
+                        state
+                            .obligations
+                            .projection(scope)
+                            .map(|projection| (subscription.clone(), projection))
+                    })
+                    .map(|(subscription, mut projection)| {
                         // A snapshot ticket is useful only in the atomic frame
                         // that also carries the rows it proves. Wakeup hints
                         // re-project the obligation alone; the drain boundary
@@ -7666,21 +7889,20 @@ impl LocalSnapback {
                         {
                             projection.resolution = None;
                         }
-                        projection
+                        (subscription, projection)
                     })
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
         let mut parked = false;
-        for projection in projections {
+        for (subscription, projection) in projections {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
                 projection.resolution,
                 None,
             )) {
                 parked |= self
-                    .ephemeral
-                    .enqueue_durable(connection_id.to_owned(), payload)
+                    .enqueue_subscription_durable(&subscription, payload)
                     .parked_behind_overflow;
             }
         }
@@ -7937,7 +8159,7 @@ impl LocalSnapback {
         }
 
         let preprojected =
-            (|| -> SnapbackResult<Vec<(String, AuthorizationInvalidationProjection)>> {
+            (|| -> SnapbackResult<Vec<(LiveSubscription, AuthorizationInvalidationProjection)>> {
                 let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -7963,7 +8185,7 @@ impl LocalSnapback {
                         None,
                     )?;
                     projections.push((
-                        subscription.connection_id.clone(),
+                        subscription.clone(),
                         state
                             .obligations
                             .projection(scope)
@@ -7983,17 +8205,16 @@ impl LocalSnapback {
                     .collect());
             }
         };
-        for (connection_id, projection) in preprojected {
+        for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
                 projection.resolution,
                 None,
             )) {
-                let enqueue = self
-                    .ephemeral
-                    .enqueue_durable(connection_id.clone(), payload);
+                let enqueue = self.enqueue_subscription_durable(&subscription, payload);
                 if enqueue.overflowed_now {
-                    let _ = self.raise_connection_overflow(&connection_id, min_commit_version);
+                    let _ = self
+                        .raise_connection_overflow(&subscription.connection_id, min_commit_version);
                 }
             }
         }
@@ -8083,14 +8304,19 @@ impl LocalSnapback {
         let _publication = admission.effect_guard("activation live resync publication")?;
         let snapshot_version = self.db.current_version().ok();
         let received_at_ms = now_millis();
-        let overflowed_connections = subscriptions
+        let overflowed_effects = subscriptions
             .iter()
-            .map(|subscription| subscription.connection_id.as_str())
+            .map(|subscription| {
+                (
+                    subscription.connection_id.clone(),
+                    subscription.effect_fence.clone(),
+                )
+            })
             .collect::<BTreeSet<_>>()
             .into_iter()
-            .filter(|connection_id| {
+            .filter(|(connection_id, effect_fence)| {
                 self.ephemeral
-                    .invalidate_durable_backlog_for_activation(connection_id)
+                    .invalidate_durable_backlog_for_activation(connection_id, effect_fence.as_ref())
             })
             .collect::<BTreeSet<_>>();
         for (subscription, payload) in subscriptions.iter().zip(payloads) {
@@ -8112,15 +8338,17 @@ impl LocalSnapback {
                 }
                 .into_value(),
             );
-            if !overflowed_connections.contains(subscription.connection_id.as_str()) {
-                self.ephemeral
-                    .enqueue_durable(subscription.connection_id.clone(), payload);
+            if !overflowed_effects.contains(&(
+                subscription.connection_id.clone(),
+                subscription.effect_fence.clone(),
+            )) {
+                self.enqueue_subscription_durable(subscription, payload);
                 self.live_delivery.total_deliveries += 1;
                 self.live_delivery.last_deliveries += 1;
             }
         }
-        self.live_delivery.total_deliveries += overflowed_connections.len() as u64;
-        self.live_delivery.last_deliveries += overflowed_connections.len();
+        self.live_delivery.total_deliveries += overflowed_effects.len() as u64;
+        self.live_delivery.last_deliveries += overflowed_effects.len();
         self.refresh_auth_scoped_live_connections();
         self.refresh_cron_active();
         Ok(())
@@ -8306,8 +8534,7 @@ impl LocalSnapback {
                 if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                     stored.read_dependencies = query.read_dependencies;
                 }
-                self.ephemeral
-                    .enqueue_durable(subscription.connection_id.clone(), payload)
+                self.enqueue_subscription_durable(&subscription, payload)
             };
             if enqueue.overflowed_now
                 && let Err(error) = self
@@ -8471,14 +8698,9 @@ impl LocalSnapback {
                     .expectation()
                     .authorization
                     .clone();
-                self.ephemeral.enqueue_authorized_durable(
-                    subscription.connection_id.clone(),
-                    payload,
-                    authorization,
-                )
+                self.enqueue_subscription_authorized_durable(subscription, payload, authorization)
             } else {
-                self.ephemeral
-                    .enqueue_durable(subscription.connection_id.clone(), payload)
+                self.enqueue_subscription_durable(subscription, payload)
             }
         };
 
@@ -8628,9 +8850,7 @@ impl LocalSnapback {
                     projection.resolution,
                     None,
                 )) {
-                    let enqueue = self
-                        .ephemeral
-                        .enqueue_durable(subscription.connection_id.clone(), payload);
+                    let enqueue = self.enqueue_subscription_durable(subscription, payload);
                     if enqueue.overflowed_now {
                         let _ = self.raise_connection_overflow(
                             &subscription.connection_id,
@@ -8649,9 +8869,7 @@ impl LocalSnapback {
                 clear_retained: true,
             })
         {
-            let enqueue = self
-                .ephemeral
-                .enqueue_durable(subscription.connection_id.clone(), payload);
+            let enqueue = self.enqueue_subscription_durable(subscription, payload);
             if enqueue.overflowed_now {
                 let floor = self.db.current_version().unwrap_or(0);
                 let _ = self.raise_connection_overflow(&subscription.connection_id, floor);
@@ -8735,8 +8953,7 @@ impl LocalSnapback {
             };
             let enqueue = {
                 let _publication = admission.effect_guard("permission resync publication")?;
-                self.ephemeral
-                    .enqueue_durable(subscription.connection_id.clone(), payload)
+                self.enqueue_subscription_durable(&subscription, payload)
             };
             if enqueue.overflowed_now {
                 let floor = self.db.current_version().unwrap_or(0);
@@ -9588,10 +9805,11 @@ mod tests {
         AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
         BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
-        EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LiveUnsubscribeInput,
-        LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
-        RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
-        next_secret_read_reset_generation, now_millis, reserve_unique_generation,
+        EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput,
+        LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, RetryEpisodeKey, RetryReservationKind,
+        SnapbackError, StagedNestedMutation, next_secret_read_reset_generation, now_millis,
+        reserve_unique_generation,
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
@@ -9608,7 +9826,7 @@ mod tests {
         INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
     };
     use crate::manifest::{
-        ActionPlan, AuthManifest, AuthMode, AuthorityDescriptor, ConfigEntryDefinition,
+        ActionPlan, AuthInput, AuthManifest, AuthMode, AuthorityDescriptor, ConfigEntryDefinition,
         CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
         CronRetryMode, CronRetryPolicy, CronSchedule, CtxAnswerLedger, FieldManifest, FieldType,
         FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -9630,6 +9848,24 @@ mod tests {
     ) -> Vec<String> {
         snapback
             .drain_outbox_for_send(connection_id)
+            .into_iter()
+            .filter_map(|admitted| {
+                let (envelope, permit) = admitted.into_parts();
+                let frame = super::live_stream_text(envelope);
+                drop(permit);
+                frame
+            })
+            .collect()
+    }
+
+    fn drain_live_stream_through_fenced_test_sink(
+        snapback: &LocalSnapback,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) -> Vec<String> {
+        snapback
+            .ephemeral
+            .drain_outbox_for_send_bound(connection_id, effect_fence)
             .into_iter()
             .filter_map(|admitted| {
                 let (envelope, permit) = admitted.into_parts();
@@ -9871,6 +10107,7 @@ mod tests {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
+                    effect_fence: None,
                 },
             )
             .expect("subscribe under predecessor deployment");
@@ -9977,6 +10214,7 @@ mod tests {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
+                    effect_fence: None,
                 },
             )
             .expect("subscribe auth-scoped predecessor");
@@ -10058,32 +10296,47 @@ mod tests {
         let mut snapback =
             settled_sessions_activation_snapback(schema, predecessor_functions.clone());
         let connection = install_test_invalidation(&mut snapback);
-        let subscribe = |snapback: &mut LocalSnapback, name: &str, connection_id: &str| {
-            snapback
-                .subscribe_live_with_invalidation(
-                    name,
-                    LiveSubscribeInput {
-                        connection_id: connection_id.to_owned(),
-                        input: HandlerInput::default(),
-                        authorization_namespace: None,
-                        supersedes: None,
-                    },
-                    LiveInvalidationAdmission {
-                        session_mode: true,
-                        connection: Some(connection.clone()),
-                    },
-                )
-                .expect("subscribe authority-independent predecessor")
-        };
+        let changed_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "activation-incarnation",
+            "activation-changed-grant",
+        );
+        let removed_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "activation-incarnation",
+            "activation-removed-grant",
+        );
+        let subscribe =
+            |snapback: &mut LocalSnapback,
+             name: &str,
+             connection_id: &str,
+             effect_fence: crate::ephemeral::ConnectionEffectFence| {
+                snapback
+                    .subscribe_live_with_invalidation(
+                        name,
+                        LiveSubscribeInput {
+                            connection_id: connection_id.to_owned(),
+                            input: HandlerInput::default(),
+                            authorization_namespace: None,
+                            supersedes: None,
+                        },
+                        LiveInvalidationAdmission {
+                            session_mode: true,
+                            connection: Some(connection.clone()),
+                            effect_fence: Some(effect_fence),
+                        },
+                    )
+                    .expect("subscribe authority-independent predecessor")
+            };
         let changed = subscribe(
             &mut snapback,
             "independentChanged",
             "activation-independent-changed",
+            changed_fence.clone(),
         );
         let removed = subscribe(
             &mut snapback,
             "independentRemoved",
             "activation-independent-removed",
+            removed_fence.clone(),
         );
         assert!(
             snapback
@@ -10091,10 +10344,23 @@ mod tests {
                 .values()
                 .all(|subscription| subscription.authorization.is_none())
         );
-        drain_live_stream_through_test_sink(&mut snapback, "activation-independent-changed");
-        drain_live_stream_through_test_sink(&mut snapback, "activation-independent-removed");
-        snapback.ephemeral.enqueue_durable(
+        drain_live_stream_through_fenced_test_sink(
+            &snapback,
             "activation-independent-changed",
+            &changed_fence,
+        );
+        drain_live_stream_through_fenced_test_sink(
+            &snapback,
+            "activation-independent-removed",
+            &removed_fence,
+        );
+        let changed_subscription = snapback
+            .subscriptions
+            .get(&changed.subscription_id)
+            .expect("changed predecessor remains live")
+            .clone();
+        snapback.enqueue_subscription_durable(
+            &changed_subscription,
             serde_json::to_vec(&crate::live_wire::LiveEnvelope::LiveReplace {
                 subscription_id: changed.subscription_id.clone(),
                 function: "independentChanged".to_owned(),
@@ -10151,8 +10417,11 @@ mod tests {
                 .subscriptions
                 .contains_key(&removed.subscription_id)
         );
-        let changed_frames =
-            drain_live_stream_through_test_sink(&mut snapback, "activation-independent-changed");
+        let changed_frames = drain_live_stream_through_fenced_test_sink(
+            &snapback,
+            "activation-independent-changed",
+            &changed_fence,
+        );
         assert!(changed_frames.iter().all(|frame| {
             serde_json::from_str::<Value>(frame).is_ok_and(|frame| frame["kind"] != "live_replace")
         }));
@@ -10165,8 +10434,11 @@ mod tests {
             })
         }));
 
-        let removed_frames =
-            drain_live_stream_through_test_sink(&mut snapback, "activation-independent-removed");
+        let removed_frames = drain_live_stream_through_fenced_test_sink(
+            &snapback,
+            "activation-independent-removed",
+            &removed_fence,
+        );
         assert!(removed_frames.iter().any(|frame| {
             serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
                 frame["kind"] == "resync_required"
@@ -10217,6 +10489,7 @@ mod tests {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
+                    effect_fence: None,
                 },
             )
             .expect("subscribe empty auth-scoped result");
@@ -11182,6 +11455,7 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
+                    effect_fence: None,
                 },
             )
             .expect("negotiated session subscription");
@@ -11224,6 +11498,7 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection.clone()),
+                    effect_fence: None,
                 },
             )
             .expect("auth-scoped subscription");
@@ -11352,6 +11627,7 @@ globalThis.__snapbackHandlers = {
                     LiveInvalidationAdmission {
                         session_mode: true,
                         connection: Some(connection.clone()),
+                        effect_fence: None,
                     },
                 )
                 .expect("auth-scoped subscription");
@@ -11485,6 +11761,7 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
+                    effect_fence: None,
                 },
             )
             .expect("auth-scoped subscription");
@@ -11599,6 +11876,7 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
+                    effect_fence: None,
                 },
             )
             .expect("initial snapshot succeeds");
@@ -11737,6 +12015,7 @@ globalThis.__snapbackHandlers = {
                     LiveInvalidationAdmission {
                         session_mode: true,
                         connection: Some(connection.clone()),
+                        effect_fence: None,
                     },
                 )
                 .expect("auth-scoped subscription")
@@ -12290,5 +12569,135 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("schema/app generation changed before commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    }
+
+    /// A rerun already staged when revocation retired its subscription may
+    /// still finish computing. Its effect remains predecessor-owned and can
+    /// never cross a successor drain on the same readable id.
+    #[test]
+    fn post_revocation_rerun_cannot_publish_into_reused_connection() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let predecessor = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-old",
+            "session",
+            1,
+        );
+        let successor = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-new",
+            "session",
+            2,
+        );
+        let output = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "reused-rerun".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(91)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(predecessor.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("predecessor subscription");
+        let stale = snapback
+            .subscriptions
+            .get(&output.subscription_id)
+            .expect("retained predecessor")
+            .clone();
+
+        snapback.purge_connection_effects("reused-rerun", &predecessor);
+        assert!(!snapback.subscriptions.contains_key(&output.subscription_id));
+        snapback.enqueue_subscription_durable(&stale, b"stale-rerun".to_vec());
+        let mut replacement = stale;
+        replacement.effect_fence = Some(successor.clone());
+        snapback.enqueue_subscription_durable(&replacement, b"successor".to_vec());
+
+        let payloads = snapback
+            .ephemeral
+            .drain_outbox_for_send_bound("reused-rerun", &successor)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                crate::ephemeral::RealtimeEnvelope::Durable(message) => Some(message.payload),
+                crate::ephemeral::RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(payloads, vec![b"successor".to_vec()]);
+    }
+
+    #[test]
+    fn live_resume_rebinds_retained_producer_before_resume_side_enqueue() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let predecessor = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-old",
+            "session",
+            1,
+        );
+        let successor = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-new",
+            "session",
+            2,
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "reused-resume".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(92)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(predecessor),
+                    session_mode: true,
+                },
+            )
+            .expect("predecessor subscription");
+
+        snapback
+            .resume_live_prepared_with_invalidation(
+                "listItems",
+                LiveResumeInput {
+                    subscription_id: subscribed.subscription_id.clone(),
+                    connection_id: "reused-resume".to_owned(),
+                    auth: AuthInput::default(),
+                    recorded_permission_epochs: subscribed.permission_epochs,
+                },
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(successor.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("successor resume");
+
+        let resumed = snapback
+            .subscriptions
+            .get(&subscribed.subscription_id)
+            .expect("retained successor")
+            .clone();
+        assert_eq!(resumed.effect_fence.as_ref(), Some(&successor));
+        snapback.enqueue_subscription_durable(&resumed, b"after-resume".to_vec());
+        let payloads = snapback
+            .ephemeral
+            .drain_outbox_for_send_bound("reused-resume", &successor)
+            .into_iter()
+            .filter_map(|admitted| match admitted.into_parts().0 {
+                crate::ephemeral::RealtimeEnvelope::Durable(message) => Some(message.payload),
+                crate::ephemeral::RealtimeEnvelope::Ephemeral(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(payloads.iter().any(|payload| payload == b"after-resume"));
     }
 }

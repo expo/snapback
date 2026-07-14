@@ -754,7 +754,8 @@ impl AppState {
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
         let auth_admission = read.admission_controller();
         let connections = ConnectionRegistry::default();
-        let auth_terminal_lifecycle = AuthTerminalLifecycle::new(connections.clone(), &ephemeral);
+        let auth_terminal_lifecycle =
+            AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
         (
             Self {
                 snapback,
