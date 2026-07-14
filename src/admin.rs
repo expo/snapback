@@ -730,6 +730,10 @@ pub struct AppState {
     /// the clone-shared request projection is installed.
     #[cfg(test)]
     fail_auth_mode_publication: Arc<std::sync::atomic::AtomicBool>,
+    /// Deterministic server-level coverage for unsplittable projection
+    /// handling without allocating a 64 MiB test response.
+    #[cfg(test)]
+    pub(crate) projection_handoff_limit_for_test: usize,
 }
 
 impl AppState {
@@ -787,6 +791,8 @@ impl AppState {
                 authorized_lease_config: AuthorizedLeaseConfig::default(),
                 #[cfg(test)]
                 fail_auth_mode_publication: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+                #[cfg(test)]
+                projection_handoff_limit_for_test: crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES,
             },
             operator,
         )
@@ -1018,6 +1024,24 @@ impl AppState {
                 .swap(true, std::sync::atomic::Ordering::SeqCst),
             "auth-mode publication failure hook must be one-shot"
         );
+    }
+
+    pub(crate) fn projection_handoff_limit(&self) -> usize {
+        #[cfg(test)]
+        {
+            self.projection_handoff_limit_for_test
+        }
+        #[cfg(not(test))]
+        {
+            crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_projection_handoff_limit_for_test(mut self, limit: usize) -> Self {
+        self.projection_handoff_limit_for_test =
+            limit.min(crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES);
+        self
     }
 
     pub fn active_policy_auth_mode(&self) -> PolicyAuthMode {

@@ -921,6 +921,11 @@ pub struct ConnectionRegistry {
     grants: Arc<std::sync::Mutex<ConnectionRegistryState>>,
     invalidation_issuer:
         Arc<std::sync::Mutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>>,
+    retirement_sink: Arc<
+        std::sync::Mutex<
+            Option<Arc<dyn Fn(BoundConnectionTerminalCapture) + Send + Sync + 'static>>,
+        >,
+    >,
 }
 
 #[derive(Default)]
@@ -1311,15 +1316,44 @@ pub(crate) fn committed_mode_terminal_reason(
         })
 }
 
+fn purge_connection_capture(
+    ephemeral: &EphemeralApi,
+    snapback: &SharedSnapback,
+    capture: &BoundConnectionTerminalCapture,
+) {
+    let effect_fence = capture.effect_fence();
+    ephemeral.purge_connection_effects(&capture.connection_id, &effect_fence);
+    if let Ok(mut snapback) = snapback.try_lock() {
+        snapback.purge_connection_topology(&capture.connection_id, &effect_fence);
+    } else if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+        let snapback = snapback.clone();
+        let connection_id = capture.connection_id.clone();
+        runtime.spawn(async move {
+            snapback
+                .lock()
+                .await
+                .purge_connection_topology(&connection_id, &effect_fence);
+        });
+    }
+}
+
 impl AuthTerminalLifecycle {
     pub(crate) fn new(
         connections: ConnectionRegistry,
         ephemeral: &EphemeralApi,
         snapback: SharedSnapback,
     ) -> Self {
+        let delivery = ephemeral.delivery_notifier();
+        let retirement_delivery = delivery.clone();
+        let retirement_ephemeral = ephemeral.clone();
+        let retirement_snapback = snapback.clone();
+        connections.install_retirement_sink(move |capture| {
+            purge_connection_capture(&retirement_ephemeral, &retirement_snapback, &capture);
+            let _ = retirement_delivery.retire_bound(&capture.connection_id, &capture.grant_id);
+        });
         Self {
             connections,
-            delivery: ephemeral.delivery_notifier(),
+            delivery,
             ephemeral: ephemeral.clone(),
             snapback,
         }
@@ -1406,21 +1440,7 @@ impl AuthTerminalLifecycle {
             close_by,
         };
         for capture in captures {
-            let effect_fence = capture.effect_fence();
-            self.ephemeral
-                .purge_connection_effects(&capture.connection_id, &effect_fence);
-            if let Ok(mut snapback) = self.snapback.try_lock() {
-                snapback.purge_connection_effects(&capture.connection_id, &effect_fence);
-            } else if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-                let snapback = self.snapback.clone();
-                let connection_id = capture.connection_id.clone();
-                runtime.spawn(async move {
-                    snapback
-                        .lock()
-                        .await
-                        .purge_connection_effects(&connection_id, &effect_fence);
-                });
-            }
+            purge_connection_capture(&self.ephemeral, &self.snapback, &capture);
             let _ =
                 self.delivery
                     .terminalize_bound(&capture.connection_id, &capture.grant_id, event);
@@ -1450,13 +1470,22 @@ impl ConnectionRegistryState {
         self.used.insert((now_ms, connection_id.to_owned()));
     }
 
-    fn admit_slot(&mut self, now_ms: u64) -> SnapbackResult<()> {
+    fn admit_slot(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<BoundConnectionTerminalCapture>> {
         if self.grants.len() < MAX_CONNECTION_GRANTS {
-            return Ok(());
+            return Ok(None);
         }
         if let Some((_last_use, connection_id)) = self.unused.pop_first() {
-            self.remove_grant(&connection_id);
-            return Ok(());
+            let record = self
+                .remove_grant(&connection_id)
+                .expect("unused LRU entry names an installed grant");
+            return Ok(Some(
+                record
+                    .authority
+                    .terminal_capture(connection_id, record.grant_id),
+            ));
         }
         let expired_before = now_ms.saturating_sub(CONNECTION_GRANT_IDLE_TTL_MS);
         if self
@@ -1465,9 +1494,15 @@ impl ConnectionRegistryState {
             .is_some_and(|(last_use, _)| *last_use <= expired_before)
             && let Some((_last_use, connection_id)) = self.used.pop_first()
         {
-            self.remove_grant(&connection_id);
+            let record = self
+                .remove_grant(&connection_id)
+                .expect("used LRU entry names an installed grant");
             self.pressure_mint_only = true;
-            return Ok(());
+            return Ok(Some(
+                record
+                    .authority
+                    .terminal_capture(connection_id, record.grant_id),
+            ));
         }
         Err(SnapbackError::error(
             "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
@@ -1731,6 +1766,27 @@ impl std::fmt::Debug for OpenConnectionRequest {
 }
 
 impl ConnectionRegistry {
+    fn install_retirement_sink(
+        &self,
+        sink: impl Fn(BoundConnectionTerminalCapture) + Send + Sync + 'static,
+    ) {
+        *self
+            .retirement_sink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Arc::new(sink));
+    }
+
+    fn publish_retirement(&self, capture: BoundConnectionTerminalCapture) {
+        let sink = self
+            .retirement_sink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        if let Some(sink) = sink {
+            sink(capture);
+        }
+    }
+
     /// Invalidate every process-local connection capability after the shared
     /// authorization stream rotates at a committed app reset.
     pub(crate) fn clear_after_committed_reset(&self) -> Vec<BoundConnectionTerminalCapture> {
@@ -2027,117 +2083,127 @@ impl ConnectionRegistry {
         } = attempt;
         let stale = prepared.bound.stale_error();
         let publication = prepared.bound.publication().clone();
-        publication
-            .try_publish(now_ms, monotonic_now, || {
-                let mut grants = self.lock();
-                if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
-                    && grants
-                        .grants
-                        .get(id)
-                        .is_some_and(|existing| constant_time_str_eq(&existing.token, previous))
-                {
-                    let same_authority = grants
-                        .grants
-                        .get(id)
-                        .is_some_and(|existing| existing.authority.same_identity(&prepared.bound));
-                    if !same_authority {
-                        grants.remove_grant(id);
-                        grants.pressure_mint_only = true;
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
-                            "auth",
-                            "the previous connection token is bound to different authority",
-                        ));
+        let mut retirement = None;
+        let result = publication.try_publish(now_ms, monotonic_now, || {
+            let mut grants = self.lock();
+            if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
+                && grants
+                    .grants
+                    .get(id)
+                    .is_some_and(|existing| constant_time_str_eq(&existing.token, previous))
+            {
+                let same_authority = grants
+                    .grants
+                    .get(id)
+                    .is_some_and(|existing| existing.authority.same_identity(&prepared.bound));
+                if !same_authority {
+                    if let Some(record) = grants.remove_grant(id) {
+                        retirement = Some(
+                            record
+                                .authority
+                                .terminal_capture(id.clone(), record.grant_id),
+                        );
                     }
-                    let existing = grants
-                        .grants
-                        .get_mut(id)
-                        .expect("exact previous grant remains installed");
-                    existing.authority = prepared.bound.clone();
-                    existing.managed_authority = prepared.managed_authority;
-                    let grant_id = existing.grant_id.clone();
-                    let connection_token = existing.token.clone();
-                    let authorization_invalidation =
-                        existing.authorization_invalidation.clone();
-                    grants.touch(id, now_ms);
-                    return Ok(OpenedConnectionGrant {
-                        grant: ConnectionGrant {
-                            connection_id: id.clone(),
-                            connection_token,
-                            authorization_invalidation,
-                        },
-                        grant_id,
-                        newly_minted: false,
-                    });
+                    grants.pressure_mint_only = true;
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
+                        "auth",
+                        "the previous connection token is bound to different authority",
+                    ));
                 }
-                grants.admit_slot(now_ms)?;
-                let connection_id = match suggested {
-                    Some(id)
-                        if allow_suggested
-                            && !grants.pressure_mint_only
-                            && valid_suggested_connection_id(&id)
-                            && !grants.grants.contains_key(&id) =>
-                    {
-                        id
-                    }
-                    _ => loop {
-                        let minted = format!("conn_{}", Uuid::new_v4().simple());
-                        if !grants.grants.contains_key(&minted) {
-                            break minted;
-                        }
-                    },
-                };
-                let grant_id = Uuid::now_v7().to_string();
-                let connection_token = format!("sct_{}", Uuid::new_v4().simple());
-                let authorization_invalidation = if auth_invalidation_protocol
-                    == Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION)
-                {
-                    self.invalidation_issuer
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .clone()
-                        .map(|issuer| {
-                            let issuer_retirement =
-                                issuer.authenticate_prior_issuer_retirement()?;
-                            Ok::<_, SnapbackError>(
-                                crate::auth::invalidation::AuthorizationInvalidationConnection {
-                                    protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-                                    issuer_id: issuer.authenticated().issuer_id.clone(),
-                                    connection_generation: issuer
-                                        .reserve_connection_generation()?,
-                                    authorization: issuer.authorization_expectation()?,
-                                    version_stream: issuer.version_stream()?,
-                                    issuer_retirement,
-                                },
-                            )
-                        })
-                        .transpose()?
-                } else {
-                    None
-                };
-                grants.insert(
-                    connection_id.clone(),
-                    ConnectionGrantRecord {
-                        grant_id: grant_id.clone(),
-                        token: connection_token.clone(),
-                        authority: prepared.bound,
-                        managed_authority: prepared.managed_authority,
-                        last_use_ms: now_ms,
-                        used: false,
-                        authorization_invalidation: authorization_invalidation.clone(),
-                    },
-                );
-                Ok(OpenedConnectionGrant {
+                let existing = grants
+                    .grants
+                    .get_mut(id)
+                    .expect("exact previous grant remains installed");
+                existing.authority = prepared.bound.clone();
+                existing.managed_authority = prepared.managed_authority;
+                let grant_id = existing.grant_id.clone();
+                let connection_token = existing.token.clone();
+                let authorization_invalidation = existing.authorization_invalidation.clone();
+                grants.touch(id, now_ms);
+                return Ok(OpenedConnectionGrant {
                     grant: ConnectionGrant {
-                        connection_id,
+                        connection_id: id.clone(),
                         connection_token,
                         authorization_invalidation,
                     },
                     grant_id,
-                    newly_minted: true,
-                })
-            })?
-            .ok_or(stale)
+                    newly_minted: false,
+                });
+            }
+            retirement = grants.admit_slot(now_ms)?;
+            let connection_id = match suggested {
+                Some(id)
+                    if allow_suggested
+                        && !grants.pressure_mint_only
+                        && valid_suggested_connection_id(&id)
+                        && !grants.grants.contains_key(&id) =>
+                {
+                    id
+                }
+                _ => loop {
+                    let minted = format!("conn_{}", Uuid::new_v4().simple());
+                    if !grants.grants.contains_key(&minted) {
+                        break minted;
+                    }
+                },
+            };
+            let grant_id = Uuid::now_v7().to_string();
+            let connection_token = format!("sct_{}", Uuid::new_v4().simple());
+            let authorization_invalidation = if auth_invalidation_protocol
+                == Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION)
+            {
+                self.invalidation_issuer
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
+                    .map(|issuer| {
+                        let issuer_retirement = issuer.authenticate_prior_issuer_retirement()?;
+                        Ok::<_, SnapbackError>(
+                            crate::auth::invalidation::AuthorizationInvalidationConnection {
+                                protocol_version:
+                                    crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+                                issuer_id: issuer.authenticated().issuer_id.clone(),
+                                connection_generation: issuer.reserve_connection_generation()?,
+                                authorization: issuer.authorization_expectation()?,
+                                version_stream: issuer.version_stream()?,
+                                issuer_retirement,
+                            },
+                        )
+                    })
+                    .transpose()?
+            } else {
+                None
+            };
+            grants.insert(
+                connection_id.clone(),
+                ConnectionGrantRecord {
+                    grant_id: grant_id.clone(),
+                    token: connection_token.clone(),
+                    authority: prepared.bound,
+                    managed_authority: prepared.managed_authority,
+                    last_use_ms: now_ms,
+                    used: false,
+                    authorization_invalidation: authorization_invalidation.clone(),
+                },
+            );
+            Ok(OpenedConnectionGrant {
+                grant: ConnectionGrant {
+                    connection_id,
+                    connection_token,
+                    authorization_invalidation,
+                },
+                grant_id,
+                newly_minted: true,
+            })
+        });
+        if let Some(capture) = retirement {
+            // Never call into outbox/room/notifier state while the registry or
+            // leaf publication locks are held. The exact-act cut above makes
+            // the remove→purge interval non-deliverable.
+            self.publish_retirement(capture);
+        }
+        result?.ok_or(stale)
     }
 
     /// Retract a fresh grant whose bearer has not been published because the
@@ -2147,13 +2213,26 @@ impl ConnectionRegistry {
         if !opened.newly_minted {
             return;
         }
-        let mut state = self.lock();
-        if state
-            .grants
-            .get(&opened.grant.connection_id)
-            .is_some_and(|record| record.grant_id == opened.grant_id)
-        {
-            state.remove_grant(&opened.grant.connection_id);
+        let capture = {
+            let mut state = self.lock();
+            if state
+                .grants
+                .get(&opened.grant.connection_id)
+                .is_some_and(|record| record.grant_id == opened.grant_id)
+            {
+                state
+                    .remove_grant(&opened.grant.connection_id)
+                    .map(|record| {
+                        record
+                            .authority
+                            .terminal_capture(opened.grant.connection_id.clone(), record.grant_id)
+                    })
+            } else {
+                None
+            }
+        };
+        if let Some(capture) = capture {
+            self.publish_retirement(capture);
         }
     }
 
@@ -2508,6 +2587,10 @@ impl PreparedConnectionAct {
         act: impl FnOnce() -> Result<T, ApiError>,
     ) -> Result<T, ApiError> {
         let mut outcome = None;
+        // Publication → registry is the canonical order also used by open and
+        // retirement. Keep the registry guard through the bounded synchronous
+        // act so removal cannot linearize between exact-grant validation and
+        // an outbox acknowledgement or writer `try_send`.
         let published = self
             .bound
             .publication()
@@ -2525,7 +2608,6 @@ impl PreparedConnectionAct {
                     ));
                 }
                 state.touch(&self.connection_id, epoch_now_ms);
-                drop(state);
                 outcome = Some(act());
                 Ok(())
             })
@@ -4928,6 +5010,8 @@ fn finish_registered_response(
             _admission: admission.clone(),
             _authority: authority.cloned(),
             _publication_authority: publication_authority,
+            realtime_handoff_committed: false,
+            realtime_handoff_failed: false,
         });
         Response::from_parts(parts, body)
     } else {
@@ -4944,6 +5028,8 @@ struct RetainedAdmissionBody {
     _admission: AdmissionLease,
     _authority: Option<PreparedAuthority>,
     _publication_authority: Option<RetainedRealtimeAuthority>,
+    realtime_handoff_committed: bool,
+    realtime_handoff_failed: bool,
 }
 
 /// Response extensions can be discarded after header encoding. The Arc makes
@@ -4953,6 +5039,48 @@ struct RetainedAdmissionBody {
 #[derive(Clone)]
 struct RetainedRealtimeAuthority {
     _permits: Arc<Vec<RealtimePublicationPermit>>,
+    outbox_leases: Arc<Vec<crate::ephemeral::OutboxDrainLease>>,
+    connection_handoff: Option<RetainedConnectionHandoff>,
+}
+
+#[derive(Clone)]
+struct RetainedConnectionHandoff {
+    connections: ConnectionRegistry,
+    ephemeral: EphemeralApi,
+    connection_act: PreparedConnectionAct,
+    auth_provider: Option<Arc<AuthProvider>>,
+}
+
+impl RetainedRealtimeAuthority {
+    fn acknowledge_outbox_leases(&self) -> bool {
+        match self.connection_handoff.as_ref() {
+            None => crate::ephemeral::OutboxDrainLease::acknowledge_all(&self.outbox_leases),
+            Some(handoff) => {
+                // @ref LLP 0059#act-time-validation — the exact leaf/grant
+                // check and leased HTTP ownership acceptance share one final
+                // publication -> registry -> outbox cut.
+                // Connection routes install the same stream/session
+                // publication handle in PreparedAuthority and this exact act.
+                // Use it once (non-reentrant) to make leaf validation,
+                // grant-current validation, and batch acknowledgement one
+                // publication → registry → outbox cut.
+                let (epoch_now_ms, monotonic_now) = handoff.auth_provider.as_ref().map_or_else(
+                    || (now_millis(), Instant::now()),
+                    |provider| (provider.now_ms(), provider.monotonic_now()),
+                );
+                handoff
+                    .connection_act
+                    .try_act(&handoff.connections, epoch_now_ms, monotonic_now, || {
+                        Ok(handoff.ephemeral.acknowledge_outbox_handoff_bound(
+                            &handoff.connection_act.connection_id,
+                            &handoff.connection_act.effect_fence(),
+                            &self.outbox_leases,
+                        ))
+                    })
+                    .unwrap_or(false)
+            }
+        }
+    }
 }
 
 fn retain_room_authority(mut response: Response, permit: Option<RoomAuthorityPermit>) -> Response {
@@ -4963,9 +5091,20 @@ fn retain_room_authority(mut response: Response, permit: Option<RoomAuthorityPer
 }
 
 fn retain_realtime_authority_in(response: &mut Response, permits: Vec<RealtimePublicationPermit>) {
-    if !permits.is_empty() {
+    retain_realtime_handoff_in(response, permits, Vec::new(), None);
+}
+
+fn retain_realtime_handoff_in(
+    response: &mut Response,
+    permits: Vec<RealtimePublicationPermit>,
+    outbox_leases: Vec<crate::ephemeral::OutboxDrainLease>,
+    connection_handoff: Option<RetainedConnectionHandoff>,
+) {
+    if !permits.is_empty() || !outbox_leases.is_empty() || connection_handoff.is_some() {
         response.extensions_mut().insert(RetainedRealtimeAuthority {
             _permits: Arc::new(permits),
+            outbox_leases: Arc::new(outbox_leases),
+            connection_handoff,
         });
     }
 }
@@ -4979,23 +5118,57 @@ impl HttpBody for RetainedAdmissionBody {
         context: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
         let this = self.get_mut();
+        if this.realtime_handoff_failed {
+            return std::task::Poll::Ready(None);
+        }
         let Ok(publication) = this
             ._admission
             .effect_guard("HTTP response body frame publication")
         else {
+            // EOF is terminal even if the consumer retains the Body object.
+            // Release every leased frame/publication permit at the failed
+            // mode-root cut instead of parking the globally active batch
+            // until object destruction.
+            this.realtime_handoff_failed = true;
+            this._publication_authority = None;
             return std::task::Poll::Ready(None);
         };
         // Authority was validated exactly once when the complete response was
         // transferred into this body. Network flushing happens later without
         // rechecking the leaf; only the mode-admission root remains live per
         // frame so a retired mode cannot keep producing bytes.
+        // Poll into a local first. No byte is yielded until the complete leased
+        // set validates and is acknowledged at this response-body ownership
+        // boundary. Pending/error/drop leaves every frame physically queued.
         let frame = std::pin::Pin::new(&mut this.inner).poll_frame(context);
+        if !this.realtime_handoff_committed {
+            match &frame {
+                std::task::Poll::Ready(Some(Ok(_))) => {
+                    let committed = this
+                        ._publication_authority
+                        .as_ref()
+                        .is_none_or(RetainedRealtimeAuthority::acknowledge_outbox_leases);
+                    if !committed {
+                        this.realtime_handoff_failed = true;
+                        this._publication_authority = None;
+                        drop(publication);
+                        return std::task::Poll::Ready(None);
+                    }
+                    this.realtime_handoff_committed = true;
+                }
+                std::task::Poll::Ready(Some(Err(_))) | std::task::Poll::Ready(None) => {
+                    this.realtime_handoff_failed = true;
+                    this._publication_authority = None;
+                }
+                std::task::Poll::Pending => {}
+            }
+        }
         drop(publication);
         frame
     }
 
     fn is_end_stream(&self) -> bool {
-        self.inner.is_end_stream()
+        self.realtime_handoff_failed || self.inner.is_end_stream()
     }
 
     fn size_hint(&self) -> http_body::SizeHint {
@@ -9947,6 +10120,13 @@ struct AdmittedLiveWrite {
     completed: oneshot::Sender<bool>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LiveHandoffOutcome {
+    Sent,
+    Superseded,
+    Failed,
+}
+
 const TERMINAL_AUTH_CLOSE_CODE: u16 = 4401;
 const LIVE_WRITE_HANDOFF_TIMEOUT: Duration = Duration::from_millis(5_000);
 
@@ -10063,37 +10243,101 @@ async fn send_live_with_admission(
     message: Message,
     admission: &AdmissionLease,
     publication_authority: Option<RealtimePublicationPermit>,
+    outbox_lease: Option<crate::ephemeral::OutboxDrainLease>,
+    projection_outbox: Option<&EphemeralApi>,
+    notify: &crate::ephemeral::DeliveryNotifier,
+    connection_id: &str,
+    generation: u64,
     connections: &ConnectionRegistry,
     connection_act: &PreparedConnectionAct,
-) -> bool {
+) -> LiveHandoffOutcome {
     let (completed, completion) = oneshot::channel();
     // The complete frame crosses into the bounded writer queue under the same
     // mutex that retires an epoch. Socket I/O may await afterward, but no frame
     // can begin its writer handoff after the retirement cut.
+    let write = AdmittedLiveWrite {
+        message,
+        admission: admission.clone(),
+        _publication_authority: publication_authority,
+        completed,
+    };
     let handed_off = {
         let Ok(_publication) = admission.effect_guard("WebSocket writer handoff") else {
-            return false;
+            return LiveHandoffOutcome::Failed;
         };
         connection_act
-            .try_act(connections, now_millis(), Instant::now(), || {
-                Ok(writer
-                    .try_send(AdmittedLiveWrite {
-                        message,
-                        admission: admission.clone(),
-                        _publication_authority: publication_authority,
-                        completed,
-                    })
-                    .is_ok())
+            .try_act(connections, now_millis(), Instant::now(), move || {
+                Ok(match (outbox_lease, projection_outbox) {
+                    (Some(outbox_lease), _) => {
+                        let outcome = notify.act_if_current(connection_id, generation, || {
+                            outbox_lease.try_commit(write, |write| {
+                                writer.try_send(write).map_err(|error| error.into_inner())
+                            })
+                        });
+                        // `act_if_current` released the notifier lock. Waking
+                        // here preserves registry -> notifier -> outbox order.
+                        outbox_lease.wake();
+                        match outcome {
+                            Some(crate::ephemeral::OutboxLeaseCommit::Committed) => {
+                                LiveHandoffOutcome::Sent
+                            }
+                            Some(crate::ephemeral::OutboxLeaseCommit::Superseded(write)) => {
+                                drop(write);
+                                LiveHandoffOutcome::Superseded
+                            }
+                            Some(crate::ephemeral::OutboxLeaseCommit::OfferFailed(write)) => {
+                                drop(write);
+                                LiveHandoffOutcome::Failed
+                            }
+                            None => LiveHandoffOutcome::Failed,
+                        }
+                    }
+                    (None, Some(ephemeral)) => {
+                        let outcome = notify.act_if_current(connection_id, generation, || {
+                            ephemeral.try_offer_outbox_projection_bound(
+                                connection_id,
+                                &connection_act.effect_fence(),
+                                write,
+                                |write| writer.try_send(write).map_err(|error| error.into_inner()),
+                            )
+                        });
+                        match outcome {
+                            Some(crate::ephemeral::OutboxLeaseCommit::Committed) => {
+                                LiveHandoffOutcome::Sent
+                            }
+                            Some(crate::ephemeral::OutboxLeaseCommit::Superseded(write)) => {
+                                drop(write);
+                                LiveHandoffOutcome::Superseded
+                            }
+                            Some(crate::ephemeral::OutboxLeaseCommit::OfferFailed(write)) => {
+                                drop(write);
+                                LiveHandoffOutcome::Failed
+                            }
+                            None => LiveHandoffOutcome::Failed,
+                        }
+                    }
+                    (None, None) => {
+                        if writer.try_send(write).is_ok() {
+                            LiveHandoffOutcome::Sent
+                        } else {
+                            LiveHandoffOutcome::Failed
+                        }
+                    }
+                })
             })
-            .unwrap_or(false)
+            .unwrap_or(LiveHandoffOutcome::Failed)
     };
-    if !handed_off {
-        return false;
+    if handed_off != LiveHandoffOutcome::Sent {
+        return handed_off;
     }
-    tokio::select! {
+    if tokio::select! {
         biased;
         _ = admission.cancelled() => false,
         result = completion => result.unwrap_or(false),
+    } {
+        LiveHandoffOutcome::Sent
+    } else {
+        LiveHandoffOutcome::Failed
     }
 }
 
@@ -10194,6 +10438,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             connection_id: &connection_id,
             generation,
             writer: &writer,
+            notify: &notify,
             admission: &initial_admission,
             connections: &connections,
             connection_act: &connection_act,
@@ -10267,17 +10512,23 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             Ok(room_authorization) => room_authorization,
                             Err(response) => {
-                                if !send_live_with_admission(
+                                if send_live_with_admission(
                                     &writer,
                                     Message::Text(response.text.into()),
                                     &admission,
                                     response
                                         .room_authority
                                         .map(RealtimePublicationPermit::Room),
+                                    None,
+                                    None,
+                                    &notify,
+                                    &connection_id,
+                                    generation,
                                     &connections,
                                     &connection_act,
                                 )
                                 .await
+                                    != LiveHandoffOutcome::Sent
                                 {
                                     break 'stream;
                                 }
@@ -10311,7 +10562,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         };
                         let outer_room_authority =
                             room_authorization.and_then(|authorization| authorization.permit);
-                        if !send_live_with_admission(
+                        if send_live_with_admission(
                             &writer,
                             Message::Text(response.text.into()),
                             &admission,
@@ -10319,9 +10570,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                 .room_authority
                                 .or(outer_room_authority)
                                 .map(RealtimePublicationPermit::Room),
+                            None,
+                            None,
+                            &notify,
+                            &connection_id,
+                            generation,
                             &connections,
                             &connection_act,
-                        ).await {
+                        ).await != LiveHandoffOutcome::Sent {
                             break 'stream;
                         }
                         None
@@ -10446,14 +10702,19 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                             .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
                             .is_ok()
                     });
-                if !current || !send_live_with_admission(
+                if !current || send_live_with_admission(
                     &writer,
                     Message::Ping(Vec::new().into()),
                     &admission,
                     None,
+                    None,
+                    None,
+                    &notify,
+                    &connection_id,
+                    generation,
                     &connections,
                     &connection_act,
-                ).await {
+                ).await != LiveHandoffOutcome::Sent {
                     break 'stream;
                 }
                 Some(admission)
@@ -10486,6 +10747,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                 connection_id: &connection_id,
                 generation,
                 writer: &writer,
+                notify: &notify,
                 admission: &admission,
                 connections: &connections,
                 connection_act: &connection_act,
@@ -10554,10 +10816,25 @@ struct LiveDrain<'a> {
     connection_id: &'a str,
     generation: u64,
     writer: &'a mpsc::Sender<AdmittedLiveWrite>,
+    notify: &'a crate::ephemeral::DeliveryNotifier,
     admission: &'a AdmissionLease,
     connections: &'a ConnectionRegistry,
     connection_act: &'a PreparedConnectionAct,
     reproject_authorization: bool,
+}
+
+fn defer_ws_projections_for_recovery_marker(
+    projections: &mut Vec<crate::ephemeral::DurableMessage>,
+    messages: &[crate::ephemeral::AdmittedRealtimeEnvelope],
+) {
+    if messages
+        .first()
+        .is_some_and(crate::ephemeral::AdmittedRealtimeEnvelope::is_recovery_marker)
+    {
+        // Recovery is the sole WS frame for this drain. Projection obligations
+        // are level-triggered and regenerate after the marker is accepted.
+        projections.clear();
+    }
 }
 
 async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
@@ -10567,6 +10844,7 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         connection_id,
         generation,
         writer,
+        notify,
         admission,
         connections,
         connection_act,
@@ -10576,7 +10854,23 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
     // prepared authorization commit holds the write lane while waiting for
     // them, so taking one and then waiting on `with_snapback` would invert the
     // commit order.
-    let projections = if reproject_authorization {
+    let recovery_marker_pending = {
+        let Ok(_effect) = admission.effect_guard("WebSocket recovery priority check") else {
+            return std::ops::ControlFlow::Break(());
+        };
+        let Ok(pending) = connection_act.try_act(connections, now_millis(), Instant::now(), || {
+            Ok(ephemeral
+                .has_eligible_recovery_marker_bound_if_active(
+                    connection_id,
+                    &connection_act.effect_fence(),
+                )
+                .unwrap_or(false))
+        }) else {
+            return std::ops::ControlFlow::Break(());
+        };
+        pending
+    };
+    let mut projections = if reproject_authorization && !recovery_marker_pending {
         let connection = connection_id.to_owned();
         let rerun_admission = admission.clone();
         match with_snapback(state, move |snapback| {
@@ -10590,39 +10884,59 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
     } else {
         Vec::new()
     };
+    let projection_handoff_bytes = projections.iter().fold(0_usize, |total, projection| {
+        total.saturating_add(crate::ephemeral::estimated_durable_handoff_bytes(
+            projection,
+        ))
+    });
+    let outbox_handoff_limit =
+        crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES.saturating_sub(projection_handoff_bytes);
+    // @ref LLP 0059#durable-and-ephemeral-outboxes — direct projections and
+    // the selected queue clone share one eager transport handoff budget.
     let messages = {
         let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
             return std::ops::ControlFlow::Break(());
         };
         let Ok(Some(messages)) =
             connection_act.try_act(connections, now_millis(), Instant::now(), || {
-                Ok(ephemeral.drain_live_stream_for_send_bound_if_current(
-                    connection_id,
-                    generation,
-                    &connection_act.effect_fence(),
-                ))
+                Ok(
+                    ephemeral.drain_live_stream_for_send_bound_if_current_with_handoff_limit(
+                        connection_id,
+                        generation,
+                        &connection_act.effect_fence(),
+                        outbox_handoff_limit,
+                    ),
+                )
             })
         else {
             return std::ops::ControlFlow::Break(());
         };
         messages
     };
+    defer_ws_projections_for_recovery_marker(&mut projections, &messages);
     for admitted in messages {
-        let (envelope, publication_authority) = admitted.into_parts();
+        let (envelope, publication_authority, outbox_lease) = admitted.into_leased_parts();
         let Some(message) = live_stream_text(envelope) else {
             continue;
         };
-        if !send_live_with_admission(
+        match send_live_with_admission(
             writer,
             Message::Text(message.into()),
             admission,
             publication_authority,
+            Some(outbox_lease),
+            None,
+            notify,
+            connection_id,
+            generation,
             connections,
             connection_act,
         )
         .await
         {
-            return std::ops::ControlFlow::Break(());
+            LiveHandoffOutcome::Sent => {}
+            LiveHandoffOutcome::Superseded => continue,
+            LiveHandoffOutcome::Failed => return std::ops::ControlFlow::Break(()),
         }
     }
     for projection in projections {
@@ -10634,17 +10948,29 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
         let Some(message) = live_stream_text(envelope) else {
             continue;
         };
-        if !send_live_with_admission(
+        match send_live_with_admission(
             writer,
             Message::Text(message.into()),
             admission,
             publication_authority,
+            None,
+            Some(ephemeral),
+            notify,
+            connection_id,
+            generation,
             connections,
             connection_act,
         )
         .await
         {
-            return std::ops::ControlFlow::Break(());
+            LiveHandoffOutcome::Sent => {}
+            LiveHandoffOutcome::Superseded => {
+                // A recovery marker won after projection computation. Its
+                // enqueue wake is level-triggered; defer every remaining
+                // projection to the next drain rather than closing the socket.
+                return std::ops::ControlFlow::Continue(());
+            }
+            LiveHandoffOutcome::Failed => return std::ops::ControlFlow::Break(()),
         }
     }
     std::ops::ControlFlow::Continue(())
@@ -11487,7 +11813,22 @@ async fn drain_outbox(
         let _effect = admission.effect_guard("HTTP outbox connection verification")?;
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     }
-    let projections = if authority.active_mode() == AuthMode::Sessions
+    let recovery_marker_pending = {
+        let _effect = admission.effect_guard("HTTP outbox recovery priority check")?;
+        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+        connection_act
+            .try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+                Ok(runtime
+                    .ephemeral
+                    .has_eligible_recovery_marker_bound_if_active(
+                        &connection_act.connection_id,
+                        &connection_act.effect_fence(),
+                    ))
+            })?
+            .unwrap_or(false)
+    };
+    let mut projections = if !recovery_marker_pending
+        && authority.active_mode() == AuthMode::Sessions
         && connection_act.authorization_invalidation.is_some()
         && runtime
             .read
@@ -11495,30 +11836,57 @@ async fn drain_outbox(
     {
         let projection_connection = connection_act.connection_id.clone();
         let rerun_admission = admission.clone();
+        let projection_handoff_limit = runtime.projection_handoff_limit();
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.authorization_invalidation_frames(&projection_connection, &rerun_admission)
+            snapback.authorization_invalidation_frames_with_handoff_limit(
+                &projection_connection,
+                &rerun_admission,
+                projection_handoff_limit,
+            )
         })
         .await?
     } else {
         Vec::new()
     };
+    let projection_handoff_bytes = projections.iter().fold(0_usize, |total, projection| {
+        total.saturating_add(crate::ephemeral::estimated_durable_handoff_bytes(
+            projection,
+        ))
+    });
+    let outbox_handoff_limit =
+        crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES.saturating_sub(projection_handoff_bytes);
     let admitted = {
         let _effect = admission.effect_guard("HTTP outbox drain publication")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
-            Ok(runtime.ephemeral.drain_outbox_for_send_bound_if_active(
-                &connection_act.connection_id,
-                &connection_act.effect_fence(),
-            ))
+            Ok(runtime
+                .ephemeral
+                .drain_outbox_for_send_bound_if_active_with_handoff_limit(
+                    &connection_act.connection_id,
+                    &connection_act.effect_fence(),
+                    outbox_handoff_limit,
+                ))
         })?
     };
+    let selected_recovery_marker = admitted
+        .as_ref()
+        .is_some_and(|batch| batch.len() == 1 && batch[0].is_recovery_marker());
+    if selected_recovery_marker || admitted.is_none() {
+        // Queue recovery controls are emitted alone and before every direct
+        // projection. An extinct activity record likewise emits only its
+        // typed resnapshot boundary. Authorization obligations are
+        // level-triggered and regenerate on the next eligible poll.
+        projections.clear();
+    }
     let mut publication_authority = Vec::new();
+    let mut outbox_leases = Vec::new();
     let mut drained = match admitted {
         Some(admitted) => admitted
             .into_iter()
             .map(|admitted| {
-                let (envelope, permit) = admitted.into_parts();
+                let (envelope, permit, lease) = admitted.into_leased_parts();
                 publication_authority.extend(permit);
+                outbox_leases.push(lease);
                 envelope
             })
             .collect::<Vec<_>>(),
@@ -11547,7 +11915,17 @@ async fn drain_outbox(
         drained.push(envelope);
     }
     let mut response = Json(drained).into_response();
-    retain_realtime_authority_in(&mut response, publication_authority);
+    retain_realtime_handoff_in(
+        &mut response,
+        publication_authority,
+        outbox_leases,
+        Some(RetainedConnectionHandoff {
+            connections: runtime.connections.clone(),
+            ephemeral: runtime.ephemeral.clone(),
+            connection_act,
+            auth_provider: runtime.auth_provider.clone(),
+        }),
+    );
     Ok(response)
 }
 
@@ -12235,7 +12613,9 @@ mod tests {
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
     use crate::auth::crypto::{OsRandom, SessionBearer};
-    use crate::auth::invalidation::{IssuerId, LiveInvalidationIssuer};
+    use crate::auth::invalidation::{
+        AuthorizationInvalidationConnection, IssuerId, LiveInvalidationIssuer, QueryNamespace,
+    };
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
     };
@@ -12252,7 +12632,9 @@ mod tests {
     };
     use crate::cron::CronRunOutcome;
     use crate::diagnostic::SnapbackError;
-    use crate::local::{EnsureAppMode, LocalSnapback, StagedAction};
+    use crate::local::{
+        EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
+    };
     use crate::manifest::{
         AuthInput, AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
         CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
@@ -12352,6 +12734,36 @@ mod tests {
         (state, capability.expect("captured capability"))
     }
 
+    fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAuthClock>) {
+        let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+        let mut snapback = LocalSnapback::memory().expect("manual-clock HTTP fixture");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            start_ms,
+            &OsRandom,
+        )
+        .expect("activate manual-clock auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                clock.clone(),
+            )
+            .expect("construct manual-clock auth provider"),
+        );
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        let state = activate_test_sessions(
+            AppState::from_snapback(snapback, context)
+                .with_policy_auth_mode(PolicyAuthMode::Sessions)
+                .with_auth_provider(provider),
+        );
+        (state, clock)
+    }
+
     fn auth_invalidation_reset_fixture() -> AppState {
         let mut snapback = LocalSnapback::memory().expect("memory reset fixture");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -12399,6 +12811,195 @@ mod tests {
                 AuthProgramReadiness::new(true, true, true, true, true, true, true),
             )
             .expect("install reset sessions posture")
+    }
+
+    fn auth_projection_http_fixture(
+        connection_id: &str,
+        subscription_count: u64,
+        retained_row_bytes: usize,
+    ) -> AppState {
+        let mut snapback = LocalSnapback::memory().expect("memory projection HTTP fixture");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("projection-http-schema".to_owned()),
+                tables: vec![crate::manifest::TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply projection HTTP schema");
+        let list = FunctionDefinition::new(
+            "listItems",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        let mut insert_values = BTreeMap::new();
+        insert_values.insert("value".to_owned(), ValueExpr::Arg("value".to_owned()));
+        let insert = FunctionDefinition::new(
+            "insertItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: insert_values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        let delete = FunctionDefinition::new(
+            "deleteItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "items".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        snapback.load_functions(FunctionManifest {
+            bundle_hash: Some("projection-http-functions".to_owned()),
+            functions: vec![list, insert, delete],
+            ..FunctionManifest::default()
+        });
+        if retained_row_bytes > 0 {
+            snapback
+                .invoke_mutation(
+                    "insertItem",
+                    HandlerInput {
+                        args: json!({ "value": "x".repeat(retained_row_bytes) }),
+                        ..HandlerInput::default()
+                    },
+                )
+                .expect("insert retained projection row");
+        }
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "remove-me" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert removable projection row");
+        let removable_id = snapback
+            .invoke_query("listItems", HandlerInput::default())
+            .expect("query removable projection row")
+            .rows
+            .into_iter()
+            .find(|row| row["value"] == "remove-me")
+            .and_then(|row| row["_id"].as_str().map(str::to_owned))
+            .expect("removable row id");
+
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            super::now_millis(),
+            &OsRandom,
+        )
+        .expect("activate projection HTTP auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct projection HTTP provider"),
+        );
+        let (app_id, target_profile_id) = {
+            let schema = snapback.auth_database_mut().schema();
+            (
+                schema.app_id.clone(),
+                schema.target_profile.clone().unwrap_or_else(|| {
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                }),
+            )
+        };
+        let (authorization, version_stream, boot_sequence) = snapback
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()
+            .expect("reserve projection HTTP issuer");
+        let issuer_id = IssuerId::fresh(authorization.incarnation.clone(), boot_sequence)
+            .expect("construct projection HTTP issuer id");
+        let issuer = provider
+            .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
+            .expect("authenticate projection HTTP issuer");
+        let projection_connection = AuthorizationInvalidationConnection {
+            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+            issuer_id: issuer.authenticated().issuer_id.clone(),
+            connection_generation: issuer
+                .reserve_connection_generation()
+                .expect("projection connection generation"),
+            authorization: authorization.clone(),
+            version_stream: version_stream.clone(),
+            issuer_retirement: None,
+        };
+        snapback
+            .install_auth_invalidation(issuer.clone(), authorization, version_stream)
+            .expect("install projection HTTP invalidation");
+        for query_instance_id in 0..subscription_count {
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(QueryNamespace {
+                            client_store_id: "projection_http_store".to_owned(),
+                            query_key: "listItems:{}".to_owned(),
+                            query_instance_id: 500 + query_instance_id,
+                        }),
+                        supersedes: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(projection_connection.clone()),
+                        effect_fence: None,
+                    },
+                )
+                .expect("install projection HTTP subscription");
+        }
+        loop {
+            let initial = snapback.drain_outbox_for_send(connection_id);
+            if initial.is_empty() {
+                break;
+            }
+            for admitted in initial {
+                assert!(admitted.commit_handoff());
+            }
+        }
+        snapback
+            .invoke_mutation(
+                "deleteItem",
+                HandlerInput {
+                    args: json!({ "id": removable_id }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("raise projection HTTP obligations");
+
+        AppState::from_snapback(snapback, ServerContext::detached())
+            .with_policy_auth_mode(PolicyAuthMode::Sessions)
+            .with_auth_provider(provider)
+            .with_auth_invalidation(issuer)
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            )
+            .expect("install projection HTTP sessions posture")
     }
 
     fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
@@ -13112,6 +13713,203 @@ mod tests {
                 .admit_for_mode(state.auth_mode_state().active)
                 .expect("admit direct handler test route"),
         )
+    }
+
+    fn leased_outbox_http_response(
+        state: &AppState,
+        connection_act: super::PreparedConnectionAct,
+        payload: &[u8],
+    ) -> axum::response::Response {
+        state
+            .ephemeral
+            .enqueue_durable_for_test(&connection_act.connection_id, payload.to_vec());
+        leased_queued_outbox_http_response(state, connection_act)
+    }
+
+    fn leased_bound_outbox_http_response(
+        state: &AppState,
+        connection_act: super::PreparedConnectionAct,
+        payload: &[u8],
+    ) -> axum::response::Response {
+        state.ephemeral.enqueue_durable_bound_for_test(
+            &connection_act.connection_id,
+            payload.to_vec(),
+            connection_act.effect_fence(),
+        );
+        leased_queued_outbox_http_response(state, connection_act)
+    }
+
+    fn leased_queued_outbox_http_response(
+        state: &AppState,
+        connection_act: super::PreparedConnectionAct,
+    ) -> axum::response::Response {
+        state
+            .ephemeral
+            .touch_connection(&connection_act.connection_id);
+        let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(state);
+        let admitted = connection_act
+            .try_act(&state.connections, epoch_now_ms, monotonic_now, || {
+                Ok(state
+                    .ephemeral
+                    .drain_outbox_for_send_bound_if_active(
+                        &connection_act.connection_id,
+                        &connection_act.effect_fence(),
+                    )
+                    .expect("fixture connection remains active"))
+            })
+            .expect("select an exact leased HTTP batch");
+        assert_eq!(admitted.len(), 1, "fixture selects one durable frame");
+        let mut permits = Vec::new();
+        let mut leases = Vec::new();
+        let envelopes = admitted
+            .into_iter()
+            .map(|admitted| {
+                let (envelope, permit, lease) = admitted.into_leased_parts();
+                permits.extend(permit);
+                leases.push(lease);
+                envelope
+            })
+            .collect::<Vec<_>>();
+        let mut response = Json(envelopes).into_response();
+        super::retain_realtime_handoff_in(
+            &mut response,
+            permits,
+            leases,
+            Some(super::RetainedConnectionHandoff {
+                connections: state.connections.clone(),
+                ephemeral: state.ephemeral.clone(),
+                connection_act,
+                auth_provider: state.auth_provider.clone(),
+            }),
+        );
+        let admission = test_route_admission(state).0;
+        let policy = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/outbox/{connection_id}")
+            .expect("registered outbox route")
+            .effective_for(state.active_policy_auth_mode());
+        finish_registered_response(policy, response, Some(&admission), None)
+    }
+
+    fn prepare_session_connection_act(
+        state: &AppState,
+        bearer: &str,
+        connection_id: &str,
+    ) -> (super::OpenedConnectionGrant, super::PreparedConnectionAct) {
+        let provider = state.auth_provider.as_ref().expect("provider");
+        let coordinator = state.auth_coordinator.as_ref().expect("coordinator");
+        let epoch_now_ms = provider.now_ms();
+        let monotonic_now = provider.monotonic_now();
+        let prepared = super::prepare_connection_open_authority(
+            state,
+            super::PresentedSessionBearer::Candidate(bearer),
+            epoch_now_ms,
+            monotonic_now,
+        )
+        .expect("prepare session connection authority");
+        let opened = state
+            .connections
+            .open_prepared(super::ConnectionOpenAttempt::new(
+                Some(connection_id.to_owned()),
+                None,
+                true,
+                prepared,
+                epoch_now_ms,
+                monotonic_now,
+                None,
+            ))
+            .expect("open session connection");
+        let connection_act = state
+            .connections
+            .prepare_act(
+                &opened.grant.connection_id,
+                Some(&opened.grant.connection_token),
+                Some(coordinator.as_ref()),
+                false,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare exact session connection act");
+        (opened, connection_act)
+    }
+
+    fn prepare_invalidation_session_connection_act(
+        state: &AppState,
+        bearer: &str,
+        connection_id: &str,
+    ) -> (super::OpenedConnectionGrant, super::PreparedConnectionAct) {
+        let provider = state.auth_provider.as_ref().expect("provider");
+        let coordinator = state.auth_coordinator.as_ref().expect("coordinator");
+        let epoch_now_ms = provider.now_ms();
+        let monotonic_now = provider.monotonic_now();
+        let prepared = super::prepare_connection_open_authority(
+            state,
+            super::PresentedSessionBearer::Candidate(bearer),
+            epoch_now_ms,
+            monotonic_now,
+        )
+        .expect("prepare invalidation session authority");
+        let opened = state
+            .connections
+            .open_prepared(super::ConnectionOpenAttempt::new(
+                Some(connection_id.to_owned()),
+                None,
+                true,
+                prepared,
+                epoch_now_ms,
+                monotonic_now,
+                Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
+            ))
+            .expect("open invalidation session connection");
+        let connection_act = state
+            .connections
+            .prepare_act(
+                &opened.grant.connection_id,
+                Some(&opened.grant.connection_token),
+                Some(coordinator.as_ref()),
+                false,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare exact invalidation session act");
+        assert!(connection_act.authorization_invalidation.is_some());
+        (opened, connection_act)
+    }
+
+    async fn direct_outbox_http_response(
+        state: &AppState,
+        connection_act: &super::PreparedConnectionAct,
+    ) -> Result<axum::response::Response, super::ApiError> {
+        let admission = test_route_admission(state).0;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::OutboxDrain,
+            AuthMode::Sessions,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            connection_act.resolved.clone(),
+        )
+        .expect("prepare direct outbox authority")
+        .with_fenced_publication(connection_act.bound.publication().clone());
+        let response = super::drain_outbox(
+            State(state.clone()),
+            Extension(authority.clone()),
+            Extension(connection_act.clone()),
+            Extension(admission.clone()),
+            axum::extract::Path(connection_act.connection_id.clone()),
+        )
+        .await?;
+        let policy = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/outbox/{connection_id}")
+            .expect("registered outbox route")
+            .effective_for(PolicyAuthMode::Sessions);
+        Ok(finish_registered_response(
+            policy,
+            response,
+            Some(&admission),
+            Some(&authority),
+        ))
     }
 
     fn open_registered_session_connection(
@@ -15913,6 +16711,896 @@ mod tests {
                 .rollback_room_authorization_event_for_test(&ticket)
         );
         prepare.join().expect("prepare thread joins");
+    }
+
+    #[tokio::test]
+    async fn unpolled_http_batch_is_suppressed_and_requeued_after_authority_mismatch() {
+        let state = AppState::detached(LocalSnapback::memory().expect("mismatch HTTP fixture"));
+        let opened = state
+            .connections
+            .open(Some("mismatch-http".to_owned()), None, true)
+            .expect("open predecessor grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare predecessor HTTP act");
+        let response = leased_outbox_http_response(&state, act, b"mismatch-preserved");
+
+        let (replacement_incarnation, replacement_publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let mismatch_authority = synthetic_session_bound(
+            &replacement_incarnation,
+            "mismatch-session",
+            "mismatch-user",
+            "email-code",
+            1,
+            u64::MAX,
+            replacement_publication,
+        );
+        let mismatch = state
+            .connections
+            .open_prepared(ConnectionOpenAttempt::new(
+                Some(opened.connection_id.clone()),
+                Some(&opened.connection_token),
+                true,
+                synthetic_connection_authority(mismatch_authority),
+                super::now_millis(),
+                Instant::now(),
+                None,
+            ))
+            .expect_err("different immutable authority retires the predecessor");
+        assert_eq!(
+            mismatch.diagnostic.code,
+            "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH"
+        );
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll retired leased body");
+        assert!(body.is_empty(), "retired HTTP ownership publishes no bytes");
+        let retry = state.ephemeral.drain_outbox(&opened.connection_id);
+        assert!(matches!(
+            retry.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"mismatch-preserved"
+        ));
+    }
+
+    #[tokio::test]
+    async fn no_lease_projection_still_revalidates_exact_grant_at_first_poll() {
+        let state = AppState::detached(LocalSnapback::memory().expect("direct HTTP fixture"));
+        let opened = state
+            .connections
+            .open(Some("direct-http".to_owned()), None, true)
+            .expect("open direct-projection grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare direct-projection act");
+        let mut response = Json(vec![RealtimeEnvelope::Durable(
+            crate::ephemeral::DurableMessage::new(b"direct-projection".to_vec()),
+        )])
+        .into_response();
+        super::retain_realtime_handoff_in(
+            &mut response,
+            Vec::new(),
+            Vec::new(),
+            Some(super::RetainedConnectionHandoff {
+                connections: state.connections.clone(),
+                ephemeral: state.ephemeral.clone(),
+                connection_act: act,
+                auth_provider: None,
+            }),
+        );
+        let admission = test_route_admission(&state).0;
+        let policy = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/outbox/{connection_id}")
+            .unwrap()
+            .effective_for(PolicyAuthMode::Dev);
+        let response = finish_registered_response(policy, response, Some(&admission), None);
+
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let mismatch = synthetic_session_bound(
+            &incarnation,
+            "direct-session",
+            "direct-user",
+            "email-code",
+            1,
+            u64::MAX,
+            publication,
+        );
+        state
+            .connections
+            .open_prepared(ConnectionOpenAttempt::new(
+                Some(opened.connection_id),
+                Some(&opened.connection_token),
+                true,
+                synthetic_connection_authority(mismatch),
+                super::now_millis(),
+                Instant::now(),
+                None,
+            ))
+            .expect_err("mismatch retires no-lease response owner");
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll direct response");
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn projection_only_http_body_loses_to_marker_installed_after_selection() {
+        let state = AppState::detached(LocalSnapback::memory().expect("projection marker fixture"));
+        let opened = state
+            .connections
+            .open(Some("projection-marker-http".to_owned()), None, true)
+            .expect("open projection response grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare projection response act");
+        let fence = act.effect_fence();
+        state.ephemeral.touch_connection(&opened.connection_id);
+        let mut response = Json(vec![RealtimeEnvelope::Durable(
+            crate::ephemeral::DurableMessage::new(b"direct-projection".to_vec()),
+        )])
+        .into_response();
+        super::retain_realtime_handoff_in(
+            &mut response,
+            Vec::new(),
+            Vec::new(),
+            Some(super::RetainedConnectionHandoff {
+                connections: state.connections.clone(),
+                ephemeral: state.ephemeral.clone(),
+                connection_act: act,
+                auth_provider: None,
+            }),
+        );
+        let admission = test_route_admission(&state).0;
+        let policy = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/outbox/{connection_id}")
+            .unwrap()
+            .effective_for(PolicyAuthMode::Dev);
+        let response = finish_registered_response(policy, response, Some(&admission), None);
+
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, Some(fence.clone()));
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll projection response after marker installation");
+        assert!(
+            body.is_empty(),
+            "projection cannot overtake recovery marker"
+        );
+
+        let retry = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &fence)
+            .expect("connection activity remains live");
+        assert_eq!(retry.len(), 1);
+        assert!(retry[0].is_recovery_marker());
+    }
+
+    #[tokio::test]
+    async fn http_unbound_ordinary_lease_loses_to_later_exact_marker() {
+        let state = AppState::detached(LocalSnapback::memory().expect("HTTP marker fixture"));
+        let opened = state
+            .connections
+            .open(Some("unbound-exact-marker-http".to_owned()), None, true)
+            .expect("open HTTP response grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare HTTP response act");
+        let fence = act.effect_fence();
+        let response = leased_outbox_http_response(&state, act, b"unbound-ordinary");
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, Some(fence.clone()));
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll ordinary response after exact overflow");
+        assert!(
+            body.is_empty(),
+            "ordinary bytes cannot overtake exact recovery"
+        );
+        let retry = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &fence)
+            .expect("connection activity remains live");
+        assert_eq!(retry.len(), 1);
+        assert!(retry[0].is_recovery_marker());
+    }
+
+    #[tokio::test]
+    async fn http_exact_ordinary_lease_loses_to_later_unbound_marker() {
+        let state = AppState::detached(LocalSnapback::memory().expect("HTTP marker fixture"));
+        let opened = state
+            .connections
+            .open(Some("exact-unbound-marker-http".to_owned()), None, true)
+            .expect("open HTTP response grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare HTTP response act");
+        let fence = act.effect_fence();
+        let response = leased_bound_outbox_http_response(&state, act, b"exact-ordinary");
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, None);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll ordinary response after global overflow");
+        assert!(
+            body.is_empty(),
+            "ordinary bytes cannot overtake global recovery"
+        );
+        let retry = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &fence)
+            .expect("connection activity remains live");
+        assert_eq!(retry.len(), 1);
+        assert!(retry[0].is_recovery_marker());
+    }
+
+    #[tokio::test]
+    async fn http_exact_marker_lease_loses_to_later_unbound_marker() {
+        let state = AppState::detached(LocalSnapback::memory().expect("HTTP marker rank fixture"));
+        let opened = state
+            .connections
+            .open(Some("exact-marker-rank-http".to_owned()), None, true)
+            .expect("open HTTP response grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare HTTP response act");
+        let fence = act.effect_fence();
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, Some(fence.clone()));
+        let response = leased_queued_outbox_http_response(&state, act);
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, None);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll exact marker response after global overflow");
+        assert!(
+            body.is_empty(),
+            "a selected exact marker cannot overtake broader recovery"
+        );
+        let retry = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &fence)
+            .expect("connection activity remains live");
+        assert_eq!(retry.len(), 1);
+        let RealtimeEnvelope::Durable(marker) = retry[0].envelope() else {
+            panic!("expected global durable recovery marker");
+        };
+        let marker = serde_json::from_slice::<Value>(&marker.payload).expect("marker JSON");
+        assert_eq!(marker["kind"], "resync_required");
+    }
+
+    #[tokio::test]
+    async fn websocket_projection_offer_loses_to_marker_installed_after_selection() {
+        let state = AppState::detached(LocalSnapback::memory().expect("WS marker fixture"));
+        let opened = state
+            .connections
+            .open(Some("projection-marker-ws".to_owned()), None, true)
+            .expect("open WS projection grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare WS projection act");
+        let fence = act.effect_fence();
+        state.ephemeral.touch_connection(&opened.connection_id);
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, _waker) = notifier
+            .register_bound(&opened.connection_id, act.grant_id.clone())
+            .expect("register exact WS projection owner");
+        // Projection computation/selection happened before this point. The
+        // final writer offer must still observe this newly installed marker.
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, Some(fence.clone()));
+        let admission = test_route_admission(&state).0;
+        let (writer, mut writes) = tokio::sync::mpsc::channel(1);
+        let outcome = super::send_live_with_admission(
+            &writer,
+            super::Message::Text("direct-projection".into()),
+            &admission,
+            None,
+            None,
+            Some(&state.ephemeral),
+            &notifier,
+            &opened.connection_id,
+            generation,
+            &state.connections,
+            &act,
+        )
+        .await;
+        assert_eq!(outcome, super::LiveHandoffOutcome::Superseded);
+        assert!(
+            writes.try_recv().is_err(),
+            "projection never crosses the bounded writer cut"
+        );
+        let retry = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &fence)
+            .expect("connection activity remains live");
+        assert_eq!(retry.len(), 1);
+        assert!(retry[0].is_recovery_marker());
+    }
+
+    #[test]
+    fn websocket_selected_marker_defers_precomputed_projections_and_emits_alone() {
+        let state = AppState::detached(LocalSnapback::memory().expect("WS marker-alone fixture"));
+        let opened = state
+            .connections
+            .open(Some("marker-alone-ws".to_owned()), None, true)
+            .expect("open WS marker owner");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare WS marker owner");
+        state.ephemeral.touch_connection(&opened.connection_id);
+        state
+            .ephemeral
+            .overflow_outbox_for_test(&opened.connection_id, Some(act.effect_fence()));
+        let messages = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &act.effect_fence())
+            .expect("active WS marker drain");
+        let mut projections = vec![crate::ephemeral::DurableMessage::new(
+            b"precomputed-projection".to_vec(),
+        )];
+
+        super::defer_ws_projections_for_recovery_marker(&mut projections, &messages);
+        assert!(projections.is_empty());
+        assert_eq!(messages.len(), 1);
+        assert!(messages[0].is_recovery_marker());
+    }
+
+    #[tokio::test]
+    async fn oversized_http_projection_returns_503_before_outbox_lease_and_stays_pending() {
+        let connection_id = "oversized-projection-http";
+        let state = auth_projection_http_fixture(connection_id, 1, 0)
+            .with_projection_handoff_limit_for_test(1_000);
+        let credential = mint_test_credential(&state, "oversized-projection@example.com").await;
+        let bearer = credential["token"].as_str().expect("credential token");
+        let (_opened, act) =
+            prepare_invalidation_session_connection_act(&state, bearer, connection_id);
+        state.ephemeral.touch_connection(connection_id);
+        state.ephemeral.enqueue_durable_bound_for_test(
+            connection_id,
+            b"ordinary-after-projection-error".to_vec(),
+            act.effect_fence(),
+        );
+
+        let error = direct_outbox_http_response(&state, &act)
+            .await
+            .expect_err("unsplittable server projection must fail closed");
+        assert_eq!(
+            error.0.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_eq!(
+            error.into_response().status(),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        let queued = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(connection_id, &act.effect_fence())
+            .expect("connection activity remains live");
+        assert!(queued.iter().any(|admitted| {
+            matches!(
+                admitted.envelope(),
+                RealtimeEnvelope::Durable(message)
+                    if message.payload == b"ordinary-after-projection-error"
+            )
+        }));
+        drop(queued);
+        let repeated = direct_outbox_http_response(&state, &act)
+            .await
+            .expect_err("failed projection obligation remains pending");
+        assert_eq!(
+            repeated.0.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+    }
+
+    #[tokio::test]
+    async fn leased_marker_suppresses_http_projection_then_marker_emits_alone_before_retry() {
+        let connection_id = "leased-marker-projection-http";
+        let state = auth_projection_http_fixture(connection_id, 1, 0);
+        let credential = mint_test_credential(&state, "marker-projection@example.com").await;
+        let bearer = credential["token"].as_str().expect("credential token");
+        let (_opened, act) =
+            prepare_invalidation_session_connection_act(&state, bearer, connection_id);
+        state.ephemeral.touch_connection(connection_id);
+        state
+            .ephemeral
+            .overflow_outbox_for_test(connection_id, Some(act.effect_fence()));
+        let leased_marker = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(connection_id, &act.effect_fence())
+            .expect("active marker lease");
+        assert_eq!(leased_marker.len(), 1);
+        assert!(leased_marker[0].is_recovery_marker());
+
+        let suppressed = direct_outbox_http_response(&state, &act)
+            .await
+            .expect("leased marker suppresses handler projections");
+        let suppressed = to_bytes(suppressed.into_body(), usize::MAX)
+            .await
+            .expect("poll suppressed projection body");
+        assert!(
+            suppressed.is_empty(),
+            "another response's leased marker remains the publication owner"
+        );
+        for marker in leased_marker {
+            marker.release_handoff();
+        }
+
+        let marker_response = direct_outbox_http_response(&state, &act)
+            .await
+            .expect("retry selects recovery marker");
+        let marker_response = to_bytes(marker_response.into_body(), usize::MAX)
+            .await
+            .expect("poll recovery marker body");
+        let marker_response = serde_json::from_slice::<Vec<RealtimeEnvelope>>(&marker_response)
+            .expect("marker response JSON");
+        assert_eq!(marker_response.len(), 1, "marker is emitted alone");
+        let RealtimeEnvelope::Durable(marker) = &marker_response[0] else {
+            panic!("expected durable recovery marker");
+        };
+        let marker = serde_json::from_slice::<Value>(&marker.payload).expect("marker payload");
+        assert_eq!(marker["kind"], "resync_required");
+
+        let projection_response = direct_outbox_http_response(&state, &act)
+            .await
+            .expect("post-marker poll regenerates pending projection");
+        let projection_response = to_bytes(projection_response.into_body(), usize::MAX)
+            .await
+            .expect("poll regenerated projection body");
+        let projection_response =
+            serde_json::from_slice::<Vec<RealtimeEnvelope>>(&projection_response)
+                .expect("projection response JSON");
+        assert!(projection_response.iter().any(|envelope| {
+            let RealtimeEnvelope::Durable(message) = envelope else {
+                return false;
+            };
+            serde_json::from_slice::<Value>(&message.payload)
+                .is_ok_and(|payload| payload["kind"] == "authorization_invalidation")
+        }));
+    }
+
+    #[tokio::test]
+    async fn cancelled_mode_root_releases_http_batch_at_eof_while_body_is_retained() {
+        use http_body::Body as _;
+
+        let state = AppState::detached(LocalSnapback::memory().expect("cancelled HTTP fixture"));
+        let opened = state
+            .connections
+            .open(Some("cancelled-http".to_owned()), None, true)
+            .expect("open cancelled-response grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare cancelled-response act");
+        let response = leased_outbox_http_response(&state, act, b"cancelled-preserved");
+        state
+            .auth_admission_controller()
+            .retire_current_epoch_for_test()
+            .expect_err("retirement cancels the retained response root at zero timeout");
+
+        let mut body = response.into_body();
+        let first =
+            std::future::poll_fn(|context| std::pin::Pin::new(&mut body).poll_frame(context)).await;
+        assert!(first.is_none(), "cancelled root exposes EOF without bytes");
+        assert!(
+            body.is_end_stream(),
+            "the latched authority failure is a terminal body state"
+        );
+        let retry = state.ephemeral.drain_outbox(&opened.connection_id);
+        assert!(matches!(
+            retry.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"cancelled-preserved"
+        ));
+        drop(body);
+    }
+
+    #[tokio::test]
+    async fn unpolled_http_batch_is_suppressed_and_requeued_after_pressure_eviction() {
+        let state = AppState::detached(LocalSnapback::memory().expect("pressure HTTP fixture"));
+        let opened = state
+            .connections
+            .open(Some("pressure-http".to_owned()), None, true)
+            .expect("open pressure victim");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare pressure-victim HTTP act");
+        let response = leased_outbox_http_response(&state, act, b"pressure-preserved");
+
+        for index in 0..(MAX_CONNECTION_GRANTS - 1) {
+            state
+                .connections
+                .open(Some(format!("pressure_http_{index}")), None, true)
+                .expect("fill bounded connection registry");
+        }
+        {
+            let mut grants = state.connections.lock();
+            let ids = grants.grants.keys().cloned().collect::<Vec<_>>();
+            grants.unused.clear();
+            grants.used.clear();
+            for id in ids {
+                let last_use_ms = u64::from(id != opened.connection_id);
+                let record = grants.grants.get_mut(&id).expect("grant record");
+                record.used = true;
+                record.last_use_ms = last_use_ms;
+                grants.used.insert((last_use_ms, id));
+            }
+        }
+        state
+            .connections
+            .open(Some("after-http-pressure".to_owned()), None, true)
+            .expect("idle pressure victim makes bounded room");
+        assert!(
+            state
+                .connections
+                .verify(&opened.connection_id, Some(&opened.connection_token))
+                .is_err(),
+            "the response owner is the pressure victim"
+        );
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll pressure-retired leased body");
+        assert!(
+            body.is_empty(),
+            "pressure-retired HTTP ownership publishes no bytes"
+        );
+        let retry = state.ephemeral.drain_outbox(&opened.connection_id);
+        assert!(matches!(
+            retry.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"pressure-preserved"
+        ));
+    }
+
+    #[tokio::test]
+    async fn first_http_poll_uses_provider_clock_and_cannot_ack_expired_session_leaf() {
+        let start_ms = 1_000_000;
+        let (state, clock) = manual_clock_sessions_fixture(start_ms);
+        let credential = mint_test_credential(&state, "leased-expiry@example.com").await;
+        let bearer = credential["token"].as_str().expect("session bearer");
+        let (opened, act) = prepare_session_connection_act(&state, bearer, "leased-expiry");
+        let deadline_ms = match &act.bound {
+            BoundGrantAuthority::Session { deadline_ms, .. } => *deadline_ms,
+            BoundGrantAuthority::Anonymous { .. } => panic!("expected session-bound act"),
+        };
+        let response = leased_outbox_http_response(&state, act, b"expiry-preserved");
+
+        clock.set(deadline_ms.saturating_add(1));
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll fake-clock-expired leased body");
+        assert!(
+            body.is_empty(),
+            "expired leaf cannot expose or acknowledge bytes"
+        );
+        let retry = state.ephemeral.drain_outbox(&opened.grant.connection_id);
+        assert!(matches!(
+            retry.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"expiry-preserved"
+        ));
+    }
+
+    #[tokio::test]
+    async fn finalized_revocation_between_http_selection_and_first_poll_suppresses_batch() {
+        let (state, _clock) = manual_clock_sessions_fixture(2_000_000);
+        let credential = mint_test_credential(&state, "leased-revoke@example.com").await;
+        let bearer = credential["token"].as_str().expect("session bearer");
+        let (opened, act) = prepare_session_connection_act(&state, bearer, "leased-revoke");
+        let (incarnation, session_id, generation) = match &act.bound {
+            BoundGrantAuthority::Session {
+                authorization_stream_incarnation,
+                session_id,
+                generation,
+                ..
+            } => (
+                authorization_stream_incarnation.clone(),
+                session_id.clone(),
+                *generation,
+            ),
+            BoundGrantAuthority::Anonymous { .. } => panic!("expected session-bound act"),
+        };
+        let response = leased_outbox_http_response(&state, act, b"revoke-preserved");
+
+        state.auth_terminal_lifecycle.terminate_session_generation(
+            &incarnation,
+            &session_id,
+            generation,
+            crate::live_wire::LiveAuthErrorReason::Revoked,
+            Instant::now() + Duration::from_secs(5),
+        );
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll revoked leased HTTP body");
+        assert!(body.is_empty(), "revoked grant cannot publish or ack bytes");
+        let retry = state.ephemeral.drain_outbox(&opened.grant.connection_id);
+        assert!(matches!(
+            retry.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"revoke-preserved"
+        ));
+    }
+
+    #[tokio::test]
+    async fn committed_reset_between_http_selection_and_first_poll_suppresses_batch() {
+        let (state, _clock) = manual_clock_sessions_fixture(3_000_000);
+        let credential = mint_test_credential(&state, "leased-reset@example.com").await;
+        let bearer = credential["token"].as_str().expect("session bearer");
+        let (opened, act) = prepare_session_connection_act(&state, bearer, "leased-reset");
+        let response = leased_outbox_http_response(&state, act, b"reset-preserved");
+
+        state.auth_terminal_lifecycle.committed_stream_reset(
+            crate::live_wire::LiveAuthErrorReason::Reset,
+            Instant::now() + Duration::from_secs(5),
+        );
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll reset leased HTTP body");
+        assert!(body.is_empty(), "reset grant cannot publish or ack bytes");
+        let retry = state.ephemeral.drain_outbox(&opened.grant.connection_id);
+        assert!(matches!(
+            retry.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"reset-preserved"
+        ));
+    }
+
+    #[tokio::test]
+    async fn coalescing_replacement_between_http_selection_and_first_poll_retries_latest() {
+        let state = AppState::detached(LocalSnapback::memory().expect("coalesce HTTP fixture"));
+        let opened = state
+            .connections
+            .open(Some("coalesce-http".to_owned()), None, true)
+            .expect("open coalesce grant");
+        let act = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare coalesce HTTP act");
+        let upsert = |value: &[u8], entry_version| crate::ephemeral::EphemeralMessage::Upsert {
+            room: crate::ephemeral::RoomId {
+                collection: "cursors".to_owned(),
+                scope: crate::ephemeral::Scope::default(),
+                routing_key: "room".to_owned(),
+            },
+            room_authority_generation: 0,
+            entry: crate::ephemeral::EphemeralEntry {
+                key: crate::ephemeral::EntryKey("cursor".to_owned()),
+                value: value.to_vec(),
+                received_at_ms: 1,
+                expires_at_ms: 10_000,
+                scope_epoch: 1,
+                entry_version,
+            },
+        };
+        state
+            .ephemeral
+            .enqueue_ephemeral_for_test(&opened.connection_id, upsert(b"old", 1), None);
+        let response = leased_queued_outbox_http_response(&state, act.clone());
+        state
+            .ephemeral
+            .enqueue_ephemeral_for_test(&opened.connection_id, upsert(b"new", 2), None);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("poll superseded coalesced HTTP body");
+        assert!(
+            body.is_empty(),
+            "superseded lease cannot acknowledge old state"
+        );
+        let retry = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(&opened.connection_id, &act.effect_fence())
+            .expect("connection activity remains live");
+        assert_eq!(retry.len(), 1);
+        assert!(matches!(
+            retry[0].envelope(),
+            RealtimeEnvelope::Ephemeral(crate::ephemeral::EphemeralMessage::Upsert {
+                entry,
+                ..
+            }) if entry.value == b"new" && entry.entry_version == 2
+        ));
+    }
+
+    #[test]
+    fn prepared_handoff_linearizes_before_concurrent_mismatch_retirement() {
+        use std::sync::mpsc;
+
+        let registry = ConnectionRegistry::default();
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let opened = registry
+            .open_prepared(ConnectionOpenAttempt::new(
+                Some("paused-handoff".to_owned()),
+                None,
+                true,
+                synthetic_connection_authority(BoundGrantAuthority::Anonymous {
+                    authorization_stream_incarnation: incarnation,
+                    publication,
+                }),
+                1,
+                Instant::now(),
+                None,
+            ))
+            .expect("open handoff grant");
+        let act = registry
+            .prepare_act(
+                &opened.grant.connection_id,
+                Some(&opened.grant.connection_token),
+                None,
+                true,
+                2,
+                Instant::now(),
+            )
+            .expect("prepare handoff act");
+        let sink_registry = registry.clone();
+        let (capture_tx, capture_rx) = mpsc::channel();
+        registry.install_retirement_sink(move |capture| {
+            assert!(
+                sink_registry.grants.try_lock().is_ok(),
+                "retirement sink runs after the registry guard is released"
+            );
+            capture_tx.send(capture).unwrap();
+        });
+
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let act_registry = registry.clone();
+        let handoff = std::thread::spawn(move || {
+            act.try_act(&act_registry, 2, Instant::now(), || {
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                Ok(())
+            })
+        });
+        entered_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("handoff pauses after exact grant validation");
+
+        let (mismatch_incarnation, mismatch_publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let retirement_registry = registry.clone();
+        let retirement_connection_id = opened.grant.connection_id.clone();
+        let retirement_connection_token = opened.grant.connection_token.clone();
+        let (retired_tx, retired_rx) = mpsc::channel();
+        let retirement = std::thread::spawn(move || {
+            let mismatch_authority = synthetic_session_bound(
+                &mismatch_incarnation,
+                "paused-session",
+                "paused-user",
+                "email-code",
+                1,
+                u64::MAX,
+                mismatch_publication,
+            );
+            let result = retirement_registry.open_prepared(ConnectionOpenAttempt::new(
+                Some(retirement_connection_id),
+                Some(&retirement_connection_token),
+                true,
+                synthetic_connection_authority(mismatch_authority),
+                3,
+                Instant::now(),
+                None,
+            ));
+            retired_tx.send(result.map(|_| ())).unwrap();
+        });
+        assert!(
+            retired_rx.recv_timeout(Duration::from_millis(30)).is_err(),
+            "mismatch retirement waits while the bounded handoff owns the registry cut"
+        );
+        release_tx.send(()).unwrap();
+        handoff
+            .join()
+            .expect("handoff thread joins")
+            .expect("validated handoff wins before retirement");
+        let retired = retired_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("retirement completes after handoff")
+            .expect_err("mismatch still rejects reuse");
+        assert_eq!(
+            retired.diagnostic.code,
+            "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH"
+        );
+        let capture = capture_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("mismatch publishes the exact retirement capture");
+        assert_eq!(capture.connection_id, opened.grant.connection_id);
+        assert_eq!(capture.grant_id, opened.grant_id);
+        retirement.join().expect("retirement thread joins");
     }
 
     /// @ref LLP 0059#plan-begin-commit-finalize — a known logout commit must

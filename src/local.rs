@@ -1617,6 +1617,7 @@ impl EphemeralApi {
             })
     }
 
+    #[cfg(test)]
     pub(crate) fn drain_outbox_for_send_bound_if_active(
         &self,
         connection_id: &str,
@@ -1627,6 +1628,55 @@ impl EphemeralApi {
                 self.store
                     .drain_outbox_for_send_bound(connection_id, effect_fence)
             })
+    }
+
+    pub(crate) fn drain_outbox_for_send_bound_if_active_with_handoff_limit(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+        max_handoff_bytes: usize,
+    ) -> Option<Vec<crate::ephemeral::AdmittedRealtimeEnvelope>> {
+        self.activity
+            .act_if_active(connection_id, now_millis(), || {
+                self.store.drain_outbox_for_send_bound_with_handoff_limit(
+                    connection_id,
+                    effect_fence,
+                    max_handoff_bytes,
+                )
+            })
+    }
+
+    pub(crate) fn has_eligible_recovery_marker_bound_if_active(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) -> Option<bool> {
+        self.activity
+            .act_if_active(connection_id, now_millis(), || {
+                self.store
+                    .has_eligible_recovery_marker_bound(connection_id, effect_fence)
+            })
+    }
+
+    pub(crate) fn acknowledge_outbox_handoff_bound(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+        leases: &[crate::ephemeral::OutboxDrainLease],
+    ) -> bool {
+        self.store
+            .acknowledge_outbox_handoff_bound(connection_id, effect_fence, leases)
+    }
+
+    pub(crate) fn try_offer_outbox_projection_bound<T>(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+        value: T,
+        offer: impl FnOnce(T) -> Result<(), T>,
+    ) -> crate::ephemeral::OutboxLeaseCommit<T> {
+        self.store
+            .try_offer_projection_bound(connection_id, effect_fence, value, offer)
     }
 
     #[cfg(test)]
@@ -1675,17 +1725,21 @@ impl EphemeralApi {
         Some(drained)
     }
 
-    pub(crate) fn drain_live_stream_for_send_bound_if_current(
+    pub(crate) fn drain_live_stream_for_send_bound_if_current_with_handoff_limit(
         &self,
         connection_id: &str,
         generation: u64,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
+        max_handoff_bytes: usize,
     ) -> Option<Vec<crate::ephemeral::AdmittedRealtimeEnvelope>> {
-        let drained = self.store.drain_outbox_for_send_bound_if_current(
-            connection_id,
-            generation,
-            effect_fence,
-        )?;
+        let drained = self
+            .store
+            .drain_outbox_for_send_bound_if_current_with_handoff_limit(
+                connection_id,
+                generation,
+                effect_fence,
+                max_handoff_bytes,
+            )?;
         if !drained.is_empty() {
             self.activity.touch(connection_id, now_millis());
         }
@@ -1787,6 +1841,27 @@ impl EphemeralApi {
     ) {
         self.store
             .enqueue_durable_bound(connection_id.to_owned(), payload, effect_fence);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn overflow_outbox_for_test(
+        &self,
+        connection_id: &str,
+        effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    ) {
+        self.store
+            .overflow_outbox_for_test(connection_id, effect_fence);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn enqueue_ephemeral_for_test(
+        &self,
+        connection_id: &str,
+        message: crate::ephemeral::EphemeralMessage,
+        effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    ) {
+        self.store
+            .enqueue_ephemeral_for_test(connection_id, message, effect_fence);
     }
 }
 
@@ -4282,7 +4357,7 @@ impl LocalSnapback {
     /// Compatibility scaffold for protocol unit tests. Production composition
     /// always supplies a server-prepared authority through the method below.
     #[cfg(test)]
-    fn subscribe_live_with_invalidation(
+    pub(crate) fn subscribe_live_with_invalidation(
         &mut self,
         name: &str,
         input: LiveSubscribeInput,
@@ -6901,7 +6976,24 @@ impl LocalSnapback {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn purge_connection_effects(
+        &mut self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) {
+        self.purge_connection_topology(connection_id, effect_fence);
+        self.ephemeral
+            .purge_connection_effects(connection_id, effect_fence);
+    }
+
+    /// Retire only global-mutex-owned subscription and invalidation topology.
+    /// Terminal lifecycle code performs the room/outbox purge separately
+    /// before acquiring `SharedSnapback`, preserving the no-overlap lock rule.
+    ///
+    /// @ref LLP 0059#prohibited-overlap — terminal topology cleanup never
+    /// reacquires room/outbox authority beneath the global writer mutex.
+    pub(crate) fn purge_connection_topology(
         &mut self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -6931,8 +7023,6 @@ impl LocalSnapback {
         }
         self.refresh_auth_scoped_live_connections();
         self.refresh_cron_active();
-        self.ephemeral
-            .purge_connection_effects(connection_id, effect_fence);
     }
 
     /// Record connection activity for the L2 reaper. @ref LLP 0032 L2.
@@ -8107,6 +8197,19 @@ impl LocalSnapback {
         connection_id: &str,
         admission: &AdmissionLease,
     ) -> SnapbackResult<Vec<crate::ephemeral::DurableMessage>> {
+        self.authorization_invalidation_frames_with_handoff_limit(
+            connection_id,
+            admission,
+            crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES,
+        )
+    }
+
+    pub(crate) fn authorization_invalidation_frames_with_handoff_limit(
+        &mut self,
+        connection_id: &str,
+        admission: &AdmissionLease,
+        max_handoff_bytes: usize,
+    ) -> SnapbackResult<Vec<crate::ephemeral::DurableMessage>> {
         // @ref LLP 0058#gate-algorithm — a re-query validates and publishes
         // through the same admission lease itself. Never hold the admission
         // mutex while invoking it: managed leases use a non-reentrant mutex,
@@ -8121,7 +8224,25 @@ impl LocalSnapback {
             .cloned()
             .collect::<Vec<_>>();
         let mut frames = Vec::new();
-        for subscription in subscriptions {
+        let mut handoff_bytes = crate::ephemeral::OUTBOX_HANDOFF_BATCH_OVERHEAD;
+        let max_handoff_bytes = max_handoff_bytes.min(crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES);
+        let mut append_frame = |message: crate::ephemeral::DurableMessage| -> SnapbackResult<bool> {
+            let estimated = crate::ephemeral::estimated_durable_handoff_bytes(&message);
+            if handoff_bytes.saturating_add(estimated) > max_handoff_bytes {
+                if frames.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "one authorization invalidation projection exceeds the 64 MiB transport handoff ceiling",
+                    ));
+                }
+                return Ok(false);
+            }
+            handoff_bytes = handoff_bytes.saturating_add(estimated);
+            frames.push(message);
+            Ok(true)
+        };
+        'subscriptions: for subscription in subscriptions {
             let scope = &subscription
                 .authorization
                 .as_ref()
@@ -8158,7 +8279,9 @@ impl LocalSnapback {
                             None,
                         ))
                     {
-                        frames.push(crate::ephemeral::DurableMessage::new(frame));
+                        if !append_frame(crate::ephemeral::DurableMessage::new(frame))? {
+                            break 'subscriptions;
+                        }
                     }
                     continue;
                 }
@@ -8213,10 +8336,12 @@ impl LocalSnapback {
                                 }),
                             ))
                     {
-                        frames.push(crate::ephemeral::DurableMessage::authorized(
+                        if !append_frame(crate::ephemeral::DurableMessage::authorized(
                             frame,
                             proof.authorization,
-                        ));
+                        ))? {
+                            break 'subscriptions;
+                        }
                     }
                 }
                 Err(failure) => {
@@ -8241,7 +8366,9 @@ impl LocalSnapback {
                                     None,
                                 ))
                         {
-                            frames.push(crate::ephemeral::DurableMessage::new(frame));
+                            if !append_frame(crate::ephemeral::DurableMessage::new(frame))? {
+                                break 'subscriptions;
+                            }
                         }
                         continue;
                     }
@@ -8274,7 +8401,9 @@ impl LocalSnapback {
                                 None,
                             ))
                     {
-                        frames.push(crate::ephemeral::DurableMessage::new(frame));
+                        if !append_frame(crate::ephemeral::DurableMessage::new(frame))? {
+                            break 'subscriptions;
+                        }
                     }
                 }
             }
@@ -11608,6 +11737,57 @@ globalThis.__snapbackHandlers = {
         )
     }
 
+    fn two_pending_projection_fixture(
+        connection_id: &str,
+    ) -> (LocalSnapback, AuthorizationInvalidationConnection) {
+        let mut snapback = live_limit_snapback();
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "visible" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert projection fixture row");
+        let row_id = snapback
+            .invoke_query("listItems", HandlerInput::default())
+            .expect("query projection fixture row")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("row id")
+            .to_owned();
+        let connection = install_test_invalidation(&mut snapback);
+        for instance in [70, 71] {
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(test_authorization_namespace(instance)),
+                        supersedes: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(connection.clone()),
+                        effect_fence: None,
+                    },
+                )
+                .expect("install auth-scoped projection fixture");
+        }
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteItem",
+            HandlerInput {
+                args: json!({ "id": row_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("raise projection obligations");
+        (snapback, connection)
+    }
+
     #[test]
     fn session_live_requires_installed_and_negotiated_invalidation() {
         let mut snapback = live_limit_snapback();
@@ -11913,6 +12093,83 @@ globalThis.__snapbackHandlers = {
                 "remainingAfterFirstAck": remaining_after_first_ack,
                 "remainingAfterAllAcks": remaining_after_all_acks,
             })
+        );
+    }
+
+    #[test]
+    fn aggregate_projection_handoff_is_a_bounded_prefix_and_suffix_stays_pending() {
+        let connection_id = "session-projection-prefix";
+        let (mut snapback, connection) = two_pending_projection_fixture(connection_id);
+        let admission = test_session_admission();
+        let full = snapback
+            .authorization_invalidation_frames(connection_id, &admission)
+            .expect("measure complete pending projection set");
+        assert_eq!(full.len(), 2);
+        let first_estimate = crate::ephemeral::estimated_durable_handoff_bytes(&full[0]);
+        let limit = crate::ephemeral::OUTBOX_HANDOFF_BATCH_OVERHEAD.saturating_add(first_estimate);
+
+        let prefix = snapback
+            .authorization_invalidation_frames_with_handoff_limit(connection_id, &admission, limit)
+            .expect("bounded projection prefix");
+        assert_eq!(prefix.len(), 1, "the second projection is deferred");
+        let retained_estimate = prefix.iter().fold(
+            crate::ephemeral::OUTBOX_HANDOFF_BATCH_OVERHEAD,
+            |total, frame| {
+                total.saturating_add(crate::ephemeral::estimated_durable_handoff_bytes(frame))
+            },
+        );
+        assert!(retained_estimate <= limit);
+        let projected = serde_json::from_slice::<Value>(&prefix[0].payload).expect("frame JSON");
+        let first_token = projected["resolution"]["ackToken"]
+            .as_str()
+            .expect("first resolution token")
+            .to_owned();
+        snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: connection_id.to_owned(),
+                    ack_token: first_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("discharge the emitted prefix");
+
+        let suffix = snapback
+            .authorization_invalidation_frames_with_handoff_limit(connection_id, &admission, limit)
+            .expect("deferred suffix regenerates");
+        assert_eq!(suffix.len(), 1, "the deferred sibling remains pending");
+    }
+
+    #[test]
+    fn one_projection_over_handoff_limit_fails_closed_and_remains_pending() {
+        let connection_id = "session-projection-oversized";
+        let (mut snapback, _connection) = two_pending_projection_fixture(connection_id);
+        let admission = test_session_admission();
+        let full = snapback
+            .authorization_invalidation_frames(connection_id, &admission)
+            .expect("measure pending projection");
+        let first_estimate = crate::ephemeral::estimated_durable_handoff_bytes(&full[0]);
+        let too_small = crate::ephemeral::OUTBOX_HANDOFF_BATCH_OVERHEAD
+            .saturating_add(first_estimate)
+            .saturating_sub(1);
+        let error = snapback
+            .authorization_invalidation_frames_with_handoff_limit(
+                connection_id,
+                &admission,
+                too_small,
+            )
+            .expect_err("one unsplittable projection must fail closed");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_eq!(
+            snapback
+                .authorization_invalidation_frames(connection_id, &admission)
+                .expect("failed projection remains level-triggered")
+                .len(),
+            2
         );
     }
 
@@ -12829,6 +13086,56 @@ globalThis.__snapbackHandlers = {
             })
             .collect::<Vec<_>>();
         assert_eq!(payloads, vec![b"successor".to_vec()]);
+    }
+
+    #[test]
+    fn terminal_topology_purge_does_not_reenter_room_or_outbox_cleanup() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let fence = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-old",
+            "session",
+            1,
+        );
+        let output = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "split-terminal-purge".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(92)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("predecessor subscription");
+        snapback.ephemeral.enqueue_durable_bound(
+            "split-terminal-purge",
+            b"predecessor-effect".to_vec(),
+            fence.clone(),
+        );
+
+        snapback.purge_connection_topology("split-terminal-purge", &fence);
+        assert!(!snapback.subscriptions.contains_key(&output.subscription_id));
+        assert!(
+            snapback.ephemeral.diagnostics().pending_durable_messages > 0,
+            "global topology retirement deliberately leaves lock-free effect cleanup to its caller"
+        );
+
+        snapback
+            .ephemeral
+            .purge_connection_effects("split-terminal-purge", &fence);
+        assert!(
+            snapback
+                .ephemeral
+                .drain_outbox_for_send_bound("split-terminal-purge", &fence)
+                .is_empty()
+        );
     }
 
     #[test]

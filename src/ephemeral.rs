@@ -191,6 +191,30 @@ impl DeliveryNotifier {
         true
     }
 
+    /// Retire one non-auth connection grant without manufacturing an auth
+    /// terminal frame. Removing the exact registration and waking its task
+    /// makes every generation-guarded drain stop immediately; a replacement
+    /// grant with another opaque id is unaffected.
+    pub(crate) fn retire_bound(&self, connection_id: &str, grant_id: &str) -> bool {
+        let notify = {
+            let mut state = lock(&self.state);
+            let matches = state
+                .waiters
+                .get(connection_id)
+                .is_some_and(|registration| registration.grant_id.as_deref() == Some(grant_id));
+            if !matches {
+                return false;
+            }
+            state
+                .waiters
+                .remove(connection_id)
+                .expect("matching registration remains installed")
+                .notify
+        };
+        notify.notify_one();
+        true
+    }
+
     pub(crate) fn terminal_if_current(
         &self,
         connection_id: &str,
@@ -208,7 +232,7 @@ impl DeliveryNotifier {
     /// registration cannot linearize between the ownership check and an
     /// outbox drain. Closures must follow the documented notifier→outbox lock
     /// order and must never await.
-    fn act_if_current<T>(
+    pub(crate) fn act_if_current<T>(
         &self,
         connection_id: &str,
         generation: u64,
@@ -644,6 +668,23 @@ fn default_max_pending_ephemeral_keys() -> usize {
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L1.
 const MAX_OUTBOX_BACKLOG: usize = 1_024;
+/// One drain acquires only a bounded number of publication permits and queue
+/// leases. Remaining work is re-woken as accepted/released leases settle.
+const MAX_OUTBOX_DRAIN_BATCH: usize = 64;
+
+/// Separate ceiling for one eagerly serialized transport handoff. Queue bytes
+/// remain charged while a lease is unaccepted, and selection currently owns a
+/// deep envelope clone plus the JSON body, so item count alone is not a memory
+/// bound. The estimator below uses JSON's six-byte worst-case string escape,
+/// four-byte worst-case byte-array element, and conservative structural slack;
+/// selection checks it before cloning any candidate.
+///
+/// @ref LLP 0059#durable-and-ephemeral-outboxes — bounded selection owns at
+/// most one cumulative eager handoff budget across direct and queued frames.
+pub(crate) const MAX_OUTBOX_HANDOFF_BYTES: usize = 64 * 1_024 * 1_024;
+const OUTBOX_HANDOFF_JSON_EXPANSION: usize = 6;
+const OUTBOX_HANDOFF_ENVELOPE_OVERHEAD: usize = 1_024;
+pub(crate) const OUTBOX_HANDOFF_BATCH_OVERHEAD: usize = 2;
 
 /// A sticky overflow may need one room-scoped resync for every room whose
 /// latest-state lane was discarded. Keep that recovery ledger independently
@@ -1076,6 +1117,26 @@ fn retained_durable_queue_item_bytes(message: &DurableMessage) -> usize {
         .saturating_add(message.payload.capacity())
 }
 
+pub(crate) fn estimated_durable_handoff_bytes(message: &DurableMessage) -> usize {
+    retained_durable_queue_item_bytes(message)
+        .saturating_mul(OUTBOX_HANDOFF_JSON_EXPANSION)
+        .saturating_add(OUTBOX_HANDOFF_ENVELOPE_OVERHEAD)
+}
+
+fn estimated_ephemeral_handoff_bytes(message: &EphemeralMessage) -> usize {
+    retained_ephemeral_message_bytes(message)
+        .saturating_mul(OUTBOX_HANDOFF_JSON_EXPANSION)
+        .saturating_add(OUTBOX_HANDOFF_ENVELOPE_OVERHEAD)
+}
+
+#[cfg(test)]
+pub(crate) fn estimated_envelope_handoff_bytes(envelope: &RealtimeEnvelope) -> usize {
+    match envelope {
+        RealtimeEnvelope::Durable(message) => estimated_durable_handoff_bytes(message),
+        RealtimeEnvelope::Ephemeral(message) => estimated_ephemeral_handoff_bytes(message),
+    }
+}
+
 fn retained_effect_fence_backing_bytes(effect_fence: &ConnectionEffectFence) -> usize {
     // Each Arc allocation retains the string bytes plus the strong/weak
     // counters. The Arc handles themselves are already part of the marker's
@@ -1093,6 +1154,12 @@ fn retained_effect_fence_backing_bytes(effect_fence: &ConnectionEffectFence) -> 
         })
 }
 
+fn retained_outbox_lease_binding_bytes(effect_fence: &ConnectionEffectFence) -> usize {
+    MAP_ENTRY_OVERHEAD
+        .saturating_add(std::mem::size_of::<ConnectionEffectFence>())
+        .saturating_add(retained_effect_fence_backing_bytes(effect_fence))
+}
+
 /// Charge an out-of-band marker as the durable recovery frame it promises to
 /// materialize plus the BTree node and Arc backing that keep its exact fence
 /// alive. This is intentionally conservative: diagnostics and admission must
@@ -1102,10 +1169,18 @@ fn retained_exact_overflow_marker_bytes(effect_fence: &ConnectionEffectFence) ->
     retained_durable_queue_item_bytes(&overflow_sentinel(Some(effect_fence.clone())))
         .saturating_add(MAP_ENTRY_OVERHEAD)
         .saturating_add(retained_effect_fence_backing_bytes(effect_fence))
+        .saturating_add(retained_marker_lease_index_bytes())
 }
 
 fn retained_global_overflow_signal_bytes() -> usize {
     retained_durable_queue_item_bytes(&overflow_sentinel(None))
+        .saturating_add(retained_marker_lease_index_bytes())
+}
+
+fn retained_marker_lease_index_bytes() -> usize {
+    MAP_ENTRY_OVERHEAD
+        .saturating_add(std::mem::size_of::<OverflowMarkerLeaseKey>())
+        .saturating_add(std::mem::size_of::<u64>())
 }
 
 fn retained_resync_queue_item_bytes(message: &EphemeralMessage) -> usize {
@@ -1124,9 +1199,25 @@ fn retained_ephemeral_queue_item_bytes(
 }
 
 #[derive(Clone, Debug)]
+struct QueuedDurableMessage {
+    message: Arc<DurableMessage>,
+    lease_id: Option<u64>,
+}
+
+impl QueuedDurableMessage {
+    fn new(message: DurableMessage) -> Self {
+        Self {
+            message: Arc::new(message),
+            lease_id: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct QueuedEphemeralMessage {
     message: Arc<EphemeralMessage>,
     effect_fence: Option<ConnectionEffectFence>,
+    lease_id: Option<u64>,
 }
 
 impl QueuedEphemeralMessage {
@@ -1134,6 +1225,7 @@ impl QueuedEphemeralMessage {
         Self {
             message,
             effect_fence,
+            lease_id: None,
         }
     }
 }
@@ -1166,18 +1258,204 @@ impl RealtimeEnvelope {
     }
 }
 
-/// One destructively drained transport frame paired with the publication
-/// permit that made that drain admissible. Keep this value alive until the
-/// final transport handoff: a concurrently prepared authorization commit
-/// waits for durable authorization and protected-room publications alike.
+struct OutboxLeaseWake {
+    delivery: Arc<DeliveryNotifier>,
+    connection_id: Arc<str>,
+}
+
+struct OutboxDrainLeaseInner {
+    outbox: SharedOutbox,
+    lease_id: u64,
+    wake: Arc<OutboxLeaseWake>,
+    recovery_marker_priority: Option<RecoveryMarkerPriority>,
+}
+
+impl Drop for OutboxDrainLeaseInner {
+    fn drop(&mut self) {
+        let released = lock(&self.outbox).release_lease(self.lease_id);
+        if released {
+            self.wake.delivery.wake(&self.wake.connection_id);
+        }
+    }
+}
+
+/// Idempotent ownership token for one physically retained outbox frame. The
+/// frame remains in queue order until a bounded transport handoff accepts it;
+/// dropping the last token merely makes it eligible for a later drain.
+pub(crate) struct OutboxDrainLease {
+    inner: Arc<OutboxDrainLeaseInner>,
+    ack_on_drop: bool,
+}
+
+pub(crate) enum OutboxLeaseCommit<T> {
+    Committed,
+    Superseded(T),
+    OfferFailed(T),
+}
+
+impl OutboxDrainLease {
+    fn new(
+        outbox: SharedOutbox,
+        lease_id: u64,
+        wake: Arc<OutboxLeaseWake>,
+        recovery_marker_priority: Option<RecoveryMarkerPriority>,
+    ) -> Self {
+        Self {
+            inner: Arc::new(OutboxDrainLeaseInner {
+                outbox,
+                lease_id,
+                wake,
+                recovery_marker_priority,
+            }),
+            ack_on_drop: true,
+        }
+    }
+
+    fn release_on_drop(mut self) -> Self {
+        self.ack_on_drop = false;
+        self
+    }
+
+    /// Validate the lease and synchronously offer its complete frame while the
+    /// outbox lock excludes overflow, purge, and coalescing replacement. The
+    /// failed value is returned only after the queue has released the lease;
+    /// callers must drop publication permits outside this lock.
+    pub(crate) fn try_commit<T>(
+        &self,
+        value: T,
+        offer: impl FnOnce(T) -> Result<(), T>,
+    ) -> OutboxLeaseCommit<T> {
+        let mut outbox = lock(&self.inner.outbox);
+        if !outbox.lease_is_current(self.inner.lease_id) {
+            return OutboxLeaseCommit::Superseded(value);
+        }
+        if outbox.recovery_marker_preempts(
+            outbox.active_lease_effect_fence.as_ref(),
+            self.inner.recovery_marker_priority,
+        ) {
+            // A cross-domain overflow can leave this ordinary lease current
+            // while installing a recovery marker eligible to the same drain.
+            // Release before returning so the marker can win the next drain.
+            outbox.release_lease(self.inner.lease_id);
+            return OutboxLeaseCommit::Superseded(value);
+        }
+        match offer(value) {
+            Ok(()) => {
+                let removed = outbox.acknowledge_leases(&[self.inner.lease_id]);
+                debug_assert!(removed);
+                OutboxLeaseCommit::Committed
+            }
+            Err(value) => {
+                outbox.release_lease(self.inner.lease_id);
+                OutboxLeaseCommit::OfferFailed(value)
+            }
+        }
+    }
+
+    pub(crate) fn wake(&self) {
+        self.inner
+            .wake
+            .delivery
+            .wake(&self.inner.wake.connection_id);
+    }
+
+    fn acknowledge(&self) -> bool {
+        let (removed, marker_preempted) = {
+            let mut outbox = lock(&self.inner.outbox);
+            if outbox.recovery_marker_preempts(
+                outbox.active_lease_effect_fence.as_ref(),
+                self.inner.recovery_marker_priority,
+            ) {
+                (false, outbox.release_lease(self.inner.lease_id))
+            } else {
+                (outbox.acknowledge_leases(&[self.inner.lease_id]), false)
+            }
+        };
+        if removed || marker_preempted {
+            self.inner
+                .wake
+                .delivery
+                .wake(&self.inner.wake.connection_id);
+        }
+        removed
+    }
+
+    /// Commit a complete HTTP batch at its response-body ownership boundary.
+    /// All leases must name the same outbox and remain current; otherwise none
+    /// are removed and dropping the handles releases them for a later poll.
+    pub(crate) fn acknowledge_all(leases: &[Self]) -> bool {
+        let Some(first) = leases.first() else {
+            return true;
+        };
+        if leases
+            .iter()
+            .any(|lease| !Arc::ptr_eq(&first.inner.outbox, &lease.inner.outbox))
+        {
+            return false;
+        }
+        let ids = leases
+            .iter()
+            .map(|lease| lease.inner.lease_id)
+            .collect::<Vec<_>>();
+        let batch_marker_priority = leases
+            .first()
+            .and_then(|lease| lease.inner.recovery_marker_priority);
+        if leases
+            .iter()
+            .any(|lease| lease.inner.recovery_marker_priority != batch_marker_priority)
+        {
+            return false;
+        }
+        let removed = {
+            let mut outbox = lock(&first.inner.outbox);
+            if outbox.recovery_marker_preempts(
+                outbox.active_lease_effect_fence.as_ref(),
+                batch_marker_priority,
+            ) {
+                false
+            } else {
+                outbox.acknowledge_leases(&ids)
+            }
+        };
+        if removed {
+            first
+                .inner
+                .wake
+                .delivery
+                .wake(&first.inner.wake.connection_id);
+        }
+        removed
+    }
+}
+
+impl Drop for OutboxDrainLease {
+    fn drop(&mut self) {
+        if self.ack_on_drop {
+            let _ = self.acknowledge();
+        }
+    }
+}
+
+/// One leased transport frame paired with the publication permit that made
+/// its selection admissible. Keep this value alive until the final transport
+/// handoff: a concurrently prepared authorization commit waits for durable
+/// authorization and protected-room publications alike.
 ///
 /// Embeddings can serialize [`Self::envelope`] while retaining this wrapper.
-/// Consuming or dropping it before the sink completes releases the commit
-/// interlock and is therefore not a valid publication handoff.
+/// For compatibility with the formerly destructive public drain, ordinary
+/// wrapper drop is an accepted handoff and acknowledges the frame; a sink that
+/// cancels or rejects must explicitly call [`Self::release_handoff`] so the
+/// frame retries. Built-in transports use an internal release-on-drop lease
+/// until their exact synchronous acceptance boundary.
 #[must_use = "an admitted realtime frame must remain alive through its final transport sink"]
 pub struct AdmittedRealtimeEnvelope {
     envelope: RealtimeEnvelope,
+    // Field drop order is semantic: compatibility Drop acknowledges the lease
+    // while the publication permit below is still live. Reversing these two
+    // fields opens a revocation/marker cut between sink acceptance and ack.
+    lease: OutboxDrainLease,
     publication_authority: Option<RealtimePublicationPermit>,
+    recovery_marker: bool,
 }
 
 impl AdmittedRealtimeEnvelope {
@@ -1185,8 +1463,47 @@ impl AdmittedRealtimeEnvelope {
         &self.envelope
     }
 
+    pub(crate) fn is_recovery_marker(&self) -> bool {
+        self.recovery_marker
+    }
+
+    #[cfg(test)]
     pub(crate) fn into_parts(self) -> (RealtimeEnvelope, Option<RealtimePublicationPermit>) {
-        (self.envelope, self.publication_authority)
+        self.try_into_parts()
+            .expect("infallible admitted conversion lost its outbox lease")
+    }
+
+    pub(crate) fn try_into_parts(
+        self,
+    ) -> Option<(RealtimeEnvelope, Option<RealtimePublicationPermit>)> {
+        self.lease
+            .acknowledge()
+            .then_some((self.envelope, self.publication_authority))
+    }
+
+    pub(crate) fn into_leased_parts(
+        self,
+    ) -> (
+        RealtimeEnvelope,
+        Option<RealtimePublicationPermit>,
+        OutboxDrainLease,
+    ) {
+        (
+            self.envelope,
+            self.publication_authority,
+            self.lease.release_on_drop(),
+        )
+    }
+
+    /// Confirm that an embedding-owned final sink accepted this selected frame.
+    /// Ordinary wrapper drop has the same success semantics for compatibility.
+    pub fn commit_handoff(self) -> bool {
+        self.lease.acknowledge()
+    }
+
+    /// Explicitly reject a selected frame so a later drain can retry it.
+    pub fn release_handoff(self) {
+        drop(self.lease.release_on_drop());
     }
 }
 
@@ -1397,7 +1714,7 @@ impl RateBucket {
 
 #[derive(Clone, Debug)]
 struct OutboundQueue {
-    durable: VecDeque<DurableMessage>,
+    durable: VecDeque<QueuedDurableMessage>,
     resync: VecDeque<QueuedEphemeralMessage>,
     // Coalescing includes the exact producer fence. A delayed predecessor
     // update for the same room/key must not overwrite its successor's frame.
@@ -1421,6 +1738,15 @@ struct OutboundQueue {
     /// this one fail-closed signal, park all new effects, and let only a
     /// verified current exact drain consume it.
     all_authorities_poisoned: bool,
+    overflow_marker_leases: BTreeMap<OverflowMarkerLeaseKey, u64>,
+    /// Exact grant that selected the one globally active lease batch. This is
+    /// independent of each frame's producer fence: an authority-independent
+    /// frame or global recovery marker selected for HTTP still belongs to the
+    /// selecting grant until response ownership accepts it. Exact predecessor
+    /// purge invalidates the batch without discarding those underlying bytes.
+    active_lease_effect_fence: Option<ConnectionEffectFence>,
+    active_lease_binding_bytes: usize,
+    next_drain_lease_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1428,6 +1754,30 @@ enum FrameAuthorityDisposition {
     Send,
     Retain,
     DropStale,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum OverflowMarkerLeaseKey {
+    Unbound,
+    Exact(ConnectionEffectFence),
+    Poison,
+}
+
+/// Marker ordering at a single exact publication cut. A later broader marker
+/// must supersede a lower-ranked selected marker just as every marker
+/// supersedes ordinary data.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum RecoveryMarkerPriority {
+    Exact,
+    Unbound,
+    Poison,
+}
+
+#[derive(Clone, Debug)]
+struct SelectedOutboxLease {
+    lease_id: u64,
+    envelope: RealtimeEnvelope,
+    recovery_marker_priority: Option<RecoveryMarkerPriority>,
 }
 
 /// Apply the connection-incarnation fence before any room or durable-stream
@@ -1500,6 +1850,10 @@ impl OutboundQueue {
             overflowed_effect_fences: BTreeSet::new(),
             overflow_marker_bytes: 0,
             all_authorities_poisoned: false,
+            overflow_marker_leases: BTreeMap::new(),
+            active_lease_effect_fence: None,
+            active_lease_binding_bytes: 0,
+            next_drain_lease_id: 1,
         }
     }
 
@@ -1528,8 +1882,8 @@ impl OutboundQueue {
     }
 
     fn recompute_retained_bytes(&mut self) {
-        self.durable_bytes = self.durable.iter().fold(0, |total, message| {
-            total.saturating_add(retained_durable_queue_item_bytes(message))
+        self.durable_bytes = self.durable.iter().fold(0, |total, queued| {
+            total.saturating_add(retained_durable_queue_item_bytes(queued.message.as_ref()))
         });
         self.resync_bytes = self.resync.iter().fold(0, |total, message| {
             total.saturating_add(retained_resync_queue_item_bytes(message.message.as_ref()))
@@ -1548,6 +1902,20 @@ impl OutboundQueue {
             .saturating_add(self.resync_bytes)
             .saturating_add(self.ephemeral_bytes)
             .saturating_add(self.overflow_marker_bytes)
+            .saturating_add(self.active_lease_binding_bytes)
+    }
+
+    fn compact_lane_storage(&mut self) {
+        // `QUEUE_ITEM_OVERHEAD` covers at least one spare inline slot per live
+        // item. Rebuild after destructive acknowledgements once geometric slack
+        // would exceed that proof; an empty lane always releases all backing.
+        if self.durable.is_empty() || self.durable.capacity() > self.durable.len().saturating_mul(2)
+        {
+            self.durable.shrink_to_fit();
+        }
+        if self.resync.is_empty() || self.resync.capacity() > self.resync.len().saturating_mul(2) {
+            self.resync.shrink_to_fit();
+        }
     }
 
     fn fits_bytes(&self, removed: usize, added: usize) -> bool {
@@ -1573,6 +1941,9 @@ impl OutboundQueue {
         self.ephemeral_bytes = 0;
         self.overflowed = false;
         self.overflowed_effect_fences = BTreeSet::new();
+        self.overflow_marker_leases.clear();
+        self.active_lease_effect_fence = None;
+        self.active_lease_binding_bytes = 0;
         self.all_authorities_poisoned = true;
         self.recompute_overflow_marker_bytes();
         debug_assert!(self.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
@@ -1633,12 +2004,15 @@ impl OutboundQueue {
         // readable-id queue would let a delayed predecessor destroy a
         // successor's frames.
         self.durable
-            .retain(|message| message.effect_fence() != effect_fence.as_ref());
+            .retain(|queued| queued.message.effect_fence() != effect_fence.as_ref());
         self.resync
             .retain(|message| message.effect_fence.as_ref() != effect_fence.as_ref());
         self.ephemeral
             .retain(|_, message| message.effect_fence.as_ref() != effect_fence.as_ref());
+        self.durable.shrink_to_fit();
+        self.resync.shrink_to_fit();
         self.recompute_retained_bytes();
+        self.clear_active_lease_binding_if_idle();
         if self.install_overflow_marker(effect_fence.as_ref()) {
             return QueueOverflow {
                 overflowed: true,
@@ -1752,6 +2126,7 @@ impl OutboundQueue {
             self.ephemeral
                 .retain(|_, pending| pending.effect_fence.as_ref() != effect_fence.as_ref());
             self.recompute_retained_bytes();
+            self.clear_active_lease_binding_if_idle();
 
             let mut resync_count: usize = 0;
             let mut overflowed = false;
@@ -1795,6 +2170,7 @@ impl OutboundQueue {
                 QueuedEphemeralMessage::new(message, effect_fence),
             )
             .is_some();
+        self.clear_active_lease_binding_if_idle();
         self.ephemeral_bytes = self
             .ephemeral_bytes
             .saturating_sub(replaced_bytes)
@@ -1820,7 +2196,7 @@ impl OutboundQueue {
             return self.overflow(None, effect_fence);
         }
         self.durable_bytes = self.durable_bytes.saturating_add(retained_bytes);
-        self.durable.push_back(message);
+        self.durable.push_back(QueuedDurableMessage::new(message));
         QueueOverflow::default()
     }
 
@@ -1840,14 +2216,17 @@ impl OutboundQueue {
         self.ephemeral.clear();
         self.resync_bytes = 0;
         self.ephemeral_bytes = 0;
+        self.clear_active_lease_binding_if_idle();
     }
 
     /// Remove only frames produced for one exact connection grant. This is
     /// safe after readable-id reuse: successor and authority-independent
     /// traffic remain in the shared queue.
-    fn purge_effect_fence(&mut self, effect_fence: &ConnectionEffectFence) {
-        self.durable.retain(|message| {
-            message
+    fn purge_effect_fence(&mut self, effect_fence: &ConnectionEffectFence) -> bool {
+        let invalidated_active_batch = self.invalidate_active_lease_batch(effect_fence);
+        self.durable.retain(|queued| {
+            queued
+                .message
                 .effect_fence()
                 .is_none_or(|actual| actual != effect_fence)
         });
@@ -1863,9 +2242,253 @@ impl OutboundQueue {
                 .as_ref()
                 .is_none_or(|actual| actual != effect_fence)
         });
+        self.durable.shrink_to_fit();
+        self.resync.shrink_to_fit();
         self.recompute_retained_bytes();
         self.overflowed_effect_fences.remove(effect_fence);
+        self.overflow_marker_leases
+            .remove(&OverflowMarkerLeaseKey::Exact(effect_fence.clone()));
         self.recompute_overflow_marker_bytes();
+        invalidated_active_batch && self.has_pending_work()
+    }
+
+    fn invalidate_active_lease_batch(&mut self, effect_fence: &ConnectionEffectFence) -> bool {
+        if self.active_lease_effect_fence.as_ref() != Some(effect_fence) {
+            return false;
+        }
+        for queued in &mut self.durable {
+            queued.lease_id = None;
+        }
+        for queued in &mut self.resync {
+            queued.lease_id = None;
+        }
+        for queued in self.ephemeral.values_mut() {
+            queued.lease_id = None;
+        }
+        // Marker ownership is invalidated, not the underlying marker. Exact
+        // purge below separately retires only the matching exact obligation;
+        // unbound and all-authority poison remain for the successor.
+        self.overflow_marker_leases.clear();
+        self.active_lease_effect_fence = None;
+        self.active_lease_binding_bytes = 0;
+        true
+    }
+
+    fn has_pending_work(&self) -> bool {
+        !self.durable.is_empty()
+            || !self.resync.is_empty()
+            || !self.ephemeral.is_empty()
+            || self.overflowed
+            || !self.overflowed_effect_fences.is_empty()
+            || self.all_authorities_poisoned
+    }
+
+    fn has_eligible_recovery_marker(
+        &self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+    ) -> bool {
+        // Marker priority lasts until acknowledgement, not merely until its
+        // first selection. A concurrent poll must defer direct projections
+        // while another unpolled response owns the marker lease.
+        self.highest_eligible_recovery_marker_priority(expected_effect_fence)
+            .is_some()
+    }
+
+    fn highest_eligible_recovery_marker_priority(
+        &self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+    ) -> Option<RecoveryMarkerPriority> {
+        if self.all_authorities_poisoned && expected_effect_fence.is_some() {
+            Some(RecoveryMarkerPriority::Poison)
+        } else if self.overflowed {
+            Some(RecoveryMarkerPriority::Unbound)
+        } else if expected_effect_fence
+            .is_some_and(|fence| self.overflowed_effect_fences.contains(fence))
+        {
+            Some(RecoveryMarkerPriority::Exact)
+        } else {
+            None
+        }
+    }
+
+    fn recovery_marker_preempts(
+        &self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+        selected: Option<RecoveryMarkerPriority>,
+    ) -> bool {
+        self.highest_eligible_recovery_marker_priority(expected_effect_fence)
+            .is_some_and(|pending| selected.is_none_or(|selected| pending > selected))
+    }
+
+    fn clear_active_lease_binding_if_idle(&mut self) {
+        if !self.has_active_leases() {
+            self.active_lease_effect_fence = None;
+            self.active_lease_binding_bytes = 0;
+        }
+    }
+
+    fn allocate_lease_id(&mut self) -> Option<u64> {
+        let lease_id = self.next_drain_lease_id;
+        self.next_drain_lease_id = lease_id.checked_add(1)?;
+        Some(lease_id)
+    }
+
+    fn lease_is_current(&self, lease_id: u64) -> bool {
+        self.durable
+            .iter()
+            .any(|queued| queued.lease_id == Some(lease_id))
+            || self
+                .resync
+                .iter()
+                .any(|queued| queued.lease_id == Some(lease_id))
+            || self
+                .ephemeral
+                .values()
+                .any(|queued| queued.lease_id == Some(lease_id))
+            || self
+                .overflow_marker_leases
+                .values()
+                .any(|leased| *leased == lease_id)
+    }
+
+    fn has_active_leases(&self) -> bool {
+        self.durable.iter().any(|queued| queued.lease_id.is_some())
+            || self.resync.iter().any(|queued| queued.lease_id.is_some())
+            || self
+                .ephemeral
+                .values()
+                .any(|queued| queued.lease_id.is_some())
+            || !self.overflow_marker_leases.is_empty()
+    }
+
+    fn release_lease(&mut self, lease_id: u64) -> bool {
+        let released = if let Some(queued) = self
+            .durable
+            .iter_mut()
+            .find(|queued| queued.lease_id == Some(lease_id))
+        {
+            queued.lease_id = None;
+            true
+        } else if let Some(queued) = self
+            .resync
+            .iter_mut()
+            .find(|queued| queued.lease_id == Some(lease_id))
+        {
+            queued.lease_id = None;
+            true
+        } else if let Some(queued) = self
+            .ephemeral
+            .values_mut()
+            .find(|queued| queued.lease_id == Some(lease_id))
+        {
+            queued.lease_id = None;
+            true
+        } else {
+            let marker = self
+                .overflow_marker_leases
+                .iter()
+                .find_map(|(marker, leased)| (*leased == lease_id).then(|| marker.clone()));
+            marker.is_some_and(|marker| self.overflow_marker_leases.remove(&marker).is_some())
+        };
+        if released {
+            self.clear_active_lease_binding_if_idle();
+        }
+        released
+    }
+
+    /// Prevalidate the complete ownership set before removing anything. This
+    /// gives HTTP one all-or-nothing response-body handoff and gives WS exact
+    /// per-frame acknowledgement without a destructive pre-handoff window.
+    fn acknowledge_leases(&mut self, lease_ids: &[u64]) -> bool {
+        let lease_ids = lease_ids.iter().copied().collect::<BTreeSet<_>>();
+        if !lease_ids
+            .iter()
+            .all(|lease_id| self.lease_is_current(*lease_id))
+        {
+            return false;
+        }
+
+        self.durable
+            .retain(|queued| queued.lease_id.is_none_or(|id| !lease_ids.contains(&id)));
+        self.resync
+            .retain(|queued| queued.lease_id.is_none_or(|id| !lease_ids.contains(&id)));
+        self.ephemeral
+            .retain(|_, queued| queued.lease_id.is_none_or(|id| !lease_ids.contains(&id)));
+
+        let markers = self
+            .overflow_marker_leases
+            .iter()
+            .filter_map(|(marker, lease_id)| lease_ids.contains(lease_id).then(|| marker.clone()))
+            .collect::<Vec<_>>();
+        for marker in markers {
+            self.overflow_marker_leases.remove(&marker);
+            match marker {
+                OverflowMarkerLeaseKey::Unbound => self.overflowed = false,
+                OverflowMarkerLeaseKey::Exact(effect_fence) => {
+                    self.overflowed_effect_fences.remove(&effect_fence);
+                }
+                OverflowMarkerLeaseKey::Poison => self.all_authorities_poisoned = false,
+            }
+        }
+
+        self.recompute_retained_bytes();
+        self.recompute_overflow_marker_bytes();
+        self.compact_lane_storage();
+        self.clear_active_lease_binding_if_idle();
+        true
+    }
+
+    fn select_marker(
+        &mut self,
+        marker: OverflowMarkerLeaseKey,
+        envelope: RealtimeEnvelope,
+        selected: &mut Vec<SelectedOutboxLease>,
+    ) {
+        if selected.len() >= MAX_OUTBOX_DRAIN_BATCH
+            || self.overflow_marker_leases.contains_key(&marker)
+        {
+            return;
+        }
+        let Some(lease_id) = self.allocate_lease_id() else {
+            return;
+        };
+        let recovery_marker_priority = Some(match &marker {
+            OverflowMarkerLeaseKey::Exact(_) => RecoveryMarkerPriority::Exact,
+            OverflowMarkerLeaseKey::Unbound => RecoveryMarkerPriority::Unbound,
+            OverflowMarkerLeaseKey::Poison => RecoveryMarkerPriority::Poison,
+        });
+        self.overflow_marker_leases.insert(marker, lease_id);
+        selected.push(SelectedOutboxLease {
+            lease_id,
+            envelope,
+            recovery_marker_priority,
+        });
+    }
+
+    fn discard_stale_frames(
+        &mut self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+        classify_durable: &mut impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
+        classify_ephemeral: &mut impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+    ) {
+        self.durable.retain(|queued| {
+            effect_fence_disposition(queued.message.effect_fence(), expected_effect_fence)
+                .unwrap_or_else(|| classify_durable(queued.message.as_ref()))
+                != FrameAuthorityDisposition::DropStale
+        });
+        self.resync.retain(|queued| {
+            effect_fence_disposition(queued.effect_fence.as_ref(), expected_effect_fence)
+                .unwrap_or_else(|| classify_ephemeral(queued.message.as_ref()))
+                != FrameAuthorityDisposition::DropStale
+        });
+        self.ephemeral.retain(|_, queued| {
+            effect_fence_disposition(queued.effect_fence.as_ref(), expected_effect_fence)
+                .unwrap_or_else(|| classify_ephemeral(queued.message.as_ref()))
+                != FrameAuthorityDisposition::DropStale
+        });
+        self.durable.shrink_to_fit();
+        self.resync.shrink_to_fit();
+        self.recompute_retained_bytes();
     }
 
     /// `expected_effect_fence` is not a caller-selected label: production
@@ -1877,13 +2500,81 @@ impl OutboundQueue {
     ///
     /// @ref LLP 0059#fenced-effects-and-live-closure — final exact-fence
     ///   publication and replacement-safe readable connection ids.
+    #[cfg(test)]
     fn drain_with_authority(
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
+        classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
+        classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+    ) -> Vec<RealtimeEnvelope> {
+        let selected = self.drain_with_authority_bounded(
+            expected_effect_fence,
+            MAX_OUTBOX_DRAIN_BATCH,
+            classify_durable,
+            classify_ephemeral,
+        );
+        let lease_ids = selected
+            .iter()
+            .map(|selected| selected.lease_id)
+            .collect::<Vec<_>>();
+        let acknowledged = self.acknowledge_leases(&lease_ids);
+        debug_assert!(acknowledged);
+        selected
+            .into_iter()
+            .map(|selected| selected.envelope)
+            .collect()
+    }
+
+    #[cfg(test)]
+    fn drain_with_authority_bounded(
+        &mut self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+        max_batch: usize,
+        classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
+        classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+    ) -> Vec<SelectedOutboxLease> {
+        self.drain_with_authority_bounded_and_handoff_limit(
+            expected_effect_fence,
+            max_batch,
+            MAX_OUTBOX_HANDOFF_BYTES,
+            classify_durable,
+            classify_ephemeral,
+        )
+    }
+
+    fn drain_with_authority_bounded_and_handoff_limit(
+        &mut self,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+        max_batch: usize,
+        max_handoff_bytes: usize,
         mut classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
         mut classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
-    ) -> Vec<RealtimeEnvelope> {
-        let mut messages = Vec::new();
+    ) -> Vec<SelectedOutboxLease> {
+        // @ref LLP 0059#durable-and-ephemeral-outboxes — leased, bounded
+        // selection preserves physical queue ownership through final handoff.
+        let max_batch = max_batch.min(MAX_OUTBOX_DRAIN_BATCH);
+        let max_handoff_bytes = max_handoff_bytes.min(MAX_OUTBOX_HANDOFF_BYTES);
+        if max_batch == 0 || self.has_active_leases() {
+            return Vec::new();
+        }
+        debug_assert!(self.active_lease_effect_fence.is_none());
+        debug_assert_eq!(self.active_lease_binding_bytes, 0);
+        if let Some(effect_fence) = expected_effect_fence {
+            let binding_bytes = retained_outbox_lease_binding_bytes(effect_fence);
+            if !self.fits_bytes(0, binding_bytes) {
+                // Preserve every pending authority domain as one recovery
+                // obligation if exact handoff metadata cannot coexist with
+                // the physical backlog. A pathologically oversized trusted
+                // fence still fails closed rather than exceeding the ceiling.
+                self.poison_all_authorities();
+            }
+            if !self.fits_bytes(0, binding_bytes) {
+                return Vec::new();
+            }
+            self.active_lease_effect_fence = Some(effect_fence.clone());
+            self.active_lease_binding_bytes = binding_bytes;
+        }
+        let mut selected = Vec::new();
         let unbound_overflow_signal = self.overflowed;
         let exact_overflow_signal = expected_effect_fence
             .filter(|effect_fence| self.overflowed_effect_fences.contains(*effect_fence))
@@ -1893,107 +2584,259 @@ impl OutboundQueue {
         } else {
             None
         };
-        let mut retained_durable = VecDeque::new();
-        while let Some(message) = self.durable.pop_front() {
-            let disposition =
-                effect_fence_disposition(message.effect_fence(), expected_effect_fence)
-                    .unwrap_or_else(|| classify_durable(&message));
-            match disposition {
-                FrameAuthorityDisposition::Send => {
-                    messages.push(RealtimeEnvelope::Durable(message));
-                }
-                FrameAuthorityDisposition::Retain => retained_durable.push_back(message),
-                FrameAuthorityDisposition::DropStale => {}
-            }
+        // Recovery controls precede all ordinary effects and are leased alone.
+        // While selected, the global one-batch rule parks every competing HTTP
+        // or WS drain until acceptance/release, so poison cannot be bypassed or
+        // overtaken by a later physical frame.
+        if poisoned_overflow_signal.is_some() {
+            let effect_fence = poisoned_overflow_signal.expect("checked poison fence");
+            self.select_marker(
+                OverflowMarkerLeaseKey::Poison,
+                RealtimeEnvelope::Durable(overflow_sentinel(Some(effect_fence))),
+                &mut selected,
+            );
+            self.discard_stale_frames(
+                expected_effect_fence,
+                &mut classify_durable,
+                &mut classify_ephemeral,
+            );
+            self.clear_active_lease_binding_if_idle();
+            return selected;
         }
-        self.durable = retained_durable;
         if unbound_overflow_signal {
-            // Authority-independent overflow is visible to either the legacy
-            // compatibility drain or the current exact grant, but never
-            // consumes a physical slot behind bound frames.
-            messages.push(RealtimeEnvelope::Durable(overflow_sentinel(None)));
+            self.select_marker(
+                OverflowMarkerLeaseKey::Unbound,
+                RealtimeEnvelope::Durable(overflow_sentinel(None)),
+                &mut selected,
+            );
+            self.discard_stale_frames(
+                expected_effect_fence,
+                &mut classify_durable,
+                &mut classify_ephemeral,
+            );
+            self.clear_active_lease_binding_if_idle();
+            return selected;
         }
-        if let Some(effect_fence) = &exact_overflow_signal {
-            // The signal is intentionally materialized only for the exact
-            // grant that overflowed. It consumes no shared queue capacity and
-            // therefore cannot be displaced by predecessor or successor
-            // frames that happen to share the readable connection id.
-            messages.push(RealtimeEnvelope::Durable(overflow_sentinel(Some(
-                effect_fence.clone(),
-            ))));
+        if let Some(effect_fence) = exact_overflow_signal {
+            self.select_marker(
+                OverflowMarkerLeaseKey::Exact(effect_fence.clone()),
+                RealtimeEnvelope::Durable(overflow_sentinel(Some(effect_fence))),
+                &mut selected,
+            );
+            self.discard_stale_frames(
+                expected_effect_fence,
+                &mut classify_durable,
+                &mut classify_ephemeral,
+            );
+            self.clear_active_lease_binding_if_idle();
+            return selected;
         }
-        if let Some(effect_fence) = &poisoned_overflow_signal {
-            // Count/byte exhaustion destroyed every physical lane and scoped
-            // marker. Materialize exactly one connection-wide clear-retained
-            // frame, stamped for the registry-verified current drain. A
-            // compatibility or predecessor drain cannot consume the poison.
-            messages.push(RealtimeEnvelope::Durable(overflow_sentinel(Some(
-                effect_fence.clone(),
-            ))));
+        // Recovery markers ignore a projection-reserved payload budget: the
+        // caller will discard its direct projections and emit the marker
+        // alone. Check them before this ordinary-frame floor so a concurrent
+        // overflow cannot disappear merely because projections consumed the
+        // remaining handoff budget.
+        if max_handoff_bytes <= OUTBOX_HANDOFF_BATCH_OVERHEAD {
+            self.clear_active_lease_binding_if_idle();
+            return selected;
         }
-        let mut retained_resync = VecDeque::new();
-        while let Some(message) = self.resync.pop_front() {
-            let disposition =
-                effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
-                    .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()));
+        let mut durable_index = 0;
+        let mut removed_stale = false;
+        let mut handoff_bytes = OUTBOX_HANDOFF_BATCH_OVERHEAD;
+        let mut handoff_full = false;
+        while durable_index < self.durable.len() && selected.len() < max_batch {
+            if self.durable[durable_index].lease_id.is_some() {
+                durable_index += 1;
+                continue;
+            }
+            let disposition = {
+                let message = self.durable[durable_index].message.as_ref();
+                effect_fence_disposition(message.effect_fence(), expected_effect_fence)
+                    .unwrap_or_else(|| classify_durable(message))
+            };
             match disposition {
                 FrameAuthorityDisposition::Send => {
-                    messages.push(RealtimeEnvelope::Ephemeral((*message.message).clone()));
+                    let estimated = estimated_durable_handoff_bytes(
+                        self.durable[durable_index].message.as_ref(),
+                    );
+                    if handoff_bytes.saturating_add(estimated) > max_handoff_bytes {
+                        if selected.is_empty()
+                            && OUTBOX_HANDOFF_BATCH_OVERHEAD.saturating_add(estimated)
+                                > MAX_OUTBOX_HANDOFF_BYTES
+                        {
+                            let effect_fence =
+                                self.durable[durable_index].message.effect_fence().cloned();
+                            self.overflow(None, effect_fence);
+                            return self.drain_with_authority_bounded_and_handoff_limit(
+                                expected_effect_fence,
+                                max_batch,
+                                max_handoff_bytes,
+                                classify_durable,
+                                classify_ephemeral,
+                            );
+                        }
+                        handoff_full = true;
+                        break;
+                    }
+                    let Some(lease_id) = self.allocate_lease_id() else {
+                        break;
+                    };
+                    let message = self.durable[durable_index].message.clone();
+                    self.durable[durable_index].lease_id = Some(lease_id);
+                    selected.push(SelectedOutboxLease {
+                        lease_id,
+                        envelope: RealtimeEnvelope::Durable((*message).clone()),
+                        recovery_marker_priority: None,
+                    });
+                    handoff_bytes = handoff_bytes.saturating_add(estimated);
+                    durable_index += 1;
                 }
-                FrameAuthorityDisposition::Retain => retained_resync.push_back(message),
-                FrameAuthorityDisposition::DropStale => {}
+                FrameAuthorityDisposition::Retain => durable_index += 1,
+                FrameAuthorityDisposition::DropStale => {
+                    self.durable.remove(durable_index);
+                    removed_stale = true;
+                }
             }
         }
-        self.resync = retained_resync;
+        let mut resync_index = 0;
+        while !handoff_full && resync_index < self.resync.len() && selected.len() < max_batch {
+            if self.resync[resync_index].lease_id.is_some() {
+                resync_index += 1;
+                continue;
+            }
+            let disposition = {
+                let message = &self.resync[resync_index];
+                effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
+                    .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()))
+            };
+            match disposition {
+                FrameAuthorityDisposition::Send => {
+                    let estimated = estimated_ephemeral_handoff_bytes(
+                        self.resync[resync_index].message.as_ref(),
+                    );
+                    if handoff_bytes.saturating_add(estimated) > max_handoff_bytes {
+                        if selected.is_empty()
+                            && OUTBOX_HANDOFF_BATCH_OVERHEAD.saturating_add(estimated)
+                                > MAX_OUTBOX_HANDOFF_BYTES
+                        {
+                            let message = self.resync[resync_index].message.clone();
+                            let effect_fence = self.resync[resync_index].effect_fence.clone();
+                            self.overflow(Some(message.as_ref()), effect_fence);
+                            return self.drain_with_authority_bounded_and_handoff_limit(
+                                expected_effect_fence,
+                                max_batch,
+                                max_handoff_bytes,
+                                classify_durable,
+                                classify_ephemeral,
+                            );
+                        }
+                        handoff_full = true;
+                        break;
+                    }
+                    let Some(lease_id) = self.allocate_lease_id() else {
+                        break;
+                    };
+                    let message = self.resync[resync_index].message.clone();
+                    self.resync[resync_index].lease_id = Some(lease_id);
+                    selected.push(SelectedOutboxLease {
+                        lease_id,
+                        envelope: RealtimeEnvelope::Ephemeral((*message).clone()),
+                        recovery_marker_priority: None,
+                    });
+                    handoff_bytes = handoff_bytes.saturating_add(estimated);
+                    resync_index += 1;
+                }
+                FrameAuthorityDisposition::Retain => resync_index += 1,
+                FrameAuthorityDisposition::DropStale => {
+                    self.resync.remove(resync_index);
+                    removed_stale = true;
+                }
+            }
+        }
         // The pending map coalesces by room/key, whose lexical map order is
         // unrelated to the room authority's monotonic entryVersion. Sort the
         // surviving latest-state messages before transport so a client's room
         // high-water can safely reject any delayed lower-version frame.
-        let mut retained_ephemeral = BTreeMap::new();
+        let ephemeral_keys = self.ephemeral.keys().cloned().collect::<Vec<_>>();
         let mut ephemeral = Vec::new();
-        for (key, message) in std::mem::take(&mut self.ephemeral) {
+        for key in ephemeral_keys {
+            if handoff_full {
+                break;
+            }
+            if selected.len().saturating_add(ephemeral.len()) >= max_batch {
+                break;
+            }
+            let Some(message) = self.ephemeral.get(&key) else {
+                continue;
+            };
+            if message.lease_id.is_some() {
+                continue;
+            }
             let disposition =
                 effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
                     .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()));
             match disposition {
-                FrameAuthorityDisposition::Send => ephemeral.push(message),
-                FrameAuthorityDisposition::Retain => {
-                    retained_ephemeral.insert(key, message);
+                FrameAuthorityDisposition::Send => {
+                    let estimated = estimated_ephemeral_handoff_bytes(message.message.as_ref());
+                    if handoff_bytes.saturating_add(estimated) > max_handoff_bytes {
+                        if selected.is_empty()
+                            && ephemeral.is_empty()
+                            && OUTBOX_HANDOFF_BATCH_OVERHEAD.saturating_add(estimated)
+                                > MAX_OUTBOX_HANDOFF_BYTES
+                        {
+                            let oversized = message.message.clone();
+                            let effect_fence = message.effect_fence.clone();
+                            self.overflow(Some(oversized.as_ref()), effect_fence);
+                            return self.drain_with_authority_bounded_and_handoff_limit(
+                                expected_effect_fence,
+                                max_batch,
+                                max_handoff_bytes,
+                                classify_durable,
+                                classify_ephemeral,
+                            );
+                        }
+                        break;
+                    }
+                    ephemeral.push((key, message.message.clone()));
+                    handoff_bytes = handoff_bytes.saturating_add(estimated);
                 }
-                FrameAuthorityDisposition::DropStale => {}
+                FrameAuthorityDisposition::Retain => {}
+                FrameAuthorityDisposition::DropStale => {
+                    self.ephemeral.remove(&key);
+                    removed_stale = true;
+                }
             }
         }
-        self.ephemeral = retained_ephemeral;
         ephemeral.sort_by(|left, right| {
-            left.message
+            left.1
                 .resync_room_epoch()
-                .cmp(&right.message.resync_room_epoch())
-                .then_with(|| {
-                    left.message
-                        .entry_version()
-                        .cmp(&right.message.entry_version())
-                })
+                .cmp(&right.1.resync_room_epoch())
+                .then_with(|| left.1.entry_version().cmp(&right.1.entry_version()))
         });
-        for message in ephemeral {
-            messages.push(RealtimeEnvelope::Ephemeral((*message.message).clone()));
+        for (key, message) in ephemeral {
+            let Some(lease_id) = self.allocate_lease_id() else {
+                break;
+            };
+            let Some(queued) = self.ephemeral.get_mut(&key) else {
+                continue;
+            };
+            if queued.lease_id.is_some() || !Arc::ptr_eq(&queued.message, &message) {
+                continue;
+            }
+            queued.lease_id = Some(lease_id);
+            selected.push(SelectedOutboxLease {
+                lease_id,
+                envelope: RealtimeEnvelope::Ephemeral((*message).clone()),
+                recovery_marker_priority: None,
+            });
         }
-        self.durable.shrink_to_fit();
-        self.recompute_retained_bytes();
-        if unbound_overflow_signal {
-            self.overflowed = false;
+        if removed_stale {
+            self.durable.shrink_to_fit();
+            self.resync.shrink_to_fit();
+            self.recompute_retained_bytes();
         }
-        if let Some(exact_overflow_signal) = exact_overflow_signal {
-            // A matching exact drain consumed only this out-of-band signal.
-            // Other marked fences have independent recovery obligations even
-            // when their physical frames were discarded as stale for this
-            // drain, so preserve them until their own drain or exact purge.
-            self.overflowed_effect_fences.remove(&exact_overflow_signal);
-        }
-        if poisoned_overflow_signal.is_some() {
-            self.all_authorities_poisoned = false;
-        }
-        self.recompute_overflow_marker_bytes();
-        messages
+        self.clear_active_lease_binding_if_idle();
+        selected
     }
 
     fn pending_resync_epochs(
@@ -2073,6 +2916,11 @@ impl OutboundQueue {
                     room_authority_generation,
                     reason: ResyncReason::QueueOverflow,
                 });
+                // A newer recovery tuple supersedes an unaccepted selection.
+                // Its old transport handle must fail rather than acknowledge
+                // bytes that no longer represent the retained frame.
+                pending.lease_id = None;
+                self.clear_active_lease_binding_if_idle();
             }
             return 0;
         }
@@ -2631,6 +3479,9 @@ impl RoomAuthorityRegistry {
         outbox: &SharedOutbox,
         admit_fenced: bool,
         expected_effect_fence: Option<&ConnectionEffectFence>,
+        max_batch: usize,
+        max_handoff_bytes: usize,
+        wake: Arc<OutboxLeaseWake>,
     ) -> Vec<AdmittedRealtimeEnvelope> {
         // Registry admission precedes the outbox lock. Prepare cannot install
         // a dependency ticket until this destructive drain and its permit
@@ -2643,8 +3494,10 @@ impl RoomAuthorityRegistry {
         // a permit to interlock with. Once installed, only the guarded drain
         // may extract any frame whose publication depends on that stream.
         let admit_fenced = admit_fenced || state.durable_authorization.is_none();
-        let messages = lock(outbox).drain_with_authority(
+        let messages = lock(outbox).drain_with_authority_bounded_and_handoff_limit(
             expected_effect_fence,
+            max_batch,
+            max_handoff_bytes,
             |message| {
                 let Some(authorization) = message.authorization() else {
                     return FrameAuthorityDisposition::Send;
@@ -2716,7 +3569,12 @@ impl RoomAuthorityRegistry {
         );
         messages
             .into_iter()
-            .map(|envelope| {
+            .map(|selected| {
+                let SelectedOutboxLease {
+                    lease_id,
+                    envelope,
+                    recovery_marker_priority,
+                } = selected;
                 let publication_authority = match &envelope {
                     RealtimeEnvelope::Durable(message) => message.authorization().map(|_| {
                         state.active_durable_publications = state
@@ -2749,6 +3607,13 @@ impl RoomAuthorityRegistry {
                 AdmittedRealtimeEnvelope {
                     envelope,
                     publication_authority,
+                    lease: OutboxDrainLease::new(
+                        outbox.clone(),
+                        lease_id,
+                        wake.clone(),
+                        recovery_marker_priority,
+                    ),
+                    recovery_marker: recovery_marker_priority.is_some(),
                 }
             })
             .collect()
@@ -4621,7 +5486,7 @@ impl LocalEphemeralBackend {
             if !queue
                 .durable
                 .iter()
-                .any(|message| message.effect_fence() == effect_fence)
+                .any(|queued| queued.message.effect_fence() == effect_fence)
             {
                 return false;
             }
@@ -4760,8 +5625,17 @@ impl LocalEphemeralBackend {
         for room_id in maybe_empty {
             self.prune_room_if_empty(&room_id);
         }
-        if let Some(outbox) = lock(&self.shared.outboxes).get(connection_id).cloned() {
-            lock(&outbox).purge_effect_fence(effect_fence);
+        let wake_preserved_work = lock(&self.shared.outboxes)
+            .get(connection_id)
+            .cloned()
+            .is_some_and(|outbox| lock(&outbox).purge_effect_fence(effect_fence));
+        if wake_preserved_work {
+            // Invalidating the predecessor's globally active lease can expose
+            // authority-independent or successor work after the replacement
+            // socket already performed an empty initial drain. Wake whichever
+            // registration currently owns the readable id; exact retirement
+            // independently filters the predecessor by opaque grant id.
+            self.shared.delivery.wake(connection_id);
         }
     }
 
@@ -4771,23 +5645,50 @@ impl LocalEphemeralBackend {
     /// [`Self::drain_outbox_for_send`] and retain each admitted wrapper until
     /// its final sink completes.
     pub fn drain_outbox(&self, connection_id: &str) -> Vec<RealtimeEnvelope> {
+        Self::commit_compatibility_batch(self.lease_compatibility_outbox(connection_id))
+    }
+
+    fn lease_compatibility_outbox(&self, connection_id: &str) -> Vec<AdmittedRealtimeEnvelope> {
         // The authority obligation is level-triggered: losing or draining its
         // first signal cannot acknowledge it. Every heartbeat/poll recreates
         // the exact current-generation AuthChanged sentinel until the room's
         // fresh snapshot or trusted denial boundary completes.
         self.enqueue_room_authority_resyncs(Some(connection_id));
+        self.lease_compatibility_outbox_after_resync(connection_id)
+    }
+
+    fn lease_compatibility_outbox_after_resync(
+        &self,
+        connection_id: &str,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
             .map(|outbox| {
-                self.shared
-                    .room_authority
-                    .drain_outbox(&outbox, false, None)
+                let wake = Arc::new(OutboxLeaseWake {
+                    delivery: self.shared.delivery.clone(),
+                    connection_id: Arc::from(connection_id),
+                });
+                self.shared.room_authority.drain_outbox(
+                    &outbox,
+                    false,
+                    None,
+                    MAX_OUTBOX_DRAIN_BATCH,
+                    MAX_OUTBOX_HANDOFF_BYTES,
+                    wake,
+                )
             })
             .unwrap_or_default()
+    }
+
+    fn commit_compatibility_batch(
+        admitted: Vec<AdmittedRealtimeEnvelope>,
+    ) -> Vec<RealtimeEnvelope> {
+        admitted
             .into_iter()
-            .map(|admitted| {
-                let (envelope, _legacy_dev_permit) = admitted.into_parts();
-                envelope
+            .filter_map(|admitted| {
+                admitted
+                    .try_into_parts()
+                    .map(|(envelope, _legacy_dev_permit)| envelope)
             })
             .collect()
     }
@@ -4795,28 +5696,224 @@ impl LocalEphemeralBackend {
     /// Destructively drain frames for a real transport handoff. Callers must
     /// keep each returned wrapper alive through the final sink.
     pub fn drain_outbox_for_send(&self, connection_id: &str) -> Vec<AdmittedRealtimeEnvelope> {
+        self.drain_outbox_for_send_with_limit(connection_id, MAX_OUTBOX_DRAIN_BATCH)
+    }
+
+    fn drain_outbox_for_send_with_limit(
+        &self,
+        connection_id: &str,
+        max_batch: usize,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
         self.enqueue_room_authority_resyncs(Some(connection_id));
+        self.drain_outbox_for_send_with_limit_after_resync(connection_id, max_batch)
+    }
+
+    fn drain_outbox_for_send_with_limit_after_resync(
+        &self,
+        connection_id: &str,
+        max_batch: usize,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
-            .map(|outbox| self.shared.room_authority.drain_outbox(&outbox, true, None))
+            .map(|outbox| {
+                let wake = Arc::new(OutboxLeaseWake {
+                    delivery: self.shared.delivery.clone(),
+                    connection_id: Arc::from(connection_id),
+                });
+                self.shared.room_authority.drain_outbox(
+                    &outbox,
+                    true,
+                    None,
+                    max_batch,
+                    MAX_OUTBOX_HANDOFF_BYTES,
+                    wake,
+                )
+            })
             .unwrap_or_default()
     }
 
     /// Destructively drain only effects produced by the exact connection
     /// grant. A readable connection id is intentionally insufficient: local
     /// profiles may reuse it and terminal cleanup may race with replacement.
+    #[cfg(test)]
     pub(crate) fn drain_outbox_for_send_bound(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
     ) -> Vec<AdmittedRealtimeEnvelope> {
+        self.drain_outbox_for_send_bound_with_limit(
+            connection_id,
+            effect_fence,
+            MAX_OUTBOX_DRAIN_BATCH,
+        )
+    }
+
+    pub(crate) fn has_eligible_recovery_marker_bound(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+    ) -> bool {
+        lock(&self.shared.outboxes)
+            .get(connection_id)
+            .cloned()
+            .is_some_and(|outbox| lock(&outbox).has_eligible_recovery_marker(Some(effect_fence)))
+    }
+
+    /// Complete one HTTP response handoff at the exact connection-publication
+    /// cut. An empty lease set still needs the outbox lock: direct projections
+    /// must not pass a recovery marker installed after handler selection.
+    /// Ordinary leased batches likewise lose to a cross-domain marker that did
+    /// not itself invalidate their physical lease.
+    pub(crate) fn acknowledge_outbox_handoff_bound(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+        leases: &[OutboxDrainLease],
+    ) -> bool {
+        let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
+        let Some(outbox) = outbox else {
+            return leases.is_empty();
+        };
+        if leases
+            .iter()
+            .any(|lease| !Arc::ptr_eq(&lease.inner.outbox, &outbox))
+        {
+            return false;
+        }
+        let ids = leases
+            .iter()
+            .map(|lease| lease.inner.lease_id)
+            .collect::<Vec<_>>();
+        let batch_marker_priority = leases
+            .first()
+            .and_then(|lease| lease.inner.recovery_marker_priority);
+        if leases
+            .iter()
+            .any(|lease| lease.inner.recovery_marker_priority != batch_marker_priority)
+        {
+            return false;
+        }
+        let removed = {
+            let mut queue = lock(&outbox);
+            if !leases.is_empty() && queue.active_lease_effect_fence.as_ref() != Some(effect_fence)
+            {
+                false
+            } else if queue.recovery_marker_preempts(Some(effect_fence), batch_marker_priority) {
+                false
+            } else {
+                queue.acknowledge_leases(&ids)
+            }
+        };
+        if removed && !leases.is_empty() {
+            leases[0]
+                .inner
+                .wake
+                .delivery
+                .wake(&leases[0].inner.wake.connection_id);
+        }
+        removed
+    }
+
+    /// Linearize a lease-less WS projection offer against recovery-marker
+    /// installation. The notifier and connection registry are held by the
+    /// caller; keeping this outbox lock through the bounded writer offer gives
+    /// notifier -> outbox -> writer ordering without a check/offer gap.
+    pub(crate) fn try_offer_projection_bound<T>(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+        value: T,
+        offer: impl FnOnce(T) -> Result<(), T>,
+    ) -> OutboxLeaseCommit<T> {
+        // @ref LLP 0059#durable-and-ephemeral-outboxes — a lease-less direct
+        // projection still linearizes against marker priority at writer offer.
+        let outbox = self.ensure_outbox(connection_id);
+        let queue = lock(&outbox);
+        if queue.recovery_marker_preempts(Some(effect_fence), None) {
+            return OutboxLeaseCommit::Superseded(value);
+        }
+        match offer(value) {
+            Ok(()) => OutboxLeaseCommit::Committed,
+            Err(value) => OutboxLeaseCommit::OfferFailed(value),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn overflow_outbox_for_test(
+        &self,
+        connection_id: &str,
+        effect_fence: Option<ConnectionEffectFence>,
+    ) {
+        let outbox = self.ensure_outbox(connection_id);
+        lock(&outbox).overflow(None, effect_fence);
+        self.shared.delivery.wake(connection_id);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn enqueue_ephemeral_for_test(
+        &self,
+        connection_id: &str,
+        message: EphemeralMessage,
+        effect_fence: Option<ConnectionEffectFence>,
+    ) {
+        let outbox = self.ensure_outbox(connection_id);
+        lock(&outbox).push_ephemeral(Arc::new(message), MAX_OUTBOX_BACKLOG, effect_fence);
+        self.shared.delivery.wake(connection_id);
+    }
+
+    #[cfg(test)]
+    fn drain_outbox_for_send_bound_with_limit(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+        max_batch: usize,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
         self.enqueue_room_authority_resyncs(Some(connection_id));
+        self.drain_outbox_for_send_bound_with_limit_after_resync(
+            connection_id,
+            effect_fence,
+            max_batch,
+            MAX_OUTBOX_HANDOFF_BYTES,
+        )
+    }
+
+    pub(crate) fn drain_outbox_for_send_bound_with_handoff_limit(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+        max_handoff_bytes: usize,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
+        self.enqueue_room_authority_resyncs(Some(connection_id));
+        self.drain_outbox_for_send_bound_with_limit_after_resync(
+            connection_id,
+            effect_fence,
+            MAX_OUTBOX_DRAIN_BATCH,
+            max_handoff_bytes,
+        )
+    }
+
+    fn drain_outbox_for_send_bound_with_limit_after_resync(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+        max_batch: usize,
+        max_handoff_bytes: usize,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         outbox
             .map(|outbox| {
-                self.shared
-                    .room_authority
-                    .drain_outbox(&outbox, true, Some(effect_fence))
+                let wake = Arc::new(OutboxLeaseWake {
+                    delivery: self.shared.delivery.clone(),
+                    connection_id: Arc::from(connection_id),
+                });
+                self.shared.room_authority.drain_outbox(
+                    &outbox,
+                    true,
+                    Some(effect_fence),
+                    max_batch,
+                    max_handoff_bytes,
+                    wake,
+                )
             })
             .unwrap_or_default()
     }
@@ -4887,11 +5984,22 @@ impl LocalEphemeralBackend {
         connection_id: &str,
         generation: u64,
     ) -> Option<Vec<RealtimeEnvelope>> {
-        self.shared
+        // Resync synthesis takes the rooms map and a room lock. Keep it
+        // outside the notifier generation cut: fan-out owns room → outbox →
+        // notifier, and reversing that edge here would deadlock publication.
+        // A superseded task may enqueue a shared obligation, but the exact
+        // generation check below prevents it from selecting any frame.
+        self.enqueue_room_authority_resyncs(Some(connection_id));
+        let admitted = self
+            .shared
             .delivery
             .act_if_current(connection_id, generation, || {
-                self.drain_outbox(connection_id)
-            })
+                self.lease_compatibility_outbox_after_resync(connection_id)
+            })?;
+        // Acknowledgement wakes the remaining queue. Do it after releasing the
+        // notifier generation lock: final ownership already linearized at the
+        // leased selection, and re-entering the notifier here would deadlock.
+        Some(Self::commit_compatibility_batch(admitted))
     }
 
     pub(crate) fn drain_outbox_for_send_if_current(
@@ -4899,23 +6007,31 @@ impl LocalEphemeralBackend {
         connection_id: &str,
         generation: u64,
     ) -> Option<Vec<AdmittedRealtimeEnvelope>> {
+        self.enqueue_room_authority_resyncs(Some(connection_id));
         self.shared
             .delivery
             .act_if_current(connection_id, generation, || {
-                self.drain_outbox_for_send(connection_id)
+                self.drain_outbox_for_send_with_limit_after_resync(connection_id, 1)
             })
     }
 
-    pub(crate) fn drain_outbox_for_send_bound_if_current(
+    pub(crate) fn drain_outbox_for_send_bound_if_current_with_handoff_limit(
         &self,
         connection_id: &str,
         generation: u64,
         effect_fence: &ConnectionEffectFence,
+        max_handoff_bytes: usize,
     ) -> Option<Vec<AdmittedRealtimeEnvelope>> {
+        self.enqueue_room_authority_resyncs(Some(connection_id));
         self.shared
             .delivery
             .act_if_current(connection_id, generation, || {
-                self.drain_outbox_for_send_bound(connection_id, effect_fence)
+                self.drain_outbox_for_send_bound_with_limit_after_resync(
+                    connection_id,
+                    effect_fence,
+                    1,
+                    max_handoff_bytes,
+                )
             })
     }
 
@@ -6538,6 +7654,125 @@ mod tests {
     }
 
     #[test]
+    fn public_outbox_wrapper_drop_commits_and_explicit_release_retries() {
+        let backend = LocalEphemeralBackend::new();
+        backend.enqueue_durable("conn", b"drop-commits".to_vec());
+
+        let mut selected = backend.drain_outbox_for_send("conn");
+        assert_eq!(selected.len(), 1);
+        assert!(
+            backend.drain_outbox_for_send("conn").is_empty(),
+            "one active lease batch parks every competing drain"
+        );
+        drop(selected.pop().unwrap());
+        assert!(
+            backend.drain_outbox_for_send("conn").is_empty(),
+            "ordinary public wrapper drop preserves the historical commit behavior"
+        );
+
+        backend.enqueue_durable("conn", b"explicit-release".to_vec());
+        let selected = backend.drain_outbox_for_send("conn").pop().unwrap();
+        selected.release_handoff();
+        let retried = backend.drain_outbox_for_send("conn").pop().unwrap();
+        let RealtimeEnvelope::Durable(message) = retried.envelope() else {
+            panic!("expected the explicitly released durable frame");
+        };
+        assert_eq!(message.payload.as_slice(), b"explicit-release");
+        assert!(retried.commit_handoff());
+        assert!(backend.drain_outbox_for_send("conn").is_empty());
+    }
+
+    #[test]
+    fn one_active_batch_prevents_overtaking_and_preserves_queue_order() {
+        let backend = LocalEphemeralBackend::new();
+        backend.enqueue_durable("conn", b"first".to_vec());
+        backend.enqueue_durable("conn", b"second".to_vec());
+
+        let first = backend
+            .drain_outbox_for_send_with_limit("conn", 1)
+            .pop()
+            .unwrap();
+        assert!(
+            backend
+                .drain_outbox_for_send_with_limit("conn", 1)
+                .is_empty(),
+            "a later frame cannot overtake an unaccepted predecessor"
+        );
+        first.release_handoff();
+
+        let retry = backend
+            .drain_outbox_for_send_with_limit("conn", 1)
+            .pop()
+            .unwrap();
+        let RealtimeEnvelope::Durable(message) = retry.envelope() else {
+            panic!("expected first durable frame");
+        };
+        assert_eq!(message.payload.as_slice(), b"first");
+        assert!(retry.commit_handoff());
+
+        let second = backend
+            .drain_outbox_for_send_with_limit("conn", 1)
+            .pop()
+            .unwrap();
+        let RealtimeEnvelope::Durable(message) = second.envelope() else {
+            panic!("expected second durable frame");
+        };
+        assert_eq!(message.payload.as_slice(), b"second");
+        assert!(second.commit_handoff());
+    }
+
+    #[test]
+    fn websocket_drains_one_frame_and_replacement_generation_owns_retry() {
+        let backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let (old_generation, _) = notifier.register("conn").unwrap();
+        backend.enqueue_durable("conn", b"first".to_vec());
+        backend.enqueue_durable("conn", b"second".to_vec());
+
+        let mut selected = backend
+            .drain_outbox_for_send_if_current("conn", old_generation)
+            .unwrap();
+        assert_eq!(selected.len(), 1, "a WS drain holds at most one lease");
+        let first = selected.pop().unwrap();
+        let (envelope, permit, lease) = first.into_leased_parts();
+        assert!(permit.is_none());
+        let RealtimeEnvelope::Durable(message) = envelope else {
+            panic!("expected first durable frame");
+        };
+        assert_eq!(message.payload.as_slice(), b"first");
+
+        let (new_generation, _) = notifier.register("conn").unwrap();
+        assert!(
+            notifier
+                .act_if_current("conn", old_generation, || {
+                    lease.try_commit((), |()| Ok(()))
+                })
+                .is_none(),
+            "the predecessor generation cannot linearize a final handoff"
+        );
+        drop(lease);
+
+        let retried = backend
+            .drain_outbox_for_send_if_current("conn", new_generation)
+            .unwrap();
+        assert_eq!(retried.len(), 1);
+        let RealtimeEnvelope::Durable(message) = retried[0].envelope() else {
+            panic!("expected replacement-owned retry");
+        };
+        assert_eq!(message.payload.as_slice(), b"first");
+        assert!(retried.into_iter().next().unwrap().commit_handoff());
+
+        let next = backend
+            .drain_outbox_for_send_if_current("conn", new_generation)
+            .unwrap();
+        assert_eq!(next.len(), 1);
+        let RealtimeEnvelope::Durable(message) = next[0].envelope() else {
+            panic!("expected the second durable frame");
+        };
+        assert_eq!(message.payload.as_slice(), b"second");
+    }
+
+    #[test]
     fn replacement_generation_inherits_the_guarded_durable_publication() {
         use std::sync::mpsc;
         use std::time::Duration;
@@ -6603,7 +7838,7 @@ mod tests {
             drain_notifier.act_if_current("conn", generation, || {
                 entered_tx.send(()).unwrap();
                 release_rx.recv().unwrap();
-                drain_backend.drain_outbox("conn")
+                drain_backend.lease_compatibility_outbox("conn")
             })
         });
         entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
@@ -6621,8 +7856,99 @@ mod tests {
         );
         release_tx.send(()).unwrap();
         assert!(registered_rx.recv_timeout(Duration::from_secs(1)).is_ok());
-        assert_eq!(drain.join().unwrap().unwrap().len(), 1);
+        let admitted = drain.join().unwrap().unwrap();
+        assert_eq!(admitted.len(), 1);
+        assert_eq!(
+            LocalEphemeralBackend::commit_compatibility_batch(admitted).len(),
+            1
+        );
         replacement.join().unwrap();
+    }
+
+    #[test]
+    fn guarded_resync_synthesis_never_inverts_room_and_notifier_locks() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let backend = Arc::new(LocalEphemeralBackend::new());
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        drop(backend.drain_outbox("observer"));
+        let notifier = backend.delivery_notifier();
+        let (generation, _waker) = notifier.register("observer").unwrap();
+
+        let expected = authorization(1);
+        let ticket = backend
+            .prepare_room_authorization_event(expected.clone())
+            .unwrap();
+        backend
+            .finalize_room_authorization_event(&ticket, expected, 2)
+            .unwrap();
+
+        let drain_backend = backend.clone();
+        let (drain_done_tx, drain_done_rx) = mpsc::channel();
+        let drainer = std::thread::spawn(move || {
+            let drained = drain_backend
+                .drain_outbox_for_send_if_current("observer", generation)
+                .expect("registration remains current");
+            let count = drained.len();
+            drop(drained);
+            drain_done_tx.send(count).unwrap();
+        });
+        assert!(
+            drain_done_rx
+                .recv_timeout(Duration::from_secs(1))
+                .expect("resync synthesis cannot re-enter a notifier guard")
+                > 0
+        );
+        drainer.join().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn lease_settlement_waits_for_notifier_contention_without_losing_wake() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let backend = Arc::new(LocalEphemeralBackend::new());
+        for index in 0..(MAX_OUTBOX_DRAIN_BATCH + 1) {
+            backend.enqueue_durable("conn", index.to_le_bytes().to_vec());
+        }
+        let notifier = backend.delivery_notifier();
+        let (generation, waker) = notifier.register("conn").unwrap();
+        let selected = backend.drain_outbox_for_send("conn");
+        assert_eq!(selected.len(), MAX_OUTBOX_DRAIN_BATCH);
+
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let held_notifier = notifier.clone();
+        let holder = std::thread::spawn(move || {
+            held_notifier.act_if_current("conn", generation, || {
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            })
+        });
+        entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+        let (settled_tx, settled_rx) = mpsc::channel();
+        let settle = std::thread::spawn(move || {
+            drop(selected);
+            settled_tx.send(()).unwrap();
+        });
+        assert!(
+            settled_rx.recv_timeout(Duration::from_millis(20)).is_err(),
+            "settlement must wait instead of dropping a contended wake"
+        );
+        release_tx.send(()).unwrap();
+        settled_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(1), waker.notified())
+            .await
+            .expect("settlement wakes remaining queued work after contention");
+
+        let remaining = backend.drain_outbox_for_send("conn");
+        assert_eq!(remaining.len(), 1);
+        drop(remaining);
+        settle.join().unwrap();
+        holder.join().unwrap();
     }
 
     fn scope() -> Scope {
@@ -7135,7 +8461,7 @@ mod tests {
         let durable = queue
             .durable
             .iter()
-            .map(retained_durable_queue_item_bytes)
+            .map(|queued| retained_durable_queue_item_bytes(queued.message.as_ref()))
             .sum::<usize>();
         let resync = queue
             .resync
@@ -7173,10 +8499,19 @@ mod tests {
             queue.overflow_marker_bytes, overflow_markers,
             "overflow-marker byte ledger drifted"
         );
+        let active_lease_binding = queue
+            .active_lease_effect_fence
+            .as_ref()
+            .map_or(0, retained_outbox_lease_binding_bytes);
+        assert_eq!(
+            queue.active_lease_binding_bytes, active_lease_binding,
+            "active lease-binding byte ledger drifted"
+        );
         durable
             .saturating_add(resync)
             .saturating_add(ephemeral)
             .saturating_add(overflow_markers)
+            .saturating_add(active_lease_binding)
     }
 
     fn assert_retained_accounting(backend: &LocalEphemeralBackend) {
@@ -8688,7 +10023,14 @@ mod tests {
             )
             .unwrap();
 
-        let messages = backend.drain_outbox("observer");
+        let mut messages = Vec::new();
+        loop {
+            let batch = backend.drain_outbox("observer");
+            if batch.is_empty() {
+                break;
+            }
+            messages.extend(batch);
+        }
         assert_eq!(messages.len(), 2);
         assert!(messages.into_iter().all(|message| {
             matches!(
@@ -8742,7 +10084,14 @@ mod tests {
                 .unwrap();
         }
 
-        let messages = backend.drain_outbox("observer");
+        let mut messages = Vec::new();
+        loop {
+            let batch = backend.drain_outbox("observer");
+            if batch.is_empty() {
+                break;
+            }
+            messages.extend(batch);
+        }
         assert!(
             messages
                 .iter()
@@ -8828,7 +10177,14 @@ mod tests {
         // the overflow flag.
         publish("three", "pub-three", 1_003);
 
-        let messages = backend.drain_outbox("observer");
+        let mut messages = Vec::new();
+        loop {
+            let batch = backend.drain_outbox("observer");
+            if batch.is_empty() {
+                break;
+            }
+            messages.extend(batch);
+        }
         assert!(
             messages
                 .iter()
@@ -9857,6 +11213,198 @@ mod tests {
     }
 
     #[test]
+    fn handoff_estimator_bounds_worst_case_json_expansion() {
+        let durable = RealtimeEnvelope::Durable(DurableMessage::new(vec![u8::MAX; 4_096]));
+        let escaped = "\0".repeat(4_096);
+        let ephemeral = RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
+            room: Some(RoomId {
+                collection: escaped.clone(),
+                routing_key: escaped.clone(),
+                scope: Scope::from_pairs([(escaped.clone(), escaped.clone())]),
+            }),
+            room_authority_generation: Some(u64::MAX),
+            error: EphemeralError::new(EphemeralErrorCode::Unauthorized, escaped),
+        });
+        for envelope in [durable, ephemeral] {
+            let actual = serde_json::to_vec(&envelope).unwrap().len();
+            let estimated = estimated_envelope_handoff_bytes(&envelope);
+            assert!(
+                actual <= estimated,
+                "serialized envelope ({actual}) exceeded conservative estimate ({estimated})"
+            );
+            assert!(estimated <= MAX_OUTBOX_HANDOFF_BYTES);
+        }
+    }
+
+    #[test]
+    fn handoff_batch_stops_before_the_conservative_byte_ceiling() {
+        let mut queue = OutboundQueue::new();
+        for _ in 0..MAX_OUTBOX_DRAIN_BATCH {
+            assert!(
+                !queue
+                    .push_durable(DurableMessage::new(vec![u8::MAX; 512 * 1_024]))
+                    .overflowed
+            );
+        }
+        let selected = queue.drain_with_authority_bounded(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert!(!selected.is_empty());
+        assert!(selected.len() < MAX_OUTBOX_DRAIN_BATCH);
+        let estimated = selected
+            .iter()
+            .fold(OUTBOX_HANDOFF_BATCH_OVERHEAD, |total, selected| {
+                total.saturating_add(estimated_envelope_handoff_bytes(&selected.envelope))
+            });
+        assert!(estimated <= MAX_OUTBOX_HANDOFF_BYTES);
+        assert!(
+            queue.durable.iter().any(|queued| queued.lease_id.is_none()),
+            "the first candidate that would cross the byte cap remains queued"
+        );
+    }
+
+    #[test]
+    fn projection_reserved_budget_defers_globally_valid_frame_without_overflow() {
+        let mut queue = OutboundQueue::new();
+        let payload = vec![0x7f; 1_024 * 1_024];
+        let message = DurableMessage::new(payload.clone());
+        let estimate = estimated_durable_handoff_bytes(&message);
+        assert!(OUTBOX_HANDOFF_BATCH_OVERHEAD.saturating_add(estimate) < MAX_OUTBOX_HANDOFF_BYTES);
+        assert!(!queue.push_durable(message).overflowed);
+
+        let selected = queue.drain_with_authority_bounded_and_handoff_limit(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            OUTBOX_HANDOFF_BATCH_OVERHEAD
+                .saturating_add(estimate)
+                .saturating_sub(1),
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert!(selected.is_empty());
+        assert_eq!(queue.durable.len(), 1);
+        assert!(!queue.overflowed);
+        assert!(!queue.all_authorities_poisoned);
+
+        let retry = queue.drain_with_authority_bounded(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert!(matches!(
+            retry.as_slice(),
+            [SelectedOutboxLease {
+                envelope: RealtimeEnvelope::Durable(message),
+                ..
+            }] if message.payload == payload
+        ));
+    }
+
+    #[test]
+    fn recovery_marker_ignores_projection_consumed_payload_budget() {
+        let mut queue = OutboundQueue::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        assert!(queue.overflow(None, Some(fence.clone())).overflowed);
+        let selected = queue.drain_with_authority_bounded_and_handoff_limit(
+            Some(&fence),
+            1,
+            0,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(selected.len(), 1);
+        assert_eq!(
+            selected[0].recovery_marker_priority,
+            Some(RecoveryMarkerPriority::Exact)
+        );
+    }
+
+    #[test]
+    fn ws_projection_and_outbox_clone_share_one_handoff_budget() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        let projection = DurableMessage::new(vec![0x31; 9 * 1_024 * 1_024]);
+        let projection_estimate = estimated_durable_handoff_bytes(&projection);
+        let queued_payload = vec![0x32; 2 * 1_024 * 1_024];
+        let queued = DurableMessage::new(queued_payload.clone());
+        assert!(
+            OUTBOX_HANDOFF_BATCH_OVERHEAD.saturating_add(estimated_durable_handoff_bytes(&queued))
+                < MAX_OUTBOX_HANDOFF_BYTES,
+            "the queued frame is globally handoff-valid"
+        );
+        backend.enqueue_durable("conn", queued_payload.clone());
+        let notifier = backend.delivery_notifier();
+        let (generation, _waker) = notifier.register("conn").unwrap();
+        let remaining = MAX_OUTBOX_HANDOFF_BYTES.saturating_sub(projection_estimate);
+
+        let selected = backend
+            .drain_outbox_for_send_bound_if_current_with_handoff_limit(
+                "conn", generation, &fence, remaining,
+            )
+            .expect("current WS drain");
+        assert!(
+            selected.is_empty(),
+            "the queued clone must not overlap a near-cap projection vector"
+        );
+        let outbox = backend.ensure_outbox("conn");
+        assert_eq!(lock(&outbox).durable.len(), 1);
+        assert!(!lock(&outbox).overflowed);
+
+        drop(projection);
+        let retry = backend
+            .drain_outbox_for_send_bound_if_current_with_handoff_limit(
+                "conn",
+                generation,
+                &fence,
+                MAX_OUTBOX_HANDOFF_BYTES,
+            )
+            .expect("retry after projection ownership is released");
+        assert!(matches!(
+            retry.as_slice(),
+            [admitted] if matches!(
+                admitted.envelope(),
+                RealtimeEnvelope::Durable(message) if message.payload == queued_payload
+            )
+        ));
+    }
+
+    #[test]
+    fn near_retained_cap_frame_becomes_recovery_marker_before_clone() {
+        let mut queue = OutboundQueue::new();
+        let empty = DurableMessage::new(Vec::new());
+        let payload_len = MAX_OUTBOX_RETAINED_BYTES
+            .saturating_sub(retained_durable_queue_item_bytes(&empty))
+            .saturating_sub(1);
+        assert!(
+            !queue
+                .push_durable(DurableMessage::new(vec![u8::MAX; payload_len]))
+                .overflowed
+        );
+        let selected = queue.drain_with_authority_bounded(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(selected.len(), 1);
+        let RealtimeEnvelope::Durable(marker) = &selected[0].envelope else {
+            panic!("oversized durable handoff must become a durable recovery marker");
+        };
+        let marker: serde_json::Value = serde_json::from_slice(&marker.payload).unwrap();
+        assert_eq!(marker["kind"], "resync_required");
+        assert_eq!(marker["clear_retained"], true);
+        assert!(queue.durable.is_empty());
+        assert!(queue.overflowed);
+        assert!(
+            estimated_envelope_handoff_bytes(&selected[0].envelope) <= MAX_OUTBOX_HANDOFF_BYTES
+        );
+    }
+
+    #[test]
     fn same_room_overflow_recovery_refreshes_without_stale_downgrade() {
         let mut queue = OutboundQueue::new();
         let room = room();
@@ -9895,6 +11443,586 @@ mod tests {
     }
 
     #[test]
+    fn recovery_marker_is_leased_alone_and_survives_cancelled_handoff() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        let outbox = backend.ensure_outbox("conn");
+        {
+            let mut queue = lock(&outbox);
+            queue.push_durable(DurableMessage::new(b"ordinary".to_vec()));
+            assert!(queue.overflow(None, Some(fence.clone())).overflowed);
+            assert_eq!(queue.durable.len(), 1);
+        }
+
+        let marker = backend.drain_outbox_for_send_bound("conn", &fence);
+        assert_eq!(marker.len(), 1, "the marker must be leased by itself");
+        let RealtimeEnvelope::Durable(signal) = marker[0].envelope() else {
+            panic!("expected exact recovery marker");
+        };
+        assert_eq!(signal.effect_fence(), Some(&fence));
+        assert!(
+            backend.has_eligible_recovery_marker_bound("conn", &fence),
+            "priority preflight remains true until marker acknowledgement"
+        );
+        assert!(
+            backend
+                .drain_outbox_for_send_bound("conn", &fence)
+                .is_empty(),
+            "ordinary frames stay parked behind an unaccepted recovery marker"
+        );
+        marker.into_iter().next().unwrap().release_handoff();
+
+        let marker = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .unwrap();
+        let RealtimeEnvelope::Durable(signal) = marker.envelope() else {
+            panic!("expected retried exact recovery marker");
+        };
+        assert_eq!(signal.effect_fence(), Some(&fence));
+        assert!(marker.commit_handoff());
+
+        let ordinary = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .unwrap();
+        let RealtimeEnvelope::Durable(message) = ordinary.envelope() else {
+            panic!("expected ordinary frame after recovery acceptance");
+        };
+        assert_eq!(message.payload.as_slice(), b"ordinary");
+    }
+
+    #[test]
+    fn poison_survives_release_and_bounded_sink_offer_failure() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        let outbox = backend.ensure_outbox("conn");
+        assert!(lock(&outbox).poison_all_authorities());
+
+        backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .unwrap()
+            .release_handoff();
+        assert!(lock(&outbox).all_authorities_poisoned);
+
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .unwrap();
+        let (_, permit, lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+        match lease.try_commit("not-accepted", Err) {
+            OutboxLeaseCommit::OfferFailed(value) => assert_eq!(value, "not-accepted"),
+            OutboxLeaseCommit::Committed | OutboxLeaseCommit::Superseded(_) => {
+                panic!("a rejected bounded offer cannot acknowledge poison")
+            }
+        }
+        lease.wake();
+        drop(lease);
+        assert!(lock(&outbox).all_authorities_poisoned);
+
+        let final_attempt = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .unwrap();
+        assert!(final_attempt.commit_handoff());
+        assert!(!lock(&outbox).all_authorities_poisoned);
+    }
+
+    #[test]
+    fn ws_exact_ordinary_lease_loses_to_later_unbound_recovery_marker() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        backend.enqueue_durable_bound("conn", b"exact-ordinary".to_vec(), fence.clone());
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("select exact ordinary frame");
+        let (_, permit, lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+
+        backend.overflow_outbox_for_test("conn", None);
+        match lease.try_commit((), |()| Ok(())) {
+            OutboxLeaseCommit::Superseded(()) => {}
+            OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
+                panic!("an eligible global marker must supersede an exact ordinary offer")
+            }
+        }
+        lease.wake();
+        drop(lease);
+
+        let marker = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("global marker wins the retry");
+        assert!(marker.is_recovery_marker());
+        assert!(marker.commit_handoff());
+        let ordinary = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("exact ordinary frame remains after marker acceptance");
+        assert!(matches!(
+            ordinary.envelope(),
+            RealtimeEnvelope::Durable(message) if message.payload == b"exact-ordinary"
+        ));
+    }
+
+    #[test]
+    fn ws_unbound_ordinary_lease_loses_to_later_exact_recovery_marker() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        backend.enqueue_durable("conn", b"unbound-ordinary".to_vec());
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("select unbound ordinary frame through exact drain");
+        let (_, permit, lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+
+        backend.overflow_outbox_for_test("conn", Some(fence.clone()));
+        match lease.try_commit((), |()| Ok(())) {
+            OutboxLeaseCommit::Superseded(()) => {}
+            OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
+                panic!("an eligible exact marker must supersede an unbound ordinary offer")
+            }
+        }
+        lease.wake();
+        drop(lease);
+
+        let marker = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("exact marker wins the retry");
+        assert!(marker.is_recovery_marker());
+        assert!(marker.commit_handoff());
+        let ordinary = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("unbound ordinary frame remains after marker acceptance");
+        assert!(matches!(
+            ordinary.envelope(),
+            RealtimeEnvelope::Durable(message) if message.payload == b"unbound-ordinary"
+        ));
+    }
+
+    #[tokio::test]
+    async fn marker_preempted_public_commit_releases_and_rewakes_the_queue() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        backend.enqueue_durable("conn", b"ordinary".to_vec());
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("select ordinary frame");
+        let notifier = backend.delivery_notifier();
+        let (_generation, waker) = notifier.register("conn").unwrap();
+
+        backend.overflow_outbox_for_test("conn", Some(fence.clone()));
+        tokio::time::timeout(std::time::Duration::from_secs(1), waker.notified())
+            .await
+            .expect("consume the overflow enqueue wake");
+        assert!(!selected.commit_handoff());
+        tokio::time::timeout(std::time::Duration::from_secs(1), waker.notified())
+            .await
+            .expect("marker-preemptive lease release must announce the retry");
+
+        let marker = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("rewoken retry selects the marker");
+        assert!(marker.is_recovery_marker());
+    }
+
+    #[test]
+    fn selected_exact_marker_loses_to_later_unbound_marker() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        backend.overflow_outbox_for_test("conn", Some(fence.clone()));
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("select exact recovery marker");
+        let (_, permit, lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+
+        backend.overflow_outbox_for_test("conn", None);
+        match lease.try_commit((), |()| Ok(())) {
+            OutboxLeaseCommit::Superseded(()) => {}
+            OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
+                panic!("a later unbound marker must supersede a selected exact marker")
+            }
+        }
+        lease.wake();
+        drop(lease);
+
+        let higher = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("unbound marker wins the retry");
+        let RealtimeEnvelope::Durable(message) = higher.envelope() else {
+            panic!("expected durable recovery marker");
+        };
+        assert_eq!(message.effect_fence(), None);
+        assert!(higher.commit_handoff());
+        let lower = backend
+            .drain_outbox_for_send_bound("conn", &fence)
+            .pop()
+            .expect("exact marker remains after broader recovery");
+        let RealtimeEnvelope::Durable(message) = lower.envelope() else {
+            panic!("expected exact durable recovery marker");
+        };
+        assert_eq!(message.effect_fence(), Some(&fence));
+    }
+
+    #[test]
+    fn predecessor_purge_invalidates_poison_lease_but_not_recovery_obligation() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        let outbox = backend.ensure_outbox("conn");
+        assert!(lock(&outbox).poison_all_authorities());
+
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &predecessor)
+            .pop()
+            .unwrap();
+        let (_, permit, old_lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+        assert_eq!(
+            lock(&outbox).active_lease_effect_fence.as_ref(),
+            Some(&predecessor)
+        );
+
+        lock(&outbox).purge_effect_fence(&predecessor);
+        assert!(lock(&outbox).all_authorities_poisoned);
+        assert!(
+            !OutboxDrainLease::acknowledge_all(std::slice::from_ref(&old_lease)),
+            "the predecessor HTTP body cannot consume successor recovery"
+        );
+        drop(old_lease);
+
+        let successor_marker = backend
+            .drain_outbox_for_send_bound("conn", &successor)
+            .pop()
+            .expect("the successor must inherit the global recovery obligation");
+        let RealtimeEnvelope::Durable(signal) = successor_marker.envelope() else {
+            panic!("expected successor poison marker");
+        };
+        assert_eq!(signal.effect_fence(), Some(&successor));
+        assert!(successor_marker.commit_handoff());
+        assert!(!lock(&outbox).all_authorities_poisoned);
+    }
+
+    #[test]
+    fn exact_selection_binds_unbound_marker_across_connection_replacement() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        let outbox = backend.ensure_outbox("conn");
+        assert!(lock(&outbox).overflow(None, None).overflowed);
+
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &predecessor)
+            .pop()
+            .unwrap();
+        let (_, permit, old_lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+        lock(&outbox).purge_effect_fence(&predecessor);
+        assert!(lock(&outbox).overflowed);
+        assert!(
+            !OutboxDrainLease::acknowledge_all(std::slice::from_ref(&old_lease)),
+            "an authority-independent marker still belongs to its selecting exact grant"
+        );
+        drop(old_lease);
+
+        let successor_marker = backend
+            .drain_outbox_for_send_bound("conn", &successor)
+            .pop()
+            .expect("the successor must receive the unbound recovery marker");
+        let RealtimeEnvelope::Durable(signal) = successor_marker.envelope() else {
+            panic!("expected unbound overflow marker");
+        };
+        assert!(signal.effect_fence().is_none());
+        assert!(successor_marker.commit_handoff());
+        assert!(!lock(&outbox).overflowed);
+    }
+
+    #[test]
+    fn exact_selection_binds_authority_independent_frame_to_selecting_grant() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        let outbox = backend.ensure_outbox("conn");
+        backend.enqueue_durable("conn", b"unbound".to_vec());
+
+        let selected = backend
+            .drain_outbox_for_send_bound("conn", &predecessor)
+            .pop()
+            .unwrap();
+        let (_, permit, old_lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+        lock(&outbox).purge_effect_fence(&predecessor);
+        assert!(
+            !OutboxDrainLease::acknowledge_all(std::slice::from_ref(&old_lease)),
+            "an unbound frame cannot be accepted by a replaced exact HTTP grant"
+        );
+        drop(old_lease);
+
+        let retry = backend
+            .drain_outbox_for_send_bound("conn", &successor)
+            .pop()
+            .expect("successor retries the authority-independent frame");
+        let RealtimeEnvelope::Durable(message) = retry.envelope() else {
+            panic!("expected durable retry");
+        };
+        assert_eq!(message.payload.as_slice(), b"unbound");
+    }
+
+    #[tokio::test]
+    async fn predecessor_purge_wakes_successor_for_preserved_unbound_work() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        backend.enqueue_durable("reused", b"preserved".to_vec());
+
+        let selected = backend
+            .drain_outbox_for_send_bound("reused", &predecessor)
+            .pop()
+            .expect("the predecessor selects the shared frame");
+        let (_, _, predecessor_lease) = selected.into_leased_parts();
+
+        let notifier = backend.delivery_notifier();
+        let (_successor_generation, successor_waker) = notifier
+            .register_bound("reused", "grant-new")
+            .expect("the successor registers before predecessor retirement");
+        assert!(
+            backend
+                .drain_outbox_for_send_bound("reused", &successor)
+                .is_empty(),
+            "the predecessor's active lease parks the successor's initial drain"
+        );
+
+        backend.purge_connection_effects("reused", &predecessor);
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            successor_waker.notified(),
+        )
+        .await
+        .expect("purge must promptly wake the successor without a heartbeat");
+
+        assert!(
+            !OutboxDrainLease::acknowledge_all(std::slice::from_ref(&predecessor_lease)),
+            "the invalidated predecessor cannot acknowledge preserved work"
+        );
+        let retry = backend
+            .drain_outbox_for_send_bound("reused", &successor)
+            .pop()
+            .expect("the wake announces a successor retry");
+        let RealtimeEnvelope::Durable(message) = retry.envelope() else {
+            panic!("expected preserved durable frame");
+        };
+        assert_eq!(message.payload.as_slice(), b"preserved");
+        assert!(retry.commit_handoff());
+    }
+
+    #[test]
+    fn coalescing_replacement_supersedes_lease_without_failing_stream() {
+        let backend = LocalEphemeralBackend::new();
+        let outbox = backend.ensure_outbox("conn");
+        let upsert = |value: &[u8], entry_version| {
+            Arc::new(EphemeralMessage::Upsert {
+                room: room(),
+                room_authority_generation: 0,
+                entry: EphemeralEntry {
+                    key: EntryKey("cursor".to_owned()),
+                    value: value.to_vec(),
+                    received_at_ms: 1,
+                    expires_at_ms: 10,
+                    scope_epoch: 1,
+                    entry_version,
+                },
+            })
+        };
+        lock(&outbox).push_ephemeral(upsert(b"old", 1), MAX_OUTBOX_BACKLOG, None);
+        let selected = backend.drain_outbox_for_send("conn").pop().unwrap();
+        assert!(
+            lock(&outbox)
+                .push_ephemeral(upsert(b"new", 2), MAX_OUTBOX_BACKLOG, None)
+                .coalesced
+        );
+
+        let (_, permit, lease) = selected.into_leased_parts();
+        assert!(permit.is_none());
+        match lease.try_commit((), |()| Ok(())) {
+            OutboxLeaseCommit::Superseded(()) => {}
+            OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
+                panic!("replacement must be a benign supersession, not a sink failure")
+            }
+        }
+        lease.wake();
+        drop(lease);
+
+        let replacement = backend.drain_outbox_for_send("conn").pop().unwrap();
+        let RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. }) =
+            replacement.envelope()
+        else {
+            panic!("expected replacement upsert");
+        };
+        assert_eq!(entry.value.as_slice(), b"new");
+    }
+
+    #[test]
+    fn full_ephemeral_map_conversion_releases_invalidated_batch_binding() {
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        let upsert = |key: &str, entry_version| {
+            Arc::new(EphemeralMessage::Upsert {
+                room: room(),
+                room_authority_generation: 0,
+                entry: EphemeralEntry {
+                    key: EntryKey(key.to_owned()),
+                    value: key.as_bytes().to_vec(),
+                    received_at_ms: 1,
+                    expires_at_ms: 10,
+                    scope_epoch: 1,
+                    entry_version,
+                },
+            })
+        };
+        let mut queue = OutboundQueue::new();
+        queue.push_ephemeral(upsert("first", 1), 1, Some(fence.clone()));
+        let selected = queue.drain_with_authority_bounded(
+            Some(&fence),
+            1,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(selected.len(), 1);
+        assert_eq!(queue.active_lease_effect_fence.as_ref(), Some(&fence));
+
+        let converted = queue.push_ephemeral(upsert("second", 2), 1, Some(fence.clone()));
+        assert_eq!(converted.resync_count, 1);
+        assert!(!queue.has_active_leases());
+        assert!(queue.active_lease_effect_fence.is_none());
+        assert_eq!(queue.active_lease_binding_bytes, 0);
+
+        let retry = queue.drain_with_authority_bounded(
+            Some(&fence),
+            MAX_OUTBOX_DRAIN_BATCH,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(retry.len(), 1);
+        assert!(retry.iter().all(|selected| matches!(
+            selected.envelope,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired { .. })
+        )));
+    }
+
+    #[test]
+    fn http_batch_acknowledgement_prevalidates_every_lease() {
+        let backend = LocalEphemeralBackend::new();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        let outbox = backend.ensure_outbox("conn");
+        backend.enqueue_durable("conn", b"unbound".to_vec());
+        backend.enqueue_durable_bound("conn", b"bound".to_vec(), fence.clone());
+
+        let selected = backend.drain_outbox_for_send_bound("conn", &fence);
+        assert_eq!(selected.len(), 2);
+        let leases = selected
+            .into_iter()
+            .map(|selected| {
+                let (_, permit, lease) = selected.into_leased_parts();
+                assert!(permit.is_none());
+                lease
+            })
+            .collect::<Vec<_>>();
+
+        lock(&outbox).purge_effect_fence(&fence);
+        assert!(
+            !OutboxDrainLease::acknowledge_all(&leases),
+            "one stale member rejects the complete HTTP ownership batch"
+        );
+        assert_eq!(
+            lock(&outbox).durable.len(),
+            1,
+            "prevalidation must not partially remove the current unbound frame"
+        );
+        drop(leases);
+
+        let retry = backend.drain_outbox("conn");
+        assert_eq!(retry.len(), 1);
+        let RealtimeEnvelope::Durable(message) = &retry[0] else {
+            panic!("expected unbound retry");
+        };
+        assert_eq!(message.payload.as_slice(), b"unbound");
+    }
+
+    #[test]
+    fn destructive_cleanup_compacts_deques_and_preserves_byte_ledger() {
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
+        let mut queue = OutboundQueue::new();
+        for _ in 0..128 {
+            queue.push_durable(DurableMessage::bound(
+                b"predecessor".to_vec(),
+                predecessor.clone(),
+            ));
+        }
+        queue.push_durable(DurableMessage::bound(b"successor".to_vec(), successor));
+        queue.purge_effect_fence(&predecessor);
+        assert_eq!(queue.durable.len(), 1);
+        assert!(queue.durable.capacity() <= 4);
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+
+        let mut queue = OutboundQueue::new();
+        for _ in 0..(MAX_OUTBOX_DRAIN_BATCH * 2) {
+            queue.push_durable(DurableMessage::new(b"frame".to_vec()));
+        }
+        let selected = queue.drain_with_authority_bounded(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(selected.len(), MAX_OUTBOX_DRAIN_BATCH);
+        assert!(
+            queue.acknowledge_leases(
+                &selected
+                    .iter()
+                    .map(|selected| selected.lease_id)
+                    .collect::<Vec<_>>()
+            )
+        );
+        assert!(queue.durable.capacity() <= queue.durable.len().saturating_mul(2));
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+
+        let selected = queue.drain_with_authority_bounded(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert!(
+            queue.acknowledge_leases(
+                &selected
+                    .iter()
+                    .map(|selected| selected.lease_id)
+                    .collect::<Vec<_>>()
+            )
+        );
+        assert!(queue.durable.is_empty());
+        assert_eq!(queue.durable.capacity(), 0);
+        assert_eq!(queue.retained_bytes(), 0);
+    }
+
+    #[test]
     fn bound_filled_queue_cannot_displace_unbound_overflow_signal() {
         let backend = LocalEphemeralBackend::new();
         let bound = ConnectionEffectFence::session("inc", "grant", "session", 1);
@@ -9922,14 +12050,19 @@ mod tests {
         assert_eq!(signal["reason"], "outbox_overflow");
         assert_eq!(signal["clear_retained"], true);
 
-        let bound_payloads = backend
-            .drain_outbox_for_send_bound("shared", &bound)
-            .into_iter()
-            .filter_map(|admitted| match admitted.into_parts().0 {
-                RealtimeEnvelope::Durable(message) => Some(message.payload),
-                RealtimeEnvelope::Ephemeral(_) => None,
-            })
-            .collect::<Vec<_>>();
+        let mut bound_payloads = Vec::new();
+        loop {
+            let batch = backend.drain_outbox_for_send_bound("shared", &bound);
+            if batch.is_empty() {
+                break;
+            }
+            bound_payloads.extend(batch.into_iter().filter_map(|admitted| {
+                match admitted.into_parts().0 {
+                    RealtimeEnvelope::Durable(message) => Some(message.payload),
+                    RealtimeEnvelope::Ephemeral(_) => None,
+                }
+            }));
+        }
         assert_eq!(bound_payloads.len(), MAX_OUTBOX_BACKLOG);
         assert!(
             bound_payloads
