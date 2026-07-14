@@ -310,6 +310,27 @@ fn validate_auth_transport(
     Ok(())
 }
 
+/// Compose the build facts installed by the production serve path. The
+/// authority-descriptor implementation is present independently of the
+/// invalidation and authorized-retention layers, so queued replay must not be
+/// left test-only while either later layer is unavailable.
+// @ref LLP 0051#d1-the-ctx-answer-ledger-recordable-replayable-deterministic-ops — queued replay carries a dedicated server-issued authority descriptor before item 8 restores retained reads.
+fn runtime_auth_program_readiness(
+    secret_read_process_prerequisites: bool,
+    authorization_invalidation: bool,
+    authorized_lease: bool,
+) -> crate::auth::mode::AuthProgramReadiness {
+    crate::auth::mode::AuthProgramReadiness::new(
+        secret_read_process_prerequisites,
+        true,
+        true,
+        true,
+        authorization_invalidation,
+        true,
+        authorized_lease,
+    )
+}
+
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(about = "Run the Snapback local development server")]
 pub struct Args {
@@ -1520,17 +1541,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let secret_read_process_prerequisites =
         ready_target.is_some() && token_configured && secret_read_proof_root.is_some();
 
-    // Item 5 makes sessions activatable only after this process has all three
-    // projection/custody mechanisms. Later item-6/7/8 facts remain false.
-    let mut auth_program_readiness = crate::auth::mode::AuthProgramReadiness::new(
-        secret_read_process_prerequisites,
-        true,
-        true,
-        true,
-        false,
-        false,
-        false,
-    );
+    // Item 5 makes sessions activatable after the three projection/custody
+    // mechanisms. Item 7's descriptor is an independent build fact; item 6's
+    // boot-local invalidation issuer and item 8's lease service are installed
+    // later in this startup sequence.
+    let mut auth_program_readiness =
+        runtime_auth_program_readiness(secret_read_process_prerequisites, false, false);
     let auth_mode_state = compose_auth_mode_startup(
         &args,
         &mut snapback,
@@ -1579,15 +1595,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .reserve_invalidation_boot_issuer(&mut snapback, &target_profile_id, &app_id)
             .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?;
         snapback.install_auth_invalidation(issuer.clone(), authorization, version_stream)?;
-        auth_program_readiness = crate::auth::mode::AuthProgramReadiness::new(
-            secret_read_process_prerequisites,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-        );
+        auth_program_readiness =
+            runtime_auth_program_readiness(secret_read_process_prerequisites, true, false);
         Some(issuer)
     } else {
         None
@@ -3349,8 +3358,8 @@ mod tests {
         ReadyFileTarget, ResolvedHttpTarget, TargetArgs, bind_first_available, bind_listener,
         managed_startup_paths, mint_secret_read_via_http, parse_run_args,
         path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
-        reject_misdirected_serve_flags, resolve_http_target, validate_path_disjointness,
-        validated_secret_read_root_path, write_ready_file_atomic,
+        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
+        validate_path_disjointness, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
@@ -3360,6 +3369,20 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn production_readiness_exposes_item7_before_item8() {
+        let before_invalidation = runtime_auth_program_readiness(true, false, false);
+        assert!(before_invalidation.session_activation_ready);
+        assert!(before_invalidation.authority_descriptor);
+        assert!(!before_invalidation.authorization_invalidation);
+        assert!(!before_invalidation.authorized_lease);
+
+        let after_invalidation = runtime_auth_program_readiness(true, true, false);
+        assert!(after_invalidation.authority_descriptor);
+        assert!(after_invalidation.authorization_invalidation);
+        assert!(!after_invalidation.authorized_lease);
+    }
 
     fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDescriptor {
         crate::host_ops::HostReadyDescriptor {
