@@ -53,7 +53,7 @@ use crate::local::{
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
     HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
-    MutationRequest, QueryOutput, SchemaManifest, SeedData,
+    MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -2686,16 +2686,61 @@ pub struct MutationResponse {
     pub receipt: Receipt,
 }
 
-/// Closed request carrier for the sole full-query lease issuance path.
-/// `HandlerInput` remains flattened so route middleware sees body-carried dev
-/// authority exactly where ordinary query middleware sees it; sessions mode
-/// rejects that legacy authority and installs the resolved bearer instead.
+/// Closed request carrier for the sole full-query lease issuance path. The
+/// ordinary query fields stay at their usual top-level wire names so route
+/// middleware sees body-carried dev authority in the same place; spelling the
+/// complete v1 map here lets serde and the generated schema reject additions.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AuthorizedLeaseQueryRequest {
-    #[serde(flatten)]
-    pub input: HandlerInput,
-    #[serde(flatten)]
-    pub lease_request: AuthorizedLeaseRequestIdentity,
+    #[serde(default)]
+    pub args: Value,
+    #[serde(default)]
+    pub auth: AuthInput,
+    #[serde(default)]
+    pub read_set: Vec<ReadDependency>,
+    /// Opaque adapter-stitched correlation (LLP 0034 §3.2, ENG-22478): the
+    /// Exact adapter's join keys (`actionInvocationId`, `optimisticWaveId`,
+    /// `rootId`, `bindingIds`) live inside. The provider echoes it verbatim
+    /// on receipts and never interprets it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation: Option<Value>,
+    /// Replay ledger (LLP 0051 D1): when present, the invocation runs in
+    /// REPLAY mode — `ctx.runtime.now()` answers `ledger.now` and every
+    /// host-generated id (`ctx.runtime.id()` and `ctx.db.insert` row ids)
+    /// consumes `ledger.ids` in order. Consuming past the end is a typed
+    /// divergence error. Additive: absent means record mode, today's
+    /// behavior. Queries and mutations only; actions never carry one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ctx_ledger: Option<CtxAnswerLedger>,
+    #[serde(rename = "leaseRequestId")]
+    pub lease_request_id: String,
+    #[serde(rename = "clientStoreId")]
+    pub client_store_id: String,
+    #[serde(rename = "queryKey")]
+    pub query_key: String,
+    #[serde(rename = "queryInstanceId")]
+    pub query_instance_id: u64,
+}
+
+impl AuthorizedLeaseQueryRequest {
+    fn into_parts(self) -> (HandlerInput, AuthorizedLeaseRequestIdentity) {
+        (
+            HandlerInput {
+                args: self.args,
+                auth: self.auth,
+                read_set: self.read_set,
+                correlation: self.correlation,
+                ctx_ledger: self.ctx_ledger,
+            },
+            AuthorizedLeaseRequestIdentity {
+                lease_request_id: self.lease_request_id,
+                client_store_id: self.client_store_id,
+                query_key: self.query_key,
+                query_instance_id: self.query_instance_id,
+            },
+        )
+    }
 }
 
 /// Query rows and their authorization proof are one response boundary. The
@@ -8909,10 +8954,7 @@ async fn invoke_authorized_lease_query(
         .into());
     }
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
-    let AuthorizedLeaseQueryRequest {
-        input,
-        lease_request,
-    } = request;
+    let (input, lease_request) = request.into_parts();
     let capture = with_snapback(&state, move |snapback| {
         snapback.capture_authorized_lease_query(&name, input, authority, lease_request)
     })
@@ -12578,7 +12620,7 @@ mod tests {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
         let credential = mint_test_credential(&state, "authorized-lease-route@example.com").await;
         let bearer = credential["token"].as_str().unwrap().to_owned();
-        let request = |lease_protocol: Option<&str>| {
+        let request = |lease_protocol: Option<&str>, include_unknown: bool| {
             let mut builder = Request::builder()
                 .method("POST")
                 .uri("/query/missing_function/authorized-lease")
@@ -12589,17 +12631,25 @@ mod tests {
             if let Some(lease_protocol) = lease_protocol {
                 builder = builder.header("x-snapback-authorized-lease-protocol", lease_protocol);
             }
-            builder
-                .body(Body::from(
-                    r#"{
+            let body = if include_unknown {
+                r#"{
+                        "args": {},
+                        "leaseRequestId": "request_1",
+                        "clientStoreId": "store_1",
+                        "queryKey": "missing_function:{}",
+                        "queryInstanceId": 1,
+                        "unexpected": true
+                    }"#
+            } else {
+                r#"{
                         "args": {},
                         "leaseRequestId": "request_1",
                         "clientStoreId": "store_1",
                         "queryKey": "missing_function:{}",
                         "queryInstanceId": 1
-                    }"#,
-                ))
-                .unwrap()
+                    }"#
+            };
+            builder.body(Body::from(body)).unwrap()
         };
 
         let dependencies_ready =
@@ -12608,7 +12658,7 @@ mod tests {
             .clone()
             .with_auth_runtime_facts(settled_sessions_state(), dependencies_ready)
             .expect("install pre-authorized-lease readiness"))
-        .oneshot(request(Some("1")))
+        .oneshot(request(Some("1"), false))
         .await
         .unwrap();
         assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
@@ -12623,14 +12673,25 @@ mod tests {
                 AuthProgramReadiness::new(true, true, true, true, true, true, true),
             )
             .expect("install authorized-lease readiness"));
-        let missing_offer = ready.clone().oneshot(request(None)).await.unwrap();
+        let missing_offer = ready.clone().oneshot(request(None, false)).await.unwrap();
         assert_eq!(missing_offer.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(
             response_json(missing_offer).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         );
 
-        let accepted_offer = ready.oneshot(request(Some("1"))).await.unwrap();
+        let unknown = ready
+            .clone()
+            .oneshot(request(Some("1"), true))
+            .await
+            .unwrap();
+        assert_eq!(unknown.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(unknown).await["diagnostic"]["code"],
+            "SNAPBACK_REQUEST_JSON_INVALID"
+        );
+
+        let accepted_offer = ready.oneshot(request(Some("1"), false)).await.unwrap();
         assert_eq!(
             response_json(accepted_offer).await["diagnostic"]["code"],
             "SNAPBACK_UNKNOWN_FUNCTION",

@@ -1201,7 +1201,7 @@ impl FunctionDefinition {
     /// the authenticated user rather than to a session lease. Public,
     /// authority-independent results deliberately stay outside this path.
     pub(crate) fn is_user_scoped_retainable_query(&self) -> bool {
-        self.kind == FunctionKind::Query
+        matches!(self.kind, FunctionKind::Query | FunctionKind::LiveQuery)
             && self.retainable
             && self.authorization_dependence == [AuthorizationInputDimension::UserId]
     }

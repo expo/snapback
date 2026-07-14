@@ -239,8 +239,27 @@ function resolveAuthCoordinator(client, explicit) {
   return coordinator;
 }
 
-async function bootContractAuthority(client, coordinator) {
-  if (!coordinator) return null;
+const isUnavailableAuthTransport = (error) => (
+  error instanceof TypeError
+  && error?.diagnostic == null
+  && error?.status == null
+  && error?.code == null
+);
+
+async function bootContractAuthority(client, coordinator, { durableOffline = false } = {}) {
+  if (!coordinator) return { capture: null, durableAuthorityRestored: false };
+  if (durableOffline && typeof coordinator.restoreOffline === 'function') {
+    const restored = await coordinator.restoreOffline();
+    if (restored) {
+      return {
+        capture: client?.authCoordinator === coordinator
+          && typeof client?.captureAuthority === 'function'
+          ? client.captureAuthority()
+          : restored,
+        durableAuthorityRestored: true,
+      };
+    }
+  }
   // The kit owns handshake/custody reconciliation. A generic coordinator test
   // double may omit authSession and arrive already settled.
   if (client?.authCoordinator === coordinator && typeof client?.authSession === 'function') {
@@ -248,9 +267,12 @@ async function bootContractAuthority(client, coordinator) {
   } else if (typeof coordinator.synchronize === 'function') {
     await coordinator.synchronize();
   }
-  return client?.authCoordinator === coordinator && typeof client?.captureAuthority === 'function'
-    ? client.captureAuthority()
-    : coordinator.capture();
+  return {
+    capture: client?.authCoordinator === coordinator && typeof client?.captureAuthority === 'function'
+      ? client.captureAuthority()
+      : coordinator.capture(),
+    durableAuthorityRestored: false,
+  };
 }
 
 function captureForTransportValue(client, fallback, value) {
@@ -427,7 +449,12 @@ export async function createSnapbackContractSurface({
   liveQueries = null,
 }) {
   const coordinator = resolveAuthCoordinator(client, authCoordinator);
-  let authorityCapture = await bootContractAuthority(client, coordinator);
+  let {
+    capture: authorityCapture,
+    durableAuthorityRestored,
+  } = await bootContractAuthority(client, coordinator, {
+    durableOffline: Boolean(clientStore && !Array.isArray(liveQueries)),
+  });
   let releaseDurableStoreRegistration = null;
   let unregisterSurfaceParticipant = null;
   const pending = new Set();
@@ -613,9 +640,6 @@ export async function createSnapbackContractSurface({
     // @ref LLP 0039#replay-parity-and-the-authority-instance-id — principal
     // scope and authority-instance scope fence different durable material.
     let coordinatedSessionsMode = coordinator?.authority?.authMode === 'sessions';
-    let authSession = coordinatedSessionsMode && typeof client.authSession === 'function'
-      ? await client.authSession()
-      : null;
     if (retainedQueryEligible && !retainedIdentityComplete) {
       const diagnostic = publishDiagnostic(
         'SNAPBACK_RETAINED_IDENTITY_INCOMPLETE',
@@ -646,10 +670,39 @@ export async function createSnapbackContractSurface({
           }
         : {}),
     };
-    let storeAuthorization = (offlineReplayEligible || retainedQueryEligible)
-      && typeof client.currentAuthorizationScope === 'function'
-      ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
+    // @ref LLP 0055#kit-ordering — a cold offline boot reads the last durable
+    // mode/authorization tuple before attempting discovery. That tuple can
+    // authorize only lease-validated retained bytes; it never admits online
+    // work or queued replay.
+    const durableStoreAuthorizationCandidate = durableAuthorityRestored
+      && (offlineReplayEligible || retainedQueryEligible)
+      && typeof clientStore?.authorizationScope === 'function'
+      ? await clientStore.authorizationScope(storeAuthorityCapture)
       : null;
+    const durableStoreAuthorization = durableStoreAuthorizationCandidate?.principalScope?.authMode
+      === 'sessions'
+      && durableStoreAuthorizationCandidate?.authorityDescriptor?.descriptorVersion === 1
+      ? durableStoreAuthorizationCandidate
+      : null;
+    let authSession = null;
+    let authSessionUnavailable = false;
+    if (coordinatedSessionsMode && typeof client.authSession === 'function') {
+      try {
+        authSession = await client.authSession();
+      } catch (error) {
+        if (!durableAuthorityRestored || !isUnavailableAuthTransport(error)) throw error;
+        authSessionUnavailable = true;
+      }
+    }
+    let storeAuthorization = null;
+    if (offlineReplayEligible || retainedQueryEligible) {
+      storeAuthorization = (
+        !coordinatedSessionsMode
+        || authSession !== null
+      ) && typeof client.currentAuthorizationScope === 'function'
+        ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
+        : durableStoreAuthorization;
+    }
     const sessionQueueCapable = Boolean(
       coordinatedSessionsMode
       && authSession?.availability?.queuedReplay?.available === true
@@ -702,6 +755,10 @@ export async function createSnapbackContractSurface({
     };
     const activationIdentityComplete = Object.values(activationIdentity)
       .every((value) => typeof value === 'string' && value.length > 0);
+    const durableAuthorizedQuery = Boolean(authSessionUnavailable
+      && storeAuthorization?.principalScope?.authMode === 'sessions'
+      && storeAuthorization?.queryAuthorization
+      && Object.hasOwn(storeAuthorization.queryAuthorization, storeQueryKey));
     let offlineReplayEnabled = offlineReplayEligible
       && retainedIdentityComplete
       && (!coordinatedSessionsMode || sessionQueueCapable);
@@ -710,7 +767,7 @@ export async function createSnapbackContractSurface({
       && (
         !coordinatedSessionsMode
         || Boolean(
-          authorizedLeaseFacts
+          (authorizedLeaseFacts || durableAuthorizedQuery)
           && retainableUserOnly
           && activationIdentityComplete
           && typeof activeUserId === 'string'
@@ -731,13 +788,18 @@ export async function createSnapbackContractSurface({
           query: queryName,
           retainableUserOnly,
           activationIdentityComplete,
-          retainedReadsAvailable: authSession?.availability?.retainedReads?.available === true,
+          retainedReadsAvailable: authSession?.availability?.retainedReads?.available === true
+            || durableAuthorizedQuery,
         },
       );
       diagnostic.severity = 'warning';
     }
     if (clientStore) {
-      if (storeAuthorization && typeof clientStore.scopeAuthorization === 'function') {
+      if (
+        authSession !== null
+        && storeAuthorization
+        && typeof clientStore.scopeAuthorization === 'function'
+      ) {
         await clientStore.scopeAuthorization(storeAuthorization, storeAuthorityCapture);
       }
       await clientStore.scopeToAuth(storeAuthFingerprint, storeAuthorityCapture);

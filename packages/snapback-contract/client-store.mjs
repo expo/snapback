@@ -1489,8 +1489,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       if (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0) {
         throw new TypeError('transitionAuthority requires a safe expectedEpoch');
       }
-      if (!Number.isSafeInteger(nextEpoch) || nextEpoch !== expectedEpoch + 1) {
-        throw new TypeError('transitionAuthority must advance authority epoch exactly once');
+      if (!Number.isSafeInteger(nextEpoch) || nextEpoch < 0) {
+        throw new TypeError('transitionAuthority requires a safe nextEpoch');
       }
       if (typeof nextAuthorityKey !== 'string' || !AUTHORITY_KEY_PATTERN.test(nextAuthorityKey)) {
         throw new TypeError('transitionAuthority requires a canonical nextAuthorityKey');
@@ -1519,8 +1519,15 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         assertPrincipalScope(nextPrincipalScope, 'nextPrincipalScope');
       }
       return transact((state, commit) => {
+        // A suspended context may miss several custody transitions while a
+        // peer has already committed this physical store to the exact current
+        // successor. Exact-current adoption is idempotent; only a real write
+        // is constrained to a one-epoch transition.
         if (state.authorityEpoch === nextEpoch && state.authorityKey === nextAuthorityKey) {
           return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
+        }
+        if (nextEpoch !== expectedEpoch + 1) {
+          throw new TypeError('transitionAuthority must advance authority epoch exactly once');
         }
         if (state.authorityEpoch !== expectedEpoch) {
           throw staleStoreAuthorityError('authority transition');

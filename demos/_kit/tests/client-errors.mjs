@@ -28,8 +28,9 @@ class SnapbackClient extends RuntimeSnapbackClient {
 
 class FakeWebSocket {
   static instances = [];
-  constructor(url) {
+  constructor(url, protocols = []) {
     this.url = url;
+    this.protocols = protocols;
     this.listeners = new Map();
     this.sent = [];
     this.closeCalls = 0;
@@ -247,6 +248,66 @@ try {
     assert(error.message.includes('Snapback live stream closed'), `expected stream-closed error, got: ${error.message}`);
     assert(!error.message.includes('timed out'), 'must reject via the latch, not the timeout');
     return { message: error.message };
+  });
+
+  await suite.check('sessions WebSocket upgrades carry exact protocol offers as subprotocols', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_session_protocols');
+    const db = new SnapbackClient('http://stub', {
+      authClientProtocol: 1,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+    });
+    db.authSession = async () => ({
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_session_protocols');
+    const ws = await nextSocket(before);
+    assertEqual(JSON.stringify(ws.protocols), JSON.stringify([
+      'snapback.v1',
+      'snapback.connection-token.sct_stub_token',
+      'snapback.auth-client.1',
+      'snapback.auth-invalidation.1',
+      'snapback.authority-descriptor.1',
+      'snapback.authorized-lease.1',
+    ]));
+    await stream.close();
+    return { protocols: ws.protocols.length };
+  });
+
+  await suite.check('sessions standalone acknowledgements offer the authority descriptor protocol', async () => {
+    const requests = [];
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(String(url)).pathname;
+      requests.push({ path, headers: init.headers ?? {} });
+      const body = path === '/connection/open'
+        ? { connectionId: 'conn_auth_ack', connectionToken: 'sct_auth_ack' }
+        : { outcome: 'discharged' };
+      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+    };
+    const db = new SnapbackClient('http://stub', {
+      bearerToken: 'session_bearer',
+      authClientProtocol: 1,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+    });
+    db.authSession = async () => ({
+      activeMode: 'sessions',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    await db.acknowledgeAuthorizationInvalidation('conn_auth_ack', 'ack_1');
+    const acknowledgement = requests.find(
+      (request) => request.path === '/live/authorization-invalidation/acknowledge',
+    );
+    assert(acknowledgement, 'expected the authorization acknowledgement request');
+    assertEqual(
+      acknowledgement.headers['x-snapback-authority-descriptor-protocol'],
+      '1',
+      'standalone acknowledgement offers the descriptor protocol required by queued replay',
+    );
+    return { offered: true };
   });
 
   await suite.check('s5_d7: updates before close still resolve; the close error follows', async () => {

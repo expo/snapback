@@ -77,8 +77,9 @@ const waitFor = async (check, label) => {
 
 const order = [];
 const boundaries = [];
+const authorizationErrors = [];
 const outbox = [];
-const ackOutcomes = ['discharged', 'stale', 'discharged', 'discharged'];
+const ackOutcomes = ['discharged', 'stale', 'discharged', 'discharged', 'discharged'];
 let failQueueRevision3 = true;
 let namespace;
 let scopeId;
@@ -104,6 +105,10 @@ try {
     const path = new URL(url).pathname;
     if (path === '/auth/session') return response(handshake);
     if (path === '/connection/open') {
+      assert.deepEqual(JSON.parse(init.body), {
+        connectionId: 'connection-label',
+        authInvalidationProtocol: 1,
+      });
       return response({
         connectionId: 'granted-auth',
         connectionToken: 'sct_auth',
@@ -163,6 +168,9 @@ try {
     authorizationQueue: queue,
     onAuthorizationBoundary(rows, detail) {
       boundaries.push({ rows: structuredClone(rows), kind: detail.kind });
+    },
+    onAuthorizationError(error) {
+      authorizationErrors.push(error);
     },
   });
 
@@ -288,6 +296,37 @@ try {
   await waitFor(
     () => assert.deepEqual(handle.rows, [{ _id: 'row_13' }]),
     'valid re-fire did not recover the faulted query',
+  );
+  const errorsBeforeExactRefire = authorizationErrors.length;
+
+  // The socket drain can carry an outbox snapshot and the level-triggered
+  // projection of the same exact ticket in one turn. They share one custody,
+  // resolution, and ACK task; the duplicate cannot race the first task and
+  // falsely fail the query closed as a stale resolution.
+  const fourth = obligation(scopeId, 4, 14);
+  const fourthFrame = { Durable: { payload: JSON.stringify({
+    kind: 'authorization_invalidation',
+    obligation: fourth,
+    resolution: resolution(fourth, 'ack_4'),
+    snapshot: {
+      subscriptionId: 'sub_auth',
+      function: 'listTodos',
+      version: 14,
+      rows: [{ _id: 'row_14' }],
+    },
+  }) } };
+  outbox.push([fourthFrame, structuredClone(fourthFrame)]);
+  await handle.poll();
+  await waitFor(
+    () => assert.deepEqual(handle.rows, [{ _id: 'row_14' }]),
+    'same-turn exact-ticket re-fire did not reveal the snapshot',
+  );
+  assert.equal(order.filter((entry) => entry === 'queue-resolve:4').length, 1);
+  assert.equal(order.filter((entry) => entry === 'ack:ack_4').length, 1);
+  assert.equal(
+    authorizationErrors.length,
+    errorsBeforeExactRefire,
+    'same exact ticket does not report a stale-resolution fault',
   );
   assert.equal(ackOutcomes.length, 0);
 

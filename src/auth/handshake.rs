@@ -20,6 +20,10 @@ pub const AUTH_CLIENT_PROTOCOL_HEADER: &str = "x-snapback-auth-client-protocol";
 pub const AUTH_INVALIDATION_PROTOCOL_HEADER: &str = "x-snapback-auth-invalidation-protocol";
 pub const AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER: &str = "x-snapback-authority-descriptor-protocol";
 pub const AUTHORIZED_LEASE_PROTOCOL_HEADER: &str = "x-snapback-authorized-lease-protocol";
+pub const AUTH_CLIENT_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.auth-client.";
+pub const AUTH_INVALIDATION_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.auth-invalidation.";
+pub const AUTHORITY_DESCRIPTOR_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.authority-descriptor.";
+pub const AUTHORIZED_LEASE_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.authorized-lease.";
 pub const AUTH_PROTOCOL_V1: u64 = 1;
 
 /// Parsed offers preserve an unknown integer for gate diagnostics while the
@@ -35,13 +39,26 @@ pub struct AuthClientProtocolOffers {
 impl AuthClientProtocolOffers {
     pub fn from_headers(headers: &HeaderMap) -> Self {
         Self {
-            auth_client: decimal_protocol_header(headers, AUTH_CLIENT_PROTOCOL_HEADER),
-            auth_invalidation: decimal_protocol_header(headers, AUTH_INVALIDATION_PROTOCOL_HEADER),
-            authority_descriptor: decimal_protocol_header(
+            auth_client: decimal_protocol_offer(
+                headers,
+                AUTH_CLIENT_PROTOCOL_HEADER,
+                AUTH_CLIENT_PROTOCOL_SUBPROTOCOL_PREFIX,
+            ),
+            auth_invalidation: decimal_protocol_offer(
+                headers,
+                AUTH_INVALIDATION_PROTOCOL_HEADER,
+                AUTH_INVALIDATION_PROTOCOL_SUBPROTOCOL_PREFIX,
+            ),
+            authority_descriptor: decimal_protocol_offer(
                 headers,
                 AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER,
+                AUTHORITY_DESCRIPTOR_PROTOCOL_SUBPROTOCOL_PREFIX,
             ),
-            authorized_lease: decimal_protocol_header(headers, AUTHORIZED_LEASE_PROTOCOL_HEADER),
+            authorized_lease: decimal_protocol_offer(
+                headers,
+                AUTHORIZED_LEASE_PROTOCOL_HEADER,
+                AUTHORIZED_LEASE_PROTOCOL_SUBPROTOCOL_PREFIX,
+            ),
         }
     }
 
@@ -66,6 +83,35 @@ fn decimal_protocol_header(headers: &HeaderMap, name: &'static str) -> Option<u6
         return None;
     }
     std::str::from_utf8(value).ok()?.parse().ok()
+}
+
+fn decimal_protocol_offer(
+    headers: &HeaderMap,
+    header_name: &'static str,
+    subprotocol_prefix: &'static str,
+) -> Option<u64> {
+    // A custom HTTP header is authoritative when the transport can send one.
+    // Browser WebSockets cannot, so the upgrade offers the same version in a
+    // closed Sec-WebSocket-Protocol token instead. A present-but-malformed or
+    // duplicated custom header never falls through to the alternate carrier.
+    if headers.contains_key(header_name) {
+        return decimal_protocol_header(headers, header_name);
+    }
+    let mut offered = headers
+        .get_all(axum::http::header::SEC_WEBSOCKET_PROTOCOL)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .filter_map(|value| value.strip_prefix(subprotocol_prefix));
+    let value = offered.next()?;
+    if offered.next().is_some()
+        || value.is_empty()
+        || !value.as_bytes().iter().all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    value.parse().ok()
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -405,6 +451,34 @@ mod tests {
                 authority_descriptor: None,
                 authorized_lease: None,
             }
+        );
+    }
+
+    #[test]
+    fn websocket_subprotocols_carry_exact_protocol_offers_without_custom_headers() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static(
+                "snapback.v1, snapback.auth-client.1, snapback.auth-invalidation.1, \
+                 snapback.authority-descriptor.1, snapback.authorized-lease.1",
+            ),
+        );
+        assert_eq!(
+            AuthClientProtocolOffers::from_headers(&headers),
+            AuthClientProtocolOffers {
+                auth_client: Some(1),
+                auth_invalidation: Some(1),
+                authority_descriptor: Some(1),
+                authorized_lease: Some(1),
+            }
+        );
+
+        headers.insert(AUTH_CLIENT_PROTOCOL_HEADER, HeaderValue::from_static("bad"));
+        assert_eq!(
+            AuthClientProtocolOffers::from_headers(&headers).auth_client,
+            None,
+            "a malformed custom header cannot fall through to the WebSocket carrier"
         );
     }
 

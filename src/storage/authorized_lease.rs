@@ -143,6 +143,9 @@ impl LocalDatabase {
     /// without a fresh query. Keyring verification happens before the app lock
     /// and produces the non-forgeable token accepted here; this transaction
     /// then checks current mutable state and advances the durable clock.
+    // Staged with the presented-lease service boundary; issuance must not call
+    // this path merely to make the verifier appear production-reachable.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn authorize_revalidation_free_lease(
         &mut self,
         verified: &VerifiedAuthorizedLease,
@@ -289,11 +292,11 @@ fn lease_session_state_error(
     let Some(session_id) = lease.session_id_at_issue.as_deref() else {
         return Ok(None);
     };
-    let Some(captured_not_after_ms) = lease.session_not_after_ms else {
+    if lease.session_not_after_ms.is_none() {
         return Ok(Some(stale(
             "session-bound authorized lease lacks its captured expiry",
         )));
-    };
+    }
     let current = tx
         .query_row(
             "SELECT s.user_id, i.provider, s.authority_instance_id,
@@ -334,9 +337,13 @@ fn lease_session_state_error(
             .authority_instance_id
             .as_deref()
             .is_none_or(|expected| expected == authority_instance_id);
+    // Authenticated-use coalescing can publish a newer in-memory session
+    // deadline before its durable write. The signed lease is still safe when
+    // its effective deadline, rather than that captured projection, fits
+    // entirely beneath durable session truth.
     if revoked
         || now_ms >= current_not_after
-        || captured_not_after_ms > current_not_after
+        || lease.authorized_until_server_ms > current_not_after
         || !identity_matches
     {
         return Ok(Some(stale(
@@ -477,7 +484,12 @@ mod tests {
         AuthorizedLeaseAuthenticator::from_test_key("sbak_AQEBAQEBAQEBAQEBAQEBAQ", [0x51; 32])
     }
 
-    fn current_lease(db: &mut LocalDatabase, request: &str, now_ms: u64) -> AuthorizedLease {
+    fn lease_with_session_not_after(
+        db: &mut LocalDatabase,
+        request: &str,
+        now_ms: u64,
+        session_not_after_ms: u64,
+    ) -> AuthorizedLease {
         let (authorization, version_stream, boot_sequence) =
             db.reserve_invalidation_boot_issuer().unwrap();
         let deployment = db
@@ -508,7 +520,7 @@ mod tests {
                         snapshot_commit_version: db.current_version().unwrap(),
                     },
                     activation_hash: authorized_lease_activation_hash(&deployment),
-                    session_not_after_ms: Some(NOW + 86_400_000),
+                    session_not_after_ms: Some(session_not_after_ms),
                     provider_not_after_ms: None,
                     authority_instance_id: Some("01890f3c-9d5b-7000-8000-000000000004".to_owned()),
                 },
@@ -518,6 +530,10 @@ mod tests {
                 "lease-test",
             )
             .unwrap()
+    }
+
+    fn current_lease(db: &mut LocalDatabase, request: &str, now_ms: u64) -> AuthorizedLease {
+        lease_with_session_not_after(db, request, now_ms, NOW + AUTHORIZED_LEASE_HARD_MAX_MS)
     }
 
     #[test]
@@ -583,6 +599,51 @@ mod tests {
                 NOW + 2,
                 true,
                 &wrong_activation.issuer_id,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+    }
+
+    #[test]
+    fn coalesced_session_projection_is_safe_only_within_durable_session_truth() {
+        let mut db = sessions_database(None);
+        let projected_not_after = NOW + AUTHORIZED_LEASE_HARD_MAX_MS * 2;
+        let safe = lease_with_session_not_after(
+            &mut db,
+            "request_coalesced_safe",
+            NOW,
+            projected_not_after,
+        );
+        assert_eq!(
+            safe.authorized_until_server_ms,
+            NOW + AUTHORIZED_LEASE_HARD_MAX_MS
+        );
+        db.reserve_authorized_lease(
+            &safe,
+            AuthorizedLeaseConfig::default(),
+            NOW,
+            true,
+            &safe.issuer_id,
+        )
+        .unwrap();
+
+        let unsafe_lease = lease_with_session_not_after(
+            &mut db,
+            "request_coalesced_unsafe",
+            NOW + 1,
+            projected_not_after,
+        );
+        assert_eq!(
+            unsafe_lease.authorized_until_server_ms,
+            NOW + AUTHORIZED_LEASE_HARD_MAX_MS + 1
+        );
+        let error = db
+            .reserve_authorized_lease(
+                &unsafe_lease,
+                AuthorizedLeaseConfig::default(),
+                NOW + 1,
+                true,
+                &unsafe_lease.issuer_id,
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");

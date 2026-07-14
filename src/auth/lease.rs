@@ -258,6 +258,9 @@ pub struct AuthorizedLeaseAuthenticator {
 /// Non-forgeable crate-internal proof that the persistent protocol keyring
 /// accepted shape, MAC, time, configuration, and a complete expected binding
 /// before the app/database lane was acquired.
+// The verifier boundary is intentionally staged for the first server service
+// that accepts a presented lease; issuance never self-verifies its own output.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct VerifiedAuthorizedLease {
     lease: AuthorizedLease,
     verified_at_server_ms: u64,
@@ -269,6 +272,7 @@ impl std::fmt::Debug for VerifiedAuthorizedLease {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 impl VerifiedAuthorizedLease {
     pub(crate) fn lease(&self) -> &AuthorizedLease {
         &self.lease
@@ -375,6 +379,7 @@ impl AuthorizedLeaseAuthenticator {
     /// Verify shape, MAC, time, configuration, and every caller-provided
     /// equality axis.  The durable server clock high-water must be checked by
     /// storage immediately before this method is used for service admission.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn verify_for_service(
         &self,
         lease: &AuthorizedLease,
@@ -532,6 +537,7 @@ impl AuthorizedLease {
         Ok(())
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     fn require_expectation(&self, expected: &AuthorizedLeaseExpectation) -> SnapbackResult<()> {
         let actual = AuthorizedLeaseExpectation::from(self);
         if &actual != expected {

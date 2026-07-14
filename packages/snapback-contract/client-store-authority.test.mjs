@@ -19,6 +19,7 @@ const INCARNATION_2 = '018f0d90-7b28-7a22-8c33-445566778899';
 const SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
 const SESSION_2 = '018f0d90-7b29-7a22-8c33-445566778899';
 const SESSION_3 = '018f0d90-7b2a-7a22-8c33-445566778899';
+const SESSION_B = '018f0d90-7b26-7a22-8c33-445566778899';
 const USER = '018f0d90-7b23-7a22-8c33-445566778899';
 const AUTHORITY_1 = '018f0d90-7b24-7a22-8c33-445566778899';
 const AUTHORITY_2 = '018f0d90-7b25-7a22-8c33-445566778899';
@@ -36,8 +37,13 @@ const authenticated = {
   sessionId: SESSION,
   userId: USER,
 };
+const authenticatedB = {
+  ...authenticated,
+  sessionId: SESSION_B,
+};
 const key0 = canonicalAuthorityKey(APP, anonymous);
 const key1 = canonicalAuthorityKey(APP, authenticated);
+const keyB = canonicalAuthorityKey(APP, authenticatedB);
 const principal = {
   authMode: 'sessions',
   authorizationStreamIncarnation: INCARNATION,
@@ -933,6 +939,93 @@ assert.deepEqual(
     () => exhausted.scopeToAuth('next', { authorityEpoch: 1, authorityKey: key1 }),
   );
   assert.equal((await exhausted.snapshot()).generation, Number.MAX_SAFE_INTEGER);
+}
+
+// A suspended context can miss multiple transitions while another owner has
+// already advanced the shared physical store to the exact durable successor.
+// Reloading that exact current tuple is idempotent even though a real store
+// transition remains constrained to one epoch at a time.
+{
+  const custodyState = { custody: {} };
+  const storeState = {};
+  const writerStore = createMemorySnapbackClientStore({ state: storeState });
+  await writerStore.bindAuthority({
+    authorityEpoch: 0,
+    authorityKey: key0,
+    authMode: 'sessions',
+  });
+  const writer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const capture0 = await writer.establishAnonymous(anonymous);
+  const unregisterWriterStore = writer.registerParticipant(
+    createSnapbackClientStoreAuthParticipant(writerStore),
+  );
+  const capture1 = await writer.transition(capture0, {
+    authority: authenticated,
+    bearer: 'session-a',
+    refreshAfterMs: 10_000,
+  }, 'login-a');
+
+  const stale = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  assert.equal((await stale.restoreOffline()).authorityEpoch, 1);
+  const staleStore = createMemorySnapbackClientStore({ state: storeState });
+  await assert.rejects(
+    staleStore.transitionAuthority({
+      expectedEpoch: 1,
+      nextEpoch: 3,
+      nextAuthorityKey: keyB,
+    }),
+    /must advance authority epoch exactly once/,
+  );
+  assert.deepEqual(await staleStore.authorityScope(), {
+    authorityEpoch: 1,
+    authorityKey: key1,
+  });
+  const unregisterStaleStore = stale.registerParticipant(
+    createSnapbackClientStoreAuthParticipant(staleStore),
+  );
+  const phases = [];
+  const unregisterPhases = stale.registerParticipant({
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+
+  const capture2 = await writer.transition(capture1, {
+    authority: anonymous,
+    bearer: null,
+    refreshAfterMs: null,
+  }, 'logout');
+  const capture3 = await writer.transition(capture2, {
+    authority: authenticatedB,
+    bearer: 'session-b',
+    refreshAfterMs: 20_000,
+  }, 'login-b');
+  const restored = await stale.restoreOffline();
+  assert.equal(restored.authorityEpoch, 3);
+  assert.equal(restored.authorityKey, keyB);
+  assert.deepEqual(await staleStore.authorityScope(), {
+    authorityEpoch: 3,
+    authorityKey: keyB,
+  });
+  assert.deepEqual(phases, ['quiesce', 'blank', 'clearMemory', 'commitDurable']);
+
+  await unregisterPhases();
+  await unregisterStaleStore();
+  await unregisterWriterStore();
+  await stale.close();
+  await writer.close();
 }
 
 console.log('client-store authority conformance: ok');

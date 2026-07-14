@@ -87,7 +87,8 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/authorized-lease.query.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Closed request carrier for the sole full-query lease issuance path.\n`HandlerInput` remains flattened so route middleware sees body-carried dev\nauthority exactly where ordinary query middleware sees it; sessions mode\nrejects that legacy authority and installs the resolved bearer instead.",
+  "additionalProperties": false,
+  "description": "Closed request carrier for the sole full-query lease issuance path. The\nordinary query fields stay at their usual top-level wire names so route\nmiddleware sees body-carried dev authority in the same place; spelling the\ncomplete v1 map here lets serde and the generated schema reject additions.",
   "properties": {
     "args": {
       "default": null

@@ -1,6 +1,8 @@
 use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionLease;
-use crate::auth::admission::{AdmissionController, ModeCommitFailure, ModeTransitionGuard};
+use crate::auth::admission::{
+    AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
+};
 use crate::auth::descriptor::{descriptor_for_authority, require_current_descriptor};
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
@@ -4511,9 +4513,13 @@ impl LocalSnapback {
             })?;
         let key = Self::authorization_retry_key(&subscription)
             .expect("auth-scoped subscription has a retry key");
-        let reservation = self.db.with_invalidation_retry_registry(|registry| {
-            registry.manual_retry(&key, input.manual_retry_id, now_millis())
-        })?;
+        let reservation = {
+            let _effect =
+                authority.effect_guard("authorization manual retry reservation transaction")?;
+            self.db.with_invalidation_retry_registry(|registry| {
+                registry.manual_retry(&key, input.manual_retry_id, now_millis())
+            })?
+        };
         let episode = match reservation {
             RetryReservation::Attached(episode) => {
                 return Ok(AuthorizationInvalidationManualRetryOutput {
@@ -4791,6 +4797,7 @@ impl LocalSnapback {
                 }
             };
             let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
+            let _publication = authority.effect_guard("live authorization resume publication")?;
             let resolution_witness = self
                 .auth_invalidation
                 .as_ref()
@@ -4808,7 +4815,11 @@ impl LocalSnapback {
                 )?;
                 state.obligations.projection(&authorization.scope_id)
             };
-            self.resolve_authorization_retry_episode(&subscription, &resolution_witness)?;
+            self.resolve_authorization_retry_episode(
+                &subscription,
+                &resolution_witness,
+                &_publication,
+            )?;
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 stored.connection_id = input.connection_id;
                 stored.read_dependencies = query.read_dependencies;
@@ -6928,6 +6939,29 @@ impl LocalSnapback {
         })
     }
 
+    // @ref LLP 0055#gate-algorithm — retry-registry writes are durable auth
+    // effects, so each transaction must revalidate the admitted epoch at its
+    // own publication boundary.
+    fn run_authorization_retry_transaction<T>(
+        &mut self,
+        admission: &AdmissionLease,
+        effect: &'static str,
+        retry_episode_id: Option<String>,
+        operation: impl FnOnce(&mut LocalDatabase) -> SnapbackResult<T>,
+    ) -> Result<T, AuthorizationResolutionFailure> {
+        let _effect =
+            admission
+                .effect_guard(effect)
+                .map_err(|error| AuthorizationResolutionFailure {
+                    error,
+                    retry_episode_id: retry_episode_id.clone(),
+                })?;
+        operation(&mut self.db).map_err(|error| AuthorizationResolutionFailure {
+            error,
+            retry_episode_id,
+        })
+    }
+
     fn invoke_authorization_resolution(
         &mut self,
         subscription: &LiveSubscription,
@@ -6939,25 +6973,39 @@ impl LocalSnapback {
         // error can quarantine but cannot manufacture terminal deletion proof.
         let key = Self::authorization_retry_key(subscription).expect("auth-scoped subscription");
         let now = now_millis();
-        let initial = self.db.with_invalidation_retry_registry(|registry| {
-            registry.reserve(
-                key.clone(),
-                witness_floor.clone(),
-                now,
-                RetryReservationKind::Initial,
-            )
-        });
-        let episode = match initial {
-            Ok(RetryReservation::Reserved(episode)) => episode,
-            Ok(RetryReservation::Attached(_)) => {
-                match self.db.with_invalidation_retry_registry(|registry| {
+        let initial = self.run_authorization_retry_transaction(
+            admission,
+            "authorization retry initial reservation transaction",
+            None,
+            |database| {
+                database.with_invalidation_retry_registry(|registry| {
                     registry.reserve(
                         key.clone(),
                         witness_floor.clone(),
-                        now_millis(),
-                        RetryReservationKind::Automatic,
+                        now,
+                        RetryReservationKind::Initial,
                     )
-                }) {
+                })
+            },
+        );
+        let episode = match initial {
+            Ok(RetryReservation::Reserved(episode)) => episode,
+            Ok(RetryReservation::Attached(_)) => {
+                match self.run_authorization_retry_transaction(
+                    admission,
+                    "authorization retry automatic reservation transaction",
+                    None,
+                    |database| {
+                        database.with_invalidation_retry_registry(|registry| {
+                            registry.reserve(
+                                key.clone(),
+                                witness_floor.clone(),
+                                now_millis(),
+                                RetryReservationKind::Automatic,
+                            )
+                        })
+                    },
+                ) {
                     Ok(RetryReservation::Reserved(episode)) => episode,
                     Ok(RetryReservation::Attached(episode))
                     | Ok(RetryReservation::Exhausted(episode)) => {
@@ -6970,12 +7018,7 @@ impl LocalSnapback {
                             retry_episode_id: Some(episode.episode_id),
                         });
                     }
-                    Err(error) => {
-                        return Err(AuthorizationResolutionFailure {
-                            error,
-                            retry_episode_id: None,
-                        });
-                    }
+                    Err(failure) => return Err(failure),
                 }
             }
             Ok(RetryReservation::Exhausted(episode)) => {
@@ -6988,12 +7031,7 @@ impl LocalSnapback {
                     retry_episode_id: Some(episode.episode_id),
                 });
             }
-            Err(error) => {
-                return Err(AuthorizationResolutionFailure {
-                    error,
-                    retry_episode_id: None,
-                });
-            }
+            Err(failure) => return Err(failure),
         };
 
         self.invoke_authorization_resolution_with_episode(
@@ -7040,23 +7078,32 @@ impl LocalSnapback {
                             retry_episode_id: Some(episode.episode_id),
                         });
                     }
-                    let failure = self.db.with_invalidation_retry_registry(|registry| {
-                        registry.record_failure(&key, now_millis())
-                    });
-                    if let Err(clock_error) = failure {
-                        return Err(AuthorizationResolutionFailure {
-                            error: clock_error,
-                            retry_episode_id: Some(episode.episode_id),
-                        });
-                    }
-                    let reservation = self.db.with_invalidation_retry_registry(|registry| {
-                        registry.reserve(
-                            key.clone(),
-                            witness_floor.clone(),
-                            now_millis(),
-                            RetryReservationKind::Automatic,
-                        )
-                    });
+                    let failure = self.run_authorization_retry_transaction(
+                        admission,
+                        "authorization retry failure transaction",
+                        Some(episode.episode_id.clone()),
+                        |database| {
+                            database.with_invalidation_retry_registry(|registry| {
+                                registry.record_failure(&key, now_millis())
+                            })
+                        },
+                    );
+                    failure?;
+                    let reservation = self.run_authorization_retry_transaction(
+                        admission,
+                        "authorization retry automatic reservation transaction",
+                        Some(episode.episode_id.clone()),
+                        |database| {
+                            database.with_invalidation_retry_registry(|registry| {
+                                registry.reserve(
+                                    key.clone(),
+                                    witness_floor.clone(),
+                                    now_millis(),
+                                    RetryReservationKind::Automatic,
+                                )
+                            })
+                        },
+                    );
                     match reservation {
                         Ok(RetryReservation::Reserved(next)) => episode = next,
                         Ok(RetryReservation::Attached(current))
@@ -7066,12 +7113,7 @@ impl LocalSnapback {
                                 retry_episode_id: Some(current.episode_id),
                             });
                         }
-                        Err(reservation_error) => {
-                            return Err(AuthorizationResolutionFailure {
-                                error: reservation_error,
-                                retry_episode_id: Some(episode.episode_id),
-                            });
-                        }
+                        Err(failure) => return Err(failure),
                     }
                 }
             }
@@ -7082,6 +7124,7 @@ impl LocalSnapback {
         &mut self,
         subscription: &LiveSubscription,
         proof: &CompositeWitness,
+        _publication: &AdmissionEffectGuard<'_>,
     ) -> SnapbackResult<()> {
         let Some(key) = Self::authorization_retry_key(subscription) else {
             return Ok(());
@@ -7144,7 +7187,7 @@ impl LocalSnapback {
         };
         // The durable episode closes only after its proof has transferred to
         // the still-live obligation and exact ACK ticket above.
-        self.resolve_authorization_retry_episode(subscription, &proof)?;
+        self.resolve_authorization_retry_episode(subscription, &proof, &_publication)?;
         let payload = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
             obligation: projection.obligation,
             resolution: projection.resolution,
@@ -7330,8 +7373,12 @@ impl LocalSnapback {
         connection_id: &str,
         admission: &AdmissionLease,
     ) -> SnapbackResult<Vec<String>> {
-        let _publication =
-            admission.effect_guard("authorization invalidation drain publication")?;
+        // @ref LLP 0055#gate-algorithm — a re-query validates and publishes
+        // through the same admission lease itself. Never hold the admission
+        // mutex while invoking it: managed leases use a non-reentrant mutex,
+        // so the outer drain must compute first and acquire only narrow guards
+        // at the obligation/ticket publication cuts below.
+        admission.validate("authorization invalidation drain preparation")?;
         let subscriptions = self
             .subscriptions
             .values()
@@ -7357,8 +7404,11 @@ impl LocalSnapback {
             // A trusted terminal denial already carries its complete delete
             // proof. Re-fire that level-triggered truth verbatim; never turn
             // it back into an application re-query or a snapshot ticket.
-            if let Some(projection) =
-                self.auth_invalidation
+            {
+                let _publication = admission
+                    .effect_guard("authorization terminal invalidation drain publication")?;
+                if let Some(projection) = self
+                    .auth_invalidation
                     .as_ref()
                     .and_then(|state| state.obligations.projection(scope))
                     .filter(|projection| {
@@ -7366,15 +7416,18 @@ impl LocalSnapback {
                             resolution.kind == ResolutionKind::TerminalDelete
                         })
                     })
-            {
-                if let Ok(frame) = serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
-                    obligation: projection.obligation,
-                    resolution: projection.resolution,
-                    snapshot: None,
-                }) {
-                    frames.push(frame);
+                {
+                    if let Ok(frame) =
+                        serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
+                            obligation: projection.obligation,
+                            resolution: projection.resolution,
+                            snapshot: None,
+                        })
+                    {
+                        frames.push(frame);
+                    }
+                    continue;
                 }
-                continue;
             }
             match self.invoke_authorization_resolution(
                 &subscription,
@@ -7382,6 +7435,8 @@ impl LocalSnapback {
                 admission,
             ) {
                 Ok(query) => {
+                    let _publication =
+                        admission.effect_guard("authorization snapshot drain publication")?;
                     let snapshot_version = query.output.version;
                     let proof = self
                         .auth_invalidation
@@ -7403,7 +7458,7 @@ impl LocalSnapback {
                         state.obligations.projection(scope)
                     };
                     if self
-                        .resolve_authorization_retry_episode(&subscription, &proof)
+                        .resolve_authorization_retry_episode(&subscription, &proof, &_publication)
                         .is_err()
                     {
                         continue;
@@ -7436,6 +7491,8 @@ impl LocalSnapback {
                             failure.retry_episode_id,
                             admission,
                         )?;
+                        let _publication =
+                            admission.effect_guard("authorization denial drain publication")?;
                         if let Some(projection) = self
                             .auth_invalidation
                             .as_ref()
@@ -7451,6 +7508,8 @@ impl LocalSnapback {
                         }
                         continue;
                     }
+                    let _publication =
+                        admission.effect_guard("authorization retry drain publication")?;
                     let projection = self.auth_invalidation.as_mut().and_then(|state| {
                         let current = state.obligations.pending(scope)?;
                         if current.retry_episode_id == failure.retry_episode_id {
@@ -8095,8 +8154,11 @@ impl LocalSnapback {
                 // after the delete proof has transferred to an exact-ACK
                 // ticket. Sending remains level-triggered and best effort.
                 if terminal_denial
-                    && let Err(error) =
-                        self.resolve_authorization_retry_episode(subscription, &witness)
+                    && let Err(error) = self.resolve_authorization_retry_episode(
+                        subscription,
+                        &witness,
+                        &_publication,
+                    )
                 {
                     self.record_diagnostics(vec![error.diagnostic]);
                 }
@@ -8981,10 +9043,11 @@ mod tests {
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LiveUnsubscribeInput,
         LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
-        SnapbackError, StagedNestedMutation, next_secret_read_reset_generation,
-        reserve_unique_generation,
+        RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
+        next_secret_read_reset_generation, now_millis, reserve_unique_generation,
     };
     use crate::admin::ServerProfile;
+    use crate::auth::admission::AdmissionController;
     use crate::auth::invalidation::{
         AuthorizationInvalidationConnection, InvalidationDisposition, LiveInvalidationIssuer,
         QueryNamespace, ResolutionKind, ScopeId,
@@ -9915,6 +9978,13 @@ globalThis.__snapbackHandlers = {
             .clone()
     }
 
+    fn managed_session_admission() -> crate::auth::admission::AdmissionLease {
+        AdmissionController::from_mode_state(&settled_sessions_state())
+            .expect("managed Sessions admission controller")
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("managed Sessions admission")
+    }
+
     fn invoke_test_session_mutation(
         snapback: &mut LocalSnapback,
         name: &str,
@@ -10004,7 +10074,7 @@ globalThis.__snapbackHandlers = {
             .expect("row id")
             .to_owned();
         let connection = install_test_invalidation(&mut snapback);
-        let admission = test_session_admission();
+        let admission = managed_session_admission();
         let subscribed = snapback
             .subscribe_live_with_invalidation(
                 "listItems",
@@ -10047,10 +10117,6 @@ globalThis.__snapbackHandlers = {
                 .all(|message| !message.contains("\"kind\":\"live_delta\"")),
             "negative auth delta must not escape as best-effort live_delta"
         );
-        let ack_token = frame["resolution"]["ackToken"]
-            .as_str()
-            .expect("ack token")
-            .to_owned();
         snapback
             .reproject_authorization_invalidations("session-remove", &admission)
             .expect("reproject pending truth");
@@ -10064,6 +10130,20 @@ globalThis.__snapbackHandlers = {
             hint.get("resolution").is_none() && hint.get("snapshot").is_none(),
             "a snapshot resolution must never be projected without its atomic rows"
         );
+        let rerun = snapback
+            .authorization_invalidation_frames("session-remove", &admission)
+            .expect("managed admission reruns pending authorization");
+        let rerun = serde_json::from_str::<Value>(
+            rerun
+                .first()
+                .expect("managed drain emits the fresh snapshot"),
+        )
+        .expect("managed drain frame JSON");
+        assert_eq!(rerun["snapshot"]["rows"], json!([]));
+        let ack_token = rerun["resolution"]["ackToken"]
+            .as_str()
+            .expect("managed rerun ack token")
+            .to_owned();
         let ack = snapback
             .acknowledge_authorization_invalidation(
                 AuthorizationInvalidationAckInput {
@@ -10441,6 +10521,58 @@ globalThis.__snapbackHandlers = {
             still_pending.retry_episode_id.as_deref(),
             Some(retry_id.as_str())
         );
+    }
+
+    #[test]
+    fn retired_auth_epoch_cannot_commit_retry_registry_state() {
+        let mut snapback = live_limit_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+        let controller = AdmissionController::from_mode_state(&settled_sessions_state())
+            .expect("managed Sessions admission controller");
+        let admission = controller
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("managed Sessions admission");
+        assert_eq!(
+            controller
+                .retire_current_epoch_for_test()
+                .expect_err("outstanding admission forces test retirement")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+
+        let key = RetryEpisodeKey {
+            authority_subject: "sha256:retired-subject".to_owned(),
+            client_store_id: "store_retired".to_owned(),
+            query_key: "listItems:{}".to_owned(),
+        };
+        let witness = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("installed invalidation state")
+            .witness(0);
+        let before = snapback
+            .auth_database_mut()
+            .with_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+            .expect("read retry registry");
+        let failure = snapback
+            .run_authorization_retry_transaction(
+                &admission,
+                "retired authorization retry transaction",
+                None,
+                |database| {
+                    database.with_invalidation_retry_registry(|registry| {
+                        registry.reserve(key, witness, now_millis(), RetryReservationKind::Initial)
+                    })
+                },
+            )
+            .expect_err("retired epoch must fail before the durable transaction");
+        assert_eq!(failure.error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+        let after = snapback
+            .auth_database_mut()
+            .with_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+            .expect("read retry registry");
+        assert_eq!(after, before);
     }
 
     #[test]

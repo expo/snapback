@@ -792,7 +792,12 @@ impl QueryNamespace {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
 pub enum ScopeId {
     Subscription {
         issuer_id: IssuerId,
@@ -1976,6 +1981,34 @@ mod tests {
             connection_generation: 5,
             subscription_id: format!("sub-{instance}-{scope_sequence}"),
         }
+    }
+
+    #[test]
+    fn scope_id_wire_shape_uses_camel_case_variant_fields() {
+        let value = serde_json::to_value(scope_with_sequence(9, 3)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "kind": "subscription",
+                "issuerId": {
+                    "authorizationIncarnation": INCARNATION,
+                    "bootSequence": 7,
+                    "bootNonce": "AwMDAwMDAwMDAwMDAwMDAw",
+                },
+                "namespace": {
+                    "clientStoreId": "store-A",
+                    "queryKey": "todos:{}",
+                    "queryInstanceId": 9,
+                },
+                "scopeSequence": 3,
+                "connectionGeneration": 5,
+                "subscriptionId": "sub-9-3",
+            })
+        );
+        assert_eq!(
+            serde_json::from_value::<ScopeId>(value).unwrap(),
+            scope_with_sequence(9, 3)
+        );
     }
 
     fn witness(version: u64) -> CompositeWitness {

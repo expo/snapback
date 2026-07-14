@@ -129,9 +129,11 @@ assert.throws(
   assert.equal(create.authRequirement, 'authenticated');
   assert.equal(Object.hasOwn(create, 'authorityIndependent'), false);
 
-  // Only the paired schema/function artifacts move to v1.
+  // Contract is bound to the exact paired schema/function identity and moves
+  // with it. The Rust-declared capability and legacy artifact index retain
+  // their own v0 schema until their independent formats migrate.
   assert.equal(capabilities.schemaVersion, 'snapback.v0');
-  assert.equal(contract.schemaVersion, 'snapback.v0');
+  assert.equal(contract.schemaVersion, 'snapback.v1');
   assert.equal(artifacts.schemaVersion, 'snapback.v0');
 }
 

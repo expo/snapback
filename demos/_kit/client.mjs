@@ -206,6 +206,17 @@ const freshAuthHandshakeRequired = (path) => (
   || path === '/ephemeral/subscribe'
 );
 
+// A failed forced probe must not erase the last authenticated projection:
+// offline AuthorizedLease reads still need its immutable app/authority facts.
+// Online boundaries continue to pass `force: true`, so preserving this cache
+// cannot turn a failed freshness probe into online admission.
+const isUnavailableAuthTransport = (error) => (
+  error instanceof TypeError
+  && error?.diagnostic == null
+  && error?.status == null
+  && error?.code == null
+);
+
 const sessionWireBody = (path, body) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
   const wire = { ...body };
@@ -368,7 +379,12 @@ export class SnapbackClient {
       authorityDescriptor: authorityDescriptorProtocol,
       authorizedLease: authorizedLeaseProtocol,
     });
-    this.__authSession = null;
+    // Keep the last validated projection separate from the current network
+    // attempt. A forced offline probe may reject without poisoning or
+    // replacing the durable/offline fence's last successful projection.
+    this.__authSessionLastSuccessful = null;
+    this.__authSessionInFlight = null;
+    this.__authSessionCacheGeneration = 0;
     // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring
     // of every receipt this client observed (mutation receipts riding
     // responses, subscription receipts emitted by live handles, ephemeral
@@ -399,8 +415,7 @@ export class SnapbackClient {
       },
       blank: () => {},
       clearMemory: () => {
-        this.__authSession = null;
-        this.__authSessionCapture = null;
+        this.clearAuthSession();
         this.__connectionGrants.clear();
         this.__laneConsumers.clear();
         this.__receiptRing.length = 0;
@@ -423,26 +438,55 @@ export class SnapbackClient {
   // @ref LLP 0055#kit-ordering — no online boundary relies on capability-manifest mode guesses.
   authSession({ force = false } = {}) {
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
-    if (this.authCoordinator) return this.#coordinatedAuthSession({ force });
-    if (!force && this.__authSession) return this.__authSession;
+    if (!force && this.__authSessionLastSuccessful) {
+      if (!this.authCoordinator) return Promise.resolve(this.__authSessionLastSuccessful);
+      try {
+        const capture = this.authCoordinator.capture();
+        if (
+          this.__authSessionCapture?.authorityEpoch === capture.authorityEpoch
+          && this.__authSessionCapture?.authorityKey === capture.authorityKey
+        ) return Promise.resolve(this.__authSessionLastSuccessful);
+      } catch {
+        // A blank/clearing coordinator must synchronize before cache use.
+      }
+    }
+    if (this.__authSessionInFlight) return this.__authSessionInFlight;
+    const cacheGeneration = this.__authSessionCacheGeneration;
+    const operation = this.authCoordinator
+      ? this.#coordinatedAuthSession({ cacheGeneration })
+      : this.#uncoordinatedAuthSession({ cacheGeneration });
     let pending;
-    pending = this.#fetchJson(
-      'GET',
-      '/auth/session',
-      undefined,
-      this.#authOfferHeaders(true),
-    ).then(
-      (session) => {
-        this.#validateAuthSession(session);
-        return session;
-      },
-      (error) => {
-        if (this.__authSession === pending) this.__authSession = null;
-        throw error;
-      },
-    );
-    this.__authSession = pending;
+    pending = Promise.resolve(operation).finally(() => {
+      if (this.__authSessionInFlight === pending) this.__authSessionInFlight = null;
+    });
+    this.__authSessionInFlight = pending;
     return pending;
+  }
+
+  async #uncoordinatedAuthSession({ cacheGeneration }) {
+    try {
+      const session = await this.#fetchJson(
+        'GET',
+        '/auth/session',
+        undefined,
+        this.#authOfferHeaders(true),
+      );
+      this.#validateAuthSession(session);
+      if (this.__authSessionCacheGeneration === cacheGeneration) {
+        this.__authSessionLastSuccessful = session;
+        this.__authSessionCapture = null;
+      }
+      return session;
+    } catch (error) {
+      if (
+        this.__authSessionCacheGeneration === cacheGeneration
+        && !isUnavailableAuthTransport(error)
+      ) {
+        this.__authSessionLastSuccessful = null;
+        this.__authSessionCapture = null;
+      }
+      throw error;
+    }
   }
 
   setBearerToken(token) {
@@ -451,12 +495,19 @@ export class SnapbackClient {
     }
     if (token === this.bearerToken) return;
     this.bearerToken = token ?? null;
-    this.__authSession = null;
+    this.clearAuthSession();
     this.__connectionGrants.clear();
   }
 
   clearAuthSession() {
-    this.__authSession = null;
+    this.__authSessionCacheGeneration = safeNextCounter(
+      this.__authSessionCacheGeneration,
+      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+      'auth session cache generation',
+    );
+    this.__authSessionLastSuccessful = null;
+    this.__authSessionInFlight = null;
+    this.__authSessionCapture = null;
   }
 
   captureAuthority() {
@@ -547,13 +598,13 @@ export class SnapbackClient {
     }
   }
 
-  #cacheAuthSession(session, capture) {
-    const pending = Promise.resolve(session);
-    this.__authSession = pending;
+  #cacheAuthSession(session, capture, cacheGeneration = this.__authSessionCacheGeneration) {
+    if (this.__authSessionCacheGeneration !== cacheGeneration) return session;
+    this.__authSessionLastSuccessful = session;
     this.__authSessionCapture = capture
       ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
       : null;
-    return pending;
+    return session;
   }
 
   async currentAuthorityDescriptor() {
@@ -598,18 +649,14 @@ export class SnapbackClient {
     return session;
   }
 
-  async #coordinatedAuthSession({ force = false, retry = true } = {}) {
+  async #coordinatedAuthSession({
+    retry = true,
+    cacheGeneration = this.__authSessionCacheGeneration,
+  } = {}) {
     const coordinator = this.authCoordinator;
     await coordinator.synchronize();
     let capture = null;
     try { capture = coordinator.capture(); } catch { /* fresh custody boot */ }
-    if (
-      !force
-      && capture
-      && this.__authSession
-      && this.__authSessionCapture?.authorityEpoch === capture.authorityEpoch
-      && this.__authSessionCapture?.authorityKey === capture.authorityKey
-    ) return this.__authSession;
 
     if (!capture) {
       const session = await this.#fetchAuthSessionWithBearer(null);
@@ -618,14 +665,19 @@ export class SnapbackClient {
         throw staleAuthorityError();
       }
       capture = await coordinator.establishAnonymous(authority);
-      return this.#cacheAuthSession(session, capture);
+      return this.#cacheAuthSession(session, capture, cacheGeneration);
     }
 
     const credential = coordinator.credentialFor(capture);
     try {
       const session = await this.#fetchAuthSessionWithBearer(credential.bearer);
       if (!coordinator.isCurrent(capture)) {
-        if (retry) return this.#coordinatedAuthSession({ force: true, retry: false });
+        if (retry) {
+          return this.#coordinatedAuthSession({
+            retry: false,
+            cacheGeneration,
+          });
+        }
         throw staleAuthorityError();
       }
       const observed = clientAuthorityFromHandshake(session);
@@ -636,12 +688,20 @@ export class SnapbackClient {
           refreshAfterMs: observed.kind === 'session' ? credential.refreshAfterMs : null,
         }, 'handshake_authority_change');
       }
-      return this.#cacheAuthSession(session, capture);
+      return this.#cacheAuthSession(session, capture, cacheGeneration);
     } catch (error) {
-      this.__authSession = null;
-      this.__authSessionCapture = null;
+      if (
+        this.__authSessionCacheGeneration === cacheGeneration
+        && !isUnavailableAuthTransport(error)
+      ) {
+        this.__authSessionLastSuccessful = null;
+        this.__authSessionCapture = null;
+      }
       if (!coordinator.isCurrent(capture) && retry) {
-        return this.#coordinatedAuthSession({ force: true, retry: false });
+        return this.#coordinatedAuthSession({
+          retry: false,
+          cacheGeneration,
+        });
       }
       throw error;
     }
@@ -740,6 +800,9 @@ export class SnapbackClient {
     grant = this.#req('POST', '/connection/open', {
       connectionId,
       ...(previousToken ? { previousToken } : {}),
+      ...(this.authProtocols.authInvalidation != null
+        ? { authInvalidationProtocol: this.authProtocols.authInvalidation }
+        : {}),
     }).then(
       (granted) => {
         const authorizationInvalidation = granted.authorizationInvalidation == null
@@ -926,8 +989,7 @@ export class SnapbackClient {
       if (this.authCoordinator && capture && SUPERSEDED_AUTH_CODES.has(code)) {
         const successor = await this.authCoordinator.waitForNewerRevision(capture);
         if (successor && supersededRetry) {
-          this.__authSession = null;
-          this.__authSessionCapture = null;
+          this.clearAuthSession();
           return this.#request(method, path, body, headers, { admin, supersededRetry: false });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -943,8 +1005,7 @@ export class SnapbackClient {
         'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
         'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
       ].includes(code)) {
-        this.__authSession = null;
-        this.__authSessionCapture = null;
+        this.clearAuthSession();
       }
       throw error;
     }
@@ -954,6 +1015,9 @@ export class SnapbackClient {
     const headers = this.#authOfferHeaders(false, bearerOverride);
     const authorizedLeaseRequest = path.startsWith('/query/')
       && path.endsWith('/authorized-lease');
+    const standaloneAcknowledgement = path === '/client-mutations/acknowledge'
+      || path === '/live/authorization-invalidation/acknowledge'
+      || path === '/live/authorization-invalidation/manual-retry';
     if (path.startsWith('/live/') || path.startsWith('/ephemeral/') || authorizedLeaseRequest) {
       if (this.authProtocols.authInvalidation != null) {
         headers[AUTH_INVALIDATION_PROTOCOL_HEADER] = String(this.authProtocols.authInvalidation);
@@ -964,7 +1028,10 @@ export class SnapbackClient {
         this.authProtocols.authorizedLease,
       );
     }
-    if (path.startsWith('/mutation/') && originalBody?.clientMutationId) {
+    if (
+      (path.startsWith('/mutation/') && originalBody?.clientMutationId)
+      || standaloneAcknowledgement
+    ) {
       if (this.authProtocols.authorityDescriptor != null) {
         headers[AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER] = String(
           this.authProtocols.authorityDescriptor,
@@ -1143,8 +1210,7 @@ export class SnapbackClient {
         if (successor) return { superseded: true };
         throw staleAuthorityError();
       }
-      this.__authSession = null;
-      this.__authSessionCapture = null;
+      this.clearAuthSession();
       return outcome.value;
     } catch (error) {
       const errorCode = error?.diagnostic?.code ?? error?.code;
@@ -1623,7 +1689,7 @@ export class SnapbackClient {
       .then((grant) => {
       authorityCapture = grant?.[AUTHORITY_CAPTURE] ?? authorityCapture;
       const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${grant.id}/stream`;
-      const ws = new WebSocket(url, liveStreamProtocols(grant));
+      const ws = new WebSocket(url, liveStreamProtocols(grant, this.authProtocols));
       wsRef = ws;
       ws.addEventListener('message', async (event) => {
         try {
@@ -1635,8 +1701,7 @@ export class SnapbackClient {
           if (update?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
             const error = liveTerminalAuthError(update);
             fail(error);
-            this.__authSession = null;
-            this.__authSessionCapture = null;
+            this.clearAuthSession();
             if (
               error.terminalAuth
               && authorityCapture
@@ -1758,6 +1823,7 @@ export class SnapbackClient {
     let authorizationFence = null;
     let authorizationFaulted = false;
     let authorizationTail = Promise.resolve();
+    const authorizationResolutionTasks = new Map();
 
     let connection = 'connecting';
     let disposed = false;
@@ -1958,7 +2024,11 @@ export class SnapbackClient {
       if (['stale-expectation', 'retired', 'acknowledged'].includes(received.status)) {
         return Promise.resolve(received);
       }
-      return enqueueAuthorizationTask(async () => {
+      const resolutionTaskKey = projection.resolution?.ackToken ?? null;
+      if (resolutionTaskKey !== null && authorizationResolutionTasks.has(resolutionTaskKey)) {
+        return authorizationResolutionTasks.get(resolutionTaskKey);
+      }
+      const attempted = enqueueAuthorizationTask(async () => {
         await applyQueueObligation(projection.obligation);
         if (projection.resolution == null) return received;
         // A durable retained-query adapter commits the successor snapshot and
@@ -1999,6 +2069,15 @@ export class SnapbackClient {
         }
         return { ...applied, status: 'stale-acknowledgement' };
       });
+      if (resolutionTaskKey !== null) {
+        authorizationResolutionTasks.set(resolutionTaskKey, attempted);
+        void attempted.finally(() => {
+          if (authorizationResolutionTasks.get(resolutionTaskKey) === attempted) {
+            authorizationResolutionTasks.delete(resolutionTaskKey);
+          }
+        }).catch(() => {});
+      }
+      return attempted;
     };
 
     const applyRetirement = (kind, retirement, freshSnapshot) => (
@@ -3157,7 +3236,7 @@ class LiveStreamManager {
     const url = this.#socketUrl(grant);
     let ws;
     try {
-      ws = new WebSocket(url, liveStreamProtocols(grant));
+      ws = new WebSocket(url, liveStreamProtocols(grant, this.client.authProtocols));
     } catch {
       // Constructor failure (bad URL, blocked context) is a loss like any
       // other: let consumers engage their fallback on the first failure.
@@ -3276,8 +3355,7 @@ class LiveStreamManager {
     if (this.ws !== ws) return;
     const error = liveTerminalAuthError(frame);
     const capture = this.authorityCapture;
-    this.client.__authSession = null;
-    this.client.__authSessionCapture = null;
+    this.client.clearAuthSession();
     this.close(error, {
       error,
       terminal: true,
@@ -3818,8 +3896,21 @@ function connectionTokenHeader(grant) {
   return { 'x-snapback-connection-token': grant.token };
 }
 
-function liveStreamProtocols(grant) {
-  return ['snapback.v1', `snapback.connection-token.${grant.token}`];
+function liveStreamProtocols(grant, protocols = {}) {
+  const offered = ['snapback.v1', `snapback.connection-token.${grant.token}`];
+  if (protocols.authClient != null) {
+    offered.push(`snapback.auth-client.${protocols.authClient}`);
+  }
+  if (protocols.authInvalidation != null) {
+    offered.push(`snapback.auth-invalidation.${protocols.authInvalidation}`);
+  }
+  if (protocols.authorityDescriptor != null) {
+    offered.push(`snapback.authority-descriptor.${protocols.authorityDescriptor}`);
+  }
+  if (protocols.authorizedLease != null) {
+    offered.push(`snapback.authorized-lease.${protocols.authorizedLease}`);
+  }
+  return offered;
 }
 
 function functionName(ref) {

@@ -1101,7 +1101,10 @@ export async function generateInProcess(backendDir) {
     && Object.values(contractMutations).every((descriptor) => descriptor.plan !== undefined);
   const contractManifest = {
     artifactKind: 'contractDataManifest',
-    schemaVersion: SCHEMA_VERSION,
+    // Contract consumes the same schema/function pair as the server. Session
+    // artifacts therefore carry v1 here too; pinning this adjacent artifact
+    // to v0 makes the adapter correctly reject an otherwise coherent build.
+    schemaVersion: artifactVersion,
     // v2 (LLP 0034 D3): additive per-descriptor liveness/cost facts per Exact
     // LLP 0284 §2.4. Old fields remain valid inputs; unknown new fields are
     // ignored by old consumers.

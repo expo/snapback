@@ -469,5 +469,80 @@ for (const bytes of hintBytes.values()) assert.equal(bytes.includes('bearer'), f
   );
 }
 
+// Offline restore is a durable reload, not an in-memory cache lookup. A
+// context that misses every wakeup cannot keep exposing predecessor A after
+// another owner has durably transitioned the shared custody to B.
+{
+  const state = { custody: {} };
+  const writer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await writer.establishAnonymous(anonymous());
+  const captureA = await writer.transition(
+    anonymousCapture,
+    successor(session(SESSION_A, USER_A), 'offline-a', 80_000),
+  );
+  const missedWakeup = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  assert.equal((await missedWakeup.restoreOffline()).authorityKey, captureA.authorityKey);
+  const offlinePhases = [];
+  missedWakeup.registerParticipant({
+    async quiesce() { offlinePhases.push('quiesce'); },
+    blank() { offlinePhases.push('blank'); },
+    clearMemory() { offlinePhases.push('clearMemory'); },
+    async commitDurable() { offlinePhases.push('commitDurable'); },
+    async resume() { offlinePhases.push('resume'); },
+  });
+  const captureB = await writer.transition(
+    captureA,
+    successor(session(SESSION_B, USER_B), 'offline-b', 90_000),
+  );
+  const reloaded = await missedWakeup.restoreOffline();
+  assert.equal(reloaded.authorityKey, captureB.authorityKey);
+  assert.notEqual(reloaded.authorityKey, captureA.authorityKey);
+  assert.deepEqual(offlinePhases, ['quiesce', 'blank', 'clearMemory', 'commitDurable']);
+  await missedWakeup.close();
+  await writer.close();
+}
+
+// Malformed durable custody is a mandatory-gate failure. It must blank an
+// already exposed predecessor before returning the corruption diagnostic;
+// callers cannot keep using the old capture as an offline fallback.
+{
+  const state = { custody: {} };
+  const malformed = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const exposed = await malformed.establishAnonymous(anonymous());
+  const phases = [];
+  malformed.registerParticipant({
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+  });
+  state.custody[APP].unexpected = true;
+  assert.equal(
+    await errorCode(() => malformed.restoreOffline()),
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  );
+  assert.deepEqual(phases, ['quiesce', 'blank', 'clearMemory']);
+  assert.equal(malformed.isCurrent(exposed), false);
+  assert.equal(
+    await errorCode(() => Promise.resolve(malformed.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  await malformed.close();
+}
+
 await coordinator.close();
 console.log('auth coordinator conformance: ok');

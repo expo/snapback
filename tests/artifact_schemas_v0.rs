@@ -377,15 +377,25 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         assert_rejects(file, &extended);
     }
 
+    let authorized_lease_input = json!({
+        "args": {},
+        "leaseRequestId": "request_1",
+        "clientStoreId": "store_1",
+        "queryKey": "todos:{owner=me}",
+        "queryInstanceId": 9
+    });
     assert_validates(
         "authorized-lease.query.input.schema.json",
-        &json!({
-            "args": {},
-            "leaseRequestId": "request_1",
-            "clientStoreId": "store_1",
-            "queryKey": "todos:{owner=me}",
-            "queryInstanceId": 9
-        }),
+        &authorized_lease_input,
+    );
+    let mut extended_authorized_lease_input = authorized_lease_input;
+    extended_authorized_lease_input
+        .as_object_mut()
+        .expect("authorized lease input is an object")
+        .insert("unexpected".to_owned(), json!(true));
+    assert_rejects(
+        "authorized-lease.query.input.schema.json",
+        &extended_authorized_lease_input,
     );
 
     use snapback::auth::wire::{

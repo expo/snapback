@@ -54,6 +54,10 @@ fn validate(function: FunctionDefinition) -> Result<(), snapback::diagnostic::Sn
 fn user_id_and_authority_independent_are_the_only_retainable_profiles() {
     validate(user_scoped_query()).expect("AuthUserId dependence is retainable");
 
+    let mut live = user_scoped_query();
+    live.kind = FunctionKind::LiveQuery;
+    validate(live).expect("a user-scoped retainable live query uses the same profile");
+
     let mut scoped_by_summary = FunctionDefinition::new(
         "scopeField",
         FunctionKind::Query,

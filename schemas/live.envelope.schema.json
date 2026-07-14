@@ -267,12 +267,12 @@
         {
           "additionalProperties": false,
           "properties": {
-            "connection_generation": {
+            "connectionGeneration": {
               "format": "uint64",
               "minimum": 0,
               "type": "integer"
             },
-            "issuer_id": {
+            "issuerId": {
               "$ref": "#/$defs/IssuerId"
             },
             "kind": {
@@ -282,34 +282,34 @@
             "namespace": {
               "$ref": "#/$defs/QueryNamespace"
             },
-            "scope_sequence": {
+            "scopeSequence": {
               "format": "uint64",
               "minimum": 0,
               "type": "integer"
             },
-            "subscription_id": {
+            "subscriptionId": {
               "type": "string"
             }
           },
           "required": [
             "kind",
-            "issuer_id",
+            "issuerId",
             "namespace",
-            "scope_sequence",
-            "connection_generation",
-            "subscription_id"
+            "scopeSequence",
+            "connectionGeneration",
+            "subscriptionId"
           ],
           "type": "object"
         },
         {
           "additionalProperties": false,
           "properties": {
-            "connection_generation": {
+            "connectionGeneration": {
               "format": "uint64",
               "minimum": 0,
               "type": "integer"
             },
-            "issuer_id": {
+            "issuerId": {
               "$ref": "#/$defs/IssuerId"
             },
             "kind": {
@@ -319,8 +319,8 @@
           },
           "required": [
             "kind",
-            "issuer_id",
-            "connection_generation"
+            "issuerId",
+            "connectionGeneration"
           ],
           "type": "object"
         },

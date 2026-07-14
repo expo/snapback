@@ -3,7 +3,7 @@
 import { SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 5 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 9 });
 const originalFetch = globalThis.fetch;
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 
@@ -140,6 +140,93 @@ try {
       '/connection/open',
     ]);
     return { discoveries: generation };
+  });
+
+  await suite.check('an unavailable forced probe preserves the last projection for offline fences', async () => {
+    let offline = false;
+    let calls = 0;
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      calls += 1;
+      if (offline) throw new TypeError('fetch failed');
+      return response(handshake({ activeMode: 'sessions', nonce: 'offline-cache' }));
+    };
+    const db = new SnapbackClient('http://stub', { bearerToken: 'session-secret' });
+    const established = await db.authSession();
+    offline = true;
+    await assertThrows(() => db.authSession({ force: true }));
+    const cached = await db.authSession();
+    assertEqual(cached.serverStartupNonce, established.serverStartupNonce);
+    assertEqual(calls, 2, 'the offline cache read performs no third network probe');
+    return { preserved: true };
+  });
+
+  await suite.check('concurrent forced offline probes share only the in-flight rejection', async () => {
+    let calls = 0;
+    let releaseOffline;
+    const offline = new Promise((_, reject) => { releaseOffline = reject; });
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      calls += 1;
+      if (calls === 1) {
+        return response(handshake({ activeMode: 'sessions', nonce: 'concurrent-cache' }));
+      }
+      await offline;
+      assert(false, 'the offline sentinel never resolves');
+    };
+    const db = new SnapbackClient('http://stub', { bearerToken: 'session-secret' });
+    const established = await db.authSession();
+    const first = db.authSession({ force: true });
+    const second = db.authSession({ force: true });
+    assertEqual(first, second, 'concurrent forced probes share one transport attempt');
+    releaseOffline(new TypeError('fetch failed'));
+    const [firstResult, secondResult] = await Promise.allSettled([first, second]);
+    assertEqual(firstResult.status, 'rejected');
+    assertEqual(secondResult.status, 'rejected');
+    const cached = await db.authSession();
+    assertEqual(cached.serverStartupNonce, established.serverStartupNonce);
+    assertEqual(calls, 2, 'a rejected in-flight promise was not restored as the cache');
+    return { sharedAttempt: true };
+  });
+
+  await suite.check('a same-turn force does not share a cached non-force lookup', async () => {
+    let calls = 0;
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      calls += 1;
+      return response(handshake({ nonce: `force-after-cache-${calls}`, generation: calls }));
+    };
+    const db = new SnapbackClient('http://stub');
+    await db.authSession();
+    const cached = db.authSession();
+    const forced = db.authSession({ force: true });
+    assert(cached !== forced, 'force owns a fresh transport attempt, not the cached lookup');
+    const [cachedSession, forcedSession] = await Promise.all([cached, forced]);
+    assertEqual(cachedSession.serverStartupNonce, 'force-after-cache-1');
+    assertEqual(forcedSession.serverStartupNonce, 'force-after-cache-2');
+    assertEqual(calls, 2);
+    return { forcedFresh: true };
+  });
+
+  await suite.check('an invalid handshake clears rather than revives the last projection', async () => {
+    let calls = 0;
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      calls += 1;
+      if (calls === 1) return response(handshake({ nonce: 'valid-before-invalid' }));
+      if (calls === 2) {
+        return response({ ...handshake({ nonce: 'invalid-response' }), protocolVersion: 99 });
+      }
+      return response(handshake({ nonce: 'fresh-after-invalid' }));
+    };
+    const db = new SnapbackClient('http://stub');
+    await db.authSession();
+    const error = await assertThrows(() => db.authSession({ force: true }));
+    assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
+    const recovered = await db.authSession();
+    assertEqual(recovered.serverStartupNonce, 'fresh-after-invalid');
+    assertEqual(calls, 3, 'invalid validation cannot leave the predecessor projection cached');
+    return { cleared: true };
   });
 
   await suite.check('authorized lease renewal offers both exact protocols after fresh discovery', async () => {

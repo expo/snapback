@@ -882,6 +882,10 @@ impl AuthProvider {
     /// Verify a lease with its named active or retired key.  Missing/corrupt
     /// key state is an availability failure, never permission to fall back to
     /// ambient session authority.
+    // Staged until a server service accepts a presented AuthorizedLease. Keep
+    // this keyring path distinct from issuance so the service must supply its
+    // own complete expectation rather than trusting a self-described lease.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn verify_authorized_lease_at(
         &self,
         lease: &AuthorizedLease,
@@ -4411,6 +4415,81 @@ mod tests {
             .expect("auth provider"),
         );
         (provider, database)
+    }
+
+    #[test]
+    fn persistent_keyring_verifies_an_independently_bound_authorized_lease() {
+        let now_ms = 1_800_000_000_000;
+        let (provider, _database) = provider_database(now_ms);
+        let incarnation = "01890f3c-9d5b-7000-8000-000000000001".to_owned();
+        let lease = provider
+            .issue_authorized_lease_at(
+                AuthorizedLeaseIssue {
+                    lease_id: "lease_provider_1".to_owned(),
+                    lease_request_id: "request_provider_1".to_owned(),
+                    issuer_id: crate::auth::invalidation::IssuerId {
+                        authorization_incarnation: incarnation.clone(),
+                        boot_sequence: 1,
+                        boot_nonce: "AQEBAQEBAQEBAQEBAQEBAQ".to_owned(),
+                    },
+                    client_store_id: "store_provider_1".to_owned(),
+                    query_key: "myHand:{game=1}".to_owned(),
+                    query_instance_id: 1,
+                    principal_id: "user_provider_1".to_owned(),
+                    session_id_at_issue: None,
+                    provider_key: Some("email-code".to_owned()),
+                    authorization: crate::storage::AuthorizationVersion {
+                        incarnation,
+                        epoch: 1,
+                    },
+                    data: crate::auth::lease::AuthorizedLeaseData {
+                        version_stream: "01890f3c-9d5b-7000-8000-000000000002".to_owned(),
+                        snapshot_commit_version: 7,
+                    },
+                    activation_hash: format!(
+                        "snapback.authorized-lease.activation.v1:sha256:{}",
+                        "a".repeat(64)
+                    ),
+                    session_not_after_ms: None,
+                    provider_not_after_ms: None,
+                    authority_instance_id: None,
+                },
+                AuthorizedLeaseConfig::default(),
+                now_ms,
+                "local-dev-sqlite-ibex",
+                "provider-test",
+            )
+            .expect("issue through persistent keyring");
+        let expectation = AuthorizedLeaseExpectation::from(&lease);
+        let verified = provider
+            .verify_authorized_lease_at(
+                &lease,
+                &expectation,
+                AuthorizedLeaseConfig::default(),
+                now_ms + 1,
+                "local-dev-sqlite-ibex",
+                "provider-test",
+            )
+            .expect("verify with independently supplied service binding");
+        assert_eq!(verified.lease(), &lease);
+        assert_eq!(verified.verified_at_server_ms(), now_ms + 1);
+
+        let mut wrong_binding = expectation;
+        wrong_binding.query_key = "myHand:{game=2}".to_owned();
+        let error = provider
+            .verify_authorized_lease_at(
+                &lease,
+                &wrong_binding,
+                AuthorizedLeaseConfig::default(),
+                now_ms + 1,
+                "local-dev-sqlite-ibex",
+                "provider-test",
+            )
+            .expect_err("service binding must not be self-described by the lease");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORIZED_LEASE_BOUNDARY_MISMATCH"
+        );
     }
 
     async fn request_and_code(

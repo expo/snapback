@@ -605,6 +605,96 @@ export class AuthCoordinator {
     return tracked;
   }
 
+  /**
+   * Cold-process restore for lease-bounded offline reads. This deliberately
+   * does not run participant resume: no transport becomes online, and the
+   * caller may use the returned capture only to validate durable retained
+   * state. Every later online boundary still enters synchronize/authSession.
+   *
+   * @ref LLP 0055#kit-ordering — offline cold boot is authorized by the last
+   *   durable mode/authority metadata, not by a fabricated handshake.
+   */
+  async restoreOffline() {
+    this.#assertOperationAllowed();
+    try {
+      return await this.#storage.withOwnership(this.#appId, async (owner) => {
+        let record;
+        try {
+          record = await owner.read();
+        } catch (error) {
+          // A mandatory durable read that cannot establish the current authority
+          // invalidates every previously exposed local capture. In particular,
+          // an offline caller must never fall back to the last in-memory record.
+          await this.#failClosedOfflineExposure('offline_custody_read_failed');
+          throw error;
+        }
+        if (record === null) {
+          if (this.#record === null) return null;
+          await this.#failClosedOfflineExposure('offline_custody_missing');
+          throw corrupt('durable custody disappeared during offline restore');
+        }
+        let validated;
+        try {
+          validated = validateAuthCustody(record, this.#appId);
+        } catch (error) {
+          // Validation is part of the mandatory gate. Pause and blank the
+          // predecessor before surfacing malformed durable bytes to the caller.
+          await this.#failClosedOfflineExposure('offline_custody_malformed');
+          throw error;
+        }
+        if (validated.phase !== 'settled') {
+          await this.#failClosedOfflineExposure('offline_custody_clearing');
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+            'offline authority requires settled durable custody',
+            { authorityEpoch: validated.authorityEpoch },
+          );
+        }
+        if (this.#record !== null) {
+          if (this.#publicationPaused || this.#record.phase !== 'settled') {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+              'offline authority cannot be restored over an in-progress local barrier',
+            );
+          }
+          const current = validateAuthCustody(this.#record, this.#appId);
+          if (
+            validated.revision < current.revision
+            || validated.authorityEpoch < current.authorityEpoch
+          ) {
+            await this.#failClosedOfflineExposure('offline_custody_regressed');
+            throw corrupt('durable custody regressed during offline restore');
+          }
+          const sameAuthority = validated.authorityEpoch === current.authorityEpoch
+            && canonicalAuthorityKey(this.#appId, validated.authority)
+              === canonicalAuthorityKey(this.#appId, current.authority);
+          if (sameAuthority) {
+            // A bearer rotation may advance only the custody revision. It does
+            // not change the offline authorization identity, but adopting the
+            // durable record prevents a missed wakeup from retaining stale
+            // credential custody for the next online boundary.
+            this.#adoptSettled(validated);
+            return captureFor(this.#appId, validated);
+          }
+          return this.#adoptPeerOfflineSettled(validated);
+        }
+        // A fresh context has no predecessor app-visible state to clear. Its
+        // participants were registered while publication was paused and are
+        // already blank; exposing this capture grants no online transport.
+        this.#adoptSettled(validated);
+        return captureFor(this.#appId, validated);
+      });
+    } catch (error) {
+      // withOwnership can fail before it invokes the callback (for example,
+      // when the browser cannot acquire durable custody). That is also a
+      // mandatory-gate failure, so a formerly exposed predecessor must stop.
+      if (!this.#publicationPaused) {
+        await this.#failClosedOfflineExposure('offline_custody_ownership_failed');
+      }
+      throw error;
+    }
+  }
+
   async compareAndCommit(capture, commit) {
     this.#assertOperationAllowed();
     if (typeof commit !== 'function') throw new TypeError('compareAndCommit requires a commit callback');
@@ -917,6 +1007,55 @@ export class AuthCoordinator {
         'authority transition barrier did not settle',
         { phase: this.#activeBarrier?.phase ?? 'unknown', causeCode: error?.code ?? null },
       );
+    } finally {
+      this.#activeBarrier = null;
+    }
+  }
+
+  async #adoptPeerOfflineSettled(record) {
+    const previous = validateAuthCustody(this.#record, this.#appId);
+    this.#publicationPaused = true;
+    const context = Object.freeze({
+      appId: this.#appId,
+      expectedEpoch: previous.authorityEpoch,
+      expectedAuthorityKey: canonicalAuthorityKey(this.#appId, previous.authority),
+      nextEpoch: record.authorityEpoch,
+      nextAuthorityKey: canonicalAuthorityKey(this.#appId, record.authority),
+      reason: 'offline_durable_reload',
+      disposition: 'delete',
+      recovery: true,
+      previousAuthority: clone(previous.authority),
+      nextAuthority: clone(record.authority),
+    });
+    this.#activeBarrier = { phase: 'offline_durable_reload', context };
+    try {
+      await this.#runAwaitedPhase('quiesce', context);
+      this.#runSyncPhase('blank', context);
+      this.#runSyncPhase('clearMemory', context);
+      await this.#runAwaitedPhase('commitDurable', context);
+      this.#adoptSettled(record, { expose: false });
+      // No participant resume runs here: a durable offline authority can
+      // validate retained leases, but it cannot establish an online transport.
+      this.#publicationPaused = false;
+      return captureFor(this.#appId, record);
+    } finally {
+      this.#activeBarrier = null;
+    }
+  }
+
+  async #failClosedOfflineExposure(reason) {
+    this.#publicationPaused = true;
+    if (this.#record === null) return;
+    const context = Object.freeze({
+      ...this.#barrierContext(),
+      reason,
+      disposition: 'delete',
+    });
+    this.#activeBarrier = { phase: reason, context };
+    try {
+      await this.#runAwaitedPhase('quiesce', context);
+      this.#runSyncPhase('blank', context);
+      this.#runSyncPhase('clearMemory', context);
     } finally {
       this.#activeBarrier = null;
     }
