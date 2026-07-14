@@ -941,7 +941,14 @@ const normalizeState = (state) => {
   if (legacyV3) {
     // Format 3 had no server-issued authority-instance axis. Its queued bytes
     // are inspectable for explicit discard only and can never be replayed.
-    state.legacyV3Stranded.push(...[...state.pending, ...state.failed].map((entry) => ({
+    // Its payload-bearing stranded namespace likewise had no persisted
+    // principal proof, so move it into legacy custody instead of letting a
+    // subsequently bound format-5 principal observe it as rerecordable work.
+    state.legacyV3Stranded.push(...[
+      ...state.pending,
+      ...state.failed,
+      ...state.stranded,
+    ].map((entry) => ({
       ...clone(entry),
       legacyFormat: 3,
       replayable: false,
@@ -950,6 +957,7 @@ const normalizeState = (state) => {
     state.pending = [];
     state.failed = [];
     state.acknowledged = [];
+    state.stranded = [];
     state.principalScope = null;
     state.authorityDescriptor = null;
     state.queryAuthorization = {};
@@ -1021,6 +1029,12 @@ const normalizeState = (state) => {
     state.leaseClockHighWaterMs = 0;
     state.queryAuthorization = {};
   }
+  // A format-5 rerecordable record contains the original mutation payload.
+  // It is visible only while its persisted predecessor-principal proof is
+  // byte-for-byte equal to the validated current principal. Structural
+  // tampering or an unproven predecessor drops the payload before any public
+  // store method can return it; discard-only evidence is re-redacted.
+  sanitizeStrandedForPrincipal(state, state.principalScope);
   return state;
 };
 
@@ -1239,7 +1253,8 @@ function rerecordableStrandedMutation(entry, state, reason) {
 
 function sanitizeStrandedForPrincipal(state, principalScope) {
   state.stranded = state.stranded.flatMap((entry) => {
-    const provenRerecordable = principalScope.userId !== null
+    const provenRerecordable = principalScope !== null
+      && principalScope.userId !== null
       && entry.replayable === false
       && entry.rerecordable === true
       && entry.discardOnly === false
@@ -1939,8 +1954,15 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
               sequence: entry.sequence,
               authFingerprint: entry.authFingerprint,
               ...recordAuthority(state),
-              schemaHash: entry.schemaHash,
-              inputsHash: entry.inputsHash,
+              ...(state.authorityDescriptor === null
+                ? {}
+                : { authorityDescriptor: clone(entry.authorityDescriptor) }),
+              // This redacted tombstone is diagnostic state intentionally
+              // carried into the replacement artifact namespace. The old
+              // identity remains in `diagnostic.previous`; binding the record
+              // itself to that old namespace would make format-5 reject its
+              // own committed state on reload.
+              ...nextScope,
               status: 'failed',
               diagnostic: {
                 code: 'SNAPBACK_CLIENT_ARTIFACT_STALE',

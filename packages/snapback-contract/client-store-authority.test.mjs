@@ -104,20 +104,40 @@ const coordinatorAt = async (authority) => {
     authorityKey: null,
     authFingerprint: null,
     artifactScope: null,
-    nextSequence: 2,
+    nextSequence: 3,
     retained: { q: { rows: [{ private: true }] } },
     pending: [{ id: 'cm_v3', function: 'write', sequence: 1, status: 'pending' }],
     failed: [],
     acknowledged: [],
-    stranded: [],
+    stranded: [{
+      id: 'cm_v3_stranded',
+      function: 'write',
+      sequence: 2,
+      args: { secret: 'legacy-v3-unproven-payload' },
+      replayable: false,
+      rerecordable: true,
+      discardOnly: false,
+    }],
     legacyV2Stranded: [],
   };
-  const migrated = await createMemorySnapbackClientStore({ state: legacy }).snapshot();
+  const migratedStore = createMemorySnapbackClientStore({ state: legacy });
+  const migrated = await migratedStore.snapshot();
   assert.equal(migrated.version, SNAPBACK_CLIENT_STORE_VERSION);
   assert.deepEqual(migrated.retained, {});
   assert.deepEqual(migrated.pending, []);
+  assert.deepEqual(migrated.stranded, []);
+  assert.deepEqual(await migratedStore.strandedMutations(), []);
   assert.equal(migrated.legacyV3Stranded[0].id, 'cm_v3');
   assert.equal(migrated.legacyV3Stranded[0].replayable, false);
+  assert.equal(migrated.legacyV3Stranded[1].id, 'cm_v3_stranded');
+  assert.equal(migrated.legacyV3Stranded[1].replayable, false);
+  assert.equal(
+    migrated.legacyV3Stranded[1].args.secret,
+    'legacy-v3-unproven-payload',
+  );
+  const reopened = createMemorySnapbackClientStore({ state: legacy });
+  assert.deepEqual(await reopened.strandedMutations(), []);
+  assert.equal((await reopened.snapshot()).legacyV3Stranded.length, 2);
 }
 
 // The principal axis preserves rows across a new session. The independent
@@ -179,6 +199,104 @@ const coordinatorAt = async (authority) => {
     }),
     /queryAuthorization must be an empty object/,
   );
+}
+
+// A format-5 rerecordable payload is principal-owned. Tampering only the
+// persisted top-level principal must not make user A's mutation visible to
+// user B when the store is reopened.
+{
+  const ownerStore = createMemorySnapbackClientStore();
+  await ownerStore.scopeAuthorization({
+    principalScope: devPrincipal,
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  });
+  await ownerStore.enqueueMutation({
+    id: 'cm_principal_bound_stranded',
+    function: 'writePrivate',
+    args: { secret: 'principal-a-only' },
+    authorityDescriptor: descriptor(AUTHORITY_1),
+  });
+  await ownerStore.scopeAuthorization({
+    principalScope: devPrincipal,
+    authorityDescriptor: descriptor(AUTHORITY_2),
+  });
+  const persisted = await ownerStore.snapshot();
+  const validReopen = createMemorySnapbackClientStore({
+    state: structuredClone(persisted),
+  });
+  assert.equal(
+    (await validReopen.strandedMutations())[0].args.secret,
+    'principal-a-only',
+  );
+
+  const tampered = structuredClone(persisted);
+  tampered.principalScope = { ...devPrincipal, userId: USER_2 };
+  const successorReopen = createMemorySnapbackClientStore({ state: tampered });
+  assert.deepEqual(await successorReopen.strandedMutations(), []);
+  assert.equal(
+    JSON.stringify(await successorReopen.snapshot()).includes('principal-a-only'),
+    false,
+  );
+}
+
+// Artifact replacement preserves the exact queue authority on its redacted
+// diagnostic tombstone and binds that tombstone to the replacement artifact
+// namespace, so format-5 can validate and reopen its own committed bytes.
+{
+  const persisted = {};
+  let artifactStore = createMemorySnapbackClientStore({ state: persisted });
+  await artifactStore.scopeAuthorization({
+    principalScope: devPrincipal,
+    authorityDescriptor: descriptor(AUTHORITY_1, 7),
+  });
+  await artifactStore.scopeToArtifacts({
+    schemaHash: 'schema:a',
+    inputsHash: 'inputs:a',
+  });
+  const queue = await artifactStore.captureMutationQueue();
+  await artifactStore.enqueueMutation({
+    id: 'cm_modern_artifact_transition',
+    function: 'writePrivate',
+    args: { secret: 'old-artifact-payload' },
+    ctxLedger: { version: 1, ids: ['old-artifact-ledger'], now: 1 },
+    authorityDescriptor: descriptor(AUTHORITY_1, 7),
+    schemaHash: 'schema:a',
+    inputsHash: 'inputs:a',
+    ...queue,
+  });
+  // Generation refresh is not an authority-instance change. The tombstone
+  // keeps the descriptor the queued record actually captured, not a later
+  // projection copied from the store root.
+  await artifactStore.scopeAuthorization({
+    principalScope: devPrincipal,
+    authorityDescriptor: descriptor(AUTHORITY_1, 8),
+  });
+  await artifactStore.scopeToArtifacts({
+    schemaHash: 'schema:b',
+    inputsHash: 'inputs:b',
+  });
+
+  artifactStore = createMemorySnapbackClientStore({ state: persisted });
+  const reopenedQueue = await artifactStore.captureMutationQueue();
+  const [tombstone] = await artifactStore.failedMutations({
+    ...reopenedQueue,
+    schemaHash: 'schema:b',
+    inputsHash: 'inputs:b',
+  });
+  assert.equal(tombstone.id, 'cm_modern_artifact_transition');
+  assert.deepEqual(tombstone.authorityDescriptor, descriptor(AUTHORITY_1, 7));
+  assert.equal(tombstone.schemaHash, 'schema:b');
+  assert.equal(tombstone.inputsHash, 'inputs:b');
+  assert.equal(tombstone.diagnostic.code, 'SNAPBACK_CLIENT_ARTIFACT_STALE');
+  assert.equal(Object.hasOwn(tombstone, 'args'), false);
+  assert.equal(Object.hasOwn(tombstone, 'ctxLedger'), false);
+  assert.equal(
+    JSON.stringify(await artifactStore.snapshot()).includes('old-artifact-payload'),
+    false,
+  );
+
+  const secondReopen = createMemorySnapbackClientStore({ state: persisted });
+  assert.equal((await secondReopen.failedMutations(reopenedQueue)).length, 1);
 }
 
 // Descriptor replacement without a server-resolved user is not evidence of a
