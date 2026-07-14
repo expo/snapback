@@ -1383,9 +1383,7 @@ fn run_ibex_handler_with_context_until(
     drop(time_limit);
     drop(cancellation);
 
-    if let Err(cancelled) = invocation.admission.validate("runtime completion") {
-        return Err(cancelled);
-    }
+    invocation.admission.validate("runtime completion")?;
 
     let output = eval_result?;
     let rejections = inspect_unhandled_rejections(runtime.ptr())?;

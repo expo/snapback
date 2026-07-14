@@ -1251,9 +1251,11 @@ fn explain_function(
                 "the requested explain kind is unknown",
             )
         };
-        let diagnostic_kind = recognized
-            .then_some(kind.as_str())
-            .unwrap_or("unrecognized");
+        let diagnostic_kind = if recognized {
+            kind.as_str()
+        } else {
+            "unrecognized"
+        };
         return envelope(
             snapback,
             false,

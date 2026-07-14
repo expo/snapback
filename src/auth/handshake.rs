@@ -313,9 +313,10 @@ fn availability(facts: &AuthSessionFacts, protocols: ClientProtocols) -> AuthSes
     } else {
         None
     };
-    let queued_reason = if !online_ready || !facts.readiness.authority_descriptor {
-        Some("SNAPBACK_AUTH_POLICY_UNAVAILABLE")
-    } else if protocols.authority_descriptor != Some(AUTH_PROTOCOL_V1) {
+    let queued_reason = if !online_ready
+        || !facts.readiness.authority_descriptor
+        || protocols.authority_descriptor != Some(AUTH_PROTOCOL_V1)
+    {
         Some("SNAPBACK_AUTH_POLICY_UNAVAILABLE")
     } else {
         None

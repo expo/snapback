@@ -198,7 +198,7 @@ impl DeliveryNotifier {
         let state = lock(&self.state);
         let registration = state.waiters.get(connection_id)?;
         (registration.generation == generation)
-            .then(|| registration.terminal)
+            .then_some(registration.terminal)
             .flatten()
     }
 

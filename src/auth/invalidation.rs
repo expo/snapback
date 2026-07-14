@@ -1855,9 +1855,9 @@ impl RetryEpisodeRegistry {
             return Ok(RetryReservation::Attached(episode.clone()));
         }
         if episode.attempts_reserved < AUTH_ERROR_ATTEMPTS_TOTAL
-            && !episode
+            && episode
                 .deadline_ms
-                .is_some_and(|deadline| now_ms > deadline)
+                .is_none_or(|deadline| now_ms <= deadline)
         {
             return Err(invalidation_error(
                 "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
