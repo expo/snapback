@@ -824,7 +824,7 @@ impl AuthProvider {
         issuer_id: crate::auth::invalidation::IssuerId,
         target_profile_id: &str,
         app_id: &str,
-    ) -> ProviderResult<crate::auth::invalidation::AuthenticatedBootIssuer> {
+    ) -> ProviderResult<crate::auth::invalidation::LiveInvalidationIssuer> {
         self.keyring
             .with_active_key(self.now_ms(), self.random.as_ref(), |key_id, key| {
                 crate::auth::invalidation::IssuerAuthenticator::new(
@@ -832,7 +832,14 @@ impl AuthProvider {
                     *key.expose_secret(),
                 )
                 .and_then(|authenticator| {
-                    authenticator.authenticate(issuer_id, target_profile_id, app_id)
+                    let authenticated =
+                        authenticator.authenticate(issuer_id, target_profile_id, app_id)?;
+                    crate::auth::invalidation::LiveInvalidationIssuer::with_authenticator(
+                        authenticated,
+                        authenticator,
+                        target_profile_id,
+                        app_id,
+                    )
                 })
             })
             .map_err(|_| provider_unavailable())?

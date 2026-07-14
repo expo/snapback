@@ -1,4 +1,101 @@
 {
+  "$defs": {
+    "AuthorizationVersion": {
+      "description": "The one durable authorization-stream witness. The incarnation closes reset\nand restore ABA; the JS-safe epoch advances for ordinary authorization\nevents within that stream.\n\n@ref LLP 0053#the-authorization-version — v1 has one global durable pair.",
+      "properties": {
+        "epoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incarnation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "incarnation",
+        "epoch"
+      ],
+      "type": "object"
+    },
+    "IssuerId": {
+      "additionalProperties": false,
+      "description": "A boot identity is never reused, even when process-local counters restart.",
+      "properties": {
+        "authorizationIncarnation": {
+          "type": "string"
+        },
+        "bootNonce": {
+          "type": "string"
+        },
+        "bootSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizationIncarnation",
+        "bootSequence",
+        "bootNonce"
+      ],
+      "type": "object"
+    },
+    "QueryNamespace": {
+      "additionalProperties": false,
+      "properties": {
+        "clientStoreId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "queryKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientStoreId",
+        "queryKey",
+        "queryInstanceId"
+      ],
+      "type": "object"
+    },
+    "ScopeRetirement": {
+      "additionalProperties": false,
+      "description": "Server-authenticated proof that one current-issuer namespace has no live or\nunresolved scope at or below a contiguous scope-sequence prefix. The proof\nis a cleanup/fencing fact only; accepting it never stands in for a result\nsnapshot, a resolution ACK, or a release proof.",
+      "properties": {
+        "authorizationExpectation": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "issuerId": {
+          "$ref": "#/$defs/IssuerId"
+        },
+        "mac": {
+          "type": "string"
+        },
+        "namespace": {
+          "$ref": "#/$defs/QueryNamespace"
+        },
+        "retireThroughScopeSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "issuerId",
+        "namespace",
+        "retireThroughScopeSequence",
+        "authorizationExpectation",
+        "mac"
+      ],
+      "type": "object"
+    }
+  },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.unsubscribe.output.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -6,6 +103,16 @@
       "type": "boolean"
     },
     "receipt": true,
+    "scopeRetirement": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScopeRetirement"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "subscription_id": {
       "type": "string"
     }

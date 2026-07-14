@@ -385,15 +385,22 @@ impl LocalDatabase {
             AuthCatalogState::Uninitialized => {}
         }
 
+        let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         activate_auth_catalog_v1_in(&tx)?;
-        super::authorization::authorization_commit_hook_in(
+        let authorization = super::authorization::authorization_commit_hook_in(
             &tx,
             super::authorization::AuthorizationCommitCause::Activation,
         )?;
-        tx.commit()?;
+        let min_commit_version = super::current_version_on(&tx)?;
+        super::commit_with_authorization_interlock(
+            tx,
+            &authorization,
+            min_commit_version,
+            authorization_interlock,
+        )?;
         require_ready_on(&self.conn)
     }
 
@@ -541,62 +548,75 @@ impl LocalDatabase {
                 "declared restore time is outside the portable timestamp range",
             ));
         }
-        self.with_auth_transaction(|tx| {
-            let applied: Option<String> = tx
-                .query_row(
-                    "SELECT value FROM _snapback_meta WHERE key = ?1",
-                    params![META_AUTH_RESTORE_DECLARATION_ID],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            if applied.as_deref() == Some(declaration_id) {
-                return Ok(AuthRestoreResult::AlreadyApplied);
-            }
-
-            let exhausted_generations: i64 = tx.query_row(
-                "SELECT COUNT(*) FROM _auth_sessions
-                 WHERE revoked_at_ms IS NULL AND generation >= 9007199254740991",
-                [],
+        let authorization_interlock = self.authorization_interlock.clone();
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        require_ready_on(&tx)?;
+        let applied: Option<String> = tx
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![META_AUTH_RESTORE_DECLARATION_ID],
                 |row| row.get(0),
-            )?;
-            if exhausted_generations != 0 {
-                return Err(corrupt(
-                    "auth catalog contains an unrevoked session with an exhausted generation",
-                ));
-            }
-            let sessions_revoked = tx.execute(
-                "UPDATE _auth_sessions
+            )
+            .optional()?;
+        if applied.as_deref() == Some(declaration_id) {
+            tx.commit()?;
+            return Ok(AuthRestoreResult::AlreadyApplied);
+        }
+
+        let exhausted_generations: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM _auth_sessions
+                 WHERE revoked_at_ms IS NULL AND generation >= 9007199254740991",
+            [],
+            |row| row.get(0),
+        )?;
+        if exhausted_generations != 0 {
+            return Err(corrupt(
+                "auth catalog contains an unrevoked session with an exhausted generation",
+            ));
+        }
+        let sessions_revoked = tx.execute(
+            "UPDATE _auth_sessions
                  SET revoked_at_ms = ?1, generation = generation + 1
                  WHERE revoked_at_ms IS NULL",
-                params![now_ms as i64],
-            )?;
-            restore_transaction_step_completed(0)?;
-            let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
-            restore_transaction_step_completed(1)?;
+            params![now_ms as i64],
+        )?;
+        restore_transaction_step_completed(0)?;
+        let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
+        restore_transaction_step_completed(1)?;
 
-            // @ref LLP 0056#reset-restore-and-stream-publication — a first
-            // application rotates authorization authority in this same
-            // destructive transaction; an idempotent declaration returns
-            // above without rotating again.
-            let successor =
-                crate::auth::session_projection::AuthorizationStreamIncarnation::fresh();
-            super::auth_stream::rotate_authorization_stream_incarnation_in(tx, &successor)?;
-            super::auth_invalidation::clear_retry_episodes_in(tx)?;
-            super::auth_invalidation::rotate_data_version_stream_in(tx)?;
-            restore_transaction_step_completed(2)?;
+        // @ref LLP 0056#reset-restore-and-stream-publication — a first
+        // application rotates authorization authority in this same
+        // destructive transaction; an idempotent declaration returns above
+        // without rotating again. The closed hook also produces the exact
+        // pre-commit witness consumed by LLP 0053's room sink barrier.
+        let authorization = super::authorization::authorization_commit_hook_in(
+            &tx,
+            super::authorization::AuthorizationCommitCause::DestructiveBoundary,
+        )?;
+        super::auth_invalidation::clear_retry_episodes_in(&tx)?;
+        super::auth_invalidation::rotate_data_version_stream_in(&tx)?;
+        restore_transaction_step_completed(2)?;
 
-            // @ref LLP 0054#restore — the declaration id is written last in
-            // the same transaction as revocation and challenge destruction.
-            tx.execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+        // @ref LLP 0054#restore — the declaration id is written last in the
+        // same transaction as revocation and challenge destruction.
+        tx.execute(
+            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
                  ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![META_AUTH_RESTORE_DECLARATION_ID, declaration_id],
-            )?;
-            restore_transaction_step_completed(3)?;
-            Ok(AuthRestoreResult::Applied {
-                sessions_revoked,
-                challenges_deleted,
-            })
+            params![META_AUTH_RESTORE_DECLARATION_ID, declaration_id],
+        )?;
+        restore_transaction_step_completed(3)?;
+        let min_commit_version = super::current_version_on(&tx)?;
+        super::commit_with_authorization_interlock(
+            tx,
+            &authorization,
+            min_commit_version,
+            authorization_interlock,
+        )?;
+        Ok(AuthRestoreResult::Applied {
+            sessions_revoked,
+            challenges_deleted,
         })
     }
 
@@ -1199,6 +1219,66 @@ mod tests {
                 row.get(0)
             })
             .expect("count rows")
+    }
+
+    struct RecordingRestoreInterlock {
+        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    struct RecordingRestoreCommit {
+        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl crate::storage::AuthorizationCommitInterlock for RecordingRestoreInterlock {
+        fn prepare(
+            &self,
+            witness: &crate::storage::AuthorizationCommitWitness,
+        ) -> SnapbackResult<Box<dyn crate::storage::PreparedAuthorizationCommit>> {
+            assert!(witness.event);
+            assert!(witness.incarnation_rotated);
+            self.prepared
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(Box::new(RecordingRestoreCommit {
+                committed: self.committed.clone(),
+            }))
+        }
+    }
+
+    impl crate::storage::PreparedAuthorizationCommit for RecordingRestoreCommit {
+        fn committed(self: Box<Self>, _min_commit_version: u64) -> SnapbackResult<()> {
+            self.committed
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn ambiguous(self: Box<Self>) {
+            panic!("the in-memory restore commit must not be ambiguous");
+        }
+    }
+
+    #[test]
+    fn declared_restore_installs_and_settles_authorization_interlock() {
+        let mut db = catalog_database();
+        let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
+            prepared: prepared.clone(),
+            committed: committed.clone(),
+        }));
+
+        let declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd17";
+        let result = db.apply_auth_restore_declaration(declaration, 100).unwrap();
+        assert!(matches!(result, AuthRestoreResult::Applied { .. }));
+        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        assert_eq!(
+            db.apply_auth_restore_declaration(declaration, 101).unwrap(),
+            AuthRestoreResult::AlreadyApplied
+        );
+        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
     #[test]

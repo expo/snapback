@@ -196,16 +196,12 @@ impl AuthRuntime {
             authorization.incarnation.clone(),
             boot_sequence,
         )?;
-        let authenticated = self.provider.authenticate_invalidation_boot_issuer(
+        let issuer = self.provider.authenticate_invalidation_boot_issuer(
             issuer_id,
             target_profile_id,
             app_id,
         )?;
-        Ok((
-            crate::auth::invalidation::LiveInvalidationIssuer::new(authenticated)?,
-            authorization,
-            version_stream,
-        ))
+        Ok((issuer, authorization, version_stream))
     }
 
     pub(crate) fn health(&self) -> AuthProviderHealth {

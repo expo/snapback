@@ -1,0 +1,24 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/authorization-invalidation.manual-retry.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An explicit operator/user retry names one exact live query and one fresh\nidempotency key. The server derives the durable retry key from the retained\nsubscription authority; no caller-provided authority subject or canonical\nquery key is trusted.",
+  "properties": {
+    "connectionId": {
+      "type": "string"
+    },
+    "manualRetryId": {
+      "type": "string"
+    },
+    "subscriptionId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "connectionId",
+    "subscriptionId",
+    "manualRetryId"
+  ],
+  "title": "AuthorizationInvalidationManualRetryInput",
+  "type": "object"
+}

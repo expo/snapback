@@ -1,5 +1,5 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
-use crate::ephemeral::validate_collection_definitions;
+use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
 use crate::manifest::{
     CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
     CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MutationOutput,
@@ -214,6 +214,53 @@ pub struct AuthorizationCommitWitness {
     pub incarnation_rotated: bool,
 }
 
+/// Process-local sink barrier paired with the durable authorization hook.
+/// Implementations install their level-triggered state before SQLite commit,
+/// hold no mutex across commit, and receive an explicit ambiguous outcome
+/// instead of guessing that a failed COMMIT rolled back.
+pub(crate) trait AuthorizationCommitInterlock: Send + Sync {
+    fn prepare(
+        &self,
+        witness: &AuthorizationCommitWitness,
+    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>>;
+}
+
+pub(crate) trait PreparedAuthorizationCommit: Send {
+    fn committed(self: Box<Self>, min_commit_version: u64) -> SnapbackResult<()>;
+    fn ambiguous(self: Box<Self>);
+}
+
+fn commit_with_authorization_interlock(
+    tx: Transaction<'_>,
+    witness: &AuthorizationCommitWitness,
+    min_commit_version: u64,
+    interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
+) -> SnapbackResult<()> {
+    let prepared = if witness.event {
+        interlock
+            .as_ref()
+            .map(|interlock| interlock.prepare(witness))
+            .transpose()?
+    } else {
+        None
+    };
+    match tx.commit() {
+        Ok(()) => match prepared {
+            Some(prepared) => prepared.committed(min_commit_version),
+            None => Ok(()),
+        },
+        Err(error) => {
+            if let Some(prepared) = prepared {
+                // SQLite could have crossed the durable boundary before the
+                // driver surfaced an error. Keep every sink closed until an
+                // explicit reconciliation proves commit or rollback.
+                prepared.ambiguous();
+            }
+            Err(error.into())
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MutationCommit {
     pub output: MutationOutput,
@@ -386,6 +433,7 @@ pub struct LocalDatabase {
     // connections so queries do not queue behind writes. `None` for in-memory
     // databases, which cannot run WAL; those fall back to the serialized lane.
     reader_pool: Option<Arc<ReaderPool>>,
+    authorization_interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
 }
 
 fn reset_and_seed_transaction(
@@ -451,6 +499,7 @@ impl LocalDatabase {
             path: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
+            authorization_interlock: None,
         };
         db.configure(false)?;
         db.create_infra()?;
@@ -478,6 +527,7 @@ impl LocalDatabase {
             path: Some(path.clone()),
             schema: SchemaManifest::default(),
             reader_pool: None,
+            authorization_interlock: None,
         };
         db.configure(true)?;
         db.create_infra()?;
@@ -515,7 +565,15 @@ impl LocalDatabase {
             path: None,
             schema: self.schema.clone(),
             reader_pool: None,
+            authorization_interlock: None,
         })
+    }
+
+    pub(crate) fn install_authorization_interlock(
+        &mut self,
+        interlock: Arc<dyn AuthorizationCommitInterlock>,
+    ) {
+        self.authorization_interlock = Some(interlock);
     }
 
     pub fn schema(&self) -> &SchemaManifest {
@@ -992,6 +1050,7 @@ impl LocalDatabase {
         successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<Option<MutationOutput>> {
         let schema = self.schema.clone();
+        let authorization_interlock = self.authorization_interlock.clone();
         let tx = match self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -1012,18 +1071,51 @@ impl LocalDatabase {
         }) {
             return auth::AuthTransactionAttempt::RolledBack(error);
         }
+        let authorization = AuthorizationCommitWitness {
+            version: AuthorizationVersion {
+                incarnation: successor.as_str().to_owned(),
+                epoch: 0,
+            },
+            event: true,
+            incarnation_rotated: true,
+        };
+        let min_commit_version = seeded.as_ref().map_or(0, |output| output.version);
+        let prepared = match authorization_interlock
+            .as_ref()
+            .map(|interlock| interlock.prepare(&authorization))
+            .transpose()
+        {
+            Ok(prepared) => prepared,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
         match tx.commit() {
-            Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
+            Ok(()) => match prepared {
+                Some(prepared) => match prepared.committed(min_commit_version) {
+                    Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
+                    Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
+                },
+                None => auth::AuthTransactionAttempt::Committed(seeded),
+            },
             Err(error) => {
                 let error = SnapbackError::from(error);
                 match self.authorization_stream_incarnation() {
-                    Ok(durable) if &durable == successor => {
-                        auth::AuthTransactionAttempt::Committed(seeded)
-                    }
+                    Ok(durable) if &durable == successor => match prepared {
+                        Some(prepared) => match prepared.committed(min_commit_version) {
+                            Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
+                            Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
+                        },
+                        None => auth::AuthTransactionAttempt::Committed(seeded),
+                    },
                     Ok(durable) if &durable == predecessor => {
+                        drop(prepared);
                         auth::AuthTransactionAttempt::RolledBack(error)
                     }
-                    Ok(_) | Err(_) => auth::AuthTransactionAttempt::CommitUncertain(error),
+                    Ok(_) | Err(_) => {
+                        if let Some(prepared) = prepared {
+                            prepared.ambiguous();
+                        }
+                        auth::AuthTransactionAttempt::CommitUncertain(error)
+                    }
                 }
             }
         }
@@ -1094,8 +1186,10 @@ impl LocalDatabase {
     }
 
     pub fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
-        let next_version = self.current_version()? + 1;
+        let current_version = self.current_version()?;
+        let next_version = current_version + 1;
         let schema = self.schema.clone();
+        let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
         let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
         let changed_count = changes.len();
@@ -1110,15 +1204,16 @@ impl LocalDatabase {
                 changes: &changes,
             },
         )?;
-        tx.commit()?;
+        let version = if changed_count > 0 {
+            next_version
+        } else {
+            current_version
+        };
+        commit_with_authorization_interlock(tx, &authorization, version, authorization_interlock)?;
 
         Ok(SeedCommit {
             output: MutationOutput {
-                version: if changed_count > 0 {
-                    next_version
-                } else {
-                    self.current_version()?
-                },
+                version,
                 changed_count,
                 result: Value::Null,
                 ctx_ledger: None,
@@ -1129,6 +1224,51 @@ impl LocalDatabase {
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         query_on(&self.conn, &self.schema, plan, input)
+    }
+
+    pub(crate) fn room_permission_projection_granted(
+        &self,
+        table_name: &str,
+        subject_field: &str,
+        user_id: &str,
+        scope_fields: &[(String, String)],
+        min_commit_version: u64,
+    ) -> SnapbackResult<bool> {
+        let observed = self.current_version()?;
+        if observed < min_commit_version {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
+                "ephemeral",
+                "durable permission snapshot has not reached the room authorization cause",
+            )
+            .with_detail("observedVersion", observed)
+            .with_detail("minCommitVersion", min_commit_version));
+        }
+        let table = schema_table(&self.schema, table_name)?;
+        ensure_field(table, subject_field)?;
+        for (field, _) in scope_fields {
+            ensure_field(table, field)?;
+        }
+        let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
+        for (index, (field, _)) in scope_fields.iter().enumerate() {
+            predicates.push(format!("{} = ?{}", quote_ident(field)?, index + 2));
+        }
+        let sql = format!(
+            "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
+            quote_ident(table_name)?,
+            predicates.join(" AND ")
+        );
+        let values = std::iter::once(SqlValue::Text(user_id.to_owned()))
+            .chain(
+                scope_fields
+                    .iter()
+                    .map(|(_, value)| SqlValue::Text(value.clone())),
+            )
+            .collect::<Vec<_>>();
+        let granted: i64 = self
+            .conn
+            .query_row(&sql, params_from_iter(values.iter()), |row| row.get(0))?;
+        Ok(granted != 0)
     }
 
     pub(crate) fn query_with_storage_limit(
@@ -1312,6 +1452,7 @@ impl LocalDatabase {
         validate_portable_timestamp_millis(now_ms)?;
         let current_version = self.current_version()?;
         let next_version = current_version + 1;
+        let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
 
         // @ref LLP 0032#phase-2--execution-semantics-honesty — E3 (Option A),
@@ -1702,7 +1843,14 @@ impl LocalDatabase {
             if let Some(identity) = identity {
                 record_client_mutation_result(&tx, identity, &output)?;
             }
-            tx.commit()?;
+            commit_with_authorization_interlock(
+                tx,
+                authorization
+                    .as_ref()
+                    .expect("an applied mutation has an authorization witness"),
+                version,
+                authorization_interlock,
+            )?;
         } else {
             // Execute-and-discard (LLP 0051 D8): everything above — writes,
             // change-log records, the version bump — evaporates here.
@@ -1884,6 +2032,7 @@ impl LocalDatabase {
         validate_portable_timestamp_millis(now_ms)?;
         let current_version = self.current_version()?;
         let next_version = current_version + 1;
+        let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
 
         validate_read_set(&tx, &schema, &input.read_set)?;
@@ -2001,7 +2150,14 @@ impl LocalDatabase {
             if let Some(identity) = options.identity {
                 record_client_mutation_result(&tx, identity, &output)?;
             }
-            tx.commit()?;
+            commit_with_authorization_interlock(
+                tx,
+                authorization
+                    .as_ref()
+                    .expect("an applied mutation has an authorization witness"),
+                version,
+                authorization_interlock,
+            )?;
         } else {
             // Execute-and-discard (LLP 0051 D8): validated and applied above,
             // discarded here.
@@ -2610,6 +2766,15 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             }
         }
     }
+
+    validate_collection_permission_backing(
+        &manifest.ephemeral_collections,
+        &manifest.tables,
+        manifest.effective_auth_mode() == crate::manifest::AuthMode::Sessions,
+    )
+    .map_err(|error| {
+        SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
+    })?;
 
     Ok(())
 }
@@ -4819,6 +4984,69 @@ mod guarded_commit_tests {
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE"
+        );
+    }
+
+    #[test]
+    fn protected_room_projection_is_exact_and_permission_backed() {
+        let table = TableManifest {
+            name: "memberships".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "userId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "boardId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: true,
+            permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
+        };
+        let projection = crate::ephemeral::RoomPermissionProjection {
+            table: "memberships".to_owned(),
+            subject_field: "userId".to_owned(),
+            scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+        };
+        let collection =
+            crate::ephemeral::EphemeralCollection::local_cursor("boardCursors", "boardId")
+                .require_room_permission("board")
+                .permission_backed_by(projection);
+        let manifest = SchemaManifest {
+            auth: Some(crate::manifest::AuthManifest {
+                mode: crate::manifest::AuthMode::Sessions,
+            }),
+            tables: vec![table],
+            ephemeral_collections: vec![collection],
+            ..SchemaManifest::default()
+        };
+        validate_schema(&manifest).expect("exact durable room projection");
+
+        let mut missing_scope = manifest.clone();
+        missing_scope.ephemeral_collections[0]
+            .permission_backing
+            .as_mut()
+            .unwrap()
+            .scope_fields
+            .clear();
+        let error = validate_schema(&missing_scope).expect_err("scope mapping must be exact");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+        );
+
+        let mut omitted_read_field = manifest;
+        omitted_read_field.tables[0].permission_fields = Some(vec!["userId".to_owned()]);
+        let error = validate_schema(&omitted_read_field)
+            .expect_err("permissionFields must cover every projected read");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         );
     }
 

@@ -172,6 +172,12 @@
         "maxDisposition": {
           "$ref": "#/$defs/InvalidationDisposition"
         },
+        "ownerContinuityId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "protocolVersion": {
           "format": "uint32",
           "minimum": 0,
@@ -205,6 +211,13 @@
       "properties": {
         "maxDisposition": {
           "$ref": "#/$defs/InvalidationDisposition"
+        },
+        "ownerContinuityId": {
+          "description": "Cleanup ownership for the client-side pending token. This is not part\nof scope/revision identity; retirement may finish only after this exact\ncontinuity ends (except an already-applied terminal delete).",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "protocolVersion": {
           "format": "uint32",
@@ -318,6 +331,37 @@
           "type": "object"
         }
       ]
+    },
+    "ScopeRetirement": {
+      "additionalProperties": false,
+      "description": "Server-authenticated proof that one current-issuer namespace has no live or\nunresolved scope at or below a contiguous scope-sequence prefix. The proof\nis a cleanup/fencing fact only; accepting it never stands in for a result\nsnapshot, a resolution ACK, or a release proof.",
+      "properties": {
+        "authorizationExpectation": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "issuerId": {
+          "$ref": "#/$defs/IssuerId"
+        },
+        "mac": {
+          "type": "string"
+        },
+        "namespace": {
+          "$ref": "#/$defs/QueryNamespace"
+        },
+        "retireThroughScopeSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "issuerId",
+        "namespace",
+        "retireThroughScopeSequence",
+        "authorizationExpectation",
+        "mac"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.resume.output.schema.json",
@@ -360,6 +404,12 @@
         "string",
         "null"
       ]
+    },
+    "scopeRetirements": {
+      "items": {
+        "$ref": "#/$defs/ScopeRetirement"
+      },
+      "type": "array"
     },
     "snapshot": {
       "anyOf": [

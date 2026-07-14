@@ -163,6 +163,17 @@
         "name": {
           "type": "string"
         },
+        "permissionBacking": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoomPermissionProjection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Durable row-existence projection that grants the room permission in\nsessions mode. The subject field equals the connection-bound user id;\nevery mapped table field equals its named room-scope field."
+        },
         "publish": {
           "$ref": "#/$defs/AccessPolicy"
         },
@@ -259,6 +270,30 @@
         "Custom"
       ],
       "type": "string"
+    },
+    "RoomPermissionProjection": {
+      "additionalProperties": false,
+      "properties": {
+        "scopeFields": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Exact room-scope field → backing-table field mapping.",
+          "type": "object"
+        },
+        "subjectField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "subjectField",
+        "scopeFields"
+      ],
+      "type": "object"
     },
     "TableManifest": {
       "properties": {

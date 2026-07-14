@@ -19,8 +19,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 use uuid::Uuid;
 
 pub const AUTH_INVALIDATION_PROTOCOL_VERSION: u32 = 1;
@@ -152,6 +152,38 @@ pub struct AuthorizationInvalidationConnection {
     pub protocol_version: u32,
     pub issuer_id: IssuerId,
     pub connection_generation: u64,
+    /// Closed initial client expectation. A clean subscription with no
+    /// pending projection must never invent epoch zero.
+    pub authorization: AuthorizationVersion,
+    pub version_stream: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer_retirement: Option<IssuerRetirement>,
+}
+
+/// Server-authenticated proof that one current-issuer namespace has no live or
+/// unresolved scope at or below a contiguous scope-sequence prefix. The proof
+/// is a cleanup/fencing fact only; accepting it never stands in for a result
+/// snapshot, a resolution ACK, or a release proof.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScopeRetirement {
+    pub issuer_id: IssuerId,
+    pub namespace: QueryNamespace,
+    pub retire_through_scope_sequence: u64,
+    pub authorization_expectation: AuthorizationVersion,
+    pub mac: String,
+}
+
+/// Server-authenticated proof that every live scope issued by an older boot in
+/// the same authorization incarnation is extinct. It cannot release retained
+/// bytes by itself; a current fresh snapshot must still satisfy their witness.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IssuerRetirement {
+    pub current_issuer: AuthenticatedBootIssuer,
+    pub retire_through_boot_sequence: u64,
+    pub authorization_expectation: AuthorizationVersion,
+    pub mac: String,
 }
 
 /// One process's authenticated live-scope identity and non-wrapping local
@@ -160,8 +192,17 @@ pub struct AuthorizationInvalidationConnection {
 #[derive(Clone)]
 pub struct LiveInvalidationIssuer {
     authenticated: AuthenticatedBootIssuer,
+    retirement_signer: Option<Arc<RetirementSigner>>,
+    authorization_expectation: Arc<RwLock<Option<AuthorizationVersion>>>,
+    version_stream: Arc<RwLock<Option<String>>>,
     next_connection_generation: Arc<AtomicU64>,
     next_scope_sequence: Arc<AtomicU64>,
+}
+
+struct RetirementSigner {
+    authenticator: IssuerAuthenticator,
+    target_profile_id: String,
+    app_id: String,
 }
 
 impl std::fmt::Debug for LiveInvalidationIssuer {
@@ -188,13 +229,105 @@ impl LiveInvalidationIssuer {
         }
         Ok(Self {
             authenticated,
+            retirement_signer: None,
+            authorization_expectation: Arc::new(RwLock::new(None)),
+            version_stream: Arc::new(RwLock::new(None)),
             next_connection_generation: Arc::new(AtomicU64::new(1)),
             next_scope_sequence: Arc::new(AtomicU64::new(1)),
         })
     }
 
+    /// Construct a production issuer that can authenticate retirement
+    /// frontiers with the exact key/target/app tuple that authenticated its
+    /// boot descriptor. Keeping the signer process-local makes ordinary
+    /// request input incapable of manufacturing cleanup authority.
+    pub fn with_authenticator(
+        authenticated: AuthenticatedBootIssuer,
+        authenticator: IssuerAuthenticator,
+        target_profile_id: impl Into<String>,
+        app_id: impl Into<String>,
+    ) -> SnapbackResult<Self> {
+        let target_profile_id = target_profile_id.into();
+        let app_id = app_id.into();
+        authenticator.verify(&authenticated, &target_profile_id, &app_id)?;
+        let mut issuer = Self::new(authenticated)?;
+        issuer.retirement_signer = Some(Arc::new(RetirementSigner {
+            authenticator,
+            target_profile_id,
+            app_id,
+        }));
+        Ok(issuer)
+    }
+
     pub fn authenticated(&self) -> &AuthenticatedBootIssuer {
         &self.authenticated
+    }
+
+    pub fn install_authorization_expectation(
+        &self,
+        authorization: AuthorizationVersion,
+    ) -> SnapbackResult<()> {
+        validate_retirement_authorization(&authorization, &self.authenticated.issuer_id)?;
+        let mut current = self
+            .authorization_expectation
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if current.as_ref().is_some_and(|current| {
+            current.incarnation != authorization.incarnation || current.epoch > authorization.epoch
+        }) {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "issuer authorization expectation cannot move backward or cross incarnation",
+            ));
+        }
+        *current = Some(authorization);
+        Ok(())
+    }
+
+    pub fn authorization_expectation(&self) -> SnapbackResult<AuthorizationVersion> {
+        self.authorization_expectation
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .ok_or_else(|| {
+                invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                    "invalidation issuer has no installed authorization expectation",
+                )
+            })
+    }
+
+    pub fn install_version_stream(&self, version_stream: impl Into<String>) -> SnapbackResult<()> {
+        let version_stream = version_stream.into();
+        validate_opaque(&version_stream, "versionStream")?;
+        let mut current = self
+            .version_stream
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if current
+            .as_ref()
+            .is_some_and(|current| current != &version_stream)
+        {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "issuer data version stream cannot change within one boot",
+            ));
+        }
+        *current = Some(version_stream);
+        Ok(())
+    }
+
+    pub fn version_stream(&self) -> SnapbackResult<String> {
+        self.version_stream
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .ok_or_else(|| {
+                invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                    "invalidation issuer has no installed data version stream",
+                )
+            })
     }
 
     pub fn reserve_connection_generation(&self) -> SnapbackResult<u64> {
@@ -211,6 +344,56 @@ impl LiveInvalidationIssuer {
             "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
             "authorization invalidation scope sequence exhausted",
         )
+    }
+
+    pub fn authenticate_scope_retirement(
+        &self,
+        namespace: QueryNamespace,
+        retire_through_scope_sequence: u64,
+    ) -> SnapbackResult<ScopeRetirement> {
+        let authorization_expectation = self.authorization_expectation()?;
+        let signer = self.retirement_signer.as_ref().ok_or_else(|| {
+            invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                "invalidation issuer has no retirement signer",
+            )
+        })?;
+        signer.authenticator.authenticate_scope_retirement(
+            self.authenticated(),
+            namespace,
+            retire_through_scope_sequence,
+            authorization_expectation,
+            &signer.target_profile_id,
+            &signer.app_id,
+        )
+    }
+
+    pub fn authenticate_prior_issuer_retirement(&self) -> SnapbackResult<Option<IssuerRetirement>> {
+        let authorization_expectation = self.authorization_expectation()?;
+        let Some(retire_through_boot_sequence) =
+            self.authenticated.issuer_id.boot_sequence.checked_sub(1)
+        else {
+            return Ok(None);
+        };
+        if retire_through_boot_sequence == 0 {
+            return Ok(None);
+        }
+        let signer = self.retirement_signer.as_ref().ok_or_else(|| {
+            invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                "invalidation issuer has no retirement signer",
+            )
+        })?;
+        signer
+            .authenticator
+            .authenticate_issuer_retirement(
+                self.authenticated(),
+                retire_through_boot_sequence,
+                authorization_expectation,
+                &signer.target_profile_id,
+                &signer.app_id,
+            )
+            .map(Some)
     }
 }
 
@@ -289,6 +472,142 @@ impl IssuerAuthenticator {
         })
     }
 
+    pub fn authenticate_scope_retirement(
+        &self,
+        authenticated: &AuthenticatedBootIssuer,
+        namespace: QueryNamespace,
+        retire_through_scope_sequence: u64,
+        authorization_expectation: AuthorizationVersion,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<ScopeRetirement> {
+        self.verify(authenticated, target_profile_id, app_id)?;
+        namespace.validate()?;
+        validate_counter(
+            retire_through_scope_sequence,
+            "scopeRetirement.retireThroughScopeSequence",
+            true,
+        )?;
+        validate_retirement_authorization(&authorization_expectation, &authenticated.issuer_id)?;
+        let mac = self.scope_retirement_mac(
+            authenticated,
+            &namespace,
+            retire_through_scope_sequence,
+            &authorization_expectation,
+            target_profile_id,
+            app_id,
+        )?;
+        Ok(ScopeRetirement {
+            issuer_id: authenticated.issuer_id.clone(),
+            namespace,
+            retire_through_scope_sequence,
+            authorization_expectation,
+            mac,
+        })
+    }
+
+    pub fn verify_scope_retirement(
+        &self,
+        retirement: &ScopeRetirement,
+        authenticated: &AuthenticatedBootIssuer,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<()> {
+        self.verify(authenticated, target_profile_id, app_id)?;
+        retirement.namespace.validate()?;
+        validate_counter(
+            retirement.retire_through_scope_sequence,
+            "scopeRetirement.retireThroughScopeSequence",
+            true,
+        )?;
+        validate_retirement_authorization(
+            &retirement.authorization_expectation,
+            &retirement.issuer_id,
+        )?;
+        if retirement.issuer_id != authenticated.issuer_id {
+            return Err(retirement_invalid(
+                "scope retirement was not issued by the authenticated current issuer",
+            ));
+        }
+        let expected = self.scope_retirement_base_mac(
+            authenticated,
+            &retirement.namespace,
+            retirement.retire_through_scope_sequence,
+            &retirement.authorization_expectation,
+            target_profile_id,
+            app_id,
+        )?;
+        verify_retirement_mac(expected, &retirement.mac)
+    }
+
+    pub fn authenticate_issuer_retirement(
+        &self,
+        current_issuer: &AuthenticatedBootIssuer,
+        retire_through_boot_sequence: u64,
+        authorization_expectation: AuthorizationVersion,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<IssuerRetirement> {
+        self.verify(current_issuer, target_profile_id, app_id)?;
+        validate_counter(
+            retire_through_boot_sequence,
+            "issuerRetirement.retireThroughBootSequence",
+            true,
+        )?;
+        if retire_through_boot_sequence >= current_issuer.issuer_id.boot_sequence {
+            return Err(retirement_invalid(
+                "issuer retirement must end strictly before the authenticated current boot",
+            ));
+        }
+        validate_retirement_authorization(&authorization_expectation, &current_issuer.issuer_id)?;
+        let mac = self.issuer_retirement_mac(
+            current_issuer,
+            retire_through_boot_sequence,
+            &authorization_expectation,
+            target_profile_id,
+            app_id,
+        )?;
+        Ok(IssuerRetirement {
+            current_issuer: current_issuer.clone(),
+            retire_through_boot_sequence,
+            authorization_expectation,
+            mac,
+        })
+    }
+
+    pub fn verify_issuer_retirement(
+        &self,
+        retirement: &IssuerRetirement,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<()> {
+        self.verify(&retirement.current_issuer, target_profile_id, app_id)?;
+        validate_counter(
+            retirement.retire_through_boot_sequence,
+            "issuerRetirement.retireThroughBootSequence",
+            true,
+        )?;
+        if retirement.retire_through_boot_sequence
+            >= retirement.current_issuer.issuer_id.boot_sequence
+        {
+            return Err(retirement_invalid(
+                "issuer retirement must end strictly before the authenticated current boot",
+            ));
+        }
+        validate_retirement_authorization(
+            &retirement.authorization_expectation,
+            &retirement.current_issuer.issuer_id,
+        )?;
+        let expected = self.issuer_retirement_base_mac(
+            &retirement.current_issuer,
+            retirement.retire_through_boot_sequence,
+            &retirement.authorization_expectation,
+            target_profile_id,
+            app_id,
+        )?;
+        verify_retirement_mac(expected, &retirement.mac)
+    }
+
     fn mac(
         &self,
         issuer_id: &IssuerId,
@@ -315,6 +634,141 @@ impl IssuerAuthenticator {
         put_string(&mut mac, &issuer_id.boot_nonce);
         Ok(mac)
     }
+
+    fn scope_retirement_mac(
+        &self,
+        authenticated: &AuthenticatedBootIssuer,
+        namespace: &QueryNamespace,
+        retire_through_scope_sequence: u64,
+        authorization_expectation: &AuthorizationVersion,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<String> {
+        let mac = self.scope_retirement_base_mac(
+            authenticated,
+            namespace,
+            retire_through_scope_sequence,
+            authorization_expectation,
+            target_profile_id,
+            app_id,
+        )?;
+        Ok(URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes()))
+    }
+
+    fn scope_retirement_base_mac(
+        &self,
+        authenticated: &AuthenticatedBootIssuer,
+        namespace: &QueryNamespace,
+        retire_through_scope_sequence: u64,
+        authorization_expectation: &AuthorizationVersion,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<HmacSha256> {
+        let mut mac = HmacSha256::new_from_slice(&self.key)
+            .map_err(|_| corrupt("protocol key has an invalid HMAC length"))?;
+        put_string(&mut mac, "snapback.auth-invalidation.scope-retirement.v1");
+        put_string(&mut mac, target_profile_id);
+        put_string(&mut mac, app_id);
+        put_authenticated_issuer(&mut mac, authenticated);
+        put_namespace(&mut mac, namespace);
+        mac.update(&retire_through_scope_sequence.to_be_bytes());
+        put_authorization(&mut mac, authorization_expectation);
+        Ok(mac)
+    }
+
+    fn issuer_retirement_mac(
+        &self,
+        current_issuer: &AuthenticatedBootIssuer,
+        retire_through_boot_sequence: u64,
+        authorization_expectation: &AuthorizationVersion,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<String> {
+        let mac = self.issuer_retirement_base_mac(
+            current_issuer,
+            retire_through_boot_sequence,
+            authorization_expectation,
+            target_profile_id,
+            app_id,
+        )?;
+        Ok(URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes()))
+    }
+
+    fn issuer_retirement_base_mac(
+        &self,
+        current_issuer: &AuthenticatedBootIssuer,
+        retire_through_boot_sequence: u64,
+        authorization_expectation: &AuthorizationVersion,
+        target_profile_id: &str,
+        app_id: &str,
+    ) -> SnapbackResult<HmacSha256> {
+        let mut mac = HmacSha256::new_from_slice(&self.key)
+            .map_err(|_| corrupt("protocol key has an invalid HMAC length"))?;
+        put_string(&mut mac, "snapback.auth-invalidation.issuer-retirement.v1");
+        put_string(&mut mac, target_profile_id);
+        put_string(&mut mac, app_id);
+        put_authenticated_issuer(&mut mac, current_issuer);
+        mac.update(&retire_through_boot_sequence.to_be_bytes());
+        put_authorization(&mut mac, authorization_expectation);
+        Ok(mac)
+    }
+}
+
+fn retirement_invalid(message: impl Into<String>) -> SnapbackError {
+    invalidation_error("SNAPBACK_AUTH_INVALIDATION_RETIREMENT_INVALID", message)
+}
+
+fn validate_retirement_authorization(
+    authorization: &AuthorizationVersion,
+    issuer: &IssuerId,
+) -> SnapbackResult<()> {
+    validate_uuid_v7(
+        &authorization.incarnation,
+        "retirement.authorizationExpectation.incarnation",
+    )?;
+    validate_counter(
+        authorization.epoch,
+        "retirement.authorizationExpectation.epoch",
+        false,
+    )?;
+    if authorization.incarnation != issuer.authorization_incarnation {
+        return Err(retirement_invalid(
+            "retirement authorization expectation crosses issuer incarnation",
+        ));
+    }
+    Ok(())
+}
+
+fn verify_retirement_mac(mac: HmacSha256, encoded: &str) -> SnapbackResult<()> {
+    let provided = URL_SAFE_NO_PAD.decode(encoded).map_err(|_| {
+        retirement_invalid("authorization retirement MAC is not canonical base64url")
+    })?;
+    if provided.len() != 32 || URL_SAFE_NO_PAD.encode(&provided) != encoded {
+        return Err(retirement_invalid(
+            "authorization retirement MAC is not a canonical SHA-256 value",
+        ));
+    }
+    mac.verify_slice(&provided)
+        .map_err(|_| retirement_invalid("authorization retirement authentication failed"))
+}
+
+fn put_authenticated_issuer(mac: &mut HmacSha256, authenticated: &AuthenticatedBootIssuer) {
+    put_string(mac, &authenticated.issuer_id.authorization_incarnation);
+    mac.update(&authenticated.issuer_id.boot_sequence.to_be_bytes());
+    put_string(mac, &authenticated.issuer_id.boot_nonce);
+    put_string(mac, &authenticated.key_id);
+    put_string(mac, &authenticated.mac);
+}
+
+fn put_namespace(mac: &mut HmacSha256, namespace: &QueryNamespace) {
+    put_string(mac, &namespace.client_store_id);
+    put_string(mac, &namespace.query_key);
+    mac.update(&namespace.query_instance_id.to_be_bytes());
+}
+
+fn put_authorization(mac: &mut HmacSha256, authorization: &AuthorizationVersion) {
+    put_string(mac, &authorization.incarnation);
+    mac.update(&authorization.epoch.to_be_bytes());
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
@@ -469,6 +923,11 @@ pub struct ResyncObligation {
     pub max_disposition: InvalidationDisposition,
     pub witness: CompositeWitness,
     pub retry_episode_id: Option<String>,
+    /// Cleanup ownership for the client-side pending token. This is not part
+    /// of scope/revision identity; retirement may finish only after this exact
+    /// continuity ends (except an already-applied terminal delete).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_continuity_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -522,6 +981,8 @@ pub struct ResolutionTicket {
     pub witness: CompositeWitness,
     pub max_disposition: InvalidationDisposition,
     pub ack_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_continuity_id: Option<String>,
 }
 
 /// One level-triggered live projection. Delivery is only a hint; the exact
@@ -541,6 +1002,12 @@ pub enum AcknowledgeOutcome {
     Stale,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScopeRetirementCandidate {
+    pub namespace: QueryNamespace,
+    pub retire_through_scope_sequence: u64,
+}
+
 /// Process-local persistent-until-discharge obligations. Process death ends
 /// every live scope; reconnect must allocate a new issuer and fresh snapshot.
 pub struct ObligationRegistry {
@@ -550,6 +1017,10 @@ pub struct ObligationRegistry {
     resolution_by_scope: BTreeMap<ScopeId, ResolutionTicket>,
     last_discharged: BTreeMap<ScopeId, (u64, String)>,
     connection_children: BTreeMap<ScopeId, BTreeSet<ScopeId>>,
+    active_subscription_scopes: BTreeSet<ScopeId>,
+    issued_scope_high_water: BTreeMap<(IssuerId, QueryNamespace), u64>,
+    scope_retirement_frontier: BTreeMap<(IssuerId, QueryNamespace), u64>,
+    owner_continuity_by_scope: BTreeMap<ScopeId, String>,
 }
 
 impl ObligationRegistry {
@@ -562,6 +1033,10 @@ impl ObligationRegistry {
             resolution_by_scope: BTreeMap::new(),
             last_discharged: BTreeMap::new(),
             connection_children: BTreeMap::new(),
+            active_subscription_scopes: BTreeSet::new(),
+            issued_scope_high_water: BTreeMap::new(),
+            scope_retirement_frontier: BTreeMap::new(),
+            owner_continuity_by_scope: BTreeMap::new(),
         })
     }
 
@@ -613,7 +1088,63 @@ impl ObligationRegistry {
         self.obligations.clear();
         self.resolution_by_scope.clear();
         self.connection_children.clear();
+        self.active_subscription_scopes.clear();
+        self.issued_scope_high_water.clear();
+        self.scope_retirement_frontier.clear();
+        self.owner_continuity_by_scope.clear();
         Ok(prior)
+    }
+
+    /// Register a published subscription scope before it can enter retained
+    /// live state. The per-namespace scalar is kept only while that namespace
+    /// has live scopes, so churn is bounded by current live state rather than
+    /// process lifetime.
+    pub fn register_live_scope(
+        &mut self,
+        scope_id: ScopeId,
+        owner_continuity_id: impl Into<String>,
+    ) -> SnapbackResult<()> {
+        scope_id.validate()?;
+        let owner_continuity_id = owner_continuity_id.into();
+        validate_opaque(&owner_continuity_id, "ownerContinuityId")?;
+        let ScopeId::Subscription {
+            issuer_id,
+            namespace,
+            scope_sequence,
+            ..
+        } = &scope_id
+        else {
+            return Err(corrupt(
+                "only subscription scopes can enter the live scope registry",
+            ));
+        };
+        if Some(issuer_id) != self.expectation.issuer_id.as_ref() {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID",
+                "live scope issuer is not the authenticated current boot issuer",
+            ));
+        }
+        let high_water = self
+            .issued_scope_high_water
+            .entry((issuer_id.clone(), namespace.clone()))
+            .or_default();
+        if *scope_sequence <= *high_water && !self.active_subscription_scopes.contains(&scope_id) {
+            return Err(corrupt(
+                "live scope sequence was published out of order or reused within its namespace",
+            ));
+        }
+        *high_water = (*high_water).max(*scope_sequence);
+        if let Some(existing) = self.owner_continuity_by_scope.get(&scope_id)
+            && existing != &owner_continuity_id
+        {
+            return Err(corrupt(
+                "one live scope was rebound to a different owner continuity",
+            ));
+        }
+        self.owner_continuity_by_scope
+            .insert(scope_id.clone(), owner_continuity_id);
+        self.active_subscription_scopes.insert(scope_id);
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -635,6 +1166,13 @@ impl ObligationRegistry {
             validate_opaque(id, "retryEpisodeId")?;
         }
         self.require_expected(&scope_id, &witness)?;
+        if matches!(scope_id, ScopeId::Subscription { .. })
+            && !self.owner_continuity_by_scope.contains_key(&scope_id)
+        {
+            return Err(corrupt(
+                "subscription obligation has no recorded owner continuity",
+            ));
+        }
 
         if let Some(current) = self.obligations.get(&scope_id) {
             if cause_sequence < current.cause_sequence {
@@ -695,6 +1233,7 @@ impl ObligationRegistry {
             max_disposition,
             witness,
             retry_episode_id,
+            owner_continuity_id: self.owner_continuity_by_scope.get(&scope_id).cloned(),
         };
         self.revision_high_water.insert(scope_id.clone(), revision);
         self.obligations.insert(
@@ -793,6 +1332,7 @@ impl ObligationRegistry {
             witness,
             max_disposition: current.obligation.max_disposition,
             ack_token: format!("ack_{}", Uuid::now_v7().simple()),
+            owner_continuity_id: current.obligation.owner_continuity_id.clone(),
         };
         self.resolution_by_scope
             .insert(scope_id.clone(), ticket.clone());
@@ -879,7 +1419,7 @@ impl ObligationRegistry {
         self.acknowledge(ack_token, true)
     }
 
-    pub fn retire_scope(&mut self, scope_id: &ScopeId) {
+    pub fn retire_scope(&mut self, scope_id: &ScopeId) -> Option<ScopeRetirementCandidate> {
         self.obligations.remove(scope_id);
         self.resolution_by_scope.remove(scope_id);
         // Live ScopeIds are never reused within an issuer, so continuity loss
@@ -887,7 +1427,58 @@ impl ObligationRegistry {
         // per-scope history without an ABA opening.
         self.revision_high_water.remove(scope_id);
         self.last_discharged.remove(scope_id);
+        self.owner_continuity_by_scope.remove(scope_id);
         self.discharge_connection_child(scope_id);
+        self.active_subscription_scopes.remove(scope_id);
+
+        let ScopeId::Subscription {
+            issuer_id,
+            namespace,
+            ..
+        } = scope_id
+        else {
+            return None;
+        };
+        let key = (issuer_id.clone(), namespace.clone());
+        let issued = self.issued_scope_high_water.get(&key).copied()?;
+        let first_blocker = self
+            .active_subscription_scopes
+            .iter()
+            .chain(self.obligations.keys())
+            .filter_map(|candidate| match candidate {
+                ScopeId::Subscription {
+                    issuer_id: candidate_issuer,
+                    namespace: candidate_namespace,
+                    scope_sequence,
+                    ..
+                } if candidate_issuer == issuer_id && candidate_namespace == namespace => {
+                    Some(*scope_sequence)
+                }
+                _ => None,
+            })
+            .min();
+        let candidate = first_blocker
+            .and_then(|sequence| sequence.checked_sub(1))
+            .unwrap_or(issued)
+            .min(issued);
+        let previous = self
+            .scope_retirement_frontier
+            .get(&key)
+            .copied()
+            .unwrap_or(0);
+        if candidate == 0 || candidate <= previous {
+            return None;
+        }
+        self.scope_retirement_frontier
+            .insert(key.clone(), candidate);
+        if first_blocker.is_none() {
+            self.issued_scope_high_water.remove(&key);
+            self.scope_retirement_frontier.remove(&key);
+        }
+        Some(ScopeRetirementCandidate {
+            namespace: namespace.clone(),
+            retire_through_scope_sequence: candidate,
+        })
     }
 
     pub fn retire_connection(&mut self, issuer_id: &IssuerId, connection_generation: u64) {
@@ -898,6 +1489,7 @@ impl ObligationRegistry {
         let scopes = self
             .obligations
             .keys()
+            .chain(self.active_subscription_scopes.iter())
             .filter(|scope| match scope {
                 ScopeId::Connection {
                     issuer_id: scope_issuer,
@@ -913,7 +1505,7 @@ impl ObligationRegistry {
             .cloned()
             .collect::<Vec<_>>();
         for scope in scopes {
-            self.retire_scope(&scope);
+            let _ = self.retire_scope(&scope);
         }
         self.connection_children.remove(&connection);
         self.obligations.remove(&connection);
@@ -1257,6 +1849,16 @@ impl RetryEpisodeRegistry {
         if episode.manual_retry_id.as_deref() == Some(&manual_retry_id) {
             return Ok(RetryReservation::Attached(episode.clone()));
         }
+        if episode.attempts_reserved < AUTH_ERROR_ATTEMPTS_TOTAL
+            && !episode
+                .deadline_ms
+                .is_some_and(|deadline| now_ms > deadline)
+        {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
+                "manual retry cannot replace an authorization retry episode before exhaustion",
+            ));
+        }
         episode.episode_id = format!("retry_{}", Uuid::now_v7().simple());
         episode.first_attempt_reserved_at_ms = now_ms;
         episode.first_failure_at_ms = None;
@@ -1363,12 +1965,16 @@ mod tests {
     }
 
     fn scope(instance: u64) -> ScopeId {
+        scope_with_sequence(instance, 3)
+    }
+
+    fn scope_with_sequence(instance: u64, scope_sequence: u64) -> ScopeId {
         ScopeId::Subscription {
             issuer_id: issuer(),
             namespace: namespace(instance),
-            scope_sequence: 3,
+            scope_sequence,
             connection_generation: 5,
-            subscription_id: format!("sub-{instance}"),
+            subscription_id: format!("sub-{instance}-{scope_sequence}"),
         }
     }
 
@@ -1394,6 +2000,12 @@ mod tests {
         .unwrap()
     }
 
+    fn register_scope(registry: &mut ObligationRegistry, instance: u64) {
+        registry
+            .register_live_scope(scope(instance), format!("owner-{instance}"))
+            .unwrap();
+    }
+
     #[test]
     fn issuer_mac_binds_target_app_and_every_issuer_field() {
         let signer = IssuerAuthenticator::new("protocol-key", [7_u8; 32]).unwrap();
@@ -1406,8 +2018,118 @@ mod tests {
     }
 
     #[test]
+    fn retirement_macs_bind_frontier_namespace_expectation_and_current_boot() {
+        let signer = IssuerAuthenticator::new("protocol-key", [7_u8; 32]).unwrap();
+        let authenticated = signer.authenticate(issuer(), "local-dev", "app-A").unwrap();
+        let scope_retirement = signer
+            .authenticate_scope_retirement(
+                &authenticated,
+                namespace(1),
+                9,
+                witness(0).authorization,
+                "local-dev",
+                "app-A",
+            )
+            .unwrap();
+        signer
+            .verify_scope_retirement(&scope_retirement, &authenticated, "local-dev", "app-A")
+            .unwrap();
+        let mut forged_scope = scope_retirement.clone();
+        forged_scope.retire_through_scope_sequence += 1;
+        assert!(
+            signer
+                .verify_scope_retirement(&forged_scope, &authenticated, "local-dev", "app-A")
+                .is_err()
+        );
+
+        let issuer_retirement = signer
+            .authenticate_issuer_retirement(
+                &authenticated,
+                authenticated.issuer_id.boot_sequence - 1,
+                witness(0).authorization,
+                "local-dev",
+                "app-A",
+            )
+            .unwrap();
+        signer
+            .verify_issuer_retirement(&issuer_retirement, "local-dev", "app-A")
+            .unwrap();
+        let mut forged_issuer = issuer_retirement;
+        forged_issuer.retire_through_boot_sequence -= 1;
+        assert!(
+            signer
+                .verify_issuer_retirement(&forged_issuer, "local-dev", "app-A")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn scope_retirement_advances_only_below_live_or_unresolved_scopes() {
+        let mut registry = registry();
+        let first = scope_with_sequence(1, 3);
+        let second = scope_with_sequence(1, 5);
+        registry
+            .register_live_scope(first.clone(), "owner-first")
+            .unwrap();
+        registry
+            .register_live_scope(second.clone(), "owner-second")
+            .unwrap();
+        registry
+            .raise(
+                second.clone(),
+                1,
+                "second-pending",
+                InvalidationDisposition::Quarantine,
+                witness(1),
+                None,
+            )
+            .unwrap();
+
+        let first_retirement = registry.retire_scope(&first).unwrap();
+        assert_eq!(first_retirement.retire_through_scope_sequence, 4);
+        assert!(registry.retire_scope(&second).is_some());
+        assert!(registry.pending(&second).is_none());
+    }
+
+    #[test]
+    fn resolution_carries_exact_recorded_owner_continuity() {
+        let mut registry = registry();
+        let scope = scope(1);
+        registry
+            .register_live_scope(scope.clone(), "tab-continuity-1")
+            .unwrap();
+        let obligation = registry
+            .raise(
+                scope.clone(),
+                1,
+                "cause-1",
+                InvalidationDisposition::Quarantine,
+                witness(1),
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            obligation.owner_continuity_id.as_deref(),
+            Some("tab-continuity-1")
+        );
+        let resolution = registry
+            .issue_resolution(&scope, ResolutionKind::Snapshot, witness(1))
+            .unwrap();
+        assert_eq!(
+            resolution.owner_continuity_id.as_deref(),
+            Some("tab-continuity-1")
+        );
+        assert!(
+            registry
+                .register_live_scope(scope, "different-continuity")
+                .is_err()
+        );
+    }
+
+    #[test]
     fn semantic_causes_are_idempotent_and_revisions_merge_monotonically() {
         let mut registry = registry();
+        register_scope(&mut registry, 1);
         let first = registry
             .raise(
                 scope(1),
@@ -1448,6 +2170,7 @@ mod tests {
     #[test]
     fn acknowledgement_is_exact_revision_and_after_commit_only() {
         let mut registry = registry();
+        register_scope(&mut registry, 1);
         let pending = registry
             .raise(
                 scope(1),
@@ -1498,6 +2221,8 @@ mod tests {
     #[test]
     fn distinct_scope_revision_domains_coexist() {
         let mut registry = registry();
+        register_scope(&mut registry, 1);
+        register_scope(&mut registry, 2);
         for sequence in 1..=5 {
             registry
                 .raise(
@@ -1591,8 +2316,20 @@ mod tests {
         retries
             .reserve(key.clone(), witness(1), 1, RetryReservationKind::Initial)
             .unwrap();
-        let first = retries.manual_retry(&key, "manual-1", 2).unwrap();
-        let duplicate = retries.manual_retry(&key, "manual-1", 3).unwrap();
+        retries.record_failure(&key, 2).unwrap();
+        for now in [3, 4] {
+            retries
+                .reserve(
+                    key.clone(),
+                    witness(1),
+                    now,
+                    RetryReservationKind::Automatic,
+                )
+                .unwrap();
+            retries.record_failure(&key, now).unwrap();
+        }
+        let first = retries.manual_retry(&key, "manual-1", 5).unwrap();
+        let duplicate = retries.manual_retry(&key, "manual-1", 6).unwrap();
         let RetryReservation::Reserved(first) = first else {
             panic!("manual retry must reserve")
         };
@@ -1601,5 +2338,20 @@ mod tests {
         };
         assert_eq!(first.episode_id, duplicate.episode_id);
         assert_eq!(retries.episodes.len(), 1);
+    }
+
+    #[test]
+    fn manual_retry_cannot_reset_an_episode_before_exhaustion() {
+        let mut retries = RetryEpisodeRegistry::default();
+        let key = retry_key("todos:{}");
+        retries
+            .reserve(key.clone(), witness(1), 1, RetryReservationKind::Initial)
+            .unwrap();
+        retries.record_failure(&key, 2).unwrap();
+
+        let error = retries.manual_retry(&key, "manual-1", 3).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED");
+        assert_eq!(retries.episodes[&key].attempts_reserved, 1);
+        assert!(retries.episodes[&key].manual_retry_id.is_none());
     }
 }

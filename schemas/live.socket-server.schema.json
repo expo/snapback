@@ -115,6 +115,16 @@
           "const": "RoomLimitExceeded",
           "description": "A hard room/store limit (active rooms, entries per room, subscribers\nper room, aggregate room bytes) rejected the operation. The limits are\ncapability facts; hitting one is a structured rejection, never a\nsilent eviction of live entries.\n\n@ref LLP 0013#room-store-model — memory pressure must be explicit.",
           "type": "string"
+        },
+        {
+          "const": "AuthorityPending",
+          "description": "A permission-changing transaction installed the room's precommit\nauthority barrier. No protected sink may act until exact finalization\nand fresh reauthorization complete.",
+          "type": "string"
+        },
+        {
+          "const": "PermissionDenied",
+          "description": "Trusted server-side durable membership denial. Unlike the legacy\n`Unauthorized` code, this is safe for the client auth coordinator to\ntreat as an authorization-loss transition.",
+          "type": "string"
         }
       ]
     },
@@ -140,6 +150,11 @@
                 "room": {
                   "$ref": "#/$defs/RoomId"
                 },
+                "room_authority_generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "scope_epoch": {
                   "format": "uint64",
                   "minimum": 0,
@@ -149,6 +164,7 @@
               "required": [
                 "room",
                 "scope_epoch",
+                "room_authority_generation",
                 "high_water_version",
                 "entries"
               ],
@@ -170,10 +186,16 @@
                 },
                 "room": {
                   "$ref": "#/$defs/RoomId"
+                },
+                "room_authority_generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
                 }
               },
               "required": [
                 "room",
+                "room_authority_generation",
                 "entry"
               ],
               "type": "object"
@@ -203,6 +225,11 @@
                 "room": {
                   "$ref": "#/$defs/RoomId"
                 },
+                "room_authority_generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "scope_epoch": {
                   "format": "uint64",
                   "minimum": 0,
@@ -213,6 +240,7 @@
                 "room",
                 "key",
                 "scope_epoch",
+                "room_authority_generation",
                 "entry_version",
                 "reason"
               ],
@@ -235,6 +263,11 @@
                 "room": {
                   "$ref": "#/$defs/RoomId"
                 },
+                "room_authority_generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "scope_epoch": {
                   "format": "uint64",
                   "minimum": 0,
@@ -244,6 +277,7 @@
               "required": [
                 "room",
                 "scope_epoch",
+                "room_authority_generation",
                 "reason"
               ],
               "type": "object"
@@ -270,6 +304,14 @@
                     {
                       "type": "null"
                     }
+                  ]
+                },
+                "room_authority_generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
                   ]
                 }
               },
@@ -311,7 +353,8 @@
       "enum": [
         "Deleted",
         "Disconnected",
-        "Expired"
+        "Expired",
+        "AuthRevoked"
       ],
       "type": "string"
     },
@@ -321,7 +364,8 @@
         "QueueOverflow",
         "EpochChanged",
         "Restarted",
-        "Disconnected"
+        "Disconnected",
+        "AuthChanged"
       ],
       "type": "string"
     },

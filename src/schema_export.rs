@@ -30,9 +30,11 @@ use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
 use crate::local::{
-    AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput, EnsureAppRequest,
-    EnsureAppResponse, InspectState, LiveResumeInput, LiveResumeOutput, LiveSubscribeInput,
-    LiveSubscribeOutput, LiveUnsubscribeInput, LiveUnsubscribeOutput, PublicInspect,
+    AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
+    AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
+    EnsureAppRequest, EnsureAppResponse, InspectState, LiveResumeInput, LiveResumeOutput,
+    LiveSubscribeInput, LiveSubscribeOutput, LiveUnsubscribeInput, LiveUnsubscribeOutput,
+    PublicInspect,
 };
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
@@ -231,6 +233,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "authorization-invalidation.ack.output.schema.json",
             schemars::schema_for!(AuthorizationInvalidationAckOutput),
+        ),
+        finish(
+            "authorization-invalidation.manual-retry.input.schema.json",
+            schemars::schema_for!(AuthorizationInvalidationManualRetryInput),
+        ),
+        finish(
+            "authorization-invalidation.manual-retry.output.schema.json",
+            schemars::schema_for!(AuthorizationInvalidationManualRetryOutput),
         ),
         finish(
             "query.input.schema.json",

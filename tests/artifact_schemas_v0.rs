@@ -832,6 +832,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                     routing_key: "cursors|3:doc=2:d1".to_owned(),
                 },
                 scope_epoch: 1,
+                room_authority_generation: 0,
                 reason: ResyncReason::Restarted,
             },
         },
@@ -929,6 +930,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 routing_key: "cursors|3:doc=2:d1".to_owned(),
             },
             scope_epoch: 1,
+            room_authority_generation: 0,
             reason: ResyncReason::QueueOverflow,
         }),
     ] {
@@ -1031,6 +1033,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             receipt: Some(json!({ "kind": "subscription" })),
             authorization_scope: None,
             authorization_invalidation: None,
+            scope_retirements: Vec::new(),
         })
         .unwrap(),
     );
@@ -1088,6 +1091,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             permission_epochs: std::collections::BTreeMap::new(),
             authorization_scope: None,
             authorization_invalidation: None,
+            scope_retirements: Vec::new(),
         })
         .unwrap(),
     );
@@ -1107,6 +1111,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             subscription_id: "sub_1".to_owned(),
             disposed: true,
             receipt: None,
+            scope_retirement: None,
         })
         .unwrap(),
     );

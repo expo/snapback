@@ -4,8 +4,8 @@ use crate::auth::admission::{AdmissionController, ModeCommitFailure, ModeTransit
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
-    ObligationRegistry, QueryNamespace, ResolutionKind, RetryEpisodeKey, RetryReservation,
-    RetryReservationKind, ScopeId,
+    ObligationRegistry, QueryNamespace, ResolutionKind, RetryEpisode, RetryEpisodeKey,
+    RetryReservation, RetryReservationKind, ScopeId, ScopeRetirement,
 };
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
@@ -23,9 +23,10 @@ use crate::diagnostic::{
     Diagnostic, DiagnosticSeverity, PublicDiagnostic, SnapbackError, SnapbackResult,
 };
 use crate::ephemeral::{
-    CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
+    AuthContext, CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
     EphemeralDiagnostics, EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest,
-    RealtimeEnvelope, SubscribeRequest, validate_collection_definitions,
+    RealtimeEnvelope, RoomPermissionProjection, RoomSubscriberResolution, SubscribeRequest,
+    validate_collection_definitions, validate_collection_permission_backing,
 };
 use crate::live_matcher::{
     LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
@@ -601,6 +602,12 @@ pub struct LiveSubscribeOutput {
         skip_serializing_if = "Option::is_none"
     )]
     pub authorization_invalidation: Option<AuthorizationInvalidationProjection>,
+    #[serde(
+        default,
+        rename = "scopeRetirements",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub scope_retirements: Vec<ScopeRetirement>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -639,6 +646,12 @@ pub struct LiveResumeOutput {
         skip_serializing_if = "Option::is_none"
     )]
     pub authorization_invalidation: Option<AuthorizationInvalidationProjection>,
+    #[serde(
+        default,
+        rename = "scopeRetirements",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub scope_retirements: Vec<ScopeRetirement>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -655,6 +668,12 @@ pub struct LiveUnsubscribeOutput {
     pub disposed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<Value>,
+    #[serde(
+        default,
+        rename = "scopeRetirement",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub scope_retirement: Option<ScopeRetirement>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -668,6 +687,26 @@ pub struct AuthorizationInvalidationAckInput {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizationInvalidationAckOutput {
     pub outcome: String,
+}
+
+/// An explicit operator/user retry names one exact live query and one fresh
+/// idempotency key. The server derives the durable retry key from the retained
+/// subscription authority; no caller-provided authority subject or canonical
+/// query key is trusted.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationManualRetryInput {
+    pub connection_id: String,
+    pub subscription_id: String,
+    pub manual_retry_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationInvalidationManualRetryOutput {
+    pub outcome: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_episode_id: Option<String>,
 }
 
 /// The legacy v0-dev compatibility form of the single idempotent
@@ -1303,6 +1342,24 @@ impl ConnectionActivity {
         self.lock().insert(connection_id.to_owned(), now_ms);
     }
 
+    /// Linearize an operation against reaping. The activity lock is held
+    /// through `act`; disconnect removes activity before taking any room or
+    /// outbox lock, so the shared order is activity → ephemeral state.
+    fn act_if_active<T>(
+        &self,
+        connection_id: &str,
+        now_ms: u64,
+        act: impl FnOnce() -> T,
+    ) -> Option<T> {
+        let mut activity = self.lock();
+        if !activity.contains_key(connection_id) {
+            return None;
+        }
+        let output = act();
+        activity.insert(connection_id.to_owned(), now_ms);
+        Some(output)
+    }
+
     fn remove(&self, connection_id: &str) {
         self.lock().remove(connection_id);
     }
@@ -1422,6 +1479,26 @@ impl EphemeralApi {
         drained
     }
 
+    /// Destructive HTTP drain that distinguishes a live empty queue from an
+    /// extinct connection. `None` is a typed resnapshot boundary at the HTTP
+    /// adapter; it must never be serialized as a healthy `[]`.
+    pub fn drain_outbox_if_active(&self, connection_id: &str) -> Option<Vec<RealtimeEnvelope>> {
+        self.activity
+            .act_if_active(connection_id, now_millis(), || {
+                self.store.drain_outbox(connection_id)
+            })
+    }
+
+    pub(crate) fn drain_outbox_for_send_if_active(
+        &self,
+        connection_id: &str,
+    ) -> Option<Vec<crate::ephemeral::AdmittedRealtimeEnvelope>> {
+        self.activity
+            .act_if_active(connection_id, now_millis(), || {
+                self.store.drain_outbox_for_send(connection_id)
+            })
+    }
+
     /// Drain for the WS push task. Unlike `drain_outbox` (an HTTP poll, which
     /// is client-initiated and therefore liveness), this drain is
     /// *server-initiated* — the 30s safety net calls it even when the peer has
@@ -1441,6 +1518,28 @@ impl EphemeralApi {
             self.activity.touch(connection_id, now_millis());
         }
         Some(drained.into_iter().filter_map(live_stream_text).collect())
+    }
+
+    pub(crate) fn drain_live_stream_for_send_if_current(
+        &self,
+        connection_id: &str,
+        generation: u64,
+    ) -> Option<Vec<crate::ephemeral::AdmittedRealtimeEnvelope>> {
+        let drained = self
+            .store
+            .drain_outbox_for_send_if_current(connection_id, generation)?;
+        if !drained.is_empty() {
+            self.activity.touch(connection_id, now_millis());
+        }
+        Some(drained)
+    }
+
+    pub(crate) fn begin_final_send(
+        &self,
+        envelope: &RealtimeEnvelope,
+    ) -> Result<Option<crate::ephemeral::RoomAuthorityPermit>, crate::ephemeral::EphemeralError>
+    {
+        self.store.begin_final_send(envelope)
     }
 
     /// Embedded/test compatibility drain without socket-generation ownership.
@@ -1671,6 +1770,15 @@ struct LocalInvalidationState {
 }
 
 impl LocalInvalidationState {
+    fn accepts_connection(&self, connection: &AuthorizationInvalidationConnection) -> bool {
+        let current = &self.obligations.expectation().authorization;
+        connection.protocol_version == crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
+            && connection.issuer_id == self.issuer.authenticated().issuer_id
+            && connection.authorization.incarnation == current.incarnation
+            && connection.authorization.epoch <= current.epoch
+            && connection.version_stream == self.version_stream
+    }
+
     fn reserve_cause_sequence(&mut self) -> SnapbackResult<u64> {
         let current = self.next_cause_sequence;
         self.next_cause_sequence = current
@@ -1694,6 +1802,21 @@ impl LocalInvalidationState {
                 min_commit_version,
             }),
         }
+    }
+
+    fn retire_scope_authenticated(
+        &mut self,
+        scope: &ScopeId,
+    ) -> SnapbackResult<Option<ScopeRetirement>> {
+        self.obligations
+            .retire_scope(scope)
+            .map(|candidate| {
+                self.issuer.authenticate_scope_retirement(
+                    candidate.namespace,
+                    candidate.retire_through_scope_sequence,
+                )
+            })
+            .transpose()
     }
 }
 
@@ -1724,6 +1847,7 @@ struct LiveSubscriptionAuthorization {
     scope_id: ScopeId,
     namespace: QueryNamespace,
     authority_subject: String,
+    owner_continuity_id: String,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1867,6 +1991,12 @@ impl LocalSnapback {
         artifacts.functions.validate_artifact()?;
         validate_collection_definitions(&artifacts.schema.ephemeral_collections)
             .map_err(ephemeral_manifest_error)?;
+        validate_collection_permission_backing(
+            &artifacts.schema.ephemeral_collections,
+            &artifacts.schema.tables,
+            requested_mode == AuthMode::Sessions,
+        )
+        .map_err(ephemeral_manifest_error)?;
 
         let deployment = artifacts.deployment_identity(requested_mode)?;
         let target = CapabilityManifest::local_v0_declared();
@@ -1937,6 +2067,8 @@ impl LocalSnapback {
         authorization: crate::storage::AuthorizationVersion,
         version_stream: String,
     ) -> SnapbackResult<()> {
+        issuer.install_authorization_expectation(authorization.clone())?;
+        issuer.install_version_stream(version_stream.clone())?;
         let obligations = ObligationRegistry::new(ObligationExpectation {
             authorization,
             version_stream: Some(version_stream.clone()),
@@ -1948,6 +2080,8 @@ impl LocalSnapback {
             version_stream,
             next_cause_sequence: 1,
         });
+        self.db
+            .install_authorization_interlock(Arc::new(self.ephemeral.clone()));
         Ok(())
     }
 
@@ -1955,6 +2089,12 @@ impl LocalSnapback {
         manifest.validate_artifact()?;
         validate_collection_definitions(&manifest.ephemeral_collections)
             .map_err(ephemeral_manifest_error)?;
+        validate_collection_permission_backing(
+            &manifest.ephemeral_collections,
+            &manifest.tables,
+            manifest.effective_auth_mode() == AuthMode::Sessions,
+        )
+        .map_err(ephemeral_manifest_error)?;
         let ephemeral_collections = manifest.ephemeral_collections.clone();
         let generation = next_app_generation()?;
         let diagnostics = self.db.apply_schema(manifest)?;
@@ -3596,7 +3736,7 @@ impl LocalSnapback {
                 .auth_invalidation
                 .as_ref()
                 .expect("auth-scoped admission checked installed state");
-            if connection.issuer_id != state.issuer.authenticated().issuer_id {
+            if !state.accepts_connection(&connection) {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
@@ -3671,6 +3811,7 @@ impl LocalSnapback {
         self.touch_connection(&input.connection_id, now_millis());
         let mut authorization_scope = None;
         let mut authorization_invalidation = None;
+        let mut scope_retirements = Vec::new();
         let subscription_authorization = if let Some((connection, namespace)) =
             authorization_admission
         {
@@ -3689,6 +3830,10 @@ impl LocalSnapback {
                 issuer_id: connection.issuer_id,
                 connection_generation: connection.connection_generation,
             };
+            let owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
+            state
+                .obligations
+                .register_live_scope(scope_id.clone(), owner_continuity_id.clone())?;
             if state
                 .obligations
                 .register_connection_child(&connection_scope, scope_id.clone())?
@@ -3711,6 +3856,7 @@ impl LocalSnapback {
                 scope_id,
                 namespace,
                 authority_subject,
+                owner_continuity_id,
             })
         } else {
             None
@@ -3732,7 +3878,9 @@ impl LocalSnapback {
             if let (Some(state), Some(scope)) =
                 (self.auth_invalidation.as_mut(), retired_scope.as_ref())
             {
-                state.obligations.retire_scope(scope);
+                if let Some(retirement) = state.retire_scope_authenticated(scope)? {
+                    scope_retirements.push(retirement);
+                }
             }
             let receipt = Receipt::Subscription {
                 event: SubscriptionReceiptEvent::Disposed,
@@ -3800,6 +3948,7 @@ impl LocalSnapback {
             receipt: Some(receipt),
             authorization_scope,
             authorization_invalidation,
+            scope_retirements,
         })
     }
 
@@ -3872,12 +4021,14 @@ impl LocalSnapback {
         let _publication = authority.effect_guard("live unsubscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
-        if let (Some(state), Some(authorization)) = (
+        let scope_retirement = if let (Some(state), Some(authorization)) = (
             self.auth_invalidation.as_mut(),
             subscription.authorization.as_ref(),
         ) {
-            state.obligations.retire_scope(&authorization.scope_id);
-        }
+            state.retire_scope_authenticated(&authorization.scope_id)?
+        } else {
+            None
+        };
         // Losing the last watcher of a demand-gated live query disarms cron.
         self.refresh_cron_active();
         let receipt = Receipt::Subscription {
@@ -3901,6 +4052,7 @@ impl LocalSnapback {
             subscription_id: subscription.id,
             disposed: true,
             receipt: Some(receipt),
+            scope_retirement,
         })
     }
 
@@ -3923,10 +4075,7 @@ impl LocalSnapback {
                 "authorization invalidation is not installed",
             )
         })?;
-        if connection.protocol_version
-            != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
-            || connection.issuer_id != state.issuer.authenticated().issuer_id
-        {
+        if !state.accepts_connection(&connection) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                 "auth",
@@ -3946,6 +4095,142 @@ impl LocalSnapback {
             }
             .to_owned(),
         })
+    }
+
+    /// Open a new bounded retry episode only through an explicit, exact-owner
+    /// operation. Reconnect, subscribe, resume, revision changes, and ordinary
+    /// re-fire all remain attached to the exhausted durable episode.
+    ///
+    /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — manual retry
+    /// is authority-checked and idempotent, and replaces the same durable key.
+    pub(crate) fn manual_retry_authorization_invalidation(
+        &mut self,
+        input: AuthorizationInvalidationManualRetryInput,
+        connection: AuthorizationInvalidationConnection,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<AuthorizationInvalidationManualRetryOutput> {
+        if authority.source() != InvocationSource::StandaloneAcknowledgement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "authorization invalidation manual retry requires standalone acknowledgement authority",
+            ));
+        }
+        authority.validate_admission("authorization invalidation manual retry")?;
+        self.touch_connection(&input.connection_id, now_millis());
+        let subscription = self
+            .subscriptions
+            .get(&input.subscription_id)
+            .cloned()
+            .ok_or_else(auth_resnapshot_required)?;
+        if subscription.connection_id != input.connection_id
+            || !subscription.authority.matches(&authority)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+                "realtime",
+                "authorization invalidation retry belongs to a different live owner",
+            ));
+        }
+        let subscription_authorization = subscription.authorization.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "manual authorization retry requires an auth-scoped subscription",
+            )
+        })?;
+        let state = self.auth_invalidation.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "authorization invalidation is not installed",
+            )
+        })?;
+        if !state.accepts_connection(&connection)
+            || !matches!(
+                &subscription_authorization.scope_id,
+                ScopeId::Subscription {
+                    issuer_id,
+                    connection_generation,
+                    ..
+                } if issuer_id == &connection.issuer_id
+                    && *connection_generation == connection.connection_generation
+            )
+        {
+            return Err(auth_resnapshot_required());
+        }
+        let witness_floor = state
+            .obligations
+            .pending(&subscription_authorization.scope_id)
+            .map(|pending| pending.witness.clone())
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_RETRY_NOT_PENDING",
+                    "auth",
+                    "manual retry requires a current unresolved authorization obligation",
+                )
+            })?;
+        let key = Self::authorization_retry_key(&subscription)
+            .expect("auth-scoped subscription has a retry key");
+        let reservation = self.db.with_invalidation_retry_registry(|registry| {
+            registry.manual_retry(&key, input.manual_retry_id, now_millis())
+        })?;
+        let episode = match reservation {
+            RetryReservation::Attached(episode) => {
+                return Ok(AuthorizationInvalidationManualRetryOutput {
+                    outcome: "attached".to_owned(),
+                    retry_episode_id: Some(episode.episode_id),
+                });
+            }
+            RetryReservation::Reserved(episode) => episode,
+            RetryReservation::Exhausted(_) => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_RETRY_EXHAUSTED",
+                    "auth",
+                    "manual retry reservation remained exhausted",
+                ));
+            }
+        };
+        let retry_episode_id = episode.episode_id.clone();
+        match self.invoke_authorization_resolution_with_episode(
+            &subscription,
+            witness_floor,
+            authority.admission_lease(),
+            key,
+            episode,
+        ) {
+            Ok(query) => {
+                self.deliver_authorization_snapshot(
+                    &subscription,
+                    query,
+                    "manual_retry",
+                    false,
+                    authority.admission_lease(),
+                )?;
+                Ok(AuthorizationInvalidationManualRetryOutput {
+                    outcome: "resolved".to_owned(),
+                    retry_episode_id: Some(retry_episode_id),
+                })
+            }
+            Err(failure) => {
+                let terminal = failure.error.is_trusted_permission_denial();
+                self.fail_subscription_fanout_with_retry(
+                    &subscription,
+                    if terminal {
+                        "authorization_manual_retry_denied"
+                    } else {
+                        "authorization_manual_retry_failed"
+                    },
+                    failure.error,
+                    failure.retry_episode_id.clone(),
+                    authority.admission_lease(),
+                )?;
+                Ok(AuthorizationInvalidationManualRetryOutput {
+                    outcome: if terminal { "denied" } else { "exhausted" }.to_owned(),
+                    retry_episode_id: failure.retry_episode_id,
+                })
+            }
+        }
     }
 
     /// @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs — retained resume compares client-recorded permission epochs before trusting retained rows.
@@ -4009,11 +4294,15 @@ impl LocalSnapback {
             .get(&input.subscription_id)
             .cloned()
             .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_UNKNOWN_SUBSCRIPTION",
-                    "realtime",
-                    format!("unknown live subscription {}", input.subscription_id),
-                )
+                if authority.active_mode() == AuthMode::Sessions {
+                    auth_resnapshot_required()
+                } else {
+                    SnapbackError::error(
+                        "SNAPBACK_UNKNOWN_SUBSCRIPTION",
+                        "realtime",
+                        format!("unknown live subscription {}", input.subscription_id),
+                    )
+                }
             })?;
         if subscription.function != name {
             return Err(SnapbackError::error(
@@ -4038,6 +4327,7 @@ impl LocalSnapback {
         }
 
         if let Some(mut authorization) = subscription.authorization.take() {
+            let mut scope_retirements = Vec::new();
             if authority.active_mode() != AuthMode::Sessions {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -4059,10 +4349,7 @@ impl LocalSnapback {
                     "authorization invalidation is not installed",
                 )
             })?;
-            if connection.protocol_version
-                != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
-                || connection.issuer_id != state.issuer.authenticated().issuer_id
-            {
+            if !state.accepts_connection(&connection) {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
@@ -4081,7 +4368,11 @@ impl LocalSnapback {
             );
             if connection_changed {
                 let previous = state.obligations.pending(&authorization.scope_id).cloned();
-                state.obligations.retire_scope(&authorization.scope_id);
+                if let Some(retirement) =
+                    state.retire_scope_authenticated(&authorization.scope_id)?
+                {
+                    scope_retirements.push(retirement);
+                }
                 let replacement = ScopeId::Subscription {
                     issuer_id: connection.issuer_id.clone(),
                     namespace: authorization.namespace.clone(),
@@ -4093,6 +4384,11 @@ impl LocalSnapback {
                     issuer_id: connection.issuer_id,
                     connection_generation: connection.connection_generation,
                 };
+                authorization.owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
+                state.obligations.register_live_scope(
+                    replacement.clone(),
+                    authorization.owner_continuity_id.clone(),
+                )?;
                 state
                     .obligations
                     .register_connection_child(&connection_scope, replacement.clone())?;
@@ -4187,6 +4483,7 @@ impl LocalSnapback {
                 permission_epochs,
                 authorization_scope: Some(authorization.scope_id.clone()),
                 authorization_invalidation,
+                scope_retirements,
             });
         }
 
@@ -4229,6 +4526,7 @@ impl LocalSnapback {
                 permission_epochs,
                 authorization_scope: None,
                 authorization_invalidation: None,
+                scope_retirements: Vec::new(),
             });
         }
 
@@ -4249,6 +4547,7 @@ impl LocalSnapback {
             permission_epochs,
             authorization_scope: None,
             authorization_invalidation: None,
+            scope_retirements: Vec::new(),
         })
     }
 
@@ -5421,7 +5720,7 @@ impl LocalSnapback {
             .retain(|_, subscription| subscription.connection_id != connection_id);
         if let Some(state) = self.auth_invalidation.as_mut() {
             for scope in retired_authorization_scopes {
-                state.obligations.retire_scope(&scope);
+                let _ = state.obligations.retire_scope(&scope);
             }
         }
         self.receipts.drop_connection(connection_id);
@@ -5630,6 +5929,150 @@ impl LocalSnapback {
             store: self.ephemeral.clone(),
             activity: self.connections_last_seen.clone(),
         }
+    }
+
+    pub(crate) fn authorize_ephemeral_room(
+        &self,
+        collection_name: &str,
+        scope: &crate::ephemeral::Scope,
+        base_auth: AuthContext,
+    ) -> SnapbackResult<AuthContext> {
+        let collection = self
+            .ephemeral
+            .collection_definition(collection_name)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+                    "ephemeral",
+                    "ephemeral collection is not loaded",
+                )
+            })?;
+        if !self
+            .ephemeral
+            .collection_requires_room_permission(collection_name)
+        {
+            return Ok(base_auth);
+        }
+        let projection = collection.permission_backing.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                "auth",
+                "protected room lacks its durable permissionBacking projection",
+            )
+        })?;
+        if !self.room_permission_projection_granted(
+            projection,
+            scope,
+            &base_auth,
+            self.db.current_version()?,
+        )? {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PERMISSION_DENIED",
+                "auth",
+                "durable room permission was denied",
+            ));
+        }
+        Ok(collection.grant_projected_room_permission(base_auth, scope))
+    }
+
+    pub(crate) fn reauthorize_pending_ephemeral_rooms<Resolve>(
+        &mut self,
+        mut resolve_connection: Resolve,
+    ) -> SnapbackResult<usize>
+    where
+        Resolve: FnMut(&str, &AuthContext) -> SnapbackResult<Option<AuthContext>>,
+    {
+        let pending = self.ephemeral.pending_room_reauthorizations();
+        let mut completed = 0_usize;
+        for room in pending {
+            let collection = self
+                .ephemeral
+                .collection_definition(&room.room.collection)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+                        "ephemeral",
+                        "pending room collection is no longer loaded",
+                    )
+                })?;
+            let projection = collection.permission_backing.as_ref().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "pending protected room lacks its durable permissionBacking projection",
+                )
+            })?;
+            let mut resolutions = Vec::with_capacity(room.subscribers.len());
+            for subscriber in room.subscribers {
+                let fresh =
+                    resolve_connection(&subscriber.connection_id, &subscriber.previous_auth)?;
+                let Some(fresh) = fresh else {
+                    resolutions.push(RoomSubscriberResolution::Denied {
+                        connection_id: subscriber.connection_id,
+                    });
+                    continue;
+                };
+                let granted = self.room_permission_projection_granted(
+                    projection,
+                    &room.room.scope,
+                    &fresh,
+                    room.obligation.min_commit_version,
+                )?;
+                if granted {
+                    resolutions.push(RoomSubscriberResolution::Authorized {
+                        connection_id: subscriber.connection_id,
+                        auth: collection.grant_projected_room_permission(fresh, &room.room.scope),
+                    });
+                } else {
+                    resolutions.push(RoomSubscriberResolution::Denied {
+                        connection_id: subscriber.connection_id,
+                    });
+                }
+            }
+            if self.ephemeral.complete_room_reauthorization(
+                &room.room,
+                room.obligation.room_authority_generation,
+                resolutions,
+            )? {
+                completed = completed.saturating_add(1);
+            }
+        }
+        Ok(completed)
+    }
+
+    fn room_permission_projection_granted(
+        &self,
+        projection: &RoomPermissionProjection,
+        scope: &crate::ephemeral::Scope,
+        auth: &AuthContext,
+        min_commit_version: u64,
+    ) -> SnapbackResult<bool> {
+        let Some(user_id) = auth.user_id.as_deref() else {
+            return Ok(false);
+        };
+        let scope_fields = projection
+            .scope_fields
+            .iter()
+            .map(|(scope_field, table_field)| {
+                scope
+                    .get(scope_field)
+                    .map(|value| (table_field.clone(), value.to_owned()))
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+                            "ephemeral",
+                            "room scope does not satisfy its permissionBacking projection",
+                        )
+                    })
+            })
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        self.db.room_permission_projection_granted(
+            &projection.table,
+            &projection.subject_field,
+            user_id,
+            &scope_fields,
+            min_commit_version,
+        )
     }
 
     /// Reap connections idle longer than `ttl_ms`: tear down each one's live
@@ -6114,7 +6557,7 @@ impl LocalSnapback {
                 RetryReservationKind::Initial,
             )
         });
-        let mut episode = match initial {
+        let episode = match initial {
             Ok(RetryReservation::Reserved(episode)) => episode,
             Ok(RetryReservation::Attached(_)) => {
                 match self.db.with_invalidation_retry_registry(|registry| {
@@ -6163,6 +6606,28 @@ impl LocalSnapback {
             }
         };
 
+        self.invoke_authorization_resolution_with_episode(
+            subscription,
+            witness_floor,
+            admission,
+            key,
+            episode,
+        )
+    }
+
+    /// Execute a previously reserved retry attempt and any remaining automatic
+    /// attempts in its fixed window. Manual retry uses this same body after it
+    /// atomically replaces the exhausted episode, so it cannot accidentally
+    /// spend an extra attempt merely by re-entering the normal reservation
+    /// path.
+    fn invoke_authorization_resolution_with_episode(
+        &mut self,
+        subscription: &LiveSubscription,
+        witness_floor: CompositeWitness,
+        admission: &AdmissionLease,
+        key: RetryEpisodeKey,
+        mut episode: RetryEpisode,
+    ) -> Result<QueryInvocation, AuthorizationResolutionFailure> {
         loop {
             match subscription
                 .authority
@@ -6650,6 +7115,9 @@ impl LocalSnapback {
                 )
             })
             .and_then(|state| {
+                state
+                    .issuer
+                    .install_authorization_expectation(authorization.version.clone())?;
                 state
                     .obligations
                     .advance_authenticated_authorization(authorization.version.clone())
@@ -8080,7 +8548,7 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     }
 }
 
-fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
+pub(crate) fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
     match envelope {
         RealtimeEnvelope::Durable(message) => String::from_utf8(message.payload)
             .or_else(|error| {
@@ -8104,6 +8572,15 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+fn auth_resnapshot_required() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
+        "auth",
+        "the authorization scope is unknown, retired, or belongs to an extinct connection; establish a fresh snapshot",
+    )
+    .with_details(json!({ "reason": "unknownOrReaped" }))
 }
 
 #[cfg(test)]
@@ -8897,6 +9374,9 @@ globalThis.__snapbackHandlers = {
             connection_generation: issuer
                 .reserve_connection_generation()
                 .expect("test connection generation"),
+            authorization: authorization.clone(),
+            version_stream: version_stream.clone(),
+            issuer_retirement: None,
         };
         snapback
             .install_auth_invalidation(issuer, authorization, version_stream)

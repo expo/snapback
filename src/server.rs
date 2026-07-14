@@ -32,17 +32,19 @@ use crate::auth::wire::{
 use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    AuthContext, DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
+    AuthContext, DeleteRequest, EphemeralCollection, PublishRequest, RealtimeEnvelope,
+    RoomAuthorityPermit, Scope, SubscribeRequest,
 };
 use crate::live_wire::{
-    LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
+    LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AdmittedCronClaim, AppActionStage, AuthorizationInvalidationAckInput, ConfigVerifyStage,
-    DetachedMutationRead, EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest,
-    EnsureAppResponse, EphemeralApi, FunctionRunResult, InspectState, LiveInvalidationAdmission,
-    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction,
-    StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    AdmittedCronClaim, AppActionStage, AuthorizationInvalidationAckInput,
+    AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
+    EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
+    FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
+    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, StagedAction, StagedAppAction,
+    StagedConfigVerify, StagedNestedMutation, live_stream_text,
 };
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -2525,6 +2527,12 @@ async fn open_connection(
             return Err(ApiError::from(error));
         }
     }
+    // Establish reaper-visible continuity before the first drain. Reaping
+    // removes this marker before room/outbox teardown, so an old grant cannot
+    // make an extinct drain look like a healthy empty queue.
+    runtime
+        .ephemeral
+        .touch_connection(&opened.grant.connection_id);
     if opened.grant.authorization_invalidation.is_some() {
         let projection_connection = opened.grant.connection_id.clone();
         let projection_admission = admission.clone();
@@ -3482,6 +3490,16 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             connection_route(
                 "POST",
+                "/live/authorization-invalidation/manual-retry",
+                CredentialResolution::ConnectionGrantHeader,
+                true,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(manual_retry_authorization_invalidation),
+        ),
+        RegisteredRoute::new(
+            connection_route(
+                "POST",
                 "/live/{name}/subscribe",
                 CredentialResolution::ConnectionGrantHeader,
                 true,
@@ -4080,7 +4098,11 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
-        "/client-mutations/acknowledge" => Some(InvocationSource::StandaloneAcknowledgement),
+        "/client-mutations/acknowledge"
+        | "/live/authorization-invalidation/acknowledge"
+        | "/live/authorization-invalidation/manual-retry" => {
+            Some(InvocationSource::StandaloneAcknowledgement)
+        }
         "/connection/open" => Some(InvocationSource::ConnectionOpen),
         "/live/{name}/subscribe" => Some(InvocationSource::LiveInitialQuery),
         "/live/{name}/resume" => Some(InvocationSource::LiveResume),
@@ -4502,14 +4524,18 @@ fn finish_registered_response(
     if let Some(authority) = authority {
         response.extensions_mut().insert(authority.clone());
     }
+    let room_authority = response.extensions_mut().remove::<RetainedRoomAuthority>();
     if let Some(admission) = admission {
         let (parts, body) = response.into_parts();
         let body = Body::new(RetainedAdmissionBody {
             inner: body,
             _admission: admission.clone(),
+            _authority: authority.cloned(),
+            _room_authority: room_authority,
         });
         Response::from_parts(parts, body)
     } else {
+        debug_assert!(room_authority.is_none());
         response
     }
 }
@@ -4520,6 +4546,16 @@ fn finish_registered_response(
 struct RetainedAdmissionBody {
     inner: Body,
     _admission: AdmissionLease,
+    _authority: Option<PreparedAuthority>,
+    _room_authority: Option<RetainedRoomAuthority>,
+}
+
+/// Response extensions can be discarded after header encoding. The Arc makes
+/// the extension cloneable while keeping the exact room permits alive until
+/// the wrapped HTTP body reaches its final transport sink (or is dropped).
+#[derive(Clone)]
+struct RetainedRoomAuthority {
+    _permits: Arc<Vec<RoomAuthorityPermit>>,
 }
 
 impl HttpBody for RetainedAdmissionBody {
@@ -8809,6 +8845,35 @@ async fn acknowledge_authorization_invalidation(
     Ok(Json(output))
 }
 
+async fn manual_retry_authorization_invalidation(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Extension(connection_act): Extension<PreparedConnectionAct>,
+    Extension(_admission): Extension<AdmissionLease>,
+    input: Result<Json<AuthorizationInvalidationManualRetryInput>, JsonRejection>,
+) -> Result<Json<crate::local::AuthorizationInvalidationManualRetryOutput>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let connection = connection_act
+        .authorization_invalidation
+        .clone()
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                "auth",
+                "connection did not negotiate authInvalidationProtocol: 1",
+            )
+        })?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let output = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.manual_retry_authorization_invalidation(input, connection, authority)
+    })
+    .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    Ok(Json(output))
+}
+
 async fn subscribe_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -8954,6 +9019,7 @@ async fn acquire_live_act_admission(
 struct AdmittedLiveWrite {
     message: Message,
     admission: AdmissionLease,
+    _room_authority: Option<RoomAuthorityPermit>,
     completed: oneshot::Sender<bool>,
 }
 
@@ -9047,6 +9113,7 @@ async fn send_live_with_admission(
     writer: &mpsc::Sender<AdmittedLiveWrite>,
     message: Message,
     admission: &AdmissionLease,
+    room_authority: Option<RoomAuthorityPermit>,
     connections: &ConnectionRegistry,
     connection_act: &PreparedConnectionAct,
 ) -> bool {
@@ -9064,6 +9131,7 @@ async fn send_live_with_admission(
                     .try_send(AdmittedLiveWrite {
                         message,
                         admission: admission.clone(),
+                        _room_authority: room_authority,
                         completed,
                     })
                     .is_ok())
@@ -9237,8 +9305,9 @@ async fn live_stream(
                         };
                         if !send_live_with_admission(
                             &writer,
-                            Message::Text(response.into()),
+                            Message::Text(response.text.into()),
                             &admission,
+                            response.room_authority,
                             &connections,
                             &connection_act,
                         ).await {
@@ -9370,6 +9439,7 @@ async fn live_stream(
                     &writer,
                     Message::Ping(Vec::new().into()),
                     &admission,
+                    None,
                     &connections,
                     &connection_act,
                 ).await {
@@ -9477,37 +9547,62 @@ async fn drain_and_send(
     connection_act: &PreparedConnectionAct,
     reproject_authorization: bool,
 ) -> std::ops::ControlFlow<()> {
-    let mut messages = {
-        let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
-            return std::ops::ControlFlow::Break(());
-        };
-        let Ok(Some(messages)) =
-            connection_act.try_act(connections, now_millis(), Instant::now(), || {
-                Ok(ephemeral.drain_live_stream_if_current(connection_id, generation))
-            })
-        else {
-            return std::ops::ControlFlow::Break(());
-        };
-        messages
-    };
-    if reproject_authorization {
+    // Re-run durable projections before acquiring room permits: a prepared
+    // authorization commit holds the write lane while waiting for those
+    // permits, so taking one and then waiting on `with_snapback` would invert
+    // the commit order.
+    let projections = if reproject_authorization {
         let connection = connection_id.to_owned();
         let rerun_admission = admission.clone();
-        let projections = match with_snapback(state, move |snapback| {
+        match with_snapback(state, move |snapback| {
             snapback.authorization_invalidation_frames(&connection, &rerun_admission)
         })
         .await
         {
             Ok(projections) => projections,
             Err(_) => return std::ops::ControlFlow::Break(()),
+        }
+    } else {
+        Vec::new()
+    };
+    let messages = {
+        let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
+            return std::ops::ControlFlow::Break(());
         };
-        messages.extend(projections);
-    }
-    for message in messages {
+        let Ok(Some(messages)) =
+            connection_act.try_act(connections, now_millis(), Instant::now(), || {
+                Ok(ephemeral
+                    .drain_live_stream_for_send_if_current(connection_id, generation))
+            })
+        else {
+            return std::ops::ControlFlow::Break(());
+        };
+        messages
+    };
+    for admitted in messages {
+        let (envelope, room_authority) = admitted.into_parts();
+        let Some(message) = live_stream_text(envelope) else {
+            continue;
+        };
         if !send_live_with_admission(
             writer,
             Message::Text(message.into()),
             admission,
+            room_authority,
+            connections,
+            connection_act,
+        )
+        .await
+        {
+            return std::ops::ControlFlow::Break(());
+        }
+    }
+    for projection in projections {
+        if !send_live_with_admission(
+            writer,
+            Message::Text(projection.into()),
+            admission,
+            None,
             connections,
             connection_act,
         )
@@ -9702,6 +9797,20 @@ impl SessionLiveSocketClientMessage {
 /// Handle a socket-text operation. Ephemeral operations reach the room
 /// authority directly — a busy mutation holding the global write mutex cannot
 /// delay a cursor publish on this socket (LLP 0032 L9).
+struct LiveSocketResponse {
+    text: String,
+    room_authority: Option<RoomAuthorityPermit>,
+}
+
+impl From<String> for LiveSocketResponse {
+    fn from(text: String) -> Self {
+        Self {
+            text,
+            room_authority: None,
+        }
+    }
+}
+
 fn handle_live_socket_text(
     ephemeral: &EphemeralApi,
     connection_id: &str,
@@ -9709,7 +9818,7 @@ fn handle_live_socket_text(
     policy_mode: PolicyAuthMode,
     authorization_invalidation_ready: bool,
     authority: &ResolvedAppAuthority,
-) -> String {
+) -> LiveSocketResponse {
     if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
         return socket_error(
             None,
@@ -9723,7 +9832,8 @@ fn handle_live_socket_text(
                 "bytes": text.len(),
                 "maxBytes": MAX_LIVE_SOCKET_FRAME_BYTES,
             })),
-        );
+        )
+        .into();
     }
     let raw = match serde_json::from_str::<Value>(text) {
         Ok(value) => value,
@@ -9737,7 +9847,8 @@ fn handle_live_socket_text(
                     "WebSocket message could not be decoded",
                 )
                 .with_details(json!({ "error": error.to_string() })),
-            );
+            )
+            .into();
         }
     };
     let decoded = match policy_mode {
@@ -9753,7 +9864,8 @@ fn handle_live_socket_text(
                     request_id,
                     operation,
                     body_auth_unsupported(field).0.diagnostic,
-                );
+                )
+                .into();
             }
             serde_json::from_value::<SessionLiveSocketClientMessage>(raw.clone())
                 .map(|message| message.resolve(authority))
@@ -9772,7 +9884,8 @@ fn handle_live_socket_text(
                     "WebSocket message could not be decoded",
                 )
                 .with_details(json!({ "error": error.to_string() })),
-            );
+            )
+            .into();
         }
     };
     let operation_name = live_socket_operation_name(&message);
@@ -9789,7 +9902,8 @@ fn handle_live_socket_text(
                 "auth",
                 "this socket operation is unavailable under the active auth policy",
             ),
-        );
+        )
+        .into();
     }
 
     // The HTTP and WebSocket twins share the item-5 activation floor. A
@@ -9819,7 +9933,8 @@ fn handle_live_socket_text(
                 "auth-scoped live work is unavailable until authorization invalidation is ready",
             )
             .with_details(json!({ "capability": "authScopedLive" })),
-        );
+        )
+        .into();
     }
 
     let protected_collection = match &message {
@@ -9853,14 +9968,15 @@ fn handle_live_socket_text(
                 "auth",
                 "protected ephemeral rooms require the two-phase room-authority invalidation barrier",
             ),
-        );
+        )
+        .into();
     }
 
     // Liveness probe: answered immediately and statelessly (no lock, no
     // connection binding to check — the probe carries no connection_id and
     // performs no operation on connection state).
     if let LiveSocketClientMessage::Ping { request_id } = &message {
-        return socket_pong(request_id.clone());
+        return socket_pong(request_id.clone()).into();
     }
 
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S3: a socket
@@ -9898,7 +10014,8 @@ fn handle_live_socket_text(
                 "socket_connection_id": connection_id,
                 "message_connection_id": frame_connection,
             })),
-        );
+        )
+        .into();
     }
 
     match message {
@@ -9906,22 +10023,42 @@ fn handle_live_socket_text(
             request_id,
             request,
         } => match ephemeral.subscribe(request, now_millis()) {
-            Ok(message) => socket_ack(request_id, "subscribe", json!({ "message": message })),
-            Err(error) => socket_error(request_id, "subscribe", diagnostic_from_ephemeral(error)),
+            Ok(message) => admitted_socket_ack(
+                ephemeral,
+                request_id,
+                "subscribe",
+                json!({ "message": &message }),
+                Some(&message),
+            ),
+            Err(error) => {
+                socket_error(request_id, "subscribe", diagnostic_from_ephemeral(error)).into()
+            }
         },
         LiveSocketClientMessage::EphemeralPublish {
             request_id,
             request,
         } => match ephemeral.publish(request, now_millis()) {
-            Ok(outcome) => socket_ack(request_id, "publish", json!({ "outcome": outcome })),
-            Err(error) => socket_error(request_id, "publish", diagnostic_from_ephemeral(error)),
+            Ok(outcome) => {
+                socket_ack(request_id, "publish", json!({ "outcome": outcome })).into()
+            }
+            Err(error) => {
+                socket_error(request_id, "publish", diagnostic_from_ephemeral(error)).into()
+            }
         },
         LiveSocketClientMessage::EphemeralDelete {
             request_id,
             request,
         } => match ephemeral.delete(request, now_millis()) {
-            Ok(message) => socket_ack(request_id, "delete", json!({ "message": message })),
-            Err(error) => socket_error(request_id, "delete", diagnostic_from_ephemeral(error)),
+            Ok(message) => admitted_socket_ack(
+                ephemeral,
+                request_id,
+                "delete",
+                json!({ "message": &message }),
+                message.as_ref(),
+            ),
+            Err(error) => {
+                socket_error(request_id, "delete", diagnostic_from_ephemeral(error)).into()
+            }
         },
         LiveSocketClientMessage::EphemeralUnsubscribe {
             request_id,
@@ -9942,13 +10079,39 @@ fn handle_live_socket_text(
                         "unsubscribe",
                         json!({ "removed": removed, "receipt": receipt }),
                     )
+                    .into()
                 }
                 Err(error) => {
-                    socket_error(request_id, "unsubscribe", diagnostic_from_ephemeral(error))
+                    socket_error(request_id, "unsubscribe", diagnostic_from_ephemeral(error)).into()
                 }
             }
         }
         LiveSocketClientMessage::Ping { .. } => unreachable!("handled above"),
+    }
+}
+
+fn admitted_socket_ack(
+    ephemeral: &EphemeralApi,
+    request_id: Option<String>,
+    operation: &str,
+    body: Value,
+    message: Option<&crate::ephemeral::EphemeralMessage>,
+) -> LiveSocketResponse {
+    let room_authority = match message {
+        Some(message) => {
+            match ephemeral.begin_final_send(&RealtimeEnvelope::Ephemeral(message.clone())) {
+                Ok(room_authority) => room_authority,
+                Err(error) => {
+                    return socket_error(request_id, operation, diagnostic_from_ephemeral(error))
+                        .into();
+                }
+            }
+        }
+        None => None,
+    };
+    LiveSocketResponse {
+        text: socket_ack(request_id, operation, body),
+        room_authority,
     }
 }
 
@@ -10024,22 +10187,18 @@ async fn drain_outbox(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     Path(_connection_id): Path<String>,
-) -> Result<Json<Vec<crate::ephemeral::RealtimeEnvelope>>, ApiError> {
+) -> Result<Response, ApiError> {
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    let mut drained = {
-        let _effect = admission.effect_guard("HTTP outbox drain publication")?;
+    {
+        let _effect = admission.effect_guard("HTTP outbox connection verification")?;
         connection_act.try_act(
             &runtime.connections,
             epoch_now_ms,
             monotonic_now,
-            || {
-                Ok(runtime
-                    .ephemeral
-                    .drain_outbox(&connection_act.connection_id))
-            },
-        )?
-    };
-    if authority.active_mode() == AuthMode::Sessions
+            || Ok(()),
+        )?;
+    }
+    let projections = if authority.active_mode() == AuthMode::Sessions
         && connection_act.authorization_invalidation.is_some()
     {
         let projection_connection = connection_act.connection_id.clone();
@@ -10048,13 +10207,59 @@ async fn drain_outbox(
             snapback.authorization_invalidation_frames(&projection_connection, &rerun_admission)
         })
         .await?;
-        drained.extend(projections.into_iter().map(|payload| {
-            crate::ephemeral::RealtimeEnvelope::Durable(crate::ephemeral::DurableMessage {
-                payload: payload.into_bytes(),
+        projections
+    } else {
+        Vec::new()
+    };
+    let admitted = {
+        let _effect = admission.effect_guard("HTTP outbox drain publication")?;
+        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+        connection_act.try_act(
+            &runtime.connections,
+            epoch_now_ms,
+            monotonic_now,
+            || {
+                Ok(runtime
+                    .ephemeral
+                    .drain_outbox_for_send_if_active(&connection_act.connection_id))
+            },
+        )?
+    };
+    let mut room_authority = Vec::new();
+    let mut drained = match admitted {
+        Some(admitted) => admitted
+            .into_iter()
+            .map(|admitted| {
+                let (envelope, permit) = admitted.into_parts();
+                room_authority.extend(permit);
+                envelope
             })
-        }));
+            .collect::<Vec<_>>(),
+        None => vec![RealtimeEnvelope::Durable(
+            crate::ephemeral::DurableMessage {
+                payload: serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    reason: "unknown_or_reaped".to_owned(),
+                    subscription_id: None,
+                    scope: None,
+                    epoch: None,
+                    clear_retained: true,
+                })
+                .unwrap_or_default(),
+            },
+        )],
+    };
+    drained.extend(projections.into_iter().map(|payload| {
+        RealtimeEnvelope::Durable(crate::ephemeral::DurableMessage {
+            payload: payload.into_bytes(),
+        })
+    }));
+    let mut response = Json(drained).into_response();
+    if !room_authority.is_empty() {
+        response.extensions_mut().insert(RetainedRoomAuthority {
+            _permits: Arc::new(room_authority),
+        });
     }
-    Ok(Json(drained))
+    Ok(response)
 }
 
 #[derive(Debug, Deserialize)]
@@ -10385,6 +10590,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
         | "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
         | "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE"
+        | "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED"
+        | "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED"
+        | "SNAPBACK_AUTH_RETRY_NOT_PENDING"
         | "SNAPBACK_AUTH_MODE_DOWNGRADE"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
@@ -13533,6 +13741,9 @@ mod tests {
         "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
         "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
         "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE",
+        "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
+        "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
+        "SNAPBACK_AUTH_RETRY_NOT_PENDING",
         "SNAPBACK_AUTH_MODE_DOWNGRADE",
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_AUTH_TABLE_COLLISION",
@@ -14598,6 +14809,105 @@ globalThis.__snapbackHandlers = {
         state.assert_grant_indexes_consistent();
     }
 
+    #[test]
+    fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
+        let registry = ConnectionRegistry::default();
+        let issuer_id =
+            crate::auth::invalidation::IssuerId::fresh("018f0d90-7b11-7a22-8c33-445566778899", 7)
+                .expect("issuer id");
+        let authenticator =
+            crate::auth::invalidation::IssuerAuthenticator::new("test-protocol-key", [0x33; 32])
+                .expect("authenticator");
+        let authenticated = authenticator
+            .authenticate(issuer_id.clone(), "test-target", "test-app")
+            .expect("authenticated issuer");
+        let issuer = crate::auth::invalidation::LiveInvalidationIssuer::with_authenticator(
+            authenticated,
+            authenticator,
+            "test-target",
+            "test-app",
+        )
+        .expect("live issuer");
+        issuer
+            .install_authorization_expectation(crate::storage::AuthorizationVersion {
+                incarnation: issuer_id.authorization_incarnation.clone(),
+                epoch: 4,
+            })
+            .expect("authorization expectation");
+        issuer
+            .install_version_stream("018f0d90-7b11-7a22-8c33-4455667788aa")
+            .expect("version stream");
+        registry.install_invalidation_issuer(issuer);
+
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let prepared = || {
+            synthetic_connection_authority(BoundGrantAuthority::Anonymous {
+                authorization_stream_incarnation: incarnation.clone(),
+                publication: publication.clone(),
+            })
+        };
+        let legacy = registry
+            .open_prepared(
+                Some("legacy".to_owned()),
+                None,
+                true,
+                prepared(),
+                1,
+                Instant::now(),
+                None,
+            )
+            .expect("legacy grant");
+        assert!(legacy.grant.authorization_invalidation.is_none());
+        let negotiated = registry
+            .open_prepared(
+                Some("negotiated".to_owned()),
+                None,
+                true,
+                prepared(),
+                2,
+                Instant::now(),
+                Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
+            )
+            .expect("negotiated grant");
+        let descriptor = negotiated
+            .grant
+            .authorization_invalidation
+            .as_ref()
+            .expect("v1 descriptor");
+        assert_eq!(descriptor.protocol_version, 1);
+        assert_eq!(descriptor.issuer_id, issuer_id);
+        assert_eq!(descriptor.connection_generation, 1);
+        assert_eq!(descriptor.authorization.epoch, 4);
+        assert_eq!(
+            descriptor.version_stream,
+            "018f0d90-7b11-7a22-8c33-4455667788aa"
+        );
+        assert_eq!(
+            descriptor
+                .issuer_retirement
+                .as_ref()
+                .expect("prior issuer retirement")
+                .retire_through_boot_sequence,
+            6
+        );
+        let reopened = registry
+            .open_prepared(
+                Some(negotiated.grant.connection_id.clone()),
+                Some(&negotiated.grant.connection_token),
+                false,
+                prepared(),
+                3,
+                Instant::now(),
+                Some(1),
+            )
+            .expect("idempotent reopen");
+        assert_eq!(
+            reopened.grant.authorization_invalidation,
+            negotiated.grant.authorization_invalidation
+        );
+    }
+
     /// @ref LLP 0056#connection-bound-authority — the three closed source
     /// buckets have exact independent limits and an inclusive 60-second drop.
     #[test]
@@ -15578,15 +15888,16 @@ globalThis.__snapbackHandlers = {
         let snapback = LocalSnapback::memory().expect("memory instance");
         let ephemeral = snapback.ephemeral_api();
         let frame = "x".repeat(super::MAX_LIVE_SOCKET_FRAME_BYTES + 1);
-        let response: serde_json::Value = serde_json::from_str(&super::handle_live_socket_text(
+        let response = super::handle_live_socket_text(
             &ephemeral,
             "conn",
             &frame,
             super::PolicyAuthMode::Dev,
             false,
             &ResolvedAppAuthority::Anonymous,
-        ))
-        .expect("typed socket error");
+        );
+        let response: serde_json::Value =
+            serde_json::from_str(&response.text).expect("typed socket error");
         assert_eq!(
             response["diagnostic"]["code"],
             "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE"

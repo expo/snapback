@@ -183,6 +183,12 @@
         "maxDisposition": {
           "$ref": "#/$defs/InvalidationDisposition"
         },
+        "ownerContinuityId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "protocolVersion": {
           "format": "uint32",
           "minimum": 0,
@@ -216,6 +222,13 @@
       "properties": {
         "maxDisposition": {
           "$ref": "#/$defs/InvalidationDisposition"
+        },
+        "ownerContinuityId": {
+          "description": "Cleanup ownership for the client-side pending token. This is not part\nof scope/revision identity; retirement may finish only after this exact\ncontinuity ends (except an already-applied terminal delete).",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "protocolVersion": {
           "format": "uint32",
