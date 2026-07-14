@@ -1,61 +1,74 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "rfc": "LLP 0053",
-  "workload": {
+  "scenario": {
     "name": "deterministic-membership-and-row-visibility-churn",
     "randomizedOperations": 24,
     "randomSeed": "0x0053c0de",
     "authScopedQueries": 3,
     "unrelatedQueriesDuringPermissionChurn": 3,
     "membershipChurnEvents": 3,
-    "lostMembershipDrainEpisodes": 1,
-    "lostDrainEpisodes": 6,
+    "scheduledMembershipLossRounds": 1,
+    "scheduledRandomizedLossRounds": 6,
     "restartOperations": 1
   },
-  "observed": {
-    "membershipChurnResnapshotTraffic": 9,
-    "membershipChurnAcknowledgements": 9,
-    "randomizedSnapshotTraffic": 48,
-    "randomizedAcknowledgements": 48,
-    "coarseEventMergedResnapshotsPerQuery": 1,
-    "maxHiddenViewTime": {
-      "value": 1,
-      "unit": "authorization-boundary-intervals",
-      "basis": "the quarantine boundary precedes the replacement snapshot; wall-clock network latency is deliberately not claimed"
+  "runtimeMeasurements": {
+    "membershipChurn": {
+      "generatedInvalidationFrames": 21,
+      "generatedSnapshotFrames": 12,
+      "deliveredInvalidationFrames": 15,
+      "deliveredSnapshotFrames": 9,
+      "discardedInvalidationFrames": 6,
+      "discardedSnapshotFrames": 3,
+      "reprojectedInvalidationFrames": 3,
+      "reprojectedSnapshotFrames": 3,
+      "discardedResponseDrains": 3,
+      "acknowledgements": 9,
+      "maxGeneratedSnapshotFramesPerQuerySettlement": 2,
+      "maxDeliveredSnapshotFramesPerQuerySettlement": 1,
+      "maxExplicitReprojectionCallsPerQuerySettlement": 1,
+      "deliveredDisposition": "quarantine"
     },
-    "maxRecoveryTime": {
-      "value": 1,
-      "unit": "level-triggered-projection-turns"
-    },
-    "durableTombstoneWritesForUnrelatedQuarantine": 0,
-    "retainedPayloadFixtureRows": 1,
-    "retainedBytesDeletedForUnrelatedQuarantine": 0,
-    "pendingMutationFixtureCount": 2,
-    "suspendedPendingMutations": 2,
-    "pendingMutationsDeletedForUnrelatedQuarantine": 0,
-    "pendingMutationsDisposition": "suspended-not-destroyed",
-    "terminalEscalationDisposition": "delete",
-    "ordinaryRestartPreservedIncarnation": true,
-    "restartFreshResnapshots": 1,
-    "metricSources": {
-      "serverChurn": "local::authorization_acceptance",
-      "retainedPayload": "packages/snapback-contract/authorized-retained-store.test.mjs",
-      "pendingMutations": "packages/snapback-contract/client-store-queue-authorization.test.mjs"
+    "randomizedWrites": {
+      "generatedInvalidationFrames": 60,
+      "generatedSnapshotFrames": 60,
+      "deliveredInvalidationFrames": 48,
+      "deliveredSnapshotFrames": 48,
+      "discardedInvalidationFrames": 12,
+      "discardedSnapshotFrames": 12,
+      "reprojectedInvalidationFrames": 12,
+      "reprojectedSnapshotFrames": 12,
+      "discardedResponseDrains": 12,
+      "acknowledgements": 48,
+      "maxGeneratedSnapshotFramesPerQuerySettlement": 2,
+      "maxDeliveredSnapshotFramesPerQuerySettlement": 1,
+      "maxExplicitReprojectionCallsPerQuerySettlement": 1,
+      "deliveredDisposition": "quarantine"
     }
   },
-  "oracle": {
-    "kind": "fresh-full-query-and-authorization-re-evaluation",
-    "checkedAfterEveryRandomizedOperation": true,
-    "receiptFields": [
-      "proofPath",
-      "compositeWitness",
-      "scopeKind",
-      "revision",
-      "disposition",
-      "selection"
-    ],
+  "runtimeAssertions": {
+    "membershipAuthorizationEpochAdvance": 3,
+    "randomizedAuthorizationEpochAdvance": 0,
+    "randomizedAllQueryConvergenceRounds": 24,
+    "randomizedFreshQueryComparisons": 72,
+    "terminalEscalationDisposition": "delete",
+    "ordinaryRestartPreservedIncarnation": true,
+    "restartInstalledNewIssuer": true,
+    "restartAcceptedDistinctCallerSuppliedQueryInstance": true,
+    "restartInitialSnapshotConverged": true
+  },
+  "serverObligation": {
+    "normalizedFieldSources": {
+      "compositeWitness": "obligation.witness",
+      "scopeKind": "obligation.scopeId.kind",
+      "revision": "obligation.revision",
+      "disposition": "obligation.maxDisposition"
+    },
+    "identifierNormalizations": {
+      "compositeWitness.authorization.incarnation": "<authenticated-uuid-v7>",
+      "compositeWitness.data.versionStream": "<authenticated-version-stream>"
+    },
     "sample": {
-      "proofPath": "matcher-full-requery",
       "scopeKind": "subscription",
       "revision": 7,
       "compositeWitness": {
@@ -68,8 +81,60 @@
           "minCommitVersion": 11
         }
       },
-      "disposition": "quarantine",
-      "selection": "auth-scoped Ibex replace is conservatively potentially shrinking"
+      "disposition": "quarantine"
     }
+  },
+  "harnessExpectedAssertions": {
+    "membershipClassification": {
+      "expectedPath": "enumerated-permission-write",
+      "basis": {
+        "permissionBackingWrites": 3,
+        "authorizationEpochAdvance": 3
+      },
+      "productionFrameReportsPath": false
+    },
+    "randomizedClassification": {
+      "expectedPath": "matcher-full-requery",
+      "basis": {
+        "authorizationEpochAdvance": 0,
+        "allQueryConvergenceRounds": 24,
+        "freshQueryComparisons": 72
+      },
+      "productionFrameReportsPath": false
+    }
+  },
+  "independentFixtureAssertions": {
+    "authorizedRetainedStore": {
+      "sourceTest": "packages/snapback-contract/authorized-retained-store.test.mjs",
+      "expectedOutcomes": {
+        "authorizedReadDuringQuarantine": null,
+        "physicallyRetainedRowsDuringQuarantine": [
+          {
+            "card": "ace-updated"
+          }
+        ]
+      }
+    },
+    "mutationQueueAuthorization": {
+      "sourceTest": "packages/snapback-contract/client-store-queue-authorization.test.mjs",
+      "expectedOutcomes": {
+        "suspendedAfterOneOfTwoQuarantineRootsResolves": true,
+        "pendingMutationIdsAfterBothQuarantineRootsResolve": [
+          "cm_queue_a",
+          "cm_queue_b"
+        ]
+      }
+    }
+  },
+  "oracle": {
+    "kind": "fresh-full-query-and-authorization-re-evaluation",
+    "randomizedAllQueryConvergenceRounds": 24,
+    "randomizedFreshQueryComparisons": 72
+  },
+  "coverageBoundaries": {
+    "clientVisibleTimingMeasuredByThisHarness": false,
+    "durableByteOrTombstoneCountsMeasuredByThisHarness": false,
+    "clientFixtureAssertionsAreRuntimeMeasurementsFromThisHarness": false,
+    "queryInstanceAllocatorIntrospectedByThisHarness": false
   }
 }

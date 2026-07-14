@@ -64,28 +64,88 @@ struct TrackedQuery {
     args: Value,
     connection_id: String,
     subscription_id: String,
+    query_instance_id: u64,
     rows: Vec<Value>,
 }
 
 #[derive(Default)]
 struct DeliveryObservation {
-    invalidation_frames: u64,
-    snapshot_frames: u64,
+    generated_invalidation_frames: u64,
+    generated_snapshot_frames: u64,
+    delivered_invalidation_frames: u64,
+    delivered_snapshot_frames: u64,
+    discarded_invalidation_frames: u64,
+    discarded_snapshot_frames: u64,
+    reprojected_invalidation_frames: u64,
+    reprojected_snapshot_frames: u64,
+    discarded_response_drains: u64,
+    max_generated_snapshot_frames_per_query_settlement: u64,
+    max_delivered_snapshot_frames_per_query_settlement: u64,
+    max_explicit_reprojection_calls_per_query_settlement: u64,
     acknowledgements: u64,
-    dispositions: BTreeMap<String, u64>,
-    receipts: Vec<Value>,
+    delivered_dispositions: BTreeMap<String, u64>,
+    observed_receipts: Vec<Value>,
 }
 
 impl DeliveryObservation {
     fn merge(&mut self, other: Self) {
-        self.invalidation_frames += other.invalidation_frames;
-        self.snapshot_frames += other.snapshot_frames;
+        self.generated_invalidation_frames += other.generated_invalidation_frames;
+        self.generated_snapshot_frames += other.generated_snapshot_frames;
+        self.delivered_invalidation_frames += other.delivered_invalidation_frames;
+        self.delivered_snapshot_frames += other.delivered_snapshot_frames;
+        self.discarded_invalidation_frames += other.discarded_invalidation_frames;
+        self.discarded_snapshot_frames += other.discarded_snapshot_frames;
+        self.reprojected_invalidation_frames += other.reprojected_invalidation_frames;
+        self.reprojected_snapshot_frames += other.reprojected_snapshot_frames;
+        self.discarded_response_drains += other.discarded_response_drains;
+        self.max_generated_snapshot_frames_per_query_settlement = self
+            .max_generated_snapshot_frames_per_query_settlement
+            .max(other.max_generated_snapshot_frames_per_query_settlement);
+        self.max_delivered_snapshot_frames_per_query_settlement = self
+            .max_delivered_snapshot_frames_per_query_settlement
+            .max(other.max_delivered_snapshot_frames_per_query_settlement);
+        self.max_explicit_reprojection_calls_per_query_settlement = self
+            .max_explicit_reprojection_calls_per_query_settlement
+            .max(other.max_explicit_reprojection_calls_per_query_settlement);
         self.acknowledgements += other.acknowledgements;
-        for (disposition, count) in other.dispositions {
-            *self.dispositions.entry(disposition).or_default() += count;
+        for (disposition, count) in other.delivered_dispositions {
+            *self.delivered_dispositions.entry(disposition).or_default() += count;
         }
-        self.receipts.extend(other.receipts);
+        self.observed_receipts.extend(other.observed_receipts);
     }
+
+    fn record_generated(&mut self, frames: &[Value], reprojected: bool) {
+        let invalidations = frames.len() as u64;
+        let snapshots = frames
+            .iter()
+            .filter(|frame| frame.get("snapshot").is_some_and(|value| !value.is_null()))
+            .count() as u64;
+        self.generated_invalidation_frames += invalidations;
+        self.generated_snapshot_frames += snapshots;
+        if reprojected {
+            self.reprojected_invalidation_frames += invalidations;
+            self.reprojected_snapshot_frames += snapshots;
+        }
+    }
+
+    fn record_discarded(&mut self, frames: &[Value]) {
+        if frames.is_empty() {
+            return;
+        }
+        self.discarded_response_drains += 1;
+        self.discarded_invalidation_frames += frames.len() as u64;
+        self.discarded_snapshot_frames += frames
+            .iter()
+            .filter(|frame| frame.get("snapshot").is_some_and(|value| !value.is_null()))
+            .count() as u64;
+    }
+}
+
+#[derive(Clone, Copy)]
+enum DeliveryMode {
+    DeliverDrain,
+    DropDrainAndReproject,
+    ReprojectAfterPriorDrop,
 }
 
 fn field(name: &str, field_type: FieldType) -> FieldManifest {
@@ -432,6 +492,7 @@ fn subscribe(
         args,
         connection_id,
         subscription_id: output.subscription_id,
+        query_instance_id: instance,
         rows: output.snapshot.rows,
     }
 }
@@ -446,7 +507,7 @@ fn canonical_rows(rows: &[Value]) -> Vec<Value> {
     rows
 }
 
-fn assert_converges(snapback: &LocalSnapback, query: &TrackedQuery) {
+fn converges_with_fresh_query(snapback: &LocalSnapback, query: &TrackedQuery) -> bool {
     let fresh = snapback
         .invoke_query_with_dependencies_prepared(
             &query.function,
@@ -459,13 +520,24 @@ fn assert_converges(snapback: &LocalSnapback, query: &TrackedQuery) {
                 query.function, query.user
             )
         });
-    assert_eq!(
-        canonical_rows(&query.rows),
-        canonical_rows(&fresh.output.rows),
+    canonical_rows(&query.rows) == canonical_rows(&fresh.output.rows)
+}
+
+fn assert_converges(snapback: &LocalSnapback, query: &TrackedQuery) {
+    assert!(
+        converges_with_fresh_query(snapback, query),
         "matcher delivery for {} / {} diverged from a full re-query",
         query.function,
         query.user
     );
+}
+
+fn parse_invalidation_frames(frames: Vec<String>) -> Vec<Value> {
+    frames
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("live frame JSON"))
+        .filter(|frame| frame["kind"] == "authorization_invalidation")
+        .collect()
 }
 
 fn settle_query(
@@ -473,32 +545,54 @@ fn settle_query(
     connection: &AuthorizationInvalidationConnection,
     admission: &AdmissionLease,
     query: &mut TrackedQuery,
-    lose_first_drain: bool,
-    proof_path: &str,
+    mode: DeliveryMode,
 ) -> DeliveryObservation {
-    let mut frames = snapback.drain_live_stream(&query.connection_id);
-    if lose_first_drain {
-        frames.clear();
-        frames = snapback
-            .authorization_invalidation_frames(&query.connection_id, admission)
-            .expect("level-triggered invalidation re-fire");
-    }
-
+    let drained = parse_invalidation_frames(snapback.drain_live_stream(&query.connection_id));
     let mut observation = DeliveryObservation::default();
+    observation.record_generated(&drained, false);
+
+    let frames = match mode {
+        DeliveryMode::DeliverDrain => drained,
+        DeliveryMode::DropDrainAndReproject | DeliveryMode::ReprojectAfterPriorDrop => {
+            match mode {
+                DeliveryMode::DropDrainAndReproject => {
+                    assert!(
+                        !drained.is_empty(),
+                        "a requested response-loss schedule must discard a generated frame"
+                    );
+                    observation.record_discarded(&drained);
+                }
+                DeliveryMode::ReprojectAfterPriorDrop => assert!(
+                    drained.is_empty(),
+                    "prior-drop recovery must not silently discard a newly queued frame"
+                ),
+                DeliveryMode::DeliverDrain => unreachable!(),
+            }
+            let reprojected = parse_invalidation_frames(
+                snapback
+                    .authorization_invalidation_frames(&query.connection_id, admission)
+                    .expect("level-triggered invalidation re-fire"),
+            );
+            assert!(
+                !reprojected.is_empty(),
+                "one explicit level-triggered projection call must recover the current obligation"
+            );
+            observation.record_generated(&reprojected, true);
+            observation.max_explicit_reprojection_calls_per_query_settlement += 1;
+            reprojected
+        }
+    };
+
     let mut acknowledged = BTreeSet::new();
     for frame in frames {
-        let frame: Value = serde_json::from_str(&frame).expect("invalidation frame JSON");
-        if frame["kind"] != "authorization_invalidation" {
-            continue;
-        }
-        observation.invalidation_frames += 1;
+        observation.delivered_invalidation_frames += 1;
         let obligation = &frame["obligation"];
         let disposition = obligation["maxDisposition"]
             .as_str()
             .expect("invalidation disposition")
             .to_owned();
         *observation
-            .dispositions
+            .delivered_dispositions
             .entry(disposition.clone())
             .or_default() += 1;
         if matches!(disposition.as_str(), "quarantine" | "delete") {
@@ -509,7 +603,7 @@ fn settle_query(
         if let Some(snapshot) = frame.get("snapshot").filter(|value| !value.is_null()) {
             assert_eq!(snapshot["subscriptionId"], query.subscription_id);
             query.rows = snapshot["rows"].as_array().expect("snapshot rows").clone();
-            observation.snapshot_frames += 1;
+            observation.delivered_snapshot_frames += 1;
         }
         let Some(resolution) = frame.get("resolution").filter(|value| !value.is_null()) else {
             continue;
@@ -536,19 +630,17 @@ fn settle_query(
             "discharged" | "duplicate"
         ));
         observation.acknowledgements += 1;
-        observation.receipts.push(json!({
-            "proofPath": proof_path,
+        observation.observed_receipts.push(json!({
             "scopeKind": obligation["scopeId"]["kind"],
             "revision": obligation["revision"],
             "compositeWitness": obligation["witness"],
             "disposition": disposition,
-            "selection": if proof_path == "enumerated-permission-write" {
-                "permissionBacking commit advanced the authorization epoch"
-            } else {
-                "auth-scoped Ibex replace is conservatively potentially shrinking"
-            },
         }));
     }
+    observation.max_generated_snapshot_frames_per_query_settlement =
+        observation.generated_snapshot_frames;
+    observation.max_delivered_snapshot_frames_per_query_settlement =
+        observation.delivered_snapshot_frames;
     observation
 }
 
@@ -557,7 +649,6 @@ fn settle_all(
     connection: &AuthorizationInvalidationConnection,
     queries: &mut [TrackedQuery],
     lose_connections: &BTreeSet<String>,
-    proof_path: &str,
 ) -> DeliveryObservation {
     let admission = session_authority("alice", InvocationSource::HttpQuery)
         .admission_lease()
@@ -569,11 +660,42 @@ fn settle_all(
             connection,
             &admission,
             query,
-            lose_connections.contains(&query.connection_id),
-            proof_path,
+            if lose_connections.contains(&query.connection_id) {
+                DeliveryMode::DropDrainAndReproject
+            } else {
+                DeliveryMode::DeliverDrain
+            },
         ));
     }
     observation
+}
+
+fn single_delivered_disposition(observation: &DeliveryObservation, label: &str) -> String {
+    assert_eq!(
+        observation.delivered_dispositions.len(),
+        1,
+        "{label} must deliver exactly one disposition class: {:?}",
+        observation.delivered_dispositions
+    );
+    observation
+        .delivered_dispositions
+        .keys()
+        .next()
+        .expect("one delivered disposition")
+        .clone()
+}
+
+fn assert_delivery_accounting(observation: &DeliveryObservation, label: &str) {
+    assert_eq!(
+        observation.generated_invalidation_frames,
+        observation.delivered_invalidation_frames + observation.discarded_invalidation_frames,
+        "{label} invalidation generation must equal delivered plus discarded frames"
+    );
+    assert_eq!(
+        observation.generated_snapshot_frames,
+        observation.delivered_snapshot_frames + observation.discarded_snapshot_frames,
+        "{label} snapshot generation must equal delivered plus discarded frames"
+    );
 }
 
 fn id(value: Value) -> String {
@@ -711,13 +833,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         "setDocPublic",
         json!({ "id": public_doc, "isPublic": false }),
     );
-    let delivery = settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "matcher-full-requery",
-    );
+    let delivery = settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     assert_eq!(
         snapback
             .auth_invalidation_expectation_for_test()
@@ -726,7 +842,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         "public/private row visibility is a matcher event, not a coarse epoch"
     );
     assert_eq!(
-        delivery.snapshot_frames, 3,
+        delivery.delivered_snapshot_frames, 3,
         "only docs readers are affected"
     );
     assert!(!ids(&queries[0].rows).contains(&public_doc));
@@ -742,13 +858,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         "setDocFolder",
         json!({ "id": hierarchy_doc, "folderId": folder_b }),
     );
-    settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "matcher-full-requery",
-    );
+    settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     assert!(!ids(&queries[1].rows).contains(&hierarchy_doc));
     assert!(ids(&queries[2].rows).contains(&hierarchy_doc));
     for query in &queries {
@@ -760,15 +870,12 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         "setDocFolder",
         json!({ "id": hierarchy_doc, "folderId": folder_a }),
     );
-    settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "matcher-full-requery",
-    );
+    settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     assert!(ids(&queries[1].rows).contains(&hierarchy_doc));
     assert!(!ids(&queries[2].rows).contains(&hierarchy_doc));
+    for query in &queries {
+        assert_converges(&snapback, query);
+    }
 
     // One table is simultaneously the roster result and its ACL. The delete
     // advances the coarse epoch, removes Bob from Alice's result, and removes
@@ -782,13 +889,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         "deleteGameMember",
         json!({ "id": bob_game }),
     );
-    settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "enumerated-permission-write",
-    );
+    settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     let after = snapback
         .auth_invalidation_expectation_for_test()
         .expect("expectation after kick");
@@ -871,14 +972,8 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         "known disjoint avatar update must not fire"
     );
     assert_eq!(
-        settle_all(
-            &mut snapback,
-            &connection,
-            &mut queries,
-            &BTreeSet::new(),
-            "matcher-full-requery",
-        )
-        .snapshot_frames,
+        settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new(),)
+            .delivered_snapshot_frames,
         0
     );
 
@@ -888,40 +983,25 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         "setUserRole",
         json!({ "id": user, "role": "admin" }),
     );
-    let role_delivery = settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "enumerated-permission-write",
+    let role_delivery = settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
+    assert_eq!(
+        role_delivery.delivered_snapshot_frames,
+        queries.len() as u64
     );
-    assert_eq!(role_delivery.snapshot_frames, queries.len() as u64);
     let inserted = id(mutate(
         &mut snapback,
         "bob",
         "createUser",
         json!({ "name": "Bob", "role": "member", "avatar": "bob.png" }),
     ));
-    settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "enumerated-permission-write",
-    );
+    settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     mutate(
         &mut snapback,
         "bob",
         "deleteUser",
         json!({ "id": inserted }),
     );
-    settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "enumerated-permission-write",
-    );
+    settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     assert_eq!(
         snapback
             .auth_invalidation_expectation_for_test()
@@ -936,19 +1016,17 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     // queries reads `gameMembers`, so every observed resnapshot is unrelated
     // disruption from the v1 global epoch. Lose the kick response for all
     // connections; the same three obligations must reproject exactly once.
+    let membership_version_before = snapback
+        .auth_invalidation_expectation_for_test()
+        .expect("authorization version before membership churn");
     let alice_member = id(mutate(
         &mut snapback,
         "alice",
         "createGameMember",
         json!({ "gameId": "churn-game", "userId": "alice", "role": "player" }),
     ));
-    let mut membership_observation = settle_all(
-        &mut snapback,
-        &connection,
-        &mut queries,
-        &BTreeSet::new(),
-        "enumerated-permission-write",
-    );
+    let mut membership_observation =
+        settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     let bob_member = id(mutate(
         &mut snapback,
         "bob",
@@ -960,7 +1038,6 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         &connection,
         &mut queries,
         &BTreeSet::new(),
-        "enumerated-permission-write",
     ));
     mutate(
         &mut snapback,
@@ -977,9 +1054,37 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         &connection,
         &mut queries,
         &all_connections,
-        "enumerated-permission-write",
     ));
-    assert_eq!(membership_observation.snapshot_frames, 9);
+    let membership_version_after = snapback
+        .auth_invalidation_expectation_for_test()
+        .expect("authorization version after membership churn");
+    let membership_epoch_advance = membership_version_after
+        .epoch
+        .checked_sub(membership_version_before.epoch)
+        .expect("membership epoch must be monotone");
+    assert_eq!(membership_epoch_advance, 3);
+    assert_delivery_accounting(&membership_observation, "membership churn");
+    assert_eq!(membership_observation.generated_snapshot_frames, 12);
+    assert_eq!(membership_observation.delivered_snapshot_frames, 9);
+    assert_eq!(membership_observation.discarded_snapshot_frames, 3);
+    assert_eq!(membership_observation.reprojected_snapshot_frames, 3);
+    assert_eq!(membership_observation.generated_invalidation_frames, 21);
+    assert_eq!(membership_observation.delivered_invalidation_frames, 15);
+    assert_eq!(membership_observation.discarded_invalidation_frames, 6);
+    assert_eq!(membership_observation.reprojected_invalidation_frames, 3);
+    assert_eq!(membership_observation.discarded_response_drains, 3);
+    assert_eq!(
+        membership_observation.max_generated_snapshot_frames_per_query_settlement,
+        2
+    );
+    assert_eq!(
+        membership_observation.max_delivered_snapshot_frames_per_query_settlement,
+        1
+    );
+    assert_eq!(
+        membership_observation.max_explicit_reprojection_calls_per_query_settlement,
+        1
+    );
     assert_eq!(membership_observation.acknowledgements, 9);
     assert!(!alice_member.is_empty());
 
@@ -990,7 +1095,12 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let mut random = 0x0053_c0de_u64;
     let mut docs = Vec::<String>::new();
     let mut random_observation = DeliveryObservation::default();
-    let mut lost_drain_episodes = 0_u64;
+    let mut scheduled_randomized_loss_rounds = 0_u64;
+    let mut randomized_all_query_convergence_rounds = 0_u64;
+    let mut randomized_fresh_query_comparisons = 0_u64;
+    let randomized_version_before = snapback
+        .auth_invalidation_expectation_for_test()
+        .expect("authorization version before randomized writes");
     for operation in 0..24_u64 {
         random = random
             .wrapping_mul(6_364_136_223_846_793_005)
@@ -1038,7 +1148,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
 
         let lose = operation % 4 == 0;
         let lost = if lose {
-            lost_drain_episodes += 1;
+            scheduled_randomized_loss_rounds += 1;
             queries
                 .iter()
                 .take(2)
@@ -1047,17 +1157,45 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         } else {
             BTreeSet::new()
         };
-        random_observation.merge(settle_all(
-            &mut snapback,
-            &connection,
-            &mut queries,
-            &lost,
-            "matcher-full-requery",
-        ));
+        random_observation.merge(settle_all(&mut snapback, &connection, &mut queries, &lost));
         for query in &queries {
             assert_converges(&snapback, query);
+            randomized_fresh_query_comparisons += 1;
         }
+        randomized_all_query_convergence_rounds += 1;
     }
+    let randomized_version_after = snapback
+        .auth_invalidation_expectation_for_test()
+        .expect("authorization version after randomized writes");
+    let randomized_epoch_advance = randomized_version_after
+        .epoch
+        .checked_sub(randomized_version_before.epoch)
+        .expect("randomized epoch must be monotone");
+    assert_eq!(randomized_epoch_advance, 0);
+    assert_eq!(randomized_all_query_convergence_rounds, 24);
+    assert_eq!(randomized_fresh_query_comparisons, 72);
+    assert_delivery_accounting(&random_observation, "randomized writes");
+    assert_eq!(random_observation.generated_snapshot_frames, 60);
+    assert_eq!(random_observation.delivered_snapshot_frames, 48);
+    assert_eq!(random_observation.discarded_snapshot_frames, 12);
+    assert_eq!(random_observation.reprojected_snapshot_frames, 12);
+    assert_eq!(random_observation.generated_invalidation_frames, 60);
+    assert_eq!(random_observation.delivered_invalidation_frames, 48);
+    assert_eq!(random_observation.discarded_invalidation_frames, 12);
+    assert_eq!(random_observation.reprojected_invalidation_frames, 12);
+    assert_eq!(random_observation.discarded_response_drains, 12);
+    assert_eq!(
+        random_observation.max_generated_snapshot_frames_per_query_settlement,
+        2
+    );
+    assert_eq!(
+        random_observation.max_delivered_snapshot_frames_per_query_settlement,
+        1
+    );
+    assert_eq!(
+        random_observation.max_explicit_reprojection_calls_per_query_settlement,
+        1
+    );
 
     // Escalation is applied to a real outstanding quarantine after the first
     // response is lost. A host-branded denial monotonically replaces it with
@@ -1093,36 +1231,40 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         &connection,
         &admission,
         &mut queries[0],
-        true,
-        "trusted-terminal-denial",
+        DeliveryMode::DropDrainAndReproject,
     );
-    assert_eq!(delete.dispositions.get("delete"), Some(&1));
+    assert_eq!(delete.delivered_dispositions.get("delete"), Some(&1));
+    let terminal_escalation_disposition =
+        single_delivered_disposition(&delete, "terminal escalation");
     assert!(queries[0].rows.is_empty());
     let quarantine = settle_query(
         &mut snapback,
         &connection,
         &admission,
         &mut queries[1],
-        true,
-        "enumerated-permission-write",
+        DeliveryMode::ReprojectAfterPriorDrop,
     );
-    assert_eq!(quarantine.snapshot_frames, 1);
+    assert_eq!(quarantine.delivered_snapshot_frames, 1);
     assert_converges(&snapback, &queries[1]);
     let notes = settle_query(
         &mut snapback,
         &connection,
         &admission,
         &mut queries[2],
-        true,
-        "enumerated-permission-write",
+        DeliveryMode::ReprojectAfterPriorDrop,
     );
-    assert_eq!(notes.snapshot_frames, 1);
+    assert_eq!(notes.delivered_snapshot_frames, 1);
     assert_converges(&snapback, &queries[2]);
 
     // An ordinary process restart destroys process-local scopes. The durable
-    // authorization incarnation survives, while the returning materialization
-    // receives a never-reused query instance and an unconditional fresh
-    // snapshot instead of trusting any pre-restart matcher/epoch observation.
+    // authorization incarnation survives. The harness then supplies a query
+    // instance distinct from every pre-restart fixture and observes the initial
+    // snapshot returned by a new subscription instead of claiming that this
+    // acceptance helper introspected the store allocator.
+    let pre_restart_query_instances = queries
+        .iter()
+        .map(|query| query.query_instance_id)
+        .collect::<BTreeSet<_>>();
     let before_restart = snapback
         .auth_database_mut()
         .authorization_version()
@@ -1143,7 +1285,9 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .auth_database_mut()
         .authorization_version()
         .expect("authorization version after restart");
-    assert_eq!(after_restart.incarnation, before_restart.incarnation);
+    let ordinary_restart_preserved_incarnation =
+        after_restart.incarnation == before_restart.incarnation;
+    assert!(ordinary_restart_preserved_incarnation);
     let restarted_connection = install_invalidation(&mut restarted);
     let restarted_query = subscribe(
         &mut restarted,
@@ -1153,14 +1297,24 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         json!({}),
         100,
     );
-    assert_converges(&restarted, &restarted_query);
+    let restart_installed_new_issuer = restarted_connection.issuer_id != connection.issuer_id;
+    assert!(restart_installed_new_issuer);
+    let restart_accepted_distinct_caller_supplied_query_instance =
+        !pre_restart_query_instances.contains(&restarted_query.query_instance_id);
+    assert!(restart_accepted_distinct_caller_supplied_query_instance);
+    let restart_initial_snapshot_converged =
+        converges_with_fresh_query(&restarted, &restarted_query);
+    assert!(restart_initial_snapshot_converged);
 
+    let membership_disposition =
+        single_delivered_disposition(&membership_observation, "membership churn");
+    let randomized_disposition =
+        single_delivered_disposition(&random_observation, "randomized writes");
     let raw_sample = random_observation
-        .receipts
+        .observed_receipts
         .first()
         .expect("randomized corpus produced a receipt");
     let normalized_sample = json!({
-        "proofPath": raw_sample["proofPath"],
         "scopeKind": raw_sample["scopeKind"],
         "revision": raw_sample["revision"],
         "compositeWitness": {
@@ -1174,65 +1328,127 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
             },
         },
         "disposition": raw_sample["disposition"],
-        "selection": raw_sample["selection"],
     });
     let actual = json!({
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "rfc": "LLP 0053",
-        "workload": {
+        "scenario": {
             "name": "deterministic-membership-and-row-visibility-churn",
             "randomizedOperations": 24,
             "randomSeed": "0x0053c0de",
             "authScopedQueries": 3,
             "unrelatedQueriesDuringPermissionChurn": 3,
             "membershipChurnEvents": 3,
-            "lostMembershipDrainEpisodes": 1,
-            "lostDrainEpisodes": lost_drain_episodes,
+            "scheduledMembershipLossRounds": 1,
+            "scheduledRandomizedLossRounds": scheduled_randomized_loss_rounds,
             "restartOperations": 1,
         },
-        "observed": {
-            "membershipChurnResnapshotTraffic": membership_observation.snapshot_frames,
-            "membershipChurnAcknowledgements": membership_observation.acknowledgements,
-            "randomizedSnapshotTraffic": random_observation.snapshot_frames,
-            "randomizedAcknowledgements": random_observation.acknowledgements,
-            "coarseEventMergedResnapshotsPerQuery": 1,
-            "maxHiddenViewTime": {
-                "value": 1,
-                "unit": "authorization-boundary-intervals",
-                "basis": "the quarantine boundary precedes the replacement snapshot; wall-clock network latency is deliberately not claimed",
+        "runtimeMeasurements": {
+            "membershipChurn": {
+                "generatedInvalidationFrames": membership_observation.generated_invalidation_frames,
+                "generatedSnapshotFrames": membership_observation.generated_snapshot_frames,
+                "deliveredInvalidationFrames": membership_observation.delivered_invalidation_frames,
+                "deliveredSnapshotFrames": membership_observation.delivered_snapshot_frames,
+                "discardedInvalidationFrames": membership_observation.discarded_invalidation_frames,
+                "discardedSnapshotFrames": membership_observation.discarded_snapshot_frames,
+                "reprojectedInvalidationFrames": membership_observation.reprojected_invalidation_frames,
+                "reprojectedSnapshotFrames": membership_observation.reprojected_snapshot_frames,
+                "discardedResponseDrains": membership_observation.discarded_response_drains,
+                "acknowledgements": membership_observation.acknowledgements,
+                "maxGeneratedSnapshotFramesPerQuerySettlement": membership_observation.max_generated_snapshot_frames_per_query_settlement,
+                "maxDeliveredSnapshotFramesPerQuerySettlement": membership_observation.max_delivered_snapshot_frames_per_query_settlement,
+                "maxExplicitReprojectionCallsPerQuerySettlement": membership_observation.max_explicit_reprojection_calls_per_query_settlement,
+                "deliveredDisposition": membership_disposition,
             },
-            "maxRecoveryTime": {
-                "value": 1,
-                "unit": "level-triggered-projection-turns",
+            "randomizedWrites": {
+                "generatedInvalidationFrames": random_observation.generated_invalidation_frames,
+                "generatedSnapshotFrames": random_observation.generated_snapshot_frames,
+                "deliveredInvalidationFrames": random_observation.delivered_invalidation_frames,
+                "deliveredSnapshotFrames": random_observation.delivered_snapshot_frames,
+                "discardedInvalidationFrames": random_observation.discarded_invalidation_frames,
+                "discardedSnapshotFrames": random_observation.discarded_snapshot_frames,
+                "reprojectedInvalidationFrames": random_observation.reprojected_invalidation_frames,
+                "reprojectedSnapshotFrames": random_observation.reprojected_snapshot_frames,
+                "discardedResponseDrains": random_observation.discarded_response_drains,
+                "acknowledgements": random_observation.acknowledgements,
+                "maxGeneratedSnapshotFramesPerQuerySettlement": random_observation.max_generated_snapshot_frames_per_query_settlement,
+                "maxDeliveredSnapshotFramesPerQuerySettlement": random_observation.max_delivered_snapshot_frames_per_query_settlement,
+                "maxExplicitReprojectionCallsPerQuerySettlement": random_observation.max_explicit_reprojection_calls_per_query_settlement,
+                "deliveredDisposition": randomized_disposition,
             },
-            "durableTombstoneWritesForUnrelatedQuarantine": 0,
-            "retainedPayloadFixtureRows": 1,
-            "retainedBytesDeletedForUnrelatedQuarantine": 0,
-            "pendingMutationFixtureCount": 2,
-            "suspendedPendingMutations": 2,
-            "pendingMutationsDeletedForUnrelatedQuarantine": 0,
-            "pendingMutationsDisposition": "suspended-not-destroyed",
-            "terminalEscalationDisposition": "delete",
-            "ordinaryRestartPreservedIncarnation": true,
-            "restartFreshResnapshots": 1,
-            "metricSources": {
-                "serverChurn": "local::authorization_acceptance",
-                "retainedPayload": "packages/snapback-contract/authorized-retained-store.test.mjs",
-                "pendingMutations": "packages/snapback-contract/client-store-queue-authorization.test.mjs",
+        },
+        "runtimeAssertions": {
+            "membershipAuthorizationEpochAdvance": membership_epoch_advance,
+            "randomizedAuthorizationEpochAdvance": randomized_epoch_advance,
+            "randomizedAllQueryConvergenceRounds": randomized_all_query_convergence_rounds,
+            "randomizedFreshQueryComparisons": randomized_fresh_query_comparisons,
+            "terminalEscalationDisposition": terminal_escalation_disposition,
+            "ordinaryRestartPreservedIncarnation": ordinary_restart_preserved_incarnation,
+            "restartInstalledNewIssuer": restart_installed_new_issuer,
+            "restartAcceptedDistinctCallerSuppliedQueryInstance": restart_accepted_distinct_caller_supplied_query_instance,
+            "restartInitialSnapshotConverged": restart_initial_snapshot_converged,
+        },
+        "serverObligation": {
+            "normalizedFieldSources": {
+                "compositeWitness": "obligation.witness",
+                "scopeKind": "obligation.scopeId.kind",
+                "revision": "obligation.revision",
+                "disposition": "obligation.maxDisposition",
+            },
+            "identifierNormalizations": {
+                "compositeWitness.authorization.incarnation": "<authenticated-uuid-v7>",
+                "compositeWitness.data.versionStream": "<authenticated-version-stream>",
+            },
+            "sample": normalized_sample,
+        },
+        "harnessExpectedAssertions": {
+            "membershipClassification": {
+                "expectedPath": "enumerated-permission-write",
+                "basis": {
+                    "permissionBackingWrites": 3,
+                    "authorizationEpochAdvance": membership_epoch_advance,
+                },
+                "productionFrameReportsPath": false,
+            },
+            "randomizedClassification": {
+                "expectedPath": "matcher-full-requery",
+                "basis": {
+                    "authorizationEpochAdvance": randomized_epoch_advance,
+                    "allQueryConvergenceRounds": randomized_all_query_convergence_rounds,
+                    "freshQueryComparisons": randomized_fresh_query_comparisons,
+                },
+                "productionFrameReportsPath": false,
+            },
+        },
+        "independentFixtureAssertions": {
+            "authorizedRetainedStore": {
+                "sourceTest": "packages/snapback-contract/authorized-retained-store.test.mjs",
+                "expectedOutcomes": {
+                    "authorizedReadDuringQuarantine": null,
+                    "physicallyRetainedRowsDuringQuarantine": [{ "card": "ace-updated" }],
+                },
+            },
+            "mutationQueueAuthorization": {
+                "sourceTest": "packages/snapback-contract/client-store-queue-authorization.test.mjs",
+                "expectedOutcomes": {
+                    "suspendedAfterOneOfTwoQuarantineRootsResolves": true,
+                    "pendingMutationIdsAfterBothQuarantineRootsResolve": [
+                        "cm_queue_a",
+                        "cm_queue_b",
+                    ],
+                },
             },
         },
         "oracle": {
             "kind": "fresh-full-query-and-authorization-re-evaluation",
-            "checkedAfterEveryRandomizedOperation": true,
-            "receiptFields": [
-                "proofPath",
-                "compositeWitness",
-                "scopeKind",
-                "revision",
-                "disposition",
-                "selection",
-            ],
-            "sample": normalized_sample,
+            "randomizedAllQueryConvergenceRounds": randomized_all_query_convergence_rounds,
+            "randomizedFreshQueryComparisons": randomized_fresh_query_comparisons,
+        },
+        "coverageBoundaries": {
+            "clientVisibleTimingMeasuredByThisHarness": false,
+            "durableByteOrTombstoneCountsMeasuredByThisHarness": false,
+            "clientFixtureAssertionsAreRuntimeMeasurementsFromThisHarness": false,
+            "queryInstanceAllocatorIntrospectedByThisHarness": false,
         },
     });
     let expected: Value = serde_json::from_str(include_str!(
