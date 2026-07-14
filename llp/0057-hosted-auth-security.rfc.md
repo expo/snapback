@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0054, LLP 0055, LLP 0056
 
 ## Summary
@@ -283,7 +283,10 @@ can still obtain the bearer to populate `Authorization`; v1 cannot both send a
 bearer and pretend same-origin JavaScript is unable to exercise it. Client
 transport errors defensively replace known request credentials/codes and
 sensitive protocol fields before constructing an app-visible `Error`, even if
-a broken receiver reflects them.
+a broken receiver reflects them. Successful auth-session and credential
+responses are also exact, closed, reconstructed projections: unknown root or
+nested fields fail generically, and a request bearer or issued successor may
+not appear in the public projection before custody advances.
 
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
@@ -294,6 +297,16 @@ The client MUST NOT place session bearers, refresh successors, login codes,
 admin master credentials, `AdminSecretRead` leases, keyring material, or DPoP
 private keys in logs, errors, URLs, wakeup payloads, analytics, generated
 artifacts, or public diagnostics.
+
+Snapback's shared admin client applies the same last-mile rule to its distinct
+operator carriers. Master tokens, derived `sbcc_` console credentials,
+memory-only `AdminSecretRead` leases, and submitted config values are collected
+as request-scoped secrets. Transport exceptions, structured diagnostics,
+non-JSON bodies, and successful reflected responses are reconstructed with
+those values replaced before reaching UI code. The credential exchange accepts
+only its exact two-field response and consumes it internally. The Contract UI
+logs only that safe scalar projection, and the embedded setup program executes
+the same rule before writing DOM text or browser storage.
 
 ### C2. Defenses that do not change the boundary
 
@@ -309,14 +322,30 @@ IndexedDB” or “CSP solves XSS.”
 
 Snapback-owned static operator pages now ship a concrete baseline: `default-src
 'none'`, no objects or framing, same-origin scripts/connect/assets, an exact
-SHA-256 admission for the one embedded setup script, no `unsafe-eval`, Trusted
-Types enforcement, `nosniff`, no-referrer, denied browser powers, and
-same-origin opener/resource policies. A drift test hashes the served inline
-bytes and compares them with the CSP. Inline styles remain admitted for the
-embedded setup page and React style props. This controls Snapback's operator
-surface only; an application or hosting target still owns the app document's
-CSP and dependencies, so these headers do not promote the local target or
-bearer v1 to hosted readiness.
+SHA-256 admission for the one embedded setup script, and response-specific
+exact hashes for the built Exact shell's inline manifest/bootstrap blocks. It
+admits no `unsafe-eval`, enforces Trusted Types, and adds `nosniff`,
+no-referrer, denied browser powers, and same-origin opener/resource policies.
+A router test hashes each document's served inline bytes and compares them with
+that response's CSP; shared middleware preserves the built shell's dynamic
+policy instead of overwriting it with the setup fallback. Inline styles remain
+admitted for the embedded setup page and React style props. This controls
+Snapback's operator surface only; an application or hosting target still owns
+the app document's CSP and dependencies, so these headers do not promote the
+local target or bearer v1 to hosted readiness.
+
+The embedded program also has an executable DOM/network regression using its
+actual served source. A headless-Chrome acceptance launches the real server
+against the production Contract build, captures `securitypolicyviolation`,
+console errors, runtime exceptions, and unhandled page failures from both
+operator documents, traverses each master-to-derived credential recovery path,
+and requires the admin `Overview` surface and setup summary to render. It then
+proves Trusted Types is actually enforced by requiring an intentional string
+`innerHTML` assignment to fail with `TypeError` and the
+`require-trusted-types-for` violation. The first runtime exercise found the
+brand mark's otherwise-sanitized inline-SVG parser still crossed
+`template.innerHTML`; the console now uses theme-specific static SVG image
+assets so it boots without weakening Trusted Types through a default policy.
 
 ### C3. Sender-constrained v2
 
@@ -405,13 +434,15 @@ material.
 
 ### Browser custody
 
-- A secret sentinel proves `localStorage`, wakeups, diagnostics, URLs, errors,
-  and return values never contain bearer/admin material.
+- Secret sentinels prove `localStorage`, wakeups, diagnostics, URLs, errors,
+  and return values never contain session bearer, master admin, derived console,
+  secret-read lease, or submitted config material.
 - Ordinary coordinator views contain no bearer. The acceptance test names the
   transactional custody record and authorization header as the intentional v1
   carriers instead of hiding them from the assertion.
 - Snapback-owned static pages carry the restrictive CSP/security-header
-  baseline, and the exact embedded-script hash is derived from served bytes.
+  baseline, and every inline setup/Exact-shell hash is derived from the exact
+  bytes of its own response.
 - The documented IndexedDB record is explicitly treated as JavaScript-readable
   bearer custody, not encrypted/XSS-safe storage.
 - The future v2 conformance suite proves non-extractable key generation,
@@ -453,8 +484,27 @@ sender constraint before v2 exists. A hosted target must satisfy the
 conjunctive acceptance matrix above; a future browser v2 must receive its own
 wire/storage spec and review before activation.
 
+The review evidence includes exact live-server hash admission for both operator
+documents, execution of the embedded setup program, a successful production
+admin build, and a clean Chrome 150 run of both complete credential-recovery
+boot paths with zero unintentional policy violations, console errors, or
+runtime exceptions. The intentional sink probe confirms the browser enforces
+Trusted Types rather than merely receiving the header.
+
 ## Changelog
 
+- **2026-07-13 (ENG-24607 review hardening):** moved the desired-or-active
+  sessions plaintext refusal ahead of bearer resolution on embedded routing;
+  made auth-session and credential successes exact reconstructed projections
+  with poisoned-200 sentinels; applied master/derived/secret-read/config-value
+  redaction to the shared admin client, Contract UI, and embedded setup page;
+  discovered and closed the built Exact shell's two-inline-block CSP admission
+  gap with per-response hashes preserved through shared route middleware; ran
+  the real Chrome boot paths, replaced the TT-incompatible inline-SVG brand
+  sink with static theme assets, and proved enforcement with an intentional
+  rejected sink while keeping both ordinary boots violation-free;
+  restored frozen LLP 0039 byte-for-byte to its pre-ENG-24607 state; and
+  added the browser acceptance as a repeatable admin-ui script.
 - **2026-07-13 (ENG-24607 enforcement):** added the generated five-axis target
   capability descriptor and exact 32-case matrix; made `--auth-deployment
   hosted` fail before target creation and repeat in embedded routing; removed

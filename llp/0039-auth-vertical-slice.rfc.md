@@ -20,7 +20,7 @@ and proves only finite-invocation isolation until then); 2026-07-12 (super-refin
 rounds 1–6; loop stopped on a structural finding — see §Status and §Changelog,
 and
 `reviews/0039-auth-vertical-slice.{fable,codex}.md`)
-**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0017, LLP 0020, LLP 0024, LLP 0026, LLP 0030, LLP 0031, LLP 0032, LLP 0034, LLP 0036, LLP 0038, LLP 0042, LLP 0043, LLP 0045, LLP 0046, LLP 0047, LLP 0051, LLP 0053, LLP 0054, LLP 0055, LLP 0056, LLP 0057
+**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0017, LLP 0020, LLP 0024, LLP 0026, LLP 0030, LLP 0031, LLP 0032, LLP 0034, LLP 0036, LLP 0038, LLP 0042, LLP 0043, LLP 0045, LLP 0046, LLP 0047, LLP 0051, LLP 0053
 
 ## Summary
 
@@ -1922,10 +1922,10 @@ and 7.
   it, or does the identity merge hold?
 - Are the 10 s grace window and the 7-day rotation cadence right, and does
   multi-tab custody need a shared worker beyond Web Locks in practice?
-- [LLP 0057](./0057-hosted-auth-security.rfc.md) owns deployment security (TLS,
-  trusted-proxy source addressing, distributed throttling, and multi-replica
-  invalidation) and the client-page XSS posture. The local target remains
-  non-hosted; sender-constrained credentials are the v2 direction.
+- Who writes the deployment-security contract (TLS, trusted-proxy source
+  addressing, distributed throttling, multi-replica session invalidation) and
+  the client-page XSS posture — extensions of LLP 0009, or new LLPs? Both want
+  owners before landing item 5.
 - Which other secret-adjacent gated reads (config status, parts of the gated
   inspect twin, receipts) should migrate to `AdminSecretRead` in the 0031
   revision?
@@ -2040,9 +2040,9 @@ Draft/FROZEN status.
 **Standing residuals — properties, not bugs to be fixed later.** An active
 app-page XSS can steal an in-memory `AdminSecretRead` lease for its remaining TTL,
 named-table scope, and unused row/byte budget. The dev-mode loopback fence protects
-un-proxied defaults, not proxied opt-ins. LLP 0057 now owns hosted deployment
-security and the client-page XSS posture; the current target remains explicitly
-non-hosted and bearer v1 remains explicitly non-XSS-resistant.
+un-proxied defaults, not proxied opt-ins. Hosted deployment security and the
+client-page XSS posture remain blocking companion contracts rather than guarantees
+made by this RFC.
 
 ## Changelog
 
