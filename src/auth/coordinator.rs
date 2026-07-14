@@ -50,6 +50,7 @@ impl std::fmt::Debug for AuthCoordinator {
 pub(crate) struct PremarkedRevocation {
     plan: ProviderRevocationPlan,
     ticket: MutationTicket,
+    terminal_target: CommittedRevocationTarget,
 }
 
 impl PremarkedRevocation {
@@ -78,6 +79,7 @@ pub(crate) struct PremarkedIssuance {
     plan: ProviderSessionIssuancePlan,
     issuance_ticket: MutationTicket,
     eviction_ticket: Option<MutationTicket>,
+    eviction_terminal_target: Option<CommittedRevocationTarget>,
 }
 
 pub(crate) struct PremarkedStreamReset {
@@ -218,6 +220,72 @@ pub(crate) enum IssuanceFinish {
     PredecessorChanged,
 }
 
+/// Exact predecessor authority that must be terminalized after a known
+/// durable revocation commit. The target is captured while `Begin` still owns
+/// a coherent projection, so post-commit projection failure cannot erase the
+/// information required by the server terminal lifecycle.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CommittedRevocationTarget {
+    authorization_stream_incarnation: String,
+    session_id: String,
+    predecessor_generation: u64,
+}
+
+impl CommittedRevocationTarget {
+    pub(crate) fn authorization_stream_incarnation(&self) -> &str {
+        &self.authorization_stream_incarnation
+    }
+
+    pub(crate) fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub(crate) fn predecessor_generation(&self) -> u64 {
+        self.predecessor_generation
+    }
+}
+
+/// A coordinator result whose known-committed revocation fact must be
+/// consumed before the result (including its original diagnostic) is
+/// returned to the request path.
+#[must_use = "known-committed revocations require terminal propagation"]
+pub(crate) struct AuthFinish<T> {
+    outcome: SnapbackResult<T>,
+    committed_revocation: Option<CommittedRevocationTarget>,
+}
+
+impl<T> AuthFinish<T> {
+    fn new(
+        outcome: SnapbackResult<T>,
+        committed_revocation: Option<CommittedRevocationTarget>,
+    ) -> Self {
+        Self {
+            outcome,
+            committed_revocation,
+        }
+    }
+
+    pub(crate) fn into_parts(self) -> (SnapbackResult<T>, Option<CommittedRevocationTarget>) {
+        (self.outcome, self.committed_revocation)
+    }
+
+    #[cfg(test)]
+    fn unwrap(self) -> T
+    where
+        T: std::fmt::Debug,
+    {
+        self.outcome.unwrap()
+    }
+
+    #[cfg(test)]
+    fn unwrap_err(self) -> SnapbackError
+    where
+        T: std::fmt::Debug,
+    {
+        self.outcome.unwrap_err()
+    }
+}
+
 /// Projection-resolved authority plus the leaf handles required for the final
 /// synchronous publication cut. Callers may compute with `authority`, but
 /// bytes/effects become observable only through `publication.try_publish`.
@@ -308,6 +376,11 @@ impl AuthCoordinator {
     ) -> SnapbackResult<PremarkedRevocation> {
         let mut topology = self.lock_topology()?;
         topology.require_session_available(plan.session_id())?;
+        let terminal_target = CommittedRevocationTarget {
+            authorization_stream_incarnation: topology.projection.incarnation().as_str().to_owned(),
+            session_id: plan.session_id().to_owned(),
+            predecessor_generation: plan.expected_generation(),
+        };
         let ticket = topology.projection.begin_session_mutation(
             plan.session_id(),
             plan.expected_generation(),
@@ -315,7 +388,11 @@ impl AuthCoordinator {
                 reason: plan.reason(),
             },
         )?;
-        Ok(PremarkedRevocation { plan, ticket })
+        Ok(PremarkedRevocation {
+            plan,
+            ticket,
+            terminal_target,
+        })
     }
 
     pub(crate) fn premark_rotation(
@@ -347,6 +424,11 @@ impl AuthCoordinator {
         if let Some(eviction) = plan.eviction() {
             topology.require_session_available(eviction.session_id())?;
         }
+        let eviction_terminal_target = plan.eviction().map(|eviction| CommittedRevocationTarget {
+            authorization_stream_incarnation: topology.projection.incarnation().as_str().to_owned(),
+            session_id: eviction.session_id().to_owned(),
+            predecessor_generation: eviction.expected_generation(),
+        });
         let insert = plan.projected_insert();
         let issuance_ticket = topology.projection.begin_issuance(insert)?;
         let eviction_ticket = match plan.eviction() {
@@ -372,6 +454,7 @@ impl AuthCoordinator {
             plan,
             issuance_ticket,
             eviction_ticket,
+            eviction_terminal_target,
         })
     }
 
@@ -438,6 +521,20 @@ impl AuthCoordinator {
     }
 
     pub(crate) fn finish_revocation(
+        &self,
+        carrier: PremarkedRevocation,
+        attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+    ) -> AuthFinish<RevocationFinish> {
+        let committed_revocation = matches!(
+            &attempt,
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(_))
+        )
+        .then(|| carrier.terminal_target.clone());
+        let outcome = self.finish_revocation_outcome(carrier, attempt);
+        AuthFinish::new(outcome, committed_revocation)
+    }
+
+    fn finish_revocation_outcome(
         &self,
         carrier: PremarkedRevocation,
         attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
@@ -573,6 +670,26 @@ impl AuthCoordinator {
     }
 
     pub(crate) fn finish_issuance(
+        &self,
+        carrier: PremarkedIssuance,
+        attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> AuthFinish<IssuanceFinish> {
+        let committed_revocation = matches!(
+            &attempt,
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                committed_revocation: Some(_),
+                ..
+            })
+        )
+        .then(|| carrier.eviction_terminal_target.clone())
+        .flatten();
+        let outcome = self.finish_issuance_outcome(carrier, attempt, epoch_now_ms, monotonic_now);
+        AuthFinish::new(outcome, committed_revocation)
+    }
+
+    fn finish_issuance_outcome(
         &self,
         carrier: PremarkedIssuance,
         attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
@@ -1157,6 +1274,7 @@ mod tests {
 
     struct Fixture {
         coordinator: Arc<AuthCoordinator>,
+        incarnation: String,
         session_id: String,
         bearer: String,
         digest: TokenDigest,
@@ -1173,11 +1291,13 @@ mod tests {
         let identity_id = uuid_v7(3, 3);
         let session_id = uuid_v7(4, 4);
         let authority_instance_id = uuid_v7(5, 5);
-        let incarnation = AuthorizationStreamIncarnation::parse(&uuid_v7(1, 1)).unwrap();
+        let incarnation = uuid_v7(1, 1);
         let source = ProjectionSource {
-            authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
-                .encode_bytes()
-                .unwrap(),
+            authorization_stream_value: AuthorizationStreamRecord::new(
+                AuthorizationStreamIncarnation::parse(&incarnation).unwrap(),
+            )
+            .encode_bytes()
+            .unwrap(),
             restore_declaration_id: None,
             users: vec![ProjectionUserRow {
                 id: user_id.clone(),
@@ -1209,6 +1329,7 @@ mod tests {
             SessionProjection::rebuild(source, &uuid_v7(6, 6), 100, monotonic_start).unwrap();
         Fixture {
             coordinator: Arc::new(AuthCoordinator::new(projection).unwrap()),
+            incarnation,
             session_id,
             bearer: bearer_text,
             digest,
@@ -1493,13 +1614,23 @@ mod tests {
             .premark_revocation(plan(&fixture, RevocationReason::Logout))
             .unwrap();
         fixture.coordinator.inject_finalize_failure();
-        let error = fixture
+        let (outcome, terminal_target) = fixture
             .coordinator
             .finish_revocation(carrier, committed(&fixture))
-            .unwrap_err();
+            .into_parts();
+        let error = outcome.unwrap_err();
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_eq!(
+            terminal_target,
+            Some(CommittedRevocationTarget {
+                authorization_stream_incarnation: fixture.incarnation.clone(),
+                session_id: fixture.session_id.clone(),
+                predecessor_generation: 1,
+            }),
+            "known durable commit retains its exact predecessor terminal target"
         );
         assert!(
             fixture

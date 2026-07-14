@@ -188,10 +188,6 @@ impl CredentialIssue {
         &self.response
     }
 
-    pub(crate) fn committed_revocation(&self) -> Option<&SessionRevocation> {
-        self.committed_revocation.as_ref()
-    }
-
     pub fn into_parts(self) -> (CredentialResponse, Option<SessionRevocation>) {
         (self.response, self.committed_revocation)
     }

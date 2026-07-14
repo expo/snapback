@@ -4,8 +4,9 @@ use crate::admin_secret_read::{
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommitFailure};
 use crate::auth::coordinator::{
-    AuthCoordinator, CommittedAuthOutcome, CommittedAuthResponseClass, ConnectionBearerResolution,
-    ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
+    AuthCoordinator, AuthFinish, CommittedAuthOutcome, CommittedAuthResponseClass,
+    CommittedRevocationTarget, ConnectionBearerResolution, ConnectionSessionThrottleKey,
+    IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::SessionBearer;
 use crate::auth::descriptor::descriptor_for_resolved_authority;
@@ -5819,40 +5820,43 @@ async fn record_connection_authenticated_use(
         .ok_or_else(|| ApiError::from(provider_session_expired().into_snapback_error()))
 }
 
+/// Consume the terminal side of a coordinator finish before returning its
+/// request outcome. A known durable commit may still carry a projection
+/// diagnostic; terminal propagation is mandatory and does not replace that
+/// diagnostic.
+///
+/// @ref LLP 0059#plan-begin-commit-finalize — Propagate is an independent,
+/// mandatory phase after known commit, including when Finalize fails closed.
+fn finish_auth_with_terminal_propagation<T>(
+    runtime: &AppState,
+    provider: &AuthProvider,
+    finish: AuthFinish<T>,
+) -> SnapbackResult<T> {
+    let (outcome, committed_revocation) = finish.into_parts();
+    if let Some(committed_revocation) = committed_revocation {
+        propagate_committed_revocation(runtime, provider, &committed_revocation);
+    }
+    outcome
+}
+
 fn propagate_committed_revocation(
     runtime: &AppState,
     provider: &AuthProvider,
-    revocation: &crate::auth::provider::SessionRevocation,
-) -> SnapbackResult<()> {
-    let coordinator = runtime.auth_coordinator.as_ref().ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-            "auth",
-            "authentication projection is unavailable during terminal propagation",
-        )
-    })?;
-    let incarnation = coordinator.authorization_stream_incarnation()?;
-    let predecessor_generation = revocation.generation.checked_sub(1).ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-            "auth",
-            "committed revocation has no predecessor generation",
-        )
-    })?;
-    let close_by = provider
-        .monotonic_now()
+    target: &CommittedRevocationTarget,
+) {
+    let monotonic_now = provider.monotonic_now();
+    let close_by = monotonic_now
         .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
-        .unwrap_or_else(|| provider.monotonic_now());
+        .unwrap_or(monotonic_now);
     runtime
         .auth_terminal_lifecycle
         .terminate_session_generation(
-            &incarnation,
-            &revocation.session_id,
-            predecessor_generation,
+            target.authorization_stream_incarnation(),
+            target.session_id(),
+            target.predecessor_generation(),
             crate::live_wire::LiveAuthErrorReason::Revoked,
             close_by,
         );
-    Ok(())
 }
 
 async fn coordinated_mint_session(
@@ -5891,18 +5895,14 @@ async fn coordinated_mint_session(
         })
         .await;
         admission = returned_admission;
-        match coordinator.finish_issuance(
+        let finish = coordinator.finish_issuance(
             carrier,
             attempt,
             provider.now_ms(),
             provider.monotonic_now(),
-        )? {
-            IssuanceFinish::Committed(issue) => {
-                if let Some(revocation) = issue.committed_revocation() {
-                    propagate_committed_revocation(runtime, provider, revocation)?;
-                }
-                return Ok(issue);
-            }
+        );
+        match finish_auth_with_terminal_propagation(runtime, provider, finish)? {
+            IssuanceFinish::Committed(issue) => return Ok(issue),
             IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
                 return Err(auth_provider_unavailable_error());
             }
@@ -5981,20 +5981,16 @@ async fn coordinated_exchange_session(
                     })
                     .await;
                 exchange = returned_exchange;
-                match coordinator
-                    .finish_issuance(
-                        carrier,
-                        attempt,
-                        provider.now_ms(),
-                        provider.monotonic_now(),
-                    )
+                let finish = coordinator.finish_issuance(
+                    carrier,
+                    attempt,
+                    provider.now_ms(),
+                    provider.monotonic_now(),
+                );
+                match finish_auth_with_terminal_propagation(runtime, provider, finish)
                     .map_err(ProviderError::from)?
                 {
                     IssuanceFinish::Committed(issue) => {
-                        if let Some(revocation) = issue.committed_revocation() {
-                            propagate_committed_revocation(runtime, provider, revocation)
-                                .map_err(ProviderError::from)?;
-                        }
                         exchange.finish_exchange_cleanup();
                         return Ok(issue);
                     }
@@ -6267,13 +6263,11 @@ async fn auth_refresh(
                     }
                 })
                 .await;
-                match coordinator
-                    .finish_revocation(carrier, attempt)
+                let finish = coordinator.finish_revocation(carrier, attempt);
+                match finish_auth_with_terminal_propagation(&runtime, &provider, finish)
                     .map_err(ApiError::from)?
                 {
-                    RevocationFinish::Committed { revocation, .. } => {
-                        propagate_committed_revocation(&runtime, &provider, &revocation)
-                            .map_err(ApiError::from)?;
+                    RevocationFinish::Committed { .. } => {
                         return Err(map_provider_error(provider_session_expired()));
                     }
                     RevocationFinish::AlreadyTerminal { .. } => {
@@ -6341,16 +6335,11 @@ async fn auth_logout(
             }
         })
         .await;
-        match coordinator
-            .finish_revocation(carrier, attempt)
+        let finish = coordinator.finish_revocation(carrier, attempt);
+        match finish_auth_with_terminal_propagation(&runtime, &provider, finish)
             .map_err(ApiError::from)?
         {
-            RevocationFinish::Committed {
-                revocation,
-                outcome,
-            } => {
-                propagate_committed_revocation(&runtime, &provider, &revocation)
-                    .map_err(ApiError::from)?;
+            RevocationFinish::Committed { outcome, .. } => {
                 let mut response = StatusCode::NO_CONTENT.into_response();
                 response.extensions_mut().insert(outcome);
                 return Ok(response);
@@ -6490,16 +6479,11 @@ async fn auth_family_alarm(
                         AuthTransactionAttempt::CommitUncertain(error)
                     }
                 };
-                match coordinator
-                    .finish_revocation(carrier, attempt)
+                let finish = coordinator.finish_revocation(carrier, attempt);
+                match finish_auth_with_terminal_propagation(&runtime, &provider, finish)
                     .map_err(ApiError::from)?
                 {
-                    RevocationFinish::Committed {
-                        revocation,
-                        outcome,
-                    } => {
-                        propagate_committed_revocation(&runtime, &provider, &revocation)
-                            .map_err(ApiError::from)?;
+                    RevocationFinish::Committed { outcome, .. } => {
                         committed_outcome = Some(outcome);
                         accepted = true;
                         break;
@@ -12054,6 +12038,70 @@ mod tests {
         )
     }
 
+    fn open_registered_session_connection(
+        state: &AppState,
+        bearer: &str,
+        connection_id: &str,
+    ) -> (String, u64, Arc<tokio::sync::Notify>) {
+        let provider = state.auth_provider.as_ref().expect("provider");
+        let epoch_now_ms = provider.now_ms();
+        let monotonic_now = provider.monotonic_now();
+        let prepared = super::prepare_connection_open_authority(
+            state,
+            super::PresentedSessionBearer::Candidate(bearer),
+            epoch_now_ms,
+            monotonic_now,
+        )
+        .expect("prepare session-bound connection authority");
+        let opened = state
+            .connections
+            .open_prepared(super::ConnectionOpenAttempt::new(
+                Some(connection_id.to_owned()),
+                None,
+                true,
+                prepared,
+                epoch_now_ms,
+                monotonic_now,
+                None,
+            ))
+            .expect("open session-bound connection grant");
+        let (registration_generation, waker) = state
+            .ephemeral
+            .delivery_notifier()
+            .register_bound(&opened.grant.connection_id, opened.grant_id)
+            .expect("register exact session-bound socket");
+        (opened.grant.connection_id, registration_generation, waker)
+    }
+
+    async fn assert_revocation_terminalized(
+        state: &AppState,
+        connection_id: &str,
+        registration_generation: u64,
+        waker: &tokio::sync::Notify,
+    ) {
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("known-committed revocation wakes the exact socket");
+        let notifier = state.ephemeral.delivery_notifier();
+        let event = notifier
+            .terminal_if_current(connection_id, registration_generation)
+            .expect("known-committed revocation installs a terminal event");
+        assert_eq!(
+            event.code,
+            crate::live_wire::LiveAuthErrorCode::SessionExpired
+        );
+        assert_eq!(event.reason, crate::live_wire::LiveAuthErrorReason::Revoked);
+        assert!(
+            event.close_by
+                <= Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+            "terminal close remains inside the five-second protocol bound"
+        );
+        assert!(!notifier.is_deliverable(connection_id, registration_generation));
+        let registry = state.connections.lock();
+        assert!(!registry.grants.contains_key(connection_id));
+        registry.assert_grant_indexes_consistent();
+    }
+
     fn prepared_provider_route_authority(
         state: &AppState,
         source: InvocationSource,
@@ -14255,6 +14303,197 @@ mod tests {
         let serialized = serde_json::to_string(&body).unwrap();
         assert!(!serialized.contains(&predecessor));
         assert!(!serialized.contains(&successor));
+    }
+
+    /// @ref LLP 0059#plan-begin-commit-finalize — a known logout commit must
+    /// propagate terminal authority loss even when projection Finalize fails;
+    /// the original projection diagnostic remains the request outcome.
+    #[tokio::test]
+    async fn postcommit_logout_finalize_failure_still_terminalizes_exact_grant() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
+        let credential = mint_test_credential(&state, "logout-finalize@example.com").await;
+        let bearer = credential["token"].as_str().expect("logout bearer");
+        let session_id = credential["session"]["id"]
+            .as_str()
+            .expect("logout session id")
+            .to_owned();
+        let generation = credential["authorityDescriptor"]["sessionGeneration"]
+            .as_u64()
+            .expect("logout session generation");
+        let incarnation = state
+            .auth_coordinator
+            .as_ref()
+            .expect("logout coordinator")
+            .authorization_stream_incarnation()
+            .expect("logout incarnation");
+        let (connection_id, registration_generation, waker) =
+            open_registered_session_connection(&state, bearer, "logout-finalize");
+        let authority =
+            prepared_provider_route_authority(&state, InvocationSource::AuthLogout, bearer);
+        let coordinator = state.auth_coordinator.clone().expect("logout coordinator");
+        coordinator.inject_finalize_failure();
+
+        let error = super::auth_logout(
+            State(state.clone()),
+            authority,
+            auth_provider_headers(Some(bearer)),
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        .expect_err("injected logout projection finalize failure");
+        assert_eq!(
+            error.0.diagnostic.code, "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "terminal propagation must not mask the projection diagnostic"
+        );
+        assert!(coordinator.requires_rebuild(&session_id).unwrap());
+        assert_revocation_terminalized(
+            &state,
+            &connection_id,
+            registration_generation,
+            waker.as_ref(),
+        )
+        .await;
+
+        state.auth_terminal_lifecycle.terminate_session_generation(
+            &incarnation,
+            &session_id,
+            generation,
+            crate::live_wire::LiveAuthErrorReason::Revoked,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        assert!(
+            state
+                .ephemeral
+                .delivery_notifier()
+                .terminal_if_current(&connection_id, registration_generation)
+                .is_some(),
+            "duplicate propagation is idempotent and preserves the first terminal event"
+        );
+    }
+
+    /// Admin/host minting shares this coordinator path. The twenty-first
+    /// committed session must terminalize the evicted predecessor even when
+    /// successor projection finalization fails and globally closes admission.
+    ///
+    /// @ref LLP 0059#operation-specific-publication — cap eviction propagates
+    /// the exact predecessor terminal event after its joint durable commit.
+    #[tokio::test]
+    async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction() {
+        let start_ms = super::now_millis();
+        let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+        let mut snapback = LocalSnapback::memory().expect("manual-clock cap fixture");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(
+            snapback.auth_database_mut(),
+            keyring.as_ref(),
+            start_ms,
+            &OsRandom,
+        )
+        .expect("activate cap auth catalog");
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                clock.clone(),
+            )
+            .expect("construct manual-clock cap provider"),
+        );
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        let state = activate_test_sessions(
+            AppState::from_snapback(snapback, context)
+                .with_policy_auth_mode(PolicyAuthMode::Sessions)
+                .with_auth_provider(provider.clone()),
+        );
+        let email = "admin-cap-finalize@example.com";
+        let first = mint_test_credential(&state, email).await;
+        for offset in 1..crate::auth::provider::AUTH_SESSION_LIVE_LIMIT {
+            clock.set(start_ms + u64::try_from(offset).unwrap());
+            let _ = mint_test_credential(&state, email).await;
+        }
+        let first_bearer = first["token"].as_str().expect("oldest cap bearer");
+        let (connection_id, registration_generation, waker) =
+            open_registered_session_connection(&state, first_bearer, "admin-cap-finalize");
+        let coordinator = state.auth_coordinator.clone().expect("cap coordinator");
+        coordinator.inject_finalize_failure();
+        clock
+            .set(start_ms + u64::try_from(crate::auth::provider::AUTH_SESSION_LIVE_LIMIT).unwrap());
+        let admission = provider.admit_email(email).await.expect("admit cap email");
+        let route_admission = test_route_admission(&state).0;
+
+        let error = super::coordinated_mint_session(&state, &provider, admission, &route_admission)
+            .await
+            .expect_err("injected postcommit issuance finalize failure");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "terminal propagation must not mask the issuance diagnostic"
+        );
+        assert_eq!(
+            coordinator
+                .authorization_stream_incarnation()
+                .expect_err("issuance failure keeps the coordinator globally closed")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_revocation_terminalized(
+            &state,
+            &connection_id,
+            registration_generation,
+            waker.as_ref(),
+        )
+        .await;
+    }
+
+    /// Expiry already arrives as an authoritative projection result. Repeated
+    /// sink delivery must be harmless while the first delivery invalidates the
+    /// reverse-indexed grant and schedules terminal close.
+    #[tokio::test]
+    async fn authoritative_expiry_terminal_sink_is_idempotent() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
+        let credential = mint_test_credential(&state, "expiry-terminal@example.com").await;
+        let bearer = credential["token"].as_str().expect("expiry bearer");
+        let session_id = credential["session"]["id"]
+            .as_str()
+            .expect("expiry session id")
+            .to_owned();
+        let generation = credential["authorityDescriptor"]["sessionGeneration"]
+            .as_u64()
+            .expect("expiry generation");
+        let incarnation = state
+            .auth_coordinator
+            .as_ref()
+            .expect("expiry coordinator")
+            .authorization_stream_incarnation()
+            .expect("expiry incarnation");
+        let (connection_id, registration_generation, waker) =
+            open_registered_session_connection(&state, bearer, "expiry-terminal");
+        let expired = crate::auth::session_projection::ExpiredSession {
+            authorization_stream_incarnation: incarnation,
+            session_id,
+            generation,
+            close_by: Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        };
+
+        state
+            .auth_terminal_lifecycle
+            .expire_sessions(vec![expired.clone()]);
+        state.auth_terminal_lifecycle.expire_sessions(vec![expired]);
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("expiry wakes the exact socket once");
+        let notifier = state.ephemeral.delivery_notifier();
+        let event = notifier
+            .terminal_if_current(&connection_id, registration_generation)
+            .expect("expiry terminal event installed");
+        assert_eq!(event.reason, crate::live_wire::LiveAuthErrorReason::Expired);
+        assert!(!notifier.is_deliverable(&connection_id, registration_generation));
+        let registry = state.connections.lock();
+        assert!(!registry.grants.contains_key(&connection_id));
+        registry.assert_grant_indexes_consistent();
     }
 
     /// @ref LLP 0057#rotation — the shared gate resolves an attributable
