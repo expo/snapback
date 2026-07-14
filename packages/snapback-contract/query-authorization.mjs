@@ -493,6 +493,38 @@ export function createLiveQueryAuthorizationFence({
     return clone({ status: 'stale', fence: fenceFor(state) });
   };
 
+  const rejectAcknowledgement = (ackToken, { commit = null } = {}) => {
+    for (const [key, entry] of Object.entries(state.pendingByScope)) {
+      if (entry.resolution?.applied && entry.resolution.ticket.ackToken === ackToken) {
+        const before = clone(state);
+        try {
+          entry.resolution = null;
+          state.effectiveDisposition = effectiveDisposition(
+            pendingObligations(state.pendingByScope),
+          );
+          if (state.effectiveDisposition === 'delete') {
+            state.accepted = null;
+          }
+          const nextFence = advance();
+          if (typeof commit === 'function') {
+            const outcome = commit({ kind: state.effectiveDisposition, fence: nextFence });
+            assertSynchronousCommit(outcome);
+          }
+          return clone({
+            status: 'rejected',
+            obligation: entry.obligation,
+            disposition: state.effectiveDisposition,
+            fence: nextFence,
+          });
+        } catch (error) {
+          Object.assign(state, before);
+          throw error;
+        }
+      }
+    }
+    return clone({ status: 'stale', fence: fenceFor(state) });
+  };
+
   const applyLiveSnapshot = ({ fence, snapshot, commit }) => {
     assertFence(state, fence, 'live snapshot callback');
     if (unresolvedDisposition(state) !== 'retain' || state.effectiveDisposition !== 'retain') {
@@ -813,6 +845,7 @@ export function createLiveQueryAuthorizationFence({
     receiveObligation,
     applyResolution,
     acknowledge,
+    rejectAcknowledgement,
     applyLiveSnapshot,
     replaceAuthenticatedExpectation,
     retireScopes,

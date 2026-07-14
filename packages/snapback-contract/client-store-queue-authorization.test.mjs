@@ -180,6 +180,28 @@ const terminal = await store.resolveMutationQueueObligation(
 await store.discardStranded({ ...authority, ...terminal });
 assert.deepEqual(await store.strandedMutations(authority), []);
 
+// An authenticated retirement + covering snapshot is validated by the query
+// coordinator. Its exact-scope cleanup removes the corresponding queue root
+// without forging a resolution ticket or ACK.
+const retirementRoot = await store.applyMutationQueueObligation(
+  obligation(4),
+  { ...authority, ...terminal },
+);
+const retired = await store.retireMutationQueueScopes(
+  [scope(4)],
+  { ...authority, ...retirementRoot },
+);
+assert.equal(retired.retired, 1);
+assert.equal(retired.suspended, false);
+assert.equal(retired.pendingScopeCount, 0);
+await expectCode(
+  'SNAPBACK_CLIENT_QUEUE_GENERATION_STALE',
+  () => store.retireMutationQueueScopes(
+    [scope(4)],
+    { ...authority, ...retirementRoot },
+  ),
+);
+
 // Format 3 migrates by preserving already authority-tagged queue bytes while
 // installing a generation-zero queue fence. A truncated current format fails
 // closed instead of silently manufacturing a new fence.

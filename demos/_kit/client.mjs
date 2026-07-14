@@ -13,6 +13,17 @@
 //   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
 //   connection axis.
 
+import { retainedQueryKey } from '../../packages/snapback-contract/client-store.mjs';
+import {
+  createLiveQueryAuthorizationFence,
+  createLiveQueryInstanceAllocator,
+  createLiveQueryNamespace,
+} from '../../packages/snapback-contract/query-authorization.mjs';
+import {
+  validateAuthorizationInvalidationConnection,
+  validateScopeId,
+} from '../../packages/snapback-contract/auth-invalidation.mjs';
+
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
 //
@@ -85,6 +96,7 @@ export const LIVE_DURABLE_KINDS = Object.freeze({
   LIVE_REPLACE: 'live_replace',
   LIVE_DELTA: 'live_delta',
   RESYNC_REQUIRED: 'resync_required',
+  AUTHORIZATION_INVALIDATION: 'authorization_invalidation',
 });
 export const LIVE_SOCKET_KINDS = Object.freeze({
   PONG: 'pong',
@@ -111,6 +123,26 @@ const AUTH_INVALIDATION_PROTOCOL_HEADER = 'x-snapback-auth-invalidation-protocol
 const AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER = 'x-snapback-authority-descriptor-protocol';
 const AUTHORIZED_LEASE_PROTOCOL_HEADER = 'x-snapback-authorized-lease-protocol';
 const AUTHORITY_CAPTURE = Symbol('snapback.authorityCapture');
+const AUTHORIZATION_CONNECTION = Symbol('snapback.authorizationConnection');
+
+const processClientStoreId = (() => {
+  const randomId = globalThis.crypto?.randomUUID?.();
+  if (randomId) return `live_${randomId.replaceAll('-', '')}`;
+  const pid = typeof process !== 'undefined' && Number.isSafeInteger(process.pid)
+    ? process.pid
+    : 0;
+  return `live_${Date.now().toString(36)}_${pid.toString(36)}`;
+})();
+const liveQueryAllocators = new Map();
+
+const allocatorForClientStore = (clientStoreId) => {
+  let allocator = liveQueryAllocators.get(clientStoreId);
+  if (!allocator) {
+    allocator = createLiveQueryInstanceAllocator();
+    liveQueryAllocators.set(clientStoreId, allocator);
+  }
+  return allocator;
+};
 
 const markAuthorityCapture = (value, capture) => {
   if (!capture || value === null || typeof value !== 'object') return value;
@@ -257,6 +289,7 @@ export class SnapbackClient {
     authorityDescriptorProtocol = null,
     authorizedLeaseProtocol = null,
     authCoordinator = null,
+    clientStoreId = processClientStoreId,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -265,6 +298,8 @@ export class SnapbackClient {
     }
     this.bearerToken = bearerToken;
     this.authCoordinator = authCoordinator;
+    this.clientStoreId = clientStoreId;
+    this.__liveQueryAllocator = allocatorForClientStore(clientStoreId);
     this.authProtocols = Object.freeze({
       authClient: authClientProtocol,
       authInvalidation: authInvalidationProtocol,
@@ -608,10 +643,16 @@ export class SnapbackClient {
       connectionId,
       ...(previousToken ? { previousToken } : {}),
     }).then(
-      (granted) => markAuthorityCapture(
-        { id: granted.connectionId, token: granted.connectionToken },
-        granted?.[AUTHORITY_CAPTURE] ?? null,
-      ),
+      (granted) => {
+        const authorizationInvalidation = granted.authorizationInvalidation == null
+          ? null
+          : validateAuthorizationInvalidationConnection(granted.authorizationInvalidation);
+        return markAuthorityCapture({
+          id: granted.connectionId,
+          token: granted.connectionToken,
+          authorizationInvalidation,
+        }, granted?.[AUTHORITY_CAPTURE] ?? null);
+      },
       (error) => {
         // A failed open must not poison the label: drop the cached promise
         // so the next operation retries the handshake. The cache may hold
@@ -1100,12 +1141,25 @@ export class SnapbackClient {
     }
   }
 
-  async subscribeLive(ref, { connectionId, args = {}, userId, correlation = null, supersedes = null } = {}) {
+  async subscribeLive(ref, {
+    connectionId,
+    args = {},
+    userId,
+    correlation = null,
+    supersedes = null,
+    authorizationNamespace = null,
+  } = {}) {
     const name = functionName(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
     const response = await this.#withGrant(connectionId, (grant) => {
       const body = { connection_id: grant.id, input };
+      const namespace = typeof authorizationNamespace === 'function'
+        ? authorizationNamespace(grant)
+        : authorizationNamespace;
+      if (namespace !== null && namespace !== undefined) {
+        body.authorizationNamespace = namespace;
+      }
       // Explicit supersession (ENG-22478 review fix A): name the subscription
       // this fresh subscribe replaces (the kit's own resubscribe paths only);
       // the server disposes exactly that id. Never inferred — plain duplicate
@@ -1113,8 +1167,25 @@ export class SnapbackClient {
       if (supersedes) body.supersedes = supersedes;
       return this.#req('POST', `/live/${encodeURIComponent(name)}/subscribe`, body, connectionTokenHeader(grant));
     });
+    Object.defineProperty(response, AUTHORIZATION_CONNECTION, {
+      value: await this.connectionGrant(connectionId).then(
+        (grant) => grant.authorizationInvalidation,
+      ),
+      configurable: false,
+      enumerable: false,
+      writable: false,
+    });
     if (response?.receipt) this.recordReceipt(response.receipt);
     return response;
+  }
+
+  async acknowledgeAuthorizationInvalidation(connectionId, ackToken) {
+    return this.#withGrant(connectionId, (grant) => this.#req(
+      'POST',
+      '/live/authorization-invalidation/acknowledge',
+      { connectionId: grant.id, ackToken },
+      connectionTokenHeader(grant),
+    ));
   }
 
   /// Explicit unsubscribe (LLP 0034 §10.1 residual / ENG-22478): dispose one
@@ -1471,11 +1542,26 @@ export class SnapbackClient {
     onUpdate = null,
     onConnectionChange = null,
     onSubscriptionEvent = null,
+    onAuthorizationBoundary = null,
+    onAuthorizationError = null,
+    authorizationQueue = null,
     correlation = null,
     stream: streamOptions = {},
   } = {}) {
     const name = functionName(ref);
     const client = this;
+    const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
+    const queryKey = retainedQueryKey(name, args);
+    let queryNamespace = authorizationProtocolEnabled
+      ? createLiveQueryNamespace({
+          clientStoreId: this.clientStoreId,
+          queryKey,
+          queryInstanceId: this.__liveQueryAllocator.allocate(),
+        })
+      : null;
+    let authorizationFence = null;
+    let authorizationFaulted = false;
+    let authorizationTail = Promise.resolve();
 
     let connection = 'connecting';
     let disposed = false;
@@ -1536,8 +1622,15 @@ export class SnapbackClient {
       subscriptionId: null,
       version: 0,
       rows: [],
+      authorizationDisposition: 'retain',
       get connection() {
         return connection;
+      },
+      get authorizationNamespace() {
+        return queryNamespace;
+      },
+      authorizationState() {
+        return authorizationFence?.snapshot?.() ?? null;
       },
     };
 
@@ -1547,6 +1640,238 @@ export class SnapbackClient {
       const previous = connection;
       connection = next;
       if (onConnectionChange) deliverIsolated(onConnectionChange, next, { previous });
+    };
+
+    const authorizationSnapshot = (value) => ({
+      rows: value?.rows,
+      version: value?.version,
+    });
+
+    const commitAuthorizationBoundary = (event) => {
+      const previousRows = handle.rows;
+      const previousVersion = handle.version;
+      const previousDisposition = handle.authorizationDisposition;
+      try {
+        if (event.kind === 'snapshot') {
+          handle.rows = event.rows;
+          handle.version = event.version;
+          handle.authorizationDisposition = 'retain';
+        } else if (event.kind === 'quarantine' || event.kind === 'delete') {
+          handle.rows = [];
+          handle.authorizationDisposition = event.kind;
+        } else if (event.kind === 'retain') {
+          handle.authorizationDisposition = 'retain';
+        } else {
+          throw new TypeError(`unknown query authorization boundary kind: ${event.kind}`);
+        }
+        markAuthorityCapture(handle.rows, handleAuthorityCapture);
+        const detail = {
+          version: handle.version,
+          kind: `authorization_${event.kind}`,
+          authorization: event,
+        };
+        const boundaryResult = onAuthorizationBoundary?.(handle.rows, detail);
+        if (boundaryResult && typeof boundaryResult.then === 'function') {
+          throw new TypeError('onAuthorizationBoundary must commit synchronously');
+        }
+        if (event.kind !== 'retain') deliverIsolated(onUpdate, handle.rows, detail);
+      } catch (error) {
+        handle.rows = previousRows;
+        handle.version = previousVersion;
+        handle.authorizationDisposition = previousDisposition;
+        throw error;
+      }
+    };
+
+    const reportAuthorizationError = (error) => {
+      authorizationFaulted = true;
+      handle.rows = [];
+      handle.authorizationDisposition = 'quarantine';
+      markAuthorityCapture(handle.rows, handleAuthorityCapture);
+      const detail = {
+        version: handle.version,
+        kind: 'authorization_error',
+        error,
+      };
+      try {
+        onAuthorizationBoundary?.(handle.rows, detail);
+      } catch {
+        // The handle itself remains blank even if an adapter boundary failed.
+      }
+      deliverIsolated(onUpdate, handle.rows, detail);
+      deliverIsolated(onAuthorizationError, error);
+      if (!disposed && !paused) setConnection('stale');
+    };
+
+    const applyQueueObligation = async (value) => {
+      if (value.maxDisposition === 'retain') return null;
+      return authorizationQueue?.applyObligation?.(value) ?? null;
+    };
+
+    const resolveQueueObligation = async (value) => {
+      if (value.maxDisposition === 'retain') return null;
+      return authorizationQueue?.resolveObligation?.(value) ?? null;
+    };
+
+    const retireQueueScopes = async (retired) => {
+      const scopes = retired.map((entry) => entry.scopeId).filter(Boolean);
+      if (scopes.length === 0) return null;
+      return authorizationQueue?.retireScopes?.(scopes) ?? null;
+    };
+
+    const enqueueAuthorizationTask = (task) => {
+      const attempted = authorizationTail.then(task);
+      authorizationTail = attempted.catch((error) => {
+        reportAuthorizationError(error);
+      });
+      return attempted;
+    };
+
+    const rejectStaleAcknowledgement = async (ackToken) => {
+      const rejected = authorizationFence.rejectAcknowledgement(ackToken, {
+        commit: commitAuthorizationBoundary,
+      });
+      if (rejected.status === 'rejected') {
+        await applyQueueObligation(rejected.obligation);
+      }
+      return rejected;
+    };
+
+    const receiveAuthorizationProjection = (projection, snapshotValue = null) => {
+      if (!authorizationFence) {
+        throw new Error(
+          'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED: invalidation arrived before its authenticated query expectation',
+        );
+      }
+      const received = authorizationFence.receiveObligation(projection.obligation, {
+        commit: commitAuthorizationBoundary,
+      });
+      if (['stale-expectation', 'retired', 'acknowledged'].includes(received.status)) {
+        return Promise.resolve(received);
+      }
+      return enqueueAuthorizationTask(async () => {
+        await applyQueueObligation(projection.obligation);
+        if (projection.resolution == null) return received;
+        const applied = authorizationFence.applyResolution({
+          fence: received.fence,
+          resolution: projection.resolution,
+          snapshot: projection.resolution.kind === 'terminalDelete'
+            ? null
+            : authorizationSnapshot(snapshotValue),
+          commit: commitAuthorizationBoundary,
+        });
+        authorizationFaulted = false;
+        await resolveQueueObligation(projection.resolution);
+        let acknowledged;
+        try {
+          acknowledged = await client.acknowledgeAuthorizationInvalidation(
+            connectionId,
+            applied.ackToken,
+          );
+        } catch (error) {
+          // Delivery is level-triggered. Preserve the applied ticket so the
+          // next re-fire resends the same ACK instead of inventing a release.
+          throw error;
+        }
+        if (acknowledged?.outcome === 'discharged' || acknowledged?.outcome === 'duplicate') {
+          authorizationFence.acknowledge(applied.ackToken);
+          return applied;
+        }
+        await rejectStaleAcknowledgement(applied.ackToken);
+        if (acknowledged?.outcome !== 'stale') {
+          throw new Error(
+            'SNAPBACK_AUTH_INVALIDATION_CORRUPT: acknowledgement returned an unknown outcome',
+          );
+        }
+        return { ...applied, status: 'stale-acknowledgement' };
+      });
+    };
+
+    const applyRetirement = (kind, retirement, freshSnapshot) => (
+      enqueueAuthorizationTask(async () => {
+        const result = kind === 'issuer'
+          ? authorizationFence.retireIssuer({
+              retirement,
+              freshSnapshot,
+              commit: commitAuthorizationBoundary,
+            })
+          : authorizationFence.retireScopes({
+              retirement,
+              freshSnapshot,
+              commit: commitAuthorizationBoundary,
+            });
+        if (result.status === 'retired') await retireQueueScopes(result.retired);
+        return result;
+      })
+    );
+
+    const installAuthorizationSubscription = async (sub) => {
+      const scopeValue = sub.authorizationScope ?? null;
+      const connectionValue = sub[AUTHORIZATION_CONNECTION] ?? null;
+      if (scopeValue === null) return;
+      if (queryNamespace === null || connectionValue === null) {
+        throw new Error(
+          'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED: auth-scoped live response lacks the negotiated query expectation',
+        );
+      }
+      const normalizedScope = validateScopeId(scopeValue, 'authorizationScope');
+      if (
+        normalizedScope.kind !== 'subscription'
+        || JSON.stringify(normalizedScope.namespace) !== JSON.stringify(queryNamespace)
+        || normalizedScope.subscriptionId !== sub.subscription_id
+      ) {
+        throw new Error(
+          'SNAPBACK_AUTH_INVALIDATION_CORRUPT: subscribe response crossed live query scope identity',
+        );
+      }
+      const normalizedConnection = validateAuthorizationInvalidationConnection(connectionValue);
+      const freshSnapshot = authorizationSnapshot(sub.snapshot);
+      if (!authorizationFence) {
+        const authorityGeneration = client.captureAuthority?.()?.authorityEpoch ?? 0;
+        authorizationFence = createLiveQueryAuthorizationFence({
+          namespace: queryNamespace,
+          authorityGeneration,
+          issuerId: normalizedConnection.issuerId,
+          authorization: normalizedConnection.authorization,
+          versionStream: normalizedConnection.versionStream,
+          initialSnapshot: freshSnapshot,
+        });
+      } else {
+        authorizationFence.replaceAuthenticatedExpectation({
+          issuerId: normalizedConnection.issuerId,
+          authorization: normalizedConnection.authorization,
+          versionStream: normalizedConnection.versionStream,
+          snapshot: freshSnapshot,
+          commit: commitAuthorizationBoundary,
+        });
+      }
+      if (sub.authorizationInvalidation) {
+        await receiveAuthorizationProjection(sub.authorizationInvalidation, sub.snapshot);
+      }
+      if (normalizedConnection.issuerRetirement) {
+        await applyRetirement(
+          'issuer',
+          normalizedConnection.issuerRetirement,
+          freshSnapshot,
+        );
+      }
+      for (const retirement of sub.scopeRetirements ?? []) {
+        await applyRetirement('scope', retirement, freshSnapshot);
+      }
+      if (
+        authorizationFence.isRenderable()
+        && (
+          handle.version !== sub.snapshot.version
+          || JSON.stringify(handle.rows) !== JSON.stringify(sub.snapshot.rows)
+        )
+      ) {
+        authorizationFence.applyLiveSnapshot({
+          fence: authorizationFence.capture(),
+          snapshot: freshSnapshot,
+          commit: commitAuthorizationBoundary,
+        });
+      }
+      if (authorizationFence.isRenderable()) authorizationFaulted = false;
     };
 
     // Full SubscriptionReceipts (LLP 0034 §3.2 / ENG-22478): the kit is the
@@ -1584,12 +1909,26 @@ export class SnapbackClient {
     };
 
     const bestEffortUnsubscribeLive = (subscriptionId) => {
-      if (!subscriptionId) return;
-      void Promise.resolve()
+      if (!subscriptionId) return Promise.resolve();
+      return Promise.resolve()
         .then(() => client.unsubscribeLive(name, { subscriptionId, connectionId, userId }))
+        .then(async (response) => {
+          if (
+            response?.scopeRetirement
+            && authorizationFence?.snapshot?.().lifecycle === 'retiring'
+          ) {
+            await applyRetirement('scope', response.scopeRetirement, null);
+          }
+          if (authorizationFence?.snapshot?.().lifecycle === 'retiring') {
+            try { authorizationFence.finishRetirement(); } catch { /* owner continuity remains */ }
+          }
+        })
         .catch(() => {
           // Best-effort: the subscription may already be gone (disconnect,
           // supersession) or the server unreachable — the reaper covers it.
+          if (authorizationFence?.snapshot?.().lifecycle === 'retiring') {
+            try { authorizationFence.finishRetirement(); } catch { /* owner continuity remains */ }
+          }
         });
     };
 
@@ -1660,15 +1999,39 @@ export class SnapbackClient {
         client.authCoordinator
         && (!updateCapture || !client.authCoordinator.isCurrent(updateCapture))
       ) return;
+      if (update.kind === LIVE_DURABLE_KINDS.AUTHORIZATION_INVALIDATION) {
+        try {
+          void receiveAuthorizationProjection({
+            obligation: update.obligation,
+            resolution: update.resolution ?? null,
+          }, update.snapshot ?? null).catch(() => {});
+        } catch (error) {
+          reportAuthorizationError(error);
+        }
+        return;
+      }
       if (update.kind === LIVE_DURABLE_KINDS.LIVE_REPLACE) {
         // Updates for a superseded (pre-resubscribe) subscription id are
         // ignored; versions are non-decreasing per subscription (the global
         // durable commit version assigned at fan-out).
         if (update.subscription_id !== handle.subscriptionId) return;
         if (typeof update.version === 'number' && update.version < handle.version) return;
-        handle.rows = update.rows;
-        handle.version = update.version;
-        onUpdate?.(handle.rows, { version: handle.version, kind: LIVE_DURABLE_KINDS.LIVE_REPLACE });
+        if (authorizationFaulted) return;
+        if (authorizationFence) {
+          try {
+            authorizationFence.applyLiveSnapshot({
+              fence: authorizationFence.capture(),
+              snapshot: authorizationSnapshot(update),
+              commit: commitAuthorizationBoundary,
+            });
+          } catch (error) {
+            reportAuthorizationError(error);
+          }
+        } else {
+          handle.rows = update.rows;
+          handle.version = update.version;
+          onUpdate?.(handle.rows, { version: handle.version, kind: LIVE_DURABLE_KINDS.LIVE_REPLACE });
+        }
         return;
       }
       if (update.kind === LIVE_DURABLE_KINDS.LIVE_DELTA) {
@@ -1681,6 +2044,7 @@ export class SnapbackClient {
         // correct.
         if (update.subscription_id !== handle.subscriptionId) return;
         if (typeof update.version === 'number' && update.version < handle.version) return;
+        if (authorizationFaulted) return;
         const byId = new Map(
           (Array.isArray(handle.rows) ? handle.rows : []).map((row) => [row?._id, row]),
         );
@@ -1688,9 +2052,22 @@ export class SnapbackClient {
           if (op.op === 'remove') byId.delete(op.id);
           else if (op.op === 'add' || op.op === 'update') byId.set(op.id, op.row);
         }
-        handle.rows = [...byId.values()];
-        handle.version = update.version;
-        onUpdate?.(handle.rows, { version: handle.version, kind: LIVE_DURABLE_KINDS.LIVE_DELTA });
+        const nextRows = [...byId.values()];
+        if (authorizationFence) {
+          try {
+            authorizationFence.applyLiveSnapshot({
+              fence: authorizationFence.capture(),
+              snapshot: { rows: nextRows, version: update.version },
+              commit: commitAuthorizationBoundary,
+            });
+          } catch (error) {
+            reportAuthorizationError(error);
+          }
+        } else {
+          handle.rows = nextRows;
+          handle.version = update.version;
+          onUpdate?.(handle.rows, { version: handle.version, kind: LIVE_DURABLE_KINDS.LIVE_DELTA });
+        }
         return;
       }
       if (update.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED) {
@@ -1722,6 +2099,7 @@ export class SnapbackClient {
             userId,
             correlation,
             supersedes,
+            authorizationNamespace: queryNamespace,
           });
           try {
             assertSubscribeLifecycle(lifecycle);
@@ -1763,6 +2141,20 @@ export class SnapbackClient {
       }
       const { sub, epochAtStart, demandEpochAtStart } = attempt;
       assertSubscribeLifecycle(lifecycle);
+      handle.subscriptionId = sub.subscription_id;
+      handleAuthorityCapture = sub[AUTHORITY_CAPTURE] ?? null;
+      try {
+        if (sub.authorizationScope) {
+          await installAuthorizationSubscription(sub);
+        } else {
+          handle.version = sub.snapshot.version;
+          handle.rows = sub.snapshot.rows;
+        }
+        assertSubscribeLifecycle(lifecycle);
+      } catch (error) {
+        bestEffortUnsubscribeLive(sub.subscription_id);
+        throw error;
+      }
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees —
       // UNLESS a socket loss raced the in-flight request (ENG-23428): the
@@ -1777,10 +2169,6 @@ export class SnapbackClient {
         resubscribeAttempts = 0;
         clearResubscribeRetry();
       }
-      handle.subscriptionId = sub.subscription_id;
-      handle.version = sub.snapshot.version;
-      handle.rows = sub.snapshot.rows;
-      handleAuthorityCapture = sub[AUTHORITY_CAPTURE] ?? null;
       return sub;
     };
 
@@ -2211,6 +2599,12 @@ export class SnapbackClient {
         }
       };
       try {
+        if (authorizationFence?.snapshot?.().lifecycle === 'active') {
+          attempt(() => authorizationFence.beginRetirement({
+            fence: authorizationFence.capture(),
+            commit: commitAuthorizationBoundary,
+          }));
+        }
         // Receipt ordering remains established-before-disposed. Observer
         // delivery is isolated, and the `disposing` guard makes a callback
         // that re-enters dispose idempotent instead of recursively tearing

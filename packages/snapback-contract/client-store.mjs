@@ -962,6 +962,51 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       });
     },
 
+    // Authenticated scope/issuer retirement is validated by the live-query
+    // coordinator together with its covering snapshot. This store transition
+    // consumes only the exact scopes that coordinator proved extinct; it is
+    // cleanup, never an ACK or a release proof by itself.
+    async retireMutationQueueScopes(scopeValues, expected = {}) {
+      if (!Array.isArray(scopeValues)) {
+        throw new TypeError('retireMutationQueueScopes requires an array of exact scope ids');
+      }
+      const keys = new Set(scopeValues.map((value) => {
+        if (value?.kind === 'connection') {
+          throw clientStoreStateError(
+            'SNAPBACK_CLIENT_QUEUE_SCOPE_UNSUPPORTED',
+            'a connection projection root must be expanded into query-sized children',
+          );
+        }
+        return scopeKey(value);
+      }));
+      return transact((state, commit) => {
+        assertExpectedAuthority(state, expected, 'mutation queue scope retirement');
+        assertExpectedQueue(state, expected, 'mutation queue scope retirement');
+        let retired = 0;
+        for (const key of keys) {
+          if (!Object.hasOwn(state.queueAuthorization.pendingByScope, key)) continue;
+          delete state.queueAuthorization.pendingByScope[key];
+          retired += 1;
+        }
+        if (retired > 0) {
+          advanceQueueGeneration(state);
+          commit(state);
+        }
+        const pendingScopeCount = Object.keys(
+          state.queueAuthorization.pendingByScope,
+        ).length;
+        return clone({
+          retired,
+          ...queueCapture(state),
+          suspended: pendingScopeCount > 0,
+          pendingScopeCount,
+          effectiveDisposition: effectiveDisposition(
+            state.queueAuthorization.pendingByScope,
+          ),
+        });
+      });
+    },
+
     async strandedMutations(expected = {}) {
       return transact((state) => {
         assertExpectedAuthority(state, expected, 'stranded mutation read');

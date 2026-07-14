@@ -215,6 +215,12 @@ const createFence = (overrides = {}) => createLiveQueryAuthorizationFence({
   const refired = fence.receiveObligation(pending, { commit: () => assert.fail() });
   assert.equal(refired.status, 'applied');
   assert.equal(refired.ackToken, applied.ackToken);
+  const rejected = fence.rejectAcknowledgement(applied.ackToken, {
+    commit: (event) => assert.equal(event.kind, 'quarantine'),
+  });
+  assert.equal(rejected.status, 'rejected');
+  assert.deepEqual(rejected.obligation, pending);
+  assert.equal(fence.isRenderable(), false);
 }
 
 // An authenticated scope prefix is cleanup, not release proof. It first leaves

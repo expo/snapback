@@ -273,4 +273,69 @@ const milkRows = (surface) =>
   assert.equal(disposed, true);
 }
 
+// Authorization invalidation owns the render boundary synchronously. Neither
+// an ordinary live callback nor an optimistic reducer may repopulate it before
+// an authenticated replacement snapshot releases the query fence.
+{
+  const seed = [{ _id: 'todo_auth_1', title: 'visible', completed: false, userId: 'u1', _version: 1 }];
+  let liveOptions;
+  let mutateCalls = 0;
+  let reducerCalls = 0;
+  const client = {
+    async liveQuery(_name, options) {
+      liveOptions = options;
+      return {
+        rows: [...seed],
+        version: 1,
+        connection: 'live',
+        dispose() {},
+      };
+    },
+    async mutate() {
+      mutateCalls += 1;
+    },
+  };
+  const surface = await createSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: {
+      ...makeManifest(),
+      queries: { listTodos: { mode: 'live', defaultLive: true } },
+    },
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: {
+      createTodo(rows) {
+        reducerCalls += 1;
+        return [...rows, { _id: 'must_not_render', title: 'hidden' }];
+      },
+    },
+  });
+
+  liveOptions.onAuthorizationBoundary([], { kind: 'authorization_quarantine', version: 1 });
+  assert.deepEqual(surface.boundary.current('todos'), [], 'quarantine blanks synchronously');
+
+  liveOptions.onUpdate(
+    [{ _id: 'late_live', title: 'late', _version: 2 }],
+    { kind: 'live_replace', version: 2 },
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(surface.boundary.current('todos'), [], 'ordinary live callback stays hidden');
+
+  assert.throws(
+    () => surface.links.createTodo({ title: 'blocked' }),
+    { code: 'SNAPBACK_AUTH_QUERY_QUARANTINED' },
+  );
+  assert.equal(reducerCalls, 0, 'optimistic reducer never runs behind the fence');
+  assert.equal(mutateCalls, 0, 'transport never starts behind the fence');
+  assert.deepEqual(surface.boundary.current('todos'), []);
+
+  const fresh = [{ _id: 'todo_auth_2', title: 'fresh', completed: false, userId: 'u1', _version: 3 }];
+  liveOptions.onAuthorizationBoundary(fresh, { kind: 'authorization_snapshot', version: 3 });
+  assert.deepEqual(surface.boundary.current('todos'), fresh);
+  surface.dispose();
+}
+
 console.log('optimistic-duplicate-reapply.test.mjs: all assertions passed');

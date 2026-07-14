@@ -38,8 +38,10 @@ const inventories = [
       'auth-coordinator-contract.test.mjs',
       'auth-coordinator.test.mjs',
       'auth-custody-indexeddb.test.mjs',
+      'auth-invalidation.test.mjs',
       'build-preset.test.mjs',
       'client-store-authority.test.mjs',
+      'client-store-queue-authorization.test.mjs',
       'derived-overlay-duplicate-reapply.test.mjs',
       'derived-overlay-reconcile-failure.test.mjs',
       'derived-overlay.test.mjs',
@@ -51,6 +53,7 @@ const inventories = [
       'mutation-reconcile-failure.test.mjs',
       'offline-replay.test.mjs',
       'optimistic-duplicate-reapply.test.mjs',
+      'query-authorization.test.mjs',
       'render-first.test.mjs',
       'retained-identity.test.mjs',
       'surface-construction-failure.test.mjs',
@@ -112,7 +115,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 35, 'reviewed package/admin test count changed');
+assert.equal(total, 38, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

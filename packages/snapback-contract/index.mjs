@@ -101,6 +101,46 @@ import {
 // @ref LLP 0056#participant-contract — duplicate surfaces must not race the
 //   store's expected-epoch transition CAS.
 const durableStoreRegistrations = new WeakMap();
+const durableQueryAuthorizationTails = new WeakMap();
+
+function createContractQueryAuthorizationQueue(store, capture) {
+  if (!store) return null;
+  const authority = capture
+    ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
+    : {};
+  const serialize = (operation) => {
+    const previous = durableQueryAuthorizationTails.get(store) ?? Promise.resolve();
+    const attempted = previous.then(operation, operation);
+    durableQueryAuthorizationTails.set(
+      store,
+      attempted.then(() => undefined, () => undefined),
+    );
+    return attempted;
+  };
+  const withQueueCapture = (operation) => serialize(async () => {
+    const queue = await store.captureMutationQueue(authority);
+    return operation({ ...authority, ...queue });
+  });
+  return Object.freeze({
+    applyObligation(obligation) {
+      if (obligation.maxDisposition === 'retain') return Promise.resolve(null);
+      return withQueueCapture((expected) => (
+        store.applyMutationQueueObligation(obligation, expected)
+      ));
+    },
+    resolveObligation(resolution) {
+      if (resolution.maxDisposition === 'retain') return Promise.resolve(null);
+      return withQueueCapture((expected) => (
+        store.resolveMutationQueueObligation(resolution, expected)
+      ));
+    },
+    retireScopes(scopes) {
+      return withQueueCapture((expected) => (
+        store.retireMutationQueueScopes(scopes, expected)
+      ));
+    },
+  });
+}
 
 function registerContractParticipant(client, coordinator, participant) {
   return typeof client?.registerAuthBarrierParticipant === 'function'
@@ -436,6 +476,7 @@ export async function createSnapbackContractSurface({
         coordinator,
         authorityCapture,
         manifest,
+        clientStore,
         liveQueries,
         livePush,
         connectionId,
@@ -643,6 +684,7 @@ export async function createSnapbackContractSurface({
     // failed mutation's optimistic row as ready data with no overlay pass
     // owning it (non-live mode never rewrites the boundary again on its own).
     let lastServerRows = [];
+    let queryAuthorizationHidden = false;
 
     const applyOptimisticOverlay = (rows) => {
       let out = rows;
@@ -739,8 +781,8 @@ export async function createSnapbackContractSurface({
     const writeServerRows = (rows, version = maxServerRowVersion(rows), capture = authorityCapture) => {
       lastServerRows = rows;
       lastServerVersion = version ?? maxServerRowVersion(rows);
-      retainRows(rows, lastServerVersion, capture);
-      if (disposed || !boundary) return rows;
+      if (!queryAuthorizationHidden) retainRows(rows, lastServerVersion, capture);
+      if (disposed || !boundary || queryAuthorizationHidden) return rows;
       const overlaid = applyOptimisticOverlay(rows);
       boundary.write(boundaryKey, () => overlaid);
       return overlaid;
@@ -759,7 +801,9 @@ export async function createSnapbackContractSurface({
       const outcome = await compareContractCommit(coordinator, capture, () => {
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
-        if (!disposed && boundary) boundary.write(boundaryKey, () => overlaid);
+        if (!disposed && boundary && !queryAuthorizationHidden) {
+          boundary.write(boundaryKey, () => overlaid);
+        }
         return overlaid;
       });
       if (!outcome.committed) return null;
@@ -781,7 +825,26 @@ export async function createSnapbackContractSurface({
         transport: 'stream',
         stream: liveStreamOptions,
         correlation: surfaceCorrelation,
+        authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
+        onAuthorizationBoundary: (rows, detail = {}) => {
+          if (detail.kind === 'authorization_retain') return;
+          if (detail.kind === 'authorization_quarantine' || detail.kind === 'authorization_delete') {
+            queryAuthorizationHidden = true;
+            if (detail.kind === 'authorization_delete') {
+              lastServerRows = [];
+              lastServerVersion = detail.version ?? 0;
+              inFlightOptimistic.clear();
+            }
+            if (!disposed && boundary) boundary.write(boundaryKey, () => []);
+            return;
+          }
+          if (detail.kind === 'authorization_snapshot') {
+            queryAuthorizationHidden = false;
+            writeServerRows(rows, detail.version, capture);
+          }
+        },
         onUpdate: (rows, detail = {}) => {
+          if (String(detail.kind).startsWith('authorization_')) return;
           if (coordinator && barrierPaused) return;
           const callbackCapture = captureForTransportValue(client, capture, rows);
           void publishServerRows(callbackCapture, rows, detail.version)
@@ -868,7 +931,7 @@ export async function createSnapbackContractSurface({
       const racedRows = liveHandle.rows;
       const racedCapture = captureForTransportValue(client, authorityCapture, liveHandle);
       const committed = await compareContractCommit(coordinator, racedCapture, () => {
-        boundary.write(boundaryKey, () => racedRows);
+        if (!queryAuthorizationHidden) boundary.write(boundaryKey, () => racedRows);
       });
       if (!committed.committed) throw staleContractAuthorityError();
     }
@@ -899,6 +962,20 @@ export async function createSnapbackContractSurface({
       if (barrierPaused || (coordinator && !coordinator.isCurrent(authorityCapture))) {
         throw staleContractAuthorityError();
       }
+    };
+
+    const assertMutationAuthorizationVisible = () => {
+      if (!queryAuthorizationHidden) return;
+      const error = new Error(
+        'SNAPBACK_AUTH_QUERY_QUARANTINED: mutation cannot publish an optimistic boundary while authorization is unresolved',
+      );
+      error.code = 'SNAPBACK_AUTH_QUERY_QUARANTINED';
+      error.diagnostic = contractDiagnostic(
+        error.code,
+        'Mutation is suspended while this query authorization is unresolved.',
+        { query: queryName },
+      );
+      throw error;
     };
 
     // Reconcile fetches authoritative rows and writes them with the in-flight
@@ -1212,6 +1289,7 @@ export async function createSnapbackContractSurface({
           // optimistic write. Recheck the local barrier at the exact turn that
           // can expose rows so transition blanking cannot be overwritten.
           assertActive();
+          assertMutationAuthorizationVisible();
           const reducer = activeReducer;
         // A derived plan runs against serde_json::Value on the server. Take
         // one canonical snapshot and reuse it for the prediction, durable
@@ -1496,7 +1574,9 @@ export async function createSnapbackContractSurface({
       await commitCurrent(capture, () => {
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
-        if (!disposed && boundary) boundary.write(boundaryKey, () => rows);
+        if (!disposed && boundary && !queryAuthorizationHidden) {
+          boundary.write(boundaryKey, () => rows);
+        }
       });
       if (generation !== resumeGeneration || !coordinator.isCurrent(capture)) return;
       retainRows(rows, resolvedVersion, capture);
@@ -2526,6 +2606,7 @@ async function createMultiLiveContractSurface({
   coordinator = null,
   authorityCapture = null,
   manifest,
+  clientStore = null,
   liveQueries,
   livePush,
   connectionId,
@@ -2543,6 +2624,7 @@ async function createMultiLiveContractSurface({
   mountedHandles,
 }) {
   const liveHandles = new Map(); // query name -> kit live handle
+  const authorizationHidden = new Set();
   let ephemeralWiring = null;
   let currentCapture = authorityCapture;
   let activeUserId = coordinator?.authority?.kind === 'session'
@@ -2668,7 +2750,9 @@ async function createMultiLiveContractSurface({
     };
     const publishRows = async (capture, name, rows) => {
       const outcome = await compareContractCommit(coordinator, capture, () => {
-        if (!disposed && boundary) boundary.write(name, () => rows);
+        if (!disposed && boundary && !authorizationHidden.has(name)) {
+          boundary.write(name, () => rows);
+        }
         return rows;
       });
       return outcome.committed ? outcome.value : null;
@@ -2681,10 +2765,24 @@ async function createMultiLiveContractSurface({
         userId: activeUserId,
         transport: 'stream',
         stream: liveStreamOptions,
+        authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
+        onAuthorizationBoundary: (rows, detail = {}) => {
+          if (detail.kind === 'authorization_retain') return;
+          if (detail.kind === 'authorization_quarantine' || detail.kind === 'authorization_delete') {
+            authorizationHidden.add(name);
+            if (!disposed && boundary) boundary.write(name, () => []);
+            return;
+          }
+          if (detail.kind === 'authorization_snapshot') {
+            authorizationHidden.delete(name);
+            if (!disposed && boundary) boundary.write(name, () => rows);
+          }
+        },
         // Adapter-stitched correlation (LLP 0034 §3.2); TODO(Exact LLP
         // 0231/0278): thread action/wave ids when the runtime supplies them.
         correlation: { rootId, bindingIds: [name] },
-        onUpdate: (rows) => {
+        onUpdate: (rows, detail = {}) => {
+          if (String(detail.kind).startsWith('authorization_')) return;
           if (coordinator && barrierPaused) return;
           const callbackCapture = captureForTransportValue(client, capture, rows);
           void publishRows(callbackCapture, name, rows).catch(() => {});
@@ -3023,7 +3121,9 @@ async function createMultiLiveContractSurface({
         try {
           barrierPreparing = true;
           await commitCurrent(context.capture, () => {
-            for (const [name, rows] of stagedRows) boundary.write(name, () => rows);
+            for (const [name, rows] of stagedRows) {
+              if (!authorizationHidden.has(name)) boundary.write(name, () => rows);
+            }
           });
           if (
             generation !== resumeGeneration
