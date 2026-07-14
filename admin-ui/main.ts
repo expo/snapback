@@ -66,15 +66,15 @@ async function start(): Promise<void> {
     await boot(client);
   } catch (error) {
     const safe = client.sanitizeError(error);
-    logFailure(safe);
     if (renderCredentialRecovery(client, safe)) return;
+    logFailure(safe);
     showFatal(safe.message);
   }
 }
 
 function renderCredentialRecovery(client: AdminClient, failure: unknown): boolean {
   const safe = client.sanitizeError(failure);
-  if (typeof document === 'undefined' || !isUnauthorized(safe)) return false;
+  if (typeof document === 'undefined' || !isCredentialFailure(safe)) return false;
   const message = safe.message;
   const diagnostic = 'diagnostic' in safe
     ? safe.diagnostic
@@ -121,12 +121,16 @@ function renderCredentialRecovery(client: AdminClient, failure: unknown): boolea
   });
 }
 
-function isUnauthorized(failure: unknown): boolean {
+function isCredentialFailure(failure: unknown): boolean {
+  if (!failure || typeof failure !== 'object' || !('status' in failure)) return false;
+  if (failure.status === 401) return true;
+  if (failure.status !== 403 || !('diagnostic' in failure)) return false;
+  const diagnostic = failure.diagnostic;
   return !!(
-    failure &&
-    typeof failure === 'object' &&
-    'status' in failure &&
-    failure.status === 401
+    diagnostic &&
+    typeof diagnostic === 'object' &&
+    'code' in diagnostic &&
+    diagnostic.code === 'SNAPBACK_ADMIN_DISABLED'
   );
 }
 

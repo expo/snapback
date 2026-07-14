@@ -6,6 +6,7 @@
     "build": "./build.sh",
     "dev": "./dev.sh",
     "test": "node tests/contract-bindings.mjs && node tests/static-metadata.mjs && node tests/kv-layout.mjs && node tests/dev-serve-react-esm.mjs && node tests/fatal-rendering.mjs && node tests/auth-prompt.mjs && node tests/admin-client-credentials.mjs && node tests/setup-credential-errors.mjs",
+    "test:browser-security": "node tests/acceptance/csp-browser.mjs",
     "audit:production": "bun audit --production"
   },
   "dependencies": {

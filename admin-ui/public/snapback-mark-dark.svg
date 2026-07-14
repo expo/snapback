@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="194 574 865 280" role="img" aria-label="Snapback">
+  <title>Snapback</title>
+  <defs>
+    <mask id="snapback-knockout">
+      <rect x="194" y="574" width="865" height="280" fill="#fff"/>
+      <circle cx="354" cy="713" r="37.75" fill="none" stroke="#000" stroke-width="27.5"/>
+      <circle cx="546" cy="713" r="37.75" fill="none" stroke="#000" stroke-width="27.5"/>
+      <circle cx="901" cy="712" r="46" fill="#000"/>
+    </mask>
+  </defs>
+  <g fill="#e8eaf0" mask="url(#snapback-knockout)">
+    <rect x="212" y="592" width="534" height="244" rx="122"/>
+    <path d="M 714.66 592 L 919 592 A 122 122 0 0 1 919 836 L 714.66 836 A 152 152 0 0 0 714.66 592 Z"/>
+  </g>
+</svg>

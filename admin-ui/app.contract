@@ -24,7 +24,6 @@ use navSections from "./theme.ts"
 use initialTab from "./theme.ts"
 use systemTheme from "./theme.ts"
 use watchSystemTheme from "./theme.ts"
-use snapbackMark from "./brand-mark.ts"
 
 component AdminConsole
   state activeTab = initialTab()
@@ -87,7 +86,7 @@ component AdminConsole
 
       column width=248 minHeight="100%" background=c.sidebar paddingTop=22 paddingBottom=20 paddingLeft=14 paddingRight=14 gap=22 boxShadow=c.shadowSidebar
         row gap=11 align="center" paddingLeft=8 paddingRight=8
-          image svgSource=snapbackMark(c.markInk) alt="Snapback" width=62 height=20 testId="brand-mark"
+          image lightSrc="/_snapback/admin/snapback-mark-light.svg" darkSrc="/_snapback/admin/snapback-mark-dark.svg" alt="Snapback" width=62 height=20 testId="brand-mark"
           column gap=1 flex=1 minWidth=0
             text "Snapback" size=16 weight=700 color=c.text family=f.sans letterSpacing=-0.2
             text "ADMIN CONSOLE" size=9 weight=700 color=c.textFaint family=f.sans letterSpacing=1.4
