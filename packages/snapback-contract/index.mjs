@@ -103,6 +103,8 @@ import {
 const durableStoreRegistrations = new WeakMap();
 const durableQueryAuthorizationTails = new WeakMap();
 
+// @ref LLP 0053#client-fences — render/query generations and queued-mutation
+//   custody advance independently, serialized through the shared client store.
 function createContractQueryAuthorizationQueue(store, capture) {
   if (!store) return null;
   const authority = capture
