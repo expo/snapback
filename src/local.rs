@@ -3183,6 +3183,50 @@ impl LocalSnapback {
         }
     }
 
+    /// HTTP queued-delivery entry point with receipt-proven piggyback ACKs.
+    /// The shared function gate and descriptor comparison run before the ACK
+    /// transaction, so a stale or malformed queued request has no settlement
+    /// side effect. The ordinary mutation path above delegates with no ACKs.
+    ///
+    /// @ref LLP 0043#milestone-2-queued-mutation-replay — descriptor
+    /// comparison precedes settlement lookup and every request effect.
+    pub(crate) fn invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
+        let function = self.function(name)?.clone();
+        let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
+        if client_mutation_id.is_some() {
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+            if prepared.authority().active_mode() == AuthMode::Sessions
+                || authority_descriptor.is_some()
+            {
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+            }
+        }
+        if !acknowledged_client_mutation_ids.is_empty() {
+            self.acknowledge_client_mutations_with_authority(
+                prepared.authority(),
+                acknowledged_client_mutation_ids,
+            )?;
+        }
+        Ok(self.invoke_mutation_recording_with_authority_descriptor(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            transport,
+            authority,
+        ))
+    }
+
     fn record_mutation_commit(
         &mut self,
         name: &str,
@@ -9430,6 +9474,35 @@ globalThis.__snapbackHandlers = {
             .0
             .expect("matching first delivery");
         assert_eq!(snapback.durable_version(), Some(1));
+
+        let stale_with_ack = snapback
+            .invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
+                "hostInsert",
+                input(),
+                Some("cm_stale_ack_carrier".to_owned()),
+                Some(descriptor(SECOND)),
+                &["cm_first_delivery".to_owned()],
+                "http",
+                session_authority(FIRST),
+            )
+            .expect_err("descriptor mismatch must precede piggyback ACK and receipt");
+        assert_eq!(stale_with_ack.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+        snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_first_delivery".to_owned()),
+                Some(descriptor(FIRST)),
+                "http",
+                session_authority(FIRST),
+            )
+            .0
+            .expect("stale carrier did not consume the existing settlement");
+        assert_eq!(
+            snapback.db.scan_table("items", 10, 0).unwrap().total,
+            1,
+            "duplicate settlement must remain after a stale piggyback carrier"
+        );
 
         let duplicate = snapback
             .invoke_mutation_recording_with_authority_descriptor(

@@ -8733,28 +8733,21 @@ async fn invoke_mutation(
         .with_details(json!({ "clientMutationId": current_id }))
         .into());
     }
-    if !request.acknowledged_client_mutation_ids.is_empty() {
-        let ids = request.acknowledged_client_mutation_ids.clone();
-        let acknowledgement_authority = authority.clone();
-        with_snapback(&state, move |snapback| {
-            snapback.acknowledge_client_mutations_with_authority(&acknowledgement_authority, &ids)
-        })
-        .await?;
-    }
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
     let (result, receipt) = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation_recording_with_authority_descriptor(
+        snapback.invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
             &name,
             request.input,
             request.client_mutation_id,
             request.authority_descriptor,
+            &request.acknowledged_client_mutation_ids,
             "http",
             authority,
         )
     })
-    .await;
+    .await?;
     match result {
         Ok(output) => Ok(Json(MutationResponse::from_output(output, receipt))),
         Err(error) => Err(ApiError::with_receipt(error, receipt)),
