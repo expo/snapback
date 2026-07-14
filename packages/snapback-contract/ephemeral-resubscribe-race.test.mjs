@@ -16,6 +16,9 @@
 //   2. initial-createRecord path — a loss+regain during the very first
 //      subscribe (before the record's onState exists) starts the record
 //      unsubscribed and re-enters immediately;
+//   3. poison-before-listener path — a fresh overlay that buffered
+//      connection-wide poison before Contract attaches its listener never
+//      transiently promotes live and immediately constructs a successor;
 // plus the plain ENG-22541 path (loss with no subscribe in flight still
 // re-subscribes exactly once on regain).
 //
@@ -73,10 +76,13 @@ const makeOverlay = () => {
   const changeListeners = new Set();
   return {
     disposed: false,
+    needsResync: false,
     onChange(listener) {
       changeListeners.add(listener);
+      if (this.needsResync) listener('needs_resync', this);
     },
     emitChange(result) {
+      if (result === 'needs_resync') this.needsResync = true;
       for (const listener of [...changeListeners]) listener(result);
     },
     currentEntries() {
@@ -222,6 +228,39 @@ const lastConnection = (cells) => cells.at(-1)?.connection;
 
   surface.dispose();
   console.log('ok - raced initial subscribe starts unsubscribed and re-enters');
+}
+
+// --- 3. poison buffered before Contract attaches to a resubscribed overlay ---
+{
+  const { client, cells, surface } = await buildSurface();
+  assert.equal(lastConnection(cells), 'live', 'healthy room binds live');
+
+  const afterPoison = cells.length;
+  client.subscribes[0].overlay.emitChange('needs_resync');
+  assert.equal(client.subscribes.length, 2, 'poison starts the first replacement subscribe');
+
+  // Model connection-wide poison landing after the HTTP subscribe has made
+  // its overlay but before the promise resolves and Contract installs its
+  // listener. onChange must replay the poisoned level synchronously.
+  client.subscribes[1].overlay.needsResync = true;
+  client.subscribes[1].resolve();
+  await waitFor(
+    () => client.subscribes.length === 3,
+    'poisoned replacement immediately starts a successor subscribe',
+  );
+  assert.equal(lastConnection(cells), 'stale', 'poisoned replacement remains stale');
+  assert.equal(
+    cells.slice(afterPoison).some((cell) => cell.connection === 'live'),
+    false,
+    'poisoned replacement is never transiently exposed as live',
+  );
+
+  client.subscribes[2].resolve();
+  await waitFor(() => lastConnection(cells) === 'live', 'unpoisoned successor promotes live');
+  assert.ok(client.subscribes[1].overlay.disposed, 'poisoned replacement is disposed');
+
+  surface.dispose();
+  console.log('ok - poison buffered before listener never promotes the overlay live');
 }
 
 console.log('ephemeral-resubscribe-race: all assertions passed');

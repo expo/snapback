@@ -2634,6 +2634,20 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
           superseded.dispose();
           record.resyncAttempts = 0;
           fresh.onChange(handleChange);
+          // A connection-wide poison can race the subscribe response and be
+          // buffered on `fresh` before this listener exists. EphemeralOverlay
+          // replays that level-triggered state synchronously from onChange,
+          // which has already started the successor subscribe. Never let this
+          // continuation overwrite the replay with `subscribed = true`.
+          //
+          // @ref LLP 0059#fenced-effects-and-live-closure — a poisoned overlay
+          //   generation cannot be promoted live, even transiently.
+          if (fresh.needsResync) {
+            record.subscribed = false;
+            record.notify();
+            attemptResync();
+            return;
+          }
           if (record.socketLossEpoch !== epochAtDispatch) {
             // ENG-23387: a wasOpen loss landed while this HTTP subscribe was
             // in flight — the server's disconnect dropped the registration it

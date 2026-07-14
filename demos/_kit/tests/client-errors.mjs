@@ -1286,15 +1286,19 @@ try {
     });
     const db = new SnapbackClient('http://stub');
     db.__connectionGrants.set(conn, Promise.resolve({ id: conn, token: 'sct_http_clear' }));
-    const overlayA = new EphemeralOverlay(db, 'presence', {
+    let overlayA = new EphemeralOverlay(db, 'presence', {
       connectionId: conn,
       scope: { room: 'a' },
       snapshot: snapshot(1, [{ key: 'a', version: 1, value: { x: 1 } }]),
     });
-    const overlayB = new EphemeralOverlay(db, 'presence', {
+    let overlayB = new EphemeralOverlay(db, 'presence', {
       connectionId: conn,
       scope: { room: 'a' },
       snapshot: snapshot(1, [{ key: 'b', version: 1, value: { x: 2 } }]),
+    });
+    const pendingOverlay = new EphemeralOverlay(db, 'presence', {
+      connectionId: conn,
+      scope: { room: 'a' },
     });
     const durable = [];
     const ephemeral = [];
@@ -1309,6 +1313,21 @@ try {
       assert(overlayA.needsResync && overlayB.needsResync, 'every overlay requires a fresh snapshot');
       assertEqual(ephemeral.length, 1, 'global clear-retained crossed to ephemeral consumers once');
       assert(durable[0] === ephemeral[0], 'both lanes receive the same authority-captured control object');
+      pendingOverlay.applyInitialSnapshot(
+        snapshot(1, [{ key: 'pre-snapshot', version: 1, value: { x: 7 } }]),
+      );
+      const lateSignals = [];
+      pendingOverlay.onChange((result) => lateSignals.push(result));
+      assertEqual(
+        lateSignals,
+        ['needs_resync'],
+        'a poison buffered before the initial snapshot is replayed to a late Contract listener',
+      );
+      assertEqual(
+        pendingOverlay.currentEntries({ prune: false }),
+        [],
+        'the buffered poison wins after the initial snapshot boundary',
+      );
 
       assertEqual(
         overlayA.apply({
@@ -1329,8 +1348,41 @@ try {
       );
       assertEqual(overlayA.currentEntries({ prune: false }), [], 'blank state survives delayed deltas');
 
-      overlayA.apply(snapshot(2, [{ key: 'fresh-a', version: 1, value: { x: 3 } }]));
-      overlayB.apply(snapshot(2, [{ key: 'fresh-b', version: 1, value: { x: 4 } }]));
+      assertEqual(
+        overlayA.apply(snapshot(1, [{ key: 'delayed-snapshot', version: 9, value: { x: 99 } }])),
+        'needs_resync',
+        'a delayed predecessor snapshot cannot reopen a globally poisoned overlay',
+      );
+      assertEqual(overlayA.currentEntries({ prune: false }), [], 'blank state survives delayed snapshots');
+
+      // Connection continuity recovers only by replacing the poisoned overlay
+      // with a fresh subscribe generation. Ordinary subscription-scoped resync
+      // remains durable-only after that replacement.
+      overlayA.dispose();
+      overlayB.dispose();
+      overlayA = new EphemeralOverlay(db, 'presence', {
+        connectionId: conn,
+        scope: { room: 'a' },
+        snapshot: snapshot(2, [{ key: 'fresh-a', version: 1, value: { x: 3 } }]),
+      });
+      overlayB = new EphemeralOverlay(db, 'presence', {
+        connectionId: conn,
+        scope: { room: 'a' },
+        snapshot: snapshot(2, [{ key: 'fresh-b', version: 1, value: { x: 4 } }]),
+      });
+      assertEqual(overlayA.apply({
+        ResyncRequired: {
+          room: overlayRoom,
+          scope_epoch: 2,
+          room_authority_generation: 2,
+          reason: 'AuthChanged',
+        },
+      }), 'needs_resync', 'ordinary room resync still blanks in place');
+      assertEqual(
+        overlayA.apply(snapshot(3, [{ key: 'fresh-a', version: 1, value: { x: 3 } }])),
+        'applied',
+        'ordinary room resync still accepts its fresh same-overlay snapshot',
+      );
       batch = [{ Durable: { payload: JSON.stringify({
         kind: 'resync_required',
         reason: 'permission_epoch_changed',
@@ -1355,6 +1407,7 @@ try {
       unregisterEphemeral();
       overlayA.dispose();
       overlayB.dispose();
+      pendingOverlay.dispose();
     }
   });
 
@@ -1363,12 +1416,12 @@ try {
     const conn = 'conn_ws_global_clear';
     globalThis.fetch = grantFetch(conn);
     const db = new SnapbackClient('http://stub');
-    const overlayA = new EphemeralOverlay(db, 'presence', {
+    let overlayA = new EphemeralOverlay(db, 'presence', {
       connectionId: conn,
       scope: { room: 'a' },
       snapshot: snapshot(1, [{ key: 'a', version: 1, value: { x: 1 } }]),
     });
-    const overlayB = new EphemeralOverlay(db, 'presence', {
+    let overlayB = new EphemeralOverlay(db, 'presence', {
       connectionId: conn,
       scope: { room: 'a' },
       snapshot: snapshot(1, [{ key: 'b', version: 1, value: { x: 2 } }]),
@@ -1394,8 +1447,31 @@ try {
       assert(overlayA.needsResync && overlayB.needsResync, 'socket global control marks both overlays');
       assert(durable[0] === ephemeral[0], 'socket routing preserves the same authority-captured object');
 
-      overlayA.apply(snapshot(2, [{ key: 'fresh-a', version: 1, value: { x: 3 } }]));
-      overlayB.apply(snapshot(2, [{ key: 'fresh-b', version: 1, value: { x: 4 } }]));
+      ws.dispatch('message', { data: JSON.stringify({
+        kind: 'ephemeral',
+        message: snapshot(1, [{ key: 'delayed-snapshot', version: 9, value: { x: 99 } }]),
+      }) });
+      await sleep(20);
+      assertEqual(
+        overlayA.currentEntries({ prune: false }),
+        [],
+        'a delayed socket snapshot cannot reopen a globally poisoned overlay',
+      );
+      assert(overlayA.needsResync, 'delayed socket snapshot leaves the connection poison latched');
+
+      overlayA.dispose();
+      overlayB.dispose();
+      overlayA = new EphemeralOverlay(db, 'presence', {
+        connectionId: conn,
+        scope: { room: 'a' },
+        snapshot: snapshot(2, [{ key: 'fresh-a', version: 1, value: { x: 3 } }]),
+      });
+      overlayB = new EphemeralOverlay(db, 'presence', {
+        connectionId: conn,
+        scope: { room: 'a' },
+        snapshot: snapshot(2, [{ key: 'fresh-b', version: 1, value: { x: 4 } }]),
+      });
+      const ephemeralBeforeScopedResync = ephemeral.length;
       ws.dispatch('message', { data: JSON.stringify({
         kind: 'resync_required',
         reason: 'permission_epoch_changed',
@@ -1403,7 +1479,11 @@ try {
         clearRetained: true,
       }) });
       await waitFor(() => durable.length === 2, 'scoped durable control delivered');
-      assertEqual(ephemeral.length, 1, 'legacy scoped resync remains durable-only');
+      assertEqual(
+        ephemeral.length,
+        ephemeralBeforeScopedResync,
+        'legacy scoped resync remains durable-only',
+      );
       assertEqual(
         overlayA.currentEntries({ prune: false }).map((entry) => entry.key),
         ['fresh-a'],
@@ -1422,6 +1502,73 @@ try {
       unregisterEphemeral();
       overlayA.dispose();
       overlayB.dispose();
+    }
+  });
+
+  await suite.check('auth overflow: HTTP poison cannot be undone by an already-transferred WebSocket snapshot', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    const conn = 'conn_cross_transport_clear';
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      const body = path === '/connection/open'
+        ? {
+            connectionId: conn,
+            connectionToken: 'sct_cross_transport_clear',
+          }
+        : path === `/outbox/${conn}`
+          ? [{ Durable: { payload: JSON.stringify({
+              kind: 'resync_required',
+              reason: 'outbox_overflow',
+              clear_retained: true,
+            }) } }]
+          : null;
+      assert(body !== null, `unexpected cross-transport request ${path}`);
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(body),
+      };
+    };
+    const db = new SnapbackClient('http://stub');
+    const overlay = new EphemeralOverlay(db, 'presence', {
+      connectionId: conn,
+      scope: { room: 'a' },
+      snapshot: snapshot(1, [{ key: 'initial', version: 5, value: { x: 1 } }]),
+    });
+    const before = FakeWebSocket.instances.length;
+    const manager = db.liveStreamManager(conn);
+    const stopDemand = manager.onState(() => {});
+    try {
+      const ws = await nextSocket(before);
+      ws.dispatch('open', {});
+      let releaseSnapshot;
+      ws.dispatch('message', {
+        // Model a predecessor frame already transferred to the socket writer
+        // whose browser decode completes after the independent HTTP drain.
+        data: {
+          text: () => new Promise((resolve) => { releaseSnapshot = resolve; }),
+        },
+      });
+      await db.drainConnection(conn);
+      assertEqual(overlay.currentEntries({ prune: false }), [], 'HTTP poison blanked the overlay');
+      assert(overlay.needsResync, 'HTTP poison latched continuity loss');
+
+      releaseSnapshot(JSON.stringify({
+        kind: 'ephemeral',
+        message: snapshot(1, [{ key: 'delayed-ws-snapshot', version: 9, value: { x: 9 } }]),
+      }));
+      await sleep(20);
+      assertEqual(
+        overlay.currentEntries({ prune: false }),
+        [],
+        'the delayed WebSocket snapshot cannot repopulate after HTTP poison',
+      );
+      assert(overlay.needsResync, 'the delayed WebSocket snapshot cannot clear the poison latch');
+      return { delayedSnapshotRejected: true };
+    } finally {
+      stopDemand();
+      manager.close();
+      overlay.dispose();
     }
   });
 

@@ -4068,6 +4068,13 @@ export class EphemeralOverlay {
     this.entries = new Map();
     this.tombstones = new Map();
     this.needsResync = false;
+    // A connection-wide clear-retained signal is stronger than an ordinary
+    // room resync: no frame already in flight for this overlay generation can
+    // prove it was captured after the connection-continuity loss. Keep that
+    // generation permanently closed; recovery constructs a successor overlay
+    // through a fresh subscribe instead of reopening this object with a
+    // delayed Snapshot.
+    this.__connectionContinuityLost = false;
     this.room = null; // captured from OUR subscribe snapshot (room identity)
     this.authorityCapture = null;
     this.__preSnapshotEnvelopes = [];
@@ -4155,6 +4162,17 @@ export class EphemeralOverlay {
   /// re-emit EphemeralMapCells (ENG-22479).
   onChange(listener) {
     this.__changeListeners.add(listener);
+    // The poison is level-triggered for this overlay generation. It can land
+    // while the initial snapshot response is in flight, before Contract has
+    // attached its change listener; replay the closed state so that late
+    // attachment still replaces this overlay through a fresh subscribe.
+    if (this.__connectionContinuityLost) {
+      try {
+        listener('needs_resync', this);
+      } catch {
+        // Observer errors never poison the overlay's recovery path.
+      }
+    }
     return () => this.__changeListeners.delete(listener);
   }
 
@@ -4215,17 +4233,24 @@ export class EphemeralOverlay {
     if (isConnectionWideClearRetainedResync(input)) {
       // The server discarded continuity for the whole connection, not merely
       // one durable subscription. Blank every overlay immediately and remain
-      // closed to later deltas until a fresh room snapshot establishes a new
-      // high-water boundary.
+      // closed to every later envelope. Recovery establishes a new high-water
+      // boundary on a successor overlay created by a fresh subscribe.
       this.entries.clear();
       this.tombstones.clear();
       this.highWaterVersion = 0;
       this.needsResync = true;
+      this.__connectionContinuityLost = true;
       this.#notifyChange('needs_resync');
       return 'needs_resync';
     }
     const message = unwrapEphemeralMessage(input);
     if (!message) return 'not_ephemeral';
+    if (this.__connectionContinuityLost) {
+      // A delayed predecessor Snapshot is no more trustworthy than a delayed
+      // delta after connection-wide continuity loss. Ordinary room-scoped
+      // resync leaves this latch false and may still recover in place.
+      return 'needs_resync';
+    }
     // Room isolation (ENG-22478 review fix B): a connection's outbox carries
     // EVERY room's traffic, and the lane registry fans it to every overlay —
     // so each message must match THIS overlay's room identity (captured from
