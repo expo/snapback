@@ -15,9 +15,9 @@ use super::provider::{
     SessionRevocation,
 };
 use super::session_projection::{
-    AuthorizationStreamIncarnation, ExpiredSession, FencedPublication, MutationTicket,
-    PendingMutationKind, ProjectedConnectionTokenResolution, ProjectedTokenResolution,
-    RevocationReason, SessionProjection, TokenDigest,
+    AuthorizationStreamIncarnation, BoundConnectionSessionIdentity, ExpiredSession,
+    FencedPublication, MutationTicket, PendingMutationKind, ProjectedConnectionTokenResolution,
+    ProjectedTokenResolution, RevocationReason, SessionProjection, TokenDigest,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -196,12 +196,19 @@ pub(crate) enum RevocationFinish {
     PredecessorChanged,
 }
 
+// The committed credential is an intentionally inline, one-owner protocol
+// carrier. Boxing it would force every server publication path to unpack a
+// second allocation without changing the secret's ownership or drop boundary.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum RotationFinish {
     Committed(CredentialIssue),
     PredecessorChanged,
 }
 
+// As above, the successful issuance payload stays inline so its bearer and
+// optional eviction result move together through the exact finalize boundary.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum IssuanceFinish {
     Committed(CredentialIssue),
@@ -614,15 +621,13 @@ impl AuthCoordinator {
                 }
                 if let (Some(ticket), Some(revocation)) =
                     (&carrier.eviction_ticket, committed_revocation.as_ref())
-                {
-                    if topology
+                    && topology
                         .projection
                         .finalize_revocation(ticket, &revocation.session_id, revocation.generation)
                         .is_err()
-                    {
-                        fail_issuance_closed(&mut topology, &carrier);
-                        return Err(projection_unavailable());
-                    }
+                {
+                    fail_issuance_closed(&mut topology, &carrier);
+                    return Err(projection_unavailable());
                 }
                 if self.take_finalize_failpoint()
                     || topology
@@ -823,11 +828,13 @@ impl AuthCoordinator {
         Ok(topology
             .projection
             .resolve_bound_connection_session(
-                &incarnation,
-                session_id,
-                user_id,
-                provider,
-                generation,
+                BoundConnectionSessionIdentity::new(
+                    &incarnation,
+                    session_id,
+                    user_id,
+                    provider,
+                    generation,
+                ),
                 epoch_now_ms,
                 monotonic_now,
             )?
@@ -982,16 +989,16 @@ fn exact_unmark_issuance(
     topology: &mut CoordinatorTopology,
     carrier: &PremarkedIssuance,
 ) -> SnapbackResult<()> {
-    if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction()) {
-        if !matches!(
+    if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction())
+        && !matches!(
             topology
                 .projection
                 .compare_unmark_session(ticket, eviction.session_id()),
             Ok(true)
-        ) {
-            topology.global_rebuild_required = true;
-            return Err(projection_unavailable());
-        }
+        )
+    {
+        topology.global_rebuild_required = true;
+        return Err(projection_unavailable());
     }
     let session_id = carrier.plan.projected_insert().session_id;
     match topology

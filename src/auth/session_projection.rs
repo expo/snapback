@@ -303,6 +303,37 @@ pub(crate) struct ProjectedSessionAuthority {
     pub absolute_expires_at_ms: u64,
 }
 
+/// Exact immutable identity copied from one stored session grant for
+/// projection revalidation.
+///
+/// @ref LLP 0056#grant-shape — every grant identity field participates in the
+/// revalidation comparison; the mutable deadline is deliberately excluded.
+pub(crate) struct BoundConnectionSessionIdentity<'a> {
+    expected_incarnation: &'a AuthorizationStreamIncarnation,
+    session_id: &'a str,
+    user_id: &'a str,
+    provider: &'a str,
+    generation: u64,
+}
+
+impl<'a> BoundConnectionSessionIdentity<'a> {
+    pub(crate) fn new(
+        expected_incarnation: &'a AuthorizationStreamIncarnation,
+        session_id: &'a str,
+        user_id: &'a str,
+        provider: &'a str,
+        generation: u64,
+    ) -> Self {
+        Self {
+            expected_incarnation,
+            session_id,
+            user_id,
+            provider,
+            generation,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ExpiredSession {
     pub authorization_stream_incarnation: String,
@@ -1020,14 +1051,17 @@ impl SessionProjection {
     /// the exact generation is still available at this preparation point.
     pub(crate) fn resolve_bound_connection_session(
         &self,
-        expected_incarnation: &AuthorizationStreamIncarnation,
-        session_id: &str,
-        user_id: &str,
-        provider: &str,
-        generation: u64,
+        identity: BoundConnectionSessionIdentity<'_>,
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<Option<ProjectedSessionAuthority>> {
+        let BoundConnectionSessionIdentity {
+            expected_incarnation,
+            session_id,
+            user_id,
+            provider,
+            generation,
+        } = identity;
         validate_timestamp_u64(epoch_now_ms)?;
         let stream = self.stream_fence.lock()?;
         if !StreamFence::admits_locked(&stream, expected_incarnation)
@@ -1988,10 +2022,10 @@ impl SessionProjection {
                     }
                 }
                 TicketOwner::Issuance(session_id) => {
-                    if !self
+                    if self
                         .pending_issuances
                         .get(ticket)
-                        .is_some_and(|insert| &insert.session_id == session_id)
+                        .is_none_or(|insert| &insert.session_id != session_id)
                     {
                         return Err(projection_corrupt(
                             "issuance topology ticket has no exact pending insert",
