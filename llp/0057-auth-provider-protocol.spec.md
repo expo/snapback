@@ -5,8 +5,8 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053
+**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0057-auth-provider-protocol.codex.md` and applied its editorial corrections — composed credential-response example, address-exposure wording, future-import incarnation rule, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0058, LLP 0059, LLP 0060
 
 ## Summary
 
@@ -387,7 +387,10 @@ contract is:
 - exclude sessions, token hashes, tombstones, verification challenges/digests,
   mailbox entries, and keyring bytes;
 - import into an empty auth catalog, reject identity collisions, and mint no
-  session; and
+  session;
+- regenerate the durable authorization-stream incarnation in the same
+  transaction as the destructive import, as LLP 0039 pins and LLP 0059's
+  stream protocol implements; and
 - never treat logical import as a physical backup.
 
 ### Garbage collection
@@ -814,6 +817,11 @@ receipts or runtime-state snapshots.
     "createdAt": 0,
     "expiresAt": 0,
     "absoluteExpiresAt": 0
+  },
+  "authorityDescriptor": {
+    "descriptorVersion": 1,
+    "authorityInstanceId": "uuid-v7",
+    "sessionGeneration": 1
   }
 }
 
@@ -833,9 +841,11 @@ success is HTTP 204 with no body. `refreshAfter` is `created/rotated now + 7
 days`, capped at the response's sliding and absolute expiry as client guidance;
 it does not change server expiry.
 
-The session response deliberately omits identity subject, token digest,
-generation, and `authorityInstanceId`. Item 7 adds its versioned descriptor
-rather than making an item-3 credential response an accidental descriptor.
+The nested session object deliberately omits identity subject, token digest,
+generation, and `authorityInstanceId`. The top-level `authorityDescriptor` is
+item 7's since-landed versioned descriptor and is required in the composed
+credential response and its committed schema; item 3 did not expose it, so an
+item-3 credential response never became an accidental descriptor.
 
 ### Host-operation DTOs
 
@@ -1180,8 +1190,9 @@ change rows, exports, or ordinary `Debug`: codes, session bearers, session-token
 hashes, code digests, key material, `sbic_`, and secret-read lease/root material.
 Hashing a secret into telemetry is also forbidden by `LLP 0009#secrets`.
 
-Canonical addresses may appear only in protected identity rows and the fully
-gated mailbox response. They do not appear in request/throttle/code diagnostics.
+Canonical addresses may appear only in protected identity rows, protected
+verification-challenge rows, and the fully gated mailbox response. They do not
+appear in request/throttle/code diagnostics.
 Admin identity/session projections may expose user/session ids, provider,
 timestamps, and revocation state only through `AdminSecretRead`; they omit every
 digest and key id.
@@ -1375,3 +1386,10 @@ authority; prose alone would not have been sufficient.
 Implementation completion does not make this Spec Accepted. It still needs an
 LLP review scaled to its security stakes and explicit author ratification; this
 reconciliation performs neither on the author's behalf.
+
+The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
+document on 2026-07-14; its verbatim report and provenance are archived in
+`reviews/0057-auth-provider-protocol.codex.md` (verdict: READY WITH
+REVISIONS). Small editorial corrections from that review are applied above;
+its material findings await author triage. The review advises — it does not
+ratify.

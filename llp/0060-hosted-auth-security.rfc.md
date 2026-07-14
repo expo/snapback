@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0060-hosted-auth-security.codex.md` and applied its editorial corrections — D1 posture-matrix accuracy and the return-value sentinel scope; material findings remain for author triage). 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0057, LLP 0058, LLP 0059
 
 ## Summary
@@ -122,9 +122,9 @@ matrix:
 
 | Effective auth posture | Loopback IP | Non-loopback IP |
 | --- | --- | --- |
-| settled `dev` | allowed | refused unless the explicit non-production dev override is present |
+| non-production settled `dev` | allowed | refused unless the explicit non-production dev override is present |
 | desired or active `sessions` | allowed | always refused; no override |
-| production profile with `dev` | health only; app data refused | refused |
+| production profile with `dev` | ordinary app data refused; diagnostic (`/`, `/health`), handshake (`/auth/session`), and provisioning (`/app/ensure`) routes remain subject to their own separate gates | refused |
 
 The sessions refusal is `SNAPBACK_AUTH_TRANSPORT_INSECURE` and occurs before the
 listener binds. The request middleware repeats the refusal as defense in depth
@@ -468,8 +468,11 @@ material.
 ### Browser custody
 
 - Secret sentinels prove `localStorage`, wakeups, diagnostics, URLs, errors,
-  and return values never contain session bearer, master admin, derived console,
-  secret-read lease, or submitted config material.
+  and auth-control/coordinator return values never contain session bearer,
+  master admin, derived console, secret-read lease, or submitted config
+  material. Arbitrary application payloads are not a credential-redaction
+  boundary: an app that deliberately echoes a bearer as ordinary result data is
+  out of this sentinel's scope and is covered by the client-page XSS contract.
 - One-, two-, and three-byte master/config sentinels prove known semantic
   carriers have no redaction floor. Poisoned diagnostic and successful-response
   property names prove keys cannot retain those values.
@@ -541,6 +544,13 @@ That evidence validates the implemented local boundary only. It is not evidence
 for public-edge TLS/source derivation, shared throttle state, replica
 convergence, or sender-constrained custody, and it does not ratify this RFC on
 the author's behalf.
+
+The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
+document on 2026-07-14; its verbatim report and provenance are archived in
+`reviews/0060-hosted-auth-security.codex.md` (verdict: NOT READY — nine
+material implemented-boundary and hosted/future-contract findings). Small
+editorial corrections from that review are applied above; its material findings
+await author triage. The review advises — it does not ratify.
 
 ## Changelog
 

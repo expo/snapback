@@ -5,8 +5,8 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0060
+**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0059, LLP 0060
 
 ## Summary
 
@@ -272,12 +272,13 @@ for unknown auth capabilities. Adding any ninth id requires a manifest/schema
 revision and a named positive predicate; string similarity, a missing gap, or a
 successful unrelated runtime probe cannot extend the enum.
 
-Only the schema and function artifact manifests move to `snapback.v1` for
-sessions. The capability manifest, runtime-state DTO, diagnostic schemas, wire
-DTO schemas, and every other non-schema/function artifact retain their existing
-version spelling (`snapback.v0` where applicable); the fields in this Spec are
-additive under LLP 0012. No implementation may infer a corpus-wide version
-bump from the paired-v1 rule.
+Only the schema and function artifact manifests — plus the generated
+contract-data manifest, which is bound to the exact paired schema/function
+identity and moves with it — move to `snapback.v1` for sessions. The capability
+manifest, runtime-state DTO, diagnostic schemas, wire DTO schemas, and every
+other artifact retain their existing version spelling (`snapback.v0` where
+applicable); the fields in this Spec are additive under LLP 0012. No
+implementation may infer a corpus-wide version bump from the paired-v1 rule.
 
 ### Disjoint v1 identity strings
 
@@ -596,10 +597,10 @@ schema/function path flags, so the two halves cannot be selected from different
 generations.
 
 The CLI opens the path once without following a final symlink, requires a
-regular file owned by the effective user and not writable by group or other,
-rejects every extended access ACL (a deliberately conservative executable-
-authority rule), rejects a changing inode/size, reads at most 32 MiB, and parses
-from those exact bytes. The
+regular file owned by the effective user, not writable by group or other, and
+having exactly one hard link, rejects every extended access ACL (a deliberately
+conservative executable-authority rule), rejects a changing inode/size, reads
+at most 32 MiB, and parses from those exact bytes. The
 file contains no credential, but it contains executable authority, so an
 untrusted writable carrier is refused. All artifact validation and handler
 preparation completes before any durable transition commit.
@@ -1605,3 +1606,11 @@ Implementation completion does not make this foundational, security-sensitive
 Spec Accepted. It still needs an LLP review scaled to its stakes and explicit
 author ratification; this reconciliation performs neither on the author's
 behalf.
+
+The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
+document on 2026-07-14; its verbatim report and provenance are archived in
+`reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md`
+(verdict: NOT READY — thirteen material spec-vs-code fidelity and security
+findings). Small editorial corrections from that review are applied above; its
+material findings await author triage. The review advises — it does not
+ratify.
