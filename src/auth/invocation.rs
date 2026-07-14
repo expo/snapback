@@ -1016,10 +1016,7 @@ impl InvocationGate {
         }
         Ok(PreparedInvocation {
             authority,
-            function_id: function
-                .id
-                .clone()
-                .unwrap_or_else(|| format!("fn:{}", function.name)),
+            function_id: function.id.clone(),
             function_kind: function.kind.clone(),
             requirement,
             invocation_id: format!("inv_{}", Uuid::now_v7().simple()),

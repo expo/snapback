@@ -7554,7 +7554,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<Value> {
         prepared.validate_admission("action execution")?;
         let function = self.function(name)?.clone();
-        if prepared.function_id() != function.id.as_deref().unwrap_or(function.name.as_str())
+        if prepared.function_id() != function.id
             && prepared.function_id() != format!("fn:{}", function.name)
         {
             return Err(SnapbackError::error(

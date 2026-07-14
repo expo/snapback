@@ -5,7 +5,11 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (ENG-24603 through ENG-24607: reconciled the item-5
+**Revised:** 2026-07-14 (ENG-24905: function ids are required and stable — a
+manifest whose function omits its `id` fails load with the typed
+`SNAPBACK_FUNCTION_IDENTITY_INVALID` refusal, ids are deterministic across
+regeneration, and a rename retires the old id; the LLP 0055 stage
+prerequisite); 2026-07-13 (ENG-24603 through ENG-24607: reconciled the item-5
 through item-8 auth handshake, authority-descriptor, invalidation, authorized-
 lease, client-custody, hosted-capability, and diagnostic registrations into the
 shared adapter contract); 2026-07-13 (ENG-24597: registered LLP 0058's staged-mode,
@@ -303,6 +307,33 @@ V0 function ids are generated references, not route strings. Adapters call
 through generated references and must not infer a table from the filename or
 namespace.
 
+Function ids are **required and stable** (ENG-24905; the LLP 0055 stage
+prerequisite — scoped grants and consent are keyed by function id, so a
+function without a stable identity cannot be safely named by a grant):
+
+- every function carries a non-empty `id`. A manifest whose function omits it
+  (or carries an empty one) fails validation with the typed
+  `SNAPBACK_FUNCTION_IDENTITY_INVALID` diagnostic before install; the
+  ENG-24572 whole-manifest atomic rejection (see
+  [Function Manifest](#function-manifest)) applies, so the prior known-good
+  generation keeps serving. The refusal is a load-time diagnostic, not an
+  opaque parse error: receivers tolerate the absent field at deserialization
+  and refuse it at validation.
+- ids are deterministic across regeneration: regenerating unchanged source
+  produces byte-identical ids. [LLP 0004](./0004-application-data-api.rfc.md)
+  pins the codegen rule and the `{appId}:{exportedName}` spelling; the
+  manifest contract only requires presence, non-emptiness, and determinism,
+  so hand-built or system manifests may use another deterministic scheme
+  (the Rust constructor's `fn:{name}` spelling remains valid).
+- **a rename is a different function.** The new name mints a new id and the
+  old id is retired — never re-pointed at a different function. Deleting and
+  re-adding a function with the same name deterministically reproduces the
+  same id; that revival must not silently restore previously granted
+  authority. The defense is the grant's durable **basis generation**
+  (LLP 0055 §Grants and the scopes ticket), not id novelty — this contract
+  deliberately keeps ids deterministic rather than randomized so that
+  defense stays implementable.
+
 ### V0 Capability Manifest
 
 Required fields:
@@ -445,7 +476,10 @@ matcher ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md)) has the read-s
 it needs.
 
 The server validates a function manifest as one generation before installation:
-function names/ids are non-empty and globally unambiguous; kind and runtime
+function names and the required stable ids are present, non-empty, and
+globally unambiguous (a missing id is the typed
+`SNAPBACK_FUNCTION_IDENTITY_INVALID` refusal registered under
+[V0 Function Manifest](#v0-function-manifest)); kind and runtime
 agree; host plans satisfy query/mutation bounds; action mutation references,
 schema table/field/index dependencies (including the primary table), config
 declarations/uses/probes/defaults, and cron targets/jitter arithmetic are valid.
@@ -919,6 +953,17 @@ Spec. They complete the local auth v1 registrations above, including the
 independently negotiated item-6/8 surfaces and honest hosted-readiness refusal.
 
 ## Changelog
+
+- **2026-07-14 (ENG-24905 stable function ids).** Registered the stable,
+  non-optional function id requirement (the LLP 0055 stage prerequisite):
+  every function carries a non-empty `id`; a manifest that omits one fails
+  load with the typed `SNAPBACK_FUNCTION_IDENTITY_INVALID` refusal under the
+  ENG-24572 whole-manifest atomic rejection; ids are deterministic across
+  regeneration of unchanged source (codegen rule pinned in LLP 0004); and a
+  rename retires the old id — it is never re-pointed at a different function.
+  Same-name re-adds deterministically reproduce the same id by design; the
+  ABA-revival defense is the grant-side basis generation (LLP 0055), which
+  this registration keeps implementable. No status transition.
 
 - **2026-07-13 (ENG-24603 through ENG-24607 auth-program reconciliation).**
   Registered the exact remaining auth wire artifacts, four independent

@@ -525,11 +525,9 @@
           ]
         },
         "id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
+          "default": "",
+          "description": "Required stable identity for grants and consent. Deserialization\ntolerates an absent field (empty string) so the refusal is a typed\nload-time diagnostic rather than an opaque parse error, but\n[`FunctionManifest::validate_artifact`] rejects a manifest whose\nfunction lacks a non-empty id before it can install.\n\n@ref LLP 0012#v0-function-manifest — function ids are required and\n  stable; a missing id fails load with a typed diagnostic because\n  scoped grants and consent are keyed by this identity.",
+          "type": "string"
         },
         "kind": {
           "$ref": "#/$defs/FunctionKind"

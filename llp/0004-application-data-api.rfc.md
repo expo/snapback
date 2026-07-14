@@ -5,7 +5,7 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
+**Revised:** 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
 
 ## Summary
@@ -473,6 +473,18 @@ Ratified on 2026-06-26 for v0 implementation:
   hashed dependencies, source maps when available, and a function manifest entry.
   Raw `handler.toString()` source replay is not allowed. Unsupported dynamic
   imports or ambient dependencies fail codegen with source-span diagnostics.
+- **Function ids (ENG-24905, 2026-07-14):** codegen emits a required stable
+  `id` for every generated function: `{appId}:{exportedName}`, a pure function
+  of its inputs, so regenerating unchanged source produces byte-identical ids.
+  A rename is a different function — the new name mints a new id and the old
+  id is retired, never re-pointed at a different function. Deleting and
+  re-adding a same-named function deterministically reproduces the same id:
+  continuity of authority is *not* implied by id equality. Scoped grants and
+  consent key on this id, and the ABA-revival defense is the grant-side
+  durable basis generation (LLP 0055), which this deterministic scheme
+  deliberately keeps implementable — do not randomize ids to "fix" revival.
+  LLP 0012 registers the manifest-side requirement: a manifest whose function
+  lacks an id fails load with a typed diagnostic.
 - **Simple writes:** `delete(id)` is idempotent in v0 and returns whether a row
   existed before the call; deleting an already-missing row does not advance the
   commit version. `patch(id, {})` is allowed as a no-op and does not advance the

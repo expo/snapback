@@ -4233,7 +4233,7 @@ fn duplicate_identity_and_overflowing_jitter_preserve_function_generation() {
     snapback.load_functions(todo_functions());
 
     let mut self_alias = todo_functions();
-    self_alias.functions[0].id = Some(self_alias.functions[0].name.clone());
+    self_alias.functions[0].id = self_alias.functions[0].name.clone();
     let diagnostics = snapback.load_functions(self_alias);
     assert!(
         diagnostics.iter().all(
@@ -4260,6 +4260,63 @@ fn duplicate_identity_and_overflowing_jitter_preserve_function_generation() {
     snapback
         .invoke_query("listTodos", input(json!({}), "user_1"))
         .expect("invalid cron metadata cannot partially replace functions");
+}
+
+/// ENG-24905 / LLP 0012 §V0 Function Manifest — the stable function id is
+/// required. A manifest JSON that omits `id` still parses (so the refusal is
+/// a typed diagnostic, not an opaque serde error), but it fails load with
+/// `SNAPBACK_FUNCTION_IDENTITY_INVALID` and leaves the prior known-good
+/// function generation serving (the ENG-24572 atomic-install rule).
+#[test]
+fn manifest_missing_function_id_fails_load_typed_and_preserves_generation() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("apply schema");
+    let diagnostics = snapback.load_functions(todo_functions());
+    assert!(
+        diagnostics.iter().all(
+            |diagnostic| diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+        ),
+        "baseline generation loads clean"
+    );
+
+    // Strip every function `id` from the serialized manifest JSON: the wire
+    // form a pre-ENG-24905 generator would have produced.
+    let mut manifest_json = serde_json::to_value(todo_functions()).expect("serialize manifest");
+    let functions_json = manifest_json["functions"]
+        .as_array_mut()
+        .expect("functions array");
+    assert!(!functions_json.is_empty());
+    for function in functions_json.iter_mut() {
+        let removed = function.as_object_mut().expect("function object").remove("id");
+        assert!(removed.is_some(), "fixture functions carry ids");
+    }
+    let missing_id: FunctionManifest =
+        serde_json::from_value(manifest_json).expect("absent id parses so the refusal is typed");
+
+    let diagnostics = snapback.load_functions(missing_id);
+    let refusal = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "SNAPBACK_FUNCTION_IDENTITY_INVALID")
+        .expect("missing function id fails load with the typed identity diagnostic");
+    assert!(
+        refusal.message.contains("missing the required stable function id"),
+        "diagnostic names the missing id: {}",
+        refusal.message
+    );
+
+    // The invalid generation must not partially install: the prior functions
+    // keep serving and their stable ids are intact.
+    assert!(snapback.function_definition("listTodos").is_some());
+    assert_eq!(
+        snapback
+            .function_definition("listTodos")
+            .expect("prior generation serving")
+            .id,
+        "fn:listTodos"
+    );
+    snapback
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect("prior generation still invocable after the typed refusal");
 }
 
 /// LLP 0032 L5 — idle means idle: an instance with no armed cron work performs
@@ -5776,11 +5833,11 @@ fn d2_mutation_receipts_echo_correlation_and_declare_affected_tables() {
 
     let mut declared = system_todo_mutation();
     declared.name = "declaredWrites".to_owned();
-    declared.id = Some("fn:declaredWrites".to_owned());
+    declared.id = "fn:declaredWrites".to_owned();
     declared.write_set_summary.tables = vec!["todos".to_owned()];
     let mut undeclared = system_todo_mutation();
     undeclared.name = "undeclaredWrites".to_owned();
-    undeclared.id = Some("fn:undeclaredWrites".to_owned());
+    undeclared.id = "fn:undeclaredWrites".to_owned();
     // write_set_summary stays default-empty: declared-nothing.
     snapback.load_functions(FunctionManifest {
         bundle_hash: Some("d2-receipts".to_owned()),

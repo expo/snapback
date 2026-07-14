@@ -508,7 +508,7 @@ impl FunctionManifest {
     pub fn function(&self, name: &str) -> Option<&FunctionDefinition> {
         self.functions
             .iter()
-            .find(|function| function.name == name || function.id.as_deref() == Some(name))
+            .find(|function| function.name == name || function.id == name)
     }
 
     pub fn validate_artifact(&self) -> SnapbackResult<()> {
@@ -533,17 +533,23 @@ impl FunctionManifest {
                     "function names must not be empty",
                 ));
             }
-            let local_identities = std::iter::once(&function.name)
-                .chain(function.id.iter())
+            // @ref LLP 0012#v0-function-manifest — the stable function id is
+            //   required (grants/consent key on it); a manifest that omits it
+            //   fails load with a typed diagnostic before install.
+            if function.id.trim().is_empty() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_IDENTITY_INVALID",
+                    "runtime",
+                    format!(
+                        "function {} is missing the required stable function id",
+                        function.name
+                    ),
+                ));
+            }
+            let local_identities = [&function.name, &function.id]
+                .into_iter()
                 .collect::<BTreeSet<_>>();
             for identity in local_identities {
-                if identity.trim().is_empty() {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_IDENTITY_INVALID",
-                        "runtime",
-                        format!("function {} has an empty identity", function.name),
-                    ));
-                }
                 if let Some((previous_index, previous)) = identities.get(identity)
                     && *previous_index != function_index
                 {
@@ -1093,8 +1099,17 @@ pub fn effective_query_limit(plan: &QueryPlan) -> usize {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
-    #[serde(default, rename = "id")]
-    pub id: Option<String>,
+    /// Required stable identity for grants and consent. Deserialization
+    /// tolerates an absent field (empty string) so the refusal is a typed
+    /// load-time diagnostic rather than an opaque parse error, but
+    /// [`FunctionManifest::validate_artifact`] rejects a manifest whose
+    /// function lacks a non-empty id before it can install.
+    ///
+    /// @ref LLP 0012#v0-function-manifest — function ids are required and
+    ///   stable; a missing id fails load with a typed diagnostic because
+    ///   scoped grants and consent are keyed by this identity.
+    #[serde(default)]
+    pub id: String,
     pub name: String,
     #[serde(default, rename = "exportedName", alias = "exported_name")]
     pub exported_name: Option<String>,
@@ -1165,7 +1180,7 @@ impl FunctionDefinition {
             FunctionKind::Action => "action",
         };
         Self {
-            id: Some(format!("fn:{name}")),
+            id: format!("fn:{name}"),
             name: name.clone(),
             exported_name: Some(name.clone()),
             kind,
@@ -1338,7 +1353,9 @@ pub struct PublicConfigEntryDefinition {
 /// executable runtime body and the source span.
 #[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub struct PublicFunctionDefinition {
-    pub id: Option<String>,
+    /// Always present: the validated manifest guarantees a non-empty stable
+    /// id, so the public projection never serves a null function identity.
+    pub id: String,
     pub name: String,
     #[serde(rename = "exportedName")]
     pub exported_name: Option<String>,

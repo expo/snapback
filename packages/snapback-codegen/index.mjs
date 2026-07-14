@@ -2166,12 +2166,32 @@ function validateFunctionAuthDefinition(name, def, err) {
   }
 }
 
+// The stable function id: a pure function of (appId, exported name), so
+// regenerating unchanged source is byte-identical and a rename mints a new id
+// (the old id is retired with the old name, never re-pointed at a different
+// function). Grants and consent key on this id; determinism means deleting and
+// re-adding a same-named function reproduces the same id, so revival of stale
+// authority is refused by the grant's durable basis generation (LLP 0055),
+// which this deterministic scheme deliberately leaves room for.
+//
+// @ref LLP 0004#first-slice-api-decisions — Function ids: required, emitted as
+//   `{appId}:{exportedName}`, deterministic across regeneration of unchanged
+//   source; a rename is a different function.
+function functionId(appId, name) {
+  if (typeof appId !== 'string' || appId === '' || typeof name !== 'string' || name === '') {
+    // Fail closed: emitting a function without a stable id would produce a
+    // manifest the server refuses to load (LLP 0012 requires the id).
+    throw new Error(`codegen internal error: cannot derive a stable function id from appId=${JSON.stringify(appId)} name=${JSON.stringify(name)}`);
+  }
+  return `${appId}:${name}`;
+}
+
 function decorateFunctions(appId, functions) {
   return functions.map((fn) => {
     const reads = readSummary(fn);
     const writes = writeSummary(fn);
     return {
-      id: `${appId}:${fn.name}`,
+      id: functionId(appId, fn.name),
       name: fn.name,
       exportedName: fn.name,
       kind: fn.kind,

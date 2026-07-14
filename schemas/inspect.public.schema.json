@@ -1124,10 +1124,8 @@
           ]
         },
         "id": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Always present: the validated manifest guarantees a non-empty stable\nid, so the public projection never serves a null function identity.",
+          "type": "string"
         },
         "kind": {
           "$ref": "#/$defs/FunctionKind"
@@ -1173,6 +1171,7 @@
         }
       },
       "required": [
+        "id",
         "name",
         "kind",
         "requiredCapabilities",
