@@ -79,16 +79,29 @@ impl Default for AuthorizedLeaseConfig {
 }
 
 /// Capability/runtime facts projected by the bootstrap handshake.
+///
+/// Every member except `configuredMs` is a v1 protocol constant pinned by
+/// LLP 0053's capability report; the schema publishes them as `const` so a
+/// target advertising different lease semantics fails conformance instead of
+/// passing a shape check the executable kit validator would reject.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizedLeaseFacts {
+    #[schemars(extend("const" = 1))]
     pub protocol_version: u32,
+    #[schemars(extend("const" = 86400000))]
     pub default_ms: u64,
+    #[schemars(extend("const" = 86400000))]
     pub hard_max_ms: u64,
+    #[schemars(range(min = 1, max = AUTHORIZED_LEASE_HARD_MAX_MS))]
     pub configured_ms: u64,
+    #[schemars(extend("const" = ["session", "provider"]))]
     pub clamps: Vec<String>,
+    #[schemars(extend("const" = "full-revalidation"))]
     pub renewal: String,
+    #[schemars(extend("const" = "server-absolute+client-request-elapsed"))]
     pub time_basis: String,
+    #[schemars(extend("const" = "delete-before-read"))]
     pub clock_rollback: String,
 }
 

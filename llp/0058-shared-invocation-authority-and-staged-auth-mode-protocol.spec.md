@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0060
 
 ## Summary
@@ -1085,6 +1085,7 @@ pending, the handshake remains anonymous until activation.
 {
   "protocolVersion": 1,
   "serverStartupNonce": "opaque-public-process-id",
+  "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001",
   "transitionGeneration": 7,
   "activeMode": "sessions",
   "desiredMode": "sessions",
@@ -1128,7 +1129,13 @@ pending, the handshake remains anonymous until activation.
     "userId": null,
     "sessionId": null,
     "isAuthenticated": false
-  }
+  },
+  "authorityDescriptor": {
+    "descriptorVersion": 1,
+    "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000002",
+    "sessionGeneration": 0
+  },
+  "authorizedLease": null
 }
 ```
 
@@ -1137,6 +1144,28 @@ The response is a closed Rust/schemars authority for protocol version 1 and is
 `quarantineCode` is the stable safe code or null. `clientProtocols` echoes only
 exactly supported offered versions; unsupported/malformed offers are null and
 make the affected availability false.
+
+**Exactness (amended 2026-07-14, ENG-24991).** The generated schema is exact
+with the executable kit validator, not merely a superset of it. Every member
+above — including the nullable ones (`quarantineCode`, `authorizedLease`,
+`authority.userId`/`sessionId`, and every availability `reason`/protocol
+minimum) — is **required**: null is expressed by value, never by omission.
+`protocolVersion` is `const: 1` (a different integer is a different protocol);
+protocol echoes and minima admit exactly `1` or `null`; `transports` is exactly
+`["bearer"]`; an authenticated authority carries non-empty `userId`/`sessionId`
+while an anonymous one carries nulls; and the `authorizedLease` capability
+facts pin LLP 0053's protocol constants (`defaultMs`/`hardMaxMs` 86400000, the
+clamp order, renewal/time-basis/rollback strings) with only `configuredMs`
+variable. A shared corpus
+(`tests/conformance/auth-session-parity.corpus.json`) is executed against both
+the committed schema (`tests/artifact_schemas_v0.rs`) and the shipped kit
+validator (`demos/_kit/tests/auth-session-schema-parity.mjs`) and must produce
+identical accept/reject verdicts, so conformance can never approve a handshake
+shape no actual client accepts. Known residual looseness: the shared
+`AuthorityDescriptor` definition (also used by mutation input) does not yet pin
+`descriptorVersion: 1` or the UUIDv7 instance-id grammar that the kit checks;
+tightening it would change mutation-input error classes and is deliberately out
+of this amendment's scope.
 
 Availability is computed, never caller asserted:
 

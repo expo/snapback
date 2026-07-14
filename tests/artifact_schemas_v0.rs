@@ -304,7 +304,8 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
                     "descriptorVersion": 1,
                     "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000001",
                     "sessionGeneration": 0
-                }
+                },
+                "authorizedLease": null
             }),
         ),
         (
@@ -428,6 +429,172 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         )
         .is_err()
     );
+}
+
+/// ENG-24991: the committed auth.session schema and the executable kit
+/// validator (`demos/_kit/client.mjs` `projectAuthSessionResponse`) must agree
+/// on every shared corpus case. This test proves the schema half of the pair;
+/// `demos/_kit/tests/auth-session-schema-parity.mjs` proves the kit half over
+/// the SAME corpus file, so a divergent verdict fails one side of CI.
+///
+/// @ref LLP 0058#exact-response-dto — the response is one closed Rust/schemars
+/// authority; a schema looser than the shipped client is a conformance bug.
+const AUTH_SESSION_PARITY_CORPUS: &str =
+    include_str!("conformance/auth-session-parity.corpus.json");
+
+fn corpus_case_value(corpus: &Value, case: &Value) -> Value {
+    let base_name = case["base"].as_str().expect("corpus case names a base");
+    let mut value = corpus["bases"][base_name].clone();
+    assert!(
+        value.is_object(),
+        "corpus base {base_name} must be an object"
+    );
+    if let Some(removals) = case.get("remove").and_then(Value::as_array) {
+        for path in removals {
+            let path: Vec<&str> = path
+                .as_array()
+                .expect("remove path is an array")
+                .iter()
+                .map(|token| token.as_str().expect("remove path token is a string"))
+                .collect();
+            let (last, parents) = path.split_last().expect("remove path is non-empty");
+            let mut target = &mut value;
+            for token in parents {
+                target = target
+                    .get_mut(token)
+                    .unwrap_or_else(|| panic!("remove path parent {token} exists"));
+            }
+            target
+                .as_object_mut()
+                .expect("remove path parent is an object")
+                .remove(*last)
+                .unwrap_or_else(|| panic!("remove path member {last} exists"));
+        }
+    }
+    if let Some(assignments) = case.get("set").and_then(Value::as_array) {
+        for assignment in assignments {
+            let path: Vec<&str> = assignment["path"]
+                .as_array()
+                .expect("set path is an array")
+                .iter()
+                .map(|token| token.as_str().expect("set path token is a string"))
+                .collect();
+            let (last, parents) = path.split_last().expect("set path is non-empty");
+            let mut target = &mut value;
+            for token in parents {
+                target = target
+                    .get_mut(token)
+                    .unwrap_or_else(|| panic!("set path parent {token} exists"));
+            }
+            target
+                .as_object_mut()
+                .expect("set path parent is an object")
+                .insert((*last).to_owned(), assignment["value"].clone());
+        }
+    }
+    value
+}
+
+#[test]
+fn auth_session_schema_matches_the_kit_validator_over_the_shared_corpus() {
+    let corpus: Value =
+        serde_json::from_str(AUTH_SESSION_PARITY_CORPUS).expect("parse parity corpus");
+    let schema_file = corpus["schema"].as_str().expect("corpus names its schema");
+    assert_eq!(schema_file, "auth.session.output.schema.json");
+    let cases = corpus["cases"].as_array().expect("corpus has cases");
+    assert!(
+        cases.len() >= 50,
+        "the parity corpus lost coverage: {} cases",
+        cases.len()
+    );
+    let mut accepted = 0usize;
+    for case in cases {
+        let name = case["name"].as_str().expect("corpus case has a name");
+        let value = corpus_case_value(&corpus, case);
+        match case["expect"].as_str().expect("corpus case has expect") {
+            "accept" => {
+                accepted += 1;
+                assert_validates(schema_file, &value);
+            }
+            "reject" => assert_rejects(schema_file, &value),
+            other => panic!("case {name} has unknown expectation {other}"),
+        }
+    }
+    assert!(
+        accepted >= 3,
+        "the parity corpus must keep positive coverage, found {accepted} accepts"
+    );
+}
+
+/// ENG-24991 acceptance: the demanded negative classes stay covered even if
+/// the corpus is edited — every exact root member is load-bearing, nullable
+/// members may not be omitted, the protocol set may not be empty, and the
+/// version is const 1.
+#[test]
+fn auth_session_schema_rejects_the_eng_24991_negative_classes() {
+    let corpus: Value =
+        serde_json::from_str(AUTH_SESSION_PARITY_CORPUS).expect("parse parity corpus");
+    let base = &corpus["bases"]["settledDevAnonymous"];
+    assert_validates("auth.session.output.schema.json", base);
+
+    // Each omitted exact root member rejects, including the nullable ones.
+    let members = base.as_object().expect("base is an object");
+    assert_eq!(members.len(), 16, "root member census changed");
+    for member in members.keys() {
+        let mut omitted = base.clone();
+        omitted.as_object_mut().unwrap().remove(member);
+        assert_rejects("auth.session.output.schema.json", &omitted);
+    }
+
+    // Missing nullable nested members reject.
+    for (parent, member) in [
+        (vec!["authority"], "userId"),
+        (vec!["authority"], "sessionId"),
+        (vec!["availability", "onlineRequestResponse"], "reason"),
+        (
+            vec!["availability", "authScopedLive"],
+            "minimumAuthInvalidationProtocol",
+        ),
+        (
+            vec!["availability", "retainedReads"],
+            "minimumAuthorizedLeaseProtocol",
+        ),
+        (
+            vec!["availability", "queuedReplay"],
+            "minimumAuthorityDescriptorProtocol",
+        ),
+    ] {
+        let mut omitted = base.clone();
+        let mut target = &mut omitted;
+        for token in parent {
+            target = target.get_mut(token).expect("nested parent exists");
+        }
+        target.as_object_mut().unwrap().remove(member);
+        assert_rejects("auth.session.output.schema.json", &omitted);
+    }
+
+    // Empty protocols and each omitted protocol member reject.
+    let mut empty_protocols = base.clone();
+    empty_protocols["clientProtocols"] = json!({});
+    assert_rejects("auth.session.output.schema.json", &empty_protocols);
+    for member in [
+        "authClient",
+        "authInvalidation",
+        "authorityDescriptor",
+        "authorizedLease",
+    ] {
+        let mut omitted = base.clone();
+        omitted["clientProtocols"]
+            .as_object_mut()
+            .unwrap()
+            .remove(member);
+        assert_rejects("auth.session.output.schema.json", &omitted);
+    }
+
+    // Version 99 (and any non-1 integer) rejects: protocolVersion is const 1.
+    let mut version_99 = base.clone();
+    version_99["protocolVersion"] = json!(99);
+    assert_rejects("auth.session.output.schema.json", &version_99);
 }
 
 /// Every committed schema file has a corresponding generated artifact and vice

@@ -30,6 +30,10 @@
           "type": "boolean"
         },
         "minimumAuthInvalidationProtocol": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -45,12 +49,31 @@
         }
       },
       "required": [
-        "available"
+        "available",
+        "minimumAuthInvalidationProtocol",
+        "reason"
       ],
       "type": "object"
     },
     "AuthSessionAuthority": {
       "additionalProperties": false,
+      "else": {
+        "properties": {
+          "sessionId": {
+            "type": "null"
+          },
+          "userId": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "isAuthenticated": {
+            "const": true
+          }
+        }
+      },
       "properties": {
         "isAuthenticated": {
           "type": "boolean"
@@ -69,8 +92,22 @@
         }
       },
       "required": [
+        "userId",
+        "sessionId",
         "isAuthenticated"
       ],
+      "then": {
+        "properties": {
+          "sessionId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      },
       "type": "object"
     },
     "AuthSessionAvailability": {
@@ -104,6 +141,7 @@
           "type": "boolean"
         },
         "key": {
+          "minLength": 1,
           "type": "string"
         }
       },
@@ -143,41 +181,52 @@
     },
     "AuthorizedLeaseFacts": {
       "additionalProperties": false,
-      "description": "Capability/runtime facts projected by the bootstrap handshake.",
+      "description": "Capability/runtime facts projected by the bootstrap handshake.\n\nEvery member except `configuredMs` is a v1 protocol constant pinned by\nLLP 0053's capability report; the schema publishes them as `const` so a\ntarget advertising different lease semantics fails conformance instead of\npassing a shape check the executable kit validator would reject.",
       "properties": {
         "clamps": {
+          "const": [
+            "session",
+            "provider"
+          ],
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "clockRollback": {
+          "const": "delete-before-read",
           "type": "string"
         },
         "configuredMs": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 86400000,
+          "minimum": 1,
           "type": "integer"
         },
         "defaultMs": {
+          "const": 86400000,
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
         "hardMaxMs": {
+          "const": 86400000,
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
         "protocolVersion": {
+          "const": 1,
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
         },
         "renewal": {
+          "const": "full-revalidation",
           "type": "string"
         },
         "timeBasis": {
+          "const": "server-absolute+client-request-elapsed",
           "type": "string"
         }
       },
@@ -197,6 +246,10 @@
       "additionalProperties": false,
       "properties": {
         "authClient": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -205,6 +258,10 @@
           ]
         },
         "authInvalidation": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -213,6 +270,10 @@
           ]
         },
         "authorityDescriptor": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -221,6 +282,10 @@
           ]
         },
         "authorizedLease": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -229,6 +294,12 @@
           ]
         }
       },
+      "required": [
+        "authClient",
+        "authInvalidation",
+        "authorityDescriptor",
+        "authorizedLease"
+      ],
       "type": "object"
     },
     "OnlineAvailability": {
@@ -245,7 +316,8 @@
         }
       },
       "required": [
-        "available"
+        "available",
+        "reason"
       ],
       "type": "object"
     },
@@ -256,6 +328,10 @@
           "type": "boolean"
         },
         "minimumAuthorityDescriptorProtocol": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -271,7 +347,9 @@
         }
       },
       "required": [
-        "available"
+        "available",
+        "minimumAuthorityDescriptorProtocol",
+        "reason"
       ],
       "type": "object"
     },
@@ -282,6 +360,10 @@
           "type": "boolean"
         },
         "minimumAuthInvalidationProtocol": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -290,6 +372,10 @@
           ]
         },
         "minimumAuthorizedLeaseProtocol": {
+          "enum": [
+            1,
+            null
+          ],
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -305,7 +391,10 @@
         }
       },
       "required": [
-        "available"
+        "available",
+        "minimumAuthInvalidationProtocol",
+        "minimumAuthorizedLeaseProtocol",
+        "reason"
       ],
       "type": "object"
     }
@@ -328,6 +417,7 @@
       "description": "Consistency only: possession never authorizes an invocation."
     },
     "authorizationStreamIncarnation": {
+      "minLength": 1,
       "type": "string"
     },
     "authorizedLease": {
@@ -339,7 +429,7 @@
           "type": "null"
         }
       ],
-      "description": "Exact lease capability facts appear only when this binary's full\nissuance/store/service implementation is ready. A client offer alone\ncan never manufacture support."
+      "description": "Exact lease capability facts appear only when this binary's full\nissuance/store/service implementation is ready. A client offer alone\ncan never manufacture support. Always present: null means \"not\nsupported\", never omission."
     },
     "availability": {
       "$ref": "#/$defs/AuthSessionAvailability"
@@ -354,6 +444,7 @@
       "$ref": "#/$defs/AuthModeStatus"
     },
     "protocolVersion": {
+      "const": 1,
       "format": "uint64",
       "minimum": 0,
       "type": "integer"
@@ -362,12 +453,14 @@
       "$ref": "#/$defs/AuthSessionProvider"
     },
     "quarantineCode": {
+      "description": "Always present: null means \"not quarantined\", never omission.",
       "type": [
         "string",
         "null"
       ]
     },
     "serverStartupNonce": {
+      "minLength": 1,
       "type": "string"
     },
     "transitionGeneration": {
@@ -377,8 +470,10 @@
     },
     "transports": {
       "items": {
-        "type": "string"
+        "const": "bearer"
       },
+      "maxItems": 1,
+      "minItems": 1,
       "type": "array"
     }
   },
@@ -391,12 +486,14 @@
     "desiredMode",
     "modeState",
     "appDataAvailability",
+    "quarantineCode",
     "clientProtocols",
     "availability",
     "provider",
     "transports",
     "authority",
-    "authorityDescriptor"
+    "authorityDescriptor",
+    "authorizedLease"
   ],
   "title": "AuthSessionResponse",
   "type": "object"

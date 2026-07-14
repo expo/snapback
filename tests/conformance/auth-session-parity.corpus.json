@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "description": "Shared accept/reject corpus for the auth.session.output wire contract (ENG-24991). Every case must produce the SAME verdict from the committed JSON Schema (tests/artifact_schemas_v0.rs) and from the executable kit validator (demos/_kit/tests/auth-session-schema-parity.mjs), so codegen/conformance can never approve a handshake shape no actual client accepts. Each case names a base fixture and optional mutations: `remove` is a list of member paths to delete, `set` is a list of {path, value} assignments. Paths are arrays of object keys.",
+  "schema": "auth.session.output.schema.json",
+  "bases": {
+    "settledDevAnonymous": {
+      "protocolVersion": 1,
+      "serverStartupNonce": "startup-1",
+      "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001",
+      "transitionGeneration": 0,
+      "activeMode": "dev",
+      "desiredMode": "dev",
+      "modeState": "settled",
+      "appDataAvailability": "available",
+      "quarantineCode": null,
+      "clientProtocols": {
+        "authClient": 1,
+        "authInvalidation": null,
+        "authorityDescriptor": null,
+        "authorizedLease": null
+      },
+      "availability": {
+        "onlineRequestResponse": { "available": true, "reason": null },
+        "authScopedLive": {
+          "available": true,
+          "minimumAuthInvalidationProtocol": null,
+          "reason": null
+        },
+        "retainedReads": {
+          "available": true,
+          "minimumAuthInvalidationProtocol": null,
+          "minimumAuthorizedLeaseProtocol": null,
+          "reason": null
+        },
+        "queuedReplay": {
+          "available": true,
+          "minimumAuthorityDescriptorProtocol": null,
+          "reason": null
+        }
+      },
+      "provider": { "key": "email-code", "available": false },
+      "transports": ["bearer"],
+      "authority": { "userId": null, "sessionId": null, "isAuthenticated": false },
+      "authorityDescriptor": {
+        "descriptorVersion": 1,
+        "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000001",
+        "sessionGeneration": 0
+      },
+      "authorizedLease": null
+    },
+    "settledSessionsAuthenticated": {
+      "protocolVersion": 1,
+      "serverStartupNonce": "startup-2",
+      "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001",
+      "transitionGeneration": 3,
+      "activeMode": "sessions",
+      "desiredMode": "sessions",
+      "modeState": "settled",
+      "appDataAvailability": "available",
+      "quarantineCode": null,
+      "clientProtocols": {
+        "authClient": 1,
+        "authInvalidation": 1,
+        "authorityDescriptor": 1,
+        "authorizedLease": 1
+      },
+      "availability": {
+        "onlineRequestResponse": { "available": true, "reason": null },
+        "authScopedLive": {
+          "available": true,
+          "minimumAuthInvalidationProtocol": 1,
+          "reason": null
+        },
+        "retainedReads": {
+          "available": true,
+          "minimumAuthInvalidationProtocol": 1,
+          "minimumAuthorizedLeaseProtocol": 1,
+          "reason": null
+        },
+        "queuedReplay": {
+          "available": true,
+          "minimumAuthorityDescriptorProtocol": 1,
+          "reason": null
+        }
+      },
+      "provider": { "key": "email-code", "available": true },
+      "transports": ["bearer"],
+      "authority": {
+        "userId": "01890f3c-9d5b-7000-8000-000000000002",
+        "sessionId": "01890f3c-9d5b-7000-8000-000000000003",
+        "isAuthenticated": true
+      },
+      "authorityDescriptor": {
+        "descriptorVersion": 1,
+        "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000004",
+        "sessionGeneration": 1
+      },
+      "authorizedLease": {
+        "protocolVersion": 1,
+        "defaultMs": 86400000,
+        "hardMaxMs": 86400000,
+        "configuredMs": 3600000,
+        "clamps": ["session", "provider"],
+        "renewal": "full-revalidation",
+        "timeBasis": "server-absolute+client-request-elapsed",
+        "clockRollback": "delete-before-read"
+      }
+    }
+  },
+  "cases": [
+    { "name": "settled-dev-anonymous", "base": "settledDevAnonymous", "expect": "accept" },
+    { "name": "settled-sessions-authenticated-with-lease-facts", "base": "settledSessionsAuthenticated", "expect": "accept" },
+    {
+      "name": "sessions-unavailable-surfaces-carry-minima-and-reasons",
+      "base": "settledSessionsAuthenticated",
+      "set": [
+        { "path": ["availability", "authScopedLive"], "value": { "available": false, "minimumAuthInvalidationProtocol": 1, "reason": "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE" } },
+        { "path": ["availability", "retainedReads"], "value": { "available": false, "minimumAuthInvalidationProtocol": 1, "minimumAuthorizedLeaseProtocol": 1, "reason": "SNAPBACK_AUTH_POLICY_UNAVAILABLE" } },
+        { "path": ["availability", "queuedReplay"], "value": { "available": false, "minimumAuthorityDescriptorProtocol": 1, "reason": "SNAPBACK_AUTH_POLICY_UNAVAILABLE" } }
+      ],
+      "expect": "accept"
+    },
+    { "name": "quarantined-mode-carries-code", "base": "settledDevAnonymous", "set": [{ "path": ["modeState"], "value": "quarantined" }, { "path": ["quarantineCode"], "value": "SNAPBACK_AUTH_MODE_ARTIFACT_CONFLICT" }], "expect": "accept" },
+    { "name": "root-omits-protocolVersion", "base": "settledDevAnonymous", "remove": [["protocolVersion"]], "expect": "reject" },
+    { "name": "root-omits-serverStartupNonce", "base": "settledDevAnonymous", "remove": [["serverStartupNonce"]], "expect": "reject" },
+    { "name": "root-omits-authorizationStreamIncarnation", "base": "settledDevAnonymous", "remove": [["authorizationStreamIncarnation"]], "expect": "reject" },
+    { "name": "root-omits-transitionGeneration", "base": "settledDevAnonymous", "remove": [["transitionGeneration"]], "expect": "reject" },
+    { "name": "root-omits-activeMode", "base": "settledDevAnonymous", "remove": [["activeMode"]], "expect": "reject" },
+    { "name": "root-omits-desiredMode", "base": "settledDevAnonymous", "remove": [["desiredMode"]], "expect": "reject" },
+    { "name": "root-omits-modeState", "base": "settledDevAnonymous", "remove": [["modeState"]], "expect": "reject" },
+    { "name": "root-omits-appDataAvailability", "base": "settledDevAnonymous", "remove": [["appDataAvailability"]], "expect": "reject" },
+    { "name": "root-omits-quarantineCode", "base": "settledDevAnonymous", "remove": [["quarantineCode"]], "expect": "reject" },
+    { "name": "root-omits-clientProtocols", "base": "settledDevAnonymous", "remove": [["clientProtocols"]], "expect": "reject" },
+    { "name": "root-omits-availability", "base": "settledDevAnonymous", "remove": [["availability"]], "expect": "reject" },
+    { "name": "root-omits-provider", "base": "settledDevAnonymous", "remove": [["provider"]], "expect": "reject" },
+    { "name": "root-omits-transports", "base": "settledDevAnonymous", "remove": [["transports"]], "expect": "reject" },
+    { "name": "root-omits-authority", "base": "settledDevAnonymous", "remove": [["authority"]], "expect": "reject" },
+    { "name": "root-omits-authorityDescriptor", "base": "settledDevAnonymous", "remove": [["authorityDescriptor"]], "expect": "reject" },
+    { "name": "root-omits-authorizedLease", "base": "settledDevAnonymous", "remove": [["authorizedLease"]], "expect": "reject" },
+    { "name": "root-carries-unknown-member", "base": "settledDevAnonymous", "set": [{ "path": ["sneakyExtension"], "value": true }], "expect": "reject" },
+    { "name": "protocol-version-99", "base": "settledDevAnonymous", "set": [{ "path": ["protocolVersion"], "value": 99 }], "expect": "reject" },
+    { "name": "protocol-version-string", "base": "settledDevAnonymous", "set": [{ "path": ["protocolVersion"], "value": "1" }], "expect": "reject" },
+    { "name": "server-startup-nonce-empty", "base": "settledDevAnonymous", "set": [{ "path": ["serverStartupNonce"], "value": "" }], "expect": "reject" },
+    { "name": "authorization-stream-incarnation-empty", "base": "settledDevAnonymous", "set": [{ "path": ["authorizationStreamIncarnation"], "value": "" }], "expect": "reject" },
+    { "name": "transition-generation-negative", "base": "settledDevAnonymous", "set": [{ "path": ["transitionGeneration"], "value": -1 }], "expect": "reject" },
+    { "name": "active-mode-unknown", "base": "settledDevAnonymous", "set": [{ "path": ["activeMode"], "value": "cloud" }], "expect": "reject" },
+    { "name": "mode-state-unknown", "base": "settledDevAnonymous", "set": [{ "path": ["modeState"], "value": "unknown" }], "expect": "reject" },
+    { "name": "quarantine-code-number", "base": "settledDevAnonymous", "set": [{ "path": ["quarantineCode"], "value": 7 }], "expect": "reject" },
+    { "name": "client-protocols-empty", "base": "settledDevAnonymous", "set": [{ "path": ["clientProtocols"], "value": {} }], "expect": "reject" },
+    { "name": "client-protocols-omit-authClient", "base": "settledDevAnonymous", "remove": [["clientProtocols", "authClient"]], "expect": "reject" },
+    { "name": "client-protocols-omit-authInvalidation", "base": "settledDevAnonymous", "remove": [["clientProtocols", "authInvalidation"]], "expect": "reject" },
+    { "name": "client-protocols-omit-authorityDescriptor", "base": "settledDevAnonymous", "remove": [["clientProtocols", "authorityDescriptor"]], "expect": "reject" },
+    { "name": "client-protocols-omit-authorizedLease", "base": "settledDevAnonymous", "remove": [["clientProtocols", "authorizedLease"]], "expect": "reject" },
+    { "name": "client-protocols-unknown-version", "base": "settledDevAnonymous", "set": [{ "path": ["clientProtocols", "authClient"], "value": 2 }], "expect": "reject" },
+    { "name": "client-protocols-unknown-member", "base": "settledDevAnonymous", "set": [{ "path": ["clientProtocols", "legacyAuth"], "value": 1 }], "expect": "reject" },
+    { "name": "availability-online-omits-reason", "base": "settledDevAnonymous", "remove": [["availability", "onlineRequestResponse", "reason"]], "expect": "reject" },
+    { "name": "availability-auth-scoped-live-omits-minimum", "base": "settledDevAnonymous", "remove": [["availability", "authScopedLive", "minimumAuthInvalidationProtocol"]], "expect": "reject" },
+    { "name": "availability-retained-reads-omits-lease-minimum", "base": "settledDevAnonymous", "remove": [["availability", "retainedReads", "minimumAuthorizedLeaseProtocol"]], "expect": "reject" },
+    { "name": "availability-retained-reads-omits-invalidation-minimum", "base": "settledDevAnonymous", "remove": [["availability", "retainedReads", "minimumAuthInvalidationProtocol"]], "expect": "reject" },
+    { "name": "availability-queued-replay-omits-minimum", "base": "settledDevAnonymous", "remove": [["availability", "queuedReplay", "minimumAuthorityDescriptorProtocol"]], "expect": "reject" },
+    { "name": "availability-queued-replay-omits-reason", "base": "settledDevAnonymous", "remove": [["availability", "queuedReplay", "reason"]], "expect": "reject" },
+    { "name": "availability-minimum-unknown-version", "base": "settledDevAnonymous", "set": [{ "path": ["availability", "retainedReads", "minimumAuthorizedLeaseProtocol"], "value": 2 }], "expect": "reject" },
+    { "name": "provider-key-empty", "base": "settledDevAnonymous", "set": [{ "path": ["provider", "key"], "value": "" }], "expect": "reject" },
+    { "name": "transports-empty", "base": "settledDevAnonymous", "set": [{ "path": ["transports"], "value": [] }], "expect": "reject" },
+    { "name": "transports-extra-entry", "base": "settledDevAnonymous", "set": [{ "path": ["transports"], "value": ["bearer", "websocket"] }], "expect": "reject" },
+    { "name": "transports-unknown-entry", "base": "settledDevAnonymous", "set": [{ "path": ["transports"], "value": ["token"] }], "expect": "reject" },
+    { "name": "authority-omits-userId", "base": "settledDevAnonymous", "remove": [["authority", "userId"]], "expect": "reject" },
+    { "name": "authority-omits-sessionId", "base": "settledDevAnonymous", "remove": [["authority", "sessionId"]], "expect": "reject" },
+    { "name": "authority-authenticated-with-null-identifiers", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authority"], "value": { "userId": null, "sessionId": null, "isAuthenticated": true } }], "expect": "reject" },
+    { "name": "authority-anonymous-with-userId", "base": "settledDevAnonymous", "set": [{ "path": ["authority", "userId"], "value": "user_1" }], "expect": "reject" },
+    { "name": "authority-descriptor-negative-generation", "base": "settledDevAnonymous", "set": [{ "path": ["authorityDescriptor", "sessionGeneration"], "value": -1 }], "expect": "reject" },
+    { "name": "lease-facts-wrong-renewal", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "renewal"], "value": "heartbeat" }], "expect": "reject" },
+    { "name": "lease-facts-configured-zero", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "configuredMs"], "value": 0 }], "expect": "reject" },
+    { "name": "lease-facts-hard-max-above-protocol", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "hardMaxMs"], "value": 86400001 }], "expect": "reject" },
+    { "name": "lease-facts-omit-clock-rollback", "base": "settledSessionsAuthenticated", "remove": [["authorizedLease", "clockRollback"]], "expect": "reject" },
+    { "name": "lease-facts-clamps-reordered", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "clamps"], "value": ["provider", "session"] }], "expect": "reject" }
+  ]
+}

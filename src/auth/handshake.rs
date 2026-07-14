@@ -116,8 +116,17 @@ fn decimal_protocol_offer(
     value.parse().ok()
 }
 
+// @ref LLP 0058#exact-response-dto — the schema is the executable client
+// contract: every member is mandatory (nullable is expressed by value, never
+// by omission) and an authenticated authority carries non-empty identifiers.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "required" = ["userId", "sessionId", "isAuthenticated"],
+    "if" = {"properties": {"isAuthenticated": {"const": true}}},
+    "then" = {"properties": {"userId": {"type": "string", "minLength": 1}, "sessionId": {"type": "string", "minLength": 1}}},
+    "else" = {"properties": {"userId": {"type": "null"}, "sessionId": {"type": "null"}}}
+))]
 pub struct AuthSessionAuthority {
     pub user_id: Option<String>,
     pub session_id: Option<String>,
@@ -137,21 +146,34 @@ impl AuthSessionAuthority {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthSessionProvider {
+    #[schemars(length(min = 1))]
     pub key: String,
     pub available: bool,
 }
 
+// @ref LLP 0058#exact-response-dto — protocol echoes are exactly the versions
+// this binary understands: v1 or null, never another integer, and never an
+// omitted member. The schema pins that so conformance cannot approve a
+// response shape the executable kit validator rejects.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "required" = ["authClient", "authInvalidation", "authorityDescriptor", "authorizedLease"]
+))]
 pub struct ClientProtocols {
+    #[schemars(extend("enum" = [1, null]))]
     pub auth_client: Option<u64>,
+    #[schemars(extend("enum" = [1, null]))]
     pub auth_invalidation: Option<u64>,
+    #[schemars(extend("enum" = [1, null]))]
     pub authority_descriptor: Option<u64>,
+    #[schemars(extend("enum" = [1, null]))]
     pub authorized_lease: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend("required" = ["available", "reason"]))]
 pub struct OnlineAvailability {
     pub available: bool,
     pub reason: Option<String>,
@@ -159,25 +181,43 @@ pub struct OnlineAvailability {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "required" = ["available", "minimumAuthInvalidationProtocol", "reason"]
+))]
 pub struct AuthScopedLiveAvailability {
     pub available: bool,
+    #[schemars(extend("enum" = [1, null]))]
     pub minimum_auth_invalidation_protocol: Option<u64>,
     pub reason: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "required" = [
+        "available",
+        "minimumAuthInvalidationProtocol",
+        "minimumAuthorizedLeaseProtocol",
+        "reason"
+    ]
+))]
 pub struct RetainedReadAvailability {
     pub available: bool,
+    #[schemars(extend("enum" = [1, null]))]
     pub minimum_auth_invalidation_protocol: Option<u64>,
+    #[schemars(extend("enum" = [1, null]))]
     pub minimum_authorized_lease_protocol: Option<u64>,
     pub reason: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "required" = ["available", "minimumAuthorityDescriptorProtocol", "reason"]
+))]
 pub struct QueuedReplayAvailability {
     pub available: bool,
+    #[schemars(extend("enum" = [1, null]))]
     pub minimum_authority_descriptor_protocol: Option<u64>,
     pub reason: Option<String>,
 }
@@ -193,26 +233,57 @@ pub struct AuthSessionAvailability {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "required" = [
+        "protocolVersion",
+        "serverStartupNonce",
+        "authorizationStreamIncarnation",
+        "transitionGeneration",
+        "activeMode",
+        "desiredMode",
+        "modeState",
+        "appDataAvailability",
+        "quarantineCode",
+        "clientProtocols",
+        "availability",
+        "provider",
+        "transports",
+        "authority",
+        "authorityDescriptor",
+        "authorizedLease"
+    ]
+))]
 pub struct AuthSessionResponse {
+    // @ref LLP 0058#exact-response-dto — protocol v1 is a closed must-
+    // understand value; the schema pins `const: 1` because a different
+    // integer is a different protocol, not an additive change.
+    #[schemars(extend("const" = 1))]
     pub protocol_version: u64,
+    #[schemars(length(min = 1))]
     pub server_startup_nonce: String,
+    #[schemars(length(min = 1))]
     pub authorization_stream_incarnation: String,
     pub transition_generation: u64,
     pub active_mode: AuthMode,
     pub desired_mode: AuthMode,
     pub mode_state: AuthModeStateWire,
     pub app_data_availability: AppDataAvailabilityWire,
+    /// Always present: null means "not quarantined", never omission.
     pub quarantine_code: Option<String>,
     pub client_protocols: ClientProtocols,
     pub availability: AuthSessionAvailability,
     pub provider: AuthSessionProvider,
+    // @ref LLP 0058#exact-response-dto — bearer is the only v1 transport;
+    // another entry is a protocol revision, not an additive capability.
+    #[schemars(extend("items" = {"const": "bearer"}, "minItems" = 1, "maxItems" = 1))]
     pub transports: Vec<String>,
     pub authority: AuthSessionAuthority,
     /// Consistency only: possession never authorizes an invocation.
     pub authority_descriptor: AuthorityDescriptor,
     /// Exact lease capability facts appear only when this binary's full
     /// issuance/store/service implementation is ready. A client offer alone
-    /// can never manufacture support.
+    /// can never manufacture support. Always present: null means "not
+    /// supported", never omission.
     pub authorized_lease: Option<AuthorizedLeaseFacts>,
 }
 
