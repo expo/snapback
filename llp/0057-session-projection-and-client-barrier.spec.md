@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0055, LLP 0056
 
 ## Summary
@@ -1367,11 +1367,14 @@ same current incarnation. Dev mode thereby claims only authorization-stream
 continuity across ordinary restart, not session-credential continuity or a
 user-bearing authority.
 
-The existing four protocol headers remain mandatory. Item 5 does not increment
-the auth client protocol because protocol 1 was reserved by LLP 0056 for this
-client sequence; it completes that sequence. The server still returns
-`SNAPBACK_AUTH_CLIENT_PROTOCOL_REQUIRED` before auth resolution for a missing or
-unsupported header.
+The existing four protocol headers remain independently mandatory for the
+surfaces that consume them. Item 5 does not increment the auth client protocol
+because protocol 1 was reserved by LLP 0056 for this client sequence; it
+completes that sequence. For finite online work, the server returns the
+registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` capability refusal before auth
+resolution when the auth-client header is missing or unsupported. Live,
+queued-replay, and retained-read admission additionally enforce their own
+surface-specific protocol offers.
 
 ### Readiness facts
 

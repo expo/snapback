@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Client integration, API, Runtime, Sync, Realtime, Security, Auth, Contract/Exact, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-13 (ENG-24605 adds `demos/card-game` as a finite authenticated-query and authority-store proof only; the full authorization-aware partial-sync rung remains gated on items 6/8 and is not claimed). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, Diary 0001, Diary 0006, Exact 0263, Exact 0265
+**Revised:** 2026-07-14 (ENG-24606 reconciliation: the card-game rung now proves real session-isolated finite and live hidden-hand delivery, logout blanking, and cold-process retained display only through an unexpired signed authorization lease; full permission-changing ACL/protected-room and game-product breadth remain outside this demo). 2026-07-13 (ENG-24605 adds `demos/card-game` as a finite authenticated-query and authority-store proof only; the full authorization-aware partial-sync rung remains gated on items 6/8 and is not claimed). 2026-07-03 (demo ladder: collaborative graffiti/whiteboard rung added between kanban and card game with its capability-mapping row — shipped as `demos/graffiti/` (ENG-22219, Diary 0006); reconciled with LLP 0010/0015 per R6. Earlier: 2026-07-01 (LLP 0032 R3/R6: demo-ladder drift note reconciled, diary-erratum policy and reconcile cadence adopted); 2026-06-27: Change Program slimmed to an index over LLP 0020/0021 after the 0020 review flagged duplicate phase trackers; Phase 4 status updated after the LLP 0020 WebSocket push slice; see `llp/reviews/0020-core-authoring-surface.claude.md`)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0020, LLP 0021, LLP 0024, LLP 0053, LLP 0057, Diary 0001, Diary 0006, Diary 0013, Exact 0263, Exact 0265
 
 ## Summary
 
@@ -199,21 +199,22 @@ change (LLP 0011). Ephemeral presence/cursor/typing state is not durable
 live-query realtime; it is owned by LLP 0013 and must not be absorbed into the
 Phase 4 durable path.
 
-### Authorized sync is required by the card-game slice but not yet sequenced
+### Authorized sync and the card-game proof boundary
 
 The card-game slice depends on authorized partial sync — different authorized
-views of one underlying state. LLP 0011 owns the mechanics, and still lists its
-permission-rule language as an open question, but no numbered phase here
-delivers Snapback's enforcement of those rules in queries and subscriptions.
-Until it is sequenced, the card-game slice presupposes an unbuilt capability.
-Treat authorized sync as a gating workstream (row X in the sequencing table)
-that must land with, or before, the Phase 4 matcher, because the matcher must
-be auth-aware regardless.
+views of one underlying state. LLP 0011 owns the product model and LLP 0053 owns
+the invalidation and offline-authorization fences. The original ENG-24605
+foothold proved only one finite authenticated `myHand` query plus the two-axis
+store. ENG-24606 now advances that same demo through a real sessions deployment:
+two principals receive disjoint finite and live hands, a mutation reaches only
+the owning live boundary, logout blanks the retiring authority before return,
+and a new cold process renders retained rows only before the exact signed-lease
+deadline.
 
-ENG-24605 adds a narrower `demos/card-game` foothold: one finite authenticated
-`myHand` query plus client-store principal/authority-axis tests. It proves
-neither subscription invalidation nor authorization of retained offline rows;
-those unavailable surfaces preserve this section's gate.
+That is a concrete local-target authorized-sync proof, not a complete game or a
+universal permission language. Permission-changing ACL fan-out, the protected-
+room kick trace, custom-key room authorization, a browser UI, and hosted auth
+remain outside this rung and must retain their own gates.
 
 ### `ContractDataManifest` has no specification yet
 
@@ -386,15 +387,17 @@ exist before it can claim success:
 | messaging | push transport; reconnect; retained query state | Phase 4 |
 | kanban | multi-row mutations; dependency-matched live queries; typed Contract rows | Phases 4 + 5 |
 | collaborative graffiti/whiteboard (shipped — `demos/graffiti/`) | generated ephemeral API; client overlay; WebSocket publish path; fan-out and durable-lane separation measurement | LLP 0013 + LLP 0024 + Phase 4 |
-| card game (finite foothold shipped; full rung gated) | finite hidden-state query + two-axis store now; authorization-aware partial sync still required | ENG-24605 for finite proof; authorized sync items 6/8 + Phase 4 for the full rung |
+| card game (local auth rung shipped; broader product slice gated) | real session-isolated finite/live hidden hands, logout blanking, and lease-bounded cold retention; ACL/protected-room breadth and UI remain | ENG-24605/ENG-24606 + auth items 5–8 for the shipped proof; LLP 0053 protected-room/ACL executable proof and product UI for the broader rung |
 | task tracker | index-first query; cursor pagination over a larger local dataset | LLP 0007 query/index contract + a future pagination slice |
 | party (Partiful-style) | multi-table Contract composition; component-local queries | Phase 5 |
 | asset slice | upload metadata and processed-media state | assets capability — a current capability gap and a Non-Goal until a demo genuinely needs it |
 
 The admission rule: a demo may claim success only when the capability in its
 gating column actually exists, or when the demo honestly reports the gap (per
-the capability-honesty principle). The card-game slice in particular must not be
-built as proof of authorized sync until authorized sync is sequenced.
+the capability-honesty principle). The card-game proof may claim only the
+finite/live/lease behaviors its real-session acceptance runner executes; it may
+not generalize those results to permission-changing ACLs, protected rooms,
+hosted auth, or a complete game surface.
 
 Each demo diary should record not only whether the app works, but a **glue
 inventory**: the demo-local bridge, resolver, descriptor, seed, outbox,
@@ -409,7 +412,9 @@ Two standing corpus rules (adopted 2026-07-01 via LLP 0032 R3/R6):
   Diary 0006's dangling "LLP 0024" whiteboard-plan citation.)
 - **Reconcile cadence.** Run the `llp-maintain`-style corpus audit before each
   demo lands and after each LLP 0032 phase completes, so status and
-  cross-reference drift is caught at the boundaries where it accumulates.
+  cross-reference drift is caught at the boundaries where it accumulates. The
+  2026-07-14 auth-program audit and this reconciliation are the cadence pass for
+  the ENG-24606 card-game extension recorded in Diary 0013.
 
 ## Non-Goals
 

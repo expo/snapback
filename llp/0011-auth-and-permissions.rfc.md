@@ -5,8 +5,8 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-13 (ENG-24596: record LLP 0055's implemented local auth catalog/provider/session core and its item-4/item-5 activation fence; earlier: narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
-**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032, LLP 0039, LLP 0053, LLP 0055
+**Revised:** 2026-07-14 (auth-program implementation reconciliation: items 4–8 now make the local sessions posture enableable with the shared invocation gate, server-derived handler authority, connection-bound projection, coordinator barrier, authorization invalidation, two-axis client storage, and signed-lease retained reads; hosted readiness and the broader permission-language questions remain open). 2026-07-13 (ENG-24596: record LLP 0055's implemented local auth catalog/provider/session core and its item-4/item-5 activation fence; earlier: narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
+**Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032, LLP 0039, LLP 0053, LLP 0055, LLP 0056, LLP 0057, LLP 0058
 
 ## Summary
 
@@ -28,8 +28,9 @@ Accepted, owns whether a cause uses a matcher delivery obligation or the
 authorization version; the earlier universal-epoch/generic-resync wording is
 not a competing implementation contract.
 
-> **Implementation status (2026-07-13 — ENG-24596).** The local provider core
-> specified by [LLP 0055](./0055-auth-provider-protocol.spec.md) is built: the
+> **Historical implementation checkpoint (2026-07-13 — ENG-24596).** The local
+> provider core specified by
+> [LLP 0055](./0055-auth-provider-protocol.spec.md) is built: the
 > protected v1 auth catalog and namespace reservation, owner-only keyring,
 > email-code challenge/exchange state machine, session-token families,
 > capture mailbox, provider lifecycle/GC, process-bound impersonation carrier,
@@ -43,8 +44,21 @@ not a competing implementation contract.
 > shared invocation gate. Sessions remain non-enableable until item 5 installs
 > connection binding, revocation projection, and the `AuthCoordinator`.
 > Collision rescue is the narrow non-production exception needed to repair a
-> catalog-name collision. `ctx.auth`, permission rules, authorized sync, and
-> the hosted provider boundary remain later work, so this RFC stays Draft.
+> catalog-name collision. At this item-3 checkpoint, `ctx.auth`, permission
+> rules, authorized sync, and the hosted provider boundary remained later work.
+
+> **Current local-target implementation (2026-07-14 — ENG-24597 through
+> ENG-24607).** The staged mode and shared invocation gate, immutable
+> server-derived `HandlerAuthProjection`, connection-bound session projection,
+> two-phase revocation, `AuthCoordinator` clear barrier, negotiated
+> authorization-invalidation protocol, authority descriptor/two-axis store,
+> and signed-lease retained-read protocol are now implemented. The card-game
+> proof exercises two real principals across finite and live hidden-hand reads,
+> logout blanking, cold-process retained presentation, and exact lease expiry.
+> This is a local-target implementation statement, not a status transition or
+> author ratification of the Draft implementation Specs. General permission
+> language and the hosted-provider/deployment boundary remain open; LLP 0058
+> deliberately reports the local bearer target as not hosted-auth ready.
 
 ## Motivation
 
@@ -400,11 +414,12 @@ shrinking-delivery obligations for ordinary writes, authorization versions for
 enumerated events, query/room reauthorization, quarantine-as-immediate-clear,
 and unconditional fresh snapshot on non-live resume. The older universal
 epoch/generic-`resync_required` wording is historical, not a second protocol.
-LLP 0053 is Accepted; its review gate is closed, while items 6/8 still await
-their ordered implementation prerequisites. LLP 0055's provider core is built
-but activation-fenced; the shared `ctx.auth` invocation gate, connection-bound
-session authority, RLS rules, and authorized sync remain unbuilt, so this RFC
-itself stays Draft. Ledgered in
+LLP 0053 is Accepted and its ordered item-6/item-8 implementation now ships on
+the local target. LLP 0055's provider core is reachable through the staged
+sessions posture; the shared `ctx.auth` invocation gate, connection-bound
+session authority, invalidation barriers, and lease-bounded authorized sync are
+built. A general permission/RLS language, external-provider adapters, and hosted
+auth remain open, so this broad RFC itself stays Draft. Ledgered in
 [LLP 0000](./0000-snapback.explainer.md).
 
 Earlier: Valet's auth/RLS record ([LLP 0006](./0006-valet-retrospective.research.md))

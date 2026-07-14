@@ -169,8 +169,12 @@ Implemented now:
   connection-owned cleanup, `scopeEpoch`/`entryVersion`, rate and payload limits,
   and an in-memory client overlay.
 
-These auth guarantees are local-target guarantees. Hosted auth remains disabled
-pending ENG-24607's deployment-security and client-page XSS contracts.
+These auth guarantees are local-target guarantees. ENG-24607 now defines and
+enforces the local transport fence, hosted-capability descriptor, and honest
+browser bearer/XSS posture, but it does not make this target hosted-auth ready.
+The local target deliberately reports no target-owned external TLS, trusted
+effective-source derivation, shared authentication throttle, multi-replica
+invalidation, or sender-constrained browser credential.
 
 The local runtime reports Ibex as the canonical engine and detects an installed
 `ibex` binary. Ibex is vendored as a git submodule at [`vendor/ibex`](./vendor/ibex);

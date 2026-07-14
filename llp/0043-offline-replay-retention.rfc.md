@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-14 (ENG-24606 reconciliation: item 8 now populates the format-5 `queryAuthorization` namespace with never-reused query-instance identities, authorization witnesses, independent pending-scope fences, signed lease custody, and equality-expiry deletion; the earlier ENG-24605 empty reservation remains the historical pre-item-8 checkpoint). 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -14,7 +14,7 @@ revisions, ratified by Charlie — see
 LLP 0012's parity rule, client-side replay restored per 0008, DK-9 cited
 instead of re-enumerated, suppression/conflict machinery restated; initial
 same day)
-**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0034, LLP 0038, LLP 0039
+**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0034, LLP 0038, LLP 0039, LLP 0053, LLP 0057
 
 ## Summary
 
@@ -195,9 +195,13 @@ credential instance created this outbox entry?” are different questions:
   userId)` owns retained rows. A replacement session for the same user in the
   same durable stream may keep those rows; another user, logout to anonymous,
   auth-mode change, or stream-incarnation change deletes them. This physical
-  namespace does not by itself make retained reads available: the closed
-  `queryAuthorization` namespace is reserved as `{}` until the item-8
-  invalidation/lease protocol defines when a retained result may be shown.
+  namespace does not by itself authorize display. Item 8 now populates the
+  closed `queryAuthorization` namespace with a never-reused query-instance id,
+  the exact authorization/issuer/artifact witness, independent pending scopes,
+  accepted snapshot fence, and signed `AuthorizedLease`. Session-mode reads
+  render only through that query record and delete the lease plus retained rows
+  before exposure at the exact client-deadline equality boundary. The empty
+  `{}` namespace remains only the migrated pre-item-8 state and grants nothing.
 - **Authority-instance/queue axis.** The handshake and every credential
   response carry `{ descriptorVersion, authorityInstanceId,
   sessionGeneration }`. The instance id is opaque, stable across refresh, and
