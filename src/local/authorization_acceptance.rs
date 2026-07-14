@@ -58,6 +58,11 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+const CLIENT_REPLAY_APP_ID: &str = "llp-0053-composed-acceptance";
+const CLIENT_REPLAY_TARGET_PROFILE_ID: &str = "local-dev-sqlite-ibex";
+const CLIENT_REPLAY_ACTIVATION_HASH: &str = "snapback.authorized-lease.activation.v1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const PROPERTY_PRINCIPAL: &str = "018f0d90-7b14-7a22-8c33-445566778899";
+
 #[derive(Clone, Debug)]
 struct TrackedQuery {
     user: String,
@@ -67,6 +72,7 @@ struct TrackedQuery {
     subscription_id: String,
     query_instance_id: u64,
     rows: Vec<Value>,
+    version: u64,
 }
 
 #[derive(Default)]
@@ -496,6 +502,7 @@ fn subscribe(
         subscription_id: output.subscription_id,
         query_instance_id: instance,
         rows: output.snapshot.rows,
+        version: output.snapshot.version,
     }
 }
 
@@ -573,6 +580,8 @@ fn settle_query(
     query: &mut TrackedQuery,
     mode: DeliveryMode,
 ) -> DeliveryObservation {
+    let predecessor_rows = query.rows.clone();
+    let predecessor_version = query.version;
     let drained = parse_invalidation_frames(drain_live_stream_through_test_sink(
         snapback,
         &query.connection_id,
@@ -632,6 +641,7 @@ fn settle_query(
         if let Some(snapshot) = frame.get("snapshot").filter(|value| !value.is_null()) {
             assert_eq!(snapshot["subscriptionId"], query.subscription_id);
             query.rows = snapshot["rows"].as_array().expect("snapshot rows").clone();
+            query.version = snapshot["version"].as_u64().expect("snapshot version");
             observation.delivered_snapshot_frames += 1;
         }
         let Some(resolution) = frame.get("resolution").filter(|value| !value.is_null()) else {
@@ -644,12 +654,13 @@ fn settle_query(
         if !acknowledged.insert(token.clone()) {
             continue;
         }
+        let ack_input = AuthorizationInvalidationAckInput {
+            connection_id: query.connection_id.clone(),
+            ack_token: token,
+        };
         let outcome = snapback
             .acknowledge_authorization_invalidation(
-                AuthorizationInvalidationAckInput {
-                    connection_id: query.connection_id.clone(),
-                    ack_token: token,
-                },
+                ack_input.clone(),
                 connection.clone(),
                 admission,
             )
@@ -659,6 +670,13 @@ fn settle_query(
             "discharged" | "duplicate"
         ));
         observation.acknowledgements += 1;
+        let (_, authority_instance_id) = session_ids(&query.user);
+        let authorization_incarnation = obligation["witness"]["authorization"]["incarnation"]
+            .as_str()
+            .expect("authorization incarnation");
+        let version_stream = obligation["witness"]["data"]["versionStream"]
+            .as_str()
+            .expect("version stream");
         observation.observed_receipts.push(json!({
             "scope": {
                 "kind": obligation["scopeId"]["kind"],
@@ -678,6 +696,41 @@ fn settle_query(
             })),
             "resolutionKind": resolution["kind"],
             "acknowledgementOutcome": outcome.outcome,
+            "rawReplay": {
+                "scopeId": obligation["scopeId"],
+                "issuerId": obligation["scopeId"]["issuerId"],
+                "principalScope": {
+                    "authMode": "sessions",
+                    "authorizationStreamIncarnation": authorization_incarnation,
+                    "userId": query.user,
+                },
+                "authorityDescriptor": {
+                    "descriptorVersion": 1,
+                    "authorityInstanceId": authority_instance_id,
+                    "sessionGeneration": 1,
+                },
+                "artifactScope": {
+                    "appId": CLIENT_REPLAY_APP_ID,
+                    "targetProfileId": CLIENT_REPLAY_TARGET_PROFILE_ID,
+                    "versionStreamId": version_stream,
+                    "activationHash": CLIENT_REPLAY_ACTIVATION_HASH,
+                    "schemaHash": "llp-0053-authorization-shapes-v1",
+                    "functionBundleHash": "llp-0053-authorization-shapes-v1",
+                },
+                "initialSnapshot": {
+                    "version": predecessor_version,
+                    "rows": predecessor_rows.clone(),
+                },
+                "obligation": obligation,
+                "snapshot": frame.get("snapshot").filter(|value| !value.is_null()),
+                "resolution": resolution,
+                "serverAcknowledgement": {
+                    "input": ack_input,
+                    "connection": connection,
+                    "output": outcome,
+                },
+                "serverAcknowledgementOutcome": outcome.outcome,
+            },
         }));
     }
     observation.max_generated_snapshot_frames_per_query_settlement =
@@ -735,6 +788,33 @@ fn normalize_membership_receipts(
                 "resolutionKind": receipt["resolutionKind"],
                 "acknowledgementOutcome": receipt["acknowledgementOutcome"],
                 "fullRequeryAndAuthorizationMatched": true,
+            })
+        })
+        .collect()
+}
+
+fn raw_membership_replay(
+    observation: &DeliveryObservation,
+    event_index: u64,
+    event_kind: &str,
+) -> Vec<Value> {
+    assert_eq!(
+        observation.observed_receipts.len(),
+        3,
+        "each membership event must expose three replayable production transitions"
+    );
+    observation
+        .observed_receipts
+        .iter()
+        .enumerate()
+        .map(|(query_index, receipt)| {
+            json!({
+                "eventIndex": event_index,
+                "eventKind": event_kind,
+                "queryIndex": query_index,
+                "productionQuery": receipt["query"],
+                "productionScope": receipt["scope"],
+                "rawReplay": receipt["rawReplay"],
             })
         })
         .collect()
@@ -997,6 +1077,184 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
     }
 }
 
+fn property_query_ids(snapback: &LocalSnapback) -> Vec<String> {
+    let output = snapback
+        .invoke_query_with_dependencies_prepared(
+            "mineOrPublic",
+            input(json!({})),
+            session_authority(PROPERTY_PRINCIPAL, InvocationSource::HttpQuery),
+        )
+        .expect("production property query");
+    let mut ids = output
+        .output
+        .rows
+        .iter()
+        .map(|row| {
+            row["title"]
+                .as_str()
+                .expect("property row title is the shared logical id")
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    ids.sort();
+    ids
+}
+
+#[test]
+// @ref LLP 0053#acceptance — use one deterministic corpus to compare real
+//   production Ibex results with the independent Contract-side oracle.
+fn shared_property_corpus_emits_production_fresh_query_receipt() {
+    let config: Value = serde_json::from_str(include_str!(
+        "../../tests/acceptance/auth-invalidation-v1-property-corpus.json"
+    ))
+    .expect("shared property corpus config");
+    assert_eq!(config["schemaVersion"], 1);
+    let trials_per_event = config["trialsPerEvent"]
+        .as_u64()
+        .and_then(|value| usize::try_from(value).ok())
+        .expect("bounded property trials");
+    let rows_per_case = config["rowsPerCase"]
+        .as_u64()
+        .and_then(|value| usize::try_from(value).ok())
+        .expect("bounded property rows");
+    let event_universe = config["eventUniverse"]
+        .as_array()
+        .expect("property event universe")
+        .iter()
+        .map(|value| value.as_str().expect("event name").to_owned())
+        .collect::<Vec<_>>();
+    let input_cases = config["cases"].as_array().expect("shared property cases");
+    assert_eq!(input_cases.len(), event_universe.len() * trials_per_event);
+    assert_eq!(input_cases.len(), 36);
+    let schedule = input_cases
+        .iter()
+        .map(|case| {
+            case["scenario"]
+                .as_str()
+                .expect("property scenario")
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    let mut event_counts = BTreeMap::new();
+    for scenario in &schedule {
+        assert!(event_universe.contains(scenario));
+        *event_counts.entry(scenario.clone()).or_insert(0_usize) += 1;
+    }
+    for event in &event_universe {
+        assert_eq!(event_counts.get(event), Some(&trials_per_event));
+    }
+
+    let mut cases = Vec::new();
+    let mut production_fresh_query_comparisons = 0_u64;
+    let mut production_mutations = 0_u64;
+    for (case_index, case) in input_cases.iter().enumerate() {
+        assert_eq!(case["caseIndex"], case_index);
+        let scenario = case["scenario"].as_str().expect("property scenario");
+        let source_rows = case["sourceRows"]
+            .as_array()
+            .expect("shared property source rows")
+            .clone();
+        assert_eq!(source_rows.len(), rows_per_case);
+        let revision = case["revision"].as_u64().expect("property revision");
+        let random_state = case["randomState"].as_str().expect("property random state");
+        let write_kind = case["writeKind"].as_str();
+        assert_eq!(write_kind.is_some(), scenario == "randomized-writes");
+
+        let mut snapback = configured_memory();
+        let mut database_ids = BTreeMap::new();
+        for row in &source_rows {
+            let logical_id = row["id"].as_str().expect("property logical id");
+            let database_id = id(mutate(
+                &mut snapback,
+                PROPERTY_PRINCIPAL,
+                "createDoc",
+                json!({
+                    "title": logical_id,
+                    "ownerId": row["ownerId"],
+                    "isPublic": row["isPublic"],
+                    "folderId": "property-folder",
+                }),
+            ));
+            database_ids.insert(logical_id.to_owned(), database_id);
+        }
+        let production_initial_authorized_row_ids = property_query_ids(&snapback);
+        production_fresh_query_comparisons += 1;
+
+        if let Some(write_kind) = write_kind {
+            let target_index = if write_kind == "owner-revoke" { 0 } else { 1 };
+            let logical_id = source_rows[target_index]["id"]
+                .as_str()
+                .expect("property target id");
+            let database_id = database_ids
+                .get(logical_id)
+                .expect("property target database id");
+            match write_kind {
+                "public-grant" => {
+                    mutate(
+                        &mut snapback,
+                        PROPERTY_PRINCIPAL,
+                        "setDocPublic",
+                        json!({ "id": database_id, "isPublic": true }),
+                    );
+                }
+                "owner-grant" => {
+                    mutate(
+                        &mut snapback,
+                        PROPERTY_PRINCIPAL,
+                        "setDocOwner",
+                        json!({ "id": database_id, "ownerId": PROPERTY_PRINCIPAL }),
+                    );
+                }
+                "owner-revoke" => {
+                    mutate(
+                        &mut snapback,
+                        PROPERTY_PRINCIPAL,
+                        "setDocOwner",
+                        json!({ "id": database_id, "ownerId": "another-principal" }),
+                    );
+                }
+                _ => unreachable!("shared property corpus owns the write universe"),
+            }
+            production_mutations += 1;
+        }
+        let production_relevant_authorized_row_ids = if write_kind.is_some() {
+            production_fresh_query_comparisons += 1;
+            property_query_ids(&snapback)
+        } else {
+            production_initial_authorized_row_ids.clone()
+        };
+
+        cases.push(json!({
+            "caseIndex": case_index,
+            "scenario": scenario,
+            "randomState": random_state,
+            "revision": revision,
+            "sourceRows": source_rows,
+            "writeKind": write_kind,
+            "productionInitialAuthorizedRowIds": production_initial_authorized_row_ids,
+            "productionRelevantAuthorizedRowIds": production_relevant_authorized_row_ids,
+        }));
+    }
+    assert_eq!(cases.len(), event_universe.len() * trials_per_event);
+    assert_eq!(cases.len(), 36);
+
+    println!(
+        "SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT={}",
+        json!({
+            "schemaVersion": 1,
+            "seed": config["seed"],
+            "trialsPerEvent": trials_per_event,
+            "rowsPerCase": rows_per_case,
+            "eventUniverse": event_universe,
+            "randomizedSchedule": schedule,
+            "totalCases": cases.len(),
+            "productionFreshQueryComparisons": production_fresh_query_comparisons,
+            "productionMutations": production_mutations,
+            "cases": cases,
+        })
+    );
+}
+
 #[test]
 // @ref LLP 0053#acceptance — run the required membership-churn measurement and
 //   randomized full-requery oracle through the production invalidation seams.
@@ -1126,6 +1384,8 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     for query in &queries {
         assert_converges(&snapback, query);
     }
+    let mut membership_raw_replay =
+        raw_membership_replay(&first_membership_observation, 1, "join-alice");
     let mut membership_lifecycle_replay =
         normalize_membership_receipts(&first_membership_observation, 1, "join-alice");
     let mut membership_observation = first_membership_observation;
@@ -1140,6 +1400,11 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     for query in &queries {
         assert_converges(&snapback, query);
     }
+    membership_raw_replay.extend(raw_membership_replay(
+        &second_membership_observation,
+        2,
+        "join-bob",
+    ));
     membership_lifecycle_replay.extend(normalize_membership_receipts(
         &second_membership_observation,
         2,
@@ -1161,6 +1426,11 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     for query in &queries {
         assert_converges(&snapback, query);
     }
+    membership_raw_replay.extend(raw_membership_replay(
+        &third_membership_observation,
+        3,
+        "kick-bob",
+    ));
     membership_lifecycle_replay.extend(normalize_membership_receipts(
         &third_membership_observation,
         3,
@@ -1567,6 +1837,13 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         },
     });
     println!("SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT={actual}");
+    println!(
+        "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY={}",
+        json!({
+            "schemaVersion": 1,
+            "transitions": membership_raw_replay,
+        })
+    );
     let expected: Value = serde_json::from_str(include_str!(
         "../../tests/acceptance/auth-invalidation-v1-receipt.json"
     ))

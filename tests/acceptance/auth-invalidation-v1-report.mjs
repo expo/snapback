@@ -24,6 +24,13 @@ const RECEIPT_PATH = resolve(
   ROOT,
   'tests/acceptance/auth-invalidation-v1-composed-receipt.json',
 );
+const PROPERTY_CORPUS_PATH = resolve(
+  ROOT,
+  'tests/acceptance/auth-invalidation-v1-property-corpus.json',
+);
+const PROPERTY_CORPUS_CONFIG = Object.freeze(JSON.parse(
+  readFileSync(PROPERTY_CORPUS_PATH, 'utf8'),
+));
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const NEXT_INCARNATION = '018f0d90-7b12-7a22-8c33-445566778899';
@@ -106,6 +113,9 @@ const lease = ({
   authorization = AUTHORIZATION,
   issuerId = ISSUER,
   versionStream = VERSION_STREAM,
+  principalId = USER,
+  authorityInstanceId = AUTHORITY_INSTANCE,
+  activationHash = ACTIVATION_HASH,
 }) => ({
   protocolVersion: 1,
   leaseId: `lease_${version}`,
@@ -114,17 +124,17 @@ const lease = ({
   clientStoreId: namespace.clientStoreId,
   queryKey,
   queryInstanceId: namespace.queryInstanceId,
-  principalId: USER,
+  principalId,
   sessionIdAtIssue: 'session-0053',
   providerKey: 'email-code',
   authorization,
   data: { versionStream, snapshotCommitVersion: version },
-  activationHash: ACTIVATION_HASH,
+  activationHash,
   issuedAtServerMs: 10_000,
   authorizedUntilServerMs: 10_000 + durationMs,
   sessionNotAfterMs: 10_000 + durationMs,
   providerNotAfterMs: null,
-  authorityInstanceId: AUTHORITY_INSTANCE,
+  authorityInstanceId,
   keyId: 'lease-key-0053',
   mac: 'A'.repeat(43),
 });
@@ -212,18 +222,34 @@ const queueResolution = ({ obligation, kind = 'snapshot' }) => ({
   ackToken: `queue_ack_${obligation.scopeId.namespace.queryInstanceId}_${obligation.revision}`,
 });
 
-const createAuthorizedStore = async ({ versionStream = VERSION_STREAM } = {}) => {
+const createAuthorizedStore = async ({
+  versionStream = VERSION_STREAM,
+  principalScope = PRINCIPAL_SCOPE,
+  authorityDescriptor = AUTHORITY_DESCRIPTOR,
+  appId = APP_ID,
+  targetProfileId = TARGET_PROFILE_ID,
+  origin = null,
+  queryInstanceHighWater = null,
+} = {}) => {
   const durable = {};
+  // Construct a valid persisted format-5 state first, then replay the exact
+  // client-owned namespace that the production server frame names. Reopening
+  // this state exercises the normal production hydration/validation path.
+  createMemorySnapbackClientStore({ state: durable });
+  if (origin !== null) durable.origin = origin;
+  if (queryInstanceHighWater !== null) {
+    durable.queryInstanceHighWater = queryInstanceHighWater;
+  }
   const store = createMemorySnapbackClientStore({ state: durable });
   await store.bindAuthority(EXPECTED);
   await store.scopeToArtifacts({
-    appId: APP_ID,
-    targetProfileId: TARGET_PROFILE_ID,
+    appId,
+    targetProfileId,
     versionStreamId: versionStream,
   }, EXPECTED);
   await store.scopeAuthorization({
-    principalScope: PRINCIPAL_SCOPE,
-    authorityDescriptor: AUTHORITY_DESCRIPTOR,
+    principalScope,
+    authorityDescriptor,
   }, EXPECTED);
   return { durable, store };
 };
@@ -237,15 +263,20 @@ const installQuery = async ({
   authorization = AUTHORIZATION,
   issuerId = ISSUER,
   versionStream = VERSION_STREAM,
+  principalId = USER,
+  authorityInstanceId = AUTHORITY_INSTANCE,
+  activationHash = ACTIVATION_HASH,
+  appId = APP_ID,
+  targetProfileId = TARGET_PROFILE_ID,
 }) => {
   const initialized = await store.initializeAuthorizedRetainedQuery(queryKey, {
     authorization,
     issuerId,
     versionStream,
-    principalId: USER,
-    activationHash: ACTIVATION_HASH,
-    appId: APP_ID,
-    targetProfileId: TARGET_PROFILE_ID,
+    principalId,
+    activationHash,
+    appId,
+    targetProfileId,
   }, EXPECTED);
   const request = await store.beginAuthorizedLeaseRequest(queryKey, {
     fence: initialized.fence,
@@ -263,6 +294,9 @@ const installQuery = async ({
       authorization,
       issuerId,
       versionStream,
+      principalId,
+      authorityInstanceId,
+      activationHash,
     }),
     record: record(version, rows, versionStream),
     clientNowMs: clientNowMs + 1,
@@ -432,19 +466,17 @@ const measureVisibilityLifecycle = async (serverWitnessFloor) => {
   };
 };
 
+// @ref LLP 0053#acceptance — replay the server's exact raw lifecycle in the
+// principal- and artifact-scoped production client store before normalization.
 const measureMembershipBlastRadius = async ({
-  lifecycleReplay,
+  rawTransitions,
+  normalizedTransitions,
   expectedQueryCount,
   productionServerTrafficCounts,
 }) => {
-  const events = new Map();
-  for (const transition of lifecycleReplay) {
-    const grouped = events.get(transition.eventIndex) ?? [];
-    grouped.push(transition);
-    events.set(transition.eventIndex, grouped);
-  }
+  assert.equal(rawTransitions.length, normalizedTransitions.length);
   const perQueryLifecycle = [];
-  const perEventQueueLifecycle = [];
+  const perScopeQueueLifecycle = [];
   let retainedPayloadBytesBefore = 0;
   let retainedPayloadBytesDuringQuarantine = 0;
   let durableQuarantineFenceWrites = 0;
@@ -456,239 +488,260 @@ const measureMembershipBlastRadius = async ({
   let clientQueueObligationApplications = 0;
   let clientQueueResolutionApplications = 0;
 
-  for (const [eventIndex, rawTransitions] of [...events.entries()].sort(([left], [right]) => (
-    left - right
-  ))) {
-    const transitions = [...rawTransitions].sort((left, right) => (
-      left.queryIndex - right.queryIndex
+  for (const rawTransition of rawTransitions) {
+    const stable = normalizedTransitions.find((candidate) => (
+      candidate.eventIndex === rawTransition.eventIndex
+      && candidate.queryIndex === rawTransition.queryIndex
     ));
-    assert.equal(transitions.length, expectedQueryCount);
-    const epoch = transitions[0].compositeWitness.authorization.epoch;
-    const authorization = { incarnation: INCARNATION, epoch };
-    const issuerId = { ...ISSUER, authorizationIncarnation: INCARNATION };
-    const { store } = await createAuthorizedStore();
-    const fixtures = [];
-    let clientNowMs = 1_000;
+    assert.ok(stable, 'raw production transition has a normalized receipt peer');
+    const replay = rawTransition.rawReplay;
+    const obligation = replay.obligation;
+    const resolution = replay.resolution;
+    const snapshot = replay.snapshot;
+    const serverAcknowledgement = replay.serverAcknowledgement;
+    const namespace = obligation.scopeId.namespace;
+    const authorization = obligation.witness.authorization;
+    const issuerId = obligation.scopeId.issuerId;
+    const versionStream = obligation.witness.data.versionStream;
+    const { principalScope, authorityDescriptor, artifactScope } = replay;
+    assert.deepEqual(replay.scopeId, obligation.scopeId);
+    assert.deepEqual(replay.issuerId, obligation.scopeId.issuerId);
+    assert.equal(serverAcknowledgement.input.ackToken, resolution.ackToken);
+    assert.deepEqual(serverAcknowledgement.connection.issuerId, replay.issuerId);
+    assert.equal(serverAcknowledgement.output.outcome, replay.serverAcknowledgementOutcome);
+    assert.deepEqual(rawTransition.productionScope, {
+      kind: obligation.scopeId.kind,
+      queryKey: namespace.queryKey,
+      queryInstanceId: namespace.queryInstanceId,
+    });
+    assert.equal(stable.scope.queryKey, namespace.queryKey);
+    assert.equal(stable.scope.queryInstanceId, namespace.queryInstanceId);
+    assert.equal(stable.revision, obligation.revision);
+    assert.equal(stable.compositeWitness.authorization.epoch, authorization.epoch);
+    assert.equal(
+      stable.compositeWitness.data.minCommitVersion,
+      obligation.witness.data.minCommitVersion,
+    );
+    assert.equal(stable.snapshot.commitVersion, snapshot.version);
+    assert.equal(stable.snapshot.rowCount, snapshot.rows.length);
+    assert.equal(stable.acknowledgementOutcome, replay.serverAcknowledgementOutcome);
 
-    for (const transition of transitions) {
-      assert.equal(transition.compositeWitness.authorization.epoch, epoch);
-      const queryKey = [
-        transition.query.function,
-        transition.query.user,
-        `membership-event-${eventIndex}`,
-      ].join(':');
-      const rows = Array.from(
-        { length: transition.snapshot.rowCount },
-        (_, rowIndex) => ({ queryKey, rowIndex, authorized: true }),
-      );
-      const installed = await installQuery({
-        store,
-        queryKey,
-        version: transition.snapshot.commitVersion - 1,
-        rows,
-        clientNowMs,
-        authorization,
-        issuerId,
-      });
-      clientNowMs += 2;
-      fixtures.push({ queryKey, rows, installed, transition });
-    }
+    const { store } = await createAuthorizedStore({
+      versionStream,
+      principalScope,
+      authorityDescriptor,
+      appId: artifactScope.appId,
+      targetProfileId: artifactScope.targetProfileId,
+      origin: namespace.clientStoreId,
+      queryInstanceHighWater: namespace.queryInstanceId - 1,
+    });
+    const queryKey = namespace.queryKey;
+    const clientNowMs = 1_000;
+    const installed = await installQuery({
+      store,
+      queryKey,
+      version: replay.initialSnapshot.version,
+      rows: replay.initialSnapshot.rows,
+      clientNowMs,
+      authorization,
+      issuerId,
+      versionStream,
+      principalId: principalScope.userId,
+      authorityInstanceId: authorityDescriptor.authorityInstanceId,
+      activationHash: artifactScope.activationHash,
+      appId: artifactScope.appId,
+      targetProfileId: artifactScope.targetProfileId,
+    });
+    assert.deepEqual(installed.namespace, namespace);
 
     let queueCapture = await store.captureMutationQueue(EXPECTED);
-    const expectedMutationIds = [`cm_membership_${eventIndex}_a`, `cm_membership_${eventIndex}_b`];
+    const expectedMutationIds = [0, 1].map((mutationIndex) => (
+      `cm_membership_${rawTransition.eventIndex}_${rawTransition.queryIndex}_${mutationIndex}`
+    ));
     for (const [mutationIndex, mutationId] of expectedMutationIds.entries()) {
       await store.enqueueMutation({
         id: mutationId,
         function: `write${mutationIndex}`,
-        args: { eventIndex, mutationIndex },
-        authorityDescriptor: AUTHORITY_DESCRIPTOR,
-        appId: APP_ID,
-        targetProfileId: TARGET_PROFILE_ID,
-        versionStreamId: VERSION_STREAM,
-        cursor: {
-          stream: VERSION_STREAM,
-          version: transitions[0].snapshot.commitVersion - 1,
+        args: {
+          eventIndex: rawTransition.eventIndex,
+          queryIndex: rawTransition.queryIndex,
+          mutationIndex,
         },
+        authorityDescriptor,
+        appId: artifactScope.appId,
+        targetProfileId: artifactScope.targetProfileId,
+        versionStreamId: versionStream,
+        cursor: { stream: versionStream, version: replay.initialSnapshot.version },
         ...EXPECTED,
         ...queueCapture,
       });
     }
     const before = await store.snapshot();
-    const eventBytesBefore = retainedPayloadBytes(before);
+    const bytesBefore = byteLength(before.retained[queryKey]);
     const pendingMutationsBefore = before.pending.length;
-    const queueObligations = [];
-    const hiddenTransitions = [];
 
-    for (const fixture of fixtures) {
-      const { transition, installed, queryKey } = fixture;
-      const beforeQueryRecord = (await store.snapshot()).retained[queryKey];
-      const bytesBefore = byteLength(beforeQueryRecord);
-      const pending = retainedObligation({
-        namespace: installed.namespace,
-        revision: transition.revision,
-        disposition: transition.disposition,
-        minCommitVersion: transition.compositeWitness.data.minCommitVersion,
-        authorization,
-        issuerId,
-      });
-      const accepted = await store.receiveRetainedQueryObligation(
-        queryKey,
-        pending,
-        installed.fence,
-        EXPECTED,
-      );
-      clientObligationApplications += 1;
-      durableQuarantineFenceWrites += Number(accepted.disposition === 'quarantine');
-      const hiddenRead = await store.getAuthorizedRetainedQuery(queryKey, {
-        fence: accepted.fence,
-        clientNowMs,
-      }, EXPECTED);
-      clientNowMs += 1;
-      assert.equal(hiddenRead, null);
-      const during = await store.snapshot();
-      const bytesDuring = byteLength(during.retained[queryKey]);
-      assert.equal(bytesDuring, bytesBefore);
-      const deleteTombstoneWritten = during.retained[queryKey] === undefined;
-      assert.equal(deleteTombstoneWritten, false);
-      durableDeleteTombstonesWrittenDuringQuarantine += Number(deleteTombstoneWritten);
+    const accepted = await store.receiveRetainedQueryObligation(
+      queryKey,
+      obligation,
+      installed.fence,
+      EXPECTED,
+    );
+    clientObligationApplications += 1;
+    assert.equal(accepted.status, 'accepted');
+    assert.equal(accepted.disposition, 'quarantine');
+    const hiddenRead = await store.getAuthorizedRetainedQuery(queryKey, {
+      fence: accepted.fence,
+      clientNowMs: clientNowMs + 2,
+    }, EXPECTED);
+    assert.equal(hiddenRead, null);
+    const during = await store.snapshot();
+    const bytesDuring = byteLength(during.retained[queryKey]);
+    assert.equal(bytesDuring, bytesBefore);
+    const queryStateDuring = during.queryAuthorization[queryKey];
+    const quarantineFenceCommitted = queryStateDuring.effectiveDisposition === 'quarantine'
+      && queryStateDuring.queryGeneration > installed.fence.queryGeneration;
+    assert.equal(quarantineFenceCommitted, true);
+    durableQuarantineFenceWrites += 1;
+    const deleteTombstoneWritten = queryStateDuring.effectiveDisposition === 'delete';
+    assert.equal(deleteTombstoneWritten, false);
+    durableDeleteTombstonesWrittenDuringQuarantine += Number(deleteTombstoneWritten);
 
-      const queuePending = queueObligation({
-        namespace: installed.namespace,
-        revision: transition.revision,
-        disposition: transition.disposition,
-        minCommitVersion: transition.compositeWitness.data.minCommitVersion,
-        authorization,
-      });
-      queueCapture = await store.applyMutationQueueObligation(
-        queuePending,
-        { ...EXPECTED, ...queueCapture },
-      );
-      clientQueueObligationApplications += 1;
-      queueObligations.push(queuePending);
-      hiddenTransitions.push({ fixture, pending, accepted, bytesBefore, bytesDuring });
-    }
-
-    const quarantined = await store.snapshot();
-    const eventBytesDuring = retainedPayloadBytes(quarantined);
-    assert.equal(eventBytesDuring, eventBytesBefore);
+    queueCapture = await store.applyMutationQueueObligation(
+      obligation,
+      { ...EXPECTED, ...queueCapture },
+    );
+    clientQueueObligationApplications += 1;
     assert.equal(queueCapture.suspended, true);
-    assert.equal(queueCapture.pendingScopeCount, fixtures.length);
+    assert.equal(queueCapture.pendingScopeCount, 1);
     await assertCode('SNAPBACK_CLIENT_QUEUE_SUSPENDED', () => (
       store.pendingMutations({ ...EXPECTED, ...queueCapture })
     ));
-    assert.equal(quarantined.pending.length, pendingMutationsBefore);
+    assert.equal((await store.snapshot()).pending.length, pendingMutationsBefore);
 
-    for (const [queryIndex, hidden] of hiddenTransitions.entries()) {
-      const { fixture, pending, accepted, bytesBefore, bytesDuring } = hidden;
-      const { transition, queryKey, rows, installed } = fixture;
-      const resolved = await store.applyRetainedQueryResolution(queryKey, {
-        fence: accepted.fence,
-        resolution: retainedResolution({ obligation: pending }),
-        record: record(transition.snapshot.commitVersion, rows),
-      }, EXPECTED);
-      clientResolutionApplications += 1;
-      assert.equal(resolved.ackToken, `ack_${installed.namespace.queryInstanceId}_${transition.revision}`);
-      assert.equal((await store.snapshot()).queryAuthorization[queryKey].lease, null);
-      const request = await store.beginAuthorizedLeaseRequest(queryKey, {
-        fence: resolved.fence,
-        leaseRequestId: `request_recovery_${eventIndex}_${queryIndex}`,
-        clientNowMs,
-      }, EXPECTED);
-      clientNowMs += 1;
-      clientLeaseRequests += 1;
-      const recovered = await store.commitAuthorizedRetainedSnapshot(queryKey, {
-        fence: request.fence,
-        lease: lease({
-          queryKey,
-          namespace: installed.namespace,
-          requestId: request.request.leaseRequestId,
-          version: transition.snapshot.commitVersion,
-          authorization,
-          issuerId,
-        }),
-        record: record(transition.snapshot.commitVersion, rows),
-        clientNowMs,
-      }, EXPECTED);
-      clientNowMs += 1;
-      clientAuthorizedSnapshotCommits += 1;
-      assert.deepEqual((await store.getAuthorizedRetainedQuery(queryKey, {
-        fence: recovered.fence,
-        clientNowMs,
-      }, EXPECTED)).rows, rows);
-      clientNowMs += 1;
+    const resolved = await store.applyRetainedQueryResolution(queryKey, {
+      fence: accepted.fence,
+      resolution,
+      record: record(snapshot.version, snapshot.rows, versionStream),
+    }, EXPECTED);
+    clientResolutionApplications += 1;
+    assert.equal(resolved.ackToken, resolution.ackToken);
+    assert.equal(replay.serverAcknowledgementOutcome, 'discharged');
+    assert.equal((await store.snapshot()).queryAuthorization[queryKey].lease, null);
+    const request = await store.beginAuthorizedLeaseRequest(queryKey, {
+      fence: resolved.fence,
+      leaseRequestId: `request_recovery_${rawTransition.eventIndex}_${rawTransition.queryIndex}`,
+      clientNowMs: clientNowMs + 3,
+    }, EXPECTED);
+    clientLeaseRequests += 1;
+    const recovered = await store.commitAuthorizedRetainedSnapshot(queryKey, {
+      fence: request.fence,
+      lease: lease({
+        queryKey,
+        namespace,
+        requestId: request.request.leaseRequestId,
+        version: snapshot.version,
+        authorization,
+        issuerId,
+        versionStream,
+        principalId: principalScope.userId,
+        authorityInstanceId: authorityDescriptor.authorityInstanceId,
+        activationHash: artifactScope.activationHash,
+      }),
+      record: record(snapshot.version, snapshot.rows, versionStream),
+      clientNowMs: clientNowMs + 4,
+    }, EXPECTED);
+    clientAuthorizedSnapshotCommits += 1;
+    assert.deepEqual((await store.getAuthorizedRetainedQuery(queryKey, {
+      fence: recovered.fence,
+      clientNowMs: clientNowMs + 5,
+    }, EXPECTED)).rows, snapshot.rows);
 
-      queueCapture = await store.resolveMutationQueueObligation(
-        queueResolution({ obligation: queueObligations[queryIndex] }),
-        { ...EXPECTED, ...queueCapture },
-      );
-      clientQueueResolutionApplications += 1;
-      const queueShouldRemainSuspended = queryIndex < hiddenTransitions.length - 1;
-      assert.equal(queueCapture.suspended, queueShouldRemainSuspended);
-      perQueryLifecycle.push({
-        eventIndex,
-        eventKind: transition.eventKind,
-        queryIndex: transition.queryIndex,
-        productionQuery: transition.query,
-        productionScope: transition.scope,
-        revision: transition.revision,
-        compositeWitness: transition.compositeWitness,
-        disposition: transition.disposition,
-        dispositionReason: transition.dispositionReason,
-        proofPath: transition.proofPath,
-        fullRequeryAndAuthorizationMatched: transition.fullRequeryAndAuthorizationMatched,
-        serverSnapshotCommitVersion: transition.snapshot.commitVersion,
-        serverSnapshotRowCount: transition.snapshot.rowCount,
-        serverResolutionKind: transition.resolutionKind,
-        serverAcknowledgementOutcome: transition.acknowledgementOutcome,
-        clientLifecycle: {
-          quarantineCommitted: true,
-          hiddenReadWasNull: true,
-          hiddenIntervalTransitions: 3,
-          retainedPayloadBytesBefore: bytesBefore,
-          retainedPayloadBytesDuringQuarantine: bytesDuring,
-          retainedPayloadBytesDeletedByQuarantine: bytesBefore - bytesDuring,
-          durableDeleteTombstonesWrittenDuringQuarantine: 0,
-          freshSnapshotCommitted: true,
-          leaseRevalidated: true,
-          recoveredRows: rows.length,
-          ackTokenObserved: resolved.ackToken,
-        },
-      });
-    }
-
+    queueCapture = await store.resolveMutationQueueObligation(
+      resolution,
+      { ...EXPECTED, ...queueCapture },
+    );
+    clientQueueResolutionApplications += 1;
+    assert.equal(queueCapture.suspended, false);
+    assert.equal(queueCapture.pendingScopeCount, 0);
     const releasedMutationIds = (await store.pendingMutations({
       ...EXPECTED,
       ...queueCapture,
     })).map(({ id }) => id);
     assert.deepEqual(releasedMutationIds, expectedMutationIds);
-    perEventQueueLifecycle.push({
-      eventIndex,
-      eventKind: transitions[0].eventKind,
-      revision: transitions[0].revision,
+
+    retainedPayloadBytesBefore += bytesBefore;
+    retainedPayloadBytesDuringQuarantine += bytesDuring;
+    perScopeQueueLifecycle.push({
+      eventIndex: rawTransition.eventIndex,
+      eventKind: rawTransition.eventKind,
+      queryIndex: rawTransition.queryIndex,
+      principalId: principalScope.userId,
+      clientStoreId: namespace.clientStoreId,
+      queryInstanceId: namespace.queryInstanceId,
+      revision: obligation.revision,
       pendingMutationsBefore,
-      suspendedMutationCount: quarantined.pending.length,
-      pendingScopeCountAtFullSuspension: fixtures.length,
-      remainedSuspendedUntilFinalQueryResolution: true,
+      suspendedMutationCount: during.pending.length,
+      pendingScopeCountAtFullSuspension: 1,
+      releasedAfterExactScopeResolution: true,
       releasedMutationIds,
     });
-    retainedPayloadBytesBefore += eventBytesBefore;
-    retainedPayloadBytesDuringQuarantine += eventBytesDuring;
+    perQueryLifecycle.push({
+      eventIndex: stable.eventIndex,
+      eventKind: stable.eventKind,
+      queryIndex: stable.queryIndex,
+      productionQuery: stable.query,
+      productionScope: {
+        ...stable.scope,
+        clientStoreId: namespace.clientStoreId,
+      },
+      revision: stable.revision,
+      compositeWitness: stable.compositeWitness,
+      disposition: stable.disposition,
+      dispositionReason: stable.dispositionReason,
+      proofPath: stable.proofPath,
+      fullRequeryAndAuthorizationMatched: stable.fullRequeryAndAuthorizationMatched,
+      serverSnapshotCommitVersion: stable.snapshot.commitVersion,
+      serverSnapshotRowCount: stable.snapshot.rowCount,
+      serverResolutionKind: stable.resolutionKind,
+      serverAcknowledgementOutcome: stable.acknowledgementOutcome,
+      clientLifecycle: {
+        exactProductionScopeReplayed: true,
+        exactProductionResolutionReplayed: true,
+        quarantineCommitted: quarantineFenceCommitted,
+        hiddenReadWasNull: true,
+        hiddenIntervalTransitions: 3,
+        retainedPayloadBytesBefore: bytesBefore,
+        retainedPayloadBytesDuringQuarantine: bytesDuring,
+        retainedPayloadBytesDeletedByQuarantine: bytesBefore - bytesDuring,
+        durableDeleteTombstonesWrittenDuringQuarantine: 0,
+        freshSnapshotCommitted: true,
+        leaseRevalidated: true,
+        recoveredRows: snapshot.rows.length,
+        ackTokenMatchedExactProductionResolution: resolved.ackToken === resolution.ackToken,
+        serverAcknowledgementRequestAndOutputVerified: true,
+        ackTokenNormalization: '<exact-production-ack-token>',
+      },
+    });
   }
 
-  assert.equal(perQueryLifecycle.length, lifecycleReplay.length);
+  const eventCount = new Set(rawTransitions.map(({ eventIndex }) => eventIndex)).size;
+  assert.equal(perQueryLifecycle.length, rawTransitions.length);
+  assert.equal(rawTransitions.length, eventCount * expectedQueryCount);
   assert.equal(durableDeleteTombstonesWrittenDuringQuarantine, 0);
   return {
-    membershipChurnEvents: events.size,
+    membershipChurnEvents: eventCount,
     authScopedQueriesPerEvent: expectedQueryCount,
-    completeQueryLifecycles: perQueryLifecycle.length,
+    completeExactScopeQueryLifecycles: perQueryLifecycle.length,
+    retainedPayloadByteAggregation: 'sum-across-nine-isolated-exact-scope-replays',
     retainedPayloadBytesBefore,
     retainedPayloadBytesDuringQuarantine,
     retainedPayloadBytesDeletedByCoarseQuarantine:
       retainedPayloadBytesBefore - retainedPayloadBytesDuringQuarantine,
     durableQuarantineFenceWrites,
     durableDeleteTombstonesWrittenDuringQuarantine,
-    queueSuspensionCycles: perEventQueueLifecycle.length,
-    queueReleaseCycles: perEventQueueLifecycle.length,
+    perScopeQueueSemantics: 'one principal-owned queue per production client-store scope',
+    queueSuspensionCycles: perScopeQueueLifecycle.length,
+    queueReleaseCycles: perScopeQueueLifecycle.length,
     trafficCounts: {
       productionServer: productionServerTrafficCounts,
       clientObligationApplications,
@@ -698,7 +751,7 @@ const measureMembershipBlastRadius = async ({
       clientQueueObligationApplications,
       clientQueueResolutionApplications,
     },
-    perEventQueueLifecycle,
+    perScopeQueueLifecycle,
     perQueryLifecycle,
   };
 };
@@ -876,22 +929,9 @@ const exerciseLiveClientScenarios = () => {
 // Rust receipt independently proves that production server projection matched
 // a fresh Ibex query. Composing both halves avoids treating client protocol
 // validation as an application-policy evaluator.
-const PROPERTY_SEED = 0x53a11ce;
-const PROPERTY_TRIALS_PER_EVENT = 3;
-const PROPERTY_EVENT_UNIVERSE = Object.freeze([
-  'randomized-writes',
-  'deployment-activation',
-  'lease-expiry',
-  'clock-rollback',
-  'overflow',
-  'disconnect-and-fresh-resume',
-  'response-loss',
-  'ack-loss',
-  'restart',
-  'stale-callback',
-  'cross-tab-write',
-  'disposition-escalation',
-]);
+const PROPERTY_SEED = Number.parseInt(PROPERTY_CORPUS_CONFIG.seed.slice(2), 16);
+const PROPERTY_TRIALS_PER_EVENT = PROPERTY_CORPUS_CONFIG.trialsPerEvent;
+const PROPERTY_EVENT_UNIVERSE = Object.freeze(PROPERTY_CORPUS_CONFIG.eventUniverse);
 
 const deterministicRandom = (seed) => {
   let state = seed >>> 0;
@@ -919,7 +959,7 @@ const fullAuthorizationRequery = (rows, {
 };
 
 const propertyRows = (random, caseIndex) => {
-  const rows = Array.from({ length: 6 }, (_, rowIndex) => ({
+  const rows = Array.from({ length: PROPERTY_CORPUS_CONFIG.rowsPerCase }, (_, rowIndex) => ({
     id: `case-${caseIndex}-row-${rowIndex}`,
     ownerId: ((random.next() >>> 16) & 1) === 0 ? USER : 'another-principal',
     isPublic: ((random.next() >>> 16) & 3) === 0,
@@ -950,23 +990,74 @@ const normalizedPropertyWitness = (version) => ({
   },
 });
 
+const rowsSelectedByProduction = (sourceRows, productionIds, label) => {
+  const byId = new Map(sourceRows.map((row) => [row.id, row]));
+  const rows = productionIds.map((id) => {
+    assert.equal(byId.has(id), true, `${label} returned an unknown shared-corpus row ${id}`);
+    return structuredClone(byId.get(id));
+  });
+  return canonicalRows(rows);
+};
+
+const buildSharedPropertyCases = () => {
+  const random = deterministicRandom(PROPERTY_SEED);
+  const schedule = [];
+  for (let trial = 0; trial < PROPERTY_TRIALS_PER_EVENT; trial += 1) {
+    const events = [...PROPERTY_EVENT_UNIVERSE];
+    for (let index = events.length - 1; index > 0; index -= 1) {
+      const swap = random.next() % (index + 1);
+      [events[index], events[swap]] = [events[swap], events[index]];
+    }
+    schedule.push(...events);
+  }
+  const cases = schedule.map((scenario, caseIndex) => {
+    const sourceRows = propertyRows(random, caseIndex);
+    const revision = 1 + (random.next() % 100);
+    const randomState = `0x${random.state().toString(16).padStart(8, '0')}`;
+    const writeKind = scenario === 'randomized-writes'
+      ? ['public-grant', 'owner-grant', 'owner-revoke'][random.next() % 3]
+      : null;
+    return { caseIndex, scenario, randomState, revision, sourceRows, writeKind };
+  });
+  return { schedule, cases };
+};
+
 const exercisePropertyCase = async ({
-  scenario,
-  caseIndex,
-  random,
+  productionCase,
   serverReceipt,
   overflowReceipt,
   deploymentReceipt,
 }) => {
-  const sourceRows = propertyRows(random, caseIndex);
-  const initiallyAuthorized = fullAuthorizationRequery(sourceRows);
+  const {
+    scenario,
+    caseIndex,
+    randomState,
+    revision,
+    sourceRows,
+    writeKind,
+    productionInitialAuthorizedRowIds,
+    productionRelevantAuthorizedRowIds,
+  } = productionCase;
+  const initiallyAuthorized = rowsSelectedByProduction(
+    sourceRows,
+    productionInitialAuthorizedRowIds,
+    `${scenario} production initial query`,
+  );
+  const independentInitial = fullAuthorizationRequery(sourceRows);
+  assertOracleRows(initiallyAuthorized, independentInitial, `${scenario} production initial query`);
+  if (scenario !== 'randomized-writes') {
+    assert.deepEqual(
+      productionRelevantAuthorizedRowIds,
+      productionInitialAuthorizedRowIds,
+      `${scenario} has no production row mutation between source and protocol transition`,
+    );
+  }
   const version = 500 + (caseIndex * 3);
-  const revision = 1 + (random.next() % 100);
   const queryInstanceId = 1_000 + caseIndex;
   const namespace = liveNamespace(queryInstanceId);
   const proof = {
     caseIndex,
-    randomState: `0x${random.state().toString(16).padStart(8, '0')}`,
+    randomState,
     scope: {
       kind: 'subscription',
       namespace: {
@@ -994,17 +1085,22 @@ const exercisePropertyCase = async ({
 
   if (scenario === 'randomized-writes') {
     const updatedRows = structuredClone(sourceRows);
-    const writeKind = random.next() % 3;
-    const target = updatedRows[writeKind === 2 ? 0 : 1];
-    if (writeKind === 0) target.isPublic = true;
-    else if (writeKind === 1) target.ownerId = USER;
+    const target = updatedRows[writeKind === 'owner-revoke' ? 0 : 1];
+    if (writeKind === 'public-grant') target.isPublic = true;
+    else if (writeKind === 'owner-grant') target.ownerId = USER;
     else target.ownerId = 'another-principal';
     expectedRows = fullAuthorizationRequery(updatedRows);
+    const productionRows = rowsSelectedByProduction(
+      updatedRows,
+      productionRelevantAuthorizedRowIds,
+      `${scenario} production post-mutation query`,
+    );
+    assertOracleRows(productionRows, expectedRows, `${scenario} production post-mutation query`);
     const fence = createLiveFence({ namespace, rows: initiallyAuthorized, version });
     let committedRows = null;
     fence.applyLiveSnapshot({
       fence: fence.capture(),
-      snapshot: propertySnapshot(expectedRows, version + 1),
+      snapshot: propertySnapshot(productionRows, version + 1),
       commit: (event) => { committedRows = event.rows; },
     });
     actualRows = committedRows;
@@ -1012,8 +1108,9 @@ const exercisePropertyCase = async ({
       serverOperations: serverReceipt.scenario.randomizedOperations,
       serverFreshQueryComparisons:
         serverReceipt.runtimeAssertions.randomizedFreshQueryComparisons,
+      sharedCorpusProductionFreshQueryMatched: true,
       clientLiveSnapshotCommitted: true,
-      seededWriteKind: ['public-grant', 'owner-grant', 'owner-revoke'][writeKind],
+      seededWriteKind: writeKind,
     };
     proof.revision = null;
     proof.revisionSource = 'ordinary-live-snapshot-has-no-invalidation-revision';
@@ -1030,7 +1127,7 @@ const exercisePropertyCase = async ({
       authorization: nextAuthorization,
       versionStream: `stream-property-deployment-${caseIndex}`,
       snapshot: {
-        rows: fullAuthorizationRequery(sourceRows),
+        rows: initiallyAuthorized,
         version: 1,
         witness: liveWitness({
           authorization: nextAuthorization,
@@ -1328,6 +1425,7 @@ const exercisePropertyCase = async ({
   assert.ok(['retain', 'quarantine', 'delete'].includes(disposition));
   return {
     ...proof,
+    scenario,
     disposition,
     dispositionReason: {
       value: dispositionReason,
@@ -1336,6 +1434,8 @@ const exercisePropertyCase = async ({
     oracle: {
       kind: 'independent-full-requery-and-full-authorization-reference-model',
       sourceRowCount: sourceRows.length,
+      rustProductionFreshQueryComparedBeforeClientInjection: true,
+      rustProductionRelevantAuthorizedRowIds: productionRelevantAuthorizedRowIds,
       expectedAuthorizedRowIds: canonicalRows(expectedRows).map(({ id }) => id),
       productionAuthorizedRowIds: canonicalRows(actualRows).map(({ id }) => id),
       matched: true,
@@ -1345,23 +1445,36 @@ const exercisePropertyCase = async ({
   };
 };
 
+// @ref LLP 0053#acceptance — keep the model independent while injecting only
+// the production Rust/Ibex rows into client protocol objects.
 const runSeededPropertyOracleCorpus = async (receipts) => {
-  const random = deterministicRandom(PROPERTY_SEED);
-  const schedule = [];
-  for (let trial = 0; trial < PROPERTY_TRIALS_PER_EVENT; trial += 1) {
-    const events = [...PROPERTY_EVENT_UNIVERSE];
-    for (let index = events.length - 1; index > 0; index -= 1) {
-      const swap = random.next() % (index + 1);
-      [events[index], events[swap]] = [events[swap], events[index]];
-    }
-    schedule.push(...events);
-  }
+  const { propertyReceipt } = receipts;
+  const shared = buildSharedPropertyCases();
+  assert.equal(PROPERTY_CORPUS_CONFIG.cases.length, shared.cases.length);
+  assert.deepEqual(PROPERTY_CORPUS_CONFIG.cases, shared.cases);
+  assert.equal(propertyReceipt.seed, PROPERTY_CORPUS_CONFIG.seed);
+  assert.equal(propertyReceipt.trialsPerEvent, PROPERTY_TRIALS_PER_EVENT);
+  assert.equal(propertyReceipt.rowsPerCase, PROPERTY_CORPUS_CONFIG.rowsPerCase);
+  assert.deepEqual(propertyReceipt.eventUniverse, PROPERTY_EVENT_UNIVERSE);
+  assert.deepEqual(propertyReceipt.randomizedSchedule, shared.schedule);
+  assert.equal(propertyReceipt.totalCases, shared.cases.length);
+  assert.equal(propertyReceipt.productionMutations, PROPERTY_TRIALS_PER_EVENT);
+  const stableRustInputs = propertyReceipt.cases.map((entry) => ({
+    caseIndex: entry.caseIndex,
+    scenario: entry.scenario,
+    randomState: entry.randomState,
+    revision: entry.revision,
+    sourceRows: entry.sourceRows,
+    writeKind: entry.writeKind,
+  }));
+  assert.deepEqual(stableRustInputs, PROPERTY_CORPUS_CONFIG.cases);
+
   const cases = [];
-  for (const [caseIndex, scenario] of schedule.entries()) {
-    cases.push(await exercisePropertyCase({ scenario, caseIndex, random, ...receipts }));
+  for (const productionCase of propertyReceipt.cases) {
+    cases.push(await exercisePropertyCase({ productionCase, ...receipts }));
   }
   const matrix = PROPERTY_EVENT_UNIVERSE.map((scenario) => {
-    const scenarioCases = cases.filter((entry) => schedule[entry.caseIndex] === scenario);
+    const scenarioCases = cases.filter((entry) => entry.scenario === scenario);
     assert.equal(scenarioCases.length, PROPERTY_TRIALS_PER_EVENT);
     assert.equal(scenarioCases.every(({ passed }) => passed), true);
     return { scenario, passed: true, cases: scenarioCases };
@@ -1371,17 +1484,28 @@ const runSeededPropertyOracleCorpus = async (receipts) => {
     seed: `0x${PROPERTY_SEED.toString(16)}`,
     trialsPerEvent: PROPERTY_TRIALS_PER_EVENT,
     eventUniverse: PROPERTY_EVENT_UNIVERSE,
-    randomizedSchedule: schedule,
+    randomizedSchedule: shared.schedule,
     totalCases: cases.length,
     fullRequeryAndAuthorizationComparisons: cases.length,
+    rustProductionFreshQueryComparisons: propertyReceipt.productionFreshQueryComparisons,
+    rustProductionMutations: propertyReceipt.productionMutations,
     matrix,
   };
 };
 
 const main = async () => {
-  const serverReceipt = runRustReceipt(
+  const serverReceipts = runRustReceipts(
     'local::authorization_acceptance::permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt',
-    'SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT',
+    [
+      'SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT',
+      'SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY',
+    ],
+  );
+  const serverReceipt = serverReceipts.SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT;
+  const serverReplay = serverReceipts.SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY;
+  const propertyReceipt = runRustReceipt(
+    'local::authorization_acceptance::shared_property_corpus_emits_production_fresh_query_receipt',
+    'SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT',
   );
   const overflowReceipt = runRustReceipt(
     'local::tests::overflow_root_waits_for_every_auth_scoped_child',
@@ -1416,7 +1540,8 @@ const main = async () => {
   assert.equal(AUTHORIZATION.epoch, serverWitnessFloor.authorizationEpoch);
   const visibility = await measureVisibilityLifecycle(serverWitnessFloor);
   const blastRadius = await measureMembershipBlastRadius({
-    lifecycleReplay: serverReceipt.membershipLifecycleReplay,
+    rawTransitions: serverReplay.transitions,
+    normalizedTransitions: serverReceipt.membershipLifecycleReplay,
     expectedQueryCount: serverReceipt.scenario.unrelatedQueriesDuringPermissionChurn,
     productionServerTrafficCounts: serverReceipt.runtimeMeasurements.membershipChurn,
   });
@@ -1425,6 +1550,7 @@ const main = async () => {
     serverReceipt,
     overflowReceipt,
     deploymentReceipt,
+    propertyReceipt,
   });
   const protectedRoomReceipts = {
     integratedKick: roomReceipt,
@@ -1472,7 +1598,9 @@ const main = async () => {
       rustInputs: 'machine-readable receipts emitted by executed production Rust acceptance tests',
       clientInputs: 'measurements collected from production @snapback/contract modules in this process',
       oracleInputs:
-        'deterministically seeded source rows evaluated by an independent full-query/full-authorization reference model',
+        'one shared corpus evaluated independently by production Rust Ibex queries and the JavaScript full-query/full-authorization reference model',
+      normalizationBoundary:
+        'raw server scope, obligation, snapshot, resolution, and ACK values execute before nondeterministic identifiers are normalized for this receipt',
     },
     composedMeasurements: {
       hiddenViewAndRecovery: visibility,
@@ -1487,6 +1615,9 @@ const main = async () => {
       totalCases: propertyCorpus.totalCases,
       fullRequeryAndAuthorizationComparisons:
         propertyCorpus.fullRequeryAndAuthorizationComparisons,
+      rustProductionFreshQueryComparisons:
+        propertyCorpus.rustProductionFreshQueryComparisons,
+      rustProductionMutations: propertyCorpus.rustProductionMutations,
     },
     propertyOracleMatrix: propertyCorpus.matrix,
     supplementalAssertions: {
@@ -1503,6 +1634,7 @@ const main = async () => {
     },
     productionRustReceipts: {
       server: serverReceipt,
+      sharedPropertyCorpus: propertyReceipt,
       deployment: deploymentReceipt,
       overflow: overflowReceipt,
       protectedRoom: protectedRoomReceipts,

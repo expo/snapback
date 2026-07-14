@@ -8,7 +8,8 @@
     "retainedByteDefinition": "UTF-8 bytes of JSON-serialized retained payload records",
     "rustInputs": "machine-readable receipts emitted by executed production Rust acceptance tests",
     "clientInputs": "measurements collected from production @snapback/contract modules in this process",
-    "oracleInputs": "deterministically seeded source rows evaluated by an independent full-query/full-authorization reference model"
+    "oracleInputs": "one shared corpus evaluated independently by production Rust Ibex queries and the JavaScript full-query/full-authorization reference model",
+    "normalizationBoundary": "raw server scope, obligation, snapshot, resolution, and ACK values execute before nondeterministic identifiers are normalized for this receipt"
   },
   "composedMeasurements": {
     "hiddenViewAndRecovery": {
@@ -39,14 +40,16 @@
     "membershipChurnBlastRadius": {
       "membershipChurnEvents": 3,
       "authScopedQueriesPerEvent": 3,
-      "completeQueryLifecycles": 9,
-      "retainedPayloadBytesBefore": 5925,
-      "retainedPayloadBytesDuringQuarantine": 5925,
+      "completeExactScopeQueryLifecycles": 9,
+      "retainedPayloadByteAggregation": "sum-across-nine-isolated-exact-scope-replays",
+      "retainedPayloadBytesBefore": 6330,
+      "retainedPayloadBytesDuringQuarantine": 6330,
       "retainedPayloadBytesDeletedByCoarseQuarantine": 0,
       "durableQuarantineFenceWrites": 9,
       "durableDeleteTombstonesWrittenDuringQuarantine": 0,
-      "queueSuspensionCycles": 3,
-      "queueReleaseCycles": 3,
+      "perScopeQueueSemantics": "one principal-owned queue per production client-store scope",
+      "queueSuspensionCycles": 9,
+      "queueReleaseCycles": 9,
       "trafficCounts": {
         "productionServer": {
           "generatedInvalidationFrames": 21,
@@ -71,44 +74,158 @@
         "clientQueueObligationApplications": 9,
         "clientQueueResolutionApplications": 9
       },
-      "perEventQueueLifecycle": [
+      "perScopeQueueLifecycle": [
         {
           "eventIndex": 1,
           "eventKind": "join-alice",
+          "queryIndex": 0,
+          "principalId": "alice",
+          "clientStoreId": "store_alice",
+          "queryInstanceId": 10,
           "revision": 4,
           "pendingMutationsBefore": 2,
           "suspendedMutationCount": 2,
-          "pendingScopeCountAtFullSuspension": 3,
-          "remainedSuspendedUntilFinalQueryResolution": true,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
           "releasedMutationIds": [
-            "cm_membership_1_a",
-            "cm_membership_1_b"
+            "cm_membership_1_0_0",
+            "cm_membership_1_0_1"
+          ]
+        },
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 1,
+          "principalId": "bob",
+          "clientStoreId": "store_bob",
+          "queryInstanceId": 11,
+          "revision": 4,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_1_1_0",
+            "cm_membership_1_1_1"
+          ]
+        },
+        {
+          "eventIndex": 1,
+          "eventKind": "join-alice",
+          "queryIndex": 2,
+          "principalId": "carol",
+          "clientStoreId": "store_carol",
+          "queryInstanceId": 12,
+          "revision": 4,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_1_2_0",
+            "cm_membership_1_2_1"
           ]
         },
         {
           "eventIndex": 2,
           "eventKind": "join-bob",
+          "queryIndex": 0,
+          "principalId": "alice",
+          "clientStoreId": "store_alice",
+          "queryInstanceId": 10,
           "revision": 5,
           "pendingMutationsBefore": 2,
           "suspendedMutationCount": 2,
-          "pendingScopeCountAtFullSuspension": 3,
-          "remainedSuspendedUntilFinalQueryResolution": true,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
           "releasedMutationIds": [
-            "cm_membership_2_a",
-            "cm_membership_2_b"
+            "cm_membership_2_0_0",
+            "cm_membership_2_0_1"
+          ]
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 1,
+          "principalId": "bob",
+          "clientStoreId": "store_bob",
+          "queryInstanceId": 11,
+          "revision": 5,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_2_1_0",
+            "cm_membership_2_1_1"
+          ]
+        },
+        {
+          "eventIndex": 2,
+          "eventKind": "join-bob",
+          "queryIndex": 2,
+          "principalId": "carol",
+          "clientStoreId": "store_carol",
+          "queryInstanceId": 12,
+          "revision": 5,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_2_2_0",
+            "cm_membership_2_2_1"
           ]
         },
         {
           "eventIndex": 3,
           "eventKind": "kick-bob",
+          "queryIndex": 0,
+          "principalId": "alice",
+          "clientStoreId": "store_alice",
+          "queryInstanceId": 10,
           "revision": 6,
           "pendingMutationsBefore": 2,
           "suspendedMutationCount": 2,
-          "pendingScopeCountAtFullSuspension": 3,
-          "remainedSuspendedUntilFinalQueryResolution": true,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
           "releasedMutationIds": [
-            "cm_membership_3_a",
-            "cm_membership_3_b"
+            "cm_membership_3_0_0",
+            "cm_membership_3_0_1"
+          ]
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 1,
+          "principalId": "bob",
+          "clientStoreId": "store_bob",
+          "queryInstanceId": 11,
+          "revision": 6,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_3_1_0",
+            "cm_membership_3_1_1"
+          ]
+        },
+        {
+          "eventIndex": 3,
+          "eventKind": "kick-bob",
+          "queryIndex": 2,
+          "principalId": "carol",
+          "clientStoreId": "store_carol",
+          "queryInstanceId": 12,
+          "revision": 6,
+          "pendingMutationsBefore": 2,
+          "suspendedMutationCount": 2,
+          "pendingScopeCountAtFullSuspension": 1,
+          "releasedAfterExactScopeResolution": true,
+          "releasedMutationIds": [
+            "cm_membership_3_2_0",
+            "cm_membership_3_2_1"
           ]
         }
       ],
@@ -124,7 +241,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
-            "queryInstanceId": 10
+            "queryInstanceId": 10,
+            "clientStoreId": "store_alice"
           },
           "revision": 4,
           "compositeWitness": {
@@ -155,17 +273,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 632,
-            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesBefore": 652,
+            "retainedPayloadBytesDuringQuarantine": 652,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 0,
-            "ackTokenObserved": "ack_1_4"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -179,7 +301,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
-            "queryInstanceId": 11
+            "queryInstanceId": 11,
+            "clientStoreId": "store_bob"
           },
           "revision": 4,
           "compositeWitness": {
@@ -210,17 +333,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 632,
-            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesBefore": 650,
+            "retainedPayloadBytesDuringQuarantine": 650,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 0,
-            "ackTokenObserved": "ack_2_4"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -234,7 +361,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "allNotes:{}",
-            "queryInstanceId": 12
+            "queryInstanceId": 12,
+            "clientStoreId": "store_carol"
           },
           "revision": 4,
           "compositeWitness": {
@@ -265,17 +393,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 711,
-            "retainedPayloadBytesDuringQuarantine": 711,
+            "retainedPayloadBytesBefore": 808,
+            "retainedPayloadBytesDuringQuarantine": 808,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 1,
-            "ackTokenObserved": "ack_3_4"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -289,7 +421,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
-            "queryInstanceId": 10
+            "queryInstanceId": 10,
+            "clientStoreId": "store_alice"
           },
           "revision": 5,
           "compositeWitness": {
@@ -320,17 +453,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 632,
-            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesBefore": 652,
+            "retainedPayloadBytesDuringQuarantine": 652,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 0,
-            "ackTokenObserved": "ack_1_5"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -344,7 +481,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
-            "queryInstanceId": 11
+            "queryInstanceId": 11,
+            "clientStoreId": "store_bob"
           },
           "revision": 5,
           "compositeWitness": {
@@ -375,17 +513,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 632,
-            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesBefore": 650,
+            "retainedPayloadBytesDuringQuarantine": 650,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 0,
-            "ackTokenObserved": "ack_2_5"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -399,7 +541,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "allNotes:{}",
-            "queryInstanceId": 12
+            "queryInstanceId": 12,
+            "clientStoreId": "store_carol"
           },
           "revision": 5,
           "compositeWitness": {
@@ -430,17 +573,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 711,
-            "retainedPayloadBytesDuringQuarantine": 711,
+            "retainedPayloadBytesBefore": 808,
+            "retainedPayloadBytesDuringQuarantine": 808,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 1,
-            "ackTokenObserved": "ack_3_5"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -454,7 +601,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
-            "queryInstanceId": 10
+            "queryInstanceId": 10,
+            "clientStoreId": "store_alice"
           },
           "revision": 6,
           "compositeWitness": {
@@ -485,17 +633,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 632,
-            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesBefore": 652,
+            "retainedPayloadBytesDuringQuarantine": 652,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 0,
-            "ackTokenObserved": "ack_1_6"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -509,7 +661,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
-            "queryInstanceId": 11
+            "queryInstanceId": 11,
+            "clientStoreId": "store_bob"
           },
           "revision": 6,
           "compositeWitness": {
@@ -540,17 +693,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 632,
-            "retainedPayloadBytesDuringQuarantine": 632,
+            "retainedPayloadBytesBefore": 650,
+            "retainedPayloadBytesDuringQuarantine": 650,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 0,
-            "ackTokenObserved": "ack_2_6"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         },
         {
@@ -564,7 +721,8 @@
           "productionScope": {
             "kind": "subscription",
             "queryKey": "allNotes:{}",
-            "queryInstanceId": 12
+            "queryInstanceId": 12,
+            "clientStoreId": "store_carol"
           },
           "revision": 6,
           "compositeWitness": {
@@ -595,17 +753,21 @@
           "serverResolutionKind": "snapshot",
           "serverAcknowledgementOutcome": "discharged",
           "clientLifecycle": {
+            "exactProductionScopeReplayed": true,
+            "exactProductionResolutionReplayed": true,
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 711,
-            "retainedPayloadBytesDuringQuarantine": 711,
+            "retainedPayloadBytesBefore": 808,
+            "retainedPayloadBytesDuringQuarantine": 808,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
             "leaseRevalidated": true,
             "recoveredRows": 1,
-            "ackTokenObserved": "ack_3_6"
+            "ackTokenMatchedExactProductionResolution": true,
+            "serverAcknowledgementRequestAndOutputVerified": true,
+            "ackTokenNormalization": "<exact-production-ack-token>"
           }
         }
       ]
@@ -668,7 +830,9 @@
       "disposition-escalation"
     ],
     "totalCases": 36,
-    "fullRequeryAndAuthorizationComparisons": 36
+    "fullRequeryAndAuthorizationComparisons": 36,
+    "rustProductionFreshQueryComparisons": 39,
+    "rustProductionMutations": 3
   },
   "propertyOracleMatrix": [
     {
@@ -705,6 +869,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "randomized-writes",
           "disposition": "retain",
           "dispositionReason": {
             "value": "ordinary-row-write-matcher-requery",
@@ -713,6 +878,14 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-0-row-0",
+              "case-0-row-1",
+              "case-0-row-2",
+              "case-0-row-3",
+              "case-0-row-4"
+            ],
             "expectedAuthorizedRowIds": [
               "case-0-row-0",
               "case-0-row-1",
@@ -732,6 +905,7 @@
           "productionObservation": {
             "serverOperations": 24,
             "serverFreshQueryComparisons": 72,
+            "sharedCorpusProductionFreshQueryMatched": true,
             "clientLiveSnapshotCommitted": true,
             "seededWriteKind": "owner-grant"
           },
@@ -767,6 +941,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "randomized-writes",
           "disposition": "retain",
           "dispositionReason": {
             "value": "ordinary-row-write-matcher-requery",
@@ -775,6 +950,15 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-21-row-0",
+              "case-21-row-1",
+              "case-21-row-2",
+              "case-21-row-3",
+              "case-21-row-4",
+              "case-21-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-21-row-0",
               "case-21-row-1",
@@ -796,6 +980,7 @@
           "productionObservation": {
             "serverOperations": 24,
             "serverFreshQueryComparisons": 72,
+            "sharedCorpusProductionFreshQueryMatched": true,
             "clientLiveSnapshotCommitted": true,
             "seededWriteKind": "owner-grant"
           },
@@ -831,6 +1016,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "randomized-writes",
           "disposition": "retain",
           "dispositionReason": {
             "value": "ordinary-row-write-matcher-requery",
@@ -839,6 +1025,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-26-row-2",
+              "case-26-row-3",
+              "case-26-row-4"
+            ],
             "expectedAuthorizedRowIds": [
               "case-26-row-2",
               "case-26-row-3",
@@ -854,6 +1046,7 @@
           "productionObservation": {
             "serverOperations": 24,
             "serverFreshQueryComparisons": 72,
+            "sharedCorpusProductionFreshQueryMatched": true,
             "clientLiveSnapshotCommitted": true,
             "seededWriteKind": "owner-revoke"
           },
@@ -895,6 +1088,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "deployment-activation",
           "disposition": "delete",
           "dispositionReason": {
             "value": "authenticated-deployment-identity-change",
@@ -903,6 +1097,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-7-row-0",
+              "case-7-row-3",
+              "case-7-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -945,6 +1145,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "deployment-activation",
           "disposition": "delete",
           "dispositionReason": {
             "value": "authenticated-deployment-identity-change",
@@ -953,6 +1154,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-18-row-0",
+              "case-18-row-2",
+              "case-18-row-4"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -995,6 +1202,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "deployment-activation",
           "disposition": "delete",
           "dispositionReason": {
             "value": "authenticated-deployment-identity-change",
@@ -1003,6 +1211,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-29-row-0",
+              "case-29-row-3",
+              "case-29-row-4",
+              "case-29-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1051,6 +1266,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "lease-expiry",
           "disposition": "delete",
           "dispositionReason": {
             "value": "authorized-lease-expired",
@@ -1059,6 +1275,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-4-row-0",
+              "case-4-row-3",
+              "case-4-row-4",
+              "case-4-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1100,6 +1323,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "lease-expiry",
           "disposition": "delete",
           "dispositionReason": {
             "value": "authorized-lease-expired",
@@ -1108,6 +1332,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-23-row-0",
+              "case-23-row-2",
+              "case-23-row-4"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1149,6 +1379,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "lease-expiry",
           "disposition": "delete",
           "dispositionReason": {
             "value": "authorized-lease-expired",
@@ -1157,6 +1388,11 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-30-row-0",
+              "case-30-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1204,6 +1440,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "clock-rollback",
           "disposition": "delete",
           "dispositionReason": {
             "value": "client-clock-rollback",
@@ -1212,6 +1449,11 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-9-row-0",
+              "case-9-row-3"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1253,6 +1495,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "clock-rollback",
           "disposition": "delete",
           "dispositionReason": {
             "value": "client-clock-rollback",
@@ -1261,6 +1504,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-14-row-0",
+              "case-14-row-2",
+              "case-14-row-3",
+              "case-14-row-4"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1302,6 +1552,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "clock-rollback",
           "disposition": "delete",
           "dispositionReason": {
             "value": "client-clock-rollback",
@@ -1310,6 +1561,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-32-row-0",
+              "case-32-row-3",
+              "case-32-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -1357,6 +1614,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "overflow",
           "disposition": "retain",
           "dispositionReason": {
             "value": "connection-overflow-root-expanded-to-auth-scoped-children",
@@ -1365,6 +1623,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-2-row-0",
+              "case-2-row-2",
+              "case-2-row-3",
+              "case-2-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-2-row-0",
               "case-2-row-2",
@@ -1419,6 +1684,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "overflow",
           "disposition": "retain",
           "dispositionReason": {
             "value": "connection-overflow-root-expanded-to-auth-scoped-children",
@@ -1427,6 +1693,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-12-row-0",
+              "case-12-row-4",
+              "case-12-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-12-row-0",
               "case-12-row-4",
@@ -1479,6 +1751,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "overflow",
           "disposition": "retain",
           "dispositionReason": {
             "value": "connection-overflow-root-expanded-to-auth-scoped-children",
@@ -1487,6 +1760,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-34-row-0",
+              "case-34-row-2",
+              "case-34-row-3",
+              "case-34-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-34-row-0",
               "case-34-row-2",
@@ -1547,6 +1827,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "disconnect-and-fresh-resume",
           "disposition": "retain",
           "dispositionReason": {
             "value": "connection-ended-and-new-query-instance-installed",
@@ -1555,6 +1836,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-11-row-0",
+              "case-11-row-3",
+              "case-11-row-4"
+            ],
             "expectedAuthorizedRowIds": [
               "case-11-row-0",
               "case-11-row-3",
@@ -1604,6 +1891,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "disconnect-and-fresh-resume",
           "disposition": "retain",
           "dispositionReason": {
             "value": "connection-ended-and-new-query-instance-installed",
@@ -1612,6 +1900,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-15-row-0",
+              "case-15-row-2",
+              "case-15-row-3",
+              "case-15-row-4"
+            ],
             "expectedAuthorizedRowIds": [
               "case-15-row-0",
               "case-15-row-2",
@@ -1663,6 +1958,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "disconnect-and-fresh-resume",
           "disposition": "retain",
           "dispositionReason": {
             "value": "connection-ended-and-new-query-instance-installed",
@@ -1671,6 +1967,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-33-row-0",
+              "case-33-row-2",
+              "case-33-row-4",
+              "case-33-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-33-row-0",
               "case-33-row-2",
@@ -1728,6 +2031,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "response-loss",
           "disposition": "retain",
           "dispositionReason": {
             "value": "level-triggered-response-reprojection",
@@ -1736,6 +2040,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-5-row-0",
+              "case-5-row-2",
+              "case-5-row-4",
+              "case-5-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-5-row-0",
               "case-5-row-2",
@@ -1787,6 +2098,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "response-loss",
           "disposition": "retain",
           "dispositionReason": {
             "value": "level-triggered-response-reprojection",
@@ -1795,6 +2107,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-19-row-0",
+              "case-19-row-2",
+              "case-19-row-3",
+              "case-19-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-19-row-0",
               "case-19-row-2",
@@ -1846,6 +2165,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "response-loss",
           "disposition": "retain",
           "dispositionReason": {
             "value": "level-triggered-response-reprojection",
@@ -1854,6 +2174,14 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-24-row-0",
+              "case-24-row-2",
+              "case-24-row-3",
+              "case-24-row-4",
+              "case-24-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-24-row-0",
               "case-24-row-2",
@@ -1913,6 +2241,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "ack-loss",
           "disposition": "retain",
           "dispositionReason": {
             "value": "resolution-applied-before-ack-loss",
@@ -1921,6 +2250,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-3-row-0",
+              "case-3-row-2",
+              "case-3-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-3-row-0",
               "case-3-row-2",
@@ -1970,6 +2305,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "ack-loss",
           "disposition": "retain",
           "dispositionReason": {
             "value": "resolution-applied-before-ack-loss",
@@ -1978,6 +2314,14 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-20-row-0",
+              "case-20-row-2",
+              "case-20-row-3",
+              "case-20-row-4",
+              "case-20-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-20-row-0",
               "case-20-row-2",
@@ -2031,6 +2375,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "ack-loss",
           "disposition": "retain",
           "dispositionReason": {
             "value": "resolution-applied-before-ack-loss",
@@ -2039,6 +2384,14 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-31-row-0",
+              "case-31-row-2",
+              "case-31-row-3",
+              "case-31-row-4",
+              "case-31-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-31-row-0",
               "case-31-row-2",
@@ -2098,6 +2451,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "restart",
           "disposition": "retain",
           "dispositionReason": {
             "value": "process-local-scope-ended-on-restart",
@@ -2106,6 +2460,14 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-6-row-0",
+              "case-6-row-2",
+              "case-6-row-3",
+              "case-6-row-4",
+              "case-6-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-6-row-0",
               "case-6-row-2",
@@ -2162,6 +2524,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "restart",
           "disposition": "retain",
           "dispositionReason": {
             "value": "process-local-scope-ended-on-restart",
@@ -2170,6 +2533,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-16-row-0",
+              "case-16-row-2",
+              "case-16-row-4",
+              "case-16-row-5"
+            ],
             "expectedAuthorizedRowIds": [
               "case-16-row-0",
               "case-16-row-2",
@@ -2224,6 +2594,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "restart",
           "disposition": "retain",
           "dispositionReason": {
             "value": "process-local-scope-ended-on-restart",
@@ -2232,6 +2603,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-28-row-0",
+              "case-28-row-2",
+              "case-28-row-4"
+            ],
             "expectedAuthorizedRowIds": [
               "case-28-row-0",
               "case-28-row-2",
@@ -2290,6 +2667,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "stale-callback",
           "disposition": "quarantine",
           "dispositionReason": {
             "value": "predecessor-query-generation-callback",
@@ -2298,6 +2676,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-1-row-0",
+              "case-1-row-3",
+              "case-1-row-4",
+              "case-1-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2339,6 +2724,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "stale-callback",
           "disposition": "quarantine",
           "dispositionReason": {
             "value": "predecessor-query-generation-callback",
@@ -2347,6 +2733,14 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-13-row-0",
+              "case-13-row-2",
+              "case-13-row-3",
+              "case-13-row-4",
+              "case-13-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2388,6 +2782,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "stale-callback",
           "disposition": "quarantine",
           "dispositionReason": {
             "value": "predecessor-query-generation-callback",
@@ -2396,6 +2791,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-25-row-0",
+              "case-25-row-3",
+              "case-25-row-4",
+              "case-25-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2443,6 +2845,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "cross-tab-write",
           "disposition": "quarantine",
           "dispositionReason": {
             "value": "cross-tab-predecessor-fence-write",
@@ -2451,6 +2854,13 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-8-row-0",
+              "case-8-row-2",
+              "case-8-row-3",
+              "case-8-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2492,6 +2902,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "cross-tab-write",
           "disposition": "quarantine",
           "dispositionReason": {
             "value": "cross-tab-predecessor-fence-write",
@@ -2500,6 +2911,11 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-22-row-0",
+              "case-22-row-3"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2541,6 +2957,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "cross-tab-write",
           "disposition": "quarantine",
           "dispositionReason": {
             "value": "cross-tab-predecessor-fence-write",
@@ -2549,6 +2966,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-27-row-0",
+              "case-27-row-2",
+              "case-27-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2596,6 +3019,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "disposition-escalation",
           "disposition": "delete",
           "dispositionReason": {
             "value": "trusted-denial-escalated-quarantine-to-delete",
@@ -2604,6 +3028,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-10-row-0",
+              "case-10-row-2",
+              "case-10-row-5"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2644,6 +3074,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "disposition-escalation",
           "disposition": "delete",
           "dispositionReason": {
             "value": "trusted-denial-escalated-quarantine-to-delete",
@@ -2652,6 +3083,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-17-row-0",
+              "case-17-row-3",
+              "case-17-row-4"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -2692,6 +3129,7 @@
             "independent-full-requery-and-authorization",
             "state-and-row-comparison"
           ],
+          "scenario": "disposition-escalation",
           "disposition": "delete",
           "dispositionReason": {
             "value": "trusted-denial-escalated-quarantine-to-delete",
@@ -2700,6 +3138,12 @@
           "oracle": {
             "kind": "independent-full-requery-and-full-authorization-reference-model",
             "sourceRowCount": 6,
+            "rustProductionFreshQueryComparedBeforeClientInjection": true,
+            "rustProductionRelevantAuthorizedRowIds": [
+              "case-35-row-0",
+              "case-35-row-2",
+              "case-35-row-3"
+            ],
             "expectedAuthorizedRowIds": [],
             "productionAuthorizedRowIds": [],
             "matched": true
@@ -3325,6 +3769,1882 @@
         "clientFixtureAssertionsAreRuntimeMeasurementsFromThisHarness": false,
         "queryInstanceAllocatorIntrospectedByThisHarness": false
       }
+    },
+    "sharedPropertyCorpus": {
+      "schemaVersion": 1,
+      "seed": "0x53a11ce",
+      "trialsPerEvent": 3,
+      "rowsPerCase": 6,
+      "eventUniverse": [
+        "randomized-writes",
+        "deployment-activation",
+        "lease-expiry",
+        "clock-rollback",
+        "overflow",
+        "disconnect-and-fresh-resume",
+        "response-loss",
+        "ack-loss",
+        "restart",
+        "stale-callback",
+        "cross-tab-write",
+        "disposition-escalation"
+      ],
+      "randomizedSchedule": [
+        "randomized-writes",
+        "stale-callback",
+        "overflow",
+        "ack-loss",
+        "lease-expiry",
+        "response-loss",
+        "restart",
+        "deployment-activation",
+        "cross-tab-write",
+        "clock-rollback",
+        "disposition-escalation",
+        "disconnect-and-fresh-resume",
+        "overflow",
+        "stale-callback",
+        "clock-rollback",
+        "disconnect-and-fresh-resume",
+        "restart",
+        "disposition-escalation",
+        "deployment-activation",
+        "response-loss",
+        "ack-loss",
+        "randomized-writes",
+        "cross-tab-write",
+        "lease-expiry",
+        "response-loss",
+        "stale-callback",
+        "randomized-writes",
+        "cross-tab-write",
+        "restart",
+        "deployment-activation",
+        "lease-expiry",
+        "ack-loss",
+        "clock-rollback",
+        "disconnect-and-fresh-resume",
+        "overflow",
+        "disposition-escalation"
+      ],
+      "totalCases": 36,
+      "productionFreshQueryComparisons": 39,
+      "productionMutations": 3,
+      "cases": [
+        {
+          "caseIndex": 0,
+          "scenario": "randomized-writes",
+          "randomState": "0xe73d5f2c",
+          "revision": 57,
+          "sourceRows": [
+            {
+              "id": "case-0-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-0-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-0-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-0-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-0-row-4",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-0-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": "owner-grant",
+          "productionInitialAuthorizedRowIds": [
+            "case-0-row-0",
+            "case-0-row-2",
+            "case-0-row-3",
+            "case-0-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-0-row-0",
+            "case-0-row-1",
+            "case-0-row-2",
+            "case-0-row-3",
+            "case-0-row-4"
+          ]
+        },
+        {
+          "caseIndex": 1,
+          "scenario": "stale-callback",
+          "randomState": "0x47f18f3a",
+          "revision": 79,
+          "sourceRows": [
+            {
+              "id": "case-1-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-1-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-1-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-1-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-1-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-1-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-1-row-0",
+            "case-1-row-3",
+            "case-1-row-4",
+            "case-1-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-1-row-0",
+            "case-1-row-3",
+            "case-1-row-4",
+            "case-1-row-5"
+          ]
+        },
+        {
+          "caseIndex": 2,
+          "scenario": "overflow",
+          "randomState": "0xb16abf5d",
+          "revision": 38,
+          "sourceRows": [
+            {
+              "id": "case-2-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-2-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-2-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-2-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-2-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-2-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-2-row-0",
+            "case-2-row-2",
+            "case-2-row-3",
+            "case-2-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-2-row-0",
+            "case-2-row-2",
+            "case-2-row-3",
+            "case-2-row-5"
+          ]
+        },
+        {
+          "caseIndex": 3,
+          "scenario": "ack-loss",
+          "randomState": "0x456c6af4",
+          "revision": 73,
+          "sourceRows": [
+            {
+              "id": "case-3-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-3-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-3-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-3-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-3-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-3-row-5",
+              "ownerId": "another-principal",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-3-row-0",
+            "case-3-row-2",
+            "case-3-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-3-row-0",
+            "case-3-row-2",
+            "case-3-row-5"
+          ]
+        },
+        {
+          "caseIndex": 4,
+          "scenario": "lease-expiry",
+          "randomState": "0xb2cfb42f",
+          "revision": 28,
+          "sourceRows": [
+            {
+              "id": "case-4-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-4-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-4-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-4-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-4-row-4",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-4-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-4-row-0",
+            "case-4-row-3",
+            "case-4-row-4",
+            "case-4-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-4-row-0",
+            "case-4-row-3",
+            "case-4-row-4",
+            "case-4-row-5"
+          ]
+        },
+        {
+          "caseIndex": 5,
+          "scenario": "response-loss",
+          "randomState": "0xde5cf47e",
+          "revision": 55,
+          "sourceRows": [
+            {
+              "id": "case-5-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-5-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-5-row-2",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-5-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-5-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-5-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-5-row-0",
+            "case-5-row-2",
+            "case-5-row-4",
+            "case-5-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-5-row-0",
+            "case-5-row-2",
+            "case-5-row-4",
+            "case-5-row-5"
+          ]
+        },
+        {
+          "caseIndex": 6,
+          "scenario": "restart",
+          "randomState": "0xf0bfdf91",
+          "revision": 50,
+          "sourceRows": [
+            {
+              "id": "case-6-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-6-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-6-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-6-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-6-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-6-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-6-row-0",
+            "case-6-row-2",
+            "case-6-row-3",
+            "case-6-row-4",
+            "case-6-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-6-row-0",
+            "case-6-row-2",
+            "case-6-row-3",
+            "case-6-row-4",
+            "case-6-row-5"
+          ]
+        },
+        {
+          "caseIndex": 7,
+          "scenario": "deployment-activation",
+          "randomState": "0xe9e71a58",
+          "revision": 89,
+          "sourceRows": [
+            {
+              "id": "case-7-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-7-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-7-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-7-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-7-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-7-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-7-row-0",
+            "case-7-row-3",
+            "case-7-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-7-row-0",
+            "case-7-row-3",
+            "case-7-row-5"
+          ]
+        },
+        {
+          "caseIndex": 8,
+          "scenario": "cross-tab-write",
+          "randomState": "0x5f317603",
+          "revision": 96,
+          "sourceRows": [
+            {
+              "id": "case-8-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-8-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-8-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-8-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-8-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-8-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-8-row-0",
+            "case-8-row-2",
+            "case-8-row-3",
+            "case-8-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-8-row-0",
+            "case-8-row-2",
+            "case-8-row-3",
+            "case-8-row-5"
+          ]
+        },
+        {
+          "caseIndex": 9,
+          "scenario": "clock-rollback",
+          "randomState": "0xc8023f02",
+          "revision": 3,
+          "sourceRows": [
+            {
+              "id": "case-9-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-9-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-9-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-9-row-3",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-9-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-9-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-9-row-0",
+            "case-9-row-3"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-9-row-0",
+            "case-9-row-3"
+          ]
+        },
+        {
+          "caseIndex": 10,
+          "scenario": "disposition-escalation",
+          "randomState": "0x32b05005",
+          "revision": 22,
+          "sourceRows": [
+            {
+              "id": "case-10-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-10-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-10-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-10-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-10-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-10-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-10-row-0",
+            "case-10-row-2",
+            "case-10-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-10-row-0",
+            "case-10-row-2",
+            "case-10-row-5"
+          ]
+        },
+        {
+          "caseIndex": 11,
+          "scenario": "disconnect-and-fresh-resume",
+          "randomState": "0xc5b4d8fc",
+          "revision": 81,
+          "sourceRows": [
+            {
+              "id": "case-11-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-11-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-11-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-11-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-11-row-4",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-11-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-11-row-0",
+            "case-11-row-3",
+            "case-11-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-11-row-0",
+            "case-11-row-3",
+            "case-11-row-4"
+          ]
+        },
+        {
+          "caseIndex": 12,
+          "scenario": "overflow",
+          "randomState": "0x0c2b0a17",
+          "revision": 24,
+          "sourceRows": [
+            {
+              "id": "case-12-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-12-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-12-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-12-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-12-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-12-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-12-row-0",
+            "case-12-row-4",
+            "case-12-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-12-row-0",
+            "case-12-row-4",
+            "case-12-row-5"
+          ]
+        },
+        {
+          "caseIndex": 13,
+          "scenario": "stale-callback",
+          "randomState": "0x902d12c6",
+          "revision": 31,
+          "sourceRows": [
+            {
+              "id": "case-13-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-13-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-13-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-13-row-3",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-13-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-13-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-13-row-0",
+            "case-13-row-2",
+            "case-13-row-3",
+            "case-13-row-4",
+            "case-13-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-13-row-0",
+            "case-13-row-2",
+            "case-13-row-3",
+            "case-13-row-4",
+            "case-13-row-5"
+          ]
+        },
+        {
+          "caseIndex": 14,
+          "scenario": "clock-rollback",
+          "randomState": "0xbc2924b9",
+          "revision": 86,
+          "sourceRows": [
+            {
+              "id": "case-14-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-14-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-14-row-2",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-14-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-14-row-4",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-14-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-14-row-0",
+            "case-14-row-2",
+            "case-14-row-3",
+            "case-14-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-14-row-0",
+            "case-14-row-2",
+            "case-14-row-3",
+            "case-14-row-4"
+          ]
+        },
+        {
+          "caseIndex": 15,
+          "scenario": "disconnect-and-fresh-resume",
+          "randomState": "0x959e6ae0",
+          "revision": 33,
+          "sourceRows": [
+            {
+              "id": "case-15-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-15-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-15-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-15-row-3",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-15-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-15-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-15-row-0",
+            "case-15-row-2",
+            "case-15-row-3",
+            "case-15-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-15-row-0",
+            "case-15-row-2",
+            "case-15-row-3",
+            "case-15-row-4"
+          ]
+        },
+        {
+          "caseIndex": 16,
+          "scenario": "restart",
+          "randomState": "0x20b2246b",
+          "revision": 44,
+          "sourceRows": [
+            {
+              "id": "case-16-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-16-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-16-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-16-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-16-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-16-row-5",
+              "ownerId": "another-principal",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-16-row-0",
+            "case-16-row-2",
+            "case-16-row-4",
+            "case-16-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-16-row-0",
+            "case-16-row-2",
+            "case-16-row-4",
+            "case-16-row-5"
+          ]
+        },
+        {
+          "caseIndex": 17,
+          "scenario": "disposition-escalation",
+          "randomState": "0x6a0c53ca",
+          "revision": 79,
+          "sourceRows": [
+            {
+              "id": "case-17-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-17-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-17-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-17-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-17-row-4",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-17-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-17-row-0",
+            "case-17-row-3",
+            "case-17-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-17-row-0",
+            "case-17-row-3",
+            "case-17-row-4"
+          ]
+        },
+        {
+          "caseIndex": 18,
+          "scenario": "deployment-activation",
+          "randomState": "0xfb6db1ad",
+          "revision": 26,
+          "sourceRows": [
+            {
+              "id": "case-18-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-18-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-18-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-18-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-18-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-18-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-18-row-0",
+            "case-18-row-2",
+            "case-18-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-18-row-0",
+            "case-18-row-2",
+            "case-18-row-4"
+          ]
+        },
+        {
+          "caseIndex": 19,
+          "scenario": "response-loss",
+          "randomState": "0x3769d404",
+          "revision": 37,
+          "sourceRows": [
+            {
+              "id": "case-19-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-19-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-19-row-2",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-19-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-19-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-19-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-19-row-0",
+            "case-19-row-2",
+            "case-19-row-3",
+            "case-19-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-19-row-0",
+            "case-19-row-2",
+            "case-19-row-3",
+            "case-19-row-5"
+          ]
+        },
+        {
+          "caseIndex": 20,
+          "scenario": "ack-loss",
+          "randomState": "0xc9c4b8ff",
+          "revision": 32,
+          "sourceRows": [
+            {
+              "id": "case-20-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-20-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-20-row-2",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-20-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-20-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-20-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-20-row-0",
+            "case-20-row-2",
+            "case-20-row-3",
+            "case-20-row-4",
+            "case-20-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-20-row-0",
+            "case-20-row-2",
+            "case-20-row-3",
+            "case-20-row-4",
+            "case-20-row-5"
+          ]
+        },
+        {
+          "caseIndex": 21,
+          "scenario": "randomized-writes",
+          "randomState": "0xbbb6260e",
+          "revision": 87,
+          "sourceRows": [
+            {
+              "id": "case-21-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-21-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-21-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-21-row-3",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-21-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-21-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": "owner-grant",
+          "productionInitialAuthorizedRowIds": [
+            "case-21-row-0",
+            "case-21-row-2",
+            "case-21-row-3",
+            "case-21-row-4",
+            "case-21-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-21-row-0",
+            "case-21-row-1",
+            "case-21-row-2",
+            "case-21-row-3",
+            "case-21-row-4",
+            "case-21-row-5"
+          ]
+        },
+        {
+          "caseIndex": 22,
+          "scenario": "cross-tab-write",
+          "randomState": "0x3153a6cc",
+          "revision": 73,
+          "sourceRows": [
+            {
+              "id": "case-22-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-22-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-22-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-22-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-22-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-22-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-22-row-0",
+            "case-22-row-3"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-22-row-0",
+            "case-22-row-3"
+          ]
+        },
+        {
+          "caseIndex": 23,
+          "scenario": "lease-expiry",
+          "randomState": "0xfebae0a7",
+          "revision": 72,
+          "sourceRows": [
+            {
+              "id": "case-23-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-23-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-23-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-23-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-23-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-23-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-23-row-0",
+            "case-23-row-2",
+            "case-23-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-23-row-0",
+            "case-23-row-2",
+            "case-23-row-4"
+          ]
+        },
+        {
+          "caseIndex": 24,
+          "scenario": "response-loss",
+          "randomState": "0x6d38cf16",
+          "revision": 75,
+          "sourceRows": [
+            {
+              "id": "case-24-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-24-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-24-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-24-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-24-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-24-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-24-row-0",
+            "case-24-row-2",
+            "case-24-row-3",
+            "case-24-row-4",
+            "case-24-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-24-row-0",
+            "case-24-row-2",
+            "case-24-row-3",
+            "case-24-row-4",
+            "case-24-row-5"
+          ]
+        },
+        {
+          "caseIndex": 25,
+          "scenario": "stale-callback",
+          "randomState": "0x07d42fc9",
+          "revision": 78,
+          "sourceRows": [
+            {
+              "id": "case-25-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-25-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-25-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-25-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-25-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-25-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-25-row-0",
+            "case-25-row-3",
+            "case-25-row-4",
+            "case-25-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-25-row-0",
+            "case-25-row-3",
+            "case-25-row-4",
+            "case-25-row-5"
+          ]
+        },
+        {
+          "caseIndex": 26,
+          "scenario": "randomized-writes",
+          "randomState": "0x073289b0",
+          "revision": 61,
+          "sourceRows": [
+            {
+              "id": "case-26-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-26-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-26-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-26-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-26-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-26-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": "owner-revoke",
+          "productionInitialAuthorizedRowIds": [
+            "case-26-row-0",
+            "case-26-row-2",
+            "case-26-row-3",
+            "case-26-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-26-row-2",
+            "case-26-row-3",
+            "case-26-row-4"
+          ]
+        },
+        {
+          "caseIndex": 27,
+          "scenario": "cross-tab-write",
+          "randomState": "0x78de5d1e",
+          "revision": 51,
+          "sourceRows": [
+            {
+              "id": "case-27-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-27-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-27-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-27-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-27-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-27-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-27-row-0",
+            "case-27-row-2",
+            "case-27-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-27-row-0",
+            "case-27-row-2",
+            "case-27-row-5"
+          ]
+        },
+        {
+          "caseIndex": 28,
+          "scenario": "restart",
+          "randomState": "0xf59825b1",
+          "revision": 42,
+          "sourceRows": [
+            {
+              "id": "case-28-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-28-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-28-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-28-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-28-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-28-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-28-row-0",
+            "case-28-row-2",
+            "case-28-row-4"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-28-row-0",
+            "case-28-row-2",
+            "case-28-row-4"
+          ]
+        },
+        {
+          "caseIndex": 29,
+          "scenario": "deployment-activation",
+          "randomState": "0x5848c7f8",
+          "revision": 93,
+          "sourceRows": [
+            {
+              "id": "case-29-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-29-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-29-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-29-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-29-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-29-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-29-row-0",
+            "case-29-row-3",
+            "case-29-row-4",
+            "case-29-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-29-row-0",
+            "case-29-row-3",
+            "case-29-row-4",
+            "case-29-row-5"
+          ]
+        },
+        {
+          "caseIndex": 30,
+          "scenario": "lease-expiry",
+          "randomState": "0xaf4ced23",
+          "revision": 44,
+          "sourceRows": [
+            {
+              "id": "case-30-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-30-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-30-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-30-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-30-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-30-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-30-row-0",
+            "case-30-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-30-row-0",
+            "case-30-row-5"
+          ]
+        },
+        {
+          "caseIndex": 31,
+          "scenario": "ack-loss",
+          "randomState": "0xcfee59a2",
+          "revision": 27,
+          "sourceRows": [
+            {
+              "id": "case-31-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-31-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-31-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-31-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-31-row-4",
+              "ownerId": "another-principal",
+              "isPublic": true
+            },
+            {
+              "id": "case-31-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-31-row-0",
+            "case-31-row-2",
+            "case-31-row-3",
+            "case-31-row-4",
+            "case-31-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-31-row-0",
+            "case-31-row-2",
+            "case-31-row-3",
+            "case-31-row-4",
+            "case-31-row-5"
+          ]
+        },
+        {
+          "caseIndex": 32,
+          "scenario": "clock-rollback",
+          "randomState": "0xd4308025",
+          "revision": 26,
+          "sourceRows": [
+            {
+              "id": "case-32-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-32-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-32-row-2",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-32-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-32-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-32-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-32-row-0",
+            "case-32-row-3",
+            "case-32-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-32-row-0",
+            "case-32-row-3",
+            "case-32-row-5"
+          ]
+        },
+        {
+          "caseIndex": 33,
+          "scenario": "disconnect-and-fresh-resume",
+          "randomState": "0xcf66c89c",
+          "revision": 41,
+          "sourceRows": [
+            {
+              "id": "case-33-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-33-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-33-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-33-row-3",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-33-row-4",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": true
+            },
+            {
+              "id": "case-33-row-5",
+              "ownerId": "another-principal",
+              "isPublic": true
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-33-row-0",
+            "case-33-row-2",
+            "case-33-row-4",
+            "case-33-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-33-row-0",
+            "case-33-row-2",
+            "case-33-row-4",
+            "case-33-row-5"
+          ]
+        },
+        {
+          "caseIndex": 34,
+          "scenario": "overflow",
+          "randomState": "0xd67dbb37",
+          "revision": 52,
+          "sourceRows": [
+            {
+              "id": "case-34-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-34-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-34-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-34-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-34-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-34-row-5",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-34-row-0",
+            "case-34-row-2",
+            "case-34-row-3",
+            "case-34-row-5"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-34-row-0",
+            "case-34-row-2",
+            "case-34-row-3",
+            "case-34-row-5"
+          ]
+        },
+        {
+          "caseIndex": 35,
+          "scenario": "disposition-escalation",
+          "randomState": "0x64fb7f66",
+          "revision": 51,
+          "sourceRows": [
+            {
+              "id": "case-35-row-0",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-35-row-1",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-35-row-2",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-35-row-3",
+              "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+              "isPublic": false
+            },
+            {
+              "id": "case-35-row-4",
+              "ownerId": "another-principal",
+              "isPublic": false
+            },
+            {
+              "id": "case-35-row-5",
+              "ownerId": "another-principal",
+              "isPublic": false
+            }
+          ],
+          "writeKind": null,
+          "productionInitialAuthorizedRowIds": [
+            "case-35-row-0",
+            "case-35-row-2",
+            "case-35-row-3"
+          ],
+          "productionRelevantAuthorizedRowIds": [
+            "case-35-row-0",
+            "case-35-row-2",
+            "case-35-row-3"
+          ]
+        }
+      ]
     },
     "deployment": {
       "missingPredecessorObserved": true,

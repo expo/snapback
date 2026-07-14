@@ -1,0 +1,1426 @@
+{
+  "schemaVersion": 1,
+  "seed": "0x53a11ce",
+  "trialsPerEvent": 3,
+  "rowsPerCase": 6,
+  "eventUniverse": [
+    "randomized-writes",
+    "deployment-activation",
+    "lease-expiry",
+    "clock-rollback",
+    "overflow",
+    "disconnect-and-fresh-resume",
+    "response-loss",
+    "ack-loss",
+    "restart",
+    "stale-callback",
+    "cross-tab-write",
+    "disposition-escalation"
+  ],
+  "cases": [
+    {
+      "caseIndex": 0,
+      "scenario": "randomized-writes",
+      "randomState": "0xe73d5f2c",
+      "revision": 57,
+      "sourceRows": [
+        {
+          "id": "case-0-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-0-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-0-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-0-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-0-row-4",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-0-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": "owner-grant"
+    },
+    {
+      "caseIndex": 1,
+      "scenario": "stale-callback",
+      "randomState": "0x47f18f3a",
+      "revision": 79,
+      "sourceRows": [
+        {
+          "id": "case-1-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-1-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-1-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-1-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-1-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-1-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 2,
+      "scenario": "overflow",
+      "randomState": "0xb16abf5d",
+      "revision": 38,
+      "sourceRows": [
+        {
+          "id": "case-2-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-2-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-2-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-2-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-2-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-2-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 3,
+      "scenario": "ack-loss",
+      "randomState": "0x456c6af4",
+      "revision": 73,
+      "sourceRows": [
+        {
+          "id": "case-3-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-3-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-3-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-3-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-3-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-3-row-5",
+          "ownerId": "another-principal",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 4,
+      "scenario": "lease-expiry",
+      "randomState": "0xb2cfb42f",
+      "revision": 28,
+      "sourceRows": [
+        {
+          "id": "case-4-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-4-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-4-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-4-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-4-row-4",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-4-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 5,
+      "scenario": "response-loss",
+      "randomState": "0xde5cf47e",
+      "revision": 55,
+      "sourceRows": [
+        {
+          "id": "case-5-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-5-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-5-row-2",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-5-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-5-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-5-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 6,
+      "scenario": "restart",
+      "randomState": "0xf0bfdf91",
+      "revision": 50,
+      "sourceRows": [
+        {
+          "id": "case-6-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-6-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-6-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-6-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-6-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-6-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 7,
+      "scenario": "deployment-activation",
+      "randomState": "0xe9e71a58",
+      "revision": 89,
+      "sourceRows": [
+        {
+          "id": "case-7-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-7-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-7-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-7-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-7-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-7-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 8,
+      "scenario": "cross-tab-write",
+      "randomState": "0x5f317603",
+      "revision": 96,
+      "sourceRows": [
+        {
+          "id": "case-8-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-8-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-8-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-8-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-8-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-8-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 9,
+      "scenario": "clock-rollback",
+      "randomState": "0xc8023f02",
+      "revision": 3,
+      "sourceRows": [
+        {
+          "id": "case-9-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-9-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-9-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-9-row-3",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-9-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-9-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 10,
+      "scenario": "disposition-escalation",
+      "randomState": "0x32b05005",
+      "revision": 22,
+      "sourceRows": [
+        {
+          "id": "case-10-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-10-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-10-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-10-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-10-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-10-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 11,
+      "scenario": "disconnect-and-fresh-resume",
+      "randomState": "0xc5b4d8fc",
+      "revision": 81,
+      "sourceRows": [
+        {
+          "id": "case-11-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-11-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-11-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-11-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-11-row-4",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-11-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 12,
+      "scenario": "overflow",
+      "randomState": "0x0c2b0a17",
+      "revision": 24,
+      "sourceRows": [
+        {
+          "id": "case-12-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-12-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-12-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-12-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-12-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-12-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 13,
+      "scenario": "stale-callback",
+      "randomState": "0x902d12c6",
+      "revision": 31,
+      "sourceRows": [
+        {
+          "id": "case-13-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-13-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-13-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-13-row-3",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-13-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-13-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 14,
+      "scenario": "clock-rollback",
+      "randomState": "0xbc2924b9",
+      "revision": 86,
+      "sourceRows": [
+        {
+          "id": "case-14-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-14-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-14-row-2",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-14-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-14-row-4",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-14-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 15,
+      "scenario": "disconnect-and-fresh-resume",
+      "randomState": "0x959e6ae0",
+      "revision": 33,
+      "sourceRows": [
+        {
+          "id": "case-15-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-15-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-15-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-15-row-3",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-15-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-15-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 16,
+      "scenario": "restart",
+      "randomState": "0x20b2246b",
+      "revision": 44,
+      "sourceRows": [
+        {
+          "id": "case-16-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-16-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-16-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-16-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-16-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-16-row-5",
+          "ownerId": "another-principal",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 17,
+      "scenario": "disposition-escalation",
+      "randomState": "0x6a0c53ca",
+      "revision": 79,
+      "sourceRows": [
+        {
+          "id": "case-17-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-17-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-17-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-17-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-17-row-4",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-17-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 18,
+      "scenario": "deployment-activation",
+      "randomState": "0xfb6db1ad",
+      "revision": 26,
+      "sourceRows": [
+        {
+          "id": "case-18-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-18-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-18-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-18-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-18-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-18-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 19,
+      "scenario": "response-loss",
+      "randomState": "0x3769d404",
+      "revision": 37,
+      "sourceRows": [
+        {
+          "id": "case-19-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-19-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-19-row-2",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-19-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-19-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-19-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 20,
+      "scenario": "ack-loss",
+      "randomState": "0xc9c4b8ff",
+      "revision": 32,
+      "sourceRows": [
+        {
+          "id": "case-20-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-20-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-20-row-2",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-20-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-20-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-20-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 21,
+      "scenario": "randomized-writes",
+      "randomState": "0xbbb6260e",
+      "revision": 87,
+      "sourceRows": [
+        {
+          "id": "case-21-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-21-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-21-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-21-row-3",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-21-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-21-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": "owner-grant"
+    },
+    {
+      "caseIndex": 22,
+      "scenario": "cross-tab-write",
+      "randomState": "0x3153a6cc",
+      "revision": 73,
+      "sourceRows": [
+        {
+          "id": "case-22-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-22-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-22-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-22-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-22-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-22-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 23,
+      "scenario": "lease-expiry",
+      "randomState": "0xfebae0a7",
+      "revision": 72,
+      "sourceRows": [
+        {
+          "id": "case-23-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-23-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-23-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-23-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-23-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-23-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 24,
+      "scenario": "response-loss",
+      "randomState": "0x6d38cf16",
+      "revision": 75,
+      "sourceRows": [
+        {
+          "id": "case-24-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-24-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-24-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-24-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-24-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-24-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 25,
+      "scenario": "stale-callback",
+      "randomState": "0x07d42fc9",
+      "revision": 78,
+      "sourceRows": [
+        {
+          "id": "case-25-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-25-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-25-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-25-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-25-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-25-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 26,
+      "scenario": "randomized-writes",
+      "randomState": "0x073289b0",
+      "revision": 61,
+      "sourceRows": [
+        {
+          "id": "case-26-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-26-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-26-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-26-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-26-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-26-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": "owner-revoke"
+    },
+    {
+      "caseIndex": 27,
+      "scenario": "cross-tab-write",
+      "randomState": "0x78de5d1e",
+      "revision": 51,
+      "sourceRows": [
+        {
+          "id": "case-27-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-27-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-27-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-27-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-27-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-27-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 28,
+      "scenario": "restart",
+      "randomState": "0xf59825b1",
+      "revision": 42,
+      "sourceRows": [
+        {
+          "id": "case-28-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-28-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-28-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-28-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-28-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-28-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 29,
+      "scenario": "deployment-activation",
+      "randomState": "0x5848c7f8",
+      "revision": 93,
+      "sourceRows": [
+        {
+          "id": "case-29-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-29-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-29-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-29-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-29-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-29-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 30,
+      "scenario": "lease-expiry",
+      "randomState": "0xaf4ced23",
+      "revision": 44,
+      "sourceRows": [
+        {
+          "id": "case-30-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-30-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-30-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-30-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-30-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-30-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 31,
+      "scenario": "ack-loss",
+      "randomState": "0xcfee59a2",
+      "revision": 27,
+      "sourceRows": [
+        {
+          "id": "case-31-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-31-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-31-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-31-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-31-row-4",
+          "ownerId": "another-principal",
+          "isPublic": true
+        },
+        {
+          "id": "case-31-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 32,
+      "scenario": "clock-rollback",
+      "randomState": "0xd4308025",
+      "revision": 26,
+      "sourceRows": [
+        {
+          "id": "case-32-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-32-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-32-row-2",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-32-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-32-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-32-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 33,
+      "scenario": "disconnect-and-fresh-resume",
+      "randomState": "0xcf66c89c",
+      "revision": 41,
+      "sourceRows": [
+        {
+          "id": "case-33-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-33-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-33-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-33-row-3",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-33-row-4",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": true
+        },
+        {
+          "id": "case-33-row-5",
+          "ownerId": "another-principal",
+          "isPublic": true
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 34,
+      "scenario": "overflow",
+      "randomState": "0xd67dbb37",
+      "revision": 52,
+      "sourceRows": [
+        {
+          "id": "case-34-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-34-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-34-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-34-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-34-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-34-row-5",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    },
+    {
+      "caseIndex": 35,
+      "scenario": "disposition-escalation",
+      "randomState": "0x64fb7f66",
+      "revision": 51,
+      "sourceRows": [
+        {
+          "id": "case-35-row-0",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-35-row-1",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-35-row-2",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-35-row-3",
+          "ownerId": "018f0d90-7b14-7a22-8c33-445566778899",
+          "isPublic": false
+        },
+        {
+          "id": "case-35-row-4",
+          "ownerId": "another-principal",
+          "isPublic": false
+        },
+        {
+          "id": "case-35-row-5",
+          "ownerId": "another-principal",
+          "isPublic": false
+        }
+      ],
+      "writeKind": null
+    }
+  ]
+}
