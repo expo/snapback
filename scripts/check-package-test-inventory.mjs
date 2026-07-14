@@ -46,6 +46,7 @@ const inventories = [
       'build-preset.test.mjs',
       'client-store-authority.test.mjs',
       'client-store-queue-authorization.test.mjs',
+      'cold-offline-authorized-retention.test.mjs',
       'derived-overlay-duplicate-reapply.test.mjs',
       'derived-overlay-reconcile-failure.test.mjs',
       'derived-overlay.test.mjs',
@@ -120,7 +121,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 43, 'reviewed package/admin test count changed');
+assert.equal(total, 44, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
