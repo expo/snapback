@@ -2015,9 +2015,11 @@ export class SnapbackClient {
   // The shared drain choke point (LLP 0034 §10.1 residual / ENG-22478): a
   // connection's outbox is ONE queue carrying both lanes, so every drain
   // routes each envelope to the registered consumers of ITS lane instead of
-  // destructively discarding the other lane's traffic. Returns the decoded
-  // durable updates and the raw ephemeral envelopes of this drain, plus the
-  // structured diagnostics of any envelopes that failed to decode.
+  // destructively discarding the other lane's traffic. The sole cross-lane
+  // control is a connection-wide clear-retained resync, which must blank both
+  // stores. Returns the decoded durable updates and the raw ephemeral
+  // envelopes of this drain, plus the structured diagnostics of any envelopes
+  // that failed to decode.
   //
   // GET /outbox/:id is a DESTRUCTIVE drain — the server has already dequeued
   // this whole batch — so nothing per-envelope may abort the loop (ENG-23391):
@@ -2046,7 +2048,7 @@ export class SnapbackClient {
           continue;
         }
         durable.push(update);
-        for (const consumer of [...(consumers?.durable ?? [])]) deliverIsolated(consumer, update);
+        routeDurableLaneFrame(consumers, update);
       } else if (env) {
         ephemeral.push(env);
         for (const consumer of [...(consumers?.ephemeral ?? [])]) deliverIsolated(consumer, env);
@@ -3891,7 +3893,7 @@ class LiveStreamManager {
     // not be combined with a registry registration (double delivery).
     for (const listener of [...this.durableListeners]) deliverIsolated(listener, frame);
     const consumers = this.client.__laneConsumers?.get(this.connectionId);
-    for (const consumer of [...(consumers?.durable ?? [])]) deliverIsolated(consumer, frame);
+    routeDurableLaneFrame(consumers, frame);
   }
 
   /// Send a live-socket request (ephemeral_subscribe/publish/delete or ping)
@@ -4011,6 +4013,31 @@ function deliverIsolated(consumer, ...payload) {
   } catch {
     // Consumer errors are the consumer's problem, not the delivery's.
   }
+}
+
+// Outbox poison/overflow is a connection-wide loss of retained continuity,
+// even though its wire envelope travels on the durable lane. Route only that
+// exact control shape across the lane boundary so every in-memory ephemeral
+// overlay blanks too. Subscription-scoped resyncs remain durable-only. The
+// historical pre-typed frame used clearRetained; accepting that spelling here
+// cannot broaden scope because the absent-subscription check is independent.
+//
+// @ref LLP 0059#fenced-effects-and-live-closure — all-authority poison is
+//   consumed once by the current fence and clears both retained client lanes.
+function isConnectionWideClearRetainedResync(frame) {
+  return frame?.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED
+    && frame.subscription_id == null
+    && frame.subscriptionId == null
+    && (frame.clear_retained === true || frame.clearRetained === true);
+}
+
+function routeDurableLaneFrame(consumers, frame) {
+  for (const consumer of [...(consumers?.durable ?? [])]) deliverIsolated(consumer, frame);
+  if (!isConnectionWideClearRetainedResync(frame)) return;
+  // Deliver the SAME object to both lanes. Its non-enumerable authority
+  // capture was attached before routing and must remain available to every
+  // consumer's compare-and-commit gate.
+  for (const consumer of [...(consumers?.ephemeral ?? [])]) deliverIsolated(consumer, frame);
 }
 
 function liveStreamReadinessError(code, message) {
@@ -4185,6 +4212,18 @@ export class EphemeralOverlay {
   }
 
   apply(input) {
+    if (isConnectionWideClearRetainedResync(input)) {
+      // The server discarded continuity for the whole connection, not merely
+      // one durable subscription. Blank every overlay immediately and remain
+      // closed to later deltas until a fresh room snapshot establishes a new
+      // high-water boundary.
+      this.entries.clear();
+      this.tombstones.clear();
+      this.highWaterVersion = 0;
+      this.needsResync = true;
+      this.#notifyChange('needs_resync');
+      return 'needs_resync';
+    }
     const message = unwrapEphemeralMessage(input);
     if (!message) return 'not_ephemeral';
     // Room isolation (ENG-22478 review fix B): a connection's outbox carries
@@ -4194,6 +4233,9 @@ export class EphemeralOverlay {
     // must never contaminate this overlay's entries or scopeEpoch.
     const room = messageRoom(message);
     if (this.room && room && !sameRoom(this.room, room)) return 'foreign_room';
+    if (this.needsResync && (message.Upsert || message.Remove)) {
+      return 'needs_resync';
+    }
     if (message.Snapshot) {
       if (!this.room && message.Snapshot.room) this.room = message.Snapshot.room;
       const snapshotEpoch = message.Snapshot.scope_epoch;

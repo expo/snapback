@@ -1272,6 +1272,159 @@ try {
     }
   });
 
+  await suite.check('auth overflow: HTTP global clear-retained blanks every lane, scoped resync does not', async () => {
+    const conn = 'conn_http_global_clear';
+    let batch = [{ Durable: { payload: JSON.stringify({
+      kind: 'resync_required',
+      reason: 'outbox_overflow',
+      clear_retained: true,
+    }) } }];
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(batch),
+    });
+    const db = new SnapbackClient('http://stub');
+    db.__connectionGrants.set(conn, Promise.resolve({ id: conn, token: 'sct_http_clear' }));
+    const overlayA = new EphemeralOverlay(db, 'presence', {
+      connectionId: conn,
+      scope: { room: 'a' },
+      snapshot: snapshot(1, [{ key: 'a', version: 1, value: { x: 1 } }]),
+    });
+    const overlayB = new EphemeralOverlay(db, 'presence', {
+      connectionId: conn,
+      scope: { room: 'a' },
+      snapshot: snapshot(1, [{ key: 'b', version: 1, value: { x: 2 } }]),
+    });
+    const durable = [];
+    const ephemeral = [];
+    const unregisterDurable = db.registerDurableConsumer(conn, (frame) => durable.push(frame));
+    const unregisterEphemeral = db.registerEphemeralConsumer(conn, (frame) => ephemeral.push(frame));
+    try {
+      const drained = await db.drainConnection(conn);
+      assertEqual(drained.durable.length, 1, 'global control remains a durable drain result');
+      assertEqual(drained.ephemeral.length, 0, 'cross-lane control is not mislabeled as a raw ephemeral envelope');
+      assertEqual(overlayA.currentEntries({ prune: false }), [], 'first overlay blanked');
+      assertEqual(overlayB.currentEntries({ prune: false }), [], 'second overlay blanked');
+      assert(overlayA.needsResync && overlayB.needsResync, 'every overlay requires a fresh snapshot');
+      assertEqual(ephemeral.length, 1, 'global clear-retained crossed to ephemeral consumers once');
+      assert(durable[0] === ephemeral[0], 'both lanes receive the same authority-captured control object');
+
+      assertEqual(
+        overlayA.apply({
+          Upsert: {
+            room: overlayRoom,
+            entry: {
+              key: 'late',
+              value: encodedValue({ x: 9 }),
+              received_at_ms: 200,
+              expires_at_ms: 10_000,
+              scope_epoch: 1,
+              entry_version: 2,
+            },
+          },
+        }),
+        'needs_resync',
+        'a delayed delta cannot repopulate a blanked overlay',
+      );
+      assertEqual(overlayA.currentEntries({ prune: false }), [], 'blank state survives delayed deltas');
+
+      overlayA.apply(snapshot(2, [{ key: 'fresh-a', version: 1, value: { x: 3 } }]));
+      overlayB.apply(snapshot(2, [{ key: 'fresh-b', version: 1, value: { x: 4 } }]));
+      batch = [{ Durable: { payload: JSON.stringify({
+        kind: 'resync_required',
+        reason: 'permission_epoch_changed',
+        subscription_id: 'sub_only',
+        clear_retained: true,
+      }) } }];
+      await db.drainConnection(conn);
+      assertEqual(ephemeral.length, 1, 'subscription-scoped resync never crosses lanes');
+      assertEqual(
+        overlayA.currentEntries({ prune: false }).map((entry) => entry.key),
+        ['fresh-a'],
+        'scoped durable resync leaves overlay A intact',
+      );
+      assertEqual(
+        overlayB.currentEntries({ prune: false }).map((entry) => entry.key),
+        ['fresh-b'],
+        'scoped durable resync leaves overlay B intact',
+      );
+      return { durable: durable.length, ephemeral: ephemeral.length };
+    } finally {
+      unregisterDurable();
+      unregisterEphemeral();
+      overlayA.dispose();
+      overlayB.dispose();
+    }
+  });
+
+  await suite.check('auth overflow: WebSocket legacy global clear-retained crosses lanes only at connection scope', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    const conn = 'conn_ws_global_clear';
+    globalThis.fetch = grantFetch(conn);
+    const db = new SnapbackClient('http://stub');
+    const overlayA = new EphemeralOverlay(db, 'presence', {
+      connectionId: conn,
+      scope: { room: 'a' },
+      snapshot: snapshot(1, [{ key: 'a', version: 1, value: { x: 1 } }]),
+    });
+    const overlayB = new EphemeralOverlay(db, 'presence', {
+      connectionId: conn,
+      scope: { room: 'a' },
+      snapshot: snapshot(1, [{ key: 'b', version: 1, value: { x: 2 } }]),
+    });
+    const durable = [];
+    const ephemeral = [];
+    const unregisterDurable = db.registerDurableConsumer(conn, (frame) => durable.push(frame));
+    const unregisterEphemeral = db.registerEphemeralConsumer(conn, (frame) => ephemeral.push(frame));
+    const before = FakeWebSocket.instances.length;
+    const manager = db.liveStreamManager(conn);
+    const stopDemand = manager.onState(() => {});
+    try {
+      const ws = await nextSocket(before);
+      ws.dispatch('open', {});
+      ws.dispatch('message', { data: JSON.stringify({
+        kind: 'resync_required',
+        reason: 'outbox_overflow',
+        clearRetained: true,
+      }) });
+      await waitFor(() => ephemeral.length === 1, 'legacy global control crossed lanes');
+      assertEqual(overlayA.currentEntries({ prune: false }), [], 'socket blanked overlay A');
+      assertEqual(overlayB.currentEntries({ prune: false }), [], 'socket blanked overlay B');
+      assert(overlayA.needsResync && overlayB.needsResync, 'socket global control marks both overlays');
+      assert(durable[0] === ephemeral[0], 'socket routing preserves the same authority-captured object');
+
+      overlayA.apply(snapshot(2, [{ key: 'fresh-a', version: 1, value: { x: 3 } }]));
+      overlayB.apply(snapshot(2, [{ key: 'fresh-b', version: 1, value: { x: 4 } }]));
+      ws.dispatch('message', { data: JSON.stringify({
+        kind: 'resync_required',
+        reason: 'permission_epoch_changed',
+        subscription_id: 'sub_only',
+        clearRetained: true,
+      }) });
+      await waitFor(() => durable.length === 2, 'scoped durable control delivered');
+      assertEqual(ephemeral.length, 1, 'legacy scoped resync remains durable-only');
+      assertEqual(
+        overlayA.currentEntries({ prune: false }).map((entry) => entry.key),
+        ['fresh-a'],
+        'socket scoped resync leaves overlay A intact',
+      );
+      assertEqual(
+        overlayB.currentEntries({ prune: false }).map((entry) => entry.key),
+        ['fresh-b'],
+        'socket scoped resync leaves overlay B intact',
+      );
+      return { durable: durable.length, ephemeral: ephemeral.length };
+    } finally {
+      stopDemand();
+      manager.close();
+      unregisterDurable();
+      unregisterEphemeral();
+      overlayA.dispose();
+      overlayB.dispose();
+    }
+  });
+
   await suite.check('eng_23392: dispose racing a resubscribe unsubscribes the late server subscription', async () => {
     const db = new SnapbackClient('http://stub');
     const unsubscribed = [];

@@ -651,6 +651,17 @@ const MAX_OUTBOX_BACKLOG: usize = 1_024;
 /// lifetime room churn while a peer refuses to drain.
 const MAX_OUTBOX_OVERFLOW_RESYNCS: usize = 4_096;
 
+/// Exact overflow markers are exceptional predecessor-cleanup state, not a
+/// per-grant history. Production exposes one current consumable effect fence
+/// per readable connection id; a small fixed allowance lets delayed terminal
+/// cleanup coexist with that current fence without making an attacker-chosen
+/// sequence of grant ids an unbounded out-of-band queue. Crossing the bound
+/// collapses to one all-authority recovery signal.
+///
+/// @ref LLP 0059#fenced-effects-and-live-closure — only the verified current
+///   fence may consume retained connection effects.
+const MAX_OUTBOX_EXACT_OVERFLOW_MARKERS: usize = 8;
+
 /// Hard retained-allocation ceiling for one connection outbox. This covers
 /// durable payload buffers, resync messages, coalescing-map keys, and the
 /// ephemeral message allocations themselves. The byte ceiling is shared by
@@ -1065,6 +1076,38 @@ fn retained_durable_queue_item_bytes(message: &DurableMessage) -> usize {
         .saturating_add(message.payload.capacity())
 }
 
+fn retained_effect_fence_backing_bytes(effect_fence: &ConnectionEffectFence) -> usize {
+    // Each Arc allocation retains the string bytes plus the strong/weak
+    // counters. The Arc handles themselves are already part of the marker's
+    // ConnectionEffectFence value.
+    let arc_allocation = |value: &Arc<str>| {
+        value
+            .len()
+            .saturating_add(std::mem::size_of::<usize>().saturating_mul(2))
+    };
+    arc_allocation(&effect_fence.authorization_stream_incarnation)
+        .saturating_add(arc_allocation(&effect_fence.connection_grant_id))
+        .saturating_add(match &effect_fence.authority {
+            ConnectionEffectAuthority::Anonymous => 0,
+            ConnectionEffectAuthority::Session { session_id, .. } => arc_allocation(session_id),
+        })
+}
+
+/// Charge an out-of-band marker as the durable recovery frame it promises to
+/// materialize plus the BTree node and Arc backing that keep its exact fence
+/// alive. This is intentionally conservative: diagnostics and admission must
+/// never hide marker memory merely because the wire payload is synthesized at
+/// drain time.
+fn retained_exact_overflow_marker_bytes(effect_fence: &ConnectionEffectFence) -> usize {
+    retained_durable_queue_item_bytes(&overflow_sentinel(Some(effect_fence.clone())))
+        .saturating_add(MAP_ENTRY_OVERHEAD)
+        .saturating_add(retained_effect_fence_backing_bytes(effect_fence))
+}
+
+fn retained_global_overflow_signal_bytes() -> usize {
+    retained_durable_queue_item_bytes(&overflow_sentinel(None))
+}
+
 fn retained_resync_queue_item_bytes(message: &EphemeralMessage) -> usize {
     QUEUE_ITEM_OVERHEAD.saturating_add(retained_ephemeral_message_bytes(message))
 }
@@ -1160,6 +1203,8 @@ pub struct EphemeralDiagnostics {
     pub outbox_retained_bytes: usize,
     pub active_rooms: Vec<EphemeralRoomDiagnostics>,
     pub pending_ephemeral_keys: usize,
+    /// Physical durable frames plus out-of-band overflow/poison signals that
+    /// will materialize as durable clear-retained frames at an eligible drain.
     pub pending_durable_messages: usize,
     pub pending_resync_messages: usize,
     pub rejected_publishes: u64,
@@ -1367,6 +1412,15 @@ struct OutboundQueue {
     // signal (sticky until its eligible drain), never a silent drop.
     overflowed: bool,
     overflowed_effect_fences: BTreeSet<ConnectionEffectFence>,
+    /// Conservative retained bytes for every out-of-band exact/unbound marker
+    /// or for the single all-authority poison signal. Unlike the physical lane
+    /// ledgers, these bytes describe recovery state synthesized at drain time.
+    overflow_marker_bytes: usize,
+    /// Count/byte exhaustion of the exact marker ledger cannot silently evict
+    /// one authority's recovery obligation. Collapse every authority domain to
+    /// this one fail-closed signal, park all new effects, and let only a
+    /// verified current exact drain consume it.
+    all_authorities_poisoned: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1444,13 +1498,33 @@ impl OutboundQueue {
             ephemeral_bytes: 0,
             overflowed: false,
             overflowed_effect_fences: BTreeSet::new(),
+            overflow_marker_bytes: 0,
+            all_authorities_poisoned: false,
         }
     }
 
     fn is_overflowed(&self, effect_fence: Option<&ConnectionEffectFence>) -> bool {
-        effect_fence.map_or(self.overflowed, |effect_fence| {
-            self.overflowed_effect_fences.contains(effect_fence)
-        })
+        self.all_authorities_poisoned
+            || effect_fence.map_or(self.overflowed, |effect_fence| {
+                self.overflowed_effect_fences.contains(effect_fence)
+            })
+    }
+
+    fn recompute_overflow_marker_bytes(&mut self) {
+        self.overflow_marker_bytes = if self.all_authorities_poisoned {
+            retained_global_overflow_signal_bytes()
+        } else {
+            self.overflowed_effect_fences.iter().fold(
+                if self.overflowed {
+                    retained_global_overflow_signal_bytes()
+                } else {
+                    0
+                },
+                |total, effect_fence| {
+                    total.saturating_add(retained_exact_overflow_marker_bytes(effect_fence))
+                },
+            )
+        };
     }
 
     fn recompute_retained_bytes(&mut self) {
@@ -1473,6 +1547,7 @@ impl OutboundQueue {
         self.durable_bytes
             .saturating_add(self.resync_bytes)
             .saturating_add(self.ephemeral_bytes)
+            .saturating_add(self.overflow_marker_bytes)
     }
 
     fn fits_bytes(&self, removed: usize, added: usize) -> bool {
@@ -1480,6 +1555,51 @@ impl OutboundQueue {
             .saturating_sub(removed)
             .saturating_add(added)
             <= MAX_OUTBOX_RETAINED_BYTES
+    }
+
+    /// Replace every physical lane and scoped marker with one bounded global
+    /// recovery obligation. This is the fail-closed escape hatch for marker or
+    /// room-recovery ledger exhaustion: preserving an arbitrary subset would
+    /// silently choose which authority is allowed to remain stale.
+    fn poison_all_authorities(&mut self) -> bool {
+        if self.all_authorities_poisoned {
+            return false;
+        }
+        self.durable = VecDeque::new();
+        self.resync = VecDeque::new();
+        self.ephemeral = BTreeMap::new();
+        self.durable_bytes = 0;
+        self.resync_bytes = 0;
+        self.ephemeral_bytes = 0;
+        self.overflowed = false;
+        self.overflowed_effect_fences = BTreeSet::new();
+        self.all_authorities_poisoned = true;
+        self.recompute_overflow_marker_bytes();
+        debug_assert!(self.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
+        true
+    }
+
+    /// Install one scoped overflow obligation. `true` means the requested
+    /// marker could not fit its explicit count/byte budget and the queue was
+    /// instead collapsed to the all-authority poison signal.
+    fn install_overflow_marker(&mut self, effect_fence: Option<&ConnectionEffectFence>) -> bool {
+        let marker_bytes = effect_fence.map_or_else(
+            retained_global_overflow_signal_bytes,
+            retained_exact_overflow_marker_bytes,
+        );
+        let count_exhausted = effect_fence.is_some()
+            && self.overflowed_effect_fences.len() >= MAX_OUTBOX_EXACT_OVERFLOW_MARKERS;
+        if count_exhausted || !self.fits_bytes(0, marker_bytes) {
+            self.poison_all_authorities();
+            return true;
+        }
+        if let Some(effect_fence) = effect_fence {
+            self.overflowed_effect_fences.insert(effect_fence.clone());
+        } else {
+            self.overflowed = true;
+        }
+        self.recompute_overflow_marker_bytes();
+        false
     }
 
     /// Convert one queue authority domain to a durable resync signal: the
@@ -1519,10 +1639,11 @@ impl OutboundQueue {
         self.ephemeral
             .retain(|_, message| message.effect_fence.as_ref() != effect_fence.as_ref());
         self.recompute_retained_bytes();
-        if let Some(effect_fence) = &effect_fence {
-            self.overflowed_effect_fences.insert(effect_fence.clone());
-        } else {
-            self.overflowed = true;
+        if self.install_overflow_marker(effect_fence.as_ref()) {
+            return QueueOverflow {
+                overflowed: true,
+                resync_count: 0,
+            };
         }
         let mut resync_count = 0;
         for (room, (scope_epoch, room_authority_generation)) in resync_epochs {
@@ -1532,6 +1653,12 @@ impl OutboundQueue {
                 room_authority_generation,
                 effect_fence.clone(),
             );
+            if self.all_authorities_poisoned {
+                // The global signal supersedes every room-specific recovery
+                // frame, all of which were cleared by the collapse.
+                resync_count = 0;
+                break;
+            }
         }
         QueueOverflow {
             overflowed: true,
@@ -1547,8 +1674,11 @@ impl OutboundQueue {
         effect_fence: Option<ConnectionEffectFence>,
     ) -> QueuePush {
         if self.is_overflowed(effect_fence.as_ref()) {
+            let was_poisoned = self.all_authorities_poisoned;
+            let resync_count = self.record_overflow_resync(message.as_ref(), effect_fence);
             return QueuePush {
-                resync_count: self.record_overflow_resync(message.as_ref(), effect_fence),
+                resync_count,
+                overflowed: !was_poisoned && self.all_authorities_poisoned,
                 ..QueuePush::default()
             };
         }
@@ -1577,8 +1707,11 @@ impl OutboundQueue {
         effect_fence: Option<ConnectionEffectFence>,
     ) -> QueuePush {
         if self.is_overflowed(effect_fence.as_ref()) {
+            let was_poisoned = self.all_authorities_poisoned;
+            let resync_count = self.record_overflow_resync(message.as_ref(), effect_fence);
             return QueuePush {
-                resync_count: self.record_overflow_resync(message.as_ref(), effect_fence),
+                resync_count,
+                overflowed: !was_poisoned && self.all_authorities_poisoned,
                 ..QueuePush::default()
             };
         }
@@ -1732,8 +1865,18 @@ impl OutboundQueue {
         });
         self.recompute_retained_bytes();
         self.overflowed_effect_fences.remove(effect_fence);
+        self.recompute_overflow_marker_bytes();
     }
 
+    /// `expected_effect_fence` is not a caller-selected label: production
+    /// supplies it only inside the connection registry's act-time validation,
+    /// and there is exactly one current consumable fence for a readable id.
+    /// That invariant is what lets one exact drain consume the all-authority
+    /// poison signal without allowing an accumulated predecessor to steal it.
+    /// Compatibility drains (`None`) deliberately leave poison parked.
+    ///
+    /// @ref LLP 0059#fenced-effects-and-live-closure — final exact-fence
+    ///   publication and replacement-safe readable connection ids.
     fn drain_with_authority(
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
@@ -1745,6 +1888,11 @@ impl OutboundQueue {
         let exact_overflow_signal = expected_effect_fence
             .filter(|effect_fence| self.overflowed_effect_fences.contains(*effect_fence))
             .cloned();
+        let poisoned_overflow_signal = if self.all_authorities_poisoned {
+            expected_effect_fence.cloned()
+        } else {
+            None
+        };
         let mut retained_durable = VecDeque::new();
         while let Some(message) = self.durable.pop_front() {
             let disposition =
@@ -1770,6 +1918,15 @@ impl OutboundQueue {
             // grant that overflowed. It consumes no shared queue capacity and
             // therefore cannot be displaced by predecessor or successor
             // frames that happen to share the readable connection id.
+            messages.push(RealtimeEnvelope::Durable(overflow_sentinel(Some(
+                effect_fence.clone(),
+            ))));
+        }
+        if let Some(effect_fence) = &poisoned_overflow_signal {
+            // Count/byte exhaustion destroyed every physical lane and scoped
+            // marker. Materialize exactly one connection-wide clear-retained
+            // frame, stamped for the registry-verified current drain. A
+            // compatibility or predecessor drain cannot consume the poison.
             messages.push(RealtimeEnvelope::Durable(overflow_sentinel(Some(
                 effect_fence.clone(),
             ))));
@@ -1832,6 +1989,10 @@ impl OutboundQueue {
             // drain, so preserve them until their own drain or exact purge.
             self.overflowed_effect_fences.remove(&exact_overflow_signal);
         }
+        if poisoned_overflow_signal.is_some() {
+            self.all_authorities_poisoned = false;
+        }
+        self.recompute_overflow_marker_bytes();
         messages
     }
 
@@ -1877,16 +2038,42 @@ impl OutboundQueue {
         room_authority_generation: u64,
         effect_fence: Option<ConnectionEffectFence>,
     ) -> usize {
-        let already_queued = self.resync.iter().any(|pending| {
+        if self.all_authorities_poisoned {
+            return 0;
+        }
+        let already_queued = self.resync.iter_mut().find(|pending| {
             matches!(
                 pending.message.as_ref(),
                 EphemeralMessage::ResyncRequired {
                     room: pending_room,
                     ..
-                } if pending_room == &room && pending.effect_fence == effect_fence
+                } if pending_room == &room
+                    && pending.effect_fence.as_ref() == effect_fence.as_ref()
             )
         });
-        if already_queued {
+        if let Some(pending) = already_queued {
+            let pending_authority = match pending.message.as_ref() {
+                EphemeralMessage::ResyncRequired {
+                    scope_epoch,
+                    room_authority_generation,
+                    ..
+                } => (*scope_epoch, *room_authority_generation),
+                _ => unreachable!("resync search returned a non-resync message"),
+            };
+            let requested_authority = (scope_epoch, room_authority_generation);
+            if requested_authority > pending_authority {
+                // Deduplication must not pin a stale room fence forever. A
+                // newer same-room recovery replaces the queued authority
+                // tuple in place; an older delayed producer cannot downgrade
+                // it. The retained allocation is unchanged because only two
+                // inline integers and the fixed reason differ.
+                pending.message = Arc::new(EphemeralMessage::ResyncRequired {
+                    room,
+                    scope_epoch,
+                    room_authority_generation,
+                    reason: ResyncReason::QueueOverflow,
+                });
+            }
             return 0;
         }
         let message = Arc::new(EphemeralMessage::ResyncRequired {
@@ -1897,6 +2084,10 @@ impl OutboundQueue {
         });
         let retained_bytes = retained_resync_queue_item_bytes(message.as_ref());
         if self.resync.len() >= MAX_OUTBOX_OVERFLOW_RESYNCS || !self.fits_bytes(0, retained_bytes) {
+            // Silently dropping the room that crossed the recovery ledger
+            // would leave precisely that overlay stale. Collapse all lanes to
+            // the one bounded clear-retained signal instead.
+            self.poison_all_authorities();
             return 0;
         }
         self.resync_bytes = self.resync_bytes.saturating_add(retained_bytes);
@@ -4777,7 +4968,13 @@ impl LocalEphemeralBackend {
         for outbox in outboxes {
             let outbox = lock(&outbox);
             diagnostics.pending_ephemeral_keys += outbox.ephemeral.len();
-            diagnostics.pending_durable_messages += outbox.durable.len();
+            let logical_overflow_signals = usize::from(outbox.overflowed)
+                .saturating_add(outbox.overflowed_effect_fences.len())
+                .saturating_add(usize::from(outbox.all_authorities_poisoned));
+            diagnostics.pending_durable_messages = diagnostics
+                .pending_durable_messages
+                .saturating_add(outbox.durable.len())
+                .saturating_add(logical_overflow_signals);
             diagnostics.pending_resync_messages += outbox.resync.len();
             diagnostics.outbox_retained_bytes = diagnostics
                 .outbox_retained_bytes
@@ -6952,13 +7149,34 @@ mod tests {
                 retained_ephemeral_queue_item_bytes(&key.0, &key.1, message.message.as_ref())
             })
             .sum::<usize>();
+        let overflow_markers = if queue.all_authorities_poisoned {
+            retained_global_overflow_signal_bytes()
+        } else {
+            queue.overflowed_effect_fences.iter().fold(
+                if queue.overflowed {
+                    retained_global_overflow_signal_bytes()
+                } else {
+                    0
+                },
+                |total, effect_fence| {
+                    total.saturating_add(retained_exact_overflow_marker_bytes(effect_fence))
+                },
+            )
+        };
         assert_eq!(queue.durable_bytes, durable, "durable byte ledger drifted");
         assert_eq!(queue.resync_bytes, resync, "resync byte ledger drifted");
         assert_eq!(
             queue.ephemeral_bytes, ephemeral,
             "ephemeral byte ledger drifted"
         );
-        durable.saturating_add(resync).saturating_add(ephemeral)
+        assert_eq!(
+            queue.overflow_marker_bytes, overflow_markers,
+            "overflow-marker byte ledger drifted"
+        );
+        durable
+            .saturating_add(resync)
+            .saturating_add(ephemeral)
+            .saturating_add(overflow_markers)
     }
 
     fn assert_retained_accounting(backend: &LocalEphemeralBackend) {
@@ -7018,6 +7236,14 @@ mod tests {
             assert!(queue.durable.len() <= MAX_OUTBOX_BACKLOG);
             assert!(queue.ephemeral.len() <= MAX_OUTBOX_BACKLOG);
             assert!(queue.resync.len() <= MAX_OUTBOX_OVERFLOW_RESYNCS);
+            assert!(queue.overflowed_effect_fences.len() <= MAX_OUTBOX_EXACT_OVERFLOW_MARKERS);
+            if queue.all_authorities_poisoned {
+                assert!(queue.durable.is_empty());
+                assert!(queue.resync.is_empty());
+                assert!(queue.ephemeral.is_empty());
+                assert!(!queue.overflowed);
+                assert!(queue.overflowed_effect_fences.is_empty());
+            }
             outbox_bytes = outbox_bytes.saturating_add(expected);
         }
         drop(outboxes);
@@ -7196,7 +7422,8 @@ mod tests {
         assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
 
         // An attacker can continue naming rooms while the queue is sticky.
-        // The recovery ledger remains capped in both dimensions.
+        // Crossing the recovery-ledger cap must not silently omit the final
+        // room: it collapses every lane to one bounded all-authority signal.
         for index in 0..(MAX_OUTBOX_OVERFLOW_RESYNCS + 128) {
             let scope = Scope::from_pairs([("boardId", format!("board-{index}"))]);
             let room = RoomId {
@@ -7208,13 +7435,50 @@ mod tests {
             };
             queue.record_overflow_resync_for_room(room, 1, 0, None);
         }
-        assert_eq!(queue.resync.len(), MAX_OUTBOX_OVERFLOW_RESYNCS);
+        assert!(queue.all_authorities_poisoned);
+        assert!(queue.resync.is_empty());
+        assert!(queue.durable.is_empty());
+        assert!(queue.ephemeral.is_empty());
         assert_eq!(
             queue.retained_bytes(),
             recompute_queue_retained_bytes(&queue)
         );
         assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
 
+        assert!(
+            queue
+                .drain_with_authority(
+                    None,
+                    |_| FrameAuthorityDisposition::Send,
+                    |_| FrameAuthorityDisposition::Send,
+                )
+                .is_empty(),
+            "a compatibility drain cannot consume all-authority poison"
+        );
+        let current = ConnectionEffectFence::session("inc", "grant-current", "session", 2);
+        let recovered = queue.drain_with_authority(
+            Some(&current),
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(recovered.len(), 1);
+        let RealtimeEnvelope::Durable(signal) = &recovered[0] else {
+            panic!("poison must materialize one durable recovery signal");
+        };
+        assert_eq!(signal.effect_fence(), Some(&current));
+        let signal: serde_json::Value = serde_json::from_slice(&signal.payload).unwrap();
+        assert_eq!(signal["kind"], "resync_required");
+        assert_eq!(signal["clear_retained"], true);
+        assert!(
+            queue
+                .drain_with_authority(
+                    Some(&current),
+                    |_| FrameAuthorityDisposition::Send,
+                    |_| FrameAuthorityDisposition::Send,
+                )
+                .is_empty(),
+            "the verified current drain consumes poison exactly once"
+        );
         queue.drain_with_authority(
             None,
             |_| FrameAuthorityDisposition::Send,
@@ -9451,6 +9715,183 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(after, vec![b"fresh".to_vec()]);
+    }
+
+    /// The registry contract permits one current consumable fence for a
+    /// readable id. Historical exact markers may wait for terminal cleanup,
+    /// but they are a bounded fault-containment ledger, not grant history.
+    /// Crossing that ledger must park every domain and produce exactly one
+    /// global recovery frame for the registry-verified current drain.
+    #[test]
+    fn exact_overflow_marker_count_exhaustion_poison_collapses_fail_closed() {
+        let mut queue = OutboundQueue::new();
+        for index in 0..MAX_OUTBOX_EXACT_OVERFLOW_MARKERS {
+            let fence = ConnectionEffectFence::session(
+                "inc",
+                format!("grant-{index}"),
+                "session",
+                index as u64 + 1,
+            );
+            assert!(queue.overflow(None, Some(fence)).overflowed);
+            assert!(!queue.all_authorities_poisoned);
+        }
+        assert_eq!(
+            queue.overflowed_effect_fences.len(),
+            MAX_OUTBOX_EXACT_OVERFLOW_MARKERS
+        );
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+        let backend = LocalEphemeralBackend::new();
+        let outbox = backend.ensure_outbox("poisoned");
+        *lock(&outbox) = queue.clone();
+        let marker_diagnostics = backend.diagnostics();
+        assert_eq!(
+            marker_diagnostics.pending_durable_messages,
+            MAX_OUTBOX_EXACT_OVERFLOW_MARKERS
+        );
+        assert_eq!(
+            marker_diagnostics.outbox_retained_bytes,
+            queue.retained_bytes()
+        );
+
+        let current = ConnectionEffectFence::session(
+            "inc",
+            "grant-current",
+            "session",
+            MAX_OUTBOX_EXACT_OVERFLOW_MARKERS as u64 + 1,
+        );
+        assert!(queue.overflow(None, Some(current.clone())).overflowed);
+        assert!(queue.all_authorities_poisoned);
+        assert!(queue.overflowed_effect_fences.is_empty());
+        assert!(queue.durable.is_empty());
+        assert!(queue.resync.is_empty());
+        assert!(queue.ephemeral.is_empty());
+        assert_eq!(
+            queue.retained_bytes(),
+            retained_global_overflow_signal_bytes()
+        );
+
+        // Every authority domain is parked until recovery; an attempted
+        // current payload cannot sneak in behind the poison signal.
+        assert_eq!(
+            queue.push_durable(DurableMessage::bound(
+                b"must-not-leak".to_vec(),
+                current.clone(),
+            )),
+            QueueOverflow::default()
+        );
+        assert!(queue.durable.is_empty());
+
+        *lock(&outbox) = queue.clone();
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.pending_durable_messages, 1);
+        assert_eq!(
+            diagnostics.outbox_retained_bytes,
+            retained_global_overflow_signal_bytes()
+        );
+
+        assert!(
+            queue
+                .drain_with_authority(
+                    None,
+                    |_| FrameAuthorityDisposition::Send,
+                    |_| FrameAuthorityDisposition::Send,
+                )
+                .is_empty(),
+            "an unverified compatibility drain cannot consume poison"
+        );
+        let recovered = queue.drain_with_authority(
+            Some(&current),
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert_eq!(recovered.len(), 1);
+        let RealtimeEnvelope::Durable(signal) = &recovered[0] else {
+            panic!("expected one durable global recovery signal");
+        };
+        assert_eq!(signal.effect_fence(), Some(&current));
+        let payload: serde_json::Value = serde_json::from_slice(&signal.payload).unwrap();
+        assert_eq!(payload["kind"], "resync_required");
+        assert_eq!(payload["clear_retained"], true);
+        assert!(
+            queue
+                .drain_with_authority(
+                    Some(&current),
+                    |_| FrameAuthorityDisposition::Send,
+                    |_| FrameAuthorityDisposition::Send,
+                )
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn exact_overflow_marker_byte_exhaustion_clears_other_physical_domains() {
+        let mut queue = OutboundQueue::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        let empty = DurableMessage::bound(Vec::new(), predecessor.clone());
+        let payload_len = MAX_OUTBOX_RETAINED_BYTES
+            .saturating_sub(retained_durable_queue_item_bytes(&empty))
+            .saturating_sub(1);
+        assert!(
+            !queue
+                .push_durable(DurableMessage::bound(vec![7; payload_len], predecessor,))
+                .overflowed
+        );
+        assert_eq!(queue.retained_bytes(), MAX_OUTBOX_RETAINED_BYTES - 1);
+
+        let current = ConnectionEffectFence::session("inc", "grant-current", "session", 2);
+        let overflow = queue.push_durable(DurableMessage::bound(vec![8], current));
+        assert!(overflow.overflowed);
+        assert!(queue.all_authorities_poisoned);
+        assert!(queue.durable.is_empty());
+        assert!(queue.resync.is_empty());
+        assert!(queue.ephemeral.is_empty());
+        assert!(queue.overflowed_effect_fences.is_empty());
+        assert_eq!(
+            queue.retained_bytes(),
+            recompute_queue_retained_bytes(&queue)
+        );
+        assert!(queue.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
+    }
+
+    #[test]
+    fn same_room_overflow_recovery_refreshes_without_stale_downgrade() {
+        let mut queue = OutboundQueue::new();
+        let room = room();
+        let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
+        assert_eq!(
+            queue.record_overflow_resync_for_room(room.clone(), 1, 1, Some(fence.clone()),),
+            1
+        );
+        let retained = queue.retained_bytes();
+        assert_eq!(
+            queue.record_overflow_resync_for_room(room.clone(), 1, 3, Some(fence.clone()),),
+            0
+        );
+        queue.record_overflow_resync_for_room(room.clone(), 1, 2, Some(fence.clone()));
+        queue.record_overflow_resync_for_room(room.clone(), 2, 0, Some(fence.clone()));
+        queue.record_overflow_resync_for_room(room, 1, 99, Some(fence.clone()));
+        assert_eq!(queue.resync.len(), 1);
+        assert_eq!(queue.retained_bytes(), retained);
+
+        let drained = queue.drain_with_authority(
+            Some(&fence),
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert!(matches!(
+            drained.as_slice(),
+            [RealtimeEnvelope::Ephemeral(
+                EphemeralMessage::ResyncRequired {
+                    scope_epoch: 2,
+                    room_authority_generation: 0,
+                    reason: ResyncReason::QueueOverflow,
+                    ..
+                }
+            )]
+        ));
     }
 
     #[test]

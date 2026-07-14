@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -768,6 +768,24 @@ retirement frontier. After success, a queued wake hint MAY carry the successor
 obligation alone; a snapshot resolution ticket MUST travel only with its rows,
 and the resume response carries that complete proof together with any scope
 retirement.
+
+The registry exposes exactly one **current consumable** effect fence for a
+readable connection id. Exact overflow markers left behind by delayed cleanup
+are therefore exceptional containment state, not a grant history: the local
+queue caps them at eight and conservatively charges their synthesized durable
+signal, tree node, and retained fence strings against the same 64 MiB outbox
+ceiling. If either the exact-marker count, the byte ceiling, or the bounded
+room-recovery ledger cannot admit the next non-silent recovery obligation, the
+queue clears every physical lane and scoped marker, parks all authority
+domains, and retains one all-authority poison signal. Compatibility and stale
+predecessor drains cannot consume it. The registry-verified current exact drain
+materializes it once as a connection-wide, clear-retained durable frame stamped
+with that current fence. The client routes only that connection-wide control
+shape (absent subscription id, `clear_retained: true`, with the historical
+`clearRetained` spelling accepted) to both durable consumers and every
+ephemeral overlay on HTTP and WebSocket delivery; subscription-scoped resyncs
+remain in the durable lane. Every overlay blanks and requires a fresh snapshot
+before later deltas can repopulate it.
 
 Protected-room reauthorization is split into four non-overlapping phases:
 snapshot `(connectionId, EffectFenceV1)` under room authority, resolve the
