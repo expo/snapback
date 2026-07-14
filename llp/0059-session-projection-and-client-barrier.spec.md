@@ -496,23 +496,40 @@ When topology construction requires nesting, the only order is:
 projection topology -> stream fence -> session fence
 ```
 
-That nesting is released before touching the connection registry, an outbox,
-a room, or a notifier. An ordinary act instead uses this sequence:
+That construction nesting is released before touching the connection registry,
+an outbox, a room, or a notifier. A direct finite bearer act, which has no
+connection grant, uses its prepared stream/session publication fence and then
+one bounded leaf operation. An exact connection act instead uses this order:
 
 ```text
-connection registry (clone binding snapshot/leaf handle, release)
--> stream fence
--> optional session fence
--> one leaf direct-publication/drain/room operation
--> release
+stream fence -> optional session fence
+-> connection registry (verify the exact opaque grant id and retain the guard)
+-> exactly one bounded branch:
+   - room act -> room -> outbox enqueue -> generation-matched notifier wake; or
+   - drain/handoff -> optional generation-matched notifier
+     -> room-authority registry/outbox acknowledgement or writer-queue handoff
+-> release in reverse order
 ```
 
-The connection registry never holds its mutex while validating a leaf fence.
-The only network-facing object that may nest beneath stream/session fences is a
-bounded in-memory writer handoff. Its `try_commit(buffer)` is synchronous,
-nonblocking, and performs no socket I/O; a connection-writer task flushes an
-accepted item only after every auth lock is released. A full/closed handoff
-accepts nothing and returns immediate backpressure.
+The stream/session publication fence is therefore acquired before the
+connection-registry mutex. The registry guard stays held through only the
+bounded synchronous ownership transfer, so pressure eviction or authority
+mismatch cannot retire the exact grant between validation and handoff. No path
+may acquire a stream/session fence from beneath the registry. The only
+network-facing operations nested beneath these locks are a bounded in-memory
+writer handoff and the first-frame acknowledgement of an already-built leased
+HTTP response. `try_commit(buffer)` and batch acknowledgement are synchronous,
+nonblocking, and perform no socket I/O; a connection-writer task or HTTP stack
+flushes accepted bytes only after every auth lock is released. A full/closed or
+invalidated handoff accepts nothing and returns immediate backpressure or a
+fail-closed empty body.
+
+The room in the first branch is the data-room mutex; the room-authority
+registry in the drain branch is a separate control mutex. A generation notifier
+is never held while entering a data room. Level-triggered room-authorization
+resync materialization occurs before generation-guarded selection, or under a
+control state that excludes concurrent data-room mutation, and releases all
+data-room locks before waking delivery.
 
 Finalization is sequenced, not nested:
 
@@ -646,18 +663,23 @@ handshake.
 
 ### Act-time validation
 
-Possession of a random grant token is necessary but insufficient. A
-connection-token act first clones its binding snapshot and leaf handle under
-the registry mutex and releases it. A direct finite bearer request instead
-carries the projection-resolved `PreparedAuthority` and leaf handles from the
-shared LLP 0058 invocation gate; it does not invent a connection grant. Both
-paths then:
+Possession of a random grant token is necessary but insufficient. Middleware
+may clone a connection binding and its leaf handle while resolving a token, but
+that snapshot is preparation only. At the final effect cut a connection-token
+act enters the prepared stream/session publication fence, revalidates the exact
+opaque grant id under the registry mutex, and retains that registry guard
+through the one bounded synchronous handoff. A direct finite bearer request
+instead carries the projection-resolved `PreparedAuthority` and leaf handles
+from the shared LLP 0058 invocation gate; it does not invent or enter a
+connection grant. Both paths then:
 
 1. validate matching stream incarnation under `StreamFence`;
 2. for a session, validate exact generation, availability, and deadline under
    `SessionFence`; and
-3. perform the synchronous in-memory leaf act or transfer its complete buffer
-   into a bounded writer handoff while the relevant fence remains locked.
+3. for a connection act, revalidate and retain the exact registry grant; and
+4. perform the synchronous in-memory leaf act or transfer its complete buffer
+   into a bounded writer/HTTP ownership handoff while every relevant guard
+   remains locked.
 
 The leaf operation must be small and nonblocking. A direct finite response or
 effect is computed before it in an unpublished buffer. A queued live delta may
@@ -665,6 +687,15 @@ already have been computed and enqueued under the global write guard; for that
 path the leaf operation is drain/send, never enqueue. This removes the old
 check-then-act delivery window without putting app execution beneath an auth
 lock.
+
+Every path that removes a grant outside ordinary auth finalization returns its
+exact terminal capture after releasing the publication and registry locks. The
+retirement sink then purges the captured effect fence, releases any leased
+batch bound to it, wakes the current registration for preserved successor or
+authority-independent work, and retires only a notifier registration carrying
+the removed opaque grant id. Pressure eviction and authority mismatch therefore
+cannot leave a delayed HTTP body or predecessor socket with handoff authority,
+and cannot unregister a same-readable-id successor.
 
 ## Fenced effects and live closure
 
@@ -705,6 +736,18 @@ not published and the caller receives the matching auth/backpressure outcome. A
 revocation marker that begins after a successful transfer sees the effect as
 already in flight and need not retract it; a marker that begins before the
 transfer prevents publication.
+
+A leased HTTP outbox drain is deliberately not transferred when its handler
+selects or serializes the batch. The response body retains the leases,
+publication permits, exact connection act, registry, and provider clock. On its
+first ready body frame it re-enters the same stream/session publication fence,
+holds the exact registry grant current, atomically validates and acknowledges
+the complete lease set, and only then exposes bytes to the HTTP stack. Pending,
+error, cancellation, grant retirement, leaf expiry/revocation/reset, or any
+stale lease exposes no frame and releases the whole batch for retry or exact
+purge. This first-body cut uses the connection act's publication handle once;
+the registered `PreparedAuthority` contains the same non-reentrant handle and
+is not nested around it a second time.
 
 The stream/session leaf fence composes with LLP 0058's process-local mode
 admission fence. A registered finite HTTP response retains its exact admission
@@ -823,14 +866,53 @@ has no such carrier and remains fenced.
 
 `OutboundQueue` replaces destructive all-at-once drain with a leased batch:
 
-1. select a bounded batch without removing it and attach a unique drain lease;
-2. group only entries carrying the exact current effect fence;
-3. under the final stream/session fence, synchronously `try_commit` each exact
-   frame/batch into its bounded connection-writer queue;
-4. acknowledge/remove only entries whose ownership was accepted by that queue;
-   network flush is asynchronous and outside the fence; and
-5. retain/release an entry when the writer queue is full or a pending marker
-   blocks it, or purge it when the authority is terminal/superseded.
+1. allow at most one active batch for the outbox, select a bounded batch without
+   removing it, attach unique drain leases, and bind an exact selection to its
+   full current effect fence;
+2. select any eligible recovery marker alone and before ordinary durable or
+   ephemeral work; otherwise group only entries admissible under the exact
+   current effect fence;
+3. for WebSocket delivery, under the final stream/session fence, exact registry
+   grant, and notifier generation, synchronously `try_commit` one frame into
+   the bounded writer queue; for HTTP, retain the bounded batch through the
+   first-body cut defined above;
+4. acknowledge/remove only entries whose complete ownership transfer was
+   accepted; network flush is asynchronous and outside every auth lock; and
+5. retain/release an entry when the writer queue is full, the response is
+   cancelled, or a pending marker blocks it; treat a coalesced replacement as
+   superseded rather than a socket failure; or purge it when its exact authority
+   is terminal/superseded.
+
+WebSocket selection is one frame, so a single live task cannot hold a large set
+of publication permits while awaiting sequential writer offers. HTTP selection
+may use the bounded batch because its complete JSON frame is acknowledged
+atomically at one body poll. Exact purge invalidates a predecessor's active
+lease binding but preserves unbound/global recovery obligations, compacts or
+charges physical queue capacity, releases every queue/room lock, and then wakes
+the currently registered generation. Lease acknowledgement/release likewise
+performs a guaranteed post-lock wake whenever eligible work remains; notifier
+contention cannot downgrade that wake to a safety-tick retry.
+
+The physical outbox ceiling and transport-handoff ceiling are separate
+64 MiB budgets. Before cloning any selected envelope or eagerly serializing an
+HTTP batch, selection charges a conservative JSON upper bound: byte arrays use
+at least their four-byte-per-element worst case, strings use the six-byte escape
+worst case, and every envelope/batch carries structural slack. Selection stops
+before the cumulative estimate crosses the handoff ceiling. If the first
+eligible candidate alone cannot fit, it is converted without cloning into its
+correctly scoped sticky overflow/recovery obligation. Thus one active batch may
+temporarily coexist with the physical queue, but its clone and serialized body
+are each independently bounded; the 64 MiB queue diagnostic is not presented
+as a bound on total handoff memory.
+
+The public embedding wrapper preserves its pre-lease compatibility contract:
+after an embedding accepts a frame into its sink, ordinary wrapper drop counts
+as acknowledgement. An embedding that could not accept the frame must call the
+explicit release operation so a later drain retries it. Snapback's built-in
+HTTP and WebSocket transports convert the wrapper to an internal leased form
+whose drop defaults to release; their cancellation/error paths therefore retry
+without requiring external cleanup. Compatibility drop-as-success is not used
+by either built-in transport.
 
 An entry with an old incarnation, grant, session, or generation never drains
 under a successor authority. Queue cleanup compares the full fence and cannot
@@ -1644,7 +1726,12 @@ wall-clock sleeps are not proof of ordering.
    publication.
 5. Begin a marker then roll it back while an outbox batch is leased. Entries are
    retained and later drain under the still-current exact fence. Terminal
-   finalize purges them. A stale cleanup cannot purge successor entries.
+   finalize purges them. A stale cleanup cannot purge successor entries. Hold a
+   predecessor HTTP batch unpolled while a successor's initial drain parks,
+   then pressure-evict, authority-mismatch-retire, and exact-purge the
+   predecessor independently. The old body emits no bytes, the successor is
+   awakened without a heartbeat, and preserved unbound/global recovery work
+   drains exactly once.
 6. For finite responses, live results, durable outbox, ephemeral effects, room
    receipts, and callback envelopes, independently pause between computation
    and commit and prove the final fence rejects old authority.
@@ -1652,6 +1739,9 @@ wall-clock sleeps are not proof of ordering.
    deployment activation, and prove the activation cannot reach its durable cut
    until the body finishes; after it finishes, require the exact durable
    authorization witness and live successor projection before new admission.
+   For a leased outbox response, revoke, reset, expire with a fake provider
+   dual clock, cancel, and coalesce between selection and first body poll. No
+   invalid batch is acknowledged or exposed, and retry preserves queue order.
    Exhaust projection sequencing and prove the committed successor stays
    closed. Change one retained authority-independent function to protected and
    remove another; both receive clear-retained terminal resyncs before reopen.
