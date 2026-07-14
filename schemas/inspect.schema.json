@@ -229,6 +229,18 @@
       ],
       "type": "string"
     },
+    "AuthorizationInputDimension": {
+      "description": "Closed caller-authority dimensions that a query result may depend on.\nRetention v1 accepts exactly `userId`; spelling the rejected dimensions is\nstill important because a manifest must describe why it is online-only\nrather than silently erasing session/provider/opaque dependence.\n\n@ref LLP 0053#retained-and-offline-authorization — retained rows survive a\n  same-user session replacement, so every other authority dimension is\n  deliberately ineligible.",
+      "enum": [
+        "userId",
+        "sessionId",
+        "provider",
+        "roles",
+        "isAuthenticated",
+        "opaque"
+      ],
+      "type": "string"
+    },
     "BinaryOp": {
       "enum": [
         "Add",
@@ -1399,6 +1411,7 @@
       "type": "string"
     },
     "FunctionDefinition": {
+      "additionalProperties": false,
       "properties": {
         "authRequirement": {
           "anyOf": [
@@ -1413,6 +1426,13 @@
         },
         "authorityIndependent": {
           "type": "boolean"
+        },
+        "authorizationDependence": {
+          "description": "Closed authority dimensions used by this result. Codegen derives the\nHostPlan value from `AuthUserId`/`authScopeField`; opaque JavaScript is\nnever upgraded merely because an author writes `userId` here.",
+          "items": {
+            "$ref": "#/$defs/AuthorizationInputDimension"
+          },
+          "type": "array"
         },
         "bundleEntrypoint": {
           "default": null,
@@ -1463,6 +1483,10 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "retainable": {
+          "description": "Results may be durably retained only when the item-8 admission profile\nvalidates this declaration and the complete read summary.\n\n@ref LLP 0053#retained-and-offline-authorization — retainability is an\n  explicit capability, never inferred from live/callable status.",
+          "type": "boolean"
         },
         "runtime": {
           "$ref": "#/$defs/FunctionRuntime"

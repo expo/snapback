@@ -813,16 +813,7 @@ fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
 ///   same-user session replacement, so every other authority dimension is
 ///   deliberately ineligible.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum AuthorizationInputDimension {
@@ -1203,8 +1194,7 @@ impl FunctionDefinition {
     /// default-deny execution profile. Ordinary finite queries remain outside
     /// it unless they opt into retention.
     pub fn is_protected_query(&self) -> bool {
-        self.retainable
-            || (self.kind == FunctionKind::LiveQuery && !self.authority_independent)
+        self.retainable || (self.kind == FunctionKind::LiveQuery && !self.authority_independent)
     }
 
     /// True only for retained results whose continued visibility is bound to
