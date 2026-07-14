@@ -9395,8 +9395,6 @@ async fn subscribe_live(
         connection: connection_act.authorization_invalidation.clone(),
         #[cfg(test)]
         session_mode: false,
-        #[cfg(test)]
-        authority_subject: None,
     };
     let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.subscribe_live_prepared_with_invalidation(&name, input, authority, invalidation)
@@ -9421,8 +9419,6 @@ async fn resume_live(
         connection: connection_act.authorization_invalidation.clone(),
         #[cfg(test)]
         session_mode: false,
-        #[cfg(test)]
-        authority_subject: None,
     };
     let output = with_snapback(&runtime.snapback, move |snapback| {
         snapback.resume_live_prepared_with_invalidation(&name, input, authority, invalidation)

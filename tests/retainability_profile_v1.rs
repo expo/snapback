@@ -42,12 +42,13 @@ fn user_scoped_query() -> FunctionDefinition {
     function
 }
 
-fn validate(function: FunctionDefinition) -> Result<(), snapback::diagnostic::SnapbackError> {
+fn validate(function: FunctionDefinition) -> Result<(), Box<snapback::diagnostic::SnapbackError>> {
     FunctionManifest {
         functions: vec![function],
         ..FunctionManifest::default()
     }
     .validate_artifact()
+    .map_err(Box::new)
 }
 
 #[test]

@@ -95,8 +95,10 @@ fn schema_version_and_auth_mode_form_a_closed_pair() {
         "SNAPBACK_CAPABILITY_UNSUPPORTED"
     );
 
-    let mut dev_claims_sessions = SchemaManifest::default();
-    dev_claims_sessions.required_capabilities = vec!["auth.sessions.v1".to_owned()];
+    let dev_claims_sessions = SchemaManifest {
+        required_capabilities: vec!["auth.sessions.v1".to_owned()],
+        ..SchemaManifest::default()
+    };
     assert_eq!(
         dev_claims_sessions
             .validate_artifact()
