@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -741,13 +741,16 @@ A leased HTTP outbox drain is deliberately not transferred when its handler
 selects or serializes the batch. The response body retains the leases,
 publication permits, exact connection act, registry, and provider clock. On its
 first ready body frame it re-enters the same stream/session publication fence,
-holds the exact registry grant current, atomically validates and acknowledges
-the complete lease set, and only then exposes bytes to the HTTP stack. Pending,
-error, cancellation, grant retirement, leaf expiry/revocation/reset, or any
-stale lease exposes no frame and releases the whole batch for retry or exact
-purge. This first-body cut uses the connection act's publication handle once;
-the registered `PreparedAuthority` contains the same non-reentrant handle and
-is not nested around it a second time.
+holds the exact registry grant current, locks the exact outbox, atomically
+validates and acknowledges the complete lease set, and only then exposes bytes
+to the HTTP stack. A projection-only response performs the same outbox cut with
+an empty lease set, so a recovery marker installed after handler selection
+still wins. Pending, error, cancellation, grant retirement, leaf
+expiry/revocation/reset, a higher-priority marker, or any stale lease exposes
+no frame and releases the whole batch for retry or exact purge. This first-body
+cut uses the connection act's publication handle once; the registered
+`PreparedAuthority` contains the same non-reentrant handle and is not nested
+around it a second time.
 
 The stream/session leaf fence composes with LLP 0058's process-local mode
 admission fence. A registered finite HTTP response retains its exact admission
@@ -883,6 +886,13 @@ has no such carrier and remains fenced.
    superseded rather than a socket failure; or purge it when its exact authority
    is terminal/superseded.
 
+Marker eligibility lasts through acknowledgement even while another response
+owns its lease. At the final HTTP or WebSocket transfer cut, an ordinary batch
+loses to any eligible marker, an exact marker loses to a later unbound marker,
+and either loses to all-authority poison. The winning recovery marker is sent
+alone. Direct authorization-invalidation projections are level-triggered and
+are deferred rather than acknowledged whenever a marker wins.
+
 WebSocket selection is one frame, so a single live task cannot hold a large set
 of publication permits while awaiting sequential writer offers. HTTP selection
 may use the bounded batch because its complete JSON frame is acknowledged
@@ -897,9 +907,16 @@ The physical outbox ceiling and transport-handoff ceiling are separate
 64 MiB budgets. Before cloning any selected envelope or eagerly serializing an
 HTTP batch, selection charges a conservative JSON upper bound: byte arrays use
 at least their four-byte-per-element worst case, strings use the six-byte escape
-worst case, and every envelope/batch carries structural slack. Selection stops
-before the cumulative estimate crosses the handoff ceiling. If the first
-eligible candidate alone cannot fit, it is converted without cloning into its
+worst case, and every envelope/batch carries structural slack. Direct
+authorization-invalidation projections and selected outbox envelopes share one
+cumulative handoff budget on both HTTP and WebSocket paths. Projection emits a
+bounded prefix and leaves the suffix level-triggered for a later drain; one
+unsplittable projection that cannot fit returns
+`SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` as HTTP 503 before any ordinary outbox
+lease is taken. Queue selection stops before the remaining estimate crosses the
+handoff ceiling. A globally valid queue entry that merely does not fit the
+projection-consumed remainder stays queued; only a first eligible candidate
+that cannot fit the full 64 MiB budget is converted without cloning into its
 correctly scoped sticky overflow/recovery obligation. Thus one active batch may
 temporarily coexist with the physical queue, but its clone and serialized body
 are each independently bounded; the 64 MiB queue diagnostic is not presented
