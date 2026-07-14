@@ -10657,6 +10657,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
         | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
@@ -11668,6 +11669,8 @@ mod tests {
                         fields: Vec::new(),
                         indexes: Vec::new(),
                         syncable: false,
+                        permission_backing: false,
+                        permission_fields: None,
                     }],
                     ..SchemaManifest::default()
                 })
@@ -11761,27 +11764,33 @@ mod tests {
             })
             .to_string()
         };
-        let public_socket: Value = serde_json::from_str(&super::handle_live_socket_text(
-            &state.ephemeral,
-            "conn-item5",
-            &socket_subscribe("public_cursors"),
-            PolicyAuthMode::Sessions,
-            false,
-            &ResolvedAppAuthority::Anonymous,
-        ))
+        let public_socket: Value = serde_json::from_str(
+            &super::handle_live_socket_text(
+                &state.ephemeral,
+                "conn-item5",
+                &socket_subscribe("public_cursors"),
+                PolicyAuthMode::Sessions,
+                false,
+                &ResolvedAppAuthority::Anonymous,
+            )
+            .text,
+        )
         .expect("public socket response");
         assert_eq!(
             public_socket["kind"], "ephemeral_ack",
             "session-mode authority-independent registration must not require body auth"
         );
-        let protected_socket: Value = serde_json::from_str(&super::handle_live_socket_text(
-            &state.ephemeral,
-            "conn-item5",
-            &socket_subscribe("private_cursors"),
-            PolicyAuthMode::Sessions,
-            false,
-            &ResolvedAppAuthority::Anonymous,
-        ))
+        let protected_socket: Value = serde_json::from_str(
+            &super::handle_live_socket_text(
+                &state.ephemeral,
+                "conn-item5",
+                &socket_subscribe("private_cursors"),
+                PolicyAuthMode::Sessions,
+                false,
+                &ResolvedAppAuthority::Anonymous,
+            )
+            .text,
+        )
         .expect("protected socket refusal");
         assert_eq!(
             protected_socket["diagnostic"]["code"], "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -11796,28 +11805,34 @@ mod tests {
             "user_id": null,
             "permissions": []
         });
-        let planted: Value = serde_json::from_str(&super::handle_live_socket_text(
-            &state.ephemeral,
-            "conn-item5",
-            &planted.to_string(),
-            PolicyAuthMode::Sessions,
-            false,
-            &ResolvedAppAuthority::Anonymous,
-        ))
+        let planted: Value = serde_json::from_str(
+            &super::handle_live_socket_text(
+                &state.ephemeral,
+                "conn-item5",
+                &planted.to_string(),
+                PolicyAuthMode::Sessions,
+                false,
+                &ResolvedAppAuthority::Anonymous,
+            )
+            .text,
+        )
         .expect("planted-auth refusal");
         assert_eq!(
             planted["diagnostic"]["code"],
             "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED"
         );
 
-        let dev_missing_auth: Value = serde_json::from_str(&super::handle_live_socket_text(
-            &state.ephemeral,
-            "conn-item5",
-            &socket_subscribe("public_cursors"),
-            PolicyAuthMode::Dev,
-            false,
-            &ResolvedAppAuthority::Anonymous,
-        ))
+        let dev_missing_auth: Value = serde_json::from_str(
+            &super::handle_live_socket_text(
+                &state.ephemeral,
+                "conn-item5",
+                &socket_subscribe("public_cursors"),
+                PolicyAuthMode::Dev,
+                false,
+                &ResolvedAppAuthority::Anonymous,
+            )
+            .text,
+        )
         .expect("dev closed-shape refusal");
         assert_eq!(
             dev_missing_auth["diagnostic"]["code"], "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
@@ -13804,6 +13819,7 @@ mod tests {
         "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
         "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
+        "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
         "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
@@ -13832,6 +13848,7 @@ mod tests {
         "SNAPBACK_AUTH_TRANSPORT_INSECURE",
         "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID",
+        "SNAPBACK_AUTH_INVALIDATION_RETIREMENT_INVALID",
         "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_TEMPDIR",
@@ -13852,6 +13869,7 @@ mod tests {
         "SNAPBACK_CRON_STATE_PARSE_FAILED",
         "SNAPBACK_CRON_STATE_SERIALIZE_FAILED",
         "SNAPBACK_DRY_RUN_LEDGER_ELIDED",
+        "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE",
         "SNAPBACK_HANDLER_HOST_CALL_HEADERS_TOO_LARGE",
         "SNAPBACK_HANDLER_HOST_CALL_PANIC",
         "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
@@ -14516,9 +14534,9 @@ globalThis.__snapbackHandlers = {
 
     use super::{
         BoundGrantAuthority, BoundSessionKey, ConnectionRegistry, ConnectionRegistryState,
-        LiveSocketClientMessage, MAX_CONNECTION_GRANTS, PreparedConnectionOpenAuthority,
-        RouteClass, RoutePolicy, live_socket_operation_name, live_socket_operations,
-        route_registry,
+        FencedPublication, LiveSocketClientMessage, MAX_CONNECTION_GRANTS,
+        PreparedConnectionOpenAuthority, RouteClass, RoutePolicy, live_socket_operation_name,
+        live_socket_operations, route_registry,
     };
     use crate::ephemeral::{
         DeleteRequest, EphemeralCollection, PublishRequest, Scope, SubscribeRequest,
