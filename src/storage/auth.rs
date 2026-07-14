@@ -631,36 +631,58 @@ impl LocalDatabase {
         })
     }
 
-    /// Produce a complete database image with SQLite's online-backup API.
-    /// The caller owns the exclusive maintenance boundary and retained
-    /// keyring bytes; this method creates only the requested new 0600 file.
-    pub(crate) fn backup_auth_catalog_to(&self, destination: &Path) -> SnapbackResult<()> {
+    /// Produce a complete database image with SQLite's online-backup API into
+    /// a caller-created staging descriptor. The caller owns the exclusive
+    /// maintenance boundary, the retained keyring bytes, and the pinned
+    /// staging identities; SQLite binds to the exact descriptor-created inode
+    /// and never reopens the staging pathname, so a swapped or symlinked
+    /// staging path can never receive source pages.
+    ///
+    /// @ref LLP 0057#consistent-backup — the staged image stays the exact
+    /// secure unit created by the command; no page is copied through a
+    /// pathname an attacker could redirect.
+    pub(crate) fn backup_auth_catalog_into(&self, image: &File) -> SnapbackResult<()> {
         require_ready_on(&self.conn)?;
-        crate::secure_file::write_new_owner_only(destination, &[])
-            .map_err(|_| backup_invalid("could not create the backup database image"))?;
-        let mut output = Connection::open_with_flags(
-            destination,
-            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
-        {
-            let backup = rusqlite::backup::Backup::new(&self.conn, &mut output)?;
-            backup.run_to_completion(128, Duration::from_millis(1), None)?;
-        }
-        // A WAL-mode bit copied from the source would make the standalone
-        // image try to create a fresh sidecar merely to open. Normalize the
-        // completed image to DELETE mode; all committed WAL pages are already
-        // folded into it by the online backup.
+        let mut output = open_backup_image_connection(image, false)?;
+        // A descriptor-bound connection has no usable sibling pathname, so
+        // the copy journals in memory: no `-journal`/`-wal` sidecar is ever
+        // created or read, which also removes the hot-journal/WAL injection
+        // surface a swapped staging directory would otherwise offer. A failed
+        // copy discards the staged inode; artifact durability comes from the
+        // explicit fsync and publication rename, not a rollback journal.
         let journal_mode: String =
-            output.query_row("PRAGMA journal_mode = DELETE", [], |row| row.get(0))?;
-        if !journal_mode.eq_ignore_ascii_case("delete") {
+            output.query_row("PRAGMA journal_mode = MEMORY", [], |row| row.get(0))?;
+        if !journal_mode.eq_ignore_ascii_case("memory") {
             return Err(backup_invalid(
                 "backup database image could not be made self-contained",
             ));
         }
+        {
+            let backup = rusqlite::backup::Backup::new(&self.conn, &mut output)?;
+            backup.run_to_completion(128, Duration::from_millis(1), None)?;
+        }
         output.close().map_err(|(_, error)| error)?;
-        File::open(destination)
-            .and_then(|file| file.sync_all())
-            .map_err(|_| backup_invalid("could not sync the backup database image"))
+        // A WAL-mode header copied from the source would make the standalone
+        // image try to create a fresh sidecar merely to open, and SQLite
+        // cannot rewrite that header through a descriptor-bound connection
+        // (leaving WAL mode requires opening the sidecar it cannot name).
+        // Normalize the completed image's format-version bytes to rollback
+        // mode directly through the pinned descriptor; all committed WAL
+        // pages are already folded into the image by the online backup.
+        normalize_backup_image_format(image)
+            .map_err(|_| backup_invalid("backup database image could not be made self-contained"))?;
+        image
+            .sync_all()
+            .map_err(|_| backup_invalid("could not sync the backup database image"))?;
+        // Prove the normalized image reopens standalone and still carries the
+        // exact ReadyV1 catalog, again without touching any pathname.
+        let check = open_backup_image_connection(image, true)?;
+        if inspect_auth_catalog_on(&check)? != AuthCatalogState::ReadyV1 {
+            return Err(backup_invalid(
+                "backup database image is not an exact ReadyV1 catalog",
+            ));
+        }
+        Ok(())
     }
 
     /// Inspect a physical backup image without configuring SQLite, opening a
@@ -707,6 +729,61 @@ fn rollback_auth_transaction<T>(
             .with_details(json!({ "sqlite": error.to_string() })),
         ),
     }
+}
+
+/// Open a SQLite connection bound to the exact open descriptor rather than a
+/// pathname. The kernel resolves `/dev/fd` (macOS) and `/proc/self/fd`
+/// (Linux) to the descriptor's inode, so no rename or symlink in the staging
+/// parent can redirect where SQLite reads or writes.
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn open_backup_image_connection(image: &File, read_only: bool) -> SnapbackResult<Connection> {
+    use std::os::fd::AsRawFd as _;
+
+    #[cfg(target_vendor = "apple")]
+    let path = format!("/dev/fd/{}", image.as_raw_fd());
+    #[cfg(target_os = "linux")]
+    let path = format!("/proc/self/fd/{}", image.as_raw_fd());
+    let flags = if read_only {
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX
+    } else {
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX
+    };
+    Ok(Connection::open_with_flags(path, flags)?)
+}
+
+#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+fn open_backup_image_connection(_image: &File, _read_only: bool) -> SnapbackResult<Connection> {
+    Err(backup_invalid(
+        "descriptor-bound backup images are unsupported on this host",
+    ))
+}
+
+/// Rewrite the image's read/write format-version bytes from WAL (2) to
+/// rollback (1) through the pinned descriptor. This performs exactly the
+/// header edit `PRAGMA journal_mode = DELETE` would apply when leaving WAL
+/// mode; the image has no WAL sidecar, so no checkpoint content exists.
+#[cfg(unix)]
+fn normalize_backup_image_format(image: &File) -> std::io::Result<()> {
+    use std::os::unix::fs::FileExt as _;
+
+    let mut versions = [0_u8; 2];
+    image.read_exact_at(&mut versions, 18)?;
+    match versions {
+        [1, 1] => Ok(()),
+        [2, 2] => image.write_all_at(&[1, 1], 18),
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "backup image carries an unrecognized format version",
+        )),
+    }
+}
+
+#[cfg(not(unix))]
+fn normalize_backup_image_format(_image: &File) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "descriptor-bound backup images are unsupported on this host",
+    ))
 }
 
 /// Install catalog v1 inside a caller-owned transaction. The caller has

@@ -116,18 +116,31 @@ pub(crate) fn create_backup(
 
     let mut temporary = TemporaryDirectory::create(output_directory, "backup", random)?;
     backup_step_completed(0)?;
-    let database_file = temporary.path.join(BACKUP_DATABASE_FILE);
+    let mut database_image = temporary
+        .create_child(OsStr::new(BACKUP_DATABASE_FILE))
+        .map_err(|_| backup_invalid("backup database image could not be created"))?;
+    backup_database_image_created();
+    // Refuse before any source page is copied if the staging path no longer
+    // names the descriptor-created database inode. SQLite itself then writes
+    // only through that pinned descriptor, so a swap that wins this race
+    // still cannot receive catalog pages.
+    // @ref LLP 0057#consistent-backup — a replaced or symlinked staging path
+    // fails before SQLite copies a page.
+    temporary.verify_child_path(OsStr::new(BACKUP_DATABASE_FILE))?;
     database
-        .backup_auth_catalog_to(&database_file)
+        .backup_auth_catalog_into(&database_image)
         .map_err(|_| backup_invalid("SQLite online backup did not complete"))?;
+    temporary.verify_child_path(OsStr::new(BACKUP_DATABASE_FILE))?;
     backup_step_completed(1)?;
 
-    let keyring_file = temporary.path.join(BACKUP_KEYRING_FILE);
-    crate::secure_file::write_new_owner_only(&keyring_file, keyring_bytes.expose_secret())
+    temporary
+        .write_child(OsStr::new(BACKUP_KEYRING_FILE), keyring_bytes.expose_secret())
         .map_err(|_| backup_invalid("backup keyring could not be written"))?;
     backup_step_completed(2)?;
 
-    let database_sha256 = sha256_path(&database_file)?;
+    // Hash the exact staged inode through its retained descriptor; the
+    // manifest can never attest bytes reached through a replaceable path.
+    let database_sha256 = sha256_file(&mut database_image)?;
     let keyring_sha256 = sha256_bytes(keyring_bytes.expose_secret());
     let manifest = AuthBackupManifest {
         format_version: BACKUP_FORMAT_VERSION,
@@ -139,22 +152,17 @@ pub(crate) fn create_backup(
         keyring_sha256,
         source_database_basename,
     };
-    crate::secure_file::write_new_owner_only(
-        &temporary.path.join(BACKUP_MANIFEST_FILE),
-        &manifest.to_bytes()?,
-    )
-    .map_err(|_| backup_invalid("backup manifest could not be written"))?;
+    temporary
+        .write_child(OsStr::new(BACKUP_MANIFEST_FILE), &manifest.to_bytes()?)
+        .map_err(|_| backup_invalid("backup manifest could not be written"))?;
     backup_step_completed(3)?;
 
-    require_exact_members(
-        &temporary.path,
-        &[
-            BACKUP_DATABASE_FILE,
-            BACKUP_KEYRING_FILE,
-            BACKUP_MANIFEST_FILE,
-        ],
-    )?;
-    sync_directory(&temporary.path)?;
+    temporary.require_exact_members(&[
+        OsString::from(BACKUP_DATABASE_FILE),
+        OsString::from(BACKUP_KEYRING_FILE),
+        OsString::from(BACKUP_MANIFEST_FILE),
+    ])?;
+    temporary.sync()?;
     backup_step_completed(4)?;
     temporary.publish(output_directory)?;
     Ok(manifest)
@@ -623,7 +631,7 @@ impl<'a> RestoreTemporaryDirectory<'a> {
             .ensure_target_absent()
             .map_err(|_| backup_invalid("restore target appeared before publication"))?;
         before_restore_staging_rename();
-        validate_pinned_restore_children(&self.directory, &self.children)
+        validate_pinned_staged_children(&self.directory, &self.children)
             .map_err(|_| backup_invalid("staged restore members changed before publication"))?;
         self.reservation
             .rename_staging_directory(&self.name, self.identity)
@@ -635,7 +643,7 @@ impl<'a> RestoreTemporaryDirectory<'a> {
         after_restore_staging_rename();
         post_restore_rename_validation_checkpoint()
             .map_err(|_| backup_invalid("published restore validation was interrupted"))?;
-        validate_pinned_restore_children(&self.directory, &self.children)
+        validate_pinned_staged_children(&self.directory, &self.children)
             .map_err(|_| backup_invalid("published restore members changed"))?;
         self.reservation
             .ensure_published_directory_identity(self.identity)
@@ -699,7 +707,7 @@ fn child_entry_matches(directory: &File, name: &std::ffi::CStr, expected: FileId
 }
 
 #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-fn validate_pinned_restore_children(
+fn validate_pinned_staged_children(
     directory: &File,
     children: &BTreeMap<OsString, FileIdentity>,
 ) -> std::io::Result<()> {
@@ -709,7 +717,7 @@ fn validate_pinned_restore_children(
     if actual != expected {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "staged restore membership changed",
+            "staged membership changed",
         ));
     }
     for (name, expected_identity) in children {
@@ -717,7 +725,7 @@ fn validate_pinned_restore_children(
         if FileIdentity::from_file(&child)? != *expected_identity {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
-                "staged restore child identity changed",
+                "staged child identity changed",
             ));
         }
     }
@@ -725,7 +733,7 @@ fn validate_pinned_restore_children(
 }
 
 #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
-fn validate_pinned_restore_children(
+fn validate_pinned_staged_children(
     _directory: &File,
     _children: &BTreeMap<OsString, FileIdentity>,
 ) -> std::io::Result<()> {
@@ -845,10 +853,22 @@ fn directory_members(_directory: &File) -> SnapbackResult<BTreeSet<OsString>> {
     ))
 }
 
+/// Backup staging pins the output parent, the staging directory, and every
+/// staged child inode. Publication renames only the exact pinned staging
+/// inode and cleanup unlinks only identities created by this backup; a
+/// substituted directory or child is left untouched and the operation fails
+/// closed.
+///
+/// @ref LLP 0057#consistent-backup — the staged artifact remains the exact
+/// secure unit created by the command from creation through publication.
 struct TemporaryDirectory {
     path: PathBuf,
     name: OsString,
     parent: PinnedDirectory,
+    directory: File,
+    identity: FileIdentity,
+    children: BTreeMap<OsString, FileIdentity>,
+    publication_attempted: bool,
     published: bool,
 }
 
@@ -874,21 +894,24 @@ impl TemporaryDirectory {
             let suffix = encode_base64url(&entropy);
             entropy.zeroize();
             let name = OsString::from(format!(".snapback-auth-{operation}-{suffix}.tmp"));
-            let candidate = parent_path.join(&name);
-            match create_owner_only_directory(&candidate) {
-                Ok(()) => {
-                    parent.revalidate()?;
+            match parent.create_staging_directory(&name) {
+                Ok((directory, identity)) => {
+                    let path = parent_path.join(&name);
                     return Ok(Self {
-                        path: candidate,
+                        path,
                         name,
                         parent,
+                        directory,
+                        identity,
+                        children: BTreeMap::new(),
+                        publication_attempted: false,
                         published: false,
                     });
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(_) => {
                     return Err(backup_invalid(
-                        "temporary artifact directory could not be created",
+                        "temporary artifact directory could not be created safely",
                     ));
                 }
             }
@@ -898,17 +921,153 @@ impl TemporaryDirectory {
         ))
     }
 
+    fn register(&mut self, name: &OsStr, identity: FileIdentity) {
+        self.children.insert(name.to_os_string(), identity);
+    }
+
+    fn create_child(&mut self, name: &OsStr) -> std::io::Result<File> {
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+            let file = create_new_owner_only_at(&self.directory, name)?;
+            let identity = FileIdentity::from_file(&file)?;
+            // Track the descriptor-created inode before any pathname check or
+            // write can fail. Drop may clean only this exact inode.
+            self.register(name, identity);
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+            crate::secure_file::validate_strict_owner_only_descriptor(&file)?;
+            let file_metadata = file.metadata()?;
+            let path_file = crate::secure_file::open_strict_owner_only(&self.path.join(name))?;
+            let path_metadata = path_file.metadata()?;
+            if (path_metadata.dev(), path_metadata.ino())
+                != (file_metadata.dev(), file_metadata.ino())
+            {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "new staged path does not name the descriptor-created inode",
+                ));
+            }
+            Ok(file)
+        }
+        #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+        {
+            let _ = name;
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "descriptor-relative backup staging is unsupported on this host",
+            ))
+        }
+    }
+
+    fn write_child(&mut self, name: &OsStr, bytes: &[u8]) -> std::io::Result<()> {
+        use std::io::Write as _;
+
+        let mut file = self.create_child(name)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        self.verify_child_path(name)
+            .map_err(|error| std::io::Error::other(error.diagnostic.message))
+    }
+
+    fn verify_child_path(&self, name: &OsStr) -> SnapbackResult<()> {
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            use std::os::unix::fs::MetadataExt as _;
+
+            self.parent.revalidate()?;
+            self.parent
+                .ensure_entry_identity(&self.name, self.identity)
+                .map_err(|_| backup_invalid("staging directory identity changed during staging"))?;
+            let descriptor = open_strict_owner_only_at(&self.directory, name)
+                .map_err(|_| backup_invalid("staged backup file is not strictly owner-only"))?;
+            let descriptor_metadata = descriptor
+                .metadata()
+                .map_err(|_| backup_invalid("staged backup file could not be inspected"))?;
+            let expected = self
+                .children
+                .get(name)
+                .ok_or_else(|| backup_invalid("staged backup file has no pinned identity"))?;
+            if FileIdentity::from_file(&descriptor)
+                .map_err(|_| backup_invalid("staged backup file identity could not be inspected"))?
+                != *expected
+            {
+                return Err(backup_invalid(
+                    "staged backup file identity changed after creation",
+                ));
+            }
+            let path = crate::secure_file::open_strict_owner_only(&self.path.join(name))
+                .map_err(|_| backup_invalid("staged backup path is not strictly owner-only"))?;
+            let path_metadata = path
+                .metadata()
+                .map_err(|_| backup_invalid("staged backup path could not be inspected"))?;
+            if (descriptor_metadata.dev(), descriptor_metadata.ino())
+                != (path_metadata.dev(), path_metadata.ino())
+            {
+                return Err(backup_invalid(
+                    "staged backup path does not name the pinned staging inode",
+                ));
+            }
+            Ok(())
+        }
+        #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+        {
+            let _ = name;
+            Err(backup_invalid(
+                "descriptor-relative backup staging is unsupported on this host",
+            ))
+        }
+    }
+
+    fn require_exact_members(&self, expected: &[OsString]) -> SnapbackResult<()> {
+        let actual = directory_members(&self.directory)?;
+        let expected = expected.iter().cloned().collect::<BTreeSet<_>>();
+        if actual != expected {
+            return Err(backup_invalid(
+                "artifact directory does not contain the exact required files",
+            ));
+        }
+        Ok(())
+    }
+
+    fn sync(&self) -> SnapbackResult<()> {
+        self.directory
+            .sync_all()
+            .map_err(|_| backup_invalid("artifact directory could not be synced"))
+    }
+
     fn publish(&mut self, destination: &Path) -> SnapbackResult<()> {
         self.parent.revalidate()?;
         let destination_name = destination
             .file_name()
-            .ok_or_else(|| backup_invalid("artifact destination has no basename"))?;
+            .ok_or_else(|| backup_invalid("artifact destination has no basename"))?
+            .to_os_string();
+        before_backup_staging_rename();
+        // Immediately before publication: the parent entry must still be the
+        // pinned staging inode and every child must be a pinned identity.
+        self.parent
+            .ensure_entry_identity(&self.name, self.identity)
+            .map_err(|_| backup_invalid("staging directory identity changed before publication"))?;
+        validate_pinned_staged_children(&self.directory, &self.children)
+            .map_err(|_| backup_invalid("staged backup members changed before publication"))?;
         crate::secure_file::rename_no_replace_in_directory(
             &self.parent.file,
             &self.name,
-            destination_name,
+            &destination_name,
         )
         .map_err(|_| backup_invalid("artifact directory could not be published"))?;
+        // From this point onward the destination may be the complete renamed
+        // unit. Any post-rename refusal is commit-ambiguous and must never
+        // strip its children through the still-open directory descriptor.
+        self.publication_attempted = true;
+        after_backup_staging_rename();
+        // Immediately after publication: the published name must still be the
+        // pinned staging inode with the exact pinned children.
+        self.parent
+            .ensure_entry_identity(&destination_name, self.identity)
+            .map_err(|_| backup_invalid("published backup directory identity changed"))?;
+        validate_pinned_staged_children(&self.directory, &self.children)
+            .map_err(|_| backup_invalid("published backup members changed"))?;
         self.published = true;
         self.parent
             .file
@@ -919,8 +1078,25 @@ impl TemporaryDirectory {
 
 impl Drop for TemporaryDirectory {
     fn drop(&mut self) {
-        if !self.published && self.parent.path_still_matches() {
-            let _ = std::fs::remove_dir_all(&self.path);
+        if self.published || self.publication_attempted {
+            return;
+        }
+        #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+        {
+            use std::os::fd::AsRawFd as _;
+            use std::os::unix::ffi::OsStrExt as _;
+
+            for (child, identity) in &self.children {
+                if let Ok(child) = std::ffi::CString::new(child.as_bytes())
+                    && child_entry_matches(&self.directory, &child, *identity)
+                {
+                    unsafe {
+                        libc::unlinkat(self.directory.as_raw_fd(), child.as_ptr(), 0);
+                    }
+                }
+            }
+            let _ = self.directory.sync_all();
+            let _ = self.parent.remove_staging_directory(&self.name, self.identity);
         }
     }
 }
@@ -972,6 +1148,155 @@ impl PinnedDirectory {
             Err(backup_invalid(
                 "artifact parent directory changed during publication",
             ))
+        }
+    }
+
+    /// Create a strictly owner-only staging directory as a direct child of
+    /// the pinned parent and return its retained descriptor and identity.
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn create_staging_directory(&self, name: &OsStr) -> std::io::Result<(File, FileIdentity)> {
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+        self.revalidate()
+            .map_err(|error| std::io::Error::other(error.diagnostic.message))?;
+        let name_c = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "staging name contains NUL")
+        })?;
+        if unsafe { libc::mkdirat(self.file.as_raw_fd(), name_c.as_ptr(), 0o700) } != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        let fd = unsafe {
+            libc::openat(
+                self.file.as_raw_fd(),
+                name_c.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0,
+            )
+        };
+        if fd < 0 {
+            let error = std::io::Error::last_os_error();
+            unsafe {
+                libc::unlinkat(self.file.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR);
+            }
+            return Err(error);
+        }
+        let directory = unsafe { File::from_raw_fd(fd) };
+        let identity = FileIdentity::from_file(&directory)?;
+        let result = (|| -> std::io::Result<()> {
+            directory.set_permissions(std::fs::Permissions::from_mode(0o700))?;
+            let metadata = directory.metadata()?;
+            // SAFETY: geteuid has no preconditions and only reads identity.
+            if !metadata.file_type().is_dir()
+                || metadata.uid() != unsafe { libc::geteuid() }
+                || metadata.permissions().mode() & 0o777 != 0o700
+            {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "staging directory is not strictly owner-only",
+                ));
+            }
+            self.revalidate()
+                .map_err(|error| std::io::Error::other(error.diagnostic.message))
+        })();
+        if let Err(error) = result {
+            let _ = self.remove_staging_directory(name, identity);
+            return Err(error);
+        }
+        Ok((directory, identity))
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    fn create_staging_directory(&self, _name: &OsStr) -> std::io::Result<(File, FileIdentity)> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "descriptor-relative backup staging is unsupported on this host",
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn stat_at(&self, name: &OsStr) -> std::io::Result<Option<libc::stat>> {
+        use std::mem::MaybeUninit;
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::ffi::OsStrExt as _;
+
+        let name = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "path name contains NUL")
+        })?;
+        let mut stat = MaybeUninit::<libc::stat>::uninit();
+        let result = unsafe {
+            libc::fstatat(
+                self.file.as_raw_fd(),
+                name.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if result == 0 {
+            return Ok(Some(unsafe { stat.assume_init() }));
+        }
+        let error = std::io::Error::last_os_error();
+        if error.kind() == std::io::ErrorKind::NotFound {
+            Ok(None)
+        } else {
+            Err(error)
+        }
+    }
+
+    /// Require the parent's directory entry `name` to be exactly the pinned
+    /// staging directory inode.
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn ensure_entry_identity(&self, name: &OsStr, expected: FileIdentity) -> std::io::Result<()> {
+        let stat = self.stat_at(name)?.ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "staged directory entry disappeared",
+            )
+        })?;
+        if stat.st_mode & libc::S_IFMT != libc::S_IFDIR || !expected.matches_stat(&stat) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "staged directory entry identity changed",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Remove the staging entry only while it is still the exact pinned
+    /// inode; a substituted object is refused and left in place.
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    fn remove_staging_directory(&self, name: &OsStr, expected: FileIdentity) -> std::io::Result<()> {
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::ffi::OsStrExt as _;
+
+        let name_c = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "staging name contains NUL")
+        })?;
+        match self.stat_at(name)? {
+            None => return Ok(()),
+            Some(stat)
+                if stat.st_mode & libc::S_IFMT == libc::S_IFDIR
+                    && expected.matches_stat(&stat) => {}
+            Some(_) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "staging directory entry identity changed; refusing cleanup",
+                ));
+            }
+        }
+        let result =
+            unsafe { libc::unlinkat(self.file.as_raw_fd(), name_c.as_ptr(), libc::AT_REMOVEDIR) };
+        if result == 0 {
+            let _ = self.file.sync_all();
+            Ok(())
+        } else {
+            let error = std::io::Error::last_os_error();
+            if error.kind() == std::io::ErrorKind::NotFound {
+                Ok(())
+            } else {
+                Err(error)
+            }
         }
     }
 
@@ -1041,12 +1366,6 @@ fn validate_owner_only_directory_io(_path: &Path) -> std::io::Result<()> {
     ))
 }
 
-fn sync_directory(path: &Path) -> SnapbackResult<()> {
-    File::open(path)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|_| backup_invalid("artifact directory could not be synced"))
-}
-
 fn backup_invalid(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_BACKUP_INVALID", "auth-backup", message)
 }
@@ -1061,11 +1380,41 @@ thread_local! {
     static AFTER_RESTORE_STAGING_RENAME: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
     static FAIL_RESTORE_POST_RENAME_VALIDATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static AFTER_BACKUP_KEYRING_CAPTURE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static AFTER_BACKUP_DATABASE_IMAGE_CREATED: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static BEFORE_BACKUP_STAGING_RENAME: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static AFTER_BACKUP_STAGING_RENAME: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
 }
 
 fn backup_keyring_captured() {
     #[cfg(test)]
     AFTER_BACKUP_KEYRING_CAPTURE.with(|slot| {
+        if let Some(operation) = slot.borrow_mut().take() {
+            operation();
+        }
+    });
+}
+
+fn backup_database_image_created() {
+    #[cfg(test)]
+    AFTER_BACKUP_DATABASE_IMAGE_CREATED.with(|slot| {
+        if let Some(operation) = slot.borrow_mut().take() {
+            operation();
+        }
+    });
+}
+
+fn before_backup_staging_rename() {
+    #[cfg(test)]
+    BEFORE_BACKUP_STAGING_RENAME.with(|slot| {
+        if let Some(operation) = slot.borrow_mut().take() {
+            operation();
+        }
+    });
+}
+
+fn after_backup_staging_rename() {
+    #[cfg(test)]
+    AFTER_BACKUP_STAGING_RENAME.with(|slot| {
         if let Some(operation) = slot.borrow_mut().take() {
             operation();
         }
@@ -1717,6 +2066,158 @@ mod tests {
         let error = restore_backup(&backup, &target, &fixture.random).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
         assert!(!target.parent().unwrap().exists());
+    }
+
+    /// ENG-24981: swap the staging directory between secure database-image
+    /// creation and the SQLite open. The replacement names an attacker
+    /// symlink at the database path; the backup must fail before any source
+    /// page is copied and no catalog byte may reach the symlink target.
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn backup_refuses_a_staging_swap_between_secure_creation_and_sqlite_open() {
+        let fixture = Fixture::new();
+        let output = fixture.parent().join("backup-creation-swap");
+        let parent = fixture.parent().to_path_buf();
+        let held = parent.join("held-original-backup-staging");
+        // An empty writable file is the exact repro shape: a pathname-opened
+        // SQLite destination would treat it as a fresh database and copy the
+        // complete auth catalog into it.
+        let attacker_target = parent.join("attacker-readable-target");
+        std::fs::write(&attacker_target, b"").unwrap();
+        let held_for_hook = held.clone();
+        let target_for_hook = attacker_target.clone();
+        AFTER_BACKUP_DATABASE_IMAGE_CREATED.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                let staging = only_temporary(&parent, ".snapback-auth-backup-");
+                std::fs::rename(&staging, &held_for_hook).unwrap();
+                std::fs::create_dir(&staging).unwrap();
+                std::os::unix::fs::symlink(
+                    &target_for_hook,
+                    staging.join(BACKUP_DATABASE_FILE),
+                )
+                .unwrap();
+                std::fs::write(staging.join("foreign-backup-sentinel"), b"survive").unwrap();
+            }));
+        });
+
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            123,
+            &fixture.random,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!output.exists(), "no replacement directory is published");
+        assert_eq!(
+            std::fs::metadata(&attacker_target).unwrap().len(),
+            0,
+            "no database bytes may reach the symlinked replacement target"
+        );
+        let replacement = only_temporary(fixture.parent(), ".snapback-auth-backup-");
+        assert_eq!(
+            std::fs::read(replacement.join("foreign-backup-sentinel")).unwrap(),
+            b"survive",
+            "cleanup must not unlink the foreign replacement"
+        );
+        let planted = std::fs::symlink_metadata(replacement.join(BACKUP_DATABASE_FILE)).unwrap();
+        assert!(planted.file_type().is_symlink());
+        assert!(held.is_dir());
+        assert_eq!(
+            std::fs::read_dir(&held).unwrap().count(),
+            0,
+            "the pinned original staging is emptied through its descriptor"
+        );
+    }
+
+    /// ENG-24981: swap the staging directory between final validation and the
+    /// publication rename. The pre-rename identity check must refuse, publish
+    /// nothing, and leave the replacement untouched.
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn backup_refuses_a_pre_rename_staging_swap_without_unlinking_replacement() {
+        let fixture = Fixture::new();
+        let output = fixture.parent().join("backup-pre-rename-swap");
+        let parent = fixture.parent().to_path_buf();
+        let held = parent.join("held-pre-rename-backup-staging");
+        let held_for_hook = held.clone();
+        BEFORE_BACKUP_STAGING_RENAME.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                let staging = only_temporary(&parent, ".snapback-auth-backup-");
+                std::fs::rename(&staging, &held_for_hook).unwrap();
+                create_owner_only_directory(&staging).unwrap();
+                std::fs::write(staging.join("foreign-directory-sentinel"), b"survive").unwrap();
+            }));
+        });
+
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            123,
+            &fixture.random,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!output.exists(), "no replacement directory is published");
+        let replacement = only_temporary(fixture.parent(), ".snapback-auth-backup-");
+        assert_eq!(
+            std::fs::read(replacement.join("foreign-directory-sentinel")).unwrap(),
+            b"survive",
+            "cleanup must not unlink the foreign replacement"
+        );
+        assert!(held.is_dir());
+        assert_eq!(
+            std::fs::read_dir(&held).unwrap().count(),
+            0,
+            "secret-bearing staged files are removed only through the pinned descriptor"
+        );
+    }
+
+    /// ENG-24981: swap the published output immediately after the rename. The
+    /// post-rename identity check must fail the operation without unlinking
+    /// the replacement, while the complete real unit survives where it moved.
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn backup_refuses_a_post_rename_output_swap_without_unlinking_replacement() {
+        let fixture = Fixture::new();
+        let output = fixture.parent().join("backup-post-rename-swap");
+        let moved_original = fixture.parent().join("moved-published-backup");
+        let output_for_hook = output.clone();
+        let moved_for_hook = moved_original.clone();
+        AFTER_BACKUP_STAGING_RENAME.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                std::fs::rename(&output_for_hook, &moved_for_hook).unwrap();
+                create_owner_only_directory(&output_for_hook).unwrap();
+                std::fs::write(output_for_hook.join("foreign-output-sentinel"), b"survive")
+                    .unwrap();
+            }));
+        });
+
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            123,
+            &fixture.random,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert_eq!(
+            std::fs::read(output.join("foreign-output-sentinel")).unwrap(),
+            b"survive",
+            "the replacement output must not be unlinked"
+        );
+        require_exact_members(
+            &moved_original,
+            &[
+                BACKUP_DATABASE_FILE,
+                BACKUP_KEYRING_FILE,
+                BACKUP_MANIFEST_FILE,
+            ],
+        )
+        .unwrap();
     }
 
     #[test]

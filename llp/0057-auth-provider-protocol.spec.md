@@ -5,7 +5,7 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
+**Revised:** 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053
 
 ## Summary
@@ -1044,17 +1044,43 @@ The backup algorithm is:
    gate. The lock order is maintenance gate, keyring, database writer.
 2. Fully validate catalog and keyring and retain the exact validated keyring
    bytes.
-3. Use SQLite's online backup API from the locked live connection into a new
-   temporary `database.sqlite3`. This folds all committed database and WAL state
-   into the destination; copying a source `-wal` file is neither necessary nor
-   permitted by this protocol.
-4. Write the captured keyring bytes to `auth-keyring.json` mode `0600`.
-5. Write a closed `backup.json` containing format version `1`, creation time,
-   catalog version, database SHA-256, keyring SHA-256, and source database
-   basename. It contains no key ids or secret bytes.
-6. `fsync` all three files and the temporary directory, rename the directory to
-   the requested output, then `fsync` its parent.
+3. Create the staging directory as a strict owner-only direct child of the
+   pinned output parent, and retain both its descriptor and its inode identity.
+   Create each staged member (`database.sqlite3`, `auth-keyring.json`,
+   `backup.json`) through that directory descriptor with `O_CREAT | O_EXCL |
+   O_NOFOLLOW`, retaining the exact descriptor-created child inode before any
+   byte is written.
+4. Run SQLite's online backup API from the locked live connection into the
+   database member **bound to its exact open descriptor**, never reopened by
+   pathname. The descriptor-bound copy journals in memory, so no `-journal` or
+   `-wal` sidecar is created or read; this folds all committed database and WAL
+   state into the destination while copying a source `-wal` file is neither
+   necessary nor permitted. The completed image's format-version header is
+   normalized to rollback mode directly through the pinned descriptor and then
+   re-opened read-only through that same descriptor to prove it is a standalone
+   `ReadyV1` catalog. A staging path that a local principal has replaced or
+   symlinked between creation and the copy fails an identity revalidation
+   before any source page is copied, so no catalog byte can reach a substituted
+   inode.
+5. Write the captured keyring bytes to `auth-keyring.json` mode `0600` and the
+   closed `backup.json` (format version `1`, creation time, catalog version,
+   database SHA-256, keyring SHA-256, source database basename; no key ids or
+   secret bytes) through their retained descriptors. Hash the database and
+   keyring for the manifest through those descriptors, never through a
+   replaceable path.
+6. `fsync` all three files and the staging directory. Immediately before the
+   publication rename, revalidate the staging-directory inode and every strict
+   owner-only child inode through the pinned descriptors; rename the exact
+   pinned staging inode to the requested output; then immediately after the
+   rename revalidate the published directory inode and child inodes again, and
+   `fsync` the parent. A swap that wins either the pre- or post-rename window
+   fails the operation closed and publishes nothing.
 7. Release locks only after publication or cleanup of the unpublished temp.
+   Cleanup unlinks only the exact descriptor-created child and staging inodes;
+   a substituted directory or child is left untouched. Once the rename has been
+   attempted the still-open directory descriptor is never used to strip
+   children, so a post-rename refusal is commit-ambiguous rather than
+   destructive.
 
 The output directory is mode `0700`; database, keyring, and manifest are `0600`.
 A full instance backup may additionally include LLP 0036 config, but the auth

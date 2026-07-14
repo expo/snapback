@@ -217,7 +217,7 @@ impl FileIdentity {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    fn matches_stat(self, stat: &libc::stat) -> bool {
+    pub(crate) fn matches_stat(self, stat: &libc::stat) -> bool {
         self == Self::from_stat(stat)
     }
 }
