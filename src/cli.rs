@@ -1659,7 +1659,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     published_server_context.host = local_addr.ip().to_string();
     published_server_context.port = local_addr.port();
     published_server_context.loopback = loopback;
-    let app = server::app(app_state);
+    let app = server::app(app_state.clone());
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
     }
@@ -1796,7 +1796,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let cron_scheduler = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         .then(|| server::spawn_cron_scheduler(state.clone()));
-    let maintenance_worker = server::spawn_maintenance_worker(state.clone(), ephemeral);
+    let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
         auth_runtime.clone(),
@@ -3503,7 +3503,7 @@ mod tests {
             .find("server::spawn_cron_scheduler(state.clone())")
             .expect("cron scheduler spawn remains explicit");
         let maintenance = source
-            .find("server::spawn_maintenance_worker(state.clone(), ephemeral)")
+            .find("server::spawn_maintenance_worker(app_state)")
             .expect("maintenance spawn remains explicit");
         let auth_gc = source
             .find("crate::auth::runtime::spawn_auth_gc_worker")

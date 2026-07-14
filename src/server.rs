@@ -2146,6 +2146,70 @@ impl ConnectionRegistry {
             .and_then(|record| record.authorization_invalidation.clone())
     }
 
+    fn resolve_room_connection_authority(
+        &self,
+        connection_id: &str,
+        coordinator: Option<&AuthCoordinator>,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<AuthContext>> {
+        let (grant_id, managed_authority, bound) = {
+            let state = self.lock();
+            let Some(record) = state.grants.get(connection_id) else {
+                return Ok(None);
+            };
+            (
+                record.grant_id.clone(),
+                record.managed_authority,
+                record.authority.clone(),
+            )
+        };
+        if !managed_authority {
+            return Ok(None);
+        }
+        let resolved = match &bound {
+            BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::Session {
+                authorization_stream_incarnation,
+                session_id,
+                user_id,
+                provider,
+                generation,
+                ..
+            } => {
+                let Some(coordinator) = coordinator else {
+                    return Ok(None);
+                };
+                let Some(resolved) = coordinator.resolve_bound_connection_session(
+                    authorization_stream_incarnation,
+                    session_id,
+                    user_id,
+                    provider,
+                    *generation,
+                    epoch_now_ms,
+                    monotonic_now,
+                )?
+                else {
+                    return Ok(None);
+                };
+                resolved
+            }
+        };
+        let current = bound
+            .publication()
+            .try_publish(epoch_now_ms, monotonic_now, || {
+                Ok(self
+                    .lock()
+                    .grants
+                    .get(connection_id)
+                    .is_some_and(|record| record.grant_id == grant_id))
+            })?;
+        if current != Some(true) {
+            return Ok(None);
+        }
+        Ok(Some(ephemeral_auth_from_authority(&resolved)))
+    }
+
     /// Verify a presented token for one connection-scoped operation. Unknown
     /// connections and token mismatches share one diagnostic code so the gate
     /// is not an existence oracle for the connection-id namespace.
@@ -4556,6 +4620,15 @@ struct RetainedAdmissionBody {
 #[derive(Clone)]
 struct RetainedRoomAuthority {
     _permits: Arc<Vec<RoomAuthorityPermit>>,
+}
+
+fn retain_room_authority(mut response: Response, permit: Option<RoomAuthorityPermit>) -> Response {
+    if let Some(permit) = permit {
+        response.extensions_mut().insert(RetainedRoomAuthority {
+            _permits: Arc::new(vec![permit]),
+        });
+    }
+    response
 }
 
 impl HttpBody for RetainedAdmissionBody {
@@ -7584,6 +7657,9 @@ pub fn router(snapback: LocalSnapback) -> Router {
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
 const CONNECTION_IDLE_TTL_MS: u64 = 120_000;
 const MAINTENANCE_INTERVAL_MS: u64 = 30_000;
+const ROOM_REAUTHORIZATION_INTERVAL_MS: u64 =
+    crate::auth::invalidation::AUTH_INVALIDATION_REFIRE_MAX_MS;
+const MAINTENANCE_TICKS_PER_SWEEP: u64 = MAINTENANCE_INTERVAL_MS / ROOM_REAUTHORIZATION_INTERVAL_MS;
 // @ref LLP 0032 L3 / LLP 0008 §Retention — keep the last N commit versions and
 // anything newer than the time window; prune the rest.
 const JOURNAL_RETAIN_VERSIONS: u64 = 10_000;
@@ -7597,22 +7673,53 @@ const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 /// global mutex.
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2, L3, L9.
-pub fn spawn_maintenance_worker(state: SharedSnapback, ephemeral: EphemeralApi) -> JoinHandle<()> {
+pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let mut ticks = interval(Duration::from_millis(MAINTENANCE_INTERVAL_MS));
+        let state = runtime.snapback.clone();
+        let ephemeral = runtime.ephemeral.clone();
+        let mut ticks = interval(Duration::from_millis(ROOM_REAUTHORIZATION_INTERVAL_MS));
+        let mut maintenance_tick = 0;
         loop {
             ticks.tick().await;
             let now = now_millis();
-            // Room-authority TTL sweep: index-driven, off the global mutex
-            // (server-side remove deltas are best effort — clients also prune
-            // by TTL, LLP 0013 §TTL and leases).
-            ephemeral.cleanup_expired(now);
+            let run_maintenance = maintenance_tick == 0;
+            maintenance_tick = (maintenance_tick + 1) % MAINTENANCE_TICKS_PER_SWEEP;
+            if run_maintenance {
+                // Room-authority TTL sweep: index-driven, off the global mutex
+                // (server-side remove deltas are best effort — clients also
+                // prune by TTL, LLP 0013 §TTL and leases).
+                ephemeral.cleanup_expired(now);
+            }
             // The journal prune is rusqlite work — off the async worker (L7).
+            let connections = runtime.connections.clone();
+            let coordinator = runtime.auth_coordinator.clone();
+            let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
             with_snapback(&state, move |snapback| {
-                snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
-                // Best-effort; a transient prune error is retried next tick.
-                let _ =
-                    snapback.prune_change_journal(now, JOURNAL_RETAIN_VERSIONS, JOURNAL_RETAIN_MS);
+                if run_maintenance {
+                    snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
+                }
+                // Room resync remains level-triggered until every exact
+                // subscriber is checked against a fresh, still-bound
+                // connection authority at or after the causing commit.
+                let _ = snapback.reauthorize_pending_ephemeral_rooms(
+                    |connection_id, _previous_auth| {
+                        connections.resolve_room_connection_authority(
+                            connection_id,
+                            coordinator.as_deref(),
+                            epoch_now_ms,
+                            monotonic_now,
+                        )
+                    },
+                );
+                if run_maintenance {
+                    // Best-effort; a transient prune error is retried on the
+                    // next ordinary maintenance sweep.
+                    let _ = snapback.prune_change_journal(
+                        now,
+                        JOURNAL_RETAIN_VERSIONS,
+                        JOURNAL_RETAIN_MS,
+                    );
+                }
             })
             .await;
         }
@@ -9282,6 +9389,49 @@ async fn live_stream(
                         ).await else {
                             break 'stream;
                         };
+                        {
+                            let Ok(_effect) = admission.effect_guard("WebSocket inbound preflight") else {
+                                break 'stream;
+                            };
+                            if connection_act
+                                .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
+                                .is_err()
+                            {
+                                break 'stream;
+                            }
+                        }
+                        let room_authorization = match authorize_live_socket_room(
+                            &runtime,
+                            &connection_id,
+                            &text,
+                            policy_mode,
+                            &connection_act.resolved,
+                            connection_act.authorization_invalidation.is_some(),
+                        )
+                        .await
+                        {
+                            Ok(room_authorization) => room_authorization,
+                            Err(response) => {
+                                if !send_live_with_admission(
+                                    &writer,
+                                    Message::Text(response.text.into()),
+                                    &admission,
+                                    response.room_authority,
+                                    &connections,
+                                    &connection_act,
+                                )
+                                .await
+                                {
+                                    break 'stream;
+                                }
+                                continue 'stream;
+                            }
+                        };
+                        let protected_auth = room_authorization
+                            .as_ref()
+                            .map(|authorization| authorization.auth.clone());
+                        let outer_room_authority =
+                            room_authorization.and_then(|authorization| authorization.permit);
                         let response = {
                             let Ok(_effect) = admission.effect_guard("WebSocket inbound act") else {
                                 break 'stream;
@@ -9290,13 +9440,14 @@ async fn live_stream(
                                 &connections,
                                 now_millis(),
                                 Instant::now(),
-                                || Ok(handle_live_socket_text(
+                                || Ok(handle_live_socket_text_authorized(
                                     &ephemeral,
                                     &connection_id,
                                     &text,
                                     policy_mode,
                                     authorization_invalidation_ready,
                                     &connection_act.resolved,
+                                    protected_auth,
                                 )),
                             ) else {
                                 break 'stream;
@@ -9307,7 +9458,7 @@ async fn live_stream(
                             &writer,
                             Message::Text(response.text.into()),
                             &admission,
-                            response.room_authority,
+                            response.room_authority.or(outer_room_authority),
                             &connections,
                             &connection_act,
                         ).await {
@@ -9728,7 +9879,126 @@ fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContex
     }
 }
 
+struct BoundRoomAuthorization {
+    auth: AuthContext,
+    permit: Option<RoomAuthorityPermit>,
+}
+
+/// Convert freshly bound connection authority into a durable room grant, then
+/// acquire the room permit and verify that the authenticated epoch observed by
+/// the read is still current. Commit preparation closes every new permit; a
+/// committed interlock publishes the successor epoch before reopening them.
+async fn authorize_bound_ephemeral_room(
+    runtime: &AppState,
+    collection: &str,
+    scope: &Scope,
+    base_auth: AuthContext,
+    invalidation_negotiated: bool,
+) -> Result<BoundRoomAuthorization, ApiError> {
+    if !runtime
+        .ephemeral
+        .collection_requires_room_permission(collection)
+    {
+        return Ok(BoundRoomAuthorization {
+            auth: base_auth,
+            permit: None,
+        });
+    }
+    if !invalidation_negotiated {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+            "auth",
+            "protected room operations require authInvalidationProtocol: 1",
+        )));
+    }
+    let issuer = runtime.auth_invalidation.clone().ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+            "auth",
+            "protected room authority requires an authenticated invalidation issuer",
+        ))
+    })?;
+    for _ in 0..3 {
+        let collection_name = collection.to_owned();
+        let room_scope = scope.clone();
+        let candidate = base_auth.clone();
+        let (auth, observed) = with_snapback(&runtime.snapback, move |snapback| {
+            snapback.authorize_ephemeral_room_observed(&collection_name, &room_scope, candidate)
+        })
+        .await?;
+        let permit = runtime
+            .ephemeral
+            .begin_server_authorized_room_act(collection, scope)
+            .map_err(ApiError::from_ephemeral)?
+            .ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "protected room did not publish a room-authority permit",
+                ))
+            })?;
+        if issuer.authorization_expectation()? == observed {
+            return Ok(BoundRoomAuthorization {
+                auth,
+                permit: Some(permit),
+            });
+        }
+        drop(permit);
+    }
+    Err(ApiError::from(SnapbackError::error(
+        "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
+        "ephemeral",
+        "room authority changed while its durable permission was being resolved",
+    )))
+}
+
 impl SessionLiveSocketClientMessage {
+    fn room_target(&self) -> Option<(Option<String>, &'static str, &str, &Scope, &str)> {
+        match self {
+            Self::EphemeralSubscribe {
+                request_id,
+                request,
+            } => Some((
+                request_id.clone(),
+                "subscribe",
+                &request.collection,
+                &request.scope,
+                &request.connection_id,
+            )),
+            Self::EphemeralPublish {
+                request_id,
+                request,
+            } => Some((
+                request_id.clone(),
+                "publish",
+                &request.collection,
+                &request.scope,
+                &request.connection_id,
+            )),
+            Self::EphemeralDelete {
+                request_id,
+                request,
+            } => Some((
+                request_id.clone(),
+                "delete",
+                &request.collection,
+                &request.scope,
+                &request.connection_id,
+            )),
+            Self::EphemeralUnsubscribe {
+                request_id,
+                request,
+            } => Some((
+                request_id.clone(),
+                "unsubscribe",
+                &request.collection,
+                &request.scope,
+                &request.connection_id,
+            )),
+            Self::Ping { .. } => None,
+        }
+    }
+
     fn resolve(self, authority: &ResolvedAppAuthority) -> LiveSocketClientMessage {
         let auth = ephemeral_auth_from_authority(authority);
         match self {
@@ -9793,6 +10063,55 @@ impl SessionLiveSocketClientMessage {
     }
 }
 
+async fn authorize_live_socket_room(
+    runtime: &AppState,
+    connection_id: &str,
+    text: &str,
+    policy_mode: PolicyAuthMode,
+    authority: &ResolvedAppAuthority,
+    invalidation_negotiated: bool,
+) -> Result<Option<BoundRoomAuthorization>, LiveSocketResponse> {
+    if policy_mode != PolicyAuthMode::Sessions {
+        return Ok(None);
+    }
+    let Ok(message) = serde_json::from_str::<SessionLiveSocketClientMessage>(text) else {
+        return Ok(None);
+    };
+    let Some((request_id, operation, collection, scope, frame_connection)) = message.room_target()
+    else {
+        return Ok(None);
+    };
+    if frame_connection != connection_id
+        || !runtime
+            .ephemeral
+            .collection_requires_room_permission(collection)
+    {
+        return Ok(None);
+    }
+    if !invalidation_negotiated {
+        return Err(socket_error(
+            request_id,
+            operation,
+            Diagnostic::error(
+                "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                "auth",
+                "protected room operations require authInvalidationProtocol: 1",
+            ),
+        )
+        .into());
+    }
+    authorize_bound_ephemeral_room(
+        runtime,
+        collection,
+        scope,
+        ephemeral_auth_from_authority(authority),
+        true,
+    )
+    .await
+    .map(Some)
+    .map_err(|error| socket_error(request_id, operation, error.0.diagnostic).into())
+}
+
 /// Handle a socket-text operation. Ephemeral operations reach the room
 /// authority directly — a busy mutation holding the global write mutex cannot
 /// delay a cursor publish on this socket (LLP 0032 L9).
@@ -9817,6 +10136,26 @@ fn handle_live_socket_text(
     policy_mode: PolicyAuthMode,
     authorization_invalidation_ready: bool,
     authority: &ResolvedAppAuthority,
+) -> LiveSocketResponse {
+    handle_live_socket_text_authorized(
+        ephemeral,
+        connection_id,
+        text,
+        policy_mode,
+        authorization_invalidation_ready,
+        authority,
+        None,
+    )
+}
+
+fn handle_live_socket_text_authorized(
+    ephemeral: &EphemeralApi,
+    connection_id: &str,
+    text: &str,
+    policy_mode: PolicyAuthMode,
+    authorization_invalidation_ready: bool,
+    authority: &ResolvedAppAuthority,
+    protected_auth: Option<AuthContext>,
 ) -> LiveSocketResponse {
     if text.len() > MAX_LIVE_SOCKET_FRAME_BYTES {
         return socket_error(
@@ -9871,7 +10210,7 @@ fn handle_live_socket_text(
         }
         PolicyAuthMode::Dev => serde_json::from_value::<LiveSocketClientMessage>(raw.clone()),
     };
-    let message = match decoded {
+    let mut message = match decoded {
         Ok(message) => message,
         Err(error) => {
             return socket_error(
@@ -9887,6 +10226,21 @@ fn handle_live_socket_text(
             .into();
         }
     };
+    if let Some(auth) = protected_auth {
+        match &mut message {
+            LiveSocketClientMessage::EphemeralSubscribe { request, .. }
+            | LiveSocketClientMessage::EphemeralUnsubscribe { request, .. } => {
+                request.auth = auth;
+            }
+            LiveSocketClientMessage::EphemeralPublish { request, .. } => {
+                request.auth = auth;
+            }
+            LiveSocketClientMessage::EphemeralDelete { request, .. } => {
+                request.auth = auth;
+            }
+            LiveSocketClientMessage::Ping { .. } => {}
+        }
+    }
     let operation_name = live_socket_operation_name(&message);
     let operation = operation_by_name(operation_name)
         .expect("every decoded live-socket variant must have registered policy");
@@ -9932,41 +10286,6 @@ fn handle_live_socket_text(
                 "auth-scoped live work is unavailable until authorization invalidation is ready",
             )
             .with_details(json!({ "capability": "authScopedLive" })),
-        )
-        .into();
-    }
-
-    let protected_collection = match &message {
-        LiveSocketClientMessage::EphemeralSubscribe { request, .. }
-        | LiveSocketClientMessage::EphemeralUnsubscribe { request, .. } => {
-            Some(request.collection.as_str())
-        }
-        LiveSocketClientMessage::EphemeralPublish { request, .. } => {
-            Some(request.collection.as_str())
-        }
-        LiveSocketClientMessage::EphemeralDelete { request, .. } => {
-            Some(request.collection.as_str())
-        }
-        LiveSocketClientMessage::Ping { .. } => None,
-    };
-    // The dependency-indexed two-phase room barrier is a mandatory part of
-    // item 6, not something a negotiated durable-query protocol may imply.
-    // Until the server composes fresh bound authority into that barrier,
-    // protected room operations remain fail-closed in sessions mode.
-    // @ref LLP 0053#ephemeral-room-authority-invalidation — a protected room
-    // may not cross a sink without the generation permit published at commit.
-    if policy_mode == PolicyAuthMode::Sessions
-        && protected_collection
-            .is_some_and(|collection| ephemeral.collection_requires_room_permission(collection))
-    {
-        return socket_error(
-            live_socket_request_id(&message),
-            operation_name,
-            Diagnostic::error(
-                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-                "auth",
-                "protected ephemeral rooms require the two-phase room-authority invalidation barrier",
-            ),
         )
         .into();
     }
@@ -10419,18 +10738,37 @@ async fn publish_ephemeral(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     request: Result<Json<WirePublishRequest>, JsonRejection>,
-) -> Result<Json<crate::ephemeral::PublishOutcome>, ApiError> {
+) -> Result<Response, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
-    let request = request.resolve(runtime.active_policy_auth_mode(), authority.resolved())?;
+    let policy_mode = runtime.active_policy_auth_mode();
+    let mut request = request.resolve(policy_mode, authority.resolved())?;
+    let room_authority = if policy_mode == PolicyAuthMode::Sessions {
+        let authorized = authorize_bound_ephemeral_room(
+            &runtime,
+            &request.collection,
+            &request.scope,
+            request.auth.clone(),
+            connection_act.authorization_invalidation.is_some(),
+        )
+        .await?;
+        request.auth = authorized.auth;
+        authorized.permit
+    } else {
+        None
+    };
     let _effect = admission.effect_guard("ephemeral publish")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
-        runtime
-            .ephemeral
-            .publish(request, epoch_now_ms)
-            .map(Json)
-            .map_err(ApiError::from_ephemeral)
-    })
+    let output =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            runtime
+                .ephemeral
+                .publish(request, epoch_now_ms)
+                .map_err(ApiError::from_ephemeral)
+        })?;
+    Ok(retain_room_authority(
+        Json(output).into_response(),
+        room_authority,
+    ))
 }
 
 async fn subscribe_ephemeral(
@@ -10439,18 +10777,37 @@ async fn subscribe_ephemeral(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     request: Result<Json<WireSubscribeRequest>, JsonRejection>,
-) -> Result<Json<crate::ephemeral::EphemeralMessage>, ApiError> {
+) -> Result<Response, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
-    let request = request.resolve(runtime.active_policy_auth_mode(), authority.resolved())?;
+    let policy_mode = runtime.active_policy_auth_mode();
+    let mut request = request.resolve(policy_mode, authority.resolved())?;
+    let room_authority = if policy_mode == PolicyAuthMode::Sessions {
+        let authorized = authorize_bound_ephemeral_room(
+            &runtime,
+            &request.collection,
+            &request.scope,
+            request.auth.clone(),
+            connection_act.authorization_invalidation.is_some(),
+        )
+        .await?;
+        request.auth = authorized.auth;
+        authorized.permit
+    } else {
+        None
+    };
     let _effect = admission.effect_guard("ephemeral subscribe")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
-        runtime
-            .ephemeral
-            .subscribe(request, epoch_now_ms)
-            .map(Json)
-            .map_err(ApiError::from_ephemeral)
-    })
+    let output =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            runtime
+                .ephemeral
+                .subscribe(request, epoch_now_ms)
+                .map_err(ApiError::from_ephemeral)
+        })?;
+    Ok(retain_room_authority(
+        Json(output).into_response(),
+        room_authority,
+    ))
 }
 
 async fn delete_ephemeral(
@@ -10459,18 +10816,37 @@ async fn delete_ephemeral(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     request: Result<Json<WireDeleteRequest>, JsonRejection>,
-) -> Result<Json<Option<crate::ephemeral::EphemeralMessage>>, ApiError> {
+) -> Result<Response, ApiError> {
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
-    let request = request.resolve(runtime.active_policy_auth_mode(), authority.resolved())?;
+    let policy_mode = runtime.active_policy_auth_mode();
+    let mut request = request.resolve(policy_mode, authority.resolved())?;
+    let room_authority = if policy_mode == PolicyAuthMode::Sessions {
+        let authorized = authorize_bound_ephemeral_room(
+            &runtime,
+            &request.collection,
+            &request.scope,
+            request.auth.clone(),
+            connection_act.authorization_invalidation.is_some(),
+        )
+        .await?;
+        request.auth = authorized.auth;
+        authorized.permit
+    } else {
+        None
+    };
     let _effect = admission.effect_guard("ephemeral delete")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
-        runtime
-            .ephemeral
-            .delete(request, epoch_now_ms)
-            .map(Json)
-            .map_err(ApiError::from_ephemeral)
-    })
+    let output =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            runtime
+                .ephemeral
+                .delete(request, epoch_now_ms)
+                .map_err(ApiError::from_ephemeral)
+        })?;
+    Ok(retain_room_authority(
+        Json(output).into_response(),
+        room_authority,
+    ))
 }
 
 /// Connection teardown is instance control (it tears down the connection *and*

@@ -2161,6 +2161,11 @@ struct EphemeralShared {
     /// registry mutex is held across SQLite commit; pending tickets are
     /// level-triggered barriers observed by every sink.
     room_authority: Arc<RoomAuthorityRegistry>,
+    /// The same authenticated issuer exposed by the handshake. Advancing its
+    /// expectation before removing a committed all-room dependency closes the
+    /// new-room window: a room absent at prepare sees either the global ticket
+    /// or the successor epoch, never a predecessor grant under a fresh control.
+    authorization_issuer: StdMutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>,
 }
 
 /// The local-memory implementation of the LLP 0013 `EphemeralBackend`
@@ -2199,6 +2204,8 @@ impl PreparedAuthorizationCommit for PreparedRoomAuthorizationCommit {
         // is known committed. A failed finalization therefore leaves the
         // exact dependency ticket pending and every protected sink closed.
         self.rollback_on_drop = false;
+        self.backend
+            .publish_committed_authorization(self.authorization.clone())?;
         self.backend.finalize_room_authorization_event(
             &self.ticket,
             self.authorization.clone(),
@@ -2267,7 +2274,29 @@ impl LocalEphemeralBackend {
                 limits,
                 delivery: Arc::new(DeliveryNotifier::default()),
                 room_authority: Arc::new(RoomAuthorityRegistry::default()),
+                authorization_issuer: StdMutex::new(None),
             }),
+        }
+    }
+
+    pub(crate) fn install_authorization_issuer(
+        &self,
+        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+    ) {
+        *lock(&self.shared.authorization_issuer) = Some(issuer);
+    }
+
+    fn publish_committed_authorization(
+        &self,
+        authorization: AuthorizationVersion,
+    ) -> SnapbackResult<()> {
+        let issuer = lock(&self.shared.authorization_issuer).clone();
+        match issuer {
+            Some(issuer) => issuer.install_authorization_expectation(authorization),
+            // Standalone room-backend tests and dev embeddings intentionally
+            // omit the persistent issuer; their interlock still exercises the
+            // exact ticket protocol but exposes no session transport.
+            None => Ok(()),
         }
     }
 
@@ -2285,6 +2314,20 @@ impl LocalEphemeralBackend {
             room: room_id.clone(),
             generation,
         }))
+    }
+
+    /// Acquire the outer transport permit used while a server-derived durable
+    /// permission is converted into an in-memory room act. The ordinary room
+    /// operation acquires its own inner permit; this outer permit closes the
+    /// read-to-registration gap and may be retained through final transport.
+    pub(crate) fn begin_server_authorized_room_act(
+        &self,
+        collection_name: &str,
+        scope: &Scope,
+    ) -> Result<Option<RoomAuthorityPermit>, EphemeralError> {
+        let collection = self.collection(collection_name)?;
+        let room_id = room_id_for(&collection, scope)?;
+        self.begin_room_authority_act(&collection, &room_id)
     }
 
     /// Install one conservative all-protected-room dependency ticket and wait
@@ -3463,15 +3506,23 @@ impl LocalEphemeralBackend {
             && !subscribed_rooms.is_empty()
             && self.shared.delivery.is_registered(connection_id)
         {
+            // Capture the authority generation before taking the outbox lock.
+            // Final-send drains take the opposite, canonical order
+            // (room-authority registry, then outbox), so looking it up from
+            // inside `push_resync` would admit an ABBA deadlock.
+            let subscribed_rooms = subscribed_rooms
+                .into_iter()
+                .map(|(room, scope_epoch)| {
+                    let generation = self.shared.room_authority.current_generation(&room);
+                    (room, scope_epoch, generation)
+                })
+                .collect::<Vec<_>>();
             let outbox = self.ensure_outbox(connection_id);
             {
                 let mut outbox = lock(&outbox);
-                for (room, scope_epoch) in subscribed_rooms {
+                for (room, scope_epoch, room_authority_generation) in subscribed_rooms {
                     let result = outbox.push_resync(Arc::new(EphemeralMessage::ResyncRequired {
-                        room_authority_generation: self
-                            .shared
-                            .room_authority
-                            .current_generation(&room),
+                        room_authority_generation,
                         room,
                         scope_epoch,
                         reason: ResyncReason::Disconnected,
@@ -3976,16 +4027,20 @@ impl LocalEphemeralBackend {
                     .retained_bytes
                     .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
             }
-            for connection_id in room.subscribers.keys() {
+            let scope_epoch = room.scope_epoch;
+            let subscribers = room.subscribers.keys().cloned().collect::<Vec<_>>();
+            drop(room);
+            // Prepare/final-send uses authority-registry before room state.
+            // Read the generation only after releasing the room lock to keep
+            // that global order during a destructive epoch wipe too.
+            let room_authority_generation = self.shared.room_authority.current_generation(&room_id);
+            for connection_id in subscribers {
                 resyncs.push((
-                    connection_id.clone(),
+                    connection_id,
                     EphemeralMessage::ResyncRequired {
-                        room_authority_generation: self
-                            .shared
-                            .room_authority
-                            .current_generation(&room_id),
+                        room_authority_generation,
                         room: room_id.clone(),
-                        scope_epoch: room.scope_epoch,
+                        scope_epoch,
                         reason: reason.clone(),
                     },
                 ));

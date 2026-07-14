@@ -1402,6 +1402,16 @@ impl EphemeralApi {
         self.store.collection_requires_room_permission(name)
     }
 
+    pub(crate) fn begin_server_authorized_room_act(
+        &self,
+        collection: &str,
+        scope: &crate::ephemeral::Scope,
+    ) -> Result<Option<crate::ephemeral::RoomAuthorityPermit>, crate::ephemeral::EphemeralError>
+    {
+        self.store
+            .begin_server_authorized_room_act(collection, scope)
+    }
+
     // Touch-after-success (MEDIUM finding 2): the activity touch happens
     // *after* the store op registers/enqueues, so a registration that
     // survives a racing write-lane `disconnect` (which removes activity
@@ -2075,11 +2085,12 @@ impl LocalSnapback {
             issuer_id: Some(issuer.authenticated().issuer_id.clone()),
         })?;
         self.auth_invalidation = Some(LocalInvalidationState {
-            issuer,
+            issuer: issuer.clone(),
             obligations,
             version_stream,
             next_cause_sequence: 1,
         });
+        self.ephemeral.install_authorization_issuer(issuer);
         self.db
             .install_authorization_interlock(Arc::new(self.ephemeral.clone()));
         Ok(())
@@ -5937,6 +5948,20 @@ impl LocalSnapback {
         scope: &crate::ephemeral::Scope,
         base_auth: AuthContext,
     ) -> SnapbackResult<AuthContext> {
+        self.authorize_ephemeral_room_observed(collection_name, scope, base_auth)
+            .map(|(auth, _)| auth)
+    }
+
+    /// Resolve one protected room permission together with the exact
+    /// authorization epoch observed by the durable read. The transport uses
+    /// that witness after acquiring its room permit: equality linearizes the
+    /// read before a later commit, while drift forces a fresh read.
+    pub(crate) fn authorize_ephemeral_room_observed(
+        &self,
+        collection_name: &str,
+        scope: &crate::ephemeral::Scope,
+        base_auth: AuthContext,
+    ) -> SnapbackResult<(AuthContext, crate::storage::AuthorizationVersion)> {
         let collection = self
             .ephemeral
             .collection_definition(collection_name)
@@ -5951,7 +5976,19 @@ impl LocalSnapback {
             .ephemeral
             .collection_requires_room_permission(collection_name)
         {
-            return Ok(base_auth);
+            let authorization = self
+                .auth_invalidation
+                .as_ref()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                        "auth",
+                        "room authorization requires installed invalidation state",
+                    )
+                })?
+                .issuer
+                .authorization_expectation()?;
+            return Ok((base_auth, authorization));
         }
         let projection = collection.permission_backing.as_ref().ok_or_else(|| {
             SnapbackError::error(
@@ -5972,7 +6009,22 @@ impl LocalSnapback {
                 "durable room permission was denied",
             ));
         }
-        Ok(collection.grant_projected_room_permission(base_auth, scope))
+        let authorization = self
+            .auth_invalidation
+            .as_ref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "protected room authorization requires installed invalidation state",
+                )
+            })?
+            .issuer
+            .authorization_expectation()?;
+        Ok((
+            collection.grant_projected_room_permission(base_auth, scope),
+            authorization,
+        ))
     }
 
     pub(crate) fn reauthorize_pending_ephemeral_rooms<Resolve>(
