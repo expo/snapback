@@ -2480,3 +2480,125 @@ async fn connection_carriers_are_authenticated_before_any_body_inspection() {
         );
     }
 }
+
+/// ENG-24988 acceptance: an unterminated chunked request body admitted under
+/// the managed-route gate must not be able to force an auth-mode transition
+/// into `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT`, and must not be able to
+/// repeat that starvation against the reopened epoch. The refusal arrives as
+/// an ordinary HTTP response on the still-open connection; the client never
+/// has to disconnect for the admission root to be released.
+// @ref LLP 0058#admitted-body-ingestion — epoch close cancels admitted body
+// buffering, so every activation attempt drains well below the 30000 ms
+// quiescence deadline.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let state = sessions_runtime(AppState::detached(runner_fixture()));
+    let controller = state.auth_admission_controller();
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind quiescence starvation server");
+    let addr = listener.local_addr().expect("quiescence server address");
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app(state))
+            .await
+            .expect("serve quiescence starvation app");
+    });
+
+    // Two rounds: the second proves a fresh slow body admitted under the
+    // reopened epoch cannot starve the next activation attempt either.
+    for round in 0..2u32 {
+        let mut slow_client = tokio::net::TcpStream::connect(addr)
+            .await
+            .expect("connect slow public client");
+        // A registered public POST with the required auth-client protocol
+        // offer and a chunked body that never terminates.
+        slow_client
+            .write_all(
+                b"POST /auth/request-code HTTP/1.1\r\n\
+                  host: quiescence-probe\r\n\
+                  content-type: application/json\r\n\
+                  x-snapback-auth-client-protocol: 1\r\n\
+                  transfer-encoding: chunked\r\n\
+                  \r\n\
+                  6\r\n\
+                  {\"emai\r\n",
+            )
+            .await
+            .expect("send unterminated chunked prefix");
+
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while controller.snapshot().in_flight == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            panic!("round {round}: slow body never acquired a managed admission root")
+        });
+
+        // Attempt the mode transition while the slow body owns an admission
+        // root. It must quiesce promptly instead of burning the entire
+        // 30000 ms barrier and returning SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT.
+        let attempted = Instant::now();
+        let transition = controller
+            .begin_transition_async(|| Ok(()))
+            .await
+            .unwrap_or_else(|error| {
+                panic!(
+                    "round {round}: a slow public body forced the transition to fail: {error:?}"
+                )
+            });
+        let waited = attempted.elapsed();
+        assert!(
+            waited < Duration::from_secs(10),
+            "round {round}: quiescence consumed {waited:?}; the slow body was not cancelled"
+        );
+
+        // The slow client stays connected and receives the refusal response.
+        let mut response = Vec::new();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut chunk = [0u8; 4096];
+            loop {
+                let read = slow_client
+                    .read(&mut chunk)
+                    .await
+                    .expect("read refusal response");
+                if read == 0 {
+                    break;
+                }
+                response.extend_from_slice(&chunk[..read]);
+                if response.windows(4).any(|window| window == b"\r\n\r\n")
+                    && String::from_utf8_lossy(&response).contains("SNAPBACK_AUTH_MODE_PENDING")
+                {
+                    break;
+                }
+            }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            panic!("round {round}: no refusal response reached the still-open connection")
+        });
+        let response = String::from_utf8_lossy(&response);
+        assert!(
+            response.starts_with("HTTP/1.1 503"),
+            "round {round}: unexpected refusal head: {response}"
+        );
+        assert!(
+            response.contains("SNAPBACK_AUTH_MODE_PENDING"),
+            "round {round}: unexpected refusal body: {response}"
+        );
+
+        let reopened = transition
+            .abort_and_reopen()
+            .expect("reopen the unchanged generation for the next round");
+        assert!(reopened.accepting, "round {round}: epoch must reopen");
+        assert_eq!(
+            reopened.in_flight, 0,
+            "round {round}: reopened epoch must start drained"
+        );
+    }
+
+    server.abort();
+}

@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0059, LLP 0060
 
 ## Summary
@@ -111,6 +111,7 @@ reject duplicate keys and unknown fields.
 | Authority descriptor protocol header | `x-snapback-authority-descriptor-protocol` |
 | Authorized lease protocol header | `x-snapback-authorized-lease-protocol` |
 | Mode quiescence deadline | `30000` monotonic milliseconds |
+| Admitted body ingest deadline | `20000` monotonic milliseconds |
 
 The poison value above is the complete JSON string encoding, including its two
 double-quote bytes and with **no trailing newline**. It is deliberately valid
@@ -576,6 +577,30 @@ During `pendingRestart` or `quarantined`:
 - privileged `provision` is the sole schema correction/re-stage branch and
   still runs complete preflight before hashes or effects; and
 - no generic admin, host-op, or handler-local bypass exists.
+
+### Admitted body ingestion
+
+The quiescence deadline is only meaningful when every finite admission root
+has a client-independent bound. Request-body ingestion is the one segment of
+an admitted HTTP invocation whose duration a remote client controls directly,
+so the managed-route gate wraps the request body at admission time:
+
+- Ingestion carries a monotonic deadline of exactly `20000` milliseconds,
+  strictly below the quiescence deadline, measured from root admission. A
+  body that has not finished arriving by the deadline is refused with
+  `SNAPBACK_REQUEST_BODY_TIMEOUT` (408) and the admission root is released.
+- Closing or retiring the admitted epoch cancels in-flight body buffering
+  immediately: the request is refused with `SNAPBACK_AUTH_MODE_PENDING`, the
+  refusal is delivered as an ordinary HTTP response on the still-open
+  connection, and the admission root is released without waiting for the
+  client to disconnect or finish sending.
+
+Together these bound a transition's drain wait by work the process itself
+performs: a public client holding an unterminated chunked body can neither
+force `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` nor repeat that starvation
+against the reopened epoch. The policy-gate size bound and its
+`SNAPBACK_VALUE_TOO_LARGE` refusal are unchanged; a body refused for size is
+still reported as too large, never as a deadline failure.
 
 ### Cold startup artifact carrier
 
@@ -1344,6 +1369,7 @@ pins the producer semantics and safe-detail boundary.
 | --- | --- |
 | `SNAPBACK_AUTH_MODE_PENDING` | 503 for ordinary app data/Public attest while pending or quarantined |
 | `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` | stage-time; exact 30000 ms monotonic barrier expired, retired work was cancelled, and durable state is unchanged |
+| `SNAPBACK_REQUEST_BODY_TIMEOUT` | 408; an admitted request body did not finish arriving within the 20000 ms ingest deadline |
 | `SNAPBACK_AUTH_MODE_DOWNGRADE` | pre-bind refusal when a sessions-to-dev consume lacks the explicit flag |
 | `SNAPBACK_AUTH_MODE_STATE_CORRUPT` | startup; four-key or record invariant failed; no quarantine or durable write |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | pre-bind; settled/pending sessions needs the single carrier |

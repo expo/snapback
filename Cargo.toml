@@ -50,5 +50,8 @@ windows-sys = { version = "0.61.2", features = [
 jsonschema = "0.46.8"
 syn = { version = "2.0", features = ["full", "visit"] }
 tempfile = "3.23"
+# test-util enables tokio's paused clock so the admitted-body ingest deadline
+# (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.
+tokio = { version = "1.48", features = ["full", "test-util"] }
 tokio-tungstenite = "0.29"
 tower = { version = "0.5", features = ["util"] }

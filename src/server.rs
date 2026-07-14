@@ -4217,6 +4217,155 @@ async fn peek_policy_json_body(
     Ok((Request::from_parts(parts, Body::from(bytes)), value))
 }
 
+/// Monotonic deadline for ingesting the body of a request that holds a
+/// managed admission root. It is deliberately strictly below the auth-mode
+/// quiescence deadline so every admitted finite HTTP request leaves the epoch
+/// before staging's drain barrier can expire.
+// @ref LLP 0058#admitted-body-ingestion — exact 20000 ms bound, strictly
+// below the 30000 ms quiescence deadline (ENG-24988).
+const ADMITTED_BODY_INGEST_DEADLINE_MS: u64 = 20_000;
+const _: () = assert!(
+    ADMITTED_BODY_INGEST_DEADLINE_MS
+        < crate::auth::admission::AUTH_MODE_QUIESCENCE_TIMEOUT_MS
+);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AdmittedBodyTripReason {
+    /// The monotonic ingest deadline elapsed before the body finished.
+    DeadlineExceeded,
+    /// The admitted epoch stopped accepting (staging closed or retired it)
+    /// while the body was still arriving.
+    AdmissionClosed,
+}
+
+/// Shared record of whether guarded ingestion actually surfaced a refusal.
+/// The middleware consults it to publish the canonical diagnostic instead of
+/// whatever shape error a downstream extractor derived from the cut body.
+#[derive(Default)]
+struct AdmittedBodyTrip(OnceLock<AdmittedBodyTripReason>);
+
+impl AdmittedBodyTrip {
+    fn reason(&self) -> Option<AdmittedBodyTripReason> {
+        self.0.get().copied()
+    }
+
+    fn record(&self, reason: AdmittedBodyTripReason) -> AdmittedBodyTripReason {
+        let _ = self.0.set(reason);
+        self.reason().expect("admitted body trip was just recorded")
+    }
+}
+
+fn admitted_body_trip_error(reason: AdmittedBodyTripReason) -> SnapbackError {
+    match reason {
+        AdmittedBodyTripReason::DeadlineExceeded => SnapbackError::error(
+            "SNAPBACK_REQUEST_BODY_TIMEOUT",
+            "server",
+            "request body was not received within the admitted ingest deadline",
+        )
+        .with_details(json!({ "deadlineMs": ADMITTED_BODY_INGEST_DEADLINE_MS })),
+        AdmittedBodyTripReason::AdmissionClosed => SnapbackError::error(
+            "SNAPBACK_AUTH_MODE_PENDING",
+            "auth",
+            "request body ingestion was cancelled because app-data admission closed for an auth-mode transition",
+        ),
+    }
+}
+
+/// Request-body wrapper for invocations holding a managed admission root.
+///
+/// Body bytes arrive at a rate the remote client controls, so an unterminated
+/// chunked upload would otherwise retain its admission root indefinitely and
+/// force every auth-mode activation into `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT`.
+/// This guard bounds ingestion with a monotonic deadline strictly below the
+/// quiescence deadline and cancels the read as soon as the admitted epoch
+/// stops accepting, releasing the lease without waiting for the client.
+///
+/// @ref LLP 0058#admitted-body-ingestion — admitted ingestion is finite and
+/// epoch-close aware; size-bound refusals keep their own diagnostic.
+struct AdmittedBodyGuard {
+    inner: Body,
+    trip: Arc<AdmittedBodyTrip>,
+    deadline: std::pin::Pin<Box<tokio::time::Sleep>>,
+    epoch_close: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'static>>,
+}
+
+impl AdmittedBodyGuard {
+    fn wrap(
+        request: Request<Body>,
+        admission: &AdmissionLease,
+        controller: AuthAdmissionController,
+    ) -> (Request<Body>, Arc<AdmittedBodyTrip>) {
+        let trip = Arc::new(AdmittedBodyTrip::default());
+        let admitted_epoch = admission.admission_epoch();
+        // The watch owns only the controller handle, never a lease clone, so
+        // the guard cannot extend the in-flight lifetime it exists to bound.
+        let epoch_close = Box::pin(async move {
+            let mut snapshot = controller.snapshot();
+            while snapshot.admission_epoch == admitted_epoch && snapshot.accepting {
+                snapshot = controller.changed(snapshot).await;
+            }
+        });
+        let (parts, body) = request.into_parts();
+        let guard = Self {
+            inner: body,
+            trip: trip.clone(),
+            deadline: Box::pin(tokio::time::sleep(tokio::time::Duration::from_millis(
+                ADMITTED_BODY_INGEST_DEADLINE_MS,
+            ))),
+            epoch_close,
+        };
+        (Request::from_parts(parts, Body::new(guard)), trip)
+    }
+
+    fn trip_frame(
+        &self,
+        reason: AdmittedBodyTripReason,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Bytes>, axum::Error>>> {
+        std::task::Poll::Ready(Some(Err(axum::Error::new(admitted_body_trip_error(
+            reason,
+        )))))
+    }
+}
+
+impl HttpBody for AdmittedBodyGuard {
+    type Data = Bytes;
+    type Error = axum::Error;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        let this = self.get_mut();
+        // A tripped guard is terminal even if the consumer keeps polling.
+        if let Some(reason) = this.trip.reason() {
+            return this.trip_frame(reason);
+        }
+        // Frames that already arrived always win the race; the guard only
+        // decides what happens while the network has nothing to deliver.
+        if let std::task::Poll::Ready(frame) = std::pin::Pin::new(&mut this.inner).poll_frame(context)
+        {
+            return std::task::Poll::Ready(frame);
+        }
+        if this.epoch_close.as_mut().poll(context).is_ready() {
+            let reason = this.trip.record(AdmittedBodyTripReason::AdmissionClosed);
+            return this.trip_frame(reason);
+        }
+        if this.deadline.as_mut().poll(context).is_ready() {
+            let reason = this.trip.record(AdmittedBodyTripReason::DeadlineExceeded);
+            return this.trip_frame(reason);
+        }
+        std::task::Poll::Pending
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.trip.reason().is_none() && self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.inner.size_hint()
+    }
+}
+
 enum HttpOperationSelection {
     Selected(OperationSpec),
     UnknownHost,
@@ -5240,6 +5389,17 @@ async fn enforce_registered_route_policy(
             return apply_registered_response_controls(effective, error.into_response());
         }
     };
+    // @ref LLP 0058#admitted-body-ingestion — the moment a request owns a
+    // managed admission root, its remaining body ingestion must be finite and
+    // epoch-close aware. Wrapping here covers both the policy-gate peek below
+    // and handler-side extraction on routes whose body is not inspected.
+    let mut admitted_body_trip = None;
+    if let Some(admission) = route_admission.as_ref() {
+        let (guarded, trip) =
+            AdmittedBodyGuard::wrap(request, admission, runtime.auth_admission_controller());
+        request = guarded;
+        admitted_body_trip = Some(trip);
+    }
     let registered_source = registered_invocation_source(spec);
     // @ref LLP 0058#gate-algorithm — provider SessionAuth resolves before body parsing.
     // Provider operations carry no body authority. Resolve their required
@@ -5411,6 +5571,15 @@ async fn enforce_registered_route_policy(
                 policy_body = body;
             }
             Err(error) => {
+                // A guarded ingest refusal outranks the peek's size-bound
+                // shape error: the buffering was cut by the ingest deadline or
+                // an epoch close, not by the request exceeding the limit. The
+                // size-bound diagnostic is untouched when the guard did not
+                // trip (LLP 0058#admitted-body-ingestion).
+                let error = match admitted_body_trip.as_ref().and_then(|trip| trip.reason()) {
+                    Some(reason) => ApiError::from(admitted_body_trip_error(reason)),
+                    None => error,
+                };
                 // Request-shape parsing is ordered before credential
                 // classification, but rejected attempts still consume their
                 // exact closed source bucket. Only a throttle replaces the
@@ -5874,6 +6043,13 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(effective);
     }
     let mut response = next.run(request).await;
+    // Routes whose body is consumed by the handler (not the policy peek) see
+    // the guard's refusal as an extractor error of arbitrary shape. Publish
+    // the canonical ingest diagnostic instead; a tripped guard proves the
+    // handler could not have observed a complete request body.
+    if let Some(reason) = admitted_body_trip.as_ref().and_then(|trip| trip.reason()) {
+        response = ApiError::from(admitted_body_trip_error(reason)).into_response();
+    }
     if response.status().is_success()
         && matches!(
             invocation_source,
@@ -12387,6 +12563,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
+        // @ref LLP 0058#admitted-body-ingestion — the admitted ingest deadline
+        // is a client fault: the request body never finished arriving.
+        "SNAPBACK_REQUEST_BODY_TIMEOUT" => StatusCode::REQUEST_TIMEOUT,
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
@@ -12610,7 +12789,8 @@ fn now_millis() -> u64 {
 mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
-        ACTION_WORKER_LIMIT_MAX, AdmissionLease, CRON_DISPATCH_CONCURRENCY_DEFAULT,
+        ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
+        CRON_DISPATCH_CONCURRENCY_DEFAULT,
         CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
         DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
         RealtimeEnvelope, SharedSnapback, app, configured_action_worker_limit,
@@ -14700,6 +14880,132 @@ mod tests {
             .expect("transition task joins")
             .expect("transition acquisition succeeds");
         assert!(controller.snapshot().accepting);
+    }
+
+    /// A request body that never finishes arriving (ENG-24988). The trickled
+    /// upload owns a managed admission root, so without a monotonic ingest
+    /// deadline it would retain that root indefinitely and force every
+    /// auth-mode activation into `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT`.
+    fn stalled_admitted_request(uri: &str) -> Request<Body> {
+        let stalled = futures_util::stream::iter([Ok::<_, std::io::Error>(Bytes::from_static(
+            br#"{"args":"#,
+        ))])
+        .chain(futures_util::stream::pending());
+        let mut request = Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from_stream(stalled))
+            .expect("stalled admitted request");
+        offer_auth_client_protocol(&mut request);
+        request
+    }
+
+    // @ref LLP 0058#admitted-body-ingestion — the ingest deadline is exact,
+    // monotonic, and strictly below the 30000 ms quiescence deadline.
+    #[tokio::test(start_paused = true)]
+    async fn admitted_body_ingestion_times_out_strictly_below_quiescence_deadline() {
+        let (state, _) = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            auth_runtime_fixture(PolicyAuthMode::Dev)
+        })
+        .await
+        .expect("construct dev fixture off async workers");
+        let router = app(state.clone());
+        let controller = state.auth_admission_controller();
+        let started = tokio::time::Instant::now();
+        let response = router
+            .oneshot(stalled_admitted_request("/mutation/missing_function"))
+            .await
+            .expect("stalled body reaches its deadline refusal");
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed >= Duration::from_millis(ADMITTED_BODY_INGEST_DEADLINE_MS),
+            "ingest refusal arrived before the deadline: {elapsed:?}"
+        );
+        assert!(
+            elapsed
+                < Duration::from_millis(
+                    crate::auth::admission::AUTH_MODE_QUIESCENCE_TIMEOUT_MS
+                ),
+            "admitted request lifetime reached the quiescence deadline: {elapsed:?}"
+        );
+        assert_eq!(response.status(), StatusCode::REQUEST_TIMEOUT);
+        let body = response_json(response).await;
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_REQUEST_BODY_TIMEOUT");
+        assert_eq!(
+            body["diagnostic"]["details"]["deadlineMs"],
+            json!(ADMITTED_BODY_INGEST_DEADLINE_MS)
+        );
+        assert_eq!(
+            controller.snapshot().in_flight,
+            0,
+            "the deadline refusal must release its admission root"
+        );
+    }
+
+    // @ref LLP 0058#admitted-body-ingestion — closing the admitted epoch
+    // cancels in-flight body buffering and releases the root without waiting
+    // for the client to disconnect, so staging's drain cannot be starved.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn admitted_body_ingestion_cancels_when_admission_closes() {
+        let (state, _) = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            auth_runtime_fixture(PolicyAuthMode::Dev)
+        })
+        .await
+        .expect("construct dev fixture off async workers");
+        let router = app(state.clone());
+        let controller = state.auth_admission_controller();
+        let request = stalled_admitted_request("/mutation/missing_function");
+        let stalled = tokio::spawn(async move {
+            router
+                .oneshot(request)
+                .await
+                .expect("stalled body reaches its close refusal")
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while controller.snapshot().in_flight == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("stalled body owns a managed admission root");
+
+        // The full 30000 ms staging barrier must not be consumed: the close
+        // cancels ingestion immediately instead of waiting out the deadline.
+        let transition = tokio::spawn({
+            let controller = controller.clone();
+            async move { controller.begin_transition_async(|| Ok(())).await }
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while controller.snapshot().accepting {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("stage closes admission while the body is still arriving");
+
+        // The refusal is a response on the still-connected client, not a
+        // disconnect, and draining it releases the admission root.
+        let response = tokio::time::timeout(Duration::from_secs(2), stalled)
+            .await
+            .expect("stalled request is refused at epoch close")
+            .expect("stalled request task joins");
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = response_json(response).await;
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_AUTH_MODE_PENDING");
+
+        let transition = tokio::time::timeout(Duration::from_secs(5), transition)
+            .await
+            .expect("stage quiesces a stalled admitted body without timing out")
+            .expect("transition task joins")
+            .expect("transition acquisition succeeds");
+        let reopened = transition
+            .abort_and_reopen()
+            .expect("reopen the unchanged generation");
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -19005,6 +19311,8 @@ mod tests {
         "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT",
     ];
 
+    const REQUEST_TIMEOUT_DIAGNOSTICS: &[&str] = &["SNAPBACK_REQUEST_BODY_TIMEOUT"];
+
     const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_TIMEOUT",
         "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED",
@@ -19139,6 +19447,7 @@ mod tests {
         (StatusCode::CONFLICT, CONFLICT_DIAGNOSTICS),
         (StatusCode::PAYLOAD_TOO_LARGE, PAYLOAD_TOO_LARGE_DIAGNOSTICS),
         (StatusCode::TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_DIAGNOSTICS),
+        (StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT_DIAGNOSTICS),
         (StatusCode::GATEWAY_TIMEOUT, GATEWAY_TIMEOUT_DIAGNOSTICS),
         (
             StatusCode::SERVICE_UNAVAILABLE,
