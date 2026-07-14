@@ -79,18 +79,20 @@ impl<T> DurableModeCommit<T> {
 #[derive(Clone, Debug)]
 pub(super) enum OpenAuthModeInspection {
     Fresh,
+    // Both classified states own a large schema snapshot. Keep the carrier
+    // small because commit reconciliation moves it through several outcomes.
     Legacy {
         raw_manifest: String,
-        manifest: SchemaManifest,
+        manifest: Box<SchemaManifest>,
     },
-    Managed(AuthModeSnapshot),
+    Managed(Box<AuthModeSnapshot>),
 }
 
 impl OpenAuthModeInspection {
     pub(super) fn active_manifest(&self) -> Option<&SchemaManifest> {
         match self {
             Self::Fresh => None,
-            Self::Legacy { manifest, .. } => Some(manifest),
+            Self::Legacy { manifest, .. } => Some(manifest.as_ref()),
             Self::Managed(snapshot) => snapshot.active_manifest.as_ref(),
         }
     }
@@ -263,10 +265,10 @@ fn reconcile_mode_commit<T>(
     error: SnapbackError,
 ) -> DurableModeCommit<T> {
     match inspect_for_open(conn) {
-        Ok(OpenAuthModeInspection::Managed(observed)) if observed == *successor => {
+        Ok(OpenAuthModeInspection::Managed(observed)) if observed.as_ref() == successor => {
             DurableModeCommit::Committed(output)
         }
-        Ok(OpenAuthModeInspection::Managed(observed)) if observed == *predecessor => {
+        Ok(OpenAuthModeInspection::Managed(observed)) if observed.as_ref() == predecessor => {
             DurableModeCommit::RolledBack(error)
         }
         _ => DurableModeCommit::Uncertain(error),
@@ -276,14 +278,14 @@ fn reconcile_mode_commit<T>(
 fn managed_snapshot_matches(conn: &Connection, expected: &AuthModeSnapshot) -> bool {
     matches!(
         inspect_for_open(conn),
-        Ok(OpenAuthModeInspection::Managed(observed)) if observed == *expected
+        Ok(OpenAuthModeInspection::Managed(observed)) if observed.as_ref() == expected
     )
 }
 
 impl LocalDatabase {
     pub fn auth_mode_snapshot(&self) -> SnapbackResult<AuthModeSnapshot> {
         match inspect_for_open(&self.conn)? {
-            OpenAuthModeInspection::Managed(snapshot) => Ok(snapshot),
+            OpenAuthModeInspection::Managed(snapshot) => Ok(*snapshot),
             OpenAuthModeInspection::Fresh | OpenAuthModeInspection::Legacy { .. } => Err(
                 mode_corrupt("an open database has not adopted the auth-mode record"),
             ),
@@ -332,7 +334,7 @@ impl LocalDatabase {
             &predecessor,
             authorization_interlock,
             |tx| {
-                let current = require_managed_snapshot(&tx)?;
+                let current = require_managed_snapshot(tx)?;
                 if current != predecessor {
                     return Err(mode_corrupt(
                         "auth-mode snapshot changed before the staging transaction",
@@ -340,35 +342,34 @@ impl LocalDatabase {
                 }
                 require_transition_source(&current.state, requested_deployment.auth_mode)?;
                 if seed.is_some() {
-                    require_fresh_seed_target(&tx, &current.state)?;
+                    require_fresh_seed_target(tx, &current.state)?;
                 }
 
                 // DDL precedes seed, and both precede mode metadata in this transaction.
                 for table in &schema_manifest.tables {
-                    create_or_update_table(&tx, table)?;
+                    create_or_update_table(tx, table)?;
                     for index in &table.indexes {
-                        create_index(&tx, table, index.name.as_str(), &index.fields)?;
+                        create_index(tx, table, index.name.as_str(), &index.fields)?;
                     }
                 }
                 transaction_step_completed(0)?;
 
                 let authorization = if let Some(seed) = seed {
-                    let next_version =
-                        current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
-                            mode_corrupt("app version overflowed while staging auth mode")
-                        })?;
-                    let changes = seed_into_transaction(&tx, &schema_manifest, seed, next_version)?;
+                    let next_version = current_version_on(tx)?.checked_add(1).ok_or_else(|| {
+                        mode_corrupt("app version overflowed while staging auth mode")
+                    })?;
+                    let changes = seed_into_transaction(tx, &schema_manifest, seed, next_version)?;
                     if !changes.is_empty() {
-                        set_version(&tx, next_version)?;
+                        set_version(tx, next_version)?;
                     }
                     let authorization = super::authorization::authorization_commit_hook_in(
-                        &tx,
+                        tx,
                         super::authorization::AuthorizationCommitCause::AppWrites {
                             schema: &schema_manifest,
                             changes: &changes,
                         },
                     )?;
-                    Some((authorization, current_version_on(&tx)?))
+                    Some((authorization, current_version_on(tx)?))
                 } else {
                     None
                 };
@@ -395,11 +396,11 @@ impl LocalDatabase {
                 };
                 next.validate_shape()?;
                 staged.validate_against(&next)?;
-                save_json_meta(&tx, META_STAGED_AUTH_MODE_MANIFEST, &staged)?;
+                save_json_meta(tx, META_STAGED_AUTH_MODE_MANIFEST, &staged)?;
                 transaction_step_completed(2)?;
-                save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
+                save_json_meta(tx, META_AUTH_MODE_STATE, &next)?;
                 transaction_step_completed(3)?;
-                let observed = require_managed_snapshot(&tx)?;
+                let observed = require_managed_snapshot(tx)?;
                 let successor = AuthModeSnapshot {
                     state: next.clone(),
                     staged: Some(staged),
@@ -732,12 +733,9 @@ impl LocalDatabase {
         Ok(())
     }
 
-    /// Same-mode network provisioning keeps the legacy seed-if-empty behavior
-    /// while making DDL, seed, both active-manifest keys, and
-    /// `activeDeployment` one transaction. Unlike the cold-start carrier seam,
-    /// a repeated network provision may carry seed data for an existing app;
-    /// it is applied only when every named target is empty.
-    // @ref LLP 0055#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
+    /// Test convenience for callers that do not exercise ambiguous commit
+    /// classification.
+    #[cfg(test)]
     pub(crate) fn apply_same_mode_network_deployment(
         &mut self,
         deployment: DeploymentIdentity,
@@ -748,6 +746,12 @@ impl LocalDatabase {
             .into_result()
     }
 
+    /// Same-mode network provisioning keeps the legacy seed-if-empty behavior
+    /// while making DDL, seed, both active-manifest keys, and
+    /// `activeDeployment` one transaction. Unlike the cold-start carrier seam,
+    /// a repeated network provision may carry seed data for an existing app;
+    /// it is applied only when every named target is empty.
+    // @ref LLP 0055#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
     pub(crate) fn apply_same_mode_network_deployment_classified(
         &mut self,
         deployment: DeploymentIdentity,
@@ -778,7 +782,7 @@ impl LocalDatabase {
             &predecessor,
             authorization_interlock,
             |tx| {
-                let current = require_managed_snapshot(&tx)?;
+                let current = require_managed_snapshot(tx)?;
                 if current != predecessor {
                     return Err(mode_corrupt(
                         "auth-mode snapshot changed before the same-mode transaction",
@@ -791,7 +795,7 @@ impl LocalDatabase {
                     ));
                 }
 
-                apply_schema_ddl(&tx, &manifest)?;
+                apply_schema_ddl(tx, &manifest)?;
                 let mut seeded_changes = Vec::new();
                 let seed_outcome = match seed {
                     None => NetworkSeedOutcome::SkippedAbsent,
@@ -814,15 +818,15 @@ impl LocalDatabase {
                         }
                         if all_empty {
                             let next_version =
-                                current_version_on(&tx)?.checked_add(1).ok_or_else(|| {
+                                current_version_on(tx)?.checked_add(1).ok_or_else(|| {
                                     mode_corrupt(
                                         "app version overflowed while provisioning deployment",
                                     )
                                 })?;
                             seeded_changes =
-                                seed_into_transaction(&tx, &manifest, seed, next_version)?;
+                                seed_into_transaction(tx, &manifest, seed, next_version)?;
                             if !seeded_changes.is_empty() {
-                                set_version(&tx, next_version)?;
+                                set_version(tx, next_version)?;
                             }
                             NetworkSeedOutcome::Seeded
                         } else {
@@ -832,14 +836,14 @@ impl LocalDatabase {
                 };
 
                 let raw = serialize_json(&manifest)?;
-                save_active_manifest_in(&tx, &current.state, &raw)?;
+                save_active_manifest_in(tx, &current.state, &raw)?;
                 let next = AuthModeStateRecord {
                     active_deployment: Some(deployment.clone()),
                     ..current.state
                 };
                 next.validate_shape()?;
-                save_json_meta(&tx, META_AUTH_MODE_STATE, &next)?;
-                let observed = require_managed_snapshot(&tx)?;
+                save_json_meta(tx, META_AUTH_MODE_STATE, &next)?;
+                let observed = require_managed_snapshot(tx)?;
                 let successor = AuthModeSnapshot {
                     state: next.clone(),
                     staged: predecessor.staged.clone(),
@@ -854,12 +858,12 @@ impl LocalDatabase {
                     || predecessor.state.active_deployment.as_ref() != Some(&deployment);
                 let authorization = if activation_changed {
                     Some(super::authorization::authorization_commit_hook_in(
-                        &tx,
+                        tx,
                         super::authorization::AuthorizationCommitCause::Activation,
                     )?)
                 } else if !seeded_changes.is_empty() {
                     Some(super::authorization::authorization_commit_hook_in(
-                        &tx,
+                        tx,
                         super::authorization::AuthorizationCommitCause::AppWrites {
                             schema: &manifest,
                             changes: &seeded_changes,
@@ -869,7 +873,7 @@ impl LocalDatabase {
                     None
                 };
                 let authorization = match authorization {
-                    Some(authorization) => Some((authorization, current_version_on(&tx)?)),
+                    Some(authorization) => Some((authorization, current_version_on(tx)?)),
                     None => None,
                 };
                 Ok(((seed_outcome, next), successor, authorization))
@@ -961,7 +965,7 @@ pub(super) fn inspect_for_open(conn: &Connection) -> SnapbackResult<OpenAuthMode
                 require_manifest_mode(&manifest, AuthMode::Dev)?;
                 Ok(OpenAuthModeInspection::Legacy {
                     raw_manifest: raw,
-                    manifest,
+                    manifest: Box::new(manifest),
                 })
             }
         };
@@ -1025,11 +1029,13 @@ pub(super) fn inspect_for_open(conn: &Connection) -> SnapbackResult<OpenAuthMode
         }
     }
 
-    Ok(OpenAuthModeInspection::Managed(AuthModeSnapshot {
-        state,
-        staged,
-        active_manifest,
-    }))
+    Ok(OpenAuthModeInspection::Managed(Box::new(
+        AuthModeSnapshot {
+            state,
+            staged,
+            active_manifest,
+        },
+    )))
 }
 
 pub(super) fn adopt_after_infra(
@@ -1055,7 +1061,7 @@ pub(super) fn adopt_after_infra(
                 manifest: observed_manifest,
             },
         ) if expected_raw == observed_raw && expected_manifest == observed_manifest => {
-            (Some(expected_raw), Some(expected_manifest))
+            (Some(expected_raw), Some(*expected_manifest))
         }
         _ => {
             return Err(mode_corrupt(
@@ -1079,7 +1085,7 @@ pub(super) fn adopt_after_infra(
 
 fn require_managed_snapshot(conn: &Connection) -> SnapbackResult<AuthModeSnapshot> {
     match inspect_for_open(conn)? {
-        OpenAuthModeInspection::Managed(snapshot) => Ok(snapshot),
+        OpenAuthModeInspection::Managed(snapshot) => Ok(*snapshot),
         _ => Err(mode_corrupt(
             "auth-mode state disappeared during a transition",
         )),
