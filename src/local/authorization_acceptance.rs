@@ -60,6 +60,10 @@ globalThis.__snapbackHandlers = {
 
 const CLIENT_REPLAY_APP_ID: &str = "llp-0053-composed-acceptance";
 const CLIENT_REPLAY_TARGET_PROFILE_ID: &str = "local-dev-sqlite-ibex";
+const CLIENT_REPLAY_SCHEMA_HASH: &str = "llp-0053-authorization-shapes-v1";
+const CLIENT_REPLAY_BUNDLE_HASH: &str = "llp-0053-authorization-shapes-v1";
+const CLIENT_REPLAY_INPUTS_HASH: &str = "llp-0053-authorization-inputs-v1";
+const CLIENT_REPLAY_DATABASE_ID: &str = "llp-0053-composed-acceptance-db";
 const CLIENT_REPLAY_ACTIVATION_HASH: &str = "snapback.authorized-lease.activation.v1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const PROPERTY_PRINCIPAL: &str = "018f0d90-7b14-7a22-8c33-445566778899";
 
@@ -182,7 +186,9 @@ fn table(
 
 fn acceptance_schema() -> SchemaManifest {
     SchemaManifest {
-        schema_hash: Some("llp-0053-authorization-shapes-v1".to_owned()),
+        app_id: CLIENT_REPLAY_APP_ID.to_owned(),
+        schema_hash: Some(CLIENT_REPLAY_SCHEMA_HASH.to_owned()),
+        inputs_hash: Some(CLIENT_REPLAY_INPUTS_HASH.to_owned()),
         tables: vec![
             table(
                 "docs",
@@ -305,7 +311,9 @@ fn delete_function(name: &str, table: &str) -> FunctionDefinition {
 
 fn acceptance_functions() -> FunctionManifest {
     FunctionManifest {
-        bundle_hash: Some("llp-0053-authorization-shapes-v1".to_owned()),
+        app_id: CLIENT_REPLAY_APP_ID.to_owned(),
+        bundle_hash: Some(CLIENT_REPLAY_BUNDLE_HASH.to_owned()),
+        inputs_hash: Some(CLIENT_REPLAY_INPUTS_HASH.to_owned()),
         functions: vec![
             live_ibex("mineOrPublic", &["docs"]),
             live_ibex("orgDocuments", &["docs", "folders", "orgMembers"]),
@@ -351,10 +359,34 @@ fn configured_file(path: &Path) -> LocalSnapback {
 }
 
 fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
+    let schema = acceptance_schema();
+    assert_eq!(schema.app_id, CLIENT_REPLAY_APP_ID);
+    assert_eq!(
+        schema.target_profile.as_deref(),
+        Some(CLIENT_REPLAY_TARGET_PROFILE_ID)
+    );
+    assert_eq!(
+        schema.schema_hash.as_deref(),
+        Some(CLIENT_REPLAY_SCHEMA_HASH)
+    );
+    assert_eq!(
+        schema.inputs_hash.as_deref(),
+        Some(CLIENT_REPLAY_INPUTS_HASH)
+    );
     snapback
-        .apply_schema(acceptance_schema())
+        .apply_schema(schema)
         .expect("apply acceptance schema");
-    let diagnostics = snapback.load_functions(acceptance_functions());
+    let functions = acceptance_functions();
+    assert_eq!(functions.app_id, CLIENT_REPLAY_APP_ID);
+    assert_eq!(
+        functions.bundle_hash.as_deref(),
+        Some(CLIENT_REPLAY_BUNDLE_HASH)
+    );
+    assert_eq!(
+        functions.inputs_hash.as_deref(),
+        Some(CLIENT_REPLAY_INPUTS_HASH)
+    );
+    let diagnostics = snapback.load_functions(functions);
     assert!(
         diagnostics.iter().all(|diagnostic| {
             matches!(
@@ -363,6 +395,15 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
             )
         }),
         "unexpected function diagnostics: {diagnostics:?}"
+    );
+    assert_eq!(snapback.loaded_app_id(), CLIENT_REPLAY_APP_ID);
+    assert_eq!(
+        snapback.loaded_schema_hash().as_deref(),
+        Some(CLIENT_REPLAY_SCHEMA_HASH)
+    );
+    assert_eq!(
+        snapback.loaded_bundle_hash().as_deref(),
+        Some(CLIENT_REPLAY_BUNDLE_HASH)
     );
     snapback
 }
@@ -712,10 +753,11 @@ fn settle_query(
                 "artifactScope": {
                     "appId": CLIENT_REPLAY_APP_ID,
                     "targetProfileId": CLIENT_REPLAY_TARGET_PROFILE_ID,
+                    "schemaHash": CLIENT_REPLAY_SCHEMA_HASH,
+                    "inputsHash": CLIENT_REPLAY_INPUTS_HASH,
+                    "databaseId": CLIENT_REPLAY_DATABASE_ID,
                     "versionStreamId": version_stream,
                     "activationHash": CLIENT_REPLAY_ACTIVATION_HASH,
-                    "schemaHash": "llp-0053-authorization-shapes-v1",
-                    "functionBundleHash": "llp-0053-authorization-shapes-v1",
                 },
                 "initialSnapshot": {
                     "version": predecessor_version,

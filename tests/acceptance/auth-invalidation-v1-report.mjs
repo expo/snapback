@@ -39,8 +39,19 @@ const USER = '018f0d90-7b14-7a22-8c33-445566778899';
 const AUTHORITY_KEY = `sha256:${'a'.repeat(64)}`;
 const APP_ID = 'llp-0053-composed-acceptance';
 const TARGET_PROFILE_ID = 'local-dev-sqlite-ibex';
+const SCHEMA_HASH = 'llp-0053-authorization-shapes-v1';
+const INPUTS_HASH = 'llp-0053-authorization-inputs-v1';
+const DATABASE_ID = 'llp-0053-composed-acceptance-db';
 const VERSION_STREAM = 'stream-0053';
 const ACTIVATION_HASH = `snapback.authorized-lease.activation.v1:sha256:${'b'.repeat(64)}`;
+const ARTIFACT_SCOPE_FIELDS = Object.freeze([
+  'schemaHash',
+  'inputsHash',
+  'targetProfileId',
+  'appId',
+  'databaseId',
+  'versionStreamId',
+]);
 // The epoch is checked against the executed Rust receipt before any client
 // measurement runs. The local UUID supplies a structurally valid replacement
 // for the receipt's deliberately normalized authenticated incarnation.
@@ -226,8 +237,11 @@ const createAuthorizedStore = async ({
   versionStream = VERSION_STREAM,
   principalScope = PRINCIPAL_SCOPE,
   authorityDescriptor = AUTHORITY_DESCRIPTOR,
+  schemaHash = SCHEMA_HASH,
+  inputsHash = INPUTS_HASH,
   appId = APP_ID,
   targetProfileId = TARGET_PROFILE_ID,
+  databaseId = DATABASE_ID,
   origin = null,
   queryInstanceHighWater = null,
 } = {}) => {
@@ -243,8 +257,11 @@ const createAuthorizedStore = async ({
   const store = createMemorySnapbackClientStore({ state: durable });
   await store.bindAuthority(EXPECTED);
   await store.scopeToArtifacts({
+    schemaHash,
+    inputsHash,
     appId,
     targetProfileId,
+    databaseId,
     versionStreamId: versionStream,
   }, EXPECTED);
   await store.scopeAuthorization({
@@ -502,10 +519,15 @@ const measureMembershipBlastRadius = async ({
     const namespace = obligation.scopeId.namespace;
     const authorization = obligation.witness.authorization;
     const issuerId = obligation.scopeId.issuerId;
-    const versionStream = obligation.witness.data.versionStream;
+    const obligationVersionStream = obligation.witness.data.versionStream;
     const { principalScope, authorityDescriptor, artifactScope } = replay;
+    assert.deepEqual(Object.keys(artifactScope).sort(), [
+      ...ARTIFACT_SCOPE_FIELDS,
+      'activationHash',
+    ].sort());
     assert.deepEqual(replay.scopeId, obligation.scopeId);
     assert.deepEqual(replay.issuerId, obligation.scopeId.issuerId);
+    assert.equal(artifactScope.versionStreamId, obligationVersionStream);
     assert.equal(serverAcknowledgement.input.ackToken, resolution.ackToken);
     assert.deepEqual(serverAcknowledgement.connection.issuerId, replay.issuerId);
     assert.equal(serverAcknowledgement.output.outcome, replay.serverAcknowledgementOutcome);
@@ -527,13 +549,25 @@ const measureMembershipBlastRadius = async ({
     assert.equal(stable.acknowledgementOutcome, replay.serverAcknowledgementOutcome);
 
     const { store } = await createAuthorizedStore({
-      versionStream,
+      versionStream: artifactScope.versionStreamId,
       principalScope,
       authorityDescriptor,
+      schemaHash: artifactScope.schemaHash,
+      inputsHash: artifactScope.inputsHash,
       appId: artifactScope.appId,
       targetProfileId: artifactScope.targetProfileId,
+      databaseId: artifactScope.databaseId,
       origin: namespace.clientStoreId,
       queryInstanceHighWater: namespace.queryInstanceId - 1,
+    });
+    const scopedStore = await store.snapshot();
+    assert.deepEqual(scopedStore.artifactScope, {
+      schemaHash: artifactScope.schemaHash,
+      inputsHash: artifactScope.inputsHash,
+      targetProfileId: artifactScope.targetProfileId,
+      appId: artifactScope.appId,
+      databaseId: artifactScope.databaseId,
+      versionStreamId: artifactScope.versionStreamId,
     });
     const queryKey = namespace.queryKey;
     const clientNowMs = 1_000;
@@ -545,7 +579,7 @@ const measureMembershipBlastRadius = async ({
       clientNowMs,
       authorization,
       issuerId,
-      versionStream,
+      versionStream: artifactScope.versionStreamId,
       principalId: principalScope.userId,
       authorityInstanceId: authorityDescriptor.authorityInstanceId,
       activationHash: artifactScope.activationHash,
@@ -568,15 +602,26 @@ const measureMembershipBlastRadius = async ({
           mutationIndex,
         },
         authorityDescriptor,
+        schemaHash: artifactScope.schemaHash,
+        inputsHash: artifactScope.inputsHash,
         appId: artifactScope.appId,
         targetProfileId: artifactScope.targetProfileId,
-        versionStreamId: versionStream,
-        cursor: { stream: versionStream, version: replay.initialSnapshot.version },
+        databaseId: artifactScope.databaseId,
+        versionStreamId: artifactScope.versionStreamId,
+        cursor: {
+          stream: artifactScope.versionStreamId,
+          version: replay.initialSnapshot.version,
+        },
         ...EXPECTED,
         ...queueCapture,
       });
     }
     const before = await store.snapshot();
+    for (const queued of before.pending) {
+      for (const field of ARTIFACT_SCOPE_FIELDS) {
+        assert.equal(queued[field], scopedStore.artifactScope[field]);
+      }
+    }
     const bytesBefore = byteLength(before.retained[queryKey]);
     const pendingMutationsBefore = before.pending.length;
 
@@ -621,7 +666,7 @@ const measureMembershipBlastRadius = async ({
     const resolved = await store.applyRetainedQueryResolution(queryKey, {
       fence: accepted.fence,
       resolution,
-      record: record(snapshot.version, snapshot.rows, versionStream),
+      record: record(snapshot.version, snapshot.rows, artifactScope.versionStreamId),
     }, EXPECTED);
     clientResolutionApplications += 1;
     assert.equal(resolved.ackToken, resolution.ackToken);
@@ -642,12 +687,12 @@ const measureMembershipBlastRadius = async ({
         version: snapshot.version,
         authorization,
         issuerId,
-        versionStream,
+        versionStream: artifactScope.versionStreamId,
         principalId: principalScope.userId,
         authorityInstanceId: authorityDescriptor.authorityInstanceId,
         activationHash: artifactScope.activationHash,
       }),
-      record: record(snapshot.version, snapshot.rows, versionStream),
+      record: record(snapshot.version, snapshot.rows, artifactScope.versionStreamId),
       clientNowMs: clientNowMs + 4,
     }, EXPECTED);
     clientAuthorizedSnapshotCommits += 1;
@@ -706,6 +751,9 @@ const measureMembershipBlastRadius = async ({
       serverAcknowledgementOutcome: stable.acknowledgementOutcome,
       clientLifecycle: {
         exactProductionScopeReplayed: true,
+        exactProductionArtifactScopeReplayed: true,
+        artifactScopeFieldsReplayed: ARTIFACT_SCOPE_FIELDS,
+        activationHashMatchedExactProductionReplay: true,
         exactProductionResolutionReplayed: true,
         quarantineCommitted: quarantineFenceCommitted,
         hiddenReadWasNull: true,
@@ -924,11 +972,11 @@ const exerciseLiveClientScenarios = () => {
   };
 };
 
-// The reference function owns source rows and authorization predicates. The
-// production client paths receive only its full-query result; the executed
-// Rust receipt independently proves that production server projection matched
-// a fresh Ibex query. Composing both halves avoids treating client protocol
-// validation as an application-policy evaluator.
+// The shared corpus owns source rows; the reference function independently
+// owns the authorization predicate. Production client paths receive only the
+// rows selected by the executed Rust/Ibex result, never the reference result.
+// Composing both halves avoids treating client protocol validation as an
+// application-policy evaluator.
 const PROPERTY_SEED = Number.parseInt(PROPERTY_CORPUS_CONFIG.seed.slice(2), 16);
 const PROPERTY_TRIALS_PER_EVENT = PROPERTY_CORPUS_CONFIG.trialsPerEvent;
 const PROPERTY_EVENT_UNIVERSE = Object.freeze(PROPERTY_CORPUS_CONFIG.eventUniverse);
