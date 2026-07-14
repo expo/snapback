@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0057, LLP 0058, LLP 0059
 
 ## Summary
@@ -322,16 +322,24 @@ memory-only `AdminSecretRead` leases, and submitted config values are collected
 as request-scoped secrets at every nonzero length; a length floor is permitted
 only for heuristic discovery, never for a known carrier. Transport exceptions,
 structured diagnostics, non-JSON bodies, and successful reflected responses
-are reconstructed with those values replaced before reaching UI code. Error
-object property names are sanitized too, while a successful object whose
-property name contains a known secret is rejected generically rather than
-reinterpreted under a replacement key. The credential exchange accepts only
-its exact two-field response and consumes it internally. Before persistence it
-also rejects a candidate derived credential containing the submitted nonempty
-master as an exact substring, including unavoidable one-byte collisions with
-the fixed `sbcc_` prefix. The Contract UI logs only that safe scalar projection,
-and the embedded setup program executes the same rule before writing DOM text
-or browser storage.
+are reconstructed with those values replaced before reaching UI code. Numeric
+positions are not exempt in any of those projections (kit, shared admin, and
+embedded setup alike): a response value that is a JSON number is compared
+against every known secret in its canonical string form, so an all-numeric
+master, bearer, lease, login code, or config value reflected as a number is
+replaced exactly like its string twin. Error object property names are
+sanitized too, while a successful object whose property name contains a known
+secret is rejected generically rather than reinterpreted under a replacement
+key. The credential exchange accepts only its exact two-field response and
+consumes it internally. Before persistence it also rejects a candidate derived
+record that would contain the submitted nonempty master anywhere in its
+serialized keys or values — the `sbcc_` credential as an exact substring
+(including unavoidable one-byte collisions with the fixed prefix), the numeric
+`expiresAtMs` in canonical string form, and the serialized record bytes as a
+whole — so no console record carrying its minting authority can reach
+`localStorage`, a return value, or a thrown error. The Contract UI logs only
+that safe scalar projection, and the embedded setup program executes the same
+rule before writing DOM text or browser storage.
 
 ### C2. Defenses that do not change the boundary
 

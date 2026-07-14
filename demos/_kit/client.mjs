@@ -270,9 +270,22 @@ const safeClientRedactionMarker = (secrets) => (
   )) ?? ''
 );
 
+// @ref LLP 0060#c1-the-v1-custody-claim — numeric positions are excluded too:
+// an all-numeric bearer/code reflected as a JSON number is compared against
+// the known request secrets in its canonical string form. A clean number
+// passes through unchanged; a reflecting one leaves only the redacted text.
+const redactReflectedNumber = (value, secrets) => {
+  const text = String(value);
+  const redacted = redactKnownSecrets(text, secrets);
+  return redacted === text ? value : redacted;
+};
+
 const sanitizeProtocolErrorValue = (value, secrets, field = null) => {
   if (sensitiveProtocolField(field)) return safeClientRedactionMarker(secrets);
   if (typeof value === 'string') return redactKnownSecrets(value, secrets);
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return redactReflectedNumber(value, secrets);
+  }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeProtocolErrorValue(item, secrets));
   }

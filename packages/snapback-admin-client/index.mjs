@@ -272,9 +272,17 @@ function projectConsoleCredential(value, forbiddenMaster = '') {
     expiresAtMs: value.expiresAtMs,
   };
   // @ref LLP 0060#c1-the-v1-custody-claim — an exact response shape still
-  // fails closed when the derived value would persist its minting authority.
-  if (forbiddenMaster && projected.credential.includes(forbiddenMaster)) return null;
+  // fails closed when the derived record would persist its minting authority
+  // in any key or value, including an all-numeric master reflected as the
+  // `expiresAtMs` timestamp or a master spanning serialized JSON punctuation.
+  if (forbiddenMaster && consoleRecordContainsMaster(projected, forbiddenMaster)) return null;
   return projected;
+}
+
+function consoleRecordContainsMaster(record, master) {
+  return record.credential.includes(master)
+    || String(record.expiresAtMs).includes(master)
+    || JSON.stringify(record).includes(master);
 }
 
 function exactRecord(value, keys) {
@@ -359,8 +367,21 @@ function safeRedactionMarker(secrets) {
   )) ?? '';
 }
 
+// @ref LLP 0060#c1-the-v1-custody-claim — numeric response positions are
+// compared against known operator carriers in canonical string form; an
+// all-numeric master, console credential, lease, or config value reflected as
+// a JSON number never survives either projection.
+function redactReflectedNumber(value, secrets) {
+  const text = String(value);
+  const redacted = redactKnownSecrets(text, secrets);
+  return redacted === text ? value : redacted;
+}
+
 function sanitizeKnownSecrets(value, secrets, seen = new WeakSet()) {
   if (typeof value === 'string') return redactKnownSecrets(value, secrets);
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return redactReflectedNumber(value, secrets);
+  }
   if (Array.isArray(value)) return value.map((item) => sanitizeKnownSecrets(item, secrets, seen));
   if (!value || typeof value !== 'object') return value;
   if (seen.has(value)) return '[CIRCULAR]';
@@ -381,6 +402,9 @@ function sanitizeKnownSecrets(value, secrets, seen = new WeakSet()) {
 function sanitizeErrorValue(value, secrets, field = null, seen = new WeakSet()) {
   if (sensitiveAdminField(field)) return safeRedactionMarker(secrets);
   if (typeof value === 'string') return redactKnownSecrets(value, secrets);
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return redactReflectedNumber(value, secrets);
+  }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeErrorValue(item, secrets, field, seen));
   }

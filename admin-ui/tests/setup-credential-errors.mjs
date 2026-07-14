@@ -67,6 +67,12 @@ async function fetch(path, options = {}) {
         expiresAtMs: Date.now() + 60_000,
       });
     }
+    if (mode === 'master-expiry-collision') {
+      return response(200, {
+        credential: DERIVED,
+        expiresAtMs: Number(master),
+      });
+    }
     return response(200, {
       credential: DERIVED,
       expiresAtMs: Date.now() + 60_000,
@@ -200,6 +206,26 @@ for (const collision of [
 }
 mintedCredential = DERIVED;
 
+// ENG-24986: an all-numeric master reflected as the exact valid future
+// `expiresAtMs` of an otherwise clean exchange is rejected before persistence;
+// only the fixed protocol error reaches the DOM.
+const NUMERIC_MASTER = String(Date.now() + 3_600_000);
+mode = 'master-expiry-collision';
+tokenInput.value = NUMERIC_MASTER;
+tokenSave.listeners.click();
+await flush();
+assert.equal(
+  elements.get('authmsg').textContent,
+  'Console credential exchange returned an invalid response.',
+);
+assert.equal(
+  storage.has('snapback_console_credential_v1'),
+  false,
+  'a record whose expiresAtMs reflects the numeric master is never persisted',
+);
+assert.equal(storageContains(NUMERIC_MASTER), false, 'numeric master never enters setup storage');
+assertSecretAbsent(visibleText(), NUMERIC_MASTER, 'numeric master expiry DOM');
+
 mode = 'derived-failure';
 tokenInput.value = MASTER;
 tokenSave.listeners.click();
@@ -246,6 +272,15 @@ for (const shortSecret of SHORT_SECRETS) {
   );
   assert.equal(storageContains(shortSecret), false, 'short config value never enters setup storage');
 }
+
+// ENG-24986: an all-numeric config value reflected by the receiver stays out
+// of the DOM and setup storage like every other submitted config value.
+const NUMERIC_CONFIG = '246813579';
+configInput.value = NUMERIC_CONFIG;
+setButton.listeners.click();
+await flush();
+assertSecretAbsent(visibleText(), NUMERIC_CONFIG, 'numeric config value failure DOM');
+assert.equal(storageContains(NUMERIC_CONFIG), false, 'numeric config value never enters setup storage');
 
 // A 200 response whose property name reflects the submitted config value is
 // malformed success, not data the setup page may reinterpret or render.

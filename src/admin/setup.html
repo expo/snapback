@@ -108,8 +108,14 @@
         value.expiresAtMs < 0) return null;
     var projected = { credential: value.credential, expiresAtMs: value.expiresAtMs };
     // @ref LLP 0060#c1-the-v1-custody-claim — exact shape is insufficient when
-    // the derived value would persist its submitted minting authority.
-    if (forbiddenMaster && projected.credential.indexOf(forbiddenMaster) !== -1) return null;
+    // any serialized key or value of the derived record — including an
+    // all-numeric master reflected as `expiresAtMs` — would persist its
+    // submitted minting authority.
+    if (forbiddenMaster && (
+      projected.credential.indexOf(forbiddenMaster) !== -1 ||
+      String(projected.expiresAtMs).indexOf(forbiddenMaster) !== -1 ||
+      JSON.stringify(projected).indexOf(forbiddenMaster) !== -1
+    )) return null;
     return projected;
   }
   function normalizedFieldName(name) {
@@ -180,6 +186,14 @@
   }
   function sanitizeKnownSecrets(value, secrets) {
     if (typeof value === "string") return redactKnownSecrets(value, secrets);
+    // @ref LLP 0060#c1-the-v1-custody-claim — numeric positions are compared
+    // in canonical string form so an all-numeric secret cannot hide as a
+    // reflected JSON number.
+    if (typeof value === "number") {
+      var numericText = String(value);
+      var numericRedacted = redactKnownSecrets(numericText, secrets);
+      return numericRedacted === numericText ? value : numericRedacted;
+    }
     if (Array.isArray(value)) {
       return value.map(function (item) { return sanitizeKnownSecrets(item, secrets); });
     }

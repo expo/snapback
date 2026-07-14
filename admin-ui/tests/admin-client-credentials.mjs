@@ -284,6 +284,112 @@ for (const shortSecret of ['Q', 'QZ', 'QZX']) {
   assertCredentialAbsent(configKeyFailure, shortSecret, `${shortSecret.length}-byte config success key`);
 }
 
+// ENG-24986: all-numeric operator secrets survive as JSON numbers unless every
+// projection compares numeric positions in canonical string form. Cover the
+// master, the memory-only secret-read lease, and a submitted config value in
+// both error diagnostics and successful HTTP-200 reflections.
+const NUMERIC_MASTER = String(Date.now() + 3_600_000);
+const NUMERIC_LEASE = '735204601122334';
+const NUMERIC_CONFIG = '246813579';
+
+const numericHeadless = new AdminClient('http://snapback.test/_snapback/api', {
+  token: NUMERIC_MASTER,
+});
+fetchOverride = async () => response(500, {
+  diagnostic: {
+    code: 'SNAPBACK_NUMERIC_ADMIN_FAILED',
+    message: 'request refused',
+    details: {
+      reflected: Number(NUMERIC_MASTER),
+      nested: [Number(NUMERIC_MASTER)],
+    },
+  },
+});
+const numericAdminFailure = await captureFailure(() => numericHeadless.inspect());
+assertCredentialAbsent(numericAdminFailure, NUMERIC_MASTER, 'numeric master diagnostic');
+assert.equal(numericAdminFailure.diagnostic.details.reflected, '[REDACTED]');
+assert.deepEqual(numericAdminFailure.diagnostic.details.nested, ['[REDACTED]']);
+
+fetchOverride = async () => response(200, { reflected: Number(NUMERIC_MASTER) });
+const numericAdminSuccess = await numericHeadless.inspect();
+assertCredentialAbsent(numericAdminSuccess, NUMERIC_MASTER, 'numeric master HTTP-200 response');
+assert.deepEqual(numericAdminSuccess, { reflected: '[REDACTED]' });
+
+const numericLeaseClient = new AdminClient('http://snapback.test/_snapback/api');
+numericLeaseClient.setSecretReadLease(NUMERIC_LEASE);
+fetchOverride = async () => response(401, {
+  diagnostic: {
+    code: 'SNAPBACK_ADMIN_SECRET_READ_REQUIRED',
+    message: 'lease rejected',
+    details: { reflected: Number(NUMERIC_LEASE) },
+  },
+});
+const numericLeaseFailure = await captureFailure(() => numericLeaseClient.scanTable('privateRows'));
+assertCredentialAbsent(numericLeaseFailure, NUMERIC_LEASE, 'numeric lease diagnostic');
+assert.equal(numericLeaseFailure.diagnostic.details.reflected, '[REDACTED]');
+
+fetchOverride = async () => response(200, { reflected: Number(NUMERIC_LEASE) });
+const numericLeaseSuccess = await numericLeaseClient.scanTable('privateRows');
+assertCredentialAbsent(numericLeaseSuccess, NUMERIC_LEASE, 'numeric lease HTTP-200 response');
+assert.deepEqual(numericLeaseSuccess, { reflected: '[REDACTED]' });
+
+const numericConfigClient = new AdminClient('http://snapback.test/_snapback/api');
+fetchOverride = async (_url, options) => {
+  const value = JSON.parse(options.body).value;
+  return response(500, {
+    diagnostic: {
+      code: 'SNAPBACK_NUMERIC_CONFIG_FAILED',
+      message: 'config rejected',
+      details: { reflected: Number(value) },
+    },
+  });
+};
+const numericConfigFailure = await captureFailure(() => (
+  numericConfigClient.runFunction('configProbe', { value: NUMERIC_CONFIG })
+));
+assertCredentialAbsent(numericConfigFailure, NUMERIC_CONFIG, 'numeric config diagnostic');
+assert.equal(numericConfigFailure.diagnostic.details.reflected, '[REDACTED]');
+
+fetchOverride = async (_url, options) => (
+  response(200, { reflected: Number(JSON.parse(options.body).value) })
+);
+const numericConfigSuccess = await numericConfigClient.runFunction('configProbe', {
+  value: NUMERIC_CONFIG,
+});
+assertCredentialAbsent(numericConfigSuccess, NUMERIC_CONFIG, 'numeric config HTTP-200 response');
+assert.deepEqual(numericConfigSuccess, { reflected: '[REDACTED]' });
+
+// ENG-24986: an exact-shape exchange whose valid future `expiresAtMs` is the
+// submitted all-numeric master must never be returned, thrown with the value,
+// or serialized into localStorage.
+storage.delete('snapback_console_credential_v1');
+const numericWritesBefore = storageWrites.length;
+fetchOverride = async () => response(200, {
+  credential: 'sbcc_clean-console-numeric',
+  expiresAtMs: Number(NUMERIC_MASTER),
+});
+const numericExchangeClient = new AdminClient('http://snapback.test/_snapback/api');
+const numericExchangeFailure = await captureFailure(() => (
+  numericExchangeClient.setToken(NUMERIC_MASTER)
+));
+assert.deepEqual(numericExchangeFailure.diagnostic, {
+  code: 'SNAPBACK_RESPONSE_INVALID',
+  message: 'console credential exchange returned an invalid credential',
+});
+assertCredentialAbsent(numericExchangeFailure, NUMERIC_MASTER, 'numeric master expiry reflection');
+assert.equal(storage.has('snapback_console_credential_v1'), false);
+assert.deepEqual(
+  storageWrites.slice(numericWritesBefore),
+  [],
+  'a record reflecting the numeric master is never persisted',
+);
+assert.equal(
+  [...storage.entries(), ...storageWrites, ...sessionWrites, ...indexedDbCalls]
+    .some((entry) => JSON.stringify(entry).includes(NUMERIC_MASTER)),
+  false,
+  'no persistence adapter ever receives the numeric master',
+);
+
 delete globalThis.fetch;
 delete globalThis.indexedDB;
 delete globalThis.localStorage;

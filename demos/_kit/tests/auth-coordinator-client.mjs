@@ -167,6 +167,7 @@ let calls = [];
 const rawUrls = [];
 let queryMode = 'success';
 let credentialPoison = null;
+let exchangeErrorReflection = false;
 let refreshPoison = null;
 let logoutMode = 'empty';
 let logoutReadFailureHook = null;
@@ -192,6 +193,15 @@ globalThis.fetch = async (url, init = {}) => {
     return response(handshake(bearer ? bearerAuthority.get(bearer) : anonymous));
   }
   if (path === '/auth/exchange') {
+    if (exchangeErrorReflection) {
+      return diagnosticResponse('SNAPBACK_AUTH_CHALLENGE_INVALID', 400, {
+        message: 'login code rejected',
+        details: {
+          attemptedCode: Number(body.code),
+          attempts: [Number(body.code)],
+        },
+      });
+    }
     const issued = credential(BEARER_A, sessionA, 10_000);
     if (credentialPoison === 'root') issued.leakedBearer = BEARER_A;
     if (credentialPoison === 'nested') issued.session.leakedBearer = BEARER_A;
@@ -302,6 +312,27 @@ try {
     }).includes(BEARER_A), false);
   }
   credentialPoison = null;
+
+  // ENG-24986: a failed exchange whose diagnostic reflects the submitted
+  // six-digit login code as a JSON number is compared in canonical string
+  // form; the numeric position is redacted before the error reaches app code.
+  exchangeErrorReflection = true;
+  let numericCodeError;
+  await assert.rejects(
+    db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
+    (error) => {
+      numericCodeError = error;
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CHALLENGE_INVALID';
+    },
+  );
+  assert.equal(coordinator.capture().authorityEpoch, 0);
+  assert.equal(JSON.stringify({
+    message: numericCodeError.message,
+    diagnostic: numericCodeError.diagnostic,
+  }).includes(LOGIN_CODE), false, 'numeric login-code reflection escaped');
+  assert.equal(numericCodeError.diagnostic.details.attemptedCode, '[REDACTED]');
+  assert.deepEqual(numericCodeError.diagnostic.details.attempts, ['[REDACTED]']);
+  exchangeErrorReflection = false;
 
   // Exchange installs token custody and runs transport resume before exposing
   // the session projection. The token never appears in the returned object.
