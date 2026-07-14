@@ -208,6 +208,29 @@ const poisonedExchange = await captureFailure(() => client.setToken(MASTER));
 assert.equal(poisonedExchange.diagnostic.code, 'SNAPBACK_RESPONSE_INVALID');
 assertCredentialAbsent(poisonedExchange, MASTER, 'poisoned credential exchange');
 
+// Exact shape is not enough: the derived value itself must not retain the
+// submitted master. This includes unavoidable one-byte collisions with the
+// fixed `sbcc_` prefix. Neither candidate may reach the persisted projection.
+for (const { master, minted } of [
+  { master: 'QZX', minted: 'sbcc_QZX' },
+  { master: 's', minted: 'sbcc_clean-console' },
+]) {
+  storage.delete('snapback_console_credential_v1');
+  const writesBefore = storageWrites.length;
+  fetchOverride = async () => response(200, {
+    credential: minted,
+    expiresAtMs: Date.now() + 60_000,
+  });
+  const collisionClient = new AdminClient('http://snapback.test/_snapback/api');
+  const collisionFailure = await captureFailure(() => collisionClient.setToken(master));
+  assert.deepEqual(collisionFailure.diagnostic, {
+    code: 'SNAPBACK_RESPONSE_INVALID',
+    message: 'console credential exchange returned an invalid credential',
+  });
+  assert.equal(storage.has('snapback_console_credential_v1'), false);
+  assert.deepEqual(storageWrites.slice(writesBefore), [], 'colliding credential is never persisted');
+}
+
 // Known semantic carriers have no minimum secret length. Exercise one-, two-,
 // and three-byte admin/config values in both diagnostics and successful object
 // property names. Secret-bearing success keys are rejected rather than renamed.

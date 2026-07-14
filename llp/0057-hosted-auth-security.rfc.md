@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0054, LLP 0055, LLP 0056
 
 ## Summary
@@ -292,7 +292,10 @@ the predecessor and successor bearer before custody advances. Logout accepts
 only exact empty HTTP 204, exposes fixed `null`, and never publishes arbitrary
 successful JSON. Because a malformed 2xx may follow a committed server-side
 revocation, the coordinator compare-clears only the captured authority before
-returning a fixed credential-free protocol error.
+returning a fixed credential-free protocol error. This includes a body-read
+failure after the transport has already supplied a 2xx status: only status,
+empty-body false, and read-failed true cross the transport boundary; the body
+reader error and credential do not.
 
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
@@ -314,9 +317,12 @@ are reconstructed with those values replaced before reaching UI code. Error
 object property names are sanitized too, while a successful object whose
 property name contains a known secret is rejected generically rather than
 reinterpreted under a replacement key. The credential exchange accepts only
-its exact two-field response and consumes it internally. The Contract UI logs
-only that safe scalar projection, and the embedded setup program executes the
-same rule before writing DOM text or browser storage.
+its exact two-field response and consumes it internally. Before persistence it
+also rejects a candidate derived credential containing the submitted nonempty
+master as an exact substring, including unavoidable one-byte collisions with
+the fixed `sbcc_` prefix. The Contract UI logs only that safe scalar projection,
+and the embedded setup program executes the same rule before writing DOM text
+or browser storage.
 
 ### C2. Defenses that do not change the boundary
 
@@ -454,6 +460,11 @@ material.
   refresh predecessor and successor, and logout body reflection. Exact empty
   204 alone returns `null`; malformed 2xx logout clears only current captured
   custody and then returns a generic credential-free error.
+- Console-mint poison cases cover a longer master embedded after `sbcc_` and a
+  one-byte master colliding with the fixed prefix; neither candidate reaches
+  storage. A known-2xx logout whose body reader rejects with credential-bearing
+  state follows the same captured-authority clear and generic-error path, while
+  a peer-installed successor remains untouched.
 - Ordinary coordinator views contain no bearer. The acceptance test names the
   transactional custody record and authorization header as the intentional v1
   carriers instead of hiding them from the assertion.
@@ -510,6 +521,13 @@ Trusted Types rather than merely receiving the header.
 
 ## Changelog
 
+- **2026-07-13 (ENG-24607 final review hardening):** made both real operator
+  credential exchanges reject an exact derived record whose credential embeds
+  its submitted master, including a one-byte `sbcc_` prefix collision, before
+  any persistence; split response acquisition from body reading so a known-2xx
+  logout read failure carries only opaque success facts into compare-clear;
+  and added exact collision, reflected-reader, current-clear, and stale-peer
+  preservation replays.
 - **2026-07-13 (ENG-24607 second review hardening):** removed the four-byte
   floor from known admin, config, bearer, and challenge carriers while retaining
   collision-safe redaction markers; sanitized diagnostic property names and

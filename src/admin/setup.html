@@ -101,12 +101,16 @@
       return key === expected[index];
     });
   }
-  function projectConsoleCredential(value) {
+  function projectConsoleCredential(value, forbiddenMaster) {
     if (!exactRecord(value, ["credential", "expiresAtMs"])) return null;
     if (typeof value.credential !== "string" || value.credential.indexOf("sbcc_") !== 0 ||
         value.credential.length <= 5 || !Number.isSafeInteger(value.expiresAtMs) ||
         value.expiresAtMs < 0) return null;
-    return { credential: value.credential, expiresAtMs: value.expiresAtMs };
+    var projected = { credential: value.credential, expiresAtMs: value.expiresAtMs };
+    // @ref LLP 0057#c1-the-v1-custody-claim — exact shape is insufficient when
+    // the derived value would persist its submitted minting authority.
+    if (forbiddenMaster && projected.credential.indexOf(forbiddenMaster) !== -1) return null;
+    return projected;
   }
   function normalizedFieldName(name) {
     return String(name || "")
@@ -238,7 +242,7 @@
       method: "POST",
       headers: { "x-snapback-admin-token": masterToken }
     }, true).then(function (minted) {
-      var credential = projectConsoleCredential(minted);
+      var credential = projectConsoleCredential(minted, masterToken);
       if (!credential || credential.expiresAtMs <= Date.now()) {
         throw new Error("Console credential exchange returned an invalid response.");
       }

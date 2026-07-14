@@ -20,6 +20,7 @@ const BEARER_C = 'sbs_CLIENT_BEARER_C_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const ADMIN_SECRET = 'sba_CLIENT_ADMIN_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const CHALLENGE_ID = 'sbc_CLIENT_CHALLENGE_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const LOGIN_CODE = '123456';
+const READ_FAILURE_SECRET = 'logout_BODY_READER_SECRET_MUST_NOT_ESCAPE';
 const CLIENT_SECRETS = [
   BEARER_A,
   BEARER_B,
@@ -27,6 +28,7 @@ const CLIENT_SECRETS = [
   ADMIN_SECRET,
   CHALLENGE_ID,
   LOGIN_CODE,
+  READ_FAILURE_SECRET,
 ];
 
 const anonymous = {
@@ -166,11 +168,13 @@ let queryMode = 'success';
 let credentialPoison = null;
 let refreshPoison = null;
 let logoutMode = 'empty';
+let logoutReadFailureHook = null;
 let supersededHook = null;
 let delayedQueryResolve = null;
 let delayedQueryStartedResolve = null;
 let delayedQueryStarted = null;
 let delayedQueryResponse = null;
+let staleLogoutPeer = null;
 
 const prepareDelayedQuery = () => {
   delayedQueryStarted = new Promise((resolve) => { delayedQueryStartedResolve = resolve; });
@@ -206,6 +210,23 @@ globalThis.fetch = async (url, init = {}) => {
     if (logoutMode === 'wrong-status') return emptyResponse(200);
     if (logoutMode === 'reflected-body') {
       return rawResponse(JSON.stringify({ revoked: true, reflectedBearer: bearer }), 204);
+    }
+    if (logoutMode === 'read-failure') {
+      return {
+        ok: true,
+        status: 204,
+        async text() {
+          await logoutReadFailureHook?.();
+          const error = new Error(`body reader exposed ${READ_FAILURE_SECRET} and ${bearer}`);
+          error.name = `BodyReader${bearer}`;
+          error.code = `READ_${READ_FAILURE_SECRET}`;
+          error.diagnostic = {
+            message: READ_FAILURE_SECRET,
+            [`reflected_${bearer}`]: bearer,
+          };
+          throw error;
+        },
+      };
     }
     return emptyResponse(204);
   }
@@ -465,6 +486,70 @@ try {
   assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
 
+  // Exact reviewer replay: the response status is already known 2xx when the
+  // body reader rejects with bearer/body material. Opaque facts cross the
+  // transport boundary, current custody clears, and the fixed invalid-response
+  // error contains neither the reader error nor request credential.
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  calls = [];
+  logoutMode = 'read-failure';
+  let readFailureLogoutError;
+  await assert.rejects(db.authLogout(), (error) => {
+    readFailureLogoutError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  });
+  assert.equal(coordinator.settledView().authority.kind, 'anonymous');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  const readFailureProjection = JSON.stringify({
+    name: readFailureLogoutError.name,
+    message: readFailureLogoutError.message,
+    code: readFailureLogoutError.code,
+    diagnostic: readFailureLogoutError.diagnostic,
+  });
+  assert.equal(readFailureProjection.includes(BEARER_A), false);
+  assert.equal(readFailureProjection.includes(READ_FAILURE_SECRET), false);
+  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
+
+  // If another context installs B while A's 2xx body read fails, A still runs
+  // compare-clear but cannot erase B. Stale authority wins over the generic
+  // malformed-success diagnostic and the successor remains durable.
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  staleLogoutPeer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await staleLogoutPeer.synchronize();
+  const stalePeerCapture = staleLogoutPeer.capture();
+  bearerAuthority.set(BEARER_B, sessionB);
+  logoutReadFailureHook = () => staleLogoutPeer.transition(stalePeerCapture, {
+    authority: sessionB,
+    bearer: BEARER_B,
+    refreshAfterMs: 40_000,
+  }, 'test_logout_read_failure_peer_transition');
+  calls = [];
+  let staleReadFailureError;
+  await assert.rejects(db.authLogout(), (error) => {
+    staleReadFailureError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+  });
+  logoutReadFailureHook = null;
+  const successorSnapshot = storage.snapshot(APP);
+  assert.equal(successorSnapshot.authority.sessionId, SESSION_B);
+  assert.equal(successorSnapshot.bearer, BEARER_B);
+  const staleFailureProjection = JSON.stringify({
+    name: staleReadFailureError.name,
+    message: staleReadFailureError.message,
+    code: staleReadFailureError.code,
+    diagnostic: staleReadFailureError.diagnostic,
+  });
+  assert.equal(staleFailureProjection.includes(BEARER_A), false);
+  assert.equal(staleFailureProjection.includes(READ_FAILURE_SECRET), false);
+  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout']);
+  await staleLogoutPeer.close();
+  staleLogoutPeer = null;
+
   // The item-5 client-secret sentinel covers every ordinary app-visible auth
   // result/error and every requested URL. Authorization headers and the
   // documented transactional custody record are the deliberate v1 carriers.
@@ -474,6 +559,8 @@ try {
     loggedOut,
     wrongStatusLogoutError,
     reflectedLogoutError,
+    readFailureLogoutError,
+    staleReadFailureError,
     bearerError,
     transportError,
     adminError,
@@ -489,6 +576,7 @@ try {
   }
 } finally {
   globalThis.fetch = originalFetch;
+  await staleLogoutPeer?.close();
   await unregisterSurfaceProbe();
   await db.closeAuth();
   await coordinator.close();

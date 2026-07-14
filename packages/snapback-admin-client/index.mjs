@@ -47,7 +47,7 @@ export class AdminClient {
       false,
       true,
     );
-    const credential = projectConsoleCredential(minted);
+    const credential = projectConsoleCredential(minted, masterToken);
     if (!credential || credential.expiresAtMs <= Date.now()) {
       throw responseShapeError('console credential exchange returned an invalid credential');
     }
@@ -256,7 +256,7 @@ function responseShapeError(message) {
   return error;
 }
 
-function projectConsoleCredential(value) {
+function projectConsoleCredential(value, forbiddenMaster = '') {
   if (!exactRecord(value, ['credential', 'expiresAtMs'])) return null;
   if (
     typeof value.credential !== 'string' ||
@@ -267,10 +267,14 @@ function projectConsoleCredential(value) {
   ) {
     return null;
   }
-  return {
+  const projected = {
     credential: value.credential,
     expiresAtMs: value.expiresAtMs,
   };
+  // @ref LLP 0057#c1-the-v1-custody-claim — an exact response shape still
+  // fails closed when the derived value would persist its minting authority.
+  if (forbiddenMaster && projected.credential.includes(forbiddenMaster)) return null;
+  return projected;
 }
 
 function exactRecord(value, keys) {

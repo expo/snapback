@@ -1392,15 +1392,25 @@ export class SnapbackClient {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal,
       });
+    } catch (error) {
+      throw sanitizeTransportError(error, requestSecrets);
+    }
+    try {
       text = await res.text();
     } catch (error) {
+      // A response object with a known 2xx status may represent a logout that
+      // already committed even when its body reader fails. Carry only opaque
+      // facts so authLogout can run the captured-authority clear barrier.
+      if (res.ok && successfulResponseFacts) {
+        return { status: res.status, emptyBody: false, readFailed: true };
+      }
       throw sanitizeTransportError(error, requestSecrets);
     }
     // Logout needs to distinguish exact empty 204 from a malformed successful
     // response without ever carrying the successful body past this boundary.
     // Non-successes continue through the ordinary sanitized diagnostic path.
     if (res.ok && successfulResponseFacts) {
-      return { status: res.status, emptyBody: text === '' };
+      return { status: res.status, emptyBody: text === '', readFailed: false };
     }
     // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
     //   trusting the body as JSON, so a proxy 502 HTML page surfaces as a

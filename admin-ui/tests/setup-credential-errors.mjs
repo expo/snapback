@@ -38,6 +38,7 @@ const localStorage = {
 };
 
 let mode = 'initial';
+let mintedCredential = DERIVED;
 const requests = [];
 async function fetch(path, options = {}) {
   requests.push({ path, options });
@@ -58,6 +59,12 @@ async function fetch(path, options = {}) {
         credential: DERIVED,
         expiresAtMs: Date.now() + 60_000,
         [`reflected_${master}`]: 'property-name poison',
+      });
+    }
+    if (mode === 'master-derived-collision') {
+      return response(200, {
+        credential: mintedCredential,
+        expiresAtMs: Date.now() + 60_000,
       });
     }
     return response(200, {
@@ -171,6 +178,27 @@ await flush();
 assertSecretAbsent(visibleText(), MASTER, 'master success property-key DOM');
 assert.match(elements.get('authmsg').textContent, /invalid response/i);
 assert.equal(storageContains(MASTER), false, 'poisoned master key never enters setup storage');
+
+for (const collision of [
+  { master: 'QZX', minted: 'sbcc_QZX' },
+  { master: 's', minted: 'sbcc_clean-console' },
+]) {
+  mode = 'master-derived-collision';
+  mintedCredential = collision.minted;
+  tokenInput.value = collision.master;
+  tokenSave.listeners.click();
+  await flush();
+  assert.equal(
+    elements.get('authmsg').textContent,
+    'Console credential exchange returned an invalid response.',
+  );
+  assert.equal(
+    storage.has('snapback_console_credential_v1'),
+    false,
+    'a derived credential containing its submitted master is never persisted',
+  );
+}
+mintedCredential = DERIVED;
 
 mode = 'derived-failure';
 tokenInput.value = MASTER;
