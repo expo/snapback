@@ -283,7 +283,11 @@ const sanitizeProtocolErrorValue = (value, secrets, field = null) => {
 };
 
 const sanitizeTransportError = (error, secrets) => {
-  const safe = new Error(redactKnownSecrets(error?.message ?? String(error), secrets));
+  const message = redactKnownSecrets(error?.message ?? String(error), secrets);
+  // Preserve the fetch-unavailable class used by the offline cache policy;
+  // only the payload is sanitized. A plain Error here would turn a known
+  // network outage into a protocol failure and erase the last safe projection.
+  const safe = error instanceof TypeError ? new TypeError(message) : new Error(message);
   safe.name = redactKnownSecrets(error?.name ?? 'Error', secrets);
   if (error?.code !== undefined) {
     safe.code = sanitizeProtocolErrorValue(error.code, secrets);
