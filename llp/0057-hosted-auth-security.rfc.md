@@ -5,7 +5,7 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0054, LLP 0055, LLP 0056
 
 ## Summary
@@ -285,8 +285,14 @@ transport errors defensively replace known request credentials/codes and
 sensitive protocol fields before constructing an app-visible `Error`, even if
 a broken receiver reflects them. Successful auth-session and credential
 responses are also exact, closed, reconstructed projections: unknown root or
-nested fields fail generically, and a request bearer or issued successor may
-not appear in the public projection before custody advances.
+nested fields fail generically. Exchange excludes the submitted challenge id,
+login code, and issued bearer from every string, numeric, and property-name
+position in its public projection. Refresh applies the same exclusion to both
+the predecessor and successor bearer before custody advances. Logout accepts
+only exact empty HTTP 204, exposes fixed `null`, and never publishes arbitrary
+successful JSON. Because a malformed 2xx may follow a committed server-side
+revocation, the coordinator compare-clears only the captured authority before
+returning a fixed credential-free protocol error.
 
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
@@ -301,12 +307,16 @@ artifacts, or public diagnostics.
 Snapback's shared admin client applies the same last-mile rule to its distinct
 operator carriers. Master tokens, derived `sbcc_` console credentials,
 memory-only `AdminSecretRead` leases, and submitted config values are collected
-as request-scoped secrets. Transport exceptions, structured diagnostics,
-non-JSON bodies, and successful reflected responses are reconstructed with
-those values replaced before reaching UI code. The credential exchange accepts
-only its exact two-field response and consumes it internally. The Contract UI
-logs only that safe scalar projection, and the embedded setup program executes
-the same rule before writing DOM text or browser storage.
+as request-scoped secrets at every nonzero length; a length floor is permitted
+only for heuristic discovery, never for a known carrier. Transport exceptions,
+structured diagnostics, non-JSON bodies, and successful reflected responses
+are reconstructed with those values replaced before reaching UI code. Error
+object property names are sanitized too, while a successful object whose
+property name contains a known secret is rejected generically rather than
+reinterpreted under a replacement key. The credential exchange accepts only
+its exact two-field response and consumes it internally. The Contract UI logs
+only that safe scalar projection, and the embedded setup program executes the
+same rule before writing DOM text or browser storage.
 
 ### C2. Defenses that do not change the boundary
 
@@ -437,6 +447,13 @@ material.
 - Secret sentinels prove `localStorage`, wakeups, diagnostics, URLs, errors,
   and return values never contain session bearer, master admin, derived console,
   secret-read lease, or submitted config material.
+- One-, two-, and three-byte master/config sentinels prove known semantic
+  carriers have no redaction floor. Poisoned diagnostic and successful-response
+  property names prove keys cannot retain those values.
+- Credential-success poison cases cover exchange request proof and successor,
+  refresh predecessor and successor, and logout body reflection. Exact empty
+  204 alone returns `null`; malformed 2xx logout clears only current captured
+  custody and then returns a generic credential-free error.
 - Ordinary coordinator views contain no bearer. The acceptance test names the
   transactional custody record and authorization header as the intentional v1
   carriers instead of hiding them from the assertion.
@@ -493,6 +510,16 @@ Trusted Types rather than merely receiving the header.
 
 ## Changelog
 
+- **2026-07-13 (ENG-24607 second review hardening):** removed the four-byte
+  floor from known admin, config, bearer, and challenge carriers while retaining
+  collision-safe redaction markers; sanitized diagnostic property names and
+  generically rejected secret-bearing property names in successful operator
+  responses; excluded exchange challenge/code/successor and refresh
+  predecessor/successor values from all public credential projection positions;
+  made logout accept only exact empty 204 and return fixed `null`, with captured
+  custody safely cleared before a generic malformed-success error; and added
+  short-secret, property-key, numeric-code, predecessor/successor, and reflected
+  logout regression cases.
 - **2026-07-13 (ENG-24607 review hardening):** moved the desired-or-active
   sessions plaintext refusal ahead of bearer resolution on embedded routing;
   made auth-session and credential successes exact reconstructed projections

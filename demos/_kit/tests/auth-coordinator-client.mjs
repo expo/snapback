@@ -18,7 +18,16 @@ const BEARER_A = 'sbs_CLIENT_BEARER_A_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const BEARER_B = 'sbs_CLIENT_BEARER_B_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const BEARER_C = 'sbs_CLIENT_BEARER_C_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const ADMIN_SECRET = 'sba_CLIENT_ADMIN_SECRET_SENTINEL_MUST_NOT_ESCAPE';
-const CLIENT_SECRETS = [BEARER_A, BEARER_B, BEARER_C, ADMIN_SECRET];
+const CHALLENGE_ID = 'sbc_CLIENT_CHALLENGE_SECRET_SENTINEL_MUST_NOT_ESCAPE';
+const LOGIN_CODE = '123456';
+const CLIENT_SECRETS = [
+  BEARER_A,
+  BEARER_B,
+  BEARER_C,
+  ADMIN_SECRET,
+  CHALLENGE_ID,
+  LOGIN_CODE,
+];
 
 const anonymous = {
   kind: 'anonymous',
@@ -103,6 +112,16 @@ const response = (body, status = 200) => ({
   status,
   text: async () => JSON.stringify(body),
 });
+const emptyResponse = (status = 204) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  text: async () => '',
+});
+const rawResponse = (body, status = 204) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  text: async () => String(body),
+});
 
 const diagnosticResponse = (code, status = 401, { message = code, details = {} } = {}) => response({
   diagnostic: { code, message, details },
@@ -145,6 +164,8 @@ let calls = [];
 const rawUrls = [];
 let queryMode = 'success';
 let credentialPoison = null;
+let refreshPoison = null;
+let logoutMode = 'empty';
 let supersededHook = null;
 let delayedQueryResolve = null;
 let delayedQueryStartedResolve = null;
@@ -160,7 +181,8 @@ globalThis.fetch = async (url, init = {}) => {
   rawUrls.push(String(url));
   const path = pathOf(url);
   const bearer = authorization(init)?.replace(/^Bearer /, '') ?? null;
-  calls.push({ path, bearer, body: init.body ? JSON.parse(init.body) : null });
+  const body = init.body ? JSON.parse(init.body) : null;
+  calls.push({ path, bearer, body });
   if (path === '/auth/session') {
     return response(handshake(bearer ? bearerAuthority.get(bearer) : anonymous));
   }
@@ -168,10 +190,25 @@ globalThis.fetch = async (url, init = {}) => {
     const issued = credential(BEARER_A, sessionA, 10_000);
     if (credentialPoison === 'root') issued.leakedBearer = BEARER_A;
     if (credentialPoison === 'nested') issued.session.leakedBearer = BEARER_A;
+    if (credentialPoison === 'issued-token') issued.session.provider = issued.token;
+    if (credentialPoison === 'challenge-id') issued.session.provider = body.challengeId;
+    if (credentialPoison === 'login-code-string') issued.session.provider = body.code;
+    if (credentialPoison === 'login-code-number') issued.session.createdAt = Number(body.code);
     return response(issued);
   }
-  if (path === '/auth/refresh') return response(credential(BEARER_C, sessionA, 30_000));
-  if (path === '/auth/logout') return response({ revoked: true });
+  if (path === '/auth/refresh') {
+    const issued = credential(BEARER_C, sessionA, 30_000);
+    if (refreshPoison === 'predecessor') issued.session.provider = bearer;
+    if (refreshPoison === 'successor') issued.session.provider = issued.token;
+    return response(issued);
+  }
+  if (path === '/auth/logout') {
+    if (logoutMode === 'wrong-status') return emptyResponse(200);
+    if (logoutMode === 'reflected-body') {
+      return rawResponse(JSON.stringify({ revoked: true, reflectedBearer: bearer }), 204);
+    }
+    return emptyResponse(204);
+  }
   if (path === '/auth/family-alarm') return response({ accepted: true });
   if (path === '/_snapback/api/schema/load') {
     return diagnosticResponse('SNAPBACK_TEST_ADMIN_ECHO', 500, {
@@ -215,13 +252,21 @@ try {
   assert.equal(coordinator.capture().authorityEpoch, 0);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/query/list']);
 
-  // A 200 response remains untrusted: both root and nested credential
-  // extensions are rejected before token custody advances, and the generic
-  // refusal itself never republishes the poisoned bearer.
-  for (credentialPoison of ['root', 'nested']) {
+  // A 200 response remains untrusted: root/nested extensions and allowed
+  // public fields reflecting the successor, challenge id, or login code are
+  // rejected before token custody advances. Numeric fields are included so a
+  // six-digit code cannot hide in an otherwise valid timestamp.
+  for (credentialPoison of [
+    'root',
+    'nested',
+    'issued-token',
+    'challenge-id',
+    'login-code-string',
+    'login-code-number',
+  ]) {
     let poisonError;
     await assert.rejects(
-      db.authExchange({ challengeId: 'challenge-poison', code: '123456' }),
+      db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
       (error) => {
         poisonError = error;
         return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
@@ -239,7 +284,7 @@ try {
   // Exchange installs token custody and runs transport resume before exposing
   // the session projection. The token never appears in the returned object.
   calls = [];
-  const exchanged = await db.authExchange({ challengeId: 'challenge-1', code: '123456' });
+  const exchanged = await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
   assert.equal(Object.hasOwn(exchanged, 'token'), false);
   assert.equal(exchanged.session.id, SESSION_A);
   assert.equal(coordinator.capture().authorityEpoch, 1);
@@ -346,6 +391,28 @@ try {
   supersededHook = null;
   await peer.close();
 
+  // Refresh refuses both predecessor and successor reflection through allowed
+  // public fields without advancing custody or its no-lost-update revision.
+  for (refreshPoison of ['predecessor', 'successor']) {
+    const beforePoison = storage.snapshot(APP);
+    let poisonError;
+    await assert.rejects(db.authRefresh(), (error) => {
+      poisonError = error;
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+    });
+    assert.equal(storage.snapshot(APP).bearer, BEARER_B);
+    assert.equal(storage.snapshot(APP).revision, beforePoison.revision);
+    assert.equal(JSON.stringify({
+      message: poisonError.message,
+      diagnostic: poisonError.diagnostic,
+    }).includes(BEARER_B), false);
+    assert.equal(JSON.stringify({
+      message: poisonError.message,
+      diagnostic: poisonError.diagnostic,
+    }).includes(BEARER_C), false);
+  }
+  refreshPoison = null;
+
   // Refresh is serialized under custody ownership and only exposes the
   // non-secret projection after the exact revision replacement.
   calls = [];
@@ -354,14 +421,49 @@ try {
   assert.equal(storage.snapshot(APP).bearer, BEARER_C);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/refresh']);
 
-  // Logout completes the server revocation before the delete barrier and
-  // returns only after anonymous custody has settled and re-handshaken.
+  // A malformed successful logout may already have committed server-side. A
+  // wrong status and a nonempty reflected body independently clear only the
+  // captured authority, expose no body, and return a fixed protocol error.
   calls = [];
-  const loggedOut = await db.authLogout();
-  assert.equal(loggedOut.revoked, true);
+  logoutMode = 'wrong-status';
+  let wrongStatusLogoutError;
+  await assert.rejects(db.authLogout(), (error) => {
+    wrongStatusLogoutError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  });
   assert.equal(coordinator.settledView().authority.kind, 'anonymous');
   assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  assert.equal(JSON.stringify({
+    message: wrongStatusLogoutError.message,
+    diagnostic: wrongStatusLogoutError.diagnostic,
+  }).includes(BEARER_C), false);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/auth/logout', '/auth/session']);
+
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  calls = [];
+  logoutMode = 'reflected-body';
+  let reflectedLogoutError;
+  await assert.rejects(db.authLogout(), (error) => {
+    reflectedLogoutError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  });
+  assert.equal(coordinator.settledView().authority.kind, 'anonymous');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  assert.equal(JSON.stringify({
+    message: reflectedLogoutError.message,
+    diagnostic: reflectedLogoutError.diagnostic,
+  }).includes(BEARER_A), false);
+  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
+
+  // Recover a session, then require exact empty 204 and expose fixed null.
+  logoutMode = 'empty';
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  calls = [];
+  const loggedOut = await db.authLogout();
+  assert.equal(loggedOut, null);
+  assert.equal(coordinator.settledView().authority.kind, 'anonymous');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
 
   // The item-5 client-secret sentinel covers every ordinary app-visible auth
   // result/error and every requested URL. Authorization headers and the
@@ -370,6 +472,8 @@ try {
     exchanged,
     refreshed,
     loggedOut,
+    wrongStatusLogoutError,
+    reflectedLogoutError,
     bearerError,
     transportError,
     adminError,

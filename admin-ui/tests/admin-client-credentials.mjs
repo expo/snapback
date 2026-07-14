@@ -208,6 +208,59 @@ const poisonedExchange = await captureFailure(() => client.setToken(MASTER));
 assert.equal(poisonedExchange.diagnostic.code, 'SNAPBACK_RESPONSE_INVALID');
 assertCredentialAbsent(poisonedExchange, MASTER, 'poisoned credential exchange');
 
+// Known semantic carriers have no minimum secret length. Exercise one-, two-,
+// and three-byte admin/config values in both diagnostics and successful object
+// property names. Secret-bearing success keys are rejected rather than renamed.
+for (const shortSecret of ['Q', 'QZ', 'QZX']) {
+  const shortHeadless = new AdminClient('http://snapback.test/_snapback/api', {
+    token: shortSecret,
+  });
+  fetchOverride = async () => response(500, {
+    diagnostic: {
+      code: 'SNAPBACK_SHORT_ADMIN_FAILED',
+      message: `admin carrier ${shortSecret}`,
+      [`reflected_${shortSecret}`]: 'property-name poison',
+      adminToken: shortSecret,
+    },
+  });
+  const adminFailure = await captureFailure(() => shortHeadless.inspect());
+  assertCredentialAbsent(adminFailure, shortSecret, `${shortSecret.length}-byte admin diagnostic`);
+
+  fetchOverride = async () => response(200, {
+    [`reflected_${shortSecret}`]: 'property-name poison',
+  });
+  const adminKeyFailure = await captureFailure(() => shortHeadless.inspect());
+  assert.equal(adminKeyFailure.diagnostic.code, 'SNAPBACK_RESPONSE_INVALID');
+  assertCredentialAbsent(adminKeyFailure, shortSecret, `${shortSecret.length}-byte admin success key`);
+
+  const configClient = new AdminClient('http://snapback.test/_snapback/api');
+  fetchOverride = async (_url, options) => {
+    const value = JSON.parse(options.body).value;
+    return response(500, {
+      diagnostic: {
+        code: 'SNAPBACK_SHORT_CONFIG_FAILED',
+        message: `config carrier ${value}`,
+        [`reflected_${value}`]: 'property-name poison',
+        value,
+      },
+    });
+  };
+  const configFailure = await captureFailure(() => (
+    configClient.runFunction('configProbe', { value: shortSecret })
+  ));
+  assertCredentialAbsent(configFailure, shortSecret, `${shortSecret.length}-byte config diagnostic`);
+
+  fetchOverride = async (_url, options) => {
+    const value = JSON.parse(options.body).value;
+    return response(200, { [`reflected_${value}`]: 'property-name poison' });
+  };
+  const configKeyFailure = await captureFailure(() => (
+    configClient.runFunction('configProbe', { value: shortSecret })
+  ));
+  assert.equal(configKeyFailure.diagnostic.code, 'SNAPBACK_RESPONSE_INVALID');
+  assertCredentialAbsent(configKeyFailure, shortSecret, `${shortSecret.length}-byte config success key`);
+}
+
 delete globalThis.fetch;
 delete globalThis.indexedDB;
 delete globalThis.localStorage;

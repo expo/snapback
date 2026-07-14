@@ -3949,7 +3949,7 @@ fn apply_registered_response_controls(
     response
 }
 
-const SETUP_SCRIPT_SHA256: &str = "36I3okOvH/8EY6Jpsa8zQfrWNaprUA1yXZqkz5aSj5A=";
+const SETUP_SCRIPT_SHA256: &str = "cfVnLLBFLEost5zmU8f9sDKa+PDcOIz8y7DCFYoLkSY=";
 
 /// Construct the one restrictive policy shared by Snapback-owned documents,
 /// admitting only same-origin external scripts and explicitly hashed inline

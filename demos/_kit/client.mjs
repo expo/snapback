@@ -223,9 +223,10 @@ const sensitiveProtocolField = (name) => {
 const addSecret = (secrets, value) => {
   if (typeof value !== 'string' && typeof value !== 'number') return;
   const text = String(value);
-  // Very short values create destructive false positives in diagnostic copy;
-  // protocol credentials and email codes are always at least four bytes.
-  if (text.length >= 4) secrets.add(text);
+  // This is exact semantic discovery from a request carrier, not a heuristic.
+  // Rejecting destructive short-value reflections is safer than publishing a
+  // one-byte admin credential or caller-supplied challenge proof.
+  if (text.length > 0) secrets.add(text);
 };
 
 const collectRequestSecrets = (body, headers) => {
@@ -256,23 +257,29 @@ const collectRequestSecrets = (body, headers) => {
 
 const redactKnownSecrets = (text, secrets) => {
   let redacted = String(text ?? '');
-  for (const secret of secrets) redacted = redacted.replaceAll(secret, CLIENT_SECRET_REDACTION);
+  const marker = safeClientRedactionMarker(secrets);
+  const ordered = [...secrets].sort((left, right) => right.length - left.length);
+  for (const secret of ordered) redacted = redacted.replaceAll(secret, marker);
   return redacted;
 };
 
+const safeClientRedactionMarker = (secrets) => (
+  [CLIENT_SECRET_REDACTION, '<redacted>', '***', '•••', ''].find((candidate) => (
+    [...secrets].every((secret) => !candidate.includes(secret))
+  )) ?? ''
+);
+
 const sanitizeProtocolErrorValue = (value, secrets, field = null) => {
-  if (sensitiveProtocolField(field)) return CLIENT_SECRET_REDACTION;
+  if (sensitiveProtocolField(field)) return safeClientRedactionMarker(secrets);
   if (typeof value === 'string') return redactKnownSecrets(value, secrets);
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeProtocolErrorValue(item, secrets));
   }
   if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([name, item]) => [
-      name,
-      sanitizeProtocolErrorValue(item, secrets, name),
-    ]),
-  );
+  return Object.fromEntries(Object.entries(value).map(([name, item]) => [
+    redactKnownSecrets(name, secrets),
+    sanitizeProtocolErrorValue(item, secrets, name),
+  ]));
 };
 
 const sanitizeTransportError = (error, secrets) => {
@@ -618,15 +625,23 @@ const projectSessionResponse = (value) => {
   };
 };
 
+// @ref LLP 0057#c1-the-v1-custody-claim — successful exchange/refresh
+// projections exclude both request proofs and issued credentials.
 const valueContainsSecret = (value, secret) => {
-  if (typeof secret !== 'string' || secret.length < 4) return false;
-  if (typeof value === 'string') return value.includes(secret);
+  if (typeof secret !== 'string' && typeof secret !== 'number') return false;
+  const text = String(secret);
+  if (text.length === 0) return false;
+  if (['string', 'number', 'bigint', 'boolean'].includes(typeof value)) {
+    return String(value).includes(text);
+  }
   if (Array.isArray(value)) return value.some((item) => valueContainsSecret(item, secret));
   if (!value || typeof value !== 'object') return false;
-  return Object.values(value).some((item) => valueContainsSecret(item, secret));
+  return Object.entries(value).some(([name, item]) => (
+    name.includes(text) || valueContainsSecret(item, secret)
+  ));
 };
 
-const projectCredentialResponse = (value) => {
+const projectCredentialResponse = (value, forbiddenSecrets = []) => {
   if (
     !exactRecord(value, ['tokenType', 'token', 'refreshAfter', 'session'])
     || value.tokenType !== 'Bearer'
@@ -642,7 +657,10 @@ const projectCredentialResponse = (value) => {
     refreshAfter: value.refreshAfter,
     session,
   };
-  if (valueContainsSecret(credentialPublicProjection(projected), projected.token)) return null;
+  const publicProjection = credentialPublicProjection(projected);
+  if ([projected.token, ...forbiddenSecrets].some((secret) => (
+    valueContainsSecret(publicProjection, secret)
+  ))) return null;
   return projected;
 };
 
@@ -906,11 +924,14 @@ export class SnapbackClient {
     throw error;
   }
 
-  async #trackedFetchJson(method, path, body, headers) {
+  async #trackedFetchJson(method, path, body, headers, options = {}) {
     const controller = new AbortController();
     this.__authControllers.add(controller);
     try {
-      return await this.#fetchJson(method, path, body, headers, { signal: controller.signal });
+      return await this.#fetchJson(method, path, body, headers, {
+        ...options,
+        signal: controller.signal,
+      });
     } finally {
       this.__authControllers.delete(controller);
     }
@@ -1042,8 +1063,8 @@ export class SnapbackClient {
     this.#cacheAuthSession(session, capture);
   }
 
-  #validateCredentialResponse(response) {
-    const projected = projectCredentialResponse(response);
+  #validateCredentialResponse(response, forbiddenSecrets = []) {
+    const projected = projectCredentialResponse(response, forbiddenSecrets);
     if (projected) return projected;
     const error = new Error(
       'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid credential response',
@@ -1350,7 +1371,13 @@ export class SnapbackClient {
     return headers;
   }
 
-  async #fetchJson(method, path, body, headers, { signal = undefined } = {}) {
+  async #fetchJson(
+    method,
+    path,
+    body,
+    headers,
+    { signal = undefined, successfulResponseFacts = false } = {},
+  ) {
     const merged = {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
@@ -1368,6 +1395,12 @@ export class SnapbackClient {
       text = await res.text();
     } catch (error) {
       throw sanitizeTransportError(error, requestSecrets);
+    }
+    // Logout needs to distinguish exact empty 204 from a malformed successful
+    // response without ever carrying the successful body past this boundary.
+    // Non-successes continue through the ordinary sanitized diagnostic path.
+    if (res.ok && successfulResponseFacts) {
+      return { status: res.status, emptyBody: text === '' };
     }
     // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
     //   trusting the body as JSON, so a proxy 502 HTML page surfaces as a
@@ -1455,7 +1488,7 @@ export class SnapbackClient {
       '/auth/exchange',
       { challengeId, code },
       this.#authOfferHeaders(true, null),
-    ));
+    ), [challengeId, code]);
     const authority = credentialAuthority(
       response,
       'sessions',
@@ -1487,7 +1520,7 @@ export class SnapbackClient {
             '/auth/refresh',
             {},
             this.#authOfferHeaders(true, bearer),
-          ));
+          ), [bearer]);
           const observed = credentialAuthority(
             response,
             'sessions',
@@ -1542,15 +1575,29 @@ export class SnapbackClient {
     await this.authSession();
     const capture = this.authCoordinator.capture();
     const bearer = this.authCoordinator.credentialFor(capture).bearer;
+    // @ref LLP 0057#c1-the-v1-custody-claim — exact empty 204 is the only
+    // public logout success; malformed 2xx still clears captured custody.
     const response = await this.#trackedFetchJson(
       'POST',
       '/auth/logout',
       {},
       this.#authOfferHeaders(true, bearer),
+      { successfulResponseFacts: true },
     );
     const cleared = await this.authCoordinator.compareAndClear(capture, 'logout');
     if (!cleared.cleared) throw staleAuthorityError();
-    return response;
+    if (response.status !== 204 || !response.emptyBody) {
+      const error = new Error(
+        'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid logout response',
+      );
+      error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+      error.diagnostic = {
+        code: error.code,
+        message: 'auth provider returned an invalid logout response',
+      };
+      throw error;
+    }
+    return null;
   }
 
   async closeAuth() {

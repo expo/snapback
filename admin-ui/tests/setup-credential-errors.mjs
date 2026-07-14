@@ -9,6 +9,7 @@ import vm from 'node:vm';
 const MASTER = 'master-setup-credential-SENTINEL';
 const DERIVED = 'sbcc_setup-derived-SENTINEL';
 const CONFIG_SECRET = 'setup-config-value-SENTINEL';
+const SHORT_SECRETS = ['Q', 'QZ', 'QZX'];
 const html = fs.readFileSync(new URL('../../src/admin/setup.html', import.meta.url), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script, 'setup page has one executable inline program');
@@ -47,8 +48,16 @@ async function fetch(path, options = {}) {
         diagnostic: {
           code: 'SNAPBACK_ADMIN_TOKEN_REQUIRED',
           message: `receiver reflected ${master}`,
+          [`reflected_${master}`]: 'property-name poison',
           adminToken: master,
         },
+      });
+    }
+    if (mode === 'master-key-poison') {
+      return response(200, {
+        credential: DERIVED,
+        expiresAtMs: Date.now() + 60_000,
+        [`reflected_${master}`]: 'property-name poison',
       });
     }
     return response(200, {
@@ -75,7 +84,7 @@ async function fetch(path, options = {}) {
         },
       });
     }
-    return response(200, {
+    const status = {
       appProvisioned: true,
       requiredMissing: ['API_KEY'],
       entries: [{
@@ -92,14 +101,22 @@ async function fetch(path, options = {}) {
         lastChangedMs: null,
         source: null,
       }],
-    });
+    };
+    if (mode === 'status-key-poison') {
+      status[`reflected_${derived}`] = 'property-name poison';
+    }
+    return response(200, status);
   }
   if (path.endsWith('/config/set')) {
     const value = JSON.parse(options.body).value;
+    if (mode === 'config-key-poison') {
+      return response(200, { [`reflected_${value}`]: 'property-name poison' });
+    }
     return response(500, {
       diagnostic: {
         code: 'SNAPBACK_CONFIG_SET_FAILED',
         message: `config receiver reflected ${value}`,
+        [`reflected_${value}`]: 'property-name poison',
         value,
       },
     });
@@ -133,6 +150,28 @@ assertSecretAbsent(visibleText(), MASTER, 'master failure DOM');
 assert.match(elements.get('authmsg').textContent, /\[REDACTED\]/);
 assert.equal(storageContains(MASTER), false, 'master never enters setup storage');
 
+for (const shortSecret of SHORT_SECRETS) {
+  tokenInput.value = shortSecret;
+  tokenSave.listeners.click();
+  await flush();
+  assertSecretAbsent(
+    visibleText(),
+    shortSecret,
+    `${shortSecret.length}-byte master failure DOM`,
+  );
+  assert.equal(storageContains(shortSecret), false, 'short master never enters setup storage');
+}
+
+// The exact credential response also rejects a successful property name that
+// contains the submitted master token; only a fixed protocol error reaches DOM.
+mode = 'master-key-poison';
+tokenInput.value = MASTER;
+tokenSave.listeners.click();
+await flush();
+assertSecretAbsent(visibleText(), MASTER, 'master success property-key DOM');
+assert.match(elements.get('authmsg').textContent, /invalid response/i);
+assert.equal(storageContains(MASTER), false, 'poisoned master key never enters setup storage');
+
 mode = 'derived-failure';
 tokenInput.value = MASTER;
 tokenSave.listeners.click();
@@ -141,6 +180,15 @@ assert.equal(storageContains(MASTER), false, 'successful exchange still does not
 assert.equal(storageContains(DERIVED), true, 'setup persists only the short-lived derived credential');
 assertSecretAbsent(visibleText(), DERIVED, 'derived failure DOM');
 assert.match(elements.get('summary').textContent, /\[REDACTED\]/);
+
+// Successful arbitrary objects are also rejected when a property name carries
+// the active derived credential. This is distinct from exact credential DTOs.
+mode = 'status-key-poison';
+tokenInput.value = MASTER;
+tokenSave.listeners.click();
+await flush();
+assertSecretAbsent(visibleText(), DERIVED, 'derived success property-key DOM');
+assert.match(elements.get('summary').textContent, /invalid response/i);
 
 // A second successful exchange drives a successful refresh and renders a real
 // config card. Its submitted value becomes another request-scoped secret.
@@ -158,6 +206,34 @@ setButton.listeners.click();
 await flush();
 assertSecretAbsent(visibleText(), CONFIG_SECRET, 'config value failure DOM');
 assert.equal(storageContains(CONFIG_SECRET), false, 'config value never enters setup storage');
+
+for (const shortSecret of SHORT_SECRETS) {
+  configInput.value = shortSecret;
+  setButton.listeners.click();
+  await flush();
+  assertSecretAbsent(
+    visibleText(),
+    shortSecret,
+    `${shortSecret.length}-byte config failure DOM`,
+  );
+  assert.equal(storageContains(shortSecret), false, 'short config value never enters setup storage');
+}
+
+// A 200 response whose property name reflects the submitted config value is
+// malformed success, not data the setup page may reinterpret or render.
+mode = 'config-key-poison';
+for (const shortSecret of SHORT_SECRETS) {
+  configInput.value = shortSecret;
+  setButton.listeners.click();
+  await flush();
+  assertSecretAbsent(
+    visibleText(),
+    shortSecret,
+    `${shortSecret.length}-byte config success property-key DOM`,
+  );
+  const message = find(cards, (node) => String(node.className).includes('msg'))[0];
+  assert.match(message.textContent, /invalid response/i);
+}
 
 assert.equal(
   requests.some(({ path, options }) => (

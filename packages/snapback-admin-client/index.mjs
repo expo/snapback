@@ -314,9 +314,11 @@ function sensitiveAdminField(name) {
 function addSecret(secrets, value) {
   if (typeof value !== 'string' && typeof value !== 'number') return;
   const text = String(value);
-  // Avoid destructive replacement of ordinary short words. Snapback-issued
-  // credentials and operator secrets are materially longer than this floor.
-  if (text.length >= 4) secrets.add(text);
+  // @ref LLP 0057#c1-the-v1-custody-claim — known operator carriers have no
+  // redaction length floor, and secret-bearing success keys fail closed.
+  // These values come from known secret-bearing carriers, not heuristic
+  // discovery. Even a one-byte operator token or config value remains secret.
+  if (text.length > 0) secrets.add(text);
 }
 
 function collectAdminSecrets(body, headers, initialSecrets = new Set()) {
@@ -338,10 +340,19 @@ function collectAdminSecrets(body, headers, initialSecrets = new Set()) {
 
 function redactKnownSecrets(value, secrets) {
   let redacted = String(value ?? '');
-  for (const secret of secrets) {
-    redacted = redacted.replaceAll(secret, CREDENTIAL_REDACTION);
+  const marker = safeRedactionMarker(secrets);
+  const ordered = [...secrets].sort((left, right) => right.length - left.length);
+  for (const secret of ordered) {
+    redacted = redacted.replaceAll(secret, marker);
   }
   return redacted;
+}
+
+function safeRedactionMarker(secrets) {
+  const candidates = [CREDENTIAL_REDACTION, '<redacted>', '***', '•••', ''];
+  return candidates.find((candidate) => (
+    [...secrets].every((secret) => !candidate.includes(secret))
+  )) ?? '';
 }
 
 function sanitizeKnownSecrets(value, secrets, seen = new WeakSet()) {
@@ -352,6 +363,11 @@ function sanitizeKnownSecrets(value, secrets, seen = new WeakSet()) {
   seen.add(value);
   const safe = {};
   for (const [name, item] of Object.entries(value)) {
+    // Renaming a protocol property can change its meaning and can collide with
+    // another key. Reject the successful response generically instead.
+    if (redactKnownSecrets(name, secrets) !== name) {
+      throw responseShapeError('response contained a protected property name');
+    }
     safe[name] = sanitizeKnownSecrets(item, secrets, seen);
   }
   seen.delete(value);
@@ -359,7 +375,7 @@ function sanitizeKnownSecrets(value, secrets, seen = new WeakSet()) {
 }
 
 function sanitizeErrorValue(value, secrets, field = null, seen = new WeakSet()) {
-  if (sensitiveAdminField(field)) return CREDENTIAL_REDACTION;
+  if (sensitiveAdminField(field)) return safeRedactionMarker(secrets);
   if (typeof value === 'string') return redactKnownSecrets(value, secrets);
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeErrorValue(item, secrets, field, seen));
@@ -367,10 +383,10 @@ function sanitizeErrorValue(value, secrets, field = null, seen = new WeakSet()) 
   if (!value || typeof value !== 'object') return value;
   if (seen.has(value)) return '[CIRCULAR]';
   seen.add(value);
-  const safe = {};
-  for (const [name, item] of Object.entries(value)) {
-    safe[name] = sanitizeErrorValue(item, secrets, name, seen);
-  }
+  const safe = Object.fromEntries(Object.entries(value).map(([name, item]) => [
+    redactKnownSecrets(name, secrets),
+    sanitizeErrorValue(item, secrets, name, seen),
+  ]));
   seen.delete(value);
   return safe;
 }
