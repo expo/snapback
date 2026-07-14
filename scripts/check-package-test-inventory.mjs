@@ -38,6 +38,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'auth-coordinator-contract.test.mjs',
+      'auth-coordinator-missed-wakeup.test.mjs',
       'auth-coordinator.test.mjs',
       'auth-custody-indexeddb.test.mjs',
       'auth-invalidation.test.mjs',
@@ -132,7 +133,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 48, 'reviewed package/admin test count changed');
+assert.equal(total, 49, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

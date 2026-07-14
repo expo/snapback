@@ -297,6 +297,32 @@ async function compareContractCommit(coordinator, capture, commit) {
   return coordinator.compareAndCommit(capture, commit);
 }
 
+// @ref LLP 0059#cross-context-ownership — isCurrent() is an in-memory hint
+// only; a context that missed the wakeup must reload durable custody under
+// ownership at every publication/lifecycle gate. This confirmer runs the
+// coordinator's mandatory synchronize gate: when a peer durably settled a
+// successor, the reload runs the local quiesce/blank barrier before any
+// observer or mount can receive predecessor data. Failure is fail-closed —
+// publication stays paused and the surface gates refuse.
+function createDurableAuthorityConfirmer(coordinator) {
+  if (!coordinator || typeof coordinator.synchronize !== 'function') {
+    return () => Promise.resolve();
+  }
+  let inFlight = null;
+  return () => {
+    if (inFlight) return inFlight;
+    inFlight = Promise.resolve()
+      .then(() => coordinator.synchronize())
+      .catch(() => {
+        // A failed durable reload leaves the coordinator paused; the surface
+        // refuses via its barrier/isCurrent gates rather than exposing stale
+        // predecessor state.
+      })
+      .finally(() => { inFlight = null; });
+    return inFlight;
+  };
+}
+
 // Contract data manifest versions this adapter accepts. v2 (LLP 0034 D3) is an
 // additive extension of v1 per Exact LLP 0284 §2.4: old fields remain valid
 // inputs, so v1 manifests keep working unmodified.
@@ -461,6 +487,7 @@ export async function createSnapbackContractSurface({
   liveQueries = null,
 }) {
   const coordinator = resolveAuthCoordinator(client, authCoordinator);
+  const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
   let {
     capture: authorityCapture,
     durableAuthorityRestored,
@@ -513,9 +540,17 @@ export async function createSnapbackContractSurface({
       }
       const capture = captureForTransportValue(client, null, receipt);
       if (!capture) return;
+      // Delayed public callback delivery reloads durable custody: the commit
+      // is the durable currency check, isCurrent() after it is only a hint. A
+      // stale delivery also forces the missed-wakeup reload so this context
+      // blanks instead of continuing to expose predecessor state.
       void compareContractCommit(coordinator, capture, () => undefined)
         .then((outcome) => {
-          if (outcome.committed && coordinator.isCurrent(capture)) onReceipt(enriched);
+          if (!outcome.committed) {
+            void confirmDurableAuthority();
+            return;
+          }
+          if (coordinator.isCurrent(capture)) onReceipt(enriched);
         })
         .catch(() => {});
     });
@@ -1200,7 +1235,14 @@ export async function createSnapbackContractSurface({
         }
         return overlaid;
       });
-      if (!outcome.committed) return null;
+      if (!outcome.committed) {
+        // The durable reload inside the failed commit observed a successor
+        // this context has not adopted yet (missed/lost wakeup): run the
+        // mandatory reload so the surface blanks instead of retaining the
+        // predecessor boundary.
+        void confirmDurableAuthority();
+        return null;
+      }
       retainRows(rows, resolvedVersion, capture);
       return outcome.value;
     };
@@ -1270,10 +1312,16 @@ export async function createSnapbackContractSurface({
             // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each
             // live observer's last cell with the new connection value.
             for (const record of [...liveCellObservers]) {
-              if (record.lastCell) record.emit({ ...record.lastCell, connection });
+              if (record.confirmed && record.lastCell) {
+                record.emit({ ...record.lastCell, connection });
+              }
             }
           }).then((outcome) => {
-            if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
+            if (!outcome.committed) {
+              void confirmDurableAuthority();
+              return;
+            }
+            if (!coordinator || coordinator.isCurrent(callbackCapture)) {
               onConnectionChange?.(connection, detail);
             }
           }).catch(() => {});
@@ -1283,7 +1331,11 @@ export async function createSnapbackContractSurface({
               const callbackCapture = captureForTransportValue(client, capture, event);
               void compareContractCommit(coordinator, callbackCapture, () => undefined)
                 .then((outcome) => {
-                  if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
+                  if (!outcome.committed) {
+                    void confirmDurableAuthority();
+                    return;
+                  }
+                  if (!coordinator || coordinator.isCurrent(callbackCapture)) {
                     onSubscriptionEvent(event);
                   }
                 })
@@ -1404,6 +1456,8 @@ export async function createSnapbackContractSurface({
     // binding's first snapshot delivers synchronously (ENG-22479).
     await ephemeralWiring.prewarm();
 
+    // isCurrent() here is only the synchronous fast hint; publication and
+    // lifecycle gates reload durable custody through confirmDurableAuthority.
     const assertActive = () => {
       if (disposed) {
         throw new Error('Snapback Contract surface was used after dispose().');
@@ -1886,7 +1940,12 @@ export async function createSnapbackContractSurface({
     // live-bound descriptor carry `connection`; the field is absent for
     // non-subscription descriptors — its absence is itself a fact. Additive: a
     // consumer that ignores the extra field behaves exactly as before.
-    const provider = wantLivePush
+    // Cells for the live-bound descriptor carry `connection`; the field stays
+    // absent for non-subscription descriptors — its absence is itself a fact.
+    const decorateCell = (cell) => (
+      wantLivePush ? { ...cell, connection: surfaceConnection() } : cell
+    );
+    const provider = coordinator || wantLivePush
       ? {
           ...baseProvider,
           subscribe(subscribedQuery, args, observer) {
@@ -1895,10 +1954,20 @@ export async function createSnapbackContractSurface({
             }
             const record = {
               lastCell: null,
+              // Initial publication to a new observer waits for a durable
+              // custody reload; in-memory currency alone cannot authorize it.
+              confirmed: !coordinator,
               emit: (cell) => observer(cell),
             };
             liveCellObservers.add(record);
             const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+              if (coordinator && !record.confirmed && !barrierBlanking) {
+                // Buffer until the durable reload confirms this authority.
+                // Blank cells still pass below: a barrier's blank must reach
+                // observers before any successor exposure.
+                record.lastCell = cell;
+                return;
+              }
               if (coordinator && barrierPreparing && !barrierBlanking) {
                 record.lastCell = cell;
                 return;
@@ -1909,8 +1978,23 @@ export async function createSnapbackContractSurface({
                 && (barrierPaused || !coordinator.isCurrent(authorityCapture))
               ) return;
               record.lastCell = cell;
-              observer({ ...cell, connection: surfaceConnection() });
+              observer(decorateCell(cell));
             });
+            if (coordinator && !record.confirmed) {
+              void confirmDurableAuthority().then(() => {
+                if (record.confirmed) return;
+                record.confirmed = true;
+                if (disposed || !liveCellObservers.has(record)) return;
+                if (
+                  record.lastCell
+                  && !barrierPaused
+                  && !barrierPreparing
+                  && coordinator.isCurrent(authorityCapture)
+                ) {
+                  observer(decorateCell(record.lastCell));
+                }
+              });
+            }
             return {
               dispose() {
                 liveCellObservers.delete(record);
@@ -2109,7 +2193,10 @@ export async function createSnapbackContractSurface({
       attachReceiptListener();
       barrierPaused = false;
       for (const record of liveCellObservers) {
-        if (record.lastCell) record.emit({ ...record.lastCell, connection: surfaceConnection() });
+        // Exposure follows the barrier's own durable settle, which is the
+        // reload a pending confirmation was waiting for.
+        record.confirmed = true;
+        if (record.lastCell) record.emit(decorateCell(record.lastCell));
       }
     };
 
@@ -2144,6 +2231,10 @@ export async function createSnapbackContractSurface({
     // never replay-ledgered; every mutation executes against current server
     // state and each settle is followed by a fresh authoritative snapshot.
     const replayAfterReconnect = async () => {
+      // Foreground resume is a mandatory lifecycle gate: reload durable
+      // custody under ownership before trusting the in-memory hint below. A
+      // missed A -> B settle blanks here and the stale surface refuses.
+      await confirmDurableAuthority();
       assertActive();
       if (!offlineReplayEnabled) return { replayed: 0, failed: 0 };
       const capture = operationCapture();
@@ -2348,6 +2439,11 @@ export async function createSnapbackContractSurface({
       ephemeralSourceStarts: ephemeralWiring.sourceStarts,
       prewarmEphemeral: ephemeralWiring.prewarmScope,
       mount: (component, options = {}) => {
+        // Mount initiates the mandatory durable reload; assertActive is only
+        // the synchronous fast hint. The mounted component's query bindings
+        // subscribe through the gated provider above, so no cell reaches it
+        // before the reload confirms (or blanks) this authority.
+        void confirmDurableAuthority();
         assertActive();
         return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
       },
@@ -3237,6 +3333,9 @@ async function createMultiLiveContractSurface({
       ephemeralIdleLingerMs,
     }));
 
+    const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
+    // isCurrent() below is only the synchronous fast hint; publication gates
+    // reload durable custody through confirmDurableAuthority.
     const assertActive = () => {
       if (disposed) {
         throw new Error('Snapback Contract surface was used after dispose().');
@@ -3292,9 +3391,14 @@ async function createMultiLiveContractSurface({
 
     const reemitCells = (name, connection) => {
       for (const record of [...(liveCellObservers.get(name) ?? [])]) {
-        if (record.lastCell) record.emit({ ...record.lastCell, connection });
+        if (record.confirmed && record.lastCell) {
+          record.emit({ ...record.lastCell, connection });
+        }
       }
     };
+    const decorateCell = (name, cell) => (
+      wantLivePush ? { ...cell, connection: connectionFor(name) } : cell
+    );
     const publishRows = async (capture, name, rows) => {
       const outcome = await compareContractCommit(coordinator, capture, () => {
         if (!disposed && boundary && !authorizationHidden.has(name)) {
@@ -3302,7 +3406,14 @@ async function createMultiLiveContractSurface({
         }
         return rows;
       });
-      return outcome.committed ? outcome.value : null;
+      if (!outcome.committed) {
+        // A failed commit's durable reload observed an unadopted successor
+        // (missed/lost wakeup): run the mandatory reload so this surface
+        // blanks instead of retaining the predecessor boundary.
+        void confirmDurableAuthority();
+        return null;
+      }
+      return outcome.value;
     };
 
     const openMultiLiveHandle = async ({ name, args }, capture) => {
@@ -3343,7 +3454,11 @@ async function createMultiLiveContractSurface({
           void compareContractCommit(coordinator, callbackCapture, () => {
             reemitCells(name, connection);
           }).then((outcome) => {
-            if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
+            if (!outcome.committed) {
+              void confirmDurableAuthority();
+              return;
+            }
+            if (!coordinator || coordinator.isCurrent(callbackCapture)) {
               onConnectionChange?.(connection, { ...detail, queryName: name });
             }
           }).catch(() => {});
@@ -3353,7 +3468,11 @@ async function createMultiLiveContractSurface({
               const callbackCapture = captureForTransportValue(client, capture, event);
               void compareContractCommit(coordinator, callbackCapture, () => undefined)
                 .then((outcome) => {
-                  if (outcome.committed && (!coordinator || coordinator.isCurrent(callbackCapture))) {
+                  if (!outcome.committed) {
+                    void confirmDurableAuthority();
+                    return;
+                  }
+                  if (!coordinator || coordinator.isCurrent(callbackCapture)) {
                     onSubscriptionEvent({ ...event, queryName: name });
                   }
                 })
@@ -3411,6 +3530,9 @@ async function createMultiLiveContractSurface({
         const resultCapture = captureForTransportValue(client, capture, snapshot);
         const current = await compareContractCommit(coordinator, resultCapture, () => undefined);
         if (!current.committed) throw staleContractAuthorityError();
+        // Coordinated poll-mode observers are tracked too: their initial
+        // publication waits for the same durable custody confirmation.
+        liveCellObservers.set(name, new Set());
         initialRows[name] = snapshot.rows;
       }
     }
@@ -3527,16 +3649,25 @@ async function createMultiLiveContractSurface({
           return { dispose() {} };
         }
         warnOnBindingArgsMismatch(subscribedQuery, args);
-        if (!liveHandles.has(subscribedQuery)) {
+        if (!coordinator && !liveHandles.has(subscribedQuery)) {
           return baseProvider.subscribe(subscribedQuery, args, observer);
         }
         const records = liveCellObservers.get(subscribedQuery);
         const record = {
           lastCell: null,
+          // Initial publication to a new observer waits for a durable custody
+          // reload; in-memory currency alone cannot authorize it.
+          confirmed: !coordinator,
           emit: (cell) => observer(cell),
         };
         records.add(record);
         const subscription = baseProvider.subscribe(subscribedQuery, args, (cell) => {
+          if (coordinator && !record.confirmed && !barrierBlanking) {
+            // Buffer until the durable reload confirms this authority; blank
+            // cells still pass below.
+            record.lastCell = cell;
+            return;
+          }
           if (coordinator && barrierPreparing && !barrierBlanking) {
             record.lastCell = cell;
             return;
@@ -3547,8 +3678,23 @@ async function createMultiLiveContractSurface({
             && (barrierPaused || !coordinator.isCurrent(currentCapture))
           ) return;
           record.lastCell = cell;
-          observer({ ...cell, connection: connectionFor(subscribedQuery) });
+          observer(decorateCell(subscribedQuery, cell));
         });
+        if (coordinator && !record.confirmed) {
+          void confirmDurableAuthority().then(() => {
+            if (record.confirmed) return;
+            record.confirmed = true;
+            if (disposed || !records.has(record)) return;
+            if (
+              record.lastCell
+              && !barrierPaused
+              && !barrierPreparing
+              && coordinator.isCurrent(currentCapture)
+            ) {
+              observer(decorateCell(subscribedQuery, record.lastCell));
+            }
+          });
+        }
         return {
           dispose() {
             records.delete(record);
@@ -3691,8 +3837,11 @@ async function createMultiLiveContractSurface({
           barrierPaused = false;
           for (const [name, records] of liveCellObservers) {
             for (const record of records) {
+              // Exposure follows the barrier's own durable settle, which is
+              // the reload a pending confirmation was waiting for.
+              record.confirmed = true;
               if (record.lastCell) {
-                record.emit({ ...record.lastCell, connection: connectionFor(name) });
+                record.emit(decorateCell(name, record.lastCell));
               }
             }
           }
@@ -3776,6 +3925,11 @@ async function createMultiLiveContractSurface({
       connection: (name = liveQueryNames[0]) => connectionFor(name),
       connections: () => Object.fromEntries(liveQueryNames.map((name) => [name, connectionFor(name)])),
       mount: (component, options = {}) => {
+        // Mount initiates the mandatory durable reload; assertActive is only
+        // the synchronous fast hint. The mounted component's query bindings
+        // subscribe through the gated provider above, so no cell reaches it
+        // before the reload confirms (or blanks) this authority.
+        void confirmDurableAuthority();
         assertActive();
         return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
       },
