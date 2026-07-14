@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 1,
+  "rfc": "LLP 0053",
+  "reportKind": "composed-production-acceptance",
+  "measurementSemantics": {
+    "timingUnit": "committed-client-store-transitions",
+    "wallClockLatencyClaimed": false,
+    "retainedByteDefinition": "UTF-8 bytes of JSON-serialized retained payload records",
+    "rustInputs": "machine-readable receipts emitted by executed production Rust acceptance tests",
+    "clientInputs": "measurements collected from production @snapback/contract modules in this process"
+  },
+  "composedMeasurements": {
+    "hiddenViewAndRecovery": {
+      "intervalUnit": "committed-client-store-transitions",
+      "hiddenAtTransition": 1,
+      "visibleAtTransition": 4,
+      "hiddenIntervalTransitions": 3,
+      "recoveryPath": [
+        "quarantine-fence-commit",
+        "superseding-snapshot-commit",
+        "lease-request-reservation-commit",
+        "fresh-authorized-snapshot-commit"
+      ],
+      "wallClockMeasured": false,
+      "composedServerWitnessFloor": {
+        "authorizationEpoch": 8,
+        "minCommitVersion": 11
+      },
+      "retainedPayloadBytesPreservedDuringQuarantine": 658,
+      "retainedPayloadBytesDeletedAtLeaseExpiry": 651,
+      "retainedPayloadBytesDeletedAtClockRollback": 652,
+      "expiryDeleteTombstoneWritten": true,
+      "clockRollbackDeleteTombstoneWritten": true,
+      "durableDeleteTombstoneWrites": 2,
+      "sharedDurableStore": true,
+      "stalePeerWriteRejected": true
+    },
+    "membershipChurnBlastRadius": {
+      "authScopedQueries": 3,
+      "composedServerWitnessFloor": {
+        "authorizationEpoch": 8,
+        "minCommitVersion": 11
+      },
+      "retainedPayloadBytesBefore": 2075,
+      "retainedPayloadBytesDuringQuarantine": 2075,
+      "retainedPayloadBytesDeletedByCoarseQuarantine": 0,
+      "durableQuarantineFenceWrites": 3,
+      "pendingMutationsBefore": 2,
+      "suspendedMutationCount": 2,
+      "suspendedAfterOneRootResolves": true,
+      "suspendedMutationCountAfterOneRoot": 2,
+      "releasedMutationIds": [
+        "cm_membership_a",
+        "cm_membership_b"
+      ],
+      "pendingMutationsRemovedByDelete": 2,
+      "redactedDiscardOnlyRecordsCreated": 2,
+      "discardOnlyRecordsDeleted": 2
+    }
+  },
+  "propertyOracleMatrix": [
+    {
+      "scenario": "randomized-writes",
+      "passed": true,
+      "observations": {
+        "operations": 24,
+        "convergenceRounds": 24,
+        "freshQueryComparisons": 72
+      }
+    },
+    {
+      "scenario": "deployment-identity-change",
+      "passed": true,
+      "observations": {
+        "failClosedBoundary": "delete",
+        "oldRowsRenderableAfterIdentityChange": false,
+        "passed": true
+      }
+    },
+    {
+      "scenario": "lease-expiry",
+      "passed": true,
+      "observations": {
+        "retainedBytesDeleted": 651,
+        "deleteTombstoneWritten": true
+      }
+    },
+    {
+      "scenario": "clock-rollback",
+      "passed": true,
+      "observations": {
+        "retainedBytesDeleted": 652,
+        "deleteTombstoneWritten": true
+      }
+    },
+    {
+      "scenario": "overflow",
+      "passed": true,
+      "observations": {
+        "overflowSentinelObserved": true,
+        "authScopedChildren": 2,
+        "remainingAfterFirstAck": 1,
+        "remainingAfterAllAcks": 0
+      }
+    },
+    {
+      "scenario": "disconnect-and-fresh-resume",
+      "passed": true,
+      "observations": {
+        "predecessorInstance": 10,
+        "successorInstance": 11,
+        "delayedPredecessorFrameRejected": true,
+        "successorInstalledFreshSnapshot": true
+      }
+    },
+    {
+      "scenario": "response-loss",
+      "passed": true,
+      "observations": {
+        "discardedResponseDrains": 15,
+        "reprojectedSnapshotFrames": 15
+      }
+    },
+    {
+      "scenario": "ack-loss",
+      "passed": true,
+      "observations": {
+        "clientRefiredSameAckToken": true,
+        "serverAcknowledgements": 57
+      }
+    },
+    {
+      "scenario": "restart",
+      "passed": true,
+      "observations": {
+        "incarnationPreserved": true,
+        "newIssuerInstalled": true,
+        "distinctQueryInstance": true,
+        "freshSnapshotConverged": true
+      }
+    },
+    {
+      "scenario": "stale-callback",
+      "passed": true,
+      "observations": {
+        "rejected": true
+      }
+    },
+    {
+      "scenario": "cross-tab-write",
+      "passed": true,
+      "observations": {
+        "sharedDurableStore": true,
+        "predecessorFenceRejected": true
+      }
+    },
+    {
+      "scenario": "disposition-escalation",
+      "passed": true,
+      "observations": {
+        "initialDisposition": "quarantine",
+        "terminalDisposition": "delete",
+        "ackLossRefiredSameToken": true
+      }
+    },
+    {
+      "scenario": "room-pause-points",
+      "passed": true,
+      "observations": {
+        "causingCommitVersion": 2,
+        "affectedRoomCount": 1,
+        "pausePoints": {
+          "lookupBeforeRoomMutation": true,
+          "frameConstructionBeforeEnqueue": true,
+          "enqueueBeforeDestructiveDrain": true,
+          "destructiveDrainBeforeFinalSend": true,
+          "registrationAndInitialSnapshot": true
+        },
+        "unrelatedRoomProgressWhileAffectedPending": {
+          "registration": true,
+          "publishAndDrain": true
+        },
+        "postCommit": {
+          "kickedDurableBoardRows": 0,
+          "kickedOpponentPresenceFrames": 0,
+          "reauthorizedRoomCount": 1,
+          "typedDenialDelivered": true,
+          "survivorSnapshotDelivered": true
+        }
+      }
+    }
+  ],
+  "productionRustReceipts": {
+    "server": {
+      "schemaVersion": 2,
+      "rfc": "LLP 0053",
+      "scenario": {
+        "name": "deterministic-membership-and-row-visibility-churn",
+        "randomizedOperations": 24,
+        "randomSeed": "0x0053c0de",
+        "authScopedQueries": 3,
+        "unrelatedQueriesDuringPermissionChurn": 3,
+        "membershipChurnEvents": 3,
+        "scheduledMembershipLossRounds": 1,
+        "scheduledRandomizedLossRounds": 6,
+        "restartOperations": 1
+      },
+      "runtimeMeasurements": {
+        "membershipChurn": {
+          "generatedInvalidationFrames": 21,
+          "generatedSnapshotFrames": 12,
+          "deliveredInvalidationFrames": 15,
+          "deliveredSnapshotFrames": 9,
+          "discardedInvalidationFrames": 6,
+          "discardedSnapshotFrames": 3,
+          "reprojectedInvalidationFrames": 3,
+          "reprojectedSnapshotFrames": 3,
+          "discardedResponseDrains": 3,
+          "acknowledgements": 9,
+          "maxGeneratedSnapshotFramesPerQuerySettlement": 2,
+          "maxDeliveredSnapshotFramesPerQuerySettlement": 1,
+          "maxExplicitReprojectionCallsPerQuerySettlement": 1,
+          "deliveredDisposition": "quarantine"
+        },
+        "randomizedWrites": {
+          "generatedInvalidationFrames": 60,
+          "generatedSnapshotFrames": 60,
+          "deliveredInvalidationFrames": 48,
+          "deliveredSnapshotFrames": 48,
+          "discardedInvalidationFrames": 12,
+          "discardedSnapshotFrames": 12,
+          "reprojectedInvalidationFrames": 12,
+          "reprojectedSnapshotFrames": 12,
+          "discardedResponseDrains": 12,
+          "acknowledgements": 48,
+          "maxGeneratedSnapshotFramesPerQuerySettlement": 2,
+          "maxDeliveredSnapshotFramesPerQuerySettlement": 1,
+          "maxExplicitReprojectionCallsPerQuerySettlement": 1,
+          "deliveredDisposition": "quarantine"
+        }
+      },
+      "runtimeAssertions": {
+        "membershipAuthorizationEpochAdvance": 3,
+        "randomizedAuthorizationEpochAdvance": 0,
+        "randomizedAllQueryConvergenceRounds": 24,
+        "randomizedFreshQueryComparisons": 72,
+        "terminalEscalationDisposition": "delete",
+        "ordinaryRestartPreservedIncarnation": true,
+        "restartInstalledNewIssuer": true,
+        "restartAcceptedDistinctCallerSuppliedQueryInstance": true,
+        "restartInitialSnapshotConverged": true
+      },
+      "serverObligation": {
+        "normalizedFieldSources": {
+          "compositeWitness": "obligation.witness",
+          "scopeKind": "obligation.scopeId.kind",
+          "revision": "obligation.revision",
+          "disposition": "obligation.maxDisposition"
+        },
+        "identifierNormalizations": {
+          "compositeWitness.authorization.incarnation": "<authenticated-uuid-v7>",
+          "compositeWitness.data.versionStream": "<authenticated-version-stream>"
+        },
+        "sample": {
+          "scopeKind": "subscription",
+          "revision": 7,
+          "compositeWitness": {
+            "authorization": {
+              "incarnation": "<authenticated-uuid-v7>",
+              "epoch": 8
+            },
+            "data": {
+              "versionStream": "<authenticated-version-stream>",
+              "minCommitVersion": 11
+            }
+          },
+          "disposition": "quarantine"
+        }
+      },
+      "harnessExpectedAssertions": {
+        "membershipClassification": {
+          "expectedPath": "enumerated-permission-write",
+          "basis": {
+            "permissionBackingWrites": 3,
+            "authorizationEpochAdvance": 3
+          },
+          "productionFrameReportsPath": false
+        },
+        "randomizedClassification": {
+          "expectedPath": "matcher-full-requery",
+          "basis": {
+            "authorizationEpochAdvance": 0,
+            "allQueryConvergenceRounds": 24,
+            "freshQueryComparisons": 72
+          },
+          "productionFrameReportsPath": false
+        }
+      },
+      "independentFixtureAssertions": {
+        "authorizedRetainedStore": {
+          "sourceTest": "packages/snapback-contract/authorized-retained-store.test.mjs",
+          "expectedOutcomes": {
+            "authorizedReadDuringQuarantine": null,
+            "physicallyRetainedRowsDuringQuarantine": [
+              {
+                "card": "ace-updated"
+              }
+            ]
+          }
+        },
+        "mutationQueueAuthorization": {
+          "sourceTest": "packages/snapback-contract/client-store-queue-authorization.test.mjs",
+          "expectedOutcomes": {
+            "suspendedAfterOneOfTwoQuarantineRootsResolves": true,
+            "pendingMutationIdsAfterBothQuarantineRootsResolve": [
+              "cm_queue_a",
+              "cm_queue_b"
+            ]
+          }
+        }
+      },
+      "oracle": {
+        "kind": "fresh-full-query-and-authorization-re-evaluation",
+        "randomizedAllQueryConvergenceRounds": 24,
+        "randomizedFreshQueryComparisons": 72
+      },
+      "coverageBoundaries": {
+        "clientVisibleTimingMeasuredByThisHarness": false,
+        "durableByteOrTombstoneCountsMeasuredByThisHarness": false,
+        "clientFixtureAssertionsAreRuntimeMeasurementsFromThisHarness": false,
+        "queryInstanceAllocatorIntrospectedByThisHarness": false
+      }
+    },
+    "overflow": {
+      "overflowSentinelObserved": true,
+      "authScopedChildren": 2,
+      "remainingAfterFirstAck": 1,
+      "remainingAfterAllAcks": 0
+    },
+    "protectedRoom": {
+      "causingCommitVersion": 2,
+      "affectedRoomCount": 1,
+      "pausePoints": {
+        "lookupBeforeRoomMutation": true,
+        "frameConstructionBeforeEnqueue": true,
+        "enqueueBeforeDestructiveDrain": true,
+        "destructiveDrainBeforeFinalSend": true,
+        "registrationAndInitialSnapshot": true
+      },
+      "unrelatedRoomProgressWhileAffectedPending": {
+        "registration": true,
+        "publishAndDrain": true
+      },
+      "postCommit": {
+        "kickedDurableBoardRows": 0,
+        "kickedOpponentPresenceFrames": 0,
+        "reauthorizedRoomCount": 1,
+        "typedDenialDelivered": true,
+        "survivorSnapshotDelivered": true
+      }
+    }
+  }
+}

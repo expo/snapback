@@ -60,6 +60,16 @@ struct KickFixture {
     unrelated_room_observed: AuthorizationVersion,
 }
 
+#[derive(Debug)]
+struct KickBoundaryObservations {
+    lookup_to_room_mutation_refused: bool,
+    affected_registration_refused: bool,
+    unrelated_registration_completed: bool,
+    unrelated_publish_drained: bool,
+    commit_waited_for_drained_send: bool,
+    drained_old_generation_send_refused: bool,
+}
+
 impl KickFixture {
     fn new() -> Self {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -175,7 +185,9 @@ impl KickFixture {
         }
     }
 
-    fn kick_while_holding_final_send(&self) -> (MutationOutput, RealtimeEnvelope) {
+    fn kick_while_holding_final_send(
+        &self,
+    ) -> (MutationOutput, RealtimeEnvelope, KickBoundaryObservations) {
         let admitted = self
             .ephemeral
             .drain_outbox_for_send_if_active(CONNECTION_A)
@@ -243,7 +255,8 @@ impl KickFixture {
                 13,
             )
             .expect_err("pending dependency ticket closes racing registration");
-        assert_eq!(late.code, EphemeralErrorCode::AuthorityPending);
+        let affected_registration_refused = late.code == EphemeralErrorCode::AuthorityPending;
+        assert!(affected_registration_refused);
         let stale_publish = self
             .ephemeral
             .publish(
@@ -256,7 +269,9 @@ impl KickFixture {
                 14,
             )
             .expect_err("pending barrier rejects old-authority mutation/enqueue");
-        assert_eq!(stale_publish.code, EphemeralErrorCode::AuthorityPending);
+        let lookup_to_room_mutation_refused =
+            stale_publish.code == EphemeralErrorCode::AuthorityPending;
+        assert!(lookup_to_room_mutation_refused);
 
         // L9 is room-selective, not a global protected-room pause. This
         // registration performed its durable lookup before the write, then
@@ -283,13 +298,14 @@ impl KickFixture {
                 15,
             )
             .expect("unrelated room registers while affected room is pending");
-        assert!(matches!(
+        let unrelated_registration_completed = matches!(
             unrelated_snapshot,
             EphemeralMessage::Snapshot {
                 room_authority_generation: 1,
                 ..
             }
-        ));
+        );
+        assert!(unrelated_registration_completed);
         drop(unrelated_permit);
         self.ephemeral
             .publish(
@@ -304,16 +320,20 @@ impl KickFixture {
             )
             .expect("unrelated room publishes while affected room is pending");
         let unrelated_frames = self.ephemeral.drain_outbox(CONNECTION_UNRELATED);
-        assert!(unrelated_frames.iter().any(|frame| matches!(
-            frame,
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
-                room_authority_generation: 1,
-                entry,
-                ..
-            }) if entry.value == b"B:unrelated-live"
-        )));
+        let unrelated_publish_drained = unrelated_frames.iter().any(|frame| {
+            matches!(
+                frame,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
+                    room_authority_generation: 1,
+                    entry,
+                    ..
+                }) if entry.value == b"B:unrelated-live"
+            )
+        });
+        assert!(unrelated_publish_drained);
+        let commit_waited_for_drained_send = done_rx.try_recv().is_err();
         assert!(
-            done_rx.try_recv().is_err(),
+            commit_waited_for_drained_send,
             "unrelated progress occurs while the affected permit still holds commit"
         );
 
@@ -328,15 +348,28 @@ impl KickFixture {
             Err(error) => error,
             Ok(_) => panic!("generation-1 frame crossed final send after commit"),
         };
-        assert_eq!(rejected.code, EphemeralErrorCode::AuthorityPending);
-        (output, old_envelope)
+        let drained_old_generation_send_refused =
+            rejected.code == EphemeralErrorCode::AuthorityPending;
+        assert!(drained_old_generation_send_refused);
+        (
+            output,
+            old_envelope,
+            KickBoundaryObservations {
+                lookup_to_room_mutation_refused,
+                affected_registration_refused,
+                unrelated_registration_completed,
+                unrelated_publish_drained,
+                commit_waited_for_drained_send,
+                drained_old_generation_send_refused,
+            },
+        )
     }
 }
 
 #[test]
 fn card_game_kick_composes_durable_and_room_authority_boundaries() {
     let fixture = KickFixture::new();
-    let (kick, old_envelope) = fixture.kick_while_holding_final_send();
+    let (kick, old_envelope, boundary_observations) = fixture.kick_while_holding_final_send();
     drop(old_envelope);
 
     let pending = fixture
@@ -364,28 +397,42 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
     let frames_b = fixture.ephemeral.drain_outbox(CONNECTION_B);
     assert_durable_kick_snapshot(&frames_a, "currentMembership", kick.version, 0);
     assert_durable_kick_snapshot(&frames_b, "currentMembership", kick.version, 1);
-    assert_durable_kick_snapshot(&frames_a, "board", kick.version, 0);
+    let board_a = assert_durable_kick_snapshot(&frames_a, "board", kick.version, 0);
     let board_b = assert_durable_kick_snapshot(&frames_b, "board", kick.version, 1);
     assert_eq!(board_b["snapshot"]["rows"][0]["move"], OPPONENT_MOVE);
-    assert!(
-        !serde_json::to_string(&frames_a)
-            .expect("A post-kick frames serialize")
-            .contains(OPPONENT_MOVE)
-            && !frames_a.iter().any(|frame| matches!(
+    let kicked_opponent_presence_frames = frames_a
+        .iter()
+        .filter(|frame| {
+            matches!(
                 frame,
                 RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. })
                     if entry.value == OPPONENT_PRESENCE
-            )),
+            )
+        })
+        .count();
+    let kicked_durable_board_rows = board_a["snapshot"]["rows"]
+        .as_array()
+        .expect("kicked board rows")
+        .len();
+    assert!(
+        kicked_durable_board_rows == 0
+            && !serde_json::to_string(&frames_a)
+                .expect("A post-kick frames serialize")
+                .contains(OPPONENT_MOVE)
+            && kicked_opponent_presence_frames == 0,
         "the kicked player receives no durable board or ephemeral opponent state"
     );
-    assert!(
-        frames_b.iter().all(|frame| !matches!(
+    let queued_old_generation_discarded = frames_b.iter().all(|frame| {
+        !matches!(
             frame,
             RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
                 room_authority_generation: 1,
                 ..
             })
-        )),
+        )
+    });
+    assert!(
+        queued_old_generation_discarded,
         "B's queued generation-1 presence is discarded after the kick"
     );
     assert_auth_changed(&frames_a, 2);
@@ -432,14 +479,17 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
     assert_eq!(completed, 1);
 
     let denied_a = fixture.ephemeral.drain_outbox(CONNECTION_A);
-    assert!(denied_a.iter().any(|frame| matches!(
-        frame,
-        RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
-            error,
-            room_authority_generation: Some(2),
-            ..
-        }) if error.code == EphemeralErrorCode::PermissionDenied
-    )));
+    let typed_denial_delivered = denied_a.iter().any(|frame| {
+        matches!(
+            frame,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
+                error,
+                room_authority_generation: Some(2),
+                ..
+            }) if error.code == EphemeralErrorCode::PermissionDenied
+        )
+    });
+    assert!(typed_denial_delivered);
     let survivor_b = fixture.ephemeral.drain_outbox(CONNECTION_B);
     assert!(survivor_b.iter().any(|frame| matches!(
         frame,
@@ -449,14 +499,17 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
             ..
         })
     )));
-    assert!(survivor_b.iter().any(|frame| matches!(
-        frame,
-        RealtimeEnvelope::Ephemeral(EphemeralMessage::Snapshot {
-            room_authority_generation: 2,
-            entries,
-            ..
-        }) if entries.len() == 1 && entries[0].value == OPPONENT_PRESENCE
-    )));
+    let survivor_snapshot_delivered = survivor_b.iter().any(|frame| {
+        matches!(
+            frame,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::Snapshot {
+                room_authority_generation: 2,
+                entries,
+                ..
+            }) if entries.len() == 1 && entries[0].value == OPPONENT_PRESENCE
+        )
+    });
+    assert!(survivor_snapshot_delivered);
 
     let denied = fixture
         .snapback
@@ -479,12 +532,38 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         fixture.ephemeral.drain_outbox(CONNECTION_A).is_empty(),
         "A was unregistered before B's fresh-generation fanout"
     );
+    println!(
+        "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT={}",
+        json!({
+            "causingCommitVersion": kick.version,
+            "affectedRoomCount": pending.len(),
+            "pausePoints": {
+                "lookupBeforeRoomMutation": boundary_observations.lookup_to_room_mutation_refused,
+                "frameConstructionBeforeEnqueue": queued_old_generation_discarded,
+                "enqueueBeforeDestructiveDrain": queued_old_generation_discarded,
+                "destructiveDrainBeforeFinalSend": boundary_observations.commit_waited_for_drained_send
+                    && boundary_observations.drained_old_generation_send_refused,
+                "registrationAndInitialSnapshot": boundary_observations.affected_registration_refused,
+            },
+            "unrelatedRoomProgressWhileAffectedPending": {
+                "registration": boundary_observations.unrelated_registration_completed,
+                "publishAndDrain": boundary_observations.unrelated_publish_drained,
+            },
+            "postCommit": {
+                "kickedDurableBoardRows": kicked_durable_board_rows,
+                "kickedOpponentPresenceFrames": kicked_opponent_presence_frames,
+                "reauthorizedRoomCount": completed,
+                "typedDenialDelivered": typed_denial_delivered,
+                "survivorSnapshotDelivered": survivor_snapshot_delivered,
+            },
+        })
+    );
 }
 
 #[test]
 fn process_loss_before_room_ack_forces_fresh_membership_authorization() {
     let fixture = KickFixture::new();
-    let (kick, old_envelope) = fixture.kick_while_holding_final_send();
+    let (kick, old_envelope, _boundary_observations) = fixture.kick_while_holding_final_send();
     drop(old_envelope);
     assert_eq!(kick.changed_count, 1);
 

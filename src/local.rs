@@ -10325,10 +10325,11 @@ globalThis.__snapbackHandlers = {
         )
         .expect("delete triggers overflow");
         let overflow = snapback.drain_live_stream("session-overflow");
+        let overflow_sentinel_observed = overflow
+            .iter()
+            .any(|frame| frame.contains("outbox_overflow"));
         assert!(
-            overflow
-                .iter()
-                .any(|frame| frame.contains("outbox_overflow")),
+            overflow_sentinel_observed,
             "bounded queue must expose its overflow sentinel"
         );
 
@@ -10356,12 +10357,12 @@ globalThis.__snapbackHandlers = {
                 &admission,
             )
             .expect("first child ack");
+        let remaining_after_first_ack = snapback
+            .authorization_invalidation_frames("session-overflow", &admission)
+            .expect("drain remaining invalidation")
+            .len();
         assert_eq!(
-            snapback
-                .authorization_invalidation_frames("session-overflow", &admission)
-                .expect("drain remaining invalidation")
-                .len(),
-            1,
+            remaining_after_first_ack, 1,
             "one query ACK cannot clear its sibling or the projection root"
         );
         snapback
@@ -10374,12 +10375,22 @@ globalThis.__snapbackHandlers = {
                 &admission,
             )
             .expect("second child ack");
-        assert!(
-            snapback
-                .authorization_invalidation_frames("session-overflow", &admission)
-                .expect("drain discharged invalidations")
-                .is_empty(),
+        let remaining_after_all_acks = snapback
+            .authorization_invalidation_frames("session-overflow", &admission)
+            .expect("drain discharged invalidations")
+            .len();
+        assert_eq!(
+            remaining_after_all_acks, 0,
             "root clears only after every current child discharges"
+        );
+        println!(
+            "SNAPBACK_AUTH_ACCEPTANCE_OVERFLOW_RECEIPT={}",
+            json!({
+                "overflowSentinelObserved": overflow_sentinel_observed,
+                "authScopedChildren": tokens.len(),
+                "remainingAfterFirstAck": remaining_after_first_ack,
+                "remainingAfterAllAcks": remaining_after_all_acks,
+            })
         );
     }
 

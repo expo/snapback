@@ -1456,4 +1456,5 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     ))
     .expect("committed acceptance receipt JSON");
     assert_eq!(actual, expected, "acceptance receipt drifted");
+    println!("SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT={actual}");
 }
