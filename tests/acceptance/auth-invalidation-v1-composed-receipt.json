@@ -69,12 +69,21 @@
       }
     },
     {
-      "scenario": "deployment-identity-change",
+      "scenario": "deployment-activation",
       "passed": true,
       "observations": {
-        "failClosedBoundary": "delete",
-        "oldRowsRenderableAfterIdentityChange": false,
-        "passed": true
+        "serverActivation": {
+          "missingPredecessorObserved": true,
+          "activationEpoch": 1,
+          "idempotentActivationEpochAdvance": 0,
+          "ordinaryWriteRaisedAuthorizationEvent": false,
+          "ordinaryRemovalRaisedAuthorizationEvent": false
+        },
+        "clientIdentityFence": {
+          "failClosedBoundary": "delete",
+          "oldRowsRenderableAfterIdentityChange": false,
+          "passed": true
+        }
       }
     },
     {
@@ -330,6 +339,13 @@
         "clientFixtureAssertionsAreRuntimeMeasurementsFromThisHarness": false,
         "queryInstanceAllocatorIntrospectedByThisHarness": false
       }
+    },
+    "deployment": {
+      "missingPredecessorObserved": true,
+      "activationEpoch": 1,
+      "idempotentActivationEpochAdvance": 0,
+      "ordinaryWriteRaisedAuthorizationEvent": false,
+      "ordinaryRemovalRaisedAuthorizationEvent": false
     },
     "overflow": {
       "overflowSentinelObserved": true,

@@ -5183,13 +5183,20 @@ mod guarded_commit_tests {
     #[test]
     fn activation_and_ordinary_writes_preserve_the_closed_event_universe() {
         let mut db = LocalDatabase::memory().expect("database");
+        let missing_predecessor = db
+            .authorization_version()
+            .expect_err("fresh database has no invented authorization version");
+        let missing_predecessor_observed =
+            missing_predecessor.diagnostic.code == "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT";
+        assert!(missing_predecessor_observed);
         db.apply_schema(schema()).expect("initial activation");
         let activated = db.authorization_version().expect("activation version");
         assert_eq!(activated.epoch, 1);
 
         db.apply_schema(schema())
             .expect("idempotent schema application");
-        assert_eq!(db.authorization_version().unwrap(), activated);
+        let after_idempotent = db.authorization_version().unwrap();
+        assert_eq!(after_idempotent, activated);
 
         let commit = db
             .execute_mutation(&insert_plan(), &HandlerInput::default())
@@ -5214,6 +5221,16 @@ mod guarded_commit_tests {
         let removal_witness = removal.authorization.unwrap();
         assert!(!removal_witness.event);
         assert_eq!(removal_witness.version, activated);
+        println!(
+            "SNAPBACK_AUTH_ACCEPTANCE_DEPLOYMENT_RECEIPT={}",
+            json!({
+                "missingPredecessorObserved": missing_predecessor_observed,
+                "activationEpoch": activated.epoch,
+                "idempotentActivationEpochAdvance": after_idempotent.epoch - activated.epoch,
+                "ordinaryWriteRaisedAuthorizationEvent": witness.event,
+                "ordinaryRemovalRaisedAuthorizationEvent": removal_witness.event,
+            })
+        );
     }
 
     #[test]

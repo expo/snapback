@@ -729,6 +729,10 @@ const main = async () => {
     'local::tests::overflow_root_waits_for_every_auth_scoped_child',
     'SNAPBACK_AUTH_ACCEPTANCE_OVERFLOW_RECEIPT',
   );
+  const deploymentReceipt = runRustReceipt(
+    'storage::guarded_commit_tests::activation_and_ordinary_writes_preserve_the_closed_event_universe',
+    'SNAPBACK_AUTH_ACCEPTANCE_DEPLOYMENT_RECEIPT',
+  );
   const roomReceipt = runRustReceipt(
     'local::auth_room_kick_acceptance::card_game_kick_composes_durable_and_room_authority_boundaries',
     'SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT',
@@ -775,7 +779,15 @@ const main = async () => {
         && runtime.randomizedFreshQueryComparisons
           === serverReceipt.scenario.randomizedOperations
             * serverReceipt.scenario.authScopedQueries),
-      passedEntry('deployment-identity-change', live.deployment, live.deployment.passed),
+      passedEntry('deployment-activation', {
+        serverActivation: deploymentReceipt,
+        clientIdentityFence: live.deployment,
+      }, deploymentReceipt.missingPredecessorObserved
+        && deploymentReceipt.activationEpoch === 1
+        && deploymentReceipt.idempotentActivationEpochAdvance === 0
+        && deploymentReceipt.ordinaryWriteRaisedAuthorizationEvent === false
+        && deploymentReceipt.ordinaryRemovalRaisedAuthorizationEvent === false
+        && live.deployment.passed),
       passedEntry('lease-expiry', {
         retainedBytesDeleted: visibility.retainedPayloadBytesDeletedAtLeaseExpiry,
         deleteTombstoneWritten: visibility.expiryDeleteTombstoneWritten,
@@ -834,6 +846,7 @@ const main = async () => {
     ],
     productionRustReceipts: {
       server: serverReceipt,
+      deployment: deploymentReceipt,
       overflow: overflowReceipt,
       protectedRoom: roomReceipt,
     },

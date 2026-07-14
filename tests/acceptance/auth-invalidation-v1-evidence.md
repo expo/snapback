@@ -69,7 +69,8 @@ The composed receipt preserves the Rust receipt unchanged as
   production assertions pass. The runner executes the tests and parses those
   values; it does not infer success from a filename or source string; and
 - the 13-row property-oracle matrix is built from observed values for randomized
-  writes, deployment identity change, expiry, rollback, overflow, disconnect,
+  writes, deployment activation plus its client identity fence, expiry,
+  rollback, overflow, disconnect,
   response loss, ACK loss, restart, stale callbacks, shared-store peer writes,
   disposition escalation, and all room pause points.
 
