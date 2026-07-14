@@ -55,6 +55,7 @@ export {
 } from './query-authorization.mjs';
 
 export {
+  authorizedLeaseActivationHash,
   authorizedLeaseHash,
   deriveAuthorizedLeaseCommit,
   SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS,

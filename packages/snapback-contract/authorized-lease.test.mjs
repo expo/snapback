@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 import {
+  authorizedLeaseActivationHash,
   authorizedLeaseHash,
   deriveAuthorizedLeaseCommit,
   SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS,
@@ -10,6 +11,23 @@ import {
   validateAuthorizedLease,
   validateAuthorizedLeaseCapability,
 } from './authorized-lease.mjs';
+
+assert.equal(authorizedLeaseActivationHash({
+  schemaVersion: 'snapback.v1',
+  authMode: 'sessions',
+  appId: 'app-test',
+  schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+  bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+  inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+}), 'snapback.authorized-lease.activation.v1:sha256:d32507a87be992df54d41d42160789787b0759629d5b43cac1b2c829b4e6cc97');
+assert.throws(() => authorizedLeaseActivationHash({
+  schemaVersion: 'snapback.v1',
+  authMode: 'sessions',
+  appId: '',
+  schemaHash: 'schema',
+  bundleHash: 'bundle',
+  inputsHash: 'inputs',
+}), /non-empty appId/);
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const AUTHORITY_INSTANCE = '018f0d90-7b12-7a22-8c33-445566778899';

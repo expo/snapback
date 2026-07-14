@@ -22,6 +22,8 @@ const ACTIVATION_HASH = /^snapback\.authorized-lease\.activation\.v1:sha256:[0-9
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const utf8Length = (value) => new TextEncoder().encode(value).length;
 
+const ACTIVATION_HASH_DOMAIN = 'snapback.authorized-lease.activation.v1';
+
 function leaseError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
   error.code = code;
@@ -138,6 +140,66 @@ function sha256(input) {
     h[6] = (h[6] + g) >>> 0; h[7] = (h[7] + hh) >>> 0;
   }
   return h.map((word) => word.toString(16).padStart(8, '0')).join('');
+}
+
+// Cross-language activation identity used by the client store before it can
+// accept a server-issued lease. Rust's `authorized_lease_activation_hash`
+// prefixes every UTF-8 field with its unsigned 64-bit big-endian byte length;
+// keeping that framing here avoids ambiguous concatenation and pins retained
+// bytes to the exact active schema/function pair.
+//
+// @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+// retained snapshots are usable only under the exact active deployment.
+export function authorizedLeaseActivationHash({
+  schemaVersion,
+  authMode,
+  appId,
+  schemaHash,
+  bundleHash,
+  inputsHash,
+}) {
+  const fields = [
+    ACTIVATION_HASH_DOMAIN,
+    schemaVersion,
+    authMode,
+    appId,
+    schemaHash,
+    bundleHash,
+    inputsHash,
+  ];
+  const encoder = new TextEncoder();
+  const chunks = fields.map((value, index) => {
+    if (typeof value !== 'string' || value.length === 0) {
+      const names = [
+        'domain',
+        'schemaVersion',
+        'authMode',
+        'appId',
+        'schemaHash',
+        'bundleHash',
+        'inputsHash',
+      ];
+      throw new TypeError(`authorized lease activation requires a non-empty ${names[index]}`);
+    }
+    const bytes = encoder.encode(value);
+    const length = new Uint8Array(8);
+    let remaining = BigInt(bytes.length);
+    for (let at = 7; at >= 0; at -= 1) {
+      length[at] = Number(remaining & 0xffn);
+      remaining >>= 8n;
+    }
+    return [length, bytes];
+  });
+  const total = chunks.reduce((sum, [length, bytes]) => sum + length.length + bytes.length, 0);
+  const framed = new Uint8Array(total);
+  let offset = 0;
+  for (const [length, bytes] of chunks) {
+    framed.set(length, offset);
+    offset += length.length;
+    framed.set(bytes, offset);
+    offset += bytes.length;
+  }
+  return `${ACTIVATION_HASH_DOMAIN}:sha256:${sha256(framed)}`;
 }
 
 export function validateAuthorizedLease(value, path = 'authorizedLease') {

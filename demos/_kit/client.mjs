@@ -202,6 +202,7 @@ const authHandshakeRequired = (path) => !(
 const freshAuthHandshakeRequired = (path) => (
   path === '/connection/open'
   || (path.startsWith('/live/') && path.endsWith('/subscribe'))
+  || (path.startsWith('/query/') && path.endsWith('/authorized-lease'))
   || path === '/ephemeral/subscribe'
 );
 
@@ -951,10 +952,17 @@ export class SnapbackClient {
 
   #sessionRequestHeaders(path, originalBody, bearerOverride = undefined) {
     const headers = this.#authOfferHeaders(false, bearerOverride);
-    if (path.startsWith('/live/') || path.startsWith('/ephemeral/')) {
+    const authorizedLeaseRequest = path.startsWith('/query/')
+      && path.endsWith('/authorized-lease');
+    if (path.startsWith('/live/') || path.startsWith('/ephemeral/') || authorizedLeaseRequest) {
       if (this.authProtocols.authInvalidation != null) {
         headers[AUTH_INVALIDATION_PROTOCOL_HEADER] = String(this.authProtocols.authInvalidation);
       }
+    }
+    if (authorizedLeaseRequest && this.authProtocols.authorizedLease != null) {
+      headers[AUTHORIZED_LEASE_PROTOCOL_HEADER] = String(
+        this.authProtocols.authorizedLease,
+      );
     }
     if (path.startsWith('/mutation/') && originalBody?.clientMutationId) {
       if (this.authProtocols.authorityDescriptor != null) {
@@ -1224,6 +1232,35 @@ export class SnapbackClient {
   query(ref, { args = {}, userId, readSet = [] } = {}) {
     const name = functionName(ref);
     return this.#req('POST', `/query/${encodeURIComponent(name)}`, { args, auth: SnapbackClient.auth(userId), read_set: readSet });
+  }
+
+  // Item 8's only renewal path: a fresh full query whose rows and exact
+  // server-issued AuthorizedLease are returned as one response boundary.
+  // The caller reserves leaseRequestId durably before entering this method.
+  //
+  // @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+  // heartbeat, reconnect, delta delivery, and session refresh never renew.
+  authorizedLeaseQuery(ref, {
+    args = {},
+    userId,
+    readSet = [],
+    leaseRequestId,
+    authorizationNamespace,
+  } = {}) {
+    const name = functionName(ref);
+    const namespace = createLiveQueryNamespace(authorizationNamespace ?? {});
+    if (typeof leaseRequestId !== 'string' || leaseRequestId.length === 0) {
+      throw new TypeError('authorizedLeaseQuery requires leaseRequestId');
+    }
+    return this.#req('POST', `/query/${encodeURIComponent(name)}/authorized-lease`, {
+      args,
+      auth: SnapbackClient.auth(userId),
+      read_set: readSet,
+      leaseRequestId,
+      clientStoreId: namespace.clientStoreId,
+      queryKey: namespace.queryKey,
+      queryInstanceId: namespace.queryInstanceId,
+    });
   }
 
   action(ref, { args = {}, userId, readSet = [] } = {}) {
@@ -1699,6 +1736,7 @@ export class SnapbackClient {
     onAuthorizationBoundary = null,
     onAuthorizationError = null,
     authorizationQueue = null,
+    authorizationNamespace = null,
     correlation = null,
     stream: streamOptions = {},
   } = {}) {
@@ -1709,11 +1747,13 @@ export class SnapbackClient {
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
     const queryKey = retainedQueryKey(name, args);
     let queryNamespace = authorizationProtocolEnabled
-      ? createLiveQueryNamespace({
-          clientStoreId: this.clientStoreId,
-          queryKey,
-          queryInstanceId: this.__liveQueryAllocator.allocate(),
-        })
+      ? authorizationNamespace === null
+        ? createLiveQueryNamespace({
+            clientStoreId: this.clientStoreId,
+            queryKey,
+            queryInstanceId: this.__liveQueryAllocator.allocate(),
+          })
+        : createLiveQueryNamespace(authorizationNamespace)
       : null;
     let authorizationFence = null;
     let authorizationFaulted = false;
@@ -1864,9 +1904,12 @@ export class SnapbackClient {
       return authorizationQueue?.applyObligation?.(value) ?? null;
     };
 
-    const resolveQueueObligation = async (value) => {
+    const resolveQueueObligation = async (value, snapshotValue = null) => {
       if (value.maxDisposition === 'retain') return null;
-      return authorizationQueue?.resolveObligation?.(value) ?? null;
+      return authorizationQueue?.resolveObligation?.(
+        value,
+        snapshotValue === null ? null : authorizationSnapshot(snapshotValue),
+      ) ?? null;
     };
 
     const retireQueueScopes = async (retired) => {
@@ -1917,7 +1960,7 @@ export class SnapbackClient {
           commit: commitAuthorizationBoundary,
         });
         authorizationFaulted = false;
-        await resolveQueueObligation(projection.resolution);
+        await resolveQueueObligation(projection.resolution, snapshotValue);
         let acknowledged;
         try {
           acknowledged = await client.acknowledgeAuthorizationInvalidation(

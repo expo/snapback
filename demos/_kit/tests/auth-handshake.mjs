@@ -3,7 +3,7 @@
 import { SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 4 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 5 });
 const originalFetch = globalThis.fetch;
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 
@@ -140,6 +140,49 @@ try {
       '/connection/open',
     ]);
     return { discoveries: generation };
+  });
+
+  await suite.check('authorized lease renewal offers both exact protocols after fresh discovery', async () => {
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      const path = new URL(url).pathname;
+      calls.push({ path, init });
+      if (path === '/auth/session') {
+        return response(handshake({ activeMode: 'sessions' }));
+      }
+      if (path === '/query/myHand/authorized-lease') {
+        return response({ version: 7, rows: [], authorizedLease: { leaseId: 'lease_1' } });
+      }
+      throw new Error(`unexpected path ${path}`);
+    };
+    const db = new SnapbackClient('http://stub', {
+      bearerToken: 'session-secret',
+      authInvalidationProtocol: 1,
+      authorizedLeaseProtocol: 1,
+    });
+    const result = await db.authorizedLeaseQuery('myHand', {
+      args: { gameId: 'game_1' },
+      userId: 'forged-user',
+      leaseRequestId: 'request_1',
+      authorizationNamespace: {
+        clientStoreId: 'store_1',
+        queryKey: 'myHand:{"gameId":"game_1"}',
+        queryInstanceId: 3,
+      },
+    });
+    assertEqual(result.version, 7);
+    assertEqual(calls.map(({ path }) => path), [
+      '/auth/session',
+      '/query/myHand/authorized-lease',
+    ]);
+    const request = calls[1];
+    assertEqual(request.init.headers['x-snapback-auth-invalidation-protocol'], '1');
+    assertEqual(request.init.headers['x-snapback-authorized-lease-protocol'], '1');
+    const body = JSON.parse(request.init.body);
+    assert(!Object.hasOwn(body, 'auth'), 'sessions lease request omitted body auth');
+    assertEqual(body.leaseRequestId, 'request_1');
+    assertEqual(body.queryInstanceId, 3);
+    return { bodyKeys: Object.keys(body).sort() };
   });
 
   await suite.check('pending handshake blocks bytes before the requested operation', async () => {
