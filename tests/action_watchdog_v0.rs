@@ -272,23 +272,31 @@ fn watchdog_functions() -> FunctionManifest {
     manifest
 }
 
-fn watchdog_state_and_app() -> (snapback::server::SharedSnapback, axum::Router) {
-    let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback
-        .apply_schema(watchdog_schema())
-        .expect("apply schema");
-    let diagnostics = snapback.load_functions(watchdog_functions());
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-    }));
-    let app_state = AppState::detached(snapback);
-    let state = app_state.snapback.clone();
-    (state, snapback::server::app(app_state))
+async fn watchdog_state_and_app() -> (snapback::server::SharedSnapback, axum::Router) {
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L7 applies to
+    // integration-fixture schema activation too: item 6's authorization
+    // interlock reads the durable commit version during `apply_schema`.
+    tokio::task::spawn_blocking(|| {
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(watchdog_schema())
+            .expect("apply schema");
+        let diagnostics = snapback.load_functions(watchdog_functions());
+        assert!(diagnostics.iter().all(|diagnostic| {
+            diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
+                || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
+        }));
+        let app_state = AppState::detached(snapback);
+        let state = app_state.snapback.clone();
+        (state, snapback::server::app(app_state))
+    })
+    .await
+    .expect("watchdog fixture blocking setup")
 }
 
-fn watchdog_app() -> axum::Router {
-    watchdog_state_and_app().1
+async fn watchdog_app() -> axum::Router {
+    watchdog_state_and_app().await.1
 }
 
 fn post_json(uri: &str, body: Value) -> Request<Body> {
@@ -410,18 +418,24 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
         target_wakeup: None,
         source_span: None,
     }];
-    let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    snapback.apply_schema(watchdog_schema()).expect("schema");
-    let diagnostics = snapback.load_functions(manifest);
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
-    }));
-    snapback
-        .set_config_entry("leakKey", vec![secret_a.clone()], false, "test")
-        .expect("set secret A");
-    let app_state = AppState::detached(snapback);
-    let state = app_state.snapback.clone();
-    let app = snapback::server::app(app_state);
+    let fixture_secret = secret_a.clone();
+    let (state, app) = tokio::task::spawn_blocking(move || {
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.apply_schema(watchdog_schema()).expect("schema");
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(diagnostics.iter().all(|diagnostic| {
+            diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+        }));
+        snapback
+            .set_config_entry("leakKey", vec![fixture_secret], false, "test")
+            .expect("set secret A");
+        let app_state = AppState::detached(snapback);
+        let state = app_state.snapback.clone();
+        (state, snapback::server::app(app_state))
+    })
+    .await
+    .expect("secret-redaction fixture blocking setup");
 
     let public_action = app
         .clone()
@@ -495,7 +509,7 @@ async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
     // hostile-handler budget on a loaded full-suite host; keep that unrelated
     // watchdog from winning the race we are trying to observe.
     set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
-    let (state, app) = watchdog_state_and_app();
+    let (state, app) = watchdog_state_and_app().await;
 
     let (reload_url, reload_started, release_reload, reload_server) = held_http_response().await;
     let reload_action = start_paused_action(app.clone(), reload_url);
@@ -567,7 +581,7 @@ async fn permanently_held_instance_mutex_does_not_leak_action_worker() {
     .expect("pre-existing action workers must drain");
     let baseline = snapback::server::detached_action_worker_count();
 
-    let (state, app) = watchdog_state_and_app();
+    let (state, app) = watchdog_state_and_app().await;
     let (url, fetch_started, release_fetch, fetch_server) = held_http_response().await;
     let started = Instant::now();
     let action = start_paused_mutation_action(app, url);
@@ -618,7 +632,7 @@ async fn permanently_held_instance_mutex_does_not_leak_action_worker() {
 async fn nested_hung_mutation_times_out_without_wedging_the_instance() {
     let _serial = serial_action_test().await;
     set_watchdog_env();
-    let app = watchdog_app();
+    let app = watchdog_app().await;
 
     let started = Instant::now();
     let response = tokio::time::timeout(
@@ -713,7 +727,7 @@ async fn repeated_nested_timeouts_do_not_accumulate_action_workers() {
     .await
     .expect("pre-existing action workers must drain");
 
-    let app = watchdog_app();
+    let app = watchdog_app().await;
     let mut requests = Vec::new();
     for _ in 0..6 {
         let app = app.clone();
@@ -765,7 +779,7 @@ async fn action_run_does_not_hold_the_write_mutex() {
     // This proof holds a native fetch open as a structural concurrency witness;
     // it is not testing watchdog timing.
     set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
-    let app = watchdog_app();
+    let app = watchdog_app().await;
 
     let (url, fetch_started, release_fetch, fetch_server) = held_http_response().await;
     let action = start_paused_action(app.clone(), url);
@@ -844,7 +858,7 @@ async fn action_run_does_not_hold_the_write_mutex() {
 async fn watchdog_abandons_a_stuck_action_and_rejects_late_commits() {
     let _serial = serial_action_test().await;
     set_watchdog_env();
-    let app = watchdog_app();
+    let app = watchdog_app().await;
 
     let started = Instant::now();
     let response = tokio::time::timeout(
@@ -915,7 +929,7 @@ async fn watchdog_abandons_a_stuck_action_and_rejects_late_commits() {
 async fn detached_action_ctx_db_stays_denied() {
     let _serial = serial_action_test().await;
     set_watchdog_env();
-    let app = watchdog_app();
+    let app = watchdog_app().await;
 
     let action = app
         .clone()
@@ -947,7 +961,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
     // a structural concurrency witness, so give it a deliberately wide
     // watchdog and release it explicitly after the concurrent mutation.
     set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
-    let app = watchdog_app();
+    let app = watchdog_app().await;
     let (held_url, held_started, release_held, held_server) = held_http_response().await;
     let (recreate_url, recreate_started, release_recreate, recreate_server) =
         held_http_response().await;
@@ -1166,7 +1180,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
 async fn cron_tick_executes_claims_through_the_detached_flow() {
     let _serial = serial_action_test().await;
     set_watchdog_env();
-    let app = watchdog_app();
+    let app = watchdog_app().await;
 
     let tick = app
         .clone()
