@@ -4532,6 +4532,7 @@ impl LocalEphemeralBackend {
             .get(connection_id)
             .cloned()
             .unwrap_or_default();
+        let mut maybe_empty = Vec::new();
         for room_id in touched {
             let room = lock(&self.shared.rooms).get(&room_id).cloned();
             let Some(room) = room else {
@@ -4542,12 +4543,31 @@ impl LocalEphemeralBackend {
                 .subscribers
                 .get(connection_id)
                 .is_some_and(|subscriber| subscriber.effect_fence.as_ref() == Some(effect_fence));
+            let had_connection_room_edge = room.uses_connection(connection_id);
             if remove && let Some(subscriber) = room.subscribers.remove(connection_id) {
                 room.retained_bytes = room
                     .retained_bytes
                     .saturating_sub(subscriber.retained_bytes);
+                if had_connection_room_edge && !room.uses_connection(connection_id) {
+                    room.retained_bytes =
+                        room.retained_bytes
+                            .saturating_sub(retained_connection_room_edge_bytes(
+                                connection_id,
+                                &room_id,
+                            ));
+                }
             }
             self.sync_connection_room_index_locked(&room, connection_id, &room_id);
+            if remove && room.entries.is_empty() && room.subscribers.is_empty() {
+                maybe_empty.push(room_id);
+            }
+        }
+        // Terminal effect retirement can consume the connection's reverse-index
+        // edge before the socket's eventual guarded disconnect. Prune only after
+        // releasing every room lock so an exact purge cannot strand an empty
+        // routing entry against the process-wide active-room limit.
+        for room_id in maybe_empty {
+            self.prune_room_if_empty(&room_id);
         }
         if let Some(outbox) = lock(&self.shared.outboxes).get(connection_id).cloned() {
             lock(&outbox).purge_effect_fence(effect_fence);
@@ -9483,6 +9503,54 @@ mod tests {
             panic!("expected the fresh unbound message");
         };
         assert_eq!(message.payload.as_slice(), b"fresh");
+    }
+
+    #[test]
+    fn exact_effect_purge_prunes_empty_room_and_releases_active_room_capacity() {
+        let backend = LocalEphemeralBackend::with_limits(EphemeralStoreLimits {
+            max_active_rooms: 1,
+            ..EphemeralStoreLimits::default()
+        });
+        backend
+            .register_collection(EphemeralCollection::local_cursor("cursors", "boardId"))
+            .unwrap();
+        let request = |board: &str| SubscribeRequest {
+            collection: "cursors".to_owned(),
+            scope: Scope::from_pairs([("boardId", board)]),
+            connection_id: "terminal".to_owned(),
+            auth: AuthContext::default(),
+        };
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        backend
+            .subscribe_with_room_authority_and_effect_fence(
+                request("old"),
+                1_000,
+                None,
+                Some(predecessor.clone()),
+            )
+            .expect("predecessor subscriber creates the only room");
+        assert_eq!(backend.diagnostics().room_count, 1);
+        assert_retained_accounting(&backend);
+
+        backend.purge_connection_effects("terminal", &predecessor);
+
+        assert_eq!(backend.diagnostics().room_count, 0);
+        assert_retained_accounting(&backend);
+        backend
+            .subscribe_with_room_authority_and_effect_fence(
+                request("successor"),
+                1_001,
+                None,
+                Some(ConnectionEffectFence::session(
+                    "inc",
+                    "grant-new",
+                    "session",
+                    2,
+                )),
+            )
+            .expect("terminal purge must release active-room capacity");
+        assert_eq!(backend.diagnostics().room_count, 1);
+        assert_retained_accounting(&backend);
     }
 
     #[test]

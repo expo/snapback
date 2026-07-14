@@ -1266,6 +1266,11 @@ impl ObligationRegistry {
             .collect()
     }
 
+    #[cfg(test)]
+    pub(crate) fn active_subscription_scopes_for_test(&self) -> Vec<ScopeId> {
+        self.active_subscription_scopes.iter().cloned().collect()
+    }
+
     pub fn projection(&self, scope_id: &ScopeId) -> Option<AuthorizationInvalidationProjection> {
         Some(AuthorizationInvalidationProjection {
             obligation: self.pending(scope_id)?.clone(),
@@ -1425,6 +1430,42 @@ impl ObligationRegistry {
     }
 
     pub fn retire_scope(&mut self, scope_id: &ScopeId) -> Option<ScopeRetirementCandidate> {
+        self.remove_live_scope_state(scope_id);
+        self.scope_retirement_candidate(scope_id)
+    }
+
+    /// Roll back a successor scope that never became a retained producer.
+    /// Unlike ordinary retirement, removing its provisional connection-child
+    /// edge may not discharge a pre-existing empty connection-root obligation:
+    /// the predecessor remains authoritative and a later transfer must still
+    /// inherit that root. Scope sequences remain spent, so no unpublished
+    /// identity can be reused.
+    pub(crate) fn rollback_unpublished_live_scope(
+        &mut self,
+        scope_id: &ScopeId,
+        connection_scope: &ScopeId,
+    ) {
+        self.remove_live_scope_records(scope_id);
+        let completed_root = self
+            .connection_children
+            .get_mut(connection_scope)
+            .is_some_and(|children| {
+                children.remove(scope_id);
+                children.is_empty()
+            });
+        if completed_root {
+            // The root predated this private stage. Remove only the provisional
+            // child edge; ordinary retirement owns eventual root discharge.
+            self.connection_children.remove(connection_scope);
+        }
+    }
+
+    fn remove_live_scope_state(&mut self, scope_id: &ScopeId) {
+        self.remove_live_scope_records(scope_id);
+        self.discharge_connection_child(scope_id);
+    }
+
+    fn remove_live_scope_records(&mut self, scope_id: &ScopeId) {
         self.obligations.remove(scope_id);
         self.resolution_by_scope.remove(scope_id);
         // Live ScopeIds are never reused within an issuer, so continuity loss
@@ -1433,9 +1474,18 @@ impl ObligationRegistry {
         self.revision_high_water.remove(scope_id);
         self.last_discharged.remove(scope_id);
         self.owner_continuity_by_scope.remove(scope_id);
-        self.discharge_connection_child(scope_id);
         self.active_subscription_scopes.remove(scope_id);
+    }
 
+    /// Compute and record the contiguous retirement frontier after `scope_id`
+    /// has left the live/obligation indexes. Callers that need an authenticated
+    /// proof before committing retirement use `preview_scope_retirement`
+    /// first; with one exclusive registry owner the resulting candidate is
+    /// identical.
+    fn scope_retirement_candidate(
+        &mut self,
+        scope_id: &ScopeId,
+    ) -> Option<ScopeRetirementCandidate> {
         let ScopeId::Subscription {
             issuer_id,
             namespace,
@@ -1484,6 +1534,68 @@ impl ObligationRegistry {
             namespace: namespace.clone(),
             retire_through_scope_sequence: candidate,
         })
+    }
+
+    /// Preview the retirement frontier that removing `scope_id` would make
+    /// available, without changing any registry state. This lets the caller
+    /// authenticate the proof before the predecessor is irreversibly removed.
+    pub(crate) fn preview_scope_retirement(
+        &self,
+        scope_id: &ScopeId,
+    ) -> Option<ScopeRetirementCandidate> {
+        let ScopeId::Subscription {
+            issuer_id,
+            namespace,
+            ..
+        } = scope_id
+        else {
+            return None;
+        };
+        let key = (issuer_id.clone(), namespace.clone());
+        let issued = self.issued_scope_high_water.get(&key).copied()?;
+        let first_blocker = self
+            .active_subscription_scopes
+            .iter()
+            .chain(self.obligations.keys())
+            .filter(|candidate| *candidate != scope_id)
+            .filter_map(|candidate| match candidate {
+                ScopeId::Subscription {
+                    issuer_id: candidate_issuer,
+                    namespace: candidate_namespace,
+                    scope_sequence,
+                    ..
+                } if candidate_issuer == issuer_id && candidate_namespace == namespace => {
+                    Some(*scope_sequence)
+                }
+                _ => None,
+            })
+            .min();
+        let candidate = first_blocker
+            .and_then(|sequence| sequence.checked_sub(1))
+            .unwrap_or(issued)
+            .min(issued);
+        let previous = self
+            .scope_retirement_frontier
+            .get(&key)
+            .copied()
+            .unwrap_or(0);
+        (candidate != 0 && candidate > previous).then(|| ScopeRetirementCandidate {
+            namespace: namespace.clone(),
+            retire_through_scope_sequence: candidate,
+        })
+    }
+
+    pub(crate) fn require_scope_retirement_preview(
+        &self,
+        scope_id: &ScopeId,
+        expected: &Option<ScopeRetirementCandidate>,
+    ) -> SnapbackResult<()> {
+        if &self.preview_scope_retirement(scope_id) != expected {
+            return Err(corrupt(
+                "live scope retirement frontier changed before transfer commit",
+            ));
+        }
+        Ok(())
     }
 
     pub fn retire_connection(&mut self, issuer_id: &IssuerId, connection_generation: u64) {
@@ -2118,10 +2230,51 @@ mod tests {
             )
             .unwrap();
 
+        let preview = registry.preview_scope_retirement(&first).unwrap();
         let first_retirement = registry.retire_scope(&first).unwrap();
+        assert_eq!(preview, first_retirement);
         assert_eq!(first_retirement.retire_through_scope_sequence, 4);
         assert!(registry.retire_scope(&second).is_some());
         assert!(registry.pending(&second).is_none());
+    }
+
+    #[test]
+    fn unpublished_scope_rollback_preserves_preexisting_connection_root() {
+        let mut registry = registry();
+        let connection = ScopeId::Connection {
+            issuer_id: issuer(),
+            connection_generation: 6,
+        };
+        registry
+            .raise(
+                connection.clone(),
+                1,
+                "connection-root",
+                InvalidationDisposition::Quarantine,
+                witness(1),
+                None,
+            )
+            .unwrap();
+        let replacement = ScopeId::Subscription {
+            issuer_id: issuer(),
+            namespace: namespace(1),
+            scope_sequence: 4,
+            connection_generation: 6,
+            subscription_id: "sub-replacement".to_owned(),
+        };
+        registry
+            .register_live_scope(replacement.clone(), "replacement-owner")
+            .unwrap();
+        registry
+            .register_connection_child(&connection, replacement.clone())
+            .unwrap();
+        assert!(registry.pending(&replacement).is_some());
+
+        registry.rollback_unpublished_live_scope(&replacement, &connection);
+
+        assert!(registry.pending(&replacement).is_none());
+        assert!(registry.pending(&connection).is_some());
+        assert!(registry.active_subscription_scopes_for_test().is_empty());
     }
 
     #[test]

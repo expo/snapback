@@ -16932,6 +16932,10 @@ mod tests {
             "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
         ),
         (
+            "SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT",
+            "machine-readable property-oracle marker emitted only by the LLP 0053 server acceptance test",
+        ),
+        (
             "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT",
             "machine-readable marker emitted only by the LLP 0053 room acceptance test",
         ),
@@ -16950,6 +16954,10 @@ mod tests {
         (
             "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT",
             "machine-readable marker emitted only by the LLP 0053 server acceptance test",
+        ),
+        (
+            "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY",
+            "machine-readable replay-oracle marker emitted only by the LLP 0053 server acceptance test",
         ),
         (
             "SNAPBACK_BUILD_GIT_COMMIT",

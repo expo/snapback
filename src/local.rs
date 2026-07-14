@@ -2022,15 +2022,22 @@ impl LocalInvalidationState {
         &mut self,
         scope: &ScopeId,
     ) -> SnapbackResult<Option<ScopeRetirement>> {
-        self.obligations
-            .retire_scope(scope)
+        let candidate = self.obligations.preview_scope_retirement(scope);
+        let retirement = candidate
+            .as_ref()
             .map(|candidate| {
                 self.issuer.authenticate_scope_retirement(
-                    candidate.namespace,
+                    candidate.namespace.clone(),
                     candidate.retire_through_scope_sequence,
                 )
             })
-            .transpose()
+            .transpose()?;
+        let actual = self.obligations.retire_scope(scope);
+        assert_eq!(
+            actual, candidate,
+            "authenticated scope retirement frontier changed during commit"
+        );
+        Ok(retirement)
     }
 }
 
@@ -4997,17 +5004,17 @@ impl LocalSnapback {
                 ),
             ));
         }
+        let predecessor_subscription = subscription.clone();
 
-        // @ref LLP 0059#durable-and-ephemeral-outboxes — reconnect moves the
-        // retained producer to the successor connection *and* its exact
-        // effect fence before any resume-side frame can be constructed.
+        // @ref LLP 0059#durable-and-ephemeral-outboxes — reconnect stages the
+        // successor connection and exact effect fence privately, then moves
+        // the retained producer before any successor-owned frame is exposed.
         subscription.connection_id = input.connection_id.clone();
         if invalidation.effect_fence.is_some() {
             subscription.effect_fence = invalidation.effect_fence.clone();
         }
 
         if let Some(mut authorization) = subscription.authorization.take() {
-            let mut scope_retirements = Vec::new();
             if authority.active_mode() != AuthMode::Sessions {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -5022,7 +5029,7 @@ impl LocalSnapback {
                     "auth-scoped live resume requires authInvalidationProtocol: 1",
                 )
             })?;
-            let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+            let state = self.auth_invalidation.as_ref().ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
                     "auth",
@@ -5046,13 +5053,23 @@ impl LocalSnapback {
                 } if issuer_id == &connection.issuer_id
                     && *connection_generation == connection.connection_generation
             );
-            if connection_changed {
-                let previous = state.obligations.pending(&authorization.scope_id).cloned();
-                if let Some(retirement) =
-                    state.retire_scope_authenticated(&authorization.scope_id)?
-                {
-                    scope_retirements.push(retirement);
-                }
+            // Read the durable floor before changing retained ownership. A read
+            // failure must leave the exact predecessor scope/fence untouched.
+            let floor = self.db.current_version()?;
+            let retry_floor = state.witness(floor);
+            let predecessor_scope = authorization.scope_id.clone();
+            let replacement_stage = if connection_changed {
+                // Register a quarantined successor without retiring or
+                // repointing the retained predecessor. It is private staging:
+                // no successor-fenced frame is enqueued until the fresh query,
+                // authenticated retirement proof, and retry resolution are all
+                // ready to commit. Failed staging is removed in O(log N), while
+                // its reserved identity remains spent.
+                let state = self
+                    .auth_invalidation
+                    .as_mut()
+                    .expect("resume checked installed invalidation state");
+                let previous = state.obligations.pending(&predecessor_scope).cloned();
                 let replacement = ScopeId::Subscription {
                     issuer_id: connection.issuer_id.clone(),
                     namespace: authorization.namespace.clone(),
@@ -5061,55 +5078,68 @@ impl LocalSnapback {
                     subscription_id: subscription.id.clone(),
                 };
                 let connection_scope = ScopeId::Connection {
-                    issuer_id: connection.issuer_id,
+                    issuer_id: connection.issuer_id.clone(),
                     connection_generation: connection.connection_generation,
                 };
-                authorization.owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
-                state.obligations.register_live_scope(
-                    replacement.clone(),
-                    authorization.owner_continuity_id.clone(),
-                )?;
-                state
-                    .obligations
-                    .register_connection_child(&connection_scope, replacement.clone())?;
-                if let Some(previous) = previous {
-                    let cause = state.reserve_cause_sequence()?;
+                let owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
+                let transfer_cause = if previous.is_some() {
+                    Some(state.reserve_cause_sequence()?)
+                } else {
+                    None
+                };
+                let fresh_cause = state.reserve_cause_sequence()?;
+                let staged = (|| {
+                    state
+                        .obligations
+                        .register_live_scope(replacement.clone(), owner_continuity_id.clone())?;
+                    state
+                        .obligations
+                        .register_connection_child(&connection_scope, replacement.clone())?;
+                    if let (Some(previous), Some(cause)) = (previous, transfer_cause) {
+                        state.obligations.raise(
+                            replacement.clone(),
+                            cause,
+                            format!("resume:transfer:{cause}"),
+                            previous.max_disposition,
+                            previous.witness,
+                            previous.retry_episode_id,
+                        )?;
+                    }
                     state.obligations.raise(
                         replacement.clone(),
-                        cause,
-                        format!("resume:transfer:{cause}"),
-                        previous.max_disposition,
-                        previous.witness,
-                        previous.retry_episode_id,
+                        fresh_cause,
+                        format!("resume:fresh:{fresh_cause}"),
+                        InvalidationDisposition::Quarantine,
+                        retry_floor.clone(),
+                        None,
                     )?;
+                    Ok::<(), SnapbackError>(())
+                })();
+                if let Err(error) = staged {
+                    state
+                        .obligations
+                        .rollback_unpublished_live_scope(&replacement, &connection_scope);
+                    return Err(error);
                 }
-                authorization.scope_id = replacement;
-            }
-
-            // A session-mode resume never trusts retained rows merely because
-            // epochs compare equal. Install an exact obligation before the
-            // fresh query so a failed invocation leaves the old view hidden.
-            let floor = self.db.current_version()?;
-            let cause = state.reserve_cause_sequence()?;
-            let witness = state.witness(floor);
-            let retry_floor = witness.clone();
-            state.obligations.raise(
-                authorization.scope_id.clone(),
-                cause,
-                format!("resume:fresh:{cause}"),
-                InvalidationDisposition::Quarantine,
-                witness,
-                None,
-            )?;
-            if let Some(projection) = state.obligations.projection(&authorization.scope_id)
-                && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
-                    projection.obligation,
-                    projection.resolution,
+                authorization.owner_continuity_id = owner_continuity_id;
+                authorization.scope_id = replacement.clone();
+                Some((replacement, connection_scope))
+            } else {
+                let state = self
+                    .auth_invalidation
+                    .as_mut()
+                    .expect("resume checked installed invalidation state");
+                let cause = state.reserve_cause_sequence()?;
+                state.obligations.raise(
+                    authorization.scope_id.clone(),
+                    cause,
+                    format!("resume:fresh:{cause}"),
+                    InvalidationDisposition::Quarantine,
+                    retry_floor.clone(),
                     None,
-                ))
-            {
-                self.enqueue_subscription_durable(&subscription, payload);
-            }
+                )?;
+                None
+            };
 
             subscription.authorization = Some(authorization.clone());
             let query = match self.invoke_authorization_resolution(
@@ -5120,8 +5150,18 @@ impl LocalSnapback {
                 Ok(query) => query,
                 Err(failure) => {
                     let error = failure.error.clone();
+                    if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                        self.auth_invalidation
+                            .as_mut()
+                            .expect("state remains installed")
+                            .obligations
+                            .rollback_unpublished_live_scope(replacement, connection_scope);
+                    }
+                    // The failed attempt exposed no replacement identity. Keep
+                    // the exact retained predecessor as cleanup/delivery owner
+                    // and make its already-known client view fail closed.
                     self.fail_subscription_fanout_with_retry(
-                        &subscription,
+                        &predecessor_subscription,
                         "authorization_resume_failed",
                         failure.error,
                         failure.retry_episode_id,
@@ -5131,13 +5171,26 @@ impl LocalSnapback {
                 }
             };
             let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
-            let _publication = authority.effect_guard("live authorization resume publication")?;
+            let _publication = match authority.effect_guard("live authorization resume publication")
+            {
+                Ok(publication) => publication,
+                Err(error) => {
+                    if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                        self.auth_invalidation
+                            .as_mut()
+                            .expect("state remains installed")
+                            .obligations
+                            .rollback_unpublished_live_scope(replacement, connection_scope);
+                    }
+                    return Err(error);
+                }
+            };
             let resolution_witness = self
                 .auth_invalidation
                 .as_ref()
                 .expect("state remains installed")
                 .witness(query.output.version);
-            let authorization_invalidation = {
+            let resolution = {
                 let state = self
                     .auth_invalidation
                     .as_mut()
@@ -5146,22 +5199,162 @@ impl LocalSnapback {
                     &authorization.scope_id,
                     ResolutionKind::Snapshot,
                     resolution_witness.clone(),
-                )?;
-                state.obligations.projection(&authorization.scope_id)
+                )
             };
-            self.resolve_authorization_retry_episode(
+            if let Err(error) = resolution {
+                if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                    self.auth_invalidation
+                        .as_mut()
+                        .expect("state remains installed")
+                        .obligations
+                        .rollback_unpublished_live_scope(replacement, connection_scope);
+                }
+                return Err(error);
+            }
+            let (retirement_candidate, retirement) = if connection_changed {
+                let state = self
+                    .auth_invalidation
+                    .as_ref()
+                    .expect("state remains installed");
+                let candidate = state
+                    .obligations
+                    .preview_scope_retirement(&predecessor_scope);
+                let retirement = candidate
+                    .as_ref()
+                    .map(|candidate| {
+                        state.issuer.authenticate_scope_retirement(
+                            candidate.namespace.clone(),
+                            candidate.retire_through_scope_sequence,
+                        )
+                    })
+                    .transpose();
+                match retirement {
+                    Ok(retirement) => (candidate, retirement),
+                    Err(error) => {
+                        if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                            self.auth_invalidation
+                                .as_mut()
+                                .expect("state remains installed")
+                                .obligations
+                                .rollback_unpublished_live_scope(replacement, connection_scope);
+                        }
+                        return Err(error);
+                    }
+                }
+            } else {
+                (None, None)
+            };
+            let authorization_invalidation = self
+                .auth_invalidation
+                .as_ref()
+                .expect("state remains installed")
+                .obligations
+                .projection(&authorization.scope_id)
+                .expect("fresh quarantine and snapshot resolution remain projected");
+            let invalidation_payload =
+                match serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                    authorization_invalidation.obligation.clone(),
+                    // This durable frame is only a level-triggered wake hint.
+                    // The complete snapshot ticket and its rows travel
+                    // together in the successful resume response below.
+                    None,
+                    None,
+                )) {
+                    Ok(payload) => payload,
+                    Err(error) => {
+                        if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                            self.auth_invalidation
+                                .as_mut()
+                                .expect("state remains installed")
+                                .obligations
+                                .rollback_unpublished_live_scope(replacement, connection_scope);
+                        }
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
+                            "realtime",
+                            "authorization resume invalidation could not be serialized",
+                        )
+                        .with_details(json!({ "error": error.to_string() })));
+                    }
+                };
+            let predecessor_is_current =
+                self.subscriptions
+                    .get(&subscription.id)
+                    .is_some_and(|stored| {
+                        stored.connection_id == predecessor_subscription.connection_id
+                            && stored.effect_fence == predecessor_subscription.effect_fence
+                            && stored.authorization.as_ref().is_some_and(|authorization| {
+                                authorization.scope_id == predecessor_scope
+                            })
+                    });
+            let precommit = if !predecessor_is_current {
+                Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
+                    "auth",
+                    "retained live predecessor changed before resume transfer commit",
+                ))
+            } else if connection_changed {
+                self.auth_invalidation
+                    .as_ref()
+                    .expect("state remains installed")
+                    .obligations
+                    .require_scope_retirement_preview(&predecessor_scope, &retirement_candidate)
+            } else {
+                Ok(())
+            };
+            if let Err(error) = precommit {
+                if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                    self.auth_invalidation
+                        .as_mut()
+                        .expect("state remains installed")
+                        .obligations
+                        .rollback_unpublished_live_scope(replacement, connection_scope);
+                }
+                return Err(error);
+            }
+            if let Err(error) = self.resolve_authorization_retry_episode(
                 &subscription,
                 &resolution_witness,
                 &_publication,
-            )?;
-            self.premark_auth_scoped_live_connection(&input.connection_id);
-            if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
-                stored.connection_id = input.connection_id;
-                stored.read_dependencies = query.read_dependencies;
-                stored.authorization = Some(authorization.clone());
-                stored.effect_fence = subscription.effect_fence.clone();
+            ) {
+                if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                    self.auth_invalidation
+                        .as_mut()
+                        .expect("state remains installed")
+                        .obligations
+                        .rollback_unpublished_live_scope(replacement, connection_scope);
+                }
+                return Err(error);
             }
+
+            // No fallible step remains. Retire and persist the predecessor only
+            // after the authenticated frontier and complete successor response
+            // are ready, then expose the successor fence and obligation as one
+            // commit. A response that returns Err never exposes a replacement
+            // scope and therefore owes the client no retirement frontier.
+            if connection_changed {
+                let actual = self
+                    .auth_invalidation
+                    .as_mut()
+                    .expect("state remains installed")
+                    .obligations
+                    .retire_scope(&predecessor_scope);
+                assert_eq!(
+                    actual, retirement_candidate,
+                    "validated live scope retirement frontier changed during commit"
+                );
+            }
+            self.premark_auth_scoped_live_connection(&input.connection_id);
+            let stored = self
+                .subscriptions
+                .get_mut(&subscription.id)
+                .expect("preflight validated retained live predecessor presence");
+            stored.connection_id = input.connection_id;
+            stored.read_dependencies = query.read_dependencies;
+            stored.authorization = Some(authorization.clone());
+            stored.effect_fence = subscription.effect_fence.clone();
             self.refresh_auth_scoped_live_connections();
+            self.enqueue_subscription_durable(&subscription, invalidation_payload);
             return Ok(LiveResumeOutput {
                 subscription_id: subscription.id,
                 mode: "resnapshot".to_owned(),
@@ -5169,8 +5362,8 @@ impl LocalSnapback {
                 snapshot: Some(query.output),
                 permission_epochs,
                 authorization_scope: Some(authorization.scope_id.clone()),
-                authorization_invalidation,
-                scope_retirements,
+                authorization_invalidation: Some(authorization_invalidation),
+                scope_retirements: retirement.into_iter().collect(),
             });
         }
 
@@ -11340,12 +11533,19 @@ globalThis.__snapbackHandlers = {
             boot_sequence,
         )
         .expect("test issuer id");
-        let authenticated =
+        let authenticator =
             crate::auth::invalidation::IssuerAuthenticator::new("test-protocol-key", [0x5a; 32])
-                .expect("test authenticator")
-                .authenticate(issuer_id, "test-target", "test-app")
-                .expect("authenticate test issuer");
-        let issuer = LiveInvalidationIssuer::new(authenticated).expect("live test issuer");
+                .expect("test authenticator");
+        let authenticated = authenticator
+            .authenticate(issuer_id, "test-target", "test-app")
+            .expect("authenticate test issuer");
+        let issuer = LiveInvalidationIssuer::with_authenticator(
+            authenticated,
+            authenticator,
+            "test-target",
+            "test-app",
+        )
+        .expect("live test issuer");
         let descriptor = AuthorizationInvalidationConnection {
             protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
             issuer_id: issuer.authenticated().issuer_id.clone(),
@@ -12632,7 +12832,7 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
-    fn live_resume_rebinds_retained_producer_before_resume_side_enqueue() {
+    fn changed_generation_live_resume_commits_scope_retirement_and_successor_owner() {
         let mut snapback = live_limit_snapback();
         let connection = install_test_invalidation(&mut snapback);
         let predecessor = crate::ephemeral::ConnectionEffectFence::session(
@@ -12663,8 +12863,17 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("predecessor subscription");
+        let predecessor_scope = subscribed
+            .authorization_scope
+            .clone()
+            .expect("auth-scoped predecessor");
+        let mut successor_connection = connection;
+        successor_connection.connection_generation = successor_connection
+            .connection_generation
+            .checked_add(1)
+            .expect("test connection generation");
 
-        snapback
+        let output = snapback
             .resume_live_prepared_with_invalidation(
                 "listItems",
                 LiveResumeInput {
@@ -12675,12 +12884,32 @@ globalThis.__snapbackHandlers = {
                 },
                 test_session_authority(InvocationSource::LiveResume),
                 LiveInvalidationAdmission {
-                    connection: Some(connection),
+                    connection: Some(successor_connection.clone()),
                     effect_fence: Some(successor.clone()),
                     session_mode: true,
                 },
             )
             .expect("successor resume");
+        let successor_scope = output
+            .authorization_scope
+            .clone()
+            .expect("auth-scoped successor");
+        assert_ne!(successor_scope, predecessor_scope);
+        assert!(matches!(
+            &successor_scope,
+            ScopeId::Subscription {
+                connection_generation,
+                ..
+            } if *connection_generation == successor_connection.connection_generation
+        ));
+        assert_eq!(output.scope_retirements.len(), 1);
+        assert_eq!(
+            output.scope_retirements[0].retire_through_scope_sequence,
+            match predecessor_scope {
+                ScopeId::Subscription { scope_sequence, .. } => scope_sequence,
+                _ => unreachable!("subscription scope"),
+            },
+        );
 
         let resumed = snapback
             .subscriptions
@@ -12688,6 +12917,23 @@ globalThis.__snapbackHandlers = {
             .expect("retained successor")
             .clone();
         assert_eq!(resumed.effect_fence.as_ref(), Some(&successor));
+        assert_eq!(
+            resumed
+                .authorization
+                .as_ref()
+                .expect("successor authorization")
+                .scope_id,
+            successor_scope,
+        );
+        assert_eq!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("installed invalidation state")
+                .obligations
+                .active_subscription_scopes_for_test(),
+            vec![successor_scope],
+        );
         snapback.enqueue_subscription_durable(&resumed, b"after-resume".to_vec());
         let payloads = snapback
             .ephemeral
@@ -12699,5 +12945,242 @@ globalThis.__snapbackHandlers = {
             })
             .collect::<Vec<_>>();
         assert!(payloads.iter().any(|payload| payload == b"after-resume"));
+    }
+
+    #[test]
+    fn changed_generation_failed_resume_rolls_back_unpublished_successor_scope() {
+        let mut snapback = live_limit_snapback();
+        let predecessor_connection = install_test_invalidation(&mut snapback);
+        let predecessor_fence = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-old",
+            "session",
+            1,
+        );
+        let successor_fence = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-new",
+            "session",
+            1,
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItemsByValue",
+                LiveSubscribeInput {
+                    connection_id: "resume-predecessor".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "value": "retained" }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(test_authorization_namespace(93)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(predecessor_connection.clone()),
+                    effect_fence: Some(predecessor_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("predecessor subscription");
+        let predecessor_scope = snapback
+            .subscriptions
+            .get(&subscribed.subscription_id)
+            .and_then(|subscription| subscription.authorization.as_ref())
+            .expect("retained predecessor authority")
+            .scope_id
+            .clone();
+
+        // Force only the resume-side fresh query to fail after retained state
+        // and its predecessor scope already exist.
+        snapback
+            .subscriptions
+            .get_mut(&subscribed.subscription_id)
+            .expect("retained predecessor")
+            .input
+            .args = json!({});
+        let mut successor_connection = predecessor_connection;
+        successor_connection.connection_generation = successor_connection
+            .connection_generation
+            .checked_add(1)
+            .expect("test connection generation");
+        let resume = || LiveResumeInput {
+            subscription_id: subscribed.subscription_id.clone(),
+            connection_id: "resume-successor".to_owned(),
+            auth: AuthInput::default(),
+            recorded_permission_epochs: subscribed.permission_epochs.clone(),
+        };
+
+        for _ in 0..2 {
+            let error = snapback
+                .resume_live_prepared_with_invalidation(
+                    "listItemsByValue",
+                    resume(),
+                    test_session_authority(InvocationSource::LiveResume),
+                    LiveInvalidationAdmission {
+                        connection: Some(successor_connection.clone()),
+                        effect_fence: Some(successor_fence.clone()),
+                        session_mode: true,
+                    },
+                )
+                .expect_err("the resume-side query is deliberately invalid");
+            assert!(matches!(
+                error.diagnostic.code.as_str(),
+                "SNAPBACK_ARG_MISSING" | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
+            ));
+
+            let stored = snapback
+                .subscriptions
+                .get(&subscribed.subscription_id)
+                .expect("failed resume keeps the exact predecessor owner");
+            assert_eq!(stored.connection_id, "resume-predecessor");
+            assert_eq!(stored.effect_fence.as_ref(), Some(&predecessor_fence));
+            let scope = stored
+                .authorization
+                .as_ref()
+                .expect("auth-scoped retained owner")
+                .scope_id
+                .clone();
+            assert_eq!(scope, predecessor_scope);
+
+            let obligations = &snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("installed invalidation state")
+                .obligations;
+            let pending = obligations.pending_all();
+            assert_eq!(pending.len(), 1, "one retained owner has one obligation");
+            assert_eq!(pending[0].scope_id, predecessor_scope);
+            assert_eq!(
+                obligations.active_subscription_scopes_for_test(),
+                vec![predecessor_scope.clone()],
+                "failed attempts must not retain registered-but-unowned successors",
+            );
+
+            // An Err response has no authenticated scope-retirement field. It
+            // therefore must not expose the replacement identity through the
+            // successor outbox either: client custody continues to own exactly
+            // the predecessor scope and needs no missing retirement frontier.
+            assert!(
+                snapback
+                    .ephemeral
+                    .drain_outbox_for_send_bound("resume-successor", &successor_fence)
+                    .is_empty(),
+                "an unpublished replacement cannot escape on its successor fence",
+            );
+        }
+
+        snapback.purge_connection_effects("resume-predecessor", &predecessor_fence);
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+        let obligations = &snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("installed invalidation state")
+            .obligations;
+        assert!(
+            obligations.pending_all().is_empty(),
+            "predecessor cleanup owner must retire its only obligation"
+        );
+        assert!(
+            obligations.active_subscription_scopes_for_test().is_empty(),
+            "predecessor cleanup must retire its only active scope"
+        );
+    }
+
+    #[test]
+    fn same_scope_failed_resume_keeps_failure_hint_on_retained_effect_fence() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let predecessor_fence = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-old",
+            "session",
+            1,
+        );
+        let successor_fence = crate::ephemeral::ConnectionEffectFence::session(
+            "incarnation",
+            "grant-new",
+            "session",
+            1,
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItemsByValue",
+                LiveSubscribeInput {
+                    connection_id: "same-scope-predecessor".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "value": "retained" }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(test_authorization_namespace(94)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(predecessor_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("predecessor subscription");
+        let predecessor_scope = subscribed
+            .authorization_scope
+            .clone()
+            .expect("auth-scoped predecessor");
+        snapback
+            .subscriptions
+            .get_mut(&subscribed.subscription_id)
+            .expect("retained predecessor")
+            .input
+            .args = json!({});
+
+        snapback
+            .resume_live_prepared_with_invalidation(
+                "listItemsByValue",
+                LiveResumeInput {
+                    subscription_id: subscribed.subscription_id.clone(),
+                    connection_id: "same-scope-successor".to_owned(),
+                    auth: AuthInput::default(),
+                    recorded_permission_epochs: subscribed.permission_epochs,
+                },
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(successor_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect_err("the resume-side query is deliberately invalid");
+
+        let stored = snapback
+            .subscriptions
+            .get(&subscribed.subscription_id)
+            .expect("failed resume keeps predecessor owner");
+        assert_eq!(stored.connection_id, "same-scope-predecessor");
+        assert_eq!(stored.effect_fence.as_ref(), Some(&predecessor_fence));
+        assert_eq!(
+            stored
+                .authorization
+                .as_ref()
+                .expect("retained authorization")
+                .scope_id,
+            predecessor_scope,
+        );
+        assert!(
+            snapback
+                .ephemeral
+                .drain_outbox_for_send_bound("same-scope-successor", &successor_fence)
+                .is_empty(),
+            "failed resume must not publish on an unretained successor fence",
+        );
+        assert!(
+            !snapback
+                .ephemeral
+                .drain_outbox_for_send_bound("same-scope-predecessor", &predecessor_fence)
+                .is_empty(),
+            "the retained predecessor fence receives the fail-closed hint",
+        );
     }
 }
