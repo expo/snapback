@@ -202,6 +202,10 @@ impl RuntimeManager {
         db.dry_run_buffered_writes(&input, writes, reads, result, ctx_ledger)
     }
 
+    // This is the explicit runtime boundary: keeping the independently named
+    // authority, cron, host, grant, and deadline inputs avoids hiding a
+    // capability in a catch-all carrier merely to meet Clippy's default of 7.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn invoke_ibex_action_prepared(
         &self,
         module: &IbexModule,

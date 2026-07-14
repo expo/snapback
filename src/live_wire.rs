@@ -61,9 +61,9 @@ pub enum LiveEnvelope {
     /// their presence never discharges the server obligation. Only the exact
     /// post-commit ACK token does that.
     AuthorizationInvalidation {
-        obligation: ResyncObligation,
+        obligation: Box<ResyncObligation>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        resolution: Option<ResolutionTicket>,
+        resolution: Option<Box<ResolutionTicket>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         snapshot: Option<AuthorizationInvalidationSnapshot>,
     },
@@ -84,6 +84,20 @@ pub enum LiveEnvelope {
         epoch: Option<u64>,
         clear_retained: bool,
     },
+}
+
+impl LiveEnvelope {
+    pub(crate) fn authorization_invalidation(
+        obligation: ResyncObligation,
+        resolution: Option<ResolutionTicket>,
+        snapshot: Option<AuthorizationInvalidationSnapshot>,
+    ) -> Self {
+        Self::AuthorizationInvalidation {
+            obligation: Box::new(obligation),
+            resolution: resolution.map(Box::new),
+            snapshot,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

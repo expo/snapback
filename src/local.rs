@@ -1132,6 +1132,10 @@ fn bool_is_false(value: &bool) -> bool {
 /// watchdogged thread. Nested mutations execute against an isolated read view
 /// and reacquire the mutex only for commit; raw action `ctx.db` calls are
 /// rejected before host dispatch (ENG-23324 / ENG-24339 / ENG-24340).
+// This crate-private carrier is destructured by the local, admin, and server
+// execution seams. Boxing only one prepared arm would add heap allocation to
+// every host-plan action and obscure the explicit staging contract.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum StagedAction {
     /// Host-plan actions run bounded mutation steps with no egress; they
     /// execute under the lock exactly as before.
@@ -1163,15 +1167,6 @@ impl Deref for AdmittedCronClaim {
     }
 }
 
-impl StagedAction {
-    pub(crate) fn admission_lease(&self) -> &crate::auth::admission::AdmissionLease {
-        match self {
-            Self::InLock(invocation) => invocation.admission_lease(),
-            Self::Detached(action) => action.invocation.admission_lease(),
-        }
-    }
-}
-
 pub(crate) struct DetachedIbexAction {
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
@@ -1187,6 +1182,9 @@ pub(crate) struct DetachedIbexAction {
     pub app_generation_fence: Arc<AtomicU64>,
 }
 
+// As above, the prepared arm is the ordinary in-lock path; keep its stable
+// cross-module carrier allocation-free.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum StagedNestedMutation {
     InLock(PreparedInvocation),
     Detached(Box<DetachedIbexMutation>),
@@ -1212,6 +1210,9 @@ pub(crate) enum DetachedMutationRead {
 
 /// Staging outcome for the app-action envelope surface: either a ready
 /// (error) envelope, or the envelope inputs plus the execution mode.
+// This is a cross-module staging protocol whose ready arm is consumed by both
+// admin and server runners. Preserve that explicit internal signature.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum StagedAppAction {
     Done(Box<FunctionRunResult>),
     Ready(AppActionStage),
@@ -1880,8 +1881,6 @@ pub(crate) struct LiveInvalidationAdmission {
     pub(crate) connection: Option<AuthorizationInvalidationConnection>,
     #[cfg(test)]
     pub(crate) session_mode: bool,
-    #[cfg(test)]
-    pub(crate) authority_subject: Option<String>,
 }
 
 pub(crate) struct QueryInvocation {
@@ -1977,6 +1976,9 @@ impl LocalSnapback {
     }
 
     /// Cloneable process-local admission authority for HTTP composition.
+    // Retained as the direct LocalSnapback embedding seam; the production
+    // router currently obtains the same controller from its ReadLane.
+    #[allow(dead_code)]
     pub(crate) fn admission_controller(&self) -> AdmissionController {
         self.admission.clone()
     }
@@ -2000,12 +2002,16 @@ impl LocalSnapback {
 
     /// Close app-data/cron/live/nested admission and wait for the finite
     /// current epoch before a staged-mode transaction takes the write lane.
+    // Retained for embedders that stage directly against LocalSnapback; the
+    // shipped router begins transitions through its cloned controller.
+    #[allow(dead_code)]
     pub(crate) fn begin_auth_mode_transition(&self) -> SnapbackResult<ModeTransitionGuard> {
         self.admission.begin_transition()
     }
 
     /// Pre-bind only: align process admission with the final durable record
     /// after startup composition may have staged, consumed, or unstaged it.
+    #[cfg(test)]
     pub(crate) fn synchronize_auth_mode_admission(
         &self,
         state: &crate::auth::mode::AuthModeStateRecord,
@@ -2477,14 +2483,17 @@ impl LocalSnapback {
         seed: Option<SeedData>,
         state: &AuthModeStateRecord,
     ) -> SnapbackResult<StartupArtifacts> {
-        if schema.is_some() && functions.is_some() {
-            return Ok(StartupArtifacts {
-                format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
-                schema: schema.expect("checked complete schema half"),
-                functions: functions.expect("checked complete function half"),
-                seed,
-            });
-        }
+        let (schema, functions) = match (schema, functions) {
+            (Some(schema), Some(functions)) => {
+                return Ok(StartupArtifacts {
+                    format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
+                    schema,
+                    functions,
+                    seed,
+                });
+            }
+            pair => pair,
+        };
 
         let sibling_identity = if requested_mode == state.active {
             state.active_deployment.as_ref()
@@ -2571,6 +2580,7 @@ impl LocalSnapback {
     /// State-sensitive second pass and atomic durable cut. A caller staging a
     /// mode change must hold the transition guard supplied by the admission
     /// controller; same-mode callers remain serialized by the app write lane.
+    #[cfg(test)]
     pub(crate) fn commit_auth_provision(
         &mut self,
         prepared: PreparedAuthProvision,
@@ -3411,6 +3421,10 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0043#milestone-2-queued-mutation-replay — descriptor
     /// comparison precedes settlement lookup and every request effect.
+    // These fields are deliberately independent wire/effect axes. Collapsing
+    // them into an opaque options bag would weaken the queued replay seam for
+    // the sake of Clippy's one-argument-over default.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
         &mut self,
         name: &str,
@@ -3964,6 +3978,9 @@ impl LocalSnapback {
         )
     }
 
+    // Compatibility seam for direct prepared callers; production needs the
+    // richer invalidation admission and calls the method below.
+    #[allow(dead_code)]
     pub(crate) fn subscribe_live_prepared(
         &mut self,
         name: &str,
@@ -4218,10 +4235,9 @@ impl LocalSnapback {
                 .map(|authorization| authorization.scope_id);
             if let (Some(state), Some(scope)) =
                 (self.auth_invalidation.as_mut(), retired_scope.as_ref())
+                && let Some(retirement) = state.retire_scope_authenticated(scope)?
             {
-                if let Some(retirement) = state.retire_scope_authenticated(scope)? {
-                    scope_retirements.push(retirement);
-                }
+                scope_retirements.push(retirement);
             }
             let receipt = Receipt::Subscription {
                 event: SubscriptionReceiptEvent::Disposed,
@@ -4604,6 +4620,9 @@ impl LocalSnapback {
         )
     }
 
+    // Compatibility seam matching subscribe_live_prepared; production binds
+    // invalidation state explicitly through the method below.
+    #[allow(dead_code)]
     pub(crate) fn resume_live_prepared(
         &mut self,
         name: &str,
@@ -4767,11 +4786,11 @@ impl LocalSnapback {
                 None,
             )?;
             if let Some(projection) = state.obligations.projection(&authorization.scope_id)
-                && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
-                    obligation: projection.obligation,
-                    resolution: projection.resolution,
-                    snapshot: None,
-                })
+                && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                    projection.obligation,
+                    projection.resolution,
+                    None,
+                ))
             {
                 self.ephemeral
                     .enqueue_durable(input.connection_id.clone(), payload);
@@ -5220,6 +5239,7 @@ impl LocalSnapback {
     /// Stage one action invocation for the cron flow (no envelope shaping):
     /// unknown functions and non-actions are `SnapbackError`s, exactly as
     /// `invoke_action` would report them (ENG-23324).
+    #[cfg(test)]
     pub(crate) fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
         let admission = self.admission.admit()?;
         self.stage_action_invocation_with_admission(name, admission)
@@ -6291,6 +6311,9 @@ impl LocalSnapback {
             .map(|state| state.obligations.expectation().authorization.clone())
     }
 
+    // Compatibility projection for callers that do not consume the observed
+    // authorization version returned by authorize_ephemeral_room_observed.
+    #[allow(dead_code)]
     pub(crate) fn authorize_ephemeral_room(
         &self,
         collection_name: &str,
@@ -6739,11 +6762,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<Value> {
         prepared.validate_admission("action execution")?;
         let function = self.function(name)?.clone();
-        if prepared.function_id()
-            != function
-                .id
-                .as_deref()
-                .unwrap_or_else(|| function.name.as_str())
+        if prepared.function_id() != function.id.as_deref().unwrap_or(function.name.as_str())
             && prepared.function_id() != format!("fn:{}", function.name)
         {
             return Err(SnapbackError::error(
@@ -7188,16 +7207,16 @@ impl LocalSnapback {
         // The durable episode closes only after its proof has transferred to
         // the still-live obligation and exact ACK ticket above.
         self.resolve_authorization_retry_episode(subscription, &proof, &_publication)?;
-        let payload = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
-            obligation: projection.obligation,
-            resolution: projection.resolution,
-            snapshot: Some(AuthorizationInvalidationSnapshot {
+        let payload = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+            projection.obligation,
+            projection.resolution,
+            Some(AuthorizationInvalidationSnapshot {
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
                 version: snapshot_version,
                 rows: query.output.rows,
             }),
-        })
+        ))
         .map_err(|error| {
             SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
@@ -7290,11 +7309,11 @@ impl LocalSnapback {
             }
         }
         for projection in projections {
-            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
-                obligation: projection.obligation,
-                resolution: projection.resolution,
-                snapshot: None,
-            }) {
+            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                projection.obligation,
+                projection.resolution,
+                None,
+            )) {
                 self.ephemeral
                     .enqueue_durable(connection_id.to_owned(), payload);
             }
@@ -7354,11 +7373,11 @@ impl LocalSnapback {
             .unwrap_or_default();
         let mut parked = false;
         for projection in projections {
-            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
-                obligation: projection.obligation,
-                resolution: projection.resolution,
-                snapshot: None,
-            }) {
+            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                projection.obligation,
+                projection.resolution,
+                None,
+            )) {
                 parked |= self
                     .ephemeral
                     .enqueue_durable(connection_id.to_owned(), payload)
@@ -7418,11 +7437,11 @@ impl LocalSnapback {
                     })
                 {
                     if let Ok(frame) =
-                        serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
-                            obligation: projection.obligation,
-                            resolution: projection.resolution,
-                            snapshot: None,
-                        })
+                        serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                            projection.obligation,
+                            projection.resolution,
+                            None,
+                        ))
                     {
                         frames.push(frame);
                     }
@@ -7468,16 +7487,16 @@ impl LocalSnapback {
                     }
                     if let Some(projection) = projection
                         && let Ok(frame) =
-                            serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
-                                obligation: projection.obligation,
-                                resolution: projection.resolution,
-                                snapshot: Some(AuthorizationInvalidationSnapshot {
+                            serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                                projection.obligation,
+                                projection.resolution,
+                                Some(AuthorizationInvalidationSnapshot {
                                     subscription_id: subscription.id.clone(),
                                     function: subscription.function.clone(),
                                     version: snapshot_version,
                                     rows: query.output.rows,
                                 }),
-                            })
+                            ))
                     {
                         frames.push(frame);
                     }
@@ -7498,11 +7517,11 @@ impl LocalSnapback {
                             .as_ref()
                             .and_then(|state| state.obligations.projection(scope))
                             && let Ok(frame) =
-                                serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
-                                    obligation: projection.obligation,
-                                    resolution: projection.resolution,
-                                    snapshot: None,
-                                })
+                                serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                                    projection.obligation,
+                                    projection.resolution,
+                                    None,
+                                ))
                         {
                             frames.push(frame);
                         }
@@ -7531,11 +7550,11 @@ impl LocalSnapback {
                     });
                     if let Some(projection) = projection
                         && let Ok(frame) =
-                            serde_json::to_string(&LiveEnvelope::AuthorizationInvalidation {
-                                obligation: projection.obligation,
-                                resolution: projection.resolution,
-                                snapshot: None,
-                            })
+                            serde_json::to_string(&LiveEnvelope::authorization_invalidation(
+                                projection.obligation,
+                                projection.resolution,
+                                None,
+                            ))
                     {
                         frames.push(frame);
                     }
@@ -7628,11 +7647,11 @@ impl LocalSnapback {
             }
         };
         for (connection_id, projection) in preprojected {
-            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
-                obligation: projection.obligation,
-                resolution: projection.resolution,
-                snapshot: None,
-            }) {
+            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                projection.obligation,
+                projection.resolution,
+                None,
+            )) {
                 let enqueue = self
                     .ephemeral
                     .enqueue_durable(connection_id.clone(), payload);
@@ -8162,11 +8181,11 @@ impl LocalSnapback {
                 {
                     self.record_diagnostics(vec![error.diagnostic]);
                 }
-                if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::AuthorizationInvalidation {
-                    obligation: projection.obligation,
-                    resolution: projection.resolution,
-                    snapshot: None,
-                }) {
+                if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                    projection.obligation,
+                    projection.resolution,
+                    None,
+                )) {
                     let enqueue = self
                         .ephemeral
                         .enqueue_durable(subscription.connection_id.clone(), payload);
@@ -10044,7 +10063,6 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
-                    authority_subject: Some("sha256:test-subject".to_owned()),
                 },
             )
             .expect("negotiated session subscription");
@@ -10087,7 +10105,6 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection.clone()),
-                    authority_subject: Some("sha256:test-subject".to_owned()),
                 },
             )
             .expect("auth-scoped subscription");
@@ -10216,7 +10233,6 @@ globalThis.__snapbackHandlers = {
                     LiveInvalidationAdmission {
                         session_mode: true,
                         connection: Some(connection.clone()),
-                        authority_subject: Some("sha256:overflow-subject".to_owned()),
                     },
                 )
                 .expect("auth-scoped subscription");
@@ -10339,7 +10355,6 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
-                    authority_subject: Some("sha256:permission-subject".to_owned()),
                 },
             )
             .expect("auth-scoped subscription");
@@ -10454,7 +10469,6 @@ globalThis.__snapbackHandlers = {
                 LiveInvalidationAdmission {
                     session_mode: true,
                     connection: Some(connection),
-                    authority_subject: Some("sha256:retry-subject".to_owned()),
                 },
             )
             .expect("initial snapshot succeeds");
@@ -10593,7 +10607,6 @@ globalThis.__snapbackHandlers = {
                     LiveInvalidationAdmission {
                         session_mode: true,
                         connection: Some(connection.clone()),
-                        authority_subject: Some("sha256:terminal-subject".to_owned()),
                     },
                 )
                 .expect("auth-scoped subscription")
