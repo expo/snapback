@@ -498,6 +498,66 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
     assert!(!inspect.contains(&secret_a), "{inspect}");
 }
 
+/// One host-call-free completion-fence cycle (ENG-24530): pause an action in a
+/// held native fetch, advance the app generation while it is paused, release the
+/// fetch, and require the stale completion to fail with the generation fence —
+/// with an explicit fetch-start rendezvous instead of any timing threshold.
+///
+/// The fence must win even though the vendored Ibex fetch completion has a
+/// settlement window: it erases its pending-request registry entry before it
+/// enqueues the resolve callback, so the eval loop can momentarily observe "no
+/// pending work" and report `SNAPBACK_HANDLER_DID_NOT_SETTLE` for a fetch that
+/// settled at the network layer. A reload/reset that crossed the action's async
+/// span is the precise cause and must not be masked by that transient
+/// settlement-floor diagnostic (fixed in `run_detached_ibex_action`).
+async fn assert_paused_action_generation_fence(
+    state: &snapback::server::SharedSnapback,
+    app: axum::Router,
+    label: &str,
+    advance_generation: impl FnOnce(&mut LocalSnapback),
+) {
+    let (url, started, release, server) = held_http_response().await;
+    let action = start_paused_action(app, url);
+    tokio::time::timeout(Duration::from_secs(2), started)
+        .await
+        .unwrap_or_else(|_| {
+            panic!("{label}: action reaches native fetch before generation advance")
+        })
+        .unwrap_or_else(|_| panic!("{label}: fetch-start signal"));
+    // Causal ordering, not a sleep: the fetch is proven active (its request
+    // headers reached the fixture) before the generation advances.
+    {
+        let mut guard = state.lock().await;
+        advance_generation(&mut guard);
+    }
+    release
+        .send(())
+        .unwrap_or_else(|_| panic!("{label}: release paused fetch"));
+    let body = tokio::time::timeout(Duration::from_secs(2), action)
+        .await
+        .unwrap_or_else(|_| panic!("{label}: paused action settles"))
+        .unwrap_or_else(|_| panic!("{label}: paused action task"));
+    server
+        .await
+        .unwrap_or_else(|_| panic!("{label}: paused fetch server"));
+    assert_eq!(body["ok"], false, "{label}: stale action must fail: {body}");
+    assert_eq!(
+        body["diagnostic"]["code"], "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "{label}: host-call-free completion must observe the generation advance, \
+         not a settlement-floor diagnostic: {body}"
+    );
+}
+
+/// Assert `load_functions` over the watchdog manifest reports only the expected
+/// CLI-availability diagnostics (this machine has no Ibex CLI on PATH).
+fn assert_watchdog_reload(snapback: &mut LocalSnapback) {
+    let diagnostics = snapback.load_functions(watchdog_functions());
+    assert!(diagnostics.iter().all(|diagnostic| {
+        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
+            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
+    }));
+}
+
 /// A detached action can cross an app generation without another ctx host op:
 /// native fetch/timer work settles inside Ibex. Completion itself is therefore
 /// a generation fence, not merely every host call along the way.
@@ -511,57 +571,44 @@ async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
     set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
     let (state, app) = watchdog_state_and_app().await;
 
-    let (reload_url, reload_started, release_reload, reload_server) = held_http_response().await;
-    let reload_action = start_paused_action(app.clone(), reload_url);
-    tokio::time::timeout(Duration::from_secs(2), reload_started)
-        .await
-        .expect("action reaches native fetch before reload")
-        .expect("reload fetch-start signal");
-    let diagnostics = state.lock().await.load_functions(watchdog_functions());
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-    }));
-    release_reload.send(()).expect("release reload fetch");
-    let reload_body = tokio::time::timeout(Duration::from_secs(2), reload_action)
-        .await
-        .expect("reloaded action settles")
-        .expect("reload action task");
-    reload_server.await.expect("reload fetch server");
-    assert_eq!(
-        reload_body["ok"], false,
-        "stale action must fail: {reload_body}"
-    );
-    assert_eq!(
-        reload_body["diagnostic"]["code"], "SNAPBACK_ACTION_GENERATION_CONFLICT",
-        "host-call-free completion must observe function reload: {reload_body}"
-    );
+    assert_paused_action_generation_fence(&state, app.clone(), "reload", assert_watchdog_reload)
+        .await;
+    assert_paused_action_generation_fence(&state, app, "reset", |snapback| {
+        snapback.reset().expect("reset while action is paused");
+    })
+    .await;
+}
 
-    let (reset_url, reset_started, release_reset, reset_server) = held_http_response().await;
-    let reset_action = start_paused_action(app, reset_url);
-    tokio::time::timeout(Duration::from_secs(2), reset_started)
-        .await
-        .expect("action reaches native fetch before reset")
-        .expect("reset fetch-start signal");
-    state
-        .lock()
-        .await
-        .reset()
-        .expect("reset while action is paused");
-    release_reset.send(()).expect("release reset fetch");
-    let reset_body = tokio::time::timeout(Duration::from_secs(2), reset_action)
-        .await
-        .expect("reset action settles")
-        .expect("reset action task");
-    reset_server.await.expect("reset fetch server");
-    assert_eq!(
-        reset_body["ok"], false,
-        "stale action must fail: {reset_body}"
-    );
-    assert_eq!(
-        reset_body["diagnostic"]["code"], "SNAPBACK_ACTION_GENERATION_CONFLICT",
-        "host-call-free completion must observe reset: {reset_body}"
-    );
+/// ENG-24530 stress proof: the completion-time generation fence must never be
+/// masked by the settlement-floor diagnostic, across many repetitions of the
+/// transient Ibex fetch-completion window that can spuriously report
+/// `SNAPBACK_HANDLER_DID_NOT_SETTLE`. The runtime fix makes the outcome
+/// deterministic; this repeats the exact generation-fence assertion so a
+/// regression that reintroduces the masking is caught rather than tolerated.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn paused_host_call_free_action_generation_fence_survives_settlement_race() {
+    let _serial = serial_action_test().await;
+    set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
+    let (state, app) = watchdog_state_and_app().await;
+
+    for iteration in 0..24 {
+        assert_paused_action_generation_fence(
+            &state,
+            app.clone(),
+            &format!("reload#{iteration}"),
+            assert_watchdog_reload,
+        )
+        .await;
+        assert_paused_action_generation_fence(
+            &state,
+            app.clone(),
+            &format!("reset#{iteration}"),
+            |snapback| {
+                snapback.reset().expect("reset while action is paused");
+            },
+        )
+        .await;
+    }
 }
 
 /// A host call can reach the instance mutex after detached execution begins.
