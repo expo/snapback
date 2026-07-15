@@ -309,6 +309,7 @@ I would preserve the local negative guarantees, but separate them from the futur
 Not ready. D1’s normal CLI fence and the negative capability/CSP work are strong enough to preserve or accept separately, but unresolved material correctness, coherence, feasibility, and security-claim issues remain in both the implemented browser boundary and the future hosted contract.
 
 READINESS VERDICT: NOT READY
+
 ### Orchestrator disposition (round 2, outside the verbatim body)
 
 Spot-checks: the three implemented-boundary contradictions verified true
@@ -683,3 +684,22 @@ The blocker is not that hosted authentication remains unimplemented. The blocker
 Not ready. The local hardening and opaque-failure fixes can proceed independently, but the RFC should remain Draft until the D4/D5/D6 state and wire contracts, first-contact TLS fact, limiter failure bound, custody classification, operator-origin admission, and C3 broker claim are resolved.
 
 READINESS VERDICT: NOT READY
+
+## Independent implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Review mode: read-only, ephemeral, high reasoning effort
+- Reviewed commit: `3e52f2b158f70fc2e19b7853e956c823b8f3800e`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+READINESS VERDICT: READY
+
+- MINOR: The direct-bearer headless seam remains browser-reachable. Record its removal or isolation as an explicit prerequisite before enabling hosted browser-positive admission.
+- EDITORIAL: Status history for the former D4 serving-lease and `multiReplica` design can read as current. Label it superseded or move it to a changelog.

@@ -297,6 +297,7 @@ The architecture should be retained, but the specification needs a focused recon
 Not ready. The proposal’s direction is strong, but unresolved MATERIAL issues remain in credential uniqueness, family-alarm safety, commit semantics, rescue correctness, artifact publication, restore behavior, impersonation reachability, locking, and wire-contract coherence.
 
 READINESS VERDICT: NOT READY
+
 ### Orchestrator disposition (round 2, outside the verbatim body)
 
 Spot-checks verified against `b11a6fa`: issuance inserts into `_auth_sessions`
@@ -474,3 +475,22 @@ The revision history shows substantial improvement, but the resulting plan still
 The design direction is promising, but unresolved material correctness, crash-safety, version-composition, wire-contract, and implementation-evidence concerns remain.
 
 READINESS VERDICT: NOT READY
+
+## Independent implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Review mode: read-only, ephemeral, high reasoning effort
+- Reviewed commit: `3e52f2b158f70fc2e19b7853e956c823b8f3800e`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+READINESS VERDICT: NOT READY
+
+- MATERIAL: Normative prose is stale and false after implementation. It still says issuance lacks the tombstone check and retry is only for `PredecessorChanged`; that the stdin impersonation capability is not shipped; and that rescue reachability, rowid/AUTOINCREMENT, managed state, and commit reconciliation remain defects. Reconcile the current-state prose with the shipped behavior and move superseded facts to a historical changelog.
+- MINOR: The normative vocabulary still calls raw-clock restore a named defect even though the implementation now closes it.

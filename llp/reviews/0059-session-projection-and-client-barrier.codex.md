@@ -514,3 +514,23 @@ overclaim corrected, probes named an obligation; #10 (localStorage vs LLP 0008)
 → flagged as a genuine cross-document conflict requiring reconciliation. The
 suggestions (append-only transition journal, two-cut client transition, capability
 object for protocol support) are recorded for the implementer.
+
+## Independent implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Review mode: read-only, ephemeral, high reasoning effort
+- Reviewed commit: `3e52f2b158f70fc2e19b7853e956c823b8f3800e`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+READINESS VERDICT: NOT READY
+
+- MATERIAL: The constants table says “Client custody format 1” while the normative type and implementation use format 2. Make the table consistent at 2.
+- MATERIAL: `validateAuthCustody` does not bind a transition intent's embedded authority/key pairs or a settled intent successor to the containing settled record, and `#adoptPeerSettled` trusts that validation. Validate both embedded authority/key pairs; require a settled intent successor epoch, key, and authority to equal the containing record; validate the derivable transition ID if possible; and add corruption and peer-adoption tests.
+- MINOR: The lock hierarchy says the stalled-revocation L9 fixture is not discoverable while the Status section says a fixture proves it. Reconcile the prose or name the test.

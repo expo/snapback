@@ -393,3 +393,22 @@ prerequisites (#4), composed-gate boundary normative description or unification
 (#11), the acceptance evidence harness (#12), and the alternate offer carrier
 (#13, minor). The normative design is unchanged; the Spec cannot advance past
 Draft until they close. Split-document suggestion left to the author.
+
+## Independent implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Review mode: read-only, ephemeral, high reasoning effort
+- Reviewed commit: `3e52f2b158f70fc2e19b7853e956c823b8f3800e`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+READINESS VERDICT: NOT READY
+
+- MATERIAL: The actual pinned pre-auth predecessor harness and byte-for-byte corruption database/WAL harness are not committed and rerunnable. The document says they are not committed while its Status and acceptance prose claim implementation as fact. Commit a repeatable pinned-predecessor harness covering fresh and provisioned state and a byte-level corrupt-state comparison, or narrow the implementation-complete claim until that evidence exists.
+- MINOR: The diagnostics text says the request-body timeout is absent from LLP 0012, but LLP 0012 now registers it.
