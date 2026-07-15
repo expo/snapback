@@ -949,3 +949,37 @@ EVIDENCE
 The three-tuple allowlist is closed and reconstructs only local constants (`demos/_kit/client.mjs:828-856`). Refresh 409 still enters superseded handling, bounded successor wait, family alarm, then compare-and-clear (`demos/_kit/client.mjs:1831-1838`). `node demos/_kit/tests/auth-coordinator-client.mjs` passed, including typed exchange and refresh recovery assertions (`demos/_kit/tests/auth-coordinator-client.mjs:432-459,614-641`). Admin and setup credential suites also passed, but omit fetch-rejection coverage.
 
 Hosted admission remains conjunctive, including sender-constrained V2 and excluded direct-bearer seam (`src/auth/deployment.rs:254-278`), while all current hosted requests are unconditionally refused absent authenticated attestation/health (`src/auth/deployment.rs:308-320`; `src/server.rs:5003-5012`). Targeted capability/admission and schema tests passed; the embedded hosted-refusal test was blocked by sandbox denial of loopback bind.
+
+## FINAL5 targeted blind review — 2026-07-15 (`b78998c`)
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: runtime metadata was not included in the received review artifact
+- Method: independent targeted blind review received through the parent ENG-25001 orchestration
+- Reviewed commit: `b78998c0ebce04f94ea422227d57f4ab584cecd4`
+- Source artifact: `/private/tmp/eng25001-final5-codex-0060.md`, sha256 `26ee8f845bf2873df6a21149c8e6a2aec3c86e49040242efa9822205784c0e4d`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT
+
+READY. At exact commit `b78998c0ebce04f94ea422227d57f4ab584cecd4`, the implemented issuer boundary matches LLP 0060 C1.
+
+MATERIAL
+
+None.
+
+MINOR
+
+- The embedded-setup regression observes the real program’s rendered text and storage, but does not separately pin ordinary non-issuer fetch-rejection sanitization. The branch is visibly preserved in `api()`, and shared-admin plus kit tests exercise the distinction; a setup-specific non-issuer rejection fixture would make that coverage symmetric.
+
+EVIDENCE
+
+- Kit `#fetchJson` consults `opaqueSuccessFailure` in the initial `fetch` rejection catch, before `sanitizeTransportError`; exchange, refresh, and request-code all set it. It constructs a fresh fixed error, so the original name, message, code, diagnostic, custom keys, stack, and cause are unreachable.
+- Shared admin `#req` applies the same early replacement for console mint; embedded setup’s `api` replaces both initial-fetch and body-reader rejections for mint. Ordinary paths retain their request-secret sanitizers.
+- Received responses use the closed method/route/status/code map only for exchange 401 `CODE_INVALID`, exchange 403 `CODE_LOCKED`, and refresh 409 `REFRESH_SUPERSEDED`. Errors are rebuilt locally with no receipt/cause; wrong-route and wrong-status fixtures remain opaque.
+- Passed: `node demos/_kit/tests/auth-coordinator-client.mjs`, `node admin-ui/tests/admin-client-credentials.mjs`, and `node admin-ui/tests/setup-credential-errors.mjs`.
+- `src/server.rs` pins exact served inline-script hashes, rejects script `unsafe-inline`/`unsafe-eval`, and requires Trusted Types; the browser acceptance checks live hashes, violations, and rejected string `innerHTML`. LLP 0060’s C1/C2 acceptance and changelog accurately describe the implementation and residual bearer/XSS boundary.

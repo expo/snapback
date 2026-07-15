@@ -471,3 +471,28 @@ EVIDENCE:
 - Recovery: the reconstructed code is in `SUPERSEDED_AUTH_CODES` (`client.mjs:382`), so `authRefresh` (`client.mjs:1831-1839`) still runs the bounded monotonic successor wait (`packages/snapback-contract/auth-coordinator.mjs:975-1011`, 2 s deadline) and then `/auth/family-alarm` with the suspect predecessor bearer before `compareAndClear`. The eaef0ea test (`demos/_kit/tests/auth-coordinator-client.mjs`) proves unknown-successor and property-name poison bytes are absent, the alarm witnessed predecessor custody (`familyAlarmCustodyWitnesses`), alarm ordered after refresh, and custody cleared to anonymous afterward.
 - Admission bounds: `src/auth/deployment.rs:235-244` puts schemars max `9007199254740991` on all five integers that can exceed one; the runtime conjunction (`deployment.rs:258-278`) repeats every bound; `version` and `handlerProtocolVersion` are pinned to exactly 1 in both schema and runtime. The committed `schemas/auth.hosted-admission.schema.json` matches and is drift-gated (`src/schema_export.rs:99`, dk7 tests). Per-field ceiling+1 negatives exist at runtime (`deployment.rs:441-458`) and against the committed schema (`tests/artifact_schemas_v0.rs:1097-1110`); the representative admission validates.
 - Opacity elsewhere and disabled serving: the shared admin client (`packages/snapback-admin-client/index.mjs:99-131`) and embedded setup page (`src/admin/setup.html:266-296`) throw fixed opaque errors on every console-mint failure; challenge success is the exact `{challengeId, expiresAt}` projection (`client.mjs:806-814`). Hosted deployment is refused unconditionally before target state opens (`src/cli.rs:1483`), repeated for embedded app-data routes (`src/server.rs:5007`), asserted across all 32 capability masks, and `HostedAdmission` remains a schema authority with no serving consumer.
+
+## FINAL5 targeted blind review — 2026-07-15 (`b78998c`)
+
+### Provenance
+
+- Reviewer family: Anthropic Claude Fable
+- Provider/runtime: Claude Code 2.1.210, model `claude-fable-5`, max reasoning effort, safe mode, read-only plan permission
+- Method: independent targeted blind review; no access to `llp/reviews/`, secrets, network, or repository edits
+- Session: `73006000-0000-4000-9000-000000000160`
+- Reviewed commit: `b78998c0ebce04f94ea422227d57f4ab584cecd4`
+- Source artifact: `/private/tmp/eng25001-final5-fable-0060.md`, sha256 `912167e48326ad16938a02fa793229a09dffd3599dc8bb0e9b07080c7ceabcda`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT: READY
+
+MATERIAL: None.
+
+MINOR:
+- Issuer opacity also swallows locally caused rejections (an aborted in-flight issuer fetch surfaces as `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`). This matches the RFC's blanket fetch-rejection rule and is leak-safe; only diagnosability is affected.
+- The setup fixture pins the fixed DOM text and storage absence but not receipt/cause absence on the error object itself; acceptable because the setup page exposes only its closed flat code/message shape, and the kit/admin fixtures pin receipt/cause directly.
+
+EVIDENCE: Kit (`demos/_kit/client.mjs`) consults the issuer flag before the transport sanitizer at fetch rejection (1656), body-read (1662), non-2xx (1692), and malformed-2xx (1711); the opaque error is constants-only with no cause or copied keys (816–826). The allowlist holds exactly the three RFC tuples keyed method/route/status/code, reconstructing from constants plus tuple-known status (832–857); receipts attach only on the non-issuer branch (1705). Request-code/exchange/refresh pass the flag (1743/1772/1805); ordinary requests do not (1555). Refresh keeps the bounded successor wait (2000 ms monotone deadline, `auth-coordinator.mjs:993`) and alarms before compare-clear (1848–1849); HEAD's later commit touches only bootstrap reentry. The shared admin client (`index.mjs:99`) drops the `res &&` guard so mint fetch rejections go opaque (constants-only error, 230); `setup.html:298` is flag-first with its fixed flat error; `server.rs:4607` equals the recomputed setup-script SHA-256. Hosted still refuses (`src/auth/deployment.rs:298,310`). Committed tests (wired into admin-ui `test` and `verify-local-proof`) poison name, message, code, diagnostic details, property keys, and cause with unknown-successor bytes on all five surfaces, asserting serialized name/message/code/diagnostic/cause/`Object.keys` secret-free and `hasOwn` cause/receipt false; near-misses (allowlisted code on wrong route with receipt; wrong status) stay opaque; the refresh-409 typed error is receipt/cause-free with the family alarm witnessed while predecessor custody exists; the admin non-issuer rejection keeps the `[REDACTED]` sanitizer.

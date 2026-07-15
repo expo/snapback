@@ -11,6 +11,7 @@ const DERIVED = 'sbcc_setup-derived-SENTINEL';
 const CONFIG_SECRET = 'setup-config-value-SENTINEL';
 const UNKNOWN_ISSUED = 'sbcc_setup-unknown-non-2xx-successor-SENTINEL';
 const UNKNOWN_FETCH_REJECTION = 'sbcc_setup-unknown-fetch-rejection-successor-SENTINEL';
+const ORDINARY_FETCH_REJECTION = 'setup-ordinary-fetch-rejection-SENTINEL';
 const SHORT_SECRETS = ['Q', 'QZ', 'QZX'];
 const html = fs.readFileSync(new URL('../../src/admin/setup.html', import.meta.url), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -136,6 +137,13 @@ async function fetch(path, options = {}) {
           consoleCredential: derived,
         },
       });
+    }
+    if (mode === 'status-fetch-rejection') {
+      const error = new Error(
+        `ordinary fetch rejected with ${derived} and ${ORDINARY_FETCH_REJECTION}`,
+      );
+      error.code = `ORDINARY_${derived}_${ORDINARY_FETCH_REJECTION}`;
+      throw error;
     }
     const status = {
       appProvisioned: true,
@@ -317,6 +325,21 @@ assert.equal(storageContains(MASTER), false, 'successful exchange still does not
 assert.equal(storageContains(DERIVED), true, 'setup persists only the short-lived derived credential');
 assertSecretAbsent(visibleText(), DERIVED, 'derived failure DOM');
 assert.match(elements.get('summary').textContent, /\[REDACTED\]/);
+
+// Ordinary, non-issuer fetch rejections keep the request-secret sanitizer:
+// redact the active credential, preserve unrelated diagnostics, and do not
+// collapse to the credential issuer's fixed opaque error.
+mode = 'status-fetch-rejection';
+tokenInput.value = MASTER;
+tokenSave.listeners.click();
+await flush();
+assertSecretAbsent(visibleText(), DERIVED, 'ordinary fetch rejection DOM');
+assert.match(elements.get('summary').textContent, /\[REDACTED\]/);
+assert.match(elements.get('summary').textContent, new RegExp(ORDINARY_FETCH_REJECTION));
+assert.doesNotMatch(
+  elements.get('summary').textContent,
+  /Console credential exchange returned an invalid response\./,
+);
 
 // Successful arbitrary objects are also rejected when a property name carries
 // the active derived credential. This is distinct from exact credential DTOs.
