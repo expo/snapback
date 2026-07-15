@@ -40,6 +40,13 @@ pub(crate) mod auth;
 #[path = "storage/auth_agents.rs"]
 pub(crate) mod auth_agents;
 
+// @ref LLP 0055#credentials-and-tokens — credential rotation, time-only family
+//   tombstones, revoke-self, and scoped-token mint/validation live below the
+//   protected auth catalog rather than the app-data mutation surface.
+#[allow(dead_code)]
+#[path = "storage/auth_agent_credentials.rs"]
+pub(crate) mod auth_agent_credentials;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;
