@@ -15,9 +15,11 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use subtle::ConstantTimeEq as _;
 
 pub const PAIRING_CODE_TTL_MS: u64 = 10 * 60 * 1_000;
 pub const PAIRING_CODE_LIVE_CAP_PER_USER: u64 = 10;
+pub const PAIRING_CODE_ATTEMPT_LIMIT: u64 = 5;
 pub const PAIRING_REQUEST_LIVE_CAP_PER_AGENT: u64 = 10;
 pub const GRANT_LIVE_CAP_PER_ACTOR: u64 = 50;
 pub const DELEGATED_GRANT_LIVE_CAP_PER_USER: u64 = 50;
@@ -115,6 +117,11 @@ pub(crate) enum PairingPresentation {
     Existing(PendingGrantRequest),
 }
 
+enum PairingAttemptOutcome {
+    Presented(PairingPresentation),
+    Invalid,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ApprovedGrant {
     pub grant_id: String,
@@ -193,6 +200,7 @@ impl LocalDatabase {
     pub(crate) fn present_pairing_code(
         &mut self,
         credential: &AgentCredential,
+        pairing_request_id: &str,
         pairing_code: &PairingCode,
         requested_scopes: &[GrantScopeRequest],
         now_ms: u64,
@@ -200,7 +208,7 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let credential_hash = credential.token_hash();
         let code_hash = pairing_code.token_hash();
-        self.with_auth_transaction(|tx| {
+        let outcome = self.with_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             let credential = live_credential_by_hash(tx, credential_hash.as_bytes())?
                 .ok_or_else(agent_credential_invalid)?;
@@ -209,43 +217,78 @@ impl LocalDatabase {
             sweep_pairing_requests_on(tx, now_ms)?;
             let row = tx
                 .query_row(
-                    "SELECT id, minted_by_user_id, agent_user_id, requested_scopes,
-                            state, created_at_ms, expires_at_ms, consumed_at_ms
-                     FROM _auth_pairing_requests WHERE code_hash = ?1",
-                    params![code_hash.as_bytes()],
+                    "SELECT code_hash, minted_by_user_id, agent_user_id,
+                            requested_scopes, state, attempts, created_at_ms,
+                            expires_at_ms, consumed_at_ms
+                     FROM _auth_pairing_requests WHERE id = ?1",
+                    params![pairing_request_id],
                     |row| {
                         Ok((
-                            row.get::<_, String>(0)?,
+                            row.get::<_, Vec<u8>>(0)?,
                             row.get::<_, String>(1)?,
                             row.get::<_, Option<String>>(2)?,
                             row.get::<_, Option<String>>(3)?,
                             row.get::<_, String>(4)?,
-                            row.get::<_, i64>(5)? as u64,
-                            row.get::<_, i64>(6)? as u64,
-                            row.get::<_, Option<i64>>(7)?.map(|value| value as u64),
+                            row.get::<_, i64>(5)?,
+                            row.get::<_, i64>(6)?,
+                            row.get::<_, i64>(7)?,
+                            row.get::<_, Option<i64>>(8)?,
                         ))
                     },
                 )
-                .optional()?
-                .ok_or_else(grant_invalid)?;
+                .optional()?;
+            let Some(row) = row else {
+                constant_time_pairing_hash_match(&[0; 32], code_hash.as_bytes())?;
+                record_failed_pairing_attempt_on(tx, pairing_request_id, now_ms)?;
+                return Ok(PairingAttemptOutcome::Invalid);
+            };
             let (
-                request_id,
+                stored_code_hash,
                 effective_user_id,
                 bound_agent,
                 stored_scopes,
                 state,
+                attempts,
                 created_at_ms,
                 expires_at_ms,
                 consumed_at_ms,
             ) = row;
-            if expires_at_ms <= now_ms || state != "pending" {
-                return Err(grant_invalid());
+            let attempts = u64::try_from(attempts).map_err(|_| grant_state_corrupt())?;
+            let created_at_ms =
+                u64::try_from(created_at_ms).map_err(|_| grant_state_corrupt())?;
+            let expires_at_ms =
+                u64::try_from(expires_at_ms).map_err(|_| grant_state_corrupt())?;
+            let consumed_at_ms = consumed_at_ms
+                .map(u64::try_from)
+                .transpose()
+                .map_err(|_| grant_state_corrupt())?;
+            if attempts > PAIRING_CODE_ATTEMPT_LIMIT {
+                return Err(grant_state_corrupt());
+            }
+            let code_matches =
+                constant_time_pairing_hash_match(&stored_code_hash, code_hash.as_bytes())?;
+            if !code_matches {
+                record_failed_pairing_attempt_on(tx, pairing_request_id, now_ms)?;
+                return Ok(PairingAttemptOutcome::Invalid);
+            }
+            if attempts >= PAIRING_CODE_ATTEMPT_LIMIT
+                || expires_at_ms <= now_ms
+                || state != "pending"
+            {
+                record_failed_pairing_attempt_on(tx, pairing_request_id, now_ms)?;
+                return Ok(PairingAttemptOutcome::Invalid);
+            }
+            if let Some(bound_agent) = bound_agent.as_ref()
+                && bound_agent != &credential.user_id
+            {
+                record_failed_pairing_attempt_on(tx, pairing_request_id, now_ms)?;
+                return Ok(PairingAttemptOutcome::Invalid);
             }
             let scopes = resolve_delegated_scopes_on(tx, requested_scopes)?;
             let scopes_json = canonical_scopes_json(&scopes)?;
             let request = pending_request_on(
                 tx,
-                &request_id,
+                pairing_request_id,
                 &effective_user_id,
                 &credential.user_id,
                 &scopes,
@@ -256,9 +299,12 @@ impl LocalDatabase {
                 (bound_agent.as_ref(), stored_scopes.as_ref(), consumed_at_ms)
             {
                 if bound_agent == &credential.user_id && stored_scopes == &scopes_json {
-                    return Ok(PairingPresentation::Existing(request));
+                    return Ok(PairingAttemptOutcome::Presented(
+                        PairingPresentation::Existing(request),
+                    ));
                 }
-                return Err(grant_invalid());
+                record_failed_pairing_attempt_on(tx, pairing_request_id, now_ms)?;
+                return Ok(PairingAttemptOutcome::Invalid);
             }
             if bound_agent.is_some() || stored_scopes.is_some() || consumed_at_ms.is_some() {
                 return Err(grant_state_corrupt());
@@ -276,17 +322,28 @@ impl LocalDatabase {
             let changed = tx.execute(
                 "UPDATE _auth_pairing_requests
                  SET agent_user_id = ?1, requested_scopes = ?2,
-                     consumed_at_ms = ?3, attempts = attempts + 1
+                     consumed_at_ms = ?3
                  WHERE id = ?4 AND agent_user_id IS NULL
                    AND requested_scopes IS NULL AND consumed_at_ms IS NULL
                    AND state = 'pending' AND expires_at_ms > ?3",
-                params![credential.user_id, scopes_json, now_ms as i64, request_id,],
+                params![
+                    credential.user_id,
+                    scopes_json,
+                    now_ms as i64,
+                    pairing_request_id,
+                ],
             )?;
             if changed != 1 {
-                return Err(grant_invalid());
+                return Ok(PairingAttemptOutcome::Invalid);
             }
-            Ok(PairingPresentation::Created(request))
-        })
+            Ok(PairingAttemptOutcome::Presented(PairingPresentation::Created(
+                request,
+            )))
+        })?;
+        match outcome {
+            PairingAttemptOutcome::Presented(presentation) => Ok(presentation),
+            PairingAttemptOutcome::Invalid => Err(grant_invalid()),
+        }
     }
 
     /// Approve exactly one pending request. Retrying an already-approved
@@ -567,6 +624,33 @@ fn canonical_scopes_json(scopes: &[ExactGrantScope]) -> SnapbackResult<String> {
         return Err(grant_scope_invalid());
     }
     Ok(encoded)
+}
+
+fn constant_time_pairing_hash_match(stored: &[u8], presented: &[u8]) -> SnapbackResult<bool> {
+    let matches = bool::from(stored.ct_eq(presented));
+    if stored.len() != 32 || presented.len() != 32 {
+        Err(grant_state_corrupt())
+    } else {
+        Ok(matches)
+    }
+}
+
+fn record_failed_pairing_attempt_on(
+    tx: &Transaction<'_>,
+    pairing_request_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "UPDATE _auth_pairing_requests SET attempts = attempts + 1
+         WHERE id = ?1 AND state = 'pending' AND expires_at_ms > ?2
+           AND consumed_at_ms IS NULL AND attempts < ?3",
+        params![
+            pairing_request_id,
+            now_ms as i64,
+            PAIRING_CODE_ATTEMPT_LIMIT as i64,
+        ],
+    )?;
+    Ok(())
 }
 
 fn parse_scopes_json(encoded: &str) -> SnapbackResult<Vec<ExactGrantScope>> {
@@ -880,7 +964,13 @@ mod tests {
     }
 
     fn ready(random: &dyn RandomSource) -> (LocalDatabase, AgentCredential) {
-        let mut db = LocalDatabase::memory().unwrap();
+        configure(LocalDatabase::memory().unwrap(), random)
+    }
+
+    fn configure(
+        mut db: LocalDatabase,
+        random: &dyn RandomSource,
+    ) -> (LocalDatabase, AgentCredential) {
         db.activate_auth_catalog_v1().unwrap();
         db.conn
             .execute(
@@ -933,6 +1023,7 @@ mod tests {
         let presented = db
             .present_pairing_code(
                 &credential,
+                &pairing.request_id,
                 &pairing.secret,
                 &[
                     GrantScopeRequest::Tier {
@@ -970,6 +1061,7 @@ mod tests {
         let repeated = db
             .present_pairing_code(
                 &credential,
+                &pairing.request_id,
                 &pairing.secret,
                 &[
                     GrantScopeRequest::Tier {
@@ -1050,6 +1142,7 @@ mod tests {
         let PairingPresentation::Created(request) = db
             .present_pairing_code(
                 &credential,
+                &pairing.request_id,
                 &pairing.secret,
                 &[GrantScopeRequest::Exact {
                     function_id: "fn:read".to_owned(),
@@ -1112,6 +1205,7 @@ mod tests {
         let pairing = db.mint_pairing_code("user-a", 2_000, &random).unwrap();
         db.present_pairing_code(
             &credential,
+            &pairing.request_id,
             &pairing.secret,
             &[GrantScopeRequest::Exact {
                 function_id: "fn:read".to_owned(),
@@ -1154,6 +1248,7 @@ mod tests {
         let error = db
             .present_pairing_code(
                 &credential,
+                "missing-request",
                 &unknown,
                 &[GrantScopeRequest::Exact {
                     function_id: "fn:not-real".to_owned(),
@@ -1163,5 +1258,180 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+    }
+
+    #[test]
+    fn wrong_pairing_attempts_commit_and_fifth_failure_survives_restart() {
+        let random = CounterRandom::new();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pairing.sqlite3");
+        let (credential, pairing, wrong) = {
+            let db = LocalDatabase::open(&path).unwrap();
+            let (mut db, credential) = configure(db, &random);
+            scope_basis(&db, "fn:read", "query", false);
+            let pairing = db.mint_pairing_code("user-a", 4_000, &random).unwrap();
+            let wrong = PairingCode::generate(&random).unwrap();
+            for attempt in 1..=PAIRING_CODE_ATTEMPT_LIMIT {
+                let error = db
+                    .present_pairing_code(
+                        &credential,
+                        &pairing.request_id,
+                        &wrong,
+                        &[GrantScopeRequest::Exact {
+                            function_id: "fn:not-real".to_owned(),
+                            kind: ScopedFunctionKind::Action,
+                        }],
+                        4_000 + attempt,
+                    )
+                    .unwrap_err();
+                assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+                let durable_attempts: i64 = db
+                    .conn
+                    .query_row(
+                        "SELECT attempts FROM _auth_pairing_requests WHERE id = ?1",
+                        params![pairing.request_id],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                assert_eq!(durable_attempts as u64, attempt);
+            }
+            (credential, pairing, wrong)
+        };
+
+        let mut reopened = LocalDatabase::open(&path).unwrap();
+        let error = reopened
+            .present_pairing_code(
+                &credential,
+                &pairing.request_id,
+                &pairing.secret,
+                &[GrantScopeRequest::Exact {
+                    function_id: "fn:read".to_owned(),
+                    kind: ScopedFunctionKind::Query,
+                }],
+                4_006,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+
+        let missing_error = reopened
+            .present_pairing_code(
+                &credential,
+                "missing-request",
+                &wrong,
+                &[GrantScopeRequest::Exact {
+                    function_id: "fn:not-real".to_owned(),
+                    kind: ScopedFunctionKind::Action,
+                }],
+                4_007,
+            )
+            .unwrap_err();
+        assert_eq!(
+            missing_error.diagnostic.code,
+            "SNAPBACK_AUTH_GRANT_INVALID"
+        );
+    }
+
+    #[test]
+    fn correct_fifth_pairing_attempt_succeeds_before_the_ceiling() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        scope_basis(&db, "fn:read", "query", false);
+        let pairing = db.mint_pairing_code("user-a", 4_000, &random).unwrap();
+        let wrong = PairingCode::generate(&random).unwrap();
+        let scopes = [GrantScopeRequest::Exact {
+            function_id: "fn:read".to_owned(),
+            kind: ScopedFunctionKind::Query,
+        }];
+        for attempt in 1..PAIRING_CODE_ATTEMPT_LIMIT {
+            db.present_pairing_code(
+                &credential,
+                &pairing.request_id,
+                &wrong,
+                &scopes,
+                4_000 + attempt,
+            )
+            .unwrap_err();
+        }
+        let presentation = db
+            .present_pairing_code(
+                &credential,
+                &pairing.request_id,
+                &pairing.secret,
+                &scopes,
+                4_000 + PAIRING_CODE_ATTEMPT_LIMIT,
+            )
+            .unwrap();
+        assert!(matches!(presentation, PairingPresentation::Created(_)));
+    }
+
+    #[test]
+    fn missing_expired_and_foreign_pairing_requests_share_the_invalid_outcome() {
+        let random = CounterRandom::new();
+        let (mut db, credential_a) = ready(&random);
+        db.create_agent_principal(
+            "agent-b",
+            0,
+            &AgentRegistration {
+                display_name: None,
+                operator_contact: None,
+                registration_provenance: "test".to_owned(),
+                owner_user_id: None,
+            },
+        )
+        .unwrap();
+        let credential_b = db
+            .issue_initial_agent_credential("agent-b", 1_001, &random)
+            .unwrap()
+            .secret;
+        scope_basis(&db, "fn:read", "query", false);
+        let pairing = db.mint_pairing_code("user-a", 5_000, &random).unwrap();
+        db.present_pairing_code(
+            &credential_a,
+            &pairing.request_id,
+            &pairing.secret,
+            &[GrantScopeRequest::Exact {
+                function_id: "fn:read".to_owned(),
+                kind: ScopedFunctionKind::Query,
+            }],
+            5_001,
+        )
+        .unwrap();
+        let invalid_scope = [GrantScopeRequest::Exact {
+            function_id: "fn:not-real".to_owned(),
+            kind: ScopedFunctionKind::Action,
+        }];
+
+        let foreign = db
+            .present_pairing_code(
+                &credential_b,
+                &pairing.request_id,
+                &pairing.secret,
+                &invalid_scope,
+                5_002,
+            )
+            .unwrap_err();
+        let missing = db
+            .present_pairing_code(
+                &credential_b,
+                "missing-request",
+                &pairing.secret,
+                &invalid_scope,
+                5_003,
+            )
+            .unwrap_err();
+        let expired_pairing = db.mint_pairing_code("user-a", 6_000, &random).unwrap();
+        let expired = db
+            .present_pairing_code(
+                &credential_b,
+                &expired_pairing.request_id,
+                &expired_pairing.secret,
+                &invalid_scope,
+                6_000 + PAIRING_CODE_TTL_MS,
+            )
+            .unwrap_err();
+
+        assert_eq!(foreign.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+        assert_eq!(missing.diagnostic.code, foreign.diagnostic.code);
+        assert_eq!(expired.diagnostic.code, foreign.diagnostic.code);
     }
 }
