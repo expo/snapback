@@ -47,111 +47,7 @@ impl LocalDatabase {
         &mut self,
         manifest: &FunctionManifest,
     ) -> SnapbackResult<ScopeBasisReconciliation> {
-        let incoming = incoming_functions(manifest)?;
-        self.with_auth_transaction(|tx| {
-            let mut stored = BTreeMap::new();
-            let mut statement = tx.prepare(
-                "SELECT function_id, kind, generation, present, authority_creating
-                 FROM _auth_scope_bases ORDER BY function_id",
-            )?;
-            let rows = statement.query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, i64>(4)?,
-                ))
-            })?;
-            for row in rows {
-                let (function_id, kind, generation, present, authority_creating) = row?;
-                if function_id.is_empty()
-                    || kind.is_empty()
-                    || generation < 0
-                    || !matches!(present, 0 | 1)
-                    || !matches!(authority_creating, 0 | 1)
-                {
-                    return Err(scope_basis_corrupt());
-                }
-                stored.insert(
-                    function_id.clone(),
-                    ScopeBasis {
-                        function_id,
-                        kind,
-                        generation: generation as u64,
-                        present: present == 1,
-                        authority_creating: authority_creating == 1,
-                    },
-                );
-            }
-            drop(statement);
-
-            let mut reconciliation = ScopeBasisReconciliation::default();
-
-            for (function_id, basis) in &stored {
-                match incoming.get(function_id) {
-                    None if basis.present => {
-                        let generation = next_generation(basis.generation)?;
-                        tx.execute(
-                            "UPDATE _auth_scope_bases
-                             SET generation = ?1, present = 0
-                             WHERE function_id = ?2",
-                            params![generation as i64, function_id],
-                        )?;
-                        reconciliation.basis_advanced.insert(function_id.clone());
-                        reconciliation.became_absent.insert(function_id.clone());
-                    }
-                    None => {}
-                    Some(function) => {
-                        let kind = function_kind_name(&function.kind);
-                        let shape_changed = basis.kind != kind
-                            || basis.authority_creating != function.authority_creating;
-                        let generation = if shape_changed {
-                            reconciliation.basis_advanced.insert(function_id.clone());
-                            next_generation(basis.generation)?
-                        } else {
-                            basis.generation
-                        };
-                        if !basis.present {
-                            reconciliation.became_present.insert(function_id.clone());
-                        }
-                        if shape_changed || !basis.present {
-                            tx.execute(
-                                "UPDATE _auth_scope_bases
-                                 SET kind = ?1, generation = ?2, present = 1,
-                                     authority_creating = ?3
-                                 WHERE function_id = ?4",
-                                params![
-                                    kind,
-                                    generation as i64,
-                                    i64::from(function.authority_creating),
-                                    function_id,
-                                ],
-                            )?;
-                        }
-                    }
-                }
-            }
-
-            for (function_id, function) in &incoming {
-                if stored.contains_key(function_id) {
-                    continue;
-                }
-                tx.execute(
-                    "INSERT INTO _auth_scope_bases(
-                       function_id, kind, generation, present, authority_creating
-                     ) VALUES(?1, ?2, 0, 1, ?3)",
-                    params![
-                        function_id,
-                        function_kind_name(&function.kind),
-                        i64::from(function.authority_creating),
-                    ],
-                )?;
-                reconciliation.became_present.insert(function_id.clone());
-            }
-
-            Ok(reconciliation)
-        })
+        self.with_auth_transaction(|tx| reconcile_auth_scope_bases_on(tx, manifest))
     }
 
     /// Return a callable exact-function basis only when every consent-bound
@@ -194,6 +90,117 @@ impl LocalDatabase {
             )
         })
     }
+}
+
+/// Transactional core used by deployment activation. The caller owns the
+/// event-2 authorization hook and commit, so the basis tombstones and version
+/// advance cannot become externally visible in different cuts.
+pub(super) fn reconcile_auth_scope_bases_on(
+    tx: &rusqlite::Transaction<'_>,
+    manifest: &FunctionManifest,
+) -> SnapbackResult<ScopeBasisReconciliation> {
+    let incoming = incoming_functions(manifest)?;
+    let mut stored = BTreeMap::new();
+    let mut statement = tx.prepare(
+        "SELECT function_id, kind, generation, present, authority_creating
+         FROM _auth_scope_bases ORDER BY function_id",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, i64>(2)?,
+            row.get::<_, i64>(3)?,
+            row.get::<_, i64>(4)?,
+        ))
+    })?;
+    for row in rows {
+        let (function_id, kind, generation, present, authority_creating) = row?;
+        if function_id.is_empty()
+            || kind.is_empty()
+            || generation < 0
+            || !matches!(present, 0 | 1)
+            || !matches!(authority_creating, 0 | 1)
+        {
+            return Err(scope_basis_corrupt());
+        }
+        stored.insert(
+            function_id.clone(),
+            ScopeBasis {
+                function_id,
+                kind,
+                generation: generation as u64,
+                present: present == 1,
+                authority_creating: authority_creating == 1,
+            },
+        );
+    }
+    drop(statement);
+
+    let mut reconciliation = ScopeBasisReconciliation::default();
+    for (function_id, basis) in &stored {
+        match incoming.get(function_id) {
+            None if basis.present => {
+                let generation = next_generation(basis.generation)?;
+                tx.execute(
+                    "UPDATE _auth_scope_bases
+                     SET generation = ?1, present = 0
+                     WHERE function_id = ?2",
+                    params![generation as i64, function_id],
+                )?;
+                reconciliation.basis_advanced.insert(function_id.clone());
+                reconciliation.became_absent.insert(function_id.clone());
+            }
+            None => {}
+            Some(function) => {
+                let kind = function_kind_name(&function.kind);
+                let shape_changed = basis.kind != kind
+                    || basis.authority_creating != function.authority_creating;
+                let generation = if shape_changed {
+                    reconciliation.basis_advanced.insert(function_id.clone());
+                    next_generation(basis.generation)?
+                } else {
+                    basis.generation
+                };
+                if !basis.present {
+                    reconciliation.became_present.insert(function_id.clone());
+                }
+                if shape_changed || !basis.present {
+                    tx.execute(
+                        "UPDATE _auth_scope_bases
+                         SET kind = ?1, generation = ?2, present = 1,
+                             authority_creating = ?3
+                         WHERE function_id = ?4",
+                        params![
+                            kind,
+                            generation as i64,
+                            i64::from(function.authority_creating),
+                            function_id,
+                        ],
+                    )?;
+                }
+            }
+        }
+    }
+
+    for (function_id, function) in &incoming {
+        if stored.contains_key(function_id) {
+            continue;
+        }
+        tx.execute(
+            "INSERT INTO _auth_scope_bases(
+               function_id, kind, generation, present, authority_creating
+             ) VALUES(?1, ?2, 0, 1, ?3)",
+            params![
+                function_id,
+                function_kind_name(&function.kind),
+                i64::from(function.authority_creating),
+            ],
+        )?;
+        reconciliation.became_present.insert(function_id.clone());
+    }
+
+    Ok(reconciliation)
 }
 
 fn incoming_functions(

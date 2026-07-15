@@ -2996,9 +2996,12 @@ impl LocalSnapback {
             let publication_generation = self
                 .reserve_function_publication_generation()
                 .map_err(ModeCommitFailure::RolledBack)?;
-            let committed = self.db.apply_same_mode_network_deployment_classified(
+            let committed = self
+                .db
+                .apply_same_mode_network_deployment_with_functions_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
+                prepared.artifacts.functions.clone(),
                 prepared.artifacts.seed,
             );
             let NetworkDeploymentCommit {
@@ -10481,7 +10484,7 @@ mod tests {
         let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
         let settled = snapback
             .auth_database_mut()
-            .consume_sessions_auth_mode(&readiness)
+            .consume_sessions_auth_mode_with_functions(&readiness, &predecessor_functions)
             .expect("consume initial sessions pair");
         snapback
             .synchronize_auth_mode_admission(&settled)
@@ -10534,7 +10537,8 @@ mod tests {
             .authorization
             .clone();
 
-        let (_, successor_functions) = sessions_activation_pair('d', true);
+        let (_, mut successor_functions) = sessions_activation_pair('d', true);
+        successor_functions.functions[0].authority_creating = true;
         let successor_bundle = successor_functions.bundle_hash.clone();
         let prepared = snapback
             .prepare_auth_provision(
@@ -10561,6 +10565,20 @@ mod tests {
             .expect("commit and project successor activation");
 
         assert_eq!(committed.state, state);
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, true)
+                .expect("read committed authority-creating basis"),
+            Some(1)
+        );
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .expect("old marker shape is terminal"),
+            None
+        );
         assert_eq!(
             state.active_deployment.unwrap().bundle_hash,
             successor_bundle.unwrap()
@@ -10604,6 +10622,87 @@ mod tests {
                 .all(|frame| !frame.contains("\"kind\":\"live_delta\"")),
             "deployment authorization changes never escape as an unfenced live delta"
         );
+    }
+
+    #[test]
+    fn real_sessions_activation_keeps_removed_function_basis_terminal_across_readd() {
+        let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(
+            schema,
+            predecessor_functions.clone(),
+        );
+        install_test_invalidation(&mut snapback);
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .unwrap(),
+            Some(0)
+        );
+        let initial_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .unwrap();
+
+        let mut removed = predecessor_functions.clone();
+        removed.bundle_hash = Some(format!("{FUNCTION_V1_PREFIX}{}", "e".repeat(64)));
+        removed.functions.clear();
+        let prepared = snapback
+            .prepare_auth_provision(EnsureAppMode::Sessions, None, Some(removed), None)
+            .unwrap();
+        let transition = snapback.admission.clone().begin_transition().unwrap();
+        transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .expect("remove function through real sessions activation");
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .unwrap(),
+            None
+        );
+        let removed_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .unwrap();
+        assert_eq!(removed_authorization.epoch, initial_authorization.epoch + 1);
+
+        let mut readded = predecessor_functions;
+        readded.bundle_hash = Some(format!("{FUNCTION_V1_PREFIX}{}", "f".repeat(64)));
+        let prepared = snapback
+            .prepare_auth_provision(EnsureAppMode::Sessions, None, Some(readded), None)
+            .unwrap();
+        let transition = snapback.admission.clone().begin_transition().unwrap();
+        transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .expect("re-add function through real sessions activation");
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .unwrap(),
+            Some(1),
+            "re-add resumes at the removal tombstone generation"
+        );
+        let readded_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .unwrap();
+        assert_eq!(readded_authorization.epoch, initial_authorization.epoch + 2);
     }
 
     #[test]

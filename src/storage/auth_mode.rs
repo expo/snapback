@@ -18,7 +18,7 @@ use crate::auth::mode::{
     StagedAuthModeRecord, mode_corrupt,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{AuthMode, SchemaManifest, SeedData};
+use crate::manifest::{AuthMode, FunctionManifest, SchemaManifest, SeedData};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::collections::BTreeMap;
 
@@ -658,6 +658,14 @@ impl LocalDatabase {
         &mut self,
         readiness: &AuthProgramReadiness,
     ) -> SnapbackResult<AuthModeStateRecord> {
+        self.consume_sessions_auth_mode_with_functions(readiness, &FunctionManifest::default())
+    }
+
+    pub(crate) fn consume_sessions_auth_mode_with_functions(
+        &mut self,
+        readiness: &AuthProgramReadiness,
+        functions: &FunctionManifest,
+    ) -> SnapbackResult<AuthModeStateRecord> {
         let current = self.auth_mode_snapshot()?;
         require_pending_direction(&current, AuthMode::Dev, AuthMode::Sessions)?;
         readiness.validate()?;
@@ -680,6 +688,10 @@ impl LocalDatabase {
             .staged
             .ok_or_else(|| mode_corrupt("sessions consume lacks a staged manifest"))?;
         crate::storage::auth::activate_auth_catalog_v1_in(&tx)?;
+        // @ref LLP 0055#grants — initial sessions activation seeds the durable
+        //   exact-function basis rows in the same cut as the existing LLP 0053
+        //   activation event. No grant can observe an empty/intermediate set.
+        super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, functions)?;
         transaction_step_completed(0)?;
 
         let schema_json = serialize_json(&staged.schema_manifest)?;
@@ -935,10 +947,26 @@ impl LocalDatabase {
     /// a repeated network provision may carry seed data for an existing app;
     /// it is applied only when every named target is empty.
     // @ref LLP 0058#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
+    #[cfg(test)]
     pub(crate) fn apply_same_mode_network_deployment_classified(
         &mut self,
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> DurableModeCommit<NetworkDeploymentCommit> {
+        self.apply_same_mode_network_deployment_with_functions_classified(
+            deployment,
+            manifest,
+            FunctionManifest::default(),
+            seed,
+        )
+    }
+
+    pub(crate) fn apply_same_mode_network_deployment_with_functions_classified(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        functions: FunctionManifest,
         seed: Option<SeedData>,
     ) -> DurableModeCommit<NetworkDeploymentCommit> {
         let predecessor = match (|| -> SnapbackResult<_> {
@@ -981,6 +1009,13 @@ impl LocalDatabase {
                 }
 
                 apply_schema_ddl(tx, &manifest)?;
+                if deployment.auth_mode == AuthMode::Sessions {
+                    // @ref LLP 0055#grants — basis changes and the activation
+                    //   authorization event share this transaction; the
+                    //   returned witness drives connection/live projection
+                    //   before successor admission reopens.
+                    super::auth_scope_bases::reconcile_auth_scope_bases_on(tx, &functions)?;
+                }
                 let mut seeded_changes = Vec::new();
                 let seed_outcome = match seed {
                     None => NetworkSeedOutcome::SkippedAbsent,

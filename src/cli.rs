@@ -255,7 +255,7 @@ async fn compose_auth_mode_startup(
             let state = match startup_blocking(|| {
                 snapback
                     .auth_database_mut()
-                    .consume_sessions_auth_mode(readiness)
+                    .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
             }) {
                 Ok(state) => state,
                 Err(error) => {
