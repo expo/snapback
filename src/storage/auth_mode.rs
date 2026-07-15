@@ -124,6 +124,8 @@ impl OpenAuthModeInspection {
 thread_local! {
     static FAIL_AUTH_MODE_TRANSACTION_AFTER_STEP: std::cell::Cell<Option<usize>> =
         const { std::cell::Cell::new(None) };
+    static BEFORE_AUTH_MODE_CONSUME_TRANSACTION: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -145,6 +147,23 @@ fn inject_auth_mode_failure_after_step(step: usize) {
     FAIL_AUTH_MODE_TRANSACTION_AFTER_STEP.with(|slot| {
         assert!(slot.get().is_none(), "auth-mode hook must be one-shot");
         slot.set(Some(step));
+    });
+}
+
+#[cfg(test)]
+fn inject_before_auth_mode_consume_transaction(callback: impl FnOnce() + 'static) {
+    BEFORE_AUTH_MODE_CONSUME_TRANSACTION.with(|slot| {
+        assert!(slot.borrow().is_none(), "auth-mode consume hook must be one-shot");
+        *slot.borrow_mut() = Some(Box::new(callback));
+    });
+}
+
+fn before_auth_mode_consume_transaction() {
+    #[cfg(test)]
+    BEFORE_AUTH_MODE_CONSUME_TRANSACTION.with(|slot| {
+        if let Some(callback) = slot.borrow_mut().take() {
+            callback();
+        }
     });
 }
 
@@ -697,13 +716,21 @@ impl LocalDatabase {
         &mut self,
         readiness: &AuthProgramReadiness,
     ) -> SnapbackResult<AuthModeStateRecord> {
-        self.consume_sessions_auth_mode_with_functions(readiness, &FunctionManifest::default())
+        self.consume_sessions_auth_mode_inner(readiness, None)
     }
 
     pub(crate) fn consume_sessions_auth_mode_with_functions(
         &mut self,
         readiness: &AuthProgramReadiness,
         functions: &FunctionManifest,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.consume_sessions_auth_mode_inner(readiness, Some(functions))
+    }
+
+    fn consume_sessions_auth_mode_inner(
+        &mut self,
+        readiness: &AuthProgramReadiness,
+        functions: Option<&FunctionManifest>,
     ) -> SnapbackResult<AuthModeStateRecord> {
         let current = self.auth_mode_snapshot()?;
         require_pending_direction(&current, AuthMode::Dev, AuthMode::Sessions)?;
@@ -717,6 +744,7 @@ impl LocalDatabase {
             ));
         }
 
+        before_auth_mode_consume_transaction();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
             .conn
@@ -726,11 +754,20 @@ impl LocalDatabase {
         let staged = current
             .staged
             .ok_or_else(|| mode_corrupt("sessions consume lacks a staged manifest"))?;
+        if let Some(functions) = functions {
+            require_complete_deployment_pair(
+                &staged.requested_deployment,
+                &staged.schema_manifest,
+                functions,
+            )?;
+        }
         crate::storage::auth::activate_auth_catalog_v1_in(&tx)?;
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.
-        super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, functions)?;
+        if let Some(functions) = functions {
+            super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, functions)?;
+        }
         transaction_step_completed(0)?;
 
         let schema_json = serialize_json(&staged.schema_manifest)?;
@@ -783,7 +820,7 @@ impl LocalDatabase {
         allow_auth_downgrade: bool,
         now_ms: u64,
     ) -> SnapbackResult<AuthModeDowngradeResult> {
-        self.consume_dev_downgrade_inner(allow_auth_downgrade, now_ms)
+        self.consume_dev_downgrade_inner(allow_auth_downgrade, now_ms, None)
     }
 
     pub(crate) fn consume_dev_downgrade_with_functions(
@@ -792,24 +829,14 @@ impl LocalDatabase {
         now_ms: u64,
         functions: &FunctionManifest,
     ) -> SnapbackResult<AuthModeDowngradeResult> {
-        let current = self.auth_mode_snapshot()?;
-        require_pending_direction(&current, AuthMode::Sessions, AuthMode::Dev)?;
-        let staged = current
-            .staged
-            .as_ref()
-            .ok_or_else(|| mode_corrupt("downgrade consume lacks a staged manifest"))?;
-        require_complete_deployment_pair(
-            &staged.requested_deployment,
-            &staged.schema_manifest,
-            functions,
-        )?;
-        self.consume_dev_downgrade_inner(allow_auth_downgrade, now_ms)
+        self.consume_dev_downgrade_inner(allow_auth_downgrade, now_ms, Some(functions))
     }
 
     fn consume_dev_downgrade_inner(
         &mut self,
         allow_auth_downgrade: bool,
         now_ms: u64,
+        functions: Option<&FunctionManifest>,
     ) -> SnapbackResult<AuthModeDowngradeResult> {
         let current = self.auth_mode_snapshot()?;
         require_pending_direction(&current, AuthMode::Sessions, AuthMode::Dev)?;
@@ -827,6 +854,7 @@ impl LocalDatabase {
             ));
         }
 
+        before_auth_mode_consume_transaction();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
             .conn
@@ -836,6 +864,13 @@ impl LocalDatabase {
         let staged = current
             .staged
             .ok_or_else(|| mode_corrupt("downgrade consume lacks a staged manifest"))?;
+        if let Some(functions) = functions {
+            require_complete_deployment_pair(
+                &staged.requested_deployment,
+                &staged.schema_manifest,
+                functions,
+            )?;
+        }
         let sessions_revoked = crate::storage::auth::revoke_all_sessions_in(&tx, now_ms)?;
         transaction_step_completed(0)?;
 
@@ -2141,6 +2176,128 @@ mod tests {
                 .state
                 .active_deployment,
             Some(identity)
+        );
+    }
+
+    #[test]
+    fn privileged_restage_between_preflight_and_consume_cannot_mix_function_pairs() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("restage.sqlite3");
+        let mut database = LocalDatabase::open(&path).unwrap();
+        let (sessions_a, sessions_manifest) = sessions_pair(None);
+        let functions_a = function_half(&sessions_a);
+        database
+            .stage_auth_mode_with_functions(
+                sessions_a.clone(),
+                sessions_manifest.clone(),
+                &functions_a,
+                None,
+            )
+            .unwrap();
+        let mut sessions_b = sessions_a;
+        sessions_b.bundle_hash = digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'd');
+        let functions_b = function_half(&sessions_b);
+        let hook_path = path.clone();
+        let hook_sessions = sessions_b.clone();
+        let hook_manifest = sessions_manifest.clone();
+        let hook_functions = functions_b.clone();
+        inject_before_auth_mode_consume_transaction(move || {
+            let mut restager = LocalDatabase::open(&hook_path).unwrap();
+            restager.unstage_auth_mode().unwrap();
+            restager
+                .stage_auth_mode_with_functions(
+                    hook_sessions,
+                    hook_manifest,
+                    &hook_functions,
+                    None,
+                )
+                .unwrap();
+        });
+        let sessions_error = database
+            .consume_sessions_auth_mode_with_functions(&ready(), &functions_a)
+            .unwrap_err();
+        assert_eq!(
+            sessions_error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+        );
+        let pending = database.auth_mode_snapshot().unwrap();
+        assert_eq!(pending.state.requested_deployment, Some(sessions_b));
+        assert_eq!(
+            database.inspect_auth_catalog().unwrap(),
+            crate::storage::auth::AuthCatalogState::Uninitialized
+        );
+
+        database
+            .consume_sessions_auth_mode_with_functions(&ready(), &functions_b)
+            .unwrap();
+        database
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('u', 1)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
+                     VALUES('i', 'u', 'email-code', 'u@example.com', 1)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash, generation,
+                       created_at_ms, last_used_at_ms, expires_at_ms, absolute_expires_at_ms
+                     ) VALUES('s', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+
+        let (dev_a, dev_manifest) = dev_pair(None);
+        let dev_functions_a = function_half(&dev_a);
+        database
+            .stage_auth_mode_with_functions(
+                dev_a.clone(),
+                dev_manifest.clone(),
+                &dev_functions_a,
+                None,
+            )
+            .unwrap();
+        let mut dev_b = dev_a;
+        dev_b.bundle_hash = "sha256:dev-functions-b".to_owned();
+        let dev_functions_b = function_half(&dev_b);
+        let hook_path = path.clone();
+        inject_before_auth_mode_consume_transaction(move || {
+            let mut restager = LocalDatabase::open(&hook_path).unwrap();
+            restager.unstage_auth_mode().unwrap();
+            restager
+                .stage_auth_mode_with_functions(
+                    dev_b,
+                    dev_manifest,
+                    &dev_functions_b,
+                    None,
+                )
+                .unwrap();
+        });
+        let dev_error = database
+            .consume_dev_downgrade_with_functions(true, 10, &dev_functions_a)
+            .unwrap_err();
+        assert_eq!(
+            dev_error.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+        );
+        let session: (i64, Option<i64>) = database
+            .with_auth_read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(session, (1, None));
+        assert_eq!(
+            database.auth_mode_snapshot().unwrap().state.active,
+            AuthMode::Sessions
         );
     }
 
