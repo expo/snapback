@@ -13,9 +13,7 @@ use crate::auth::lifecycle::{RESTORE_DECLARATION_FILE, RestoreDeclaration};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::{FileIdentity, TargetInstanceReservation};
 use crate::storage::LocalDatabase;
-use crate::storage::auth::AUTH_CATALOG_VERSION;
-#[cfg(test)]
-use crate::storage::auth::AuthCatalogState;
+use crate::storage::auth::{AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1, AuthCatalogState};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -47,7 +45,7 @@ pub(crate) struct AuthBackupManifest {
 impl AuthBackupManifest {
     fn validate(&self) -> SnapbackResult<()> {
         if self.format_version != BACKUP_FORMAT_VERSION
-            || self.catalog_version.to_string() != AUTH_CATALOG_VERSION
+            || !matches!(self.catalog_version, 1 | 2)
             || self.created_at_ms > MAX_SAFE_INTEGER
             || !canonical_sha256(&self.database_sha256)
             || !canonical_sha256(&self.keyring_sha256)
@@ -97,11 +95,10 @@ pub(crate) fn create_backup(
         .filter(|name| portable_basename(name))
         .ok_or_else(|| backup_invalid("source database basename is not portable"))?
         .to_owned();
-    if !database
+    let catalog = database
         .inspect_auth_catalog()
-        .map_err(|_| backup_invalid("source auth catalog is not an exact recognized catalog"))?
-        .is_ready()
-    {
+        .map_err(|_| backup_invalid("source auth catalog is not an exact recognized catalog"))?;
+    if !catalog.is_ready() {
         return Err(backup_invalid(
             "source auth catalog is not an exact recognized catalog",
         ));
@@ -147,9 +144,13 @@ pub(crate) fn create_backup(
     let manifest = AuthBackupManifest {
         format_version: BACKUP_FORMAT_VERSION,
         created_at_ms,
-        catalog_version: AUTH_CATALOG_VERSION
-            .parse()
-            .expect("catalog version is a numeric v1 constant"),
+        catalog_version: match catalog {
+            AuthCatalogState::ReadyV1 => AUTH_CATALOG_VERSION_V1,
+            AuthCatalogState::ReadyV2 => AUTH_CATALOG_VERSION,
+            AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
+        }
+        .parse()
+        .expect("catalog versions are numeric constants"),
         database_sha256,
         keyring_sha256,
         source_database_basename,
@@ -232,32 +233,43 @@ pub(crate) fn restore_backup(
     let mut temporary = RestoreTemporaryDirectory::create(&reservation, random)?;
     restore_staging_created();
     restore_step_completed(0)?;
-    let staged_database = temporary.path.join(database_basename);
-    temporary
+    let staged_database_path = temporary.path.join(database_basename);
+    let mut staged_database = temporary
         .copy_child(&mut source_database, database_basename)
         .map_err(|_| backup_invalid("restored database could not be staged"))?;
     temporary.verify_child_path(database_basename)?;
-    if sha256_path(&staged_database)? != manifest.database_sha256 {
+    if sha256_file(&mut staged_database)? != manifest.database_sha256 {
         return Err(backup_invalid(
             "staged database hash does not match the validated backup",
         ));
     }
     restore_step_completed(1)?;
 
-    if !LocalDatabase::inspect_auth_catalog_file_read_only(&staged_database)
-        .map_err(|_| backup_invalid("restored auth catalog is not an exact recognized catalog"))?
-        .is_ready()
-    {
+    let restored_catalog = LocalDatabase::inspect_auth_catalog_descriptor_read_only(
+        &staged_database,
+    )
+    .map_err(|_| backup_invalid("restored auth catalog is not an exact recognized catalog"))?;
+    if !restored_catalog.is_ready() {
         return Err(backup_invalid(
             "restored auth catalog is not an exact recognized catalog",
         ));
     }
+    let restored_catalog_version = match restored_catalog {
+        AuthCatalogState::ReadyV1 => 1,
+        AuthCatalogState::ReadyV2 => 2,
+        AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
+    };
+    if restored_catalog_version != manifest.catalog_version {
+        return Err(backup_invalid(
+            "restored auth catalog version does not match the backup manifest",
+        ));
+    }
     validate_retained_key_references(
-        LocalDatabase::auth_retained_key_ids_file_read_only(&staged_database),
+        LocalDatabase::auth_retained_key_ids_descriptor_read_only(&staged_database),
         &keyring_bytes,
     )?;
 
-    let staged_keyring = AuthKeyringStore::keyring_path(&staged_database);
+    let staged_keyring = AuthKeyringStore::keyring_path(&staged_database_path);
     let staged_keyring_name = staged_keyring
         .file_name()
         .expect("staged keyring has a basename");
@@ -545,14 +557,14 @@ impl<'a> RestoreTemporaryDirectory<'a> {
             .map_err(|error| std::io::Error::other(error.diagnostic.message))
     }
 
-    fn copy_child(&mut self, source: &mut File, name: &OsStr) -> std::io::Result<u64> {
+    fn copy_child(&mut self, source: &mut File, name: &OsStr) -> std::io::Result<File> {
         source.seek(SeekFrom::Start(0))?;
         let mut destination = self.create_child(name)?;
-        let copied = std::io::copy(source, &mut destination)?;
+        std::io::copy(source, &mut destination)?;
         destination.sync_all()?;
         self.verify_child_path(name)
             .map_err(|error| std::io::Error::other(error.diagnostic.message))?;
-        Ok(copied)
+        Ok(destination)
     }
 
     fn verify_child_path(&self, name: &OsStr) -> SnapbackResult<()> {
@@ -636,12 +648,18 @@ impl<'a> RestoreTemporaryDirectory<'a> {
         validate_pinned_staged_children(&self.directory, &self.children)
             .map_err(|_| backup_invalid("staged restore members changed before publication"))?;
         self.reservation
+            .ensure_staging_directory_identity(&self.name, self.identity)
+            .map_err(|_| backup_invalid("staging directory identity changed before publication"))?;
+        // A rename failure is not, in general, proof that the directory entry
+        // was unchanged. Suppress cleanup before crossing that ambiguity
+        // boundary so Drop can never unlink a completely published unit.
+        self.publication_attempted = true;
+        self.reservation
             .rename_staging_directory(&self.name, self.identity)
             .map_err(|_| backup_invalid("artifact directory could not be published"))?;
         // From this point onward the target may be the complete renamed unit.
         // Any post-rename refusal is commit-ambiguous and must never strip its
         // children through the still-open directory descriptor.
-        self.publication_attempted = true;
         after_restore_staging_rename();
         post_restore_rename_validation_checkpoint()
             .map_err(|_| backup_invalid("published restore validation was interrupted"))?;
@@ -1052,6 +1070,10 @@ impl TemporaryDirectory {
             .map_err(|_| backup_invalid("staging directory identity changed before publication"))?;
         validate_pinned_staged_children(&self.directory, &self.children)
             .map_err(|_| backup_invalid("staged backup members changed before publication"))?;
+        // Rename errors are publication-ambiguous. From this point cleanup is
+        // forbidden unless a separate descriptor reconciliation proves the
+        // staging inode is still unpublished.
+        self.publication_attempted = true;
         crate::secure_file::rename_no_replace_in_directory(
             &self.parent.file,
             &self.name,
@@ -1061,7 +1083,6 @@ impl TemporaryDirectory {
         // From this point onward the destination may be the complete renamed
         // unit. Any post-rename refusal is commit-ambiguous and must never
         // strip its children through the still-open directory descriptor.
-        self.publication_attempted = true;
         after_backup_staging_rename();
         // Immediately after publication: the published name must still be the
         // pinned staging inode with the exact pinned children.

@@ -598,6 +598,11 @@ fn serialize_ring(ring: &Keyring) -> Result<Zeroizing<Vec<u8>>, KeyringError> {
 }
 
 fn load_file(path: &Path) -> Result<LoadedKeyring, KeyringError> {
+    // Re-establish parent-directory durability before any visible keyring is
+    // admitted for signing. If a prior rename succeeded but its parent fsync
+    // was ambiguous, later operations remain unavailable until this sync
+    // succeeds; pathname visibility alone never reopens issuance.
+    crate::secure_file::sync_parent(path).map_err(|_| KeyringError::Unavailable)?;
     let bytes = crate::secure_file::read_strict_owner_only(path, AUTH_KEYRING_MAXIMUM_BYTES)
         .map_err(map_read_error)?;
     let bytes = ValidatedKeyringBytes(Zeroizing::new(bytes));

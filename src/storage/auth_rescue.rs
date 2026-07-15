@@ -14,6 +14,9 @@ use super::{
     LocalDatabase, META_SCHEMA_MANIFEST, is_auth_reserved_identifier,
     load_schema_manifest_from_connection, validate_schema,
 };
+use super::auth_mode::{
+    META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
+};
 use crate::auth::rescue::{
     CollisionRescueResult, quote_identifier, rewrite_create_index, rewrite_create_table,
     sql_may_reference_identifier, valid_identifier,
@@ -216,8 +219,82 @@ fn rescue_on_connection(
     validate_boundary_names(source, target)?;
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let completion = rescue_in_transaction(&transaction, source, target)?;
-    transaction.commit()?;
-    Ok(completion)
+    match transaction.commit() {
+        Ok(()) => Ok(completion),
+        Err(commit_error) => {
+            // Reconcile a lost COMMIT acknowledgement against the exact
+            // externally visible successor. Atomic SQLite state cannot expose
+            // a partial target/source transition; anything except the complete
+            // successor remains a terminal recovery refusal.
+            if rescue_successor_is_durable(connection, &completion.result)? {
+                Ok(completion)
+            } else {
+                Err(commit_error.into())
+            }
+        }
+    }
+}
+
+fn rescue_successor_is_durable(
+    connection: &Connection,
+    expected: &CollisionRescueResult,
+) -> SnapbackResult<bool> {
+    let source_exists: i64 = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1)",
+        params![expected.source],
+        |row| row.get(0),
+    )?;
+    let target_exists: i64 = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1)",
+        params![expected.target],
+        |row| row.get(0),
+    )?;
+    if source_exists != 0 || target_exists == 0 {
+        return Ok(false);
+    }
+    if table_row_count(connection, &expected.target)? != expected.copied_row_count {
+        return Ok(false);
+    }
+    let explicit_indexes: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sqlite_schema
+         WHERE type = 'index' AND tbl_name = ?1 AND sql IS NOT NULL",
+        params![expected.target],
+        |row| row.get(0),
+    )?;
+    if usize::try_from(explicit_indexes).ok() != Some(expected.copied_explicit_index_count) {
+        return Ok(false);
+    }
+    if expected.manifest_updated {
+        let Some(manifest) = load_schema_manifest_from_connection(connection)? else {
+            return Ok(false);
+        };
+        let source_named = manifest
+            .tables
+            .iter()
+            .any(|table| table.name.eq_ignore_ascii_case(&expected.source));
+        let target_count = manifest
+            .tables
+            .iter()
+            .filter(|table| table.name == expected.target)
+            .count();
+        if source_named || target_count != 1 {
+            return Ok(false);
+        }
+    }
+    let collision_cleared = match inspect_auth_catalog_on(connection) {
+        Ok(AuthCatalogState::Uninitialized) => true,
+        Err(error)
+            if matches!(
+                error.diagnostic.code.as_str(),
+                "SNAPBACK_AUTH_TABLE_COLLISION" | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
+            ) =>
+        {
+            false
+        }
+        Ok(AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2) => return Ok(false),
+        Err(error) => return Err(error),
+    };
+    Ok(collision_cleared == expected.catalog_collision_cleared)
 }
 
 fn rescue_in_transaction(
@@ -244,6 +321,32 @@ fn rescue_in_transaction(
     }
 
     let mut stored_manifest = load_schema_manifest_from_connection(transaction)?;
+    let manifest_names_source = stored_manifest.as_ref().is_some_and(|manifest| {
+        manifest
+            .tables
+            .iter()
+            .any(|table| table.name.eq_ignore_ascii_case(&source_object.name))
+    });
+    let managed_mode_keys: i64 = transaction.query_row(
+        "SELECT COUNT(*) FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
+        params![
+            META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+            META_STAGED_AUTH_MODE_MANIFEST,
+            META_AUTH_MODE_STATE,
+        ],
+        |row| row.get(0),
+    )?;
+    if manifest_names_source && managed_mode_keys != 0 {
+        // An orphan physical collision can be moved without changing any mode
+        // key. A declared table would require an atomic rewrite of LLP 0058's
+        // complete four-key authority, which this v1 rescue intentionally
+        // refuses instead of leaving the next open inconsistent.
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED",
+            "auth-rescue",
+            "collision rescue on a managed auth-mode manifest requires offline repair",
+        ));
+    }
     if stored_manifest.as_ref().is_some_and(|manifest| {
         manifest
             .tables
@@ -263,6 +366,11 @@ fn rescue_in_transaction(
         .ok_or_else(|| rescue_unsupported("source table has no rewritable CREATE statement"))?;
     let target_table_sql = rewrite_create_table(table_sql, &source_name, target)
         .map_err(|_| rescue_unsupported("source CREATE TABLE statement is unsupported"))?;
+    if table_sql.to_ascii_uppercase().contains("AUTOINCREMENT") {
+        return Err(rescue_unsupported(
+            "AUTOINCREMENT sequence history requires offline repair",
+        ));
+    }
 
     let columns = table_columns(transaction, &source_name)?;
     if columns.is_empty()
@@ -289,8 +397,12 @@ fn rescue_in_transaction(
         .map(|column| quote_identifier(&column.name))
         .collect::<Vec<_>>()
         .join(", ");
+    let rowid_alias = observable_rowid_alias(transaction, &source_name, &columns)?;
+    let copy_columns = rowid_alias
+        .map(|alias| format!("{}, {column_list}", quote_identifier(alias)))
+        .unwrap_or_else(|| column_list.clone());
     let copy_sql = format!(
-        "INSERT INTO {} ({column_list}) SELECT {column_list} FROM {}",
+        "INSERT INTO {} ({copy_columns}) SELECT {copy_columns} FROM {}",
         quote_identifier(target),
         quote_identifier(&source_name),
     );
@@ -305,6 +417,9 @@ fn rescue_in_transaction(
         ));
     }
     prove_bidirectional_multiset_equality(transaction, &source_name, target, &columns)?;
+    if let Some(alias) = rowid_alias {
+        prove_rowid_equality(transaction, &source_name, target, alias)?;
+    }
     rescue_step_completed(3)?;
 
     for index in &indexes {
@@ -379,7 +494,9 @@ fn require_ordinary_table(connection: &Connection, source: &str) -> SnapbackResu
 }
 
 fn validate_boundary_names(source: &str, target: &str) -> SnapbackResult<()> {
-    if !valid_identifier(source)
+    if source.is_empty()
+        || source.len() > 255
+        || source.contains('\0')
         || !is_auth_reserved_identifier(source)
         || !valid_identifier(target)
         || is_auth_reserved_identifier(target)
@@ -417,7 +534,7 @@ fn unique_source_table<'a>(
     let matching = objects
         .iter()
         .filter(|object| {
-            object.kind == "table" && object.name.eq_ignore_ascii_case(requested_source)
+            object.kind == "table" && object.name == requested_source
         })
         .collect::<Vec<_>>();
     if matching.len() != 1 || !is_auth_reserved_identifier(&matching[0].name) {
@@ -433,17 +550,19 @@ struct TableColumn {
     name: String,
     declared_type: String,
     hidden: i64,
+    primary_key_ordinal: i64,
 }
 
 fn table_columns(connection: &Connection, table: &str) -> SnapbackResult<Vec<TableColumn>> {
     let mut statement =
-        connection.prepare("SELECT name, type, hidden FROM pragma_table_xinfo(?1) ORDER BY cid")?;
+        connection.prepare("SELECT name, type, hidden, pk FROM pragma_table_xinfo(?1) ORDER BY cid")?;
     Ok(statement
         .query_map(params![table], |row| {
             Ok(TableColumn {
                 name: row.get(0)?,
                 declared_type: row.get(1)?,
                 hidden: row.get(2)?,
+                primary_key_ordinal: row.get(3)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?)
@@ -645,6 +764,77 @@ fn table_row_count(connection: &Connection, table: &str) -> SnapbackResult<u64> 
         |row| row.get(0),
     )?;
     u64::try_from(count).map_err(|_| rescue_unsupported("table row count is invalid"))
+}
+
+fn observable_rowid_alias(
+    connection: &Connection,
+    table: &str,
+    columns: &[TableColumn],
+) -> SnapbackResult<Option<&'static str>> {
+    let without_rowid: i64 = connection.query_row(
+        "SELECT wr FROM pragma_table_list WHERE schema = 'main' AND name = ?1",
+        params![table],
+        |row| row.get(0),
+    )?;
+    if without_rowid != 0 {
+        return Ok(None);
+    }
+
+    // A true INTEGER PRIMARY KEY is the rowid alias and is already in the
+    // named-column copy. The DESC/non-alias form owns a `pk` autoindex, so it
+    // falls through to explicit hidden-rowid preservation.
+    let integer_primary_key = columns.iter().filter(|column| column.primary_key_ordinal != 0).count()
+        == 1
+        && columns.iter().any(|column| {
+            column.primary_key_ordinal == 1
+                && column.declared_type.trim().eq_ignore_ascii_case("INTEGER")
+        });
+    let pk_index: i64 = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_index_list(?1) WHERE origin = 'pk')",
+        params![table],
+        |row| row.get(0),
+    )?;
+    if integer_primary_key && pk_index == 0 {
+        return Ok(None);
+    }
+
+    for alias in ["_rowid_", "rowid", "oid"] {
+        if !columns
+            .iter()
+            .any(|column| column.name.eq_ignore_ascii_case(alias))
+        {
+            return Ok(Some(alias));
+        }
+    }
+    // All three aliases are shadowed by named columns, so the hidden rowid is
+    // not SQL-observable and need not be copied.
+    Ok(None)
+}
+
+fn prove_rowid_equality(
+    connection: &Connection,
+    source: &str,
+    target: &str,
+    alias: &str,
+) -> SnapbackResult<()> {
+    let alias = quote_identifier(alias);
+    for (left, right) in [(source, target), (target, source)] {
+        let differs: i64 = connection.query_row(
+            &format!(
+                "SELECT EXISTS(SELECT {alias} FROM {} EXCEPT SELECT {alias} FROM {})",
+                quote_identifier(left),
+                quote_identifier(right),
+            ),
+            [],
+            |row| row.get(0),
+        )?;
+        if differs != 0 {
+            return Err(rescue_unsupported(
+                "source and copied target row identities are not equal",
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn prove_bidirectional_multiset_equality(
@@ -878,7 +1068,7 @@ mod tests {
         source_fixture(&mut database, "_AuTh_Legacy");
 
         let result = database
-            .rescue_auth_collision("_auth_legacy", "legacy_auth")
+            .rescue_auth_collision("_AuTh_Legacy", "legacy_auth")
             .unwrap();
         assert_eq!(result.source, "_AuTh_Legacy");
         assert_eq!(result.target, "legacy_auth");
@@ -928,6 +1118,65 @@ mod tests {
             .unwrap();
         assert!(index_sql.contains("UNIQUE INDEX \"legacy_auth__rescue_idx_0\""));
         assert!(index_sql.contains("WHERE id IS NOT NULL"));
+    }
+
+    #[test]
+    fn rescue_preserves_sparse_hidden_rowids_and_accepts_exact_quoted_source_names() {
+        let mut database = LocalDatabase::memory().unwrap();
+        database
+            .conn
+            .execute_batch(
+                "CREATE TABLE \"_auth_old table\"(value TEXT);
+                 INSERT INTO \"_auth_old table\"(rowid, value) VALUES(1, 'a'), (99, 'b');",
+            )
+            .unwrap();
+
+        let result = database
+            .rescue_auth_collision("_auth_old table", "legacy_auth_rows")
+            .unwrap();
+        assert_eq!(result.copied_row_count, 2);
+        let rowids: String = database
+            .conn
+            .query_row(
+                "SELECT group_concat(rowid, ',') FROM legacy_auth_rows ORDER BY rowid",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(rowids, "1,99");
+    }
+
+    #[test]
+    fn rescue_refuses_autoincrement_history_without_mutation() {
+        let mut database = LocalDatabase::memory().unwrap();
+        database
+            .conn
+            .execute_batch(
+                "CREATE TABLE _auth_sequence(id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT);
+                 INSERT INTO _auth_sequence(value) VALUES('one'), ('two');
+                 DELETE FROM _auth_sequence WHERE id = 2;",
+            )
+            .unwrap();
+
+        let error = database
+            .rescue_auth_collision("_auth_sequence", "legacy_sequence")
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED"
+        );
+        assert_eq!(table_row_count(&database.conn, "_auth_sequence").unwrap(), 1);
+        assert_eq!(
+            database
+                .conn
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = 'legacy_sequence')",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            0
+        );
     }
 
     #[test]

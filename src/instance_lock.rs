@@ -703,6 +703,28 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    pub(crate) fn ensure_staging_directory_identity(
+        &self,
+        name: &OsStr,
+        expected: FileIdentity,
+    ) -> io::Result<()> {
+        self.ensure_valid().map_err(io::Error::other)?;
+        self.ensure_entry_identity(name, expected, libc::S_IFDIR)
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    pub(crate) fn ensure_staging_directory_identity(
+        &self,
+        _name: &OsStr,
+        _expected: FileIdentity,
+    ) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "descriptor-relative restore staging is unsupported on this host",
+        ))
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
     pub(crate) fn rename_staging_directory(
         &self,
         name: &OsStr,

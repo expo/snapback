@@ -874,6 +874,7 @@ pub(crate) enum PlannedRevocationCommit {
 
 pub(crate) enum PlannedRotationCommit {
     Committed { session: SessionResponse },
+    CandidateCollision,
     PredecessorChanged,
 }
 
@@ -972,6 +973,7 @@ pub(crate) enum PlannedIssuanceCommit {
     },
     CodeInvalid,
     CodeLocked,
+    CandidateCollision,
     PredecessorChanged,
 }
 
@@ -1665,7 +1667,7 @@ impl AuthAdmission {
             PresentedSessionLookup::Tombstone {
                 session,
                 superseded_at_ms,
-            } if session.live_at(now_ms) => ProviderFamilyAlarmPlan {
+            } if parsed.is_some() && session.live_at(now_ms) => ProviderFamilyAlarmPlan {
                 session_id: session.session.session_id,
                 expected_generation: session.session.generation,
                 presented_digest: digest,
@@ -1767,9 +1769,16 @@ impl AuthAdmission {
         if let Err(error) = validate_now(plan.superseded_at_ms) {
             return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
         }
-        match database
-            .attempt_auth_transaction(|transaction| planned_rotation_transaction(transaction, plan))
-        {
+        let mut body_outcome = None;
+        let attempt = database.attempt_auth_transaction(|transaction| {
+            let outcome = planned_rotation_transaction(transaction, plan)?;
+            body_outcome = Some(outcome.clone());
+            Ok(outcome)
+        });
+        match attempt {
+            AuthTransactionAttempt::Committed(PlannedRotationTransaction::CandidateCollision) => {
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision)
+            }
             AuthTransactionAttempt::Committed(PlannedRotationTransaction::PredecessorChanged) => {
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged)
             }
@@ -1778,6 +1787,15 @@ impl AuthAdmission {
             }
             AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
             AuthTransactionAttempt::CommitUncertain(error) => {
+                if matches!(body_outcome, Some(PlannedRotationTransaction::CandidateCollision)) {
+                    // Candidate collision is detected before any write. A lost
+                    // read-only COMMIT acknowledgement cannot have changed
+                    // durable authority, so the coordinator may exact-unmark
+                    // and let the route spend its next bounded candidate.
+                    return AuthTransactionAttempt::Committed(
+                        PlannedRotationCommit::CandidateCollision,
+                    );
+                }
                 match database
                     .with_auth_read(|connection| reconcile_planned_rotation(connection, plan))
                 {
@@ -3012,13 +3030,7 @@ fn planned_revocation_transaction(
             ],
         )?,
     };
-    if changed == 1 {
-        return Ok(PlannedRevocationCommit::Committed(SessionRevocation {
-            session_id: plan.session_id.clone(),
-            generation: committed_generation,
-        }));
-    }
-    if changed != 0 {
+    if changed > 1 {
         return Err(internal_state_snapback());
     }
     let durable: Option<(i64, bool)> = transaction
@@ -3036,6 +3048,15 @@ fn planned_revocation_transaction(
         .ok()
         .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
         .ok_or_else(internal_state_snapback)?;
+    if changed == 1 {
+        if revoked && generation == committed_generation {
+            return Ok(PlannedRevocationCommit::Committed(SessionRevocation {
+                session_id: plan.session_id.clone(),
+                generation,
+            }));
+        }
+        return Err(internal_state_snapback());
+    }
     if revoked && generation >= committed_generation {
         Ok(PlannedRevocationCommit::AlreadyTerminal { generation })
     } else {
@@ -3115,8 +3136,10 @@ fn reconcile_planned_revocation(
     }
 }
 
+#[derive(Clone)]
 enum PlannedRotationTransaction {
     Refreshed(SessionResponse),
+    CandidateCollision,
     PredecessorChanged,
 }
 
@@ -3179,7 +3202,7 @@ fn planned_rotation_transaction(
         |row| row.get(0),
     )?;
     if successor_exists {
-        return Err(internal_collision_snapback());
+        return Ok(PlannedRotationTransaction::CandidateCollision);
     }
     execute_candidate(
         transaction,
@@ -3987,7 +4010,7 @@ fn attempt_planned_session_issuance(
         return AuthTransactionAttempt::CommitUncertain(commit_error);
     };
     match body_outcome {
-        PlannedIssuanceCommit::PredecessorChanged => {
+        PlannedIssuanceCommit::CandidateCollision | PlannedIssuanceCommit::PredecessorChanged => {
             // The transaction performs no write before this outcome. Authority
             // therefore remained at the projection predecessor even if the
             // final COMMIT acknowledgement was lost.
@@ -4142,6 +4165,19 @@ fn planned_session_issuance_transaction(
     };
     if plan.projected.user_id != user_id || plan.projected.generation != 1 {
         return Err(internal_state_snapback());
+    }
+    let token_exists: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE token_hash = ?1)
+                OR EXISTS(SELECT 1 FROM _auth_session_tokens WHERE token_hash = ?1)",
+        params![plan.projected.token_digest.as_bytes().as_slice()],
+        |row| row.get(0),
+    )?;
+    if token_exists {
+        // This branch precedes identity creation, cap eviction, challenge
+        // consumption, and session insertion. The caller can therefore
+        // discard this plaintext candidate and retry without changing any
+        // durable predecessor fact.
+        return Ok(PlannedIssuanceCommit::CandidateCollision);
     }
     let live_count: i64 = transaction.query_row(
         "SELECT COUNT(*) FROM _auth_sessions
@@ -6445,6 +6481,133 @@ mod tests {
                 SessionRevocation { generation: 2, .. }
             ))
         ));
+    }
+
+    #[tokio::test]
+    async fn malformed_family_alarm_is_non_actionable_even_if_dummy_digest_is_a_tombstone() {
+        let start_ms = 35_000;
+        let (mut provider, mut database) = provider_database(start_ms);
+        let issue = mint(
+            &provider,
+            &mut database,
+            "dummy-collision@example.com",
+            start_ms,
+        )
+        .await;
+        let predecessor = issue_token(&issue);
+        let admission = provider.admit().await;
+        let PlannedRefresh::Rotate(rotation) = admission
+            .plan_refresh(&database, &predecessor, start_ms + 1)
+            .expect("rotation plan")
+        else {
+            panic!("current bearer must rotate");
+        };
+        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
+            admission.commit_planned_rotation(&mut database, &rotation.commit_plan())
+        else {
+            panic!("rotation commit");
+        };
+        drop(rotation.into_issue(session));
+        drop(admission);
+
+        let predecessor_hash = SessionBearer::parse(&predecessor).unwrap().token_hash();
+        Arc::get_mut(&mut provider)
+            .expect("test owns the provider")
+            .dummy_token_hash = predecessor_hash;
+        let admission = provider.admit().await;
+        let alarm_at = start_ms + 1 + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1;
+        let alarm = admission
+            .plan_family_alarm(&database, "malformed", alarm_at)
+            .expect("malformed alarm plan");
+        assert!(!alarm.actionable, "parse failure dominates digest lookup");
+        assert!(matches!(
+            admission.commit_planned_family_alarm(&mut database, &alarm),
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
+        ));
+        let revoked: i64 = database
+            .with_auth_read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT revoked_at_ms IS NOT NULL FROM _auth_sessions WHERE id = ?1",
+                    params![issue.response().session.id],
+                    |row| row.get(0),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(revoked, 0, "malformed alarm did not revoke the family");
+    }
+
+    #[tokio::test]
+    async fn planned_issuance_and_rotation_report_cross_table_candidate_collisions_without_writes()
+    {
+        let now_ms = 36_000;
+        let (provider, mut database) = provider_database(now_ms);
+        let first = mint(&provider, &mut database, "first@example.com", now_ms).await;
+        let first_id = first.response().session.id.clone();
+
+        let issuance = provider
+            .admit_email("second@example.com")
+            .await
+            .unwrap();
+        let issuance_plan = issuance.plan_mint_session(&database, now_ms + 1).unwrap();
+        let issuance_commit = issuance_plan.commit_plan();
+        database
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
+                     VALUES(?1, ?2, ?3)",
+                    params![
+                        issuance_commit.projected.token_digest.as_bytes().as_slice(),
+                        first_id,
+                        now_ms as i64,
+                    ],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(matches!(
+            issuance.commit_planned_issuance(&mut database, &issuance_commit),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
+        ));
+        let second_exists: i64 = database
+            .with_auth_read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT COUNT(*) FROM _auth_identities WHERE subject = 'second@example.com'",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(second_exists, 0, "collision precedes every issuance write");
+
+        let bearer = issue_token(&first);
+        let admission = provider.admit().await;
+        let PlannedRefresh::Rotate(rotation) = admission
+            .plan_refresh(&database, &bearer, now_ms + 2)
+            .unwrap()
+        else {
+            panic!("rotation plan");
+        };
+        database
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
+                     VALUES(?1, ?2, ?3)",
+                    params![
+                        rotation.successor.token_hash.as_bytes().as_slice(),
+                        first.response().session.id,
+                        (now_ms + 1) as i64,
+                    ],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(matches!(
+            admission.commit_planned_rotation(&mut database, &rotation.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision)
+        ));
+        admission
+            .resolve_session(&database, &bearer, now_ms + 3)
+            .expect("collision leaves the rotation predecessor current");
     }
 
     #[tokio::test]

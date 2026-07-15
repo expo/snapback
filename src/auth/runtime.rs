@@ -218,6 +218,22 @@ impl AuthRuntime {
         self.catalog_ready
     }
 
+    /// Establish the durable clock floor before any startup operation can use
+    /// time to restore, garbage-collect, rotate, or downgrade authority.
+    pub(crate) fn seed_durable_clock_floor(
+        &self,
+        snapback: &mut LocalSnapback,
+    ) -> SnapbackResult<()> {
+        if self.catalog_ready {
+            let sample = self.provider.now_ms();
+            let floor = snapback
+                .auth_database_mut()
+                .advance_auth_session_clock_floor(sample)?;
+            self.provider.seed_session_clock_floor(floor);
+        }
+        Ok(())
+    }
+
     /// Refresh the process fact after the staged-mode consume transaction has
     /// atomically installed the exact catalog and sessions mode. The provider
     /// object is intentionally retained; startup never assembles a second

@@ -13,6 +13,7 @@ use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
+#[schemars(deny_unknown_fields)]
 pub(crate) struct CollisionRescueResult {
     pub source: String,
     pub target: String,
@@ -47,7 +48,9 @@ pub(crate) fn rescue_colliding_table_file(
 }
 
 pub(crate) fn validate_names(source: &str, target: &str) -> SnapbackResult<()> {
-    if !valid_identifier(source)
+    if source.is_empty()
+        || source.len() > 255
+        || source.contains('\0')
         || !crate::storage::is_auth_reserved_identifier(source)
         || !valid_identifier(target)
         || crate::storage::is_auth_reserved_identifier(target)

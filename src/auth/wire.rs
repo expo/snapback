@@ -36,6 +36,7 @@ impl fmt::Debug for RequestCodeRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RequestCodeResponse {
     pub challenge_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub expires_at: u64,
 }
 
@@ -98,8 +99,11 @@ pub struct SessionResponse {
     pub id: String,
     pub user_id: String,
     pub provider: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub created_at: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub expires_at: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub absolute_expires_at: u64,
     /// Server-only issuance facts used to construct the adjacent public
     /// descriptor. They cannot accidentally enlarge the `session` wire shape.
@@ -137,6 +141,7 @@ pub struct CredentialResponse {
     #[schemars(with = "String")]
     token: SessionBearer,
     token_type: AuthTokenType,
+    #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub refresh_after: u64,
     pub session: SessionResponse,
     pub authority_descriptor: AuthorityDescriptor,
@@ -224,6 +229,7 @@ pub struct MailboxResponse {
     canonical_address: String,
     #[schemars(with = "String")]
     code: VerificationCode,
+    #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub expires_at: u64,
 }
 

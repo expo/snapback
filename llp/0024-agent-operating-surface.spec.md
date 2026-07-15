@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0057
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
@@ -131,8 +131,11 @@ inside result envelopes, logs, HTTP requests, and MCP metadata.
 | `function.run` | Run one generated query or mutation by function id. | return value or mutation commit facts, read/write summaries when available, diagnostics. |
 | `function.explain` | Explain query plans, permission decisions, capability gaps, or mutation denial/dry-run facts without committing. | explanation kind, decision, read/write predictions where available, diagnostics. |
 | `acceptance.run` | Run the local acceptance suite or a named profile. | profile id, passed/failed/skipped counts, diagnostics, artifact paths. |
-| `auth.mintSession` | Provision the canonical email identity/user if needed and issue a session credential for an operator-selected address. | flat credential payload: `tokenType`, `token`, `refreshAfter`, and public `session`; no identity subject, digest, generation, or authority-instance id. |
-| `auth.rescueCollidingTable` | Transactionally move one legacy auth-reserved table to an ordinary app-table name. | exactly `source`, `target`, `copiedRowCount`, `copiedExplicitIndexCount`, `manifestUpdated`, and `catalogCollisionCleared`; never rows. |
+| `auth.mintSession` | Provision the canonical email identity/user if needed and issue a session credential for an operator-selected address. | the closed credential payload: `tokenType`, `token`, `refreshAfter`, public `session`, and required top-level `authorityDescriptor`; the nested session exposes no identity subject, digest, generation, or authority-instance id. |
+| `auth.rescueCollidingTable` | Transactionally move one legacy auth-reserved table to an ordinary app-table name. | ordinary service: exactly `source`, `target`, `copiedRowCount`, `copiedExplicitIndexCount`, `manifestUpdated`, and `catalogCollisionCleared`; startup-recovery service adds exactly `restartRequired: true`; never rows. |
+
+This document owns the host-operation `data` DTOs. LLP 0057 owns the provider
+semantics that populate them; it does not remove or reinterpret fields here.
 
 `host.restart` may be implemented as a composition of `host.stop` and
 `host.start`, but it must return one envelope with one request id so an agent can

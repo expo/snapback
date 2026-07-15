@@ -223,6 +223,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(RescueCollidingTableRequest),
         ),
         finish(
+            "auth.rescue-colliding-table.output.schema.json",
+            schemars::schema_for!(crate::auth::rescue::CollisionRescueResult),
+        ),
+        finish(
             "app.ensure.input.schema.json",
             schemars::schema_for!(EnsureAppRequest),
         ),

@@ -206,6 +206,7 @@ pub(crate) enum RevocationFinish {
 #[derive(Debug)]
 pub(crate) enum RotationFinish {
     Committed(CredentialIssue),
+    CandidateCollision,
     PredecessorChanged,
 }
 
@@ -217,6 +218,7 @@ pub(crate) enum IssuanceFinish {
     Committed(CredentialIssue),
     CodeInvalid,
     CodeLocked,
+    CandidateCollision,
     PredecessorChanged,
 }
 
@@ -646,6 +648,10 @@ impl AuthCoordinator {
                 exact_unmark_rotation(&mut topology, &carrier)?;
                 Ok(RotationFinish::PredecessorChanged)
             }
+            AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision) => {
+                exact_unmark_rotation(&mut topology, &carrier)?;
+                Ok(RotationFinish::CandidateCollision)
+            }
             AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) => {
                 if self.take_finalize_failpoint()
                     || topology
@@ -710,6 +716,10 @@ impl AuthCoordinator {
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::PredecessorChanged)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::CandidateCollision)
             }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;

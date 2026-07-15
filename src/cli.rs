@@ -601,6 +601,10 @@ pub struct TargetArgs {
     /// Admin token for gated writes (defaults to SNAPBACK_ADMIN_TOKEN).
     #[arg(long)]
     pub token: Option<String>,
+    /// Read one process-bound impersonation capability from stdin. Required
+    /// for impersonating operations addressed by --url without a ready file.
+    #[arg(long, requires = "url", conflicts_with = "ready_file")]
+    pub impersonation_capability_stdin: bool,
 }
 
 impl std::fmt::Debug for TargetArgs {
@@ -610,6 +614,10 @@ impl std::fmt::Debug for TargetArgs {
             .field("url", &self.url)
             .field("ready_file", &self.ready_file)
             .field("token", &self.token.as_ref().map(|_| "[REDACTED]"))
+            .field(
+                "impersonation_capability_stdin",
+                &self.impersonation_capability_stdin,
+            )
             .finish()
     }
 }
@@ -914,13 +922,19 @@ fn resolve_http_target_for_operation(
     requires_impersonation: bool,
 ) -> anyhow::Result<ResolvedHttpTarget> {
     if let Some(url) = &target.url {
+        let impersonation_capability = if requires_impersonation
+            && target.impersonation_capability_stdin
+        {
+            Some(read_impersonation_capability_from_stdin()?)
+        } else {
+            None
+        };
         return Ok(ResolvedHttpTarget {
             server_url: url.trim_end_matches('/').to_owned(),
             minted_token: None,
-            // A network-supplied URL never selects a local capability file.
-            // Impersonation attach authority exists only through a trusted
-            // ready-file descriptor naming its mechanical sibling.
-            impersonation_capability: None,
+            // A URL never selects a local capability file. The only explicit
+            // no-ready-file carrier is the bounded stdin channel above.
+            impersonation_capability,
         });
     }
     if let Some(path) = &target.ready_file {
@@ -989,6 +1003,28 @@ fn resolve_http_target_for_operation(
         });
     }
     anyhow::bail!("no target: pass --url or --ready-file")
+}
+
+fn read_impersonation_capability_from_stdin(
+) -> anyhow::Result<crate::auth::crypto::ImpersonationBearer> {
+    use std::io::Read as _;
+    use zeroize::{Zeroize as _, Zeroizing};
+
+    let mut bytes = Vec::new();
+    std::io::stdin().take(513).read_to_end(&mut bytes)?;
+    if bytes.len() > 512 {
+        bytes.zeroize();
+        anyhow::bail!("impersonation capability stdin value is too large");
+    }
+    while matches!(bytes.last(), Some(b'\n' | b'\r')) {
+        bytes.pop();
+    }
+    let value = Zeroizing::new(
+        String::from_utf8(bytes)
+            .map_err(|_| anyhow::anyhow!("impersonation capability stdin value is not UTF-8"))?,
+    );
+    crate::auth::crypto::ImpersonationBearer::parse(&value)
+        .map_err(|_| anyhow::anyhow!("impersonation capability stdin value is invalid"))
 }
 
 /// Derive capability attachment from the same registered operation metadata
@@ -1512,6 +1548,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     )?;
     let auth_startup_diagnostics = auth_runtime.startup_diagnostics();
     snapback.record_startup_diagnostics(&auth_startup_diagnostics);
+    // Seed before declared restore or mode composition can make any
+    // wall-clock-based authority decision. A second seed after composition
+    // covers a catalog activated during this startup.
+    auth_runtime.seed_durable_clock_floor(&mut snapback)?;
 
     // A restored directory is quarantined until the exact declaration emitted
     // by `auth restore` is consumed. This runs under the instance lock and
@@ -1532,16 +1572,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         };
         match args.restored_from_backup.as_deref() {
             Some(declaration_id) => {
-                let maintenance = auth_runtime.provider().exclusive_maintenance().await;
+                let provider = auth_runtime.provider();
+                let maintenance = provider.exclusive_maintenance().await;
                 crate::auth::lifecycle::apply_declared_restore(
                     snapback.auth_database_mut(),
                     maintenance.mailbox(),
                     &declaration_path,
                     declaration_id,
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .map(|elapsed| elapsed.as_millis().min(9_007_199_254_740_991) as u64)
-                        .unwrap_or(0),
+                    provider.now_ms(),
                 )?;
             }
             None if declaration_present => {
@@ -1640,6 +1678,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         &auth_program_readiness,
     )
     .await?;
+    auth_runtime.seed_durable_clock_floor(&mut snapback)?;
     validate_auth_transport(
         bind_ip,
         startup_profile,
@@ -4472,6 +4511,7 @@ mod tests {
             url: Some("http://127.0.0.1:4287".to_owned()),
             ready_file: None,
             token: Some(SENTINEL.to_owned()),
+            impersonation_capability_stdin: false,
         };
         let target_debug = format!("{target:?}");
         assert!(!target_debug.contains(SENTINEL), "{target_debug}");
@@ -5086,6 +5126,7 @@ mod tests {
             url: Some("http://127.0.0.1:4400".to_owned()),
             ready_file: None,
             token: None,
+            impersonation_capability_stdin: false,
         };
 
         let resolved = resolve_http_target(&target).expect("resolve remote target");
@@ -5125,6 +5166,7 @@ mod tests {
             url: None,
             ready_file: Some(ready),
             token: None,
+            impersonation_capability_stdin: false,
         };
         let response = super::post_host_op(&target, json!({"operation": "app.inspect"})).unwrap();
         assert_eq!(response["ok"], json!(true));
@@ -5188,6 +5230,7 @@ mod tests {
             url: None,
             ready_file: Some(ready),
             token: None,
+            impersonation_capability_stdin: false,
         };
         super::post_host_op(
             &target,
@@ -5220,6 +5263,7 @@ mod tests {
             url: Some(format!("http://{address}")),
             ready_file: None,
             token: None,
+            impersonation_capability_stdin: false,
         };
         super::post_host_op(
             &target,
@@ -5340,6 +5384,7 @@ mod tests {
             url: Some(format!("http://{address}")),
             ready_file: None,
             token: None,
+            impersonation_capability_stdin: false,
         };
         let envelope = super::post_host_op(&target, json!({"operation": "app.inspect"}))
             .expect("host operation reaches adversarial server");
@@ -5374,6 +5419,7 @@ mod tests {
             url: Some("http://attacker.invalid".to_owned()),
             ready_file: Some(ready),
             token: None,
+            impersonation_capability_stdin: false,
         };
         assert_eq!(
             resolve_http_target(&mixed)
@@ -5412,6 +5458,7 @@ mod tests {
             url: None,
             ready_file: Some(ready.clone()),
             token: None,
+            impersonation_capability_stdin: false,
         };
         let mut descriptor = stop_descriptor(Some("nonce"));
         descriptor.admin_token_file = Some(arbitrary.display().to_string());
@@ -5440,6 +5487,7 @@ mod tests {
             url: None,
             ready_file: Some(ready.clone()),
             token: None,
+            impersonation_capability_stdin: false,
         };
         let mut attacker = stop_descriptor(Some("attacker"));
         attacker.server_url = "http://attacker.invalid".to_owned();

@@ -5,7 +5,13 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-2 dual-family revision, /llp-super-refine: pinned
+**Revised:** 2026-07-15 (ENG-25001 implementation reconciliation: production
+issuance and rotation now enforce cross-table digest uniqueness with three
+bounded candidates; malformed family alarms are parse-gated; backup/restore,
+clock-floor, keyring durability, rescue identity/ambiguity, explicit stdin
+impersonation intake, and portable numeric schemas implement the pinned
+fail-closed obligations; status intentionally remains Draft); 2026-07-14
+(round-2 dual-family revision, /llp-super-refine: pinned
 the reusable **bulk session-revocation transaction** LLP 0058's downgrade and
 declared restore both consume; reconciled **commit-ambiguity** to LLP 0059's
 exact-successor reconciliation (this document no longer states the contradictory
@@ -1626,14 +1632,12 @@ restore clock-floor derivation and the LLP 0059 floor overlay on every durable
 JS-safe timestamp schema bound; the backup Unpublished/Published/CommitAmbiguous
 naming (§Consistent backup); and restore descriptor-bound inspection (§Restore).
 
-**Named defect obligations** (the specification pins the correct behavior; the
-shipped code does not yet meet it, and closing the gap is required before this
-Spec advances past Draft): cross-table token-digest uniqueness at issuance and
-the coordinator's retryable-collision propagation; the no-ready-file
-impersonation stdin/no-echo intake; rescue's rowid/`sqlite_sequence`
-preserve-or-refuse, commit-ambiguity reconciliation, LLP 0058 four-key mode
-compatibility, and reserved-source-name reachability. Each has an acceptance
-row above; none is a design change, so they do not reopen the protocol.
+**Named defect obligations** were closed in the ENG-25001 implementation lane:
+cross-table token-digest uniqueness at issuance and coordinator-visible bounded
+retry; explicit no-ready-file impersonation stdin intake; and rescue's
+rowid-preserve/`AUTOINCREMENT`-refuse policy, commit reconciliation, managed
+four-key refusal, and exact reserved physical-source reachability. These are
+implementation reconciliations, not a status transition or ratification.
 
 Orchestrator verification of the decisive claims (issuance skips the tombstone
 check; resolution is current-before-tombstone; restore passes raw

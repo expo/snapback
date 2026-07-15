@@ -7668,6 +7668,7 @@ async fn coordinated_mint_session(
             IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
                 return Err(auth_provider_unavailable_error());
             }
+            IssuanceFinish::CandidateCollision => continue,
             IssuanceFinish::PredecessorChanged => continue,
         }
     }
@@ -7762,6 +7763,7 @@ async fn coordinated_exchange_session(
                     IssuanceFinish::CodeLocked => {
                         return Err(crate::auth::provider::code_locked());
                     }
+                    IssuanceFinish::CandidateCollision => continue,
                     IssuanceFinish::PredecessorChanged => continue,
                 }
             }
@@ -8006,6 +8008,7 @@ async fn auth_refresh(
                         debug_assert!(committed_revocation.is_none());
                         return Ok(Json(response));
                     }
+                    RotationFinish::CandidateCollision => continue,
                     RotationFinish::PredecessorChanged => continue,
                 }
             }

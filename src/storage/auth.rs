@@ -1127,6 +1127,21 @@ impl LocalDatabase {
         )?;
         restore_transaction_step_completed(0)?;
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
+        if inspect_auth_catalog_on(&tx)? == AuthCatalogState::ReadyV2 {
+            // Restore terminates every v2 bearer and consent authority, not
+            // only browser sessions. Deleting child rows before their parents
+            // makes pre-backup agent credentials, scoped tokens, invitations,
+            // and pairing secrets permanently non-actionable after restart.
+            for table in [
+                "_auth_grant_tokens",
+                "_auth_pairing_requests",
+                "_auth_grants",
+                "_auth_agent_invitations",
+                "_auth_agent_credentials",
+            ] {
+                tx.execute(&format!("DELETE FROM \"{table}\""), [])?;
+            }
+        }
         restore_transaction_step_completed(1)?;
 
         // Capture the exact durable predecessor before the destructive hook
@@ -1237,11 +1252,29 @@ impl LocalDatabase {
         inspect_auth_catalog_on(&conn)
     }
 
+    /// Inspect the exact already-open restore image. The pathname in the
+    /// staging directory is never reopened, so a concurrent entry swap cannot
+    /// redirect catalog authority validation.
+    pub(crate) fn inspect_auth_catalog_descriptor_read_only(
+        image: &File,
+    ) -> SnapbackResult<AuthCatalogState> {
+        let conn = open_backup_image_connection(image, true)?;
+        inspect_auth_catalog_on(&conn)
+    }
+
     pub(crate) fn auth_retained_key_ids_file_read_only(path: &Path) -> SnapbackResult<Vec<String>> {
         let conn = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
+        require_ready_on(&conn)?;
+        retained_key_ids_on(&conn)
+    }
+
+    pub(crate) fn auth_retained_key_ids_descriptor_read_only(
+        image: &File,
+    ) -> SnapbackResult<Vec<String>> {
+        let conn = open_backup_image_connection(image, true)?;
         require_ready_on(&conn)?;
         retained_key_ids_on(&conn)
     }
@@ -2059,6 +2092,57 @@ mod tests {
         );
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn declared_restore_purges_every_v2_agent_authority_class() {
+        let mut db = catalog_database();
+        db.conn
+            .execute_batch(
+                "INSERT INTO _auth_users(id, created_at_ms, kind)
+                   VALUES('human', 1, 'human');
+                 INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, registration_provenance
+                 ) VALUES('agent', 1, 'agent', 'Agent', 'test');
+                 INSERT INTO _auth_agent_credentials(
+                   id, user_id, secret_hash, generation, created_at_ms,
+                   rotated_at_ms, last_used_at_ms
+                 ) VALUES('credential', 'agent', zeroblob(32), 1, 1, 1, 1);
+                 INSERT INTO _auth_grants(
+                   id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                   expires_at_ms, created_by, last_used_at_ms
+                 ) VALUES('grant', 'agent', NULL, '[]', 1, NULL, 'test', 1);
+                 INSERT INTO _auth_grant_tokens(
+                   id, token_hash, grant_id, credential_id,
+                   credential_generation, created_at_ms, expires_at_ms
+                 ) VALUES('token', zeroblob(32), 'grant', 'credential', 1, 1, 1000);
+                 INSERT INTO _auth_agent_invitations(
+                   id, token_hash, class, created_by, minted_profile,
+                   created_at_ms, expires_at_ms
+                 ) VALUES('invitation', zeroblob(32), 'creation', 'test', 'dev', 1, 1000);
+                 INSERT INTO _auth_pairing_requests(
+                   id, code_hash, minted_by_user_id, agent_user_id,
+                   requested_scopes, state, created_at_ms, expires_at_ms
+                 ) VALUES('pairing', zeroblob(32), 'human', 'agent', '[]', 'pending', 1, 1000);",
+            )
+            .unwrap();
+
+        db.apply_auth_restore_declaration(
+            "0197f862-f196-7bb2-b3f0-2a67185dfd20",
+            100,
+        )
+        .unwrap();
+
+        for table in [
+            "_auth_grant_tokens",
+            "_auth_pairing_requests",
+            "_auth_grants",
+            "_auth_agent_invitations",
+            "_auth_agent_credentials",
+        ] {
+            assert_eq!(row_count(&db, table), 0, "restore purged {table}");
+        }
+        assert_eq!(row_count(&db, "_auth_users"), 2, "principals are not bearers");
     }
 
     #[test]
