@@ -142,6 +142,49 @@
       ],
       "type": "string"
     },
+    "AuthorizationBlastRadiusCounters": {
+      "properties": {
+        "quarantinedSubscriptions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resnapshots": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionAdvances": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "versionAdvances",
+        "quarantinedSubscriptions",
+        "resnapshots"
+      ],
+      "type": "object"
+    },
+    "AuthorizationBlastRadiusStats": {
+      "properties": {
+        "global": {
+          "$ref": "#/$defs/AuthorizationBlastRadiusCounters"
+        },
+        "membershipDeclarations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AuthorizationBlastRadiusCounters"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "global",
+        "membershipDeclarations"
+      ],
+      "type": "object"
+    },
     "AuthorizationInputDimension": {
       "description": "Closed caller-authority dimensions that a query result may depend on.\nRetention v1 accepts exactly `userId`; spelling the rejected dimensions is\nstill important because a manifest must describe why it is online-only\nrather than silently erasing session/provider/opaque dependence.\n\n@ref LLP 0053#retained-and-offline-authorization — retained rows survive a\n  same-user session replacement, so every other authority dimension is\n  deliberately ineligible.",
       "enum": [
@@ -726,6 +769,18 @@
     },
     "LiveDeliveryStats": {
       "properties": {
+        "authorizationBlastRadius": {
+          "$ref": "#/$defs/AuthorizationBlastRadiusStats",
+          "default": {
+            "global": {
+              "quarantinedSubscriptions": 0,
+              "resnapshots": 0,
+              "versionAdvances": 0
+            },
+            "membershipDeclarations": {}
+          },
+          "description": "The deliberately coarse v1 authorization blast radius, reported both\nglobally and against each stable membership declaration that caused an\nevent. These are cumulative runtime-epoch counters; delivery-frame\ncounters above retain their existing reset semantics.\n\n@ref LLP 0056#invalidation-the-llp-0053-mapping -- make membership churn's global\n  quarantine cost measurable before declaration-scoped narrowing."
+        },
         "lastDeliveries": {
           "format": "uint",
           "minimum": 0,

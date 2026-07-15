@@ -1095,6 +1095,47 @@ pub struct LiveDeliveryStats {
     pub last_deliveries: usize,
     pub last_skipped: usize,
     pub last_failed: usize,
+    /// The deliberately coarse v1 authorization blast radius, reported both
+    /// globally and against each stable membership declaration that caused an
+    /// event. These are cumulative runtime-epoch counters; delivery-frame
+    /// counters above retain their existing reset semantics.
+    ///
+    /// @ref LLP 0056#invalidation-the-llp-0053-mapping -- make membership churn's global
+    ///   quarantine cost measurable before declaration-scoped narrowing.
+    #[serde(default)]
+    pub authorization_blast_radius: AuthorizationBlastRadiusStats,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationBlastRadiusStats {
+    pub global: AuthorizationBlastRadiusCounters,
+    pub membership_declarations: BTreeMap<String, AuthorizationBlastRadiusCounters>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationBlastRadiusCounters {
+    pub version_advances: u64,
+    pub quarantined_subscriptions: u64,
+    pub resnapshots: u64,
+}
+
+impl AuthorizationBlastRadiusStats {
+    fn for_event(
+        &mut self,
+        declarations: &[String],
+        update: impl Fn(&mut AuthorizationBlastRadiusCounters),
+    ) {
+        update(&mut self.global);
+        for declaration in declarations {
+            update(
+                self.membership_declarations
+                    .entry(declaration.clone())
+                    .or_default(),
+            );
+        }
+    }
 }
 
 /// The result of running a generated function from the admin function runner.
@@ -8490,6 +8531,11 @@ impl LocalSnapback {
                     .obligations
                     .advance_authenticated_authorization(authorization.version.clone())
             })?;
+        self.live_delivery
+            .authorization_blast_radius
+            .for_event(&authorization.membership_declarations, |counters| {
+                counters.version_advances += 1;
+            });
         let subscriptions = self
             .subscriptions
             .values()
@@ -8547,6 +8593,11 @@ impl LocalSnapback {
                     .collect());
             }
         };
+        self.live_delivery
+            .authorization_blast_radius
+            .for_event(&authorization.membership_declarations, |counters| {
+                counters.quarantined_subscriptions += preprojected.len() as u64;
+            });
         for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
@@ -8580,6 +8631,11 @@ impl LocalSnapback {
                     Ok(()) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
+                        self.live_delivery
+                            .authorization_blast_radius
+                            .for_event(&authorization.membership_declarations, |counters| {
+                                counters.resnapshots += 1;
+                            });
                     }
                     Err(error) => self.fail_subscription_fanout(
                         &subscription,
@@ -10152,7 +10208,8 @@ mod auth_room_kick_acceptance;
 #[cfg(test)]
 mod tests {
     use super::{
-        AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
+        AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK,
         BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput,
@@ -12292,6 +12349,30 @@ globalThis.__snapbackHandlers = {
                 .all(|message| !message.contains("\"kind\":\"live_delta\"")),
             "coarse authorization events override positive-delta best effort"
         );
+        let blast_radius = &snapback.live_delivery.authorization_blast_radius;
+        assert_eq!(blast_radius.global.version_advances, 1);
+        assert_eq!(blast_radius.global.quarantined_subscriptions, 1);
+        assert_eq!(blast_radius.global.resnapshots, 1);
+        assert!(blast_radius.membership_declarations.is_empty());
+    }
+
+    #[test]
+    fn blast_radius_counters_attribute_each_membership_declaration_and_global_total() {
+        let mut stats = AuthorizationBlastRadiusStats::default();
+        let declarations = ["board-members".to_owned(), "org-members".to_owned()];
+        stats.for_event(&declarations, |counters| {
+            counters.version_advances += 1;
+            counters.quarantined_subscriptions += 3;
+            counters.resnapshots += 2;
+        });
+
+        assert_eq!(stats.global.version_advances, 1);
+        assert_eq!(stats.global.quarantined_subscriptions, 3);
+        assert_eq!(stats.global.resnapshots, 2);
+        assert_eq!(stats.membership_declarations.len(), 2);
+        for declaration in declarations {
+            assert_eq!(stats.membership_declarations[&declaration], stats.global);
+        }
     }
 
     #[test]

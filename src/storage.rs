@@ -251,6 +251,12 @@ pub struct AuthorizationCommitWitness {
     pub version: AuthorizationVersion,
     pub event: bool,
     pub incarnation_rotated: bool,
+    /// Stable LLP 0056 declaration ids whose writes contributed to this event.
+    /// Empty for non-membership events and ordinary commits. The durable
+    /// authorization version remains the one global pair LLP 0053 pins; this
+    /// attribution exists for per-declaration blast-radius measurement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub membership_declarations: Vec<String>,
 }
 
 /// Process-local impact metadata for the protected-room commit interlock.
@@ -1302,6 +1308,7 @@ impl LocalDatabase {
             },
             event: true,
             incarnation_rotated: true,
+            membership_declarations: Vec::new(),
         };
         let min_commit_version = seeded.as_ref().map_or(0, |output| output.version);
         let prepared = match authorization_interlock
@@ -1362,6 +1369,7 @@ impl LocalDatabase {
                 version: self.authorization_version()?,
                 event: true,
                 incarnation_rotated: true,
+                membership_declarations: Vec::new(),
             },
         })
     }
@@ -8960,7 +8968,7 @@ mod membership_write_tests {
                             field: "expiresAt".to_owned(),
                             on_expiry: "remove".to_owned(),
                         }),
-                        incidental: None,
+                        incidental: Some(vec!["notifyPrefs".to_owned()]),
                         provenance: None,
                         transitions: vec![
                             transition(Insert, &["host", "cohost"], Other, None, Some(&["invited"]), None),
@@ -9078,6 +9086,91 @@ mod membership_write_tests {
         set_role(db, target, &mid, "guest").expect("accept");
         set_role(db, host, &mid, "cohost").expect("promote cohost");
         set_role(db, host, &mid, "host").expect("promote host");
+    }
+
+    #[test]
+    fn membership_commits_drive_event_one_except_attested_incidental_updates() {
+        let mut db = ready_db();
+        let baseline = db.authorization_version().expect("activation version");
+
+        let (event_id, _) = create_event(&mut db, "alice");
+        let after_bootstrap = db.authorization_version().expect("bootstrap version");
+        assert_eq!(after_bootstrap.epoch, baseline.epoch + 1);
+
+        invite(&mut db, "alice", &event_id, "bob");
+        let bob = member_id(&db, &event_id, "bob");
+        let after_insert = db.authorization_version().expect("insert version");
+        assert_eq!(after_insert.epoch, after_bootstrap.epoch + 1);
+
+        let role_plan = db
+            .plan_membership_set_role(&user("bob"), "event_members", &bob, "guest")
+            .expect("accept invite");
+        let role_commit = db
+            .commit_membership_plan(&user("bob"), role_plan)
+            .expect("role commit");
+        assert!(role_commit.authorization.as_ref().is_some_and(|w| w.event));
+        assert_eq!(
+            role_commit
+                .authorization
+                .as_ref()
+                .unwrap()
+                .membership_declarations,
+            vec!["event_members".to_owned()]
+        );
+        let after_role = db.authorization_version().expect("role version");
+        assert_eq!(after_role.epoch, after_insert.epoch + 1);
+
+        let incidental_plan = db
+            .plan_membership_patch(
+                &user("bob"),
+                "event_members",
+                &bob,
+                Map::from_iter([("notifyPrefs".to_owned(), json!("mentions"))]),
+            )
+            .expect("self preferences patch");
+        let incidental_commit = db
+            .commit_membership_plan(&user("bob"), incidental_plan)
+            .expect("incidental commit");
+        assert!(
+            incidental_commit
+                .authorization
+                .as_ref()
+                .is_some_and(|witness| !witness.event)
+        );
+        assert!(
+            incidental_commit
+                .authorization
+                .as_ref()
+                .unwrap()
+                .membership_declarations
+                .is_empty()
+        );
+        assert_eq!(db.authorization_version().unwrap(), after_role);
+
+        let expiry_plan = db
+            .plan_membership_patch(
+                &user("alice"),
+                "event_members",
+                &bob,
+                Map::from_iter([("expiresAt".to_owned(), json!(1_000))]),
+            )
+            .expect("host expiry patch");
+        let expiry_commit = db
+            .commit_membership_plan(&user("alice"), expiry_plan)
+            .expect("expiry commit");
+        assert!(expiry_commit.authorization.as_ref().is_some_and(|w| w.event));
+        assert_eq!(
+            db.authorization_version().unwrap().epoch,
+            after_role.epoch + 1
+        );
+
+        let remove_plan = db
+            .plan_membership_remove(&user("alice"), "event_members", &bob)
+            .expect("host removes guest");
+        let remove_commit = db
+            .commit_membership_plan(&user("alice"), remove_plan)
+            .expect("remove commit");
+        assert!(remove_commit.authorization.as_ref().is_some_and(|w| w.event));
     }
 
     // --- Writer-class seam --------------------------------------------------
@@ -9560,8 +9653,17 @@ mod membership_write_tests {
             .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 1000)
             .expect("sweep plan");
         assert_eq!(plan.skipped_protected(), &[host_id.clone()]);
-        db.commit_membership_plan(&MembershipWriter::System, plan)
+        let before_sweep = db.authorization_version().expect("pre-sweep version");
+        let sweep = db
+            .commit_membership_plan(&MembershipWriter::System, plan)
             .expect("sweep commit");
+        let authorization = sweep.authorization.expect("sweep witness");
+        assert!(authorization.event, "expiry removal is event 1");
+        assert_eq!(
+            authorization.membership_declarations,
+            vec!["event_members".to_owned()]
+        );
+        assert_eq!(authorization.version.epoch, before_sweep.epoch + 1);
         assert_eq!(role_of(&db, &carol_id), None, "expired guest swept");
         assert_eq!(role_of(&db, &host_id).as_deref(), Some("host"), "protected host survives expiry");
     }

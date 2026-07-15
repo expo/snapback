@@ -440,6 +440,39 @@ impl TableManifest {
     pub fn field(&self, name: &str) -> Option<&FieldManifest> {
         self.fields.iter().find(|field| field.name == name)
     }
+
+    /// Whether writes to this table are authorization events under LLP 0053.
+    /// A membership declaration is permission-backing by construction; the
+    /// app must not repeat the lower-level `permissionBacking` flag (schema
+    /// validation rejects that ambiguous double declaration).
+    ///
+    /// @ref LLP 0056#invalidation-the-llp-0053-mapping — every membership
+    ///   declaration is permission-backing, for every writer.
+    pub fn is_permission_backing(&self) -> bool {
+        self.permission_backing || self.membership.is_some()
+    }
+
+    /// Whether a known update to `field` can change authorization. Ordinary
+    /// permission-backing tables use their optional `permissionFields`
+    /// narrowing. Membership tables invert their explicit `incidental`
+    /// attestation: every declared field is authorization-relevant unless the
+    /// declaration proves it inert. The membership validator keeps the
+    /// principal/resource/role axes out of `incidental`.
+    ///
+    /// Unknown fields are handled conservatively by callers before consulting
+    /// this method.
+    pub fn field_affects_authorization(&self, field: &str) -> bool {
+        if let Some(membership) = &self.membership {
+            return !membership
+                .incidental
+                .iter()
+                .flatten()
+                .any(|incidental| incidental == field);
+        }
+        self.permission_fields
+            .as_ref()
+            .is_none_or(|permission_fields| permission_fields.iter().any(|item| item == field))
+    }
 }
 
 /// The scope a membership declaration binds its `resource` axis to.
