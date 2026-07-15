@@ -62,7 +62,14 @@ run scripts/check-demo-surfaces
 # surfaces build here unconditionally from their committed registry locks; no
 # sibling Exact checkout or source-asset bridge participates.
 run node scripts/check-required-surface-builds.mjs
+# ENG-24452: the rebuild above regenerates every required surface dist IN
+# PLACE, so this scan sees exactly the production bytes a contributor would
+# commit; it rejects absolute checkout paths (surfaces still pinned to a
+# pre-0.1.5 portable-artifact Exact suite are reported and skipped until the
+# publish + pin/regen land).
+run node scripts/check-artifact-path-hygiene.mjs
 run node tests/required_surface_builds_v0.mjs
+run node tests/artifact_path_hygiene_v0.mjs
 run node demos/_kit/tests/server-process-lifecycle.mjs
 # @ref LLP 0010#native-runtime-bootstrap — prepare native artifacts here, then
 # stamp every subsequent Snapback Cargo unit with the checkout identity that

@@ -60,3 +60,9 @@ jobs:
       # drifts fails, not resolves.
       - name: Production-build every required demo web surface
         run: node scripts/check-required-surface-builds.mjs
+
+      # ENG-24452: the rebuild above regenerates dist trees in place; reject
+      # absolute checkout paths in the production bytes (pre-0.1.5 portable-
+      # artifact pins are reported and skipped until the regen lands).
+      - name: Reject absolute checkout paths in production artifacts
+        run: node scripts/check-artifact-path-hygiene.mjs
