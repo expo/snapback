@@ -1,5 +1,5 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "predecessor": "1d6cafb6d35b159d19de257db03d69ef1fd218e8",
   "predecessorIbex": "f8d26ce889208fd5ee3b8d2a64b13787c37e5879",
   "cases": {
@@ -19,5 +19,13 @@
       "databaseBytesUnchanged": true,
       "walBytesUnchanged": true
     }
+  },
+  "runnerProvenance": {
+    "verifiedAt": "2026-07-15",
+    "command": "scripts/verify-auth-mode-predecessor",
+    "harnessSha256": "f8393d6dd3dbf4b9627ac332ba1836ec5dc5f6e678e2f2ee7afd5bddbb6d56b0",
+    "nodeVersion": "v25.9.0",
+    "platform": "darwin",
+    "architecture": "arm64"
   }
 }

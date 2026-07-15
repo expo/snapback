@@ -503,7 +503,7 @@ fn corpus_case_value(corpus: &Value, case: &Value) -> Value {
 }
 
 #[test]
-fn auth_session_schema_matches_the_kit_validator_over_the_shared_corpus() {
+fn auth_session_schema_and_kit_cover_structural_and_contextual_constraints() {
     let corpus: Value =
         serde_json::from_str(AUTH_SESSION_PARITY_CORPUS).expect("parse parity corpus");
     let schema_file = corpus["schema"].as_str().expect("corpus names its schema");
@@ -518,7 +518,15 @@ fn auth_session_schema_matches_the_kit_validator_over_the_shared_corpus() {
     for case in cases {
         let name = case["name"].as_str().expect("corpus case has a name");
         let value = corpus_case_value(&corpus, case);
-        match case["expect"].as_str().expect("corpus case has expect") {
+        // `appId == configured app` is necessarily contextual: the reusable
+        // JSON Schema can require a non-empty id, while the kit knows which id
+        // this client was constructed for. All other cases share one verdict.
+        let expectation = case
+            .get("schemaExpect")
+            .unwrap_or(&case["expect"])
+            .as_str()
+            .expect("corpus case has a schema expectation");
+        match expectation {
             "accept" => {
                 accepted += 1;
                 assert_validates(schema_file, &value);

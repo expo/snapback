@@ -6,8 +6,9 @@
 // dependency graph, and exercised over its real HTTP and SQLite boundaries.
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
+import { createConnection, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +21,42 @@ const FIRST_STAGED_MODE_COMMIT = '8da7b46bd5d665317f52c09437ce28a72a559709';
 const TOKEN = 'snapback-predecessor-proof-token';
 const POISON = '"SNAPBACK_SESSIONS_MANIFEST_RELOCATED: session-aware binary required"';
 const RECEIPT = join(ROOT, 'tests', 'acceptance', 'auth-mode-predecessor-v1.receipt.json');
+const HARNESS = fileURLToPath(import.meta.url);
+const RUNNER = 'scripts/verify-auth-mode-predecessor';
+const MAX_EVIDENCE_AGE_DAYS = 31;
+
+const harnessSha256 = () => createHash('sha256').update(readFileSync(HARNESS)).digest('hex');
+const currentRunnerProvenance = () => ({
+  verifiedAt: new Date().toISOString().slice(0, 10),
+  command: RUNNER,
+  harnessSha256: harnessSha256(),
+  nodeVersion: process.version,
+  platform: process.platform,
+  architecture: process.arch,
+});
+
+const validateRunnerProvenance = (provenance, requireCurrent) => {
+  assert.equal(provenance?.command, RUNNER, 'predecessor evidence names the canonical runner');
+  assert.equal(
+    provenance?.harnessSha256,
+    harnessSha256(),
+    'predecessor evidence was produced by a different harness revision',
+  );
+  assert.match(provenance?.verifiedAt ?? '', /^\d{4}-\d{2}-\d{2}$/);
+  for (const key of ['nodeVersion', 'platform', 'architecture']) {
+    assert.equal(typeof provenance?.[key], 'string', `${key} provenance is present`);
+    assert.notEqual(provenance[key].length, 0, `${key} provenance is non-empty`);
+  }
+  if (!requireCurrent) return;
+  const verifiedAt = Date.parse(`${provenance.verifiedAt}T00:00:00.000Z`);
+  const now = Date.now();
+  assert(Number.isFinite(verifiedAt), 'verifiedAt is a real UTC date');
+  assert(verifiedAt <= now, 'verifiedAt is not in the future');
+  assert(
+    now - verifiedAt <= MAX_EVIDENCE_AGE_DAYS * 24 * 60 * 60 * 1000,
+    `predecessor evidence is older than ${MAX_EVIDENCE_AGE_DAYS} days`,
+  );
+};
 
 const run = (command, args, options = {}) => {
   const result = spawnSync(command, args, {
@@ -121,6 +158,43 @@ const waitFor = async (predicate, timeoutMs, description) => {
   }
   throw new Error(`timed out waiting for ${description}`);
 };
+
+const connectionSentinel = async (port, stopped) => {
+  let listenerBound = false;
+  do {
+    const connected = await new Promise((resolveConnection) => {
+      const socket = createConnection({ host: '127.0.0.1', port });
+      let settled = false;
+      const settle = (value) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        resolveConnection(value);
+      };
+      socket.once('connect', () => settle(true));
+      socket.once('error', () => settle(false));
+      socket.setTimeout(25, () => settle(false));
+    });
+    listenerBound ||= connected;
+    if (!stopped()) await sleep(5);
+  } while (!stopped());
+  return listenerBound;
+};
+
+const waitForChildExit = (child, timeoutMs, description) => new Promise((resolveExit, reject) => {
+  const timer = setTimeout(() => {
+    child.kill('SIGKILL');
+    reject(new Error(`timed out waiting for ${description}`));
+  }, timeoutMs);
+  child.once('error', (error) => {
+    clearTimeout(timer);
+    reject(error);
+  });
+  child.once('exit', (status, signal) => {
+    clearTimeout(timer);
+    resolveExit({ status, signal });
+  });
+});
 
 const startPredecessor = async (binary, directory, name) => {
   const port = await reservePort();
@@ -266,22 +340,31 @@ const poisonOpenCase = async (binary, directory) => {
   const before = snapshot(seed.database);
   const port = await reservePort();
   const ready = join(directory, 'poison-refusal.ready.json');
-  const result = spawnSync(binary, [
+  let childExited = false;
+  const sentinel = connectionSentinel(port, () => childExited);
+  const child = spawn(binary, [
     'start', '--host', '127.0.0.1', '--port', String(port), '--db', seed.database,
     '--ready-file', ready,
   ], {
     env: { ...process.env, SNAPBACK_ADMIN_TOKEN: TOKEN },
-    encoding: 'utf8',
-    timeout: 20_000,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const result = await waitForChildExit(child, 20_000, 'poisoned predecessor refusal')
+    .finally(() => { childExited = true; });
+  const listenerBound = await sentinel;
   assert.notEqual(result.status, 0, 'poisoned predecessor unexpectedly started');
-  assert.match(`${result.stdout}\n${result.stderr}`, /SNAPBACK_SCHEMA_PARSE_FAILED/);
+  assert.match(`${stdout}\n${stderr}`, /SNAPBACK_SCHEMA_PARSE_FAILED/);
   assert.equal(existsSync(ready), false, 'poisoned predecessor published readiness');
+  assert.equal(listenerBound, false, 'poisoned predecessor accepted a TCP connection');
   const after = snapshot(seed.database);
   assertUnchanged(before, after, 'poison-open');
   return {
     diagnostic: 'SNAPBACK_SCHEMA_PARSE_FAILED',
-    listenerBound: false,
+    listenerBound,
     databaseBytesUnchanged: true,
     walBytesUnchanged: true,
   };
@@ -292,7 +375,7 @@ const main = async () => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-predecessor-proof-'));
   try {
     const actual = {
-      formatVersion: 1,
+      formatVersion: 2,
       predecessor: PREDECESSOR,
       predecessorIbex: PREDECESSOR_IBEX,
       cases: {
@@ -302,12 +385,19 @@ const main = async () => {
       },
     };
     if (process.argv.includes('--update-receipt')) {
-      writeFileSync(RECEIPT, `${JSON.stringify(actual, null, 2)}\n`);
+      const recorded = { ...actual, runnerProvenance: currentRunnerProvenance() };
+      writeFileSync(RECEIPT, `${JSON.stringify(recorded, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(recorded, null, 2)}\n`);
     } else {
       const expected = JSON.parse(readFileSync(RECEIPT, 'utf8'));
-      assert.deepEqual(actual, expected);
+      const { runnerProvenance, ...expectedOutcomes } = expected;
+      assert.deepEqual(actual, expectedOutcomes);
+      validateRunnerProvenance(
+        runnerProvenance,
+        process.argv.includes('--require-current-evidence'),
+      );
+      process.stdout.write(`${JSON.stringify({ ...actual, runnerProvenance }, null, 2)}\n`);
     }
-    process.stdout.write(`${JSON.stringify(actual, null, 2)}\n`);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

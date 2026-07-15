@@ -566,6 +566,8 @@ const projectAuthorizedLeaseFacts = (value) => {
   };
 };
 
+// @ref LLP 0058#exact-response-dto — wire projection independently enforces
+// the deployment identity's closed mode/version and digest namespaces.
 const projectDeploymentIdentity = (value) => {
   if (!exactRecord(value, [
     'schemaVersion',
@@ -575,11 +577,24 @@ const projectDeploymentIdentity = (value) => {
     'bundleHash',
     'inputsHash',
   ])) return null;
-  if (
-    !['dev', 'sessions'].includes(value.authMode)
-    || !['schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash']
-      .every((key) => typeof value[key] === 'string' && value[key].length > 0)
-  ) return null;
+  if (!['schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash']
+    .every((key) => typeof value[key] === 'string' && value[key].length > 0)) return null;
+  if (value.authMode === 'dev') {
+    if (
+      value.schemaVersion !== 'snapback.v0'
+      || ['schemaHash', 'bundleHash', 'inputsHash']
+        .some((key) => value[key].startsWith('snapback.v1:'))
+    ) return null;
+  } else if (value.authMode === 'sessions') {
+    if (
+      value.schemaVersion !== 'snapback.v1'
+      || !/^snapback\.v1:sessions:schema:sha256:[0-9a-f]{64}$/.test(value.schemaHash)
+      || !/^snapback\.v1:sessions:function:sha256:[0-9a-f]{64}$/.test(value.bundleHash)
+      || !/^snapback\.v1:sessions:inputs:sha256:[0-9a-f]{64}$/.test(value.inputsHash)
+    ) return null;
+  } else {
+    return null;
+  }
   return { ...value };
 };
 

@@ -14094,6 +14094,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE"
         | "SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED"
         | "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED"
+        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
@@ -14111,6 +14112,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_APP_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED"
         | "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT"
+        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -14130,7 +14132,6 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY"
         | "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED"
         | "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT"
-        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
         | "SNAPBACK_AUTH_REQUEST_INVALID"
         | "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID"
@@ -14142,7 +14143,6 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
         | "SNAPBACK_AUTH_USER_MISSING"
         | "SNAPBACK_AUTH_SCOPED_TOKEN_TTL_INVALID"
-        | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_BINDING_MISSING"
         | "SNAPBACK_CAPTURED_READ_INVALID"
         | "SNAPBACK_CLIENT_MUTATION_ID_INVALID"
@@ -21764,7 +21764,6 @@ mod tests {
         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
         "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
         "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT",
-        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
         "SNAPBACK_AUTH_REQUEST_INVALID",
         "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID",
@@ -21776,7 +21775,6 @@ mod tests {
         "SNAPBACK_AUTH_UNDECLARABLE_RETENTION",
         "SNAPBACK_AUTH_USER_MISSING",
         "SNAPBACK_AUTH_SCOPED_TOKEN_TTL_INVALID",
-        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_BINDING_MISSING",
         "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
         "SNAPBACK_CAPTURED_READ_INVALID",
@@ -22096,6 +22094,7 @@ mod tests {
         "SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT",
         "SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE",
         "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED",
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED",
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
@@ -22122,6 +22121,7 @@ mod tests {
         "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
         "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED",
         "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT",
+        "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACT_MISSING",
@@ -22281,6 +22281,30 @@ mod tests {
                 status_for_diagnostic_code(unknown),
                 StatusCode::INTERNAL_SERVER_ERROR
             );
+        }
+    }
+
+    /// LLP 0012 registers both negotiation/capability refusals as 503 when
+    /// they cross the served HTTP boundary. Exercise the actual `IntoResponse`
+    /// projection so a mapper-only assertion cannot hide a divergent response.
+    #[tokio::test]
+    async fn served_capability_negotiation_refusals_are_service_unavailable() {
+        for code in [
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+        ] {
+            let response = super::ApiError::from(SnapbackError::error(
+                code,
+                "auth",
+                "client capability is unsupported",
+            ))
+            .into_response();
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{code}");
+            let body: Value = serde_json::from_slice(
+                &to_bytes(response.into_body(), 64 * 1024).await.unwrap(),
+            )
+            .unwrap();
+            assert_eq!(body["diagnostic"]["code"], code);
         }
     }
 

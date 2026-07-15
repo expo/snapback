@@ -305,20 +305,70 @@
     },
     "DeploymentIdentity": {
       "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "authMode": {
+              "const": "dev"
+            },
+            "bundleHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "inputsHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "schemaHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "schemaVersion": {
+              "const": "snapback.v0"
+            }
+          }
+        },
+        {
+          "properties": {
+            "authMode": {
+              "const": "sessions"
+            },
+            "bundleHash": {
+              "pattern": "^snapback\\.v1:sessions:function:sha256:[0-9a-f]{64}$"
+            },
+            "inputsHash": {
+              "pattern": "^snapback\\.v1:sessions:inputs:sha256:[0-9a-f]{64}$"
+            },
+            "schemaHash": {
+              "pattern": "^snapback\\.v1:sessions:schema:sha256:[0-9a-f]{64}$"
+            },
+            "schemaVersion": {
+              "const": "snapback.v1"
+            }
+          }
+        }
+      ],
       "properties": {
         "appId": {
+          "minLength": 1,
           "type": "string"
         },
         "authMode": {
           "$ref": "#/$defs/AuthMode"
         },
         "bundleHash": {
+          "minLength": 1,
           "type": "string"
         },
         "inputsHash": {
+          "minLength": 1,
           "type": "string"
         },
         "schemaHash": {
+          "minLength": 1,
           "type": "string"
         },
         "schemaVersion": {

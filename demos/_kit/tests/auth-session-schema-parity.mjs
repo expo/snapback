@@ -3,10 +3,11 @@
 // `tests/conformance/auth-session-parity.corpus.json` is one shared corpus of
 // handshake responses with pinned accept/reject verdicts. The Rust side
 // (`tests/artifact_schemas_v0.rs`) proves the committed JSON Schema returns
-// exactly those verdicts; this suite proves the executable kit validator
+// the structural verdicts (with a distinct schemaExpect only where appId
+// equality requires client configuration); this suite proves the executable kit validator
 // (`projectAuthSessionResponse`, exercised through `SnapbackClient.authSession`)
-// returns the same ones. Together they pin schema == shipped client, so
-// codegen/conformance can never approve a handshake no actual client accepts.
+// returns the configured-client verdicts. Together they pin every structural
+// constraint plus the contextual app identity check.
 //
 // @ref LLP 0058#exact-response-dto — one closed Rust/schemars authority; the
 // generated schema and the kit validator must reject the same shapes.

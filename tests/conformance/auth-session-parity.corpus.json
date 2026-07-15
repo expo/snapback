@@ -97,12 +97,12 @@
         "sessionGeneration": 1
       },
       "deploymentIdentity": {
-        "schemaVersion": "v1-sessions",
+        "schemaVersion": "snapback.v1",
         "authMode": "sessions",
         "appId": "schema-parity-app",
-        "schemaHash": "sha256:schema",
-        "bundleHash": "sha256:bundle",
-        "inputsHash": "sha256:inputs"
+        "schemaHash": "snapback.v1:sessions:schema:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bundleHash": "snapback.v1:sessions:function:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
       },
       "authorizedLease": {
         "protocolVersion": 1,
@@ -118,6 +118,7 @@
   },
   "cases": [
     { "name": "settled-dev-anonymous", "base": "settledDevAnonymous", "expect": "accept" },
+    { "name": "settled-dev-with-v0-deployment-identity", "base": "settledDevAnonymous", "set": [{ "path": ["deploymentIdentity"], "value": { "schemaVersion": "snapback.v0", "authMode": "dev", "appId": "schema-parity-app", "schemaHash": "sha256:dev-schema", "bundleHash": "sha256:dev-bundle", "inputsHash": "sha256:dev-inputs" } }], "expect": "accept" },
     { "name": "settled-sessions-authenticated-with-lease-facts", "base": "settledSessionsAuthenticated", "expect": "accept" },
     {
       "name": "sessions-unavailable-surfaces-carry-minima-and-reasons",
@@ -189,6 +190,24 @@
     { "name": "lease-facts-configured-zero", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "configuredMs"], "value": 0 }], "expect": "reject" },
     { "name": "lease-facts-hard-max-above-protocol", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "hardMaxMs"], "value": 86400001 }], "expect": "reject" },
     { "name": "lease-facts-omit-clock-rollback", "base": "settledSessionsAuthenticated", "remove": [["authorizedLease", "clockRollback"]], "expect": "reject" },
-    { "name": "lease-facts-clamps-reordered", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "clamps"], "value": ["provider", "session"] }], "expect": "reject" }
+    { "name": "lease-facts-clamps-reordered", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "clamps"], "value": ["provider", "session"] }], "expect": "reject" },
+    { "name": "deployment-identity-omits-schema-version", "base": "settledSessionsAuthenticated", "remove": [["deploymentIdentity", "schemaVersion"]], "expect": "reject" },
+    { "name": "deployment-identity-omits-auth-mode", "base": "settledSessionsAuthenticated", "remove": [["deploymentIdentity", "authMode"]], "expect": "reject" },
+    { "name": "deployment-identity-omits-app-id", "base": "settledSessionsAuthenticated", "remove": [["deploymentIdentity", "appId"]], "expect": "reject" },
+    { "name": "deployment-identity-omits-schema-hash", "base": "settledSessionsAuthenticated", "remove": [["deploymentIdentity", "schemaHash"]], "expect": "reject" },
+    { "name": "deployment-identity-omits-bundle-hash", "base": "settledSessionsAuthenticated", "remove": [["deploymentIdentity", "bundleHash"]], "expect": "reject" },
+    { "name": "deployment-identity-omits-inputs-hash", "base": "settledSessionsAuthenticated", "remove": [["deploymentIdentity", "inputsHash"]], "expect": "reject" },
+    { "name": "deployment-identity-sessions-with-v0-version", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "schemaVersion"], "value": "snapback.v0" }], "expect": "reject" },
+    { "name": "deployment-identity-dev-with-v1-version", "base": "settledDevAnonymous", "set": [{ "path": ["deploymentIdentity"], "value": { "schemaVersion": "snapback.v1", "authMode": "dev", "appId": "schema-parity-app", "schemaHash": "sha256:dev-schema", "bundleHash": "sha256:dev-bundle", "inputsHash": "sha256:dev-inputs" } }], "expect": "reject" },
+    { "name": "deployment-identity-unknown-version", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "schemaVersion"], "value": "snapback.v2" }], "expect": "reject" },
+    { "name": "deployment-identity-empty-app-id", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "appId"], "value": "" }], "expect": "reject" },
+    { "name": "deployment-identity-cross-app", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "appId"], "value": "other-app" }], "schemaExpect": "accept", "expect": "reject" },
+    { "name": "deployment-identity-wrong-schema-namespace", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "schemaHash"], "value": "snapback.v1:sessions:function:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }], "expect": "reject" },
+    { "name": "deployment-identity-wrong-bundle-namespace", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "bundleHash"], "value": "snapback.v1:sessions:schema:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }], "expect": "reject" },
+    { "name": "deployment-identity-wrong-inputs-namespace", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "inputsHash"], "value": "snapback.v1:sessions:input:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" }], "expect": "reject" },
+    { "name": "deployment-identity-uppercase-schema-digest", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "schemaHash"], "value": "snapback.v1:sessions:schema:sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" }], "expect": "reject" },
+    { "name": "deployment-identity-short-bundle-digest", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "bundleHash"], "value": "snapback.v1:sessions:function:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }], "expect": "reject" },
+    { "name": "deployment-identity-nonhex-inputs-digest", "base": "settledSessionsAuthenticated", "set": [{ "path": ["deploymentIdentity", "inputsHash"], "value": "snapback.v1:sessions:inputs:sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg" }], "expect": "reject" },
+    { "name": "deployment-identity-dev-uses-reserved-v1-hash", "base": "settledDevAnonymous", "set": [{ "path": ["deploymentIdentity"], "value": { "schemaVersion": "snapback.v0", "authMode": "dev", "appId": "schema-parity-app", "schemaHash": "snapback.v1:reserved", "bundleHash": "sha256:dev-bundle", "inputsHash": "sha256:dev-inputs" } }], "expect": "reject" }
   ]
 }

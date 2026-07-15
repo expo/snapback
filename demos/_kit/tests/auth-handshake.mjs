@@ -77,12 +77,12 @@ const handshake = ({
   },
   deploymentIdentity: activeMode === 'sessions'
     ? {
-        schemaVersion: 'snapback.auth-artifacts.v1',
+        schemaVersion: 'snapback.v1',
         authMode: 'sessions',
         appId,
-        schemaHash: 'sha256:schema',
-        bundleHash: 'sha256:bundle',
-        inputsHash: 'sha256:inputs',
+        schemaHash: `snapback.v1:sessions:schema:sha256:${'a'.repeat(64)}`,
+        bundleHash: `snapback.v1:sessions:function:sha256:${'b'.repeat(64)}`,
+        inputsHash: `snapback.v1:sessions:inputs:sha256:${'c'.repeat(64)}`,
       }
     : null,
   authorizedLease: null,

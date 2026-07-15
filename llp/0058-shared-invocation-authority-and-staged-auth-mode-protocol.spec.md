@@ -5,7 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (reconciled the current authority and handshake shapes:
+**Revised:** 2026-07-15 (final evidence/schema reconciliation: made
+`deploymentIdentity` mode/version/hash exact in the Rust schema, shipped kit,
+and shared corpus; aligned served capability negotiation refusals to LLP
+0012's 503 registration; made the poison harness observe the reserved port
+concurrently; and added dated, harness-bound evidence provenance plus an
+explicit ratification/release freshness gate; status remains Draft).
+2026-07-15 (reconciled the current authority and handshake shapes:
 LLP 0055's dated amendment owns `ServicePrincipal` plus `kind`/`actor`, while
 the wire handshake keeps a distinct three-field `AuthSessionAuthority`; added
 LLP 0059's required nullable `deploymentIdentity`; status remains Draft).
@@ -1303,12 +1309,24 @@ variable. A shared corpus
 (`tests/conformance/auth-session-parity.corpus.json`) is executed against both
 the committed schema (`tests/artifact_schemas_v0.rs`) and the shipped kit
 validator (`demos/_kit/tests/auth-session-schema-parity.mjs`) and must produce
-identical accept/reject verdicts, so conformance can never approve a handshake
-shape no actual client accepts. Known residual looseness: the shared
+identical structural accept/reject verdicts. The one contextual exception is
+`deploymentIdentity.appId`: the reusable schema requires a non-empty string,
+while the configured kit also requires equality with its coordinator app id;
+the corpus names those two verdicts explicitly. Known residual looseness: the shared
 `AuthorityDescriptor` definition (also used by mutation input) does not yet pin
 `descriptorVersion: 1` or the UUIDv7 instance-id grammar that the kit checks;
 tightening it would change mutation-input error classes and is deliberately out
 of this amendment's scope.
+
+`deploymentIdentity` is itself exact: `dev` pairs only with `snapback.v0`,
+`sessions` pairs only with `snapback.v1`, and no other schema version is
+admitted. `appId` is non-empty and must equal the coordinator's expected app
+when that boundary supplies one. Sessions hashes use their exact distinct
+`schema`/`function`/`inputs` namespaces followed by exactly 64 lowercase
+hexadecimal SHA-256 digits. A dev identity remains compatible with its legacy
+non-empty v0 hash spellings but may not use the reserved `snapback.v1:` prefix.
+The shared corpus includes positive v0 and v1 identities and per-field,
+namespace, digest-shape, cross-mode/version, and cross-app negatives.
 
 The kit enforces the same closure from its side of the wire. Handshake
 validation receives the exact offer tuple that request carried — captured once
@@ -1343,6 +1361,8 @@ semantics as one must-understand protocol. Once item 6 is installed, a missing,
 malformed, or older invalidation offer fails its protected surface with LLP
 0053's `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`; before item 6, the
 server reports `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` instead.
+When served, `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` is HTTP 503 per
+LLP 0012: recovery requires a capable client, not different request data.
 
 `provider.available` additionally requires settled sessions and LLP 0057
 provider readiness. Provider unavailability never leaks keyring details.
@@ -1514,7 +1534,7 @@ failure. This Spec pins their producer semantics and safe-detail boundary.
 | `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | 503 pre-item-6 auth-scoped live/protected-room refusal |
 | `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` | actual pre-auth predecessor rejects the v1 header |
 | `SNAPBACK_SCHEMA_PARSE_FAILED` | pre-bind predecessor refuses the deliberately poisoned stored legacy manifest; no HTTP response |
-| `SNAPBACK_CAPABILITY_UNSUPPORTED` | requested pair/required capability unsupported by knowing target |
+| `SNAPBACK_CAPABILITY_UNSUPPORTED` | 503 when served; requested pair/required capability unsupported by knowing target |
 | `SNAPBACK_AUTH_HANDSHAKE_INVALID` | **kit-produced**; a `clientProtocols` echo did not match the exact per-request offer tuple, or a required handshake field (descriptor version, incarnation UUIDv7) was malformed before custody change |
 
 `SNAPBACK_REQUEST_BODY_TIMEOUT` and the **kit-produced**
@@ -1574,18 +1594,30 @@ v0-provisioned database, requires exact
 WAL byte snapshots around each refusal. A third case installs the exact poison
 in a predecessor-created database, requires pre-bind
 `SNAPBACK_SCHEMA_PARSE_FAILED`, no readiness/listener publication, and unchanged
-database/WAL bytes. The machine-readable expected outcomes are committed in
+database/WAL bytes. A connection sentinel probes the exact reserved port for
+the entire asynchronous poisoned startup and records `listenerBound:false`
+only when no TCP connection was accepted; missing readiness is not used as a
+proxy for that fact. The machine-readable expected outcomes are committed in
 [the predecessor receipt](../tests/acceptance/auth-mode-predecessor-v1.receipt.json)
 and the harness compares every normal run against that receipt. Its ignored
 build/source cache is accepted only when both pinned Git objects and the
-provenance marker still match; the receipt records outcomes, while the byte
-comparisons themselves execute at runtime.
+provenance marker still match. Receipt format 2 also records the UTC verification
+date, canonical runner command, exact harness SHA-256, Node version, platform,
+and architecture. An ordinary run validates outcomes and harness provenance
+without rewriting the receipt; the byte comparisons themselves execute at
+runtime.
 
 This historical build is intentionally excluded from the fast per-PR/local
 proof. Its required manual cadence is monthly, before LLP 0058 ratification or
 an auth-mode release, and after any change to the staged-mode predecessor cut,
 poison/open behavior, predecessor harness, bootstrap path, or pinned Ibex
-runtime. A scheduled GitHub lane is deferred while Actions billing is blocked
+runtime. Ratification and release gates run
+`scripts/verify-auth-mode-predecessor --require-current-evidence`, which fails
+when the committed dated evidence is older than 31 days or names another
+harness revision. Only an intentional successful
+`scripts/verify-auth-mode-predecessor --update-receipt` refreshes that dated
+record, so normal verification never makes the worktree spuriously dirty. A
+scheduled GitHub lane is deferred while Actions billing is blocked
 and the current credential-scrubbed workflows have no configured authenticated
 path to fetch a missing private historical Ibex object; when both constraints
 clear, this same named script is the command the scheduled lane must run.

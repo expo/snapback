@@ -37,14 +37,42 @@ pub enum AppDataAvailability {
     RefusedPending,
 }
 
+// @ref LLP 0058#exact-response-dto — the served deployment identity preserves
+// the same closed mode/version/hash relationship as durable admission.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[schemars(extend(
+    "oneOf" = [
+        {
+            "properties": {
+                "schemaVersion": { "const": "snapback.v0" },
+                "authMode": { "const": "dev" },
+                "schemaHash": { "not": { "pattern": "^snapback\\.v1:" } },
+                "bundleHash": { "not": { "pattern": "^snapback\\.v1:" } },
+                "inputsHash": { "not": { "pattern": "^snapback\\.v1:" } }
+            }
+        },
+        {
+            "properties": {
+                "schemaVersion": { "const": "snapback.v1" },
+                "authMode": { "const": "sessions" },
+                "schemaHash": { "pattern": "^snapback\\.v1:sessions:schema:sha256:[0-9a-f]{64}$" },
+                "bundleHash": { "pattern": "^snapback\\.v1:sessions:function:sha256:[0-9a-f]{64}$" },
+                "inputsHash": { "pattern": "^snapback\\.v1:sessions:inputs:sha256:[0-9a-f]{64}$" }
+            }
+        }
+    ]
+))]
 pub struct DeploymentIdentity {
     pub schema_version: String,
     pub auth_mode: AuthMode,
+    #[schemars(length(min = 1))]
     pub app_id: String,
+    #[schemars(length(min = 1))]
     pub schema_hash: String,
+    #[schemars(length(min = 1))]
     pub bundle_hash: String,
+    #[schemars(length(min = 1))]
     pub inputs_hash: String,
 }
 
