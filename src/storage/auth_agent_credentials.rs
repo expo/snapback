@@ -9,6 +9,7 @@
 //!   rotation throttle, thirty-day family retention, grant-bound tokens with a
 //!   24-hour ceiling, and oldest-token eviction at the live cap.
 
+use super::auth_grants::{ExactGrantScope, current_grant_scopes_on};
 use super::auth_invalidation::{AUTH_CLOCK_META_KEY, strict_meta_u64, write_meta_u64};
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH, new_id};
 use crate::auth::crypto::{AgentCredential, RandomSource, ScopedToken};
@@ -63,14 +64,14 @@ pub struct IssuedScopedToken {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ResolvedScopedToken {
+pub(crate) struct ResolvedScopedToken {
     pub token_id: String,
     pub grant_id: String,
     pub actor_user_id: String,
     pub effective_user_id: Option<String>,
     pub credential_id: String,
     pub credential_generation: u64,
-    pub scopes: Value,
+    pub scopes: Vec<ExactGrantScope>,
     pub expires_at_ms: u64,
 }
 
@@ -526,8 +527,7 @@ impl LocalDatabase {
             else {
                 return Err(scoped_token_invalid());
             };
-            let scopes =
-                serde_json::from_str(&scopes).map_err(|_| agent_credential_state_corrupt())?;
+            let scopes = current_grant_scopes_on(tx, &scopes)?;
             coalesce_credential_use(tx, &credential_id, now_ms)?;
             tx.execute(
                 "UPDATE _auth_grants SET last_used_at_ms = ?1

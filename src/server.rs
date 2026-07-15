@@ -9,7 +9,8 @@ use crate::auth::coordinator::{
     IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CredentialClass, PairingCode, SessionBearer, dispatch_credential_class,
+    AgentCredential, CredentialClass, PairingCode, ScopedToken, SessionBearer,
+    classify_credential, dispatch_credential_class,
 };
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
@@ -3033,6 +3034,7 @@ pub enum CredentialResolution {
     BoundConnectionGrant,
     AdminCredential,
     OptionalSessionBearer,
+    OptionalSessionOrScopedToken,
     RequiredSessionBearer,
     AdminSecretReadLease,
     OperationSpecific,
@@ -3172,6 +3174,17 @@ impl SessionModeOverlay {
             // that to required at the shared invocation gate (item 4).
             path_policy: Some(RoutePolicy::Public),
             credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+            invocation_authority: Some(InvocationAuthority::ResolvedCaller),
+            legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    }
+
+    pub const fn app_function_session() -> Self {
+        Self {
+            path_policy: Some(RoutePolicy::Public),
+            credential_resolution: Some(CredentialResolution::OptionalSessionOrScopedToken),
             invocation_authority: Some(InvocationAuthority::ResolvedCaller),
             legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
             effect_policy: None,
@@ -3492,7 +3505,11 @@ impl RouteSpec {
         let sessions = self.effective_for(PolicyAuthMode::Sessions);
         if self.path_policy == RoutePolicy::AppAuth
             && (sessions.path_policy != RoutePolicy::Public
-                || sessions.credential_resolution != CredentialResolution::OptionalSessionBearer
+                || !matches!(
+                    sessions.credential_resolution,
+                    CredentialResolution::OptionalSessionBearer
+                        | CredentialResolution::OptionalSessionOrScopedToken
+                )
                 || sessions.invocation_authority != InvocationAuthority::ResolvedCaller
                 || sessions.legacy_body_policy != LegacyBodyPolicy::Rejected)
         {
@@ -3545,6 +3562,7 @@ impl RouteSpec {
                     | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OptionalSessionBearer
+                    | CredentialResolution::OptionalSessionOrScopedToken
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => false,
@@ -3629,6 +3647,20 @@ const fn app_auth_route(method: &'static str, path: &'static str) -> RouteSpec {
         ResponseSensitivity::ApplicationData,
     )
     .with_session_overlay(SessionModeOverlay::app_session())
+}
+
+const fn app_function_route(method: &'static str, path: &'static str) -> RouteSpec {
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::AppData,
+        RoutePolicy::AppAuth,
+        CredentialResolution::LegacyBodyAuth,
+        InvocationAuthority::ClientAsserted,
+        LegacyBodyPolicy::Allowed,
+        ResponseSensitivity::ApplicationData,
+    )
+    .with_session_overlay(SessionModeOverlay::app_function_session())
 }
 
 const fn connection_route(
@@ -3944,7 +3976,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(auth_agent_revoke_self).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
-        RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
+        RegisteredRoute::new(app_function_route("POST", "/query/{name}"), post(invoke_query)),
         RegisteredRoute::new(
             app_auth_route("POST", "/query/{name}/authorized-lease"),
             post(invoke_authorized_lease_query),
@@ -3954,11 +3986,11 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(acknowledge_mutations),
         ),
         RegisteredRoute::new(
-            app_auth_route("POST", "/mutation/{name}"),
+            app_function_route("POST", "/mutation/{name}"),
             post(invoke_mutation),
         ),
         RegisteredRoute::new(
-            app_auth_route("POST", "/action/{name}"),
+            app_function_route("POST", "/action/{name}"),
             post(invoke_action),
         ),
         RegisteredRoute::new(
@@ -5099,6 +5131,7 @@ async fn prepare_registered_route_authority(
                 } else if matches!(
                     effective.credential_resolution,
                     CredentialResolution::OptionalSessionBearer
+                        | CredentialResolution::OptionalSessionOrScopedToken
                         | CredentialResolution::RequiredSessionBearer
                 ) && (effective.credential_resolution
                     == CredentialResolution::RequiredSessionBearer
@@ -5111,21 +5144,56 @@ async fn prepare_registered_route_authority(
                     let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
                     let provider = installed_auth_provider(runtime)?;
                     let now_ms = provider.now_ms();
-                    let prepared = if matches!(
-                        source,
-                        InvocationSource::AuthRefresh | InvocationSource::AuthLogout
-                    ) {
-                        coordinator.resolve_family_bearer(&bearer, now_ms, provider.monotonic_now())
+                    if effective.credential_resolution
+                        == CredentialResolution::OptionalSessionOrScopedToken
+                        && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
+                    {
+                        dispatch_credential_class(&bearer, CredentialClass::ScopedToken)
+                            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+                        let token = ScopedToken::parse(&bearer).map_err(|_| {
+                            ApiError::from(SnapbackError::error(
+                                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                                "auth",
+                                "scoped agent token is invalid",
+                            ))
+                        })?;
+                        let resolved = with_snapback(&runtime.snapback, move |snapback| {
+                            snapback
+                                .auth_database_mut()
+                                .resolve_scoped_token(&token, now_ms)
+                        })
+                        .await?;
+                        (ResolvedAppAuthority::from_scoped_token(resolved), None)
                     } else {
-                        coordinator.resolve_required_bearer(
-                            &bearer,
-                            now_ms,
-                            provider.monotonic_now(),
-                        )
+                        if classify_credential(&bearer).is_some_and(|class| {
+                            class != CredentialClass::Session
+                        }) {
+                            dispatch_credential_class(&bearer, CredentialClass::Session)
+                                .map_err(|error| {
+                                    ApiError::from(error.into_snapback_error())
+                                })?;
+                            unreachable!("wrong-class dispatch always refuses");
+                        }
+                        let prepared = if matches!(
+                            source,
+                            InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+                        ) {
+                            coordinator.resolve_family_bearer(
+                                &bearer,
+                                now_ms,
+                                provider.monotonic_now(),
+                            )
+                        } else {
+                            coordinator.resolve_required_bearer(
+                                &bearer,
+                                now_ms,
+                                provider.monotonic_now(),
+                            )
+                        }
+                        .map_err(ApiError::from)?;
+                        let (resolved, publication) = prepared.into_parts();
+                        (resolved, Some(publication))
                     }
-                    .map_err(ApiError::from)?;
-                    let (resolved, publication) = prepared.into_parts();
-                    (resolved, Some(publication))
                 } else {
                     (
                         ResolvedAppAuthority::Anonymous,
@@ -13707,7 +13775,7 @@ mod tests {
     use crate::storage::auth::AuthTransactionAttempt;
     use axum::Json;
     use axum::body::{Body, Bytes, to_bytes};
-    use axum::extract::{Extension, State};
+    use axum::extract::{Extension, Path as AxumPath, State};
     use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header};
     use axum::response::IntoResponse as _;
     use futures_util::{SinkExt as _, StreamExt as _};
@@ -17144,6 +17212,210 @@ mod tests {
                 "sessionId": credential["session"]["id"],
                 "authenticated": true,
             })
+        );
+    }
+
+    #[tokio::test]
+    async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scope() {
+        async fn prepare_query(
+            AxumPath(name): AxumPath<String>,
+            Extension(authority): Extension<PreparedAuthority>,
+        ) -> Result<Json<Value>, super::ApiError> {
+            let function = FunctionDefinition::new(
+                name,
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })),
+            );
+            let prepared = InvocationGate::prepare_function(authority, &function)
+                .map_err(super::ApiError::from)?;
+            Ok(Json(serde_json::to_value(prepared.projection()).unwrap()))
+        }
+
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES('carrier-user', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    rusqlite::params![now_ms as i64],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:allowed', 'query', 0, 1, 0)",
+                    [],
+                )?;
+                Ok(())
+            })?;
+            db.create_agent_principal(
+                "carrier-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: None,
+                    operator_contact: None,
+                    registration_provenance: "carrier-test".to_owned(),
+                    owner_user_id: Some("carrier-user".to_owned()),
+                },
+            )?;
+            let credential = db.issue_initial_agent_credential(
+                "carrier-agent",
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES('carrier-grant', 'carrier-agent', 'carrier-user', ?1, ?2, ?3,
+                              NULL, 'test', NULL, NULL, ?2)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                Ok(())
+            })?;
+            let issued = db.mint_scoped_token(
+                &credential.secret,
+                "carrier-grant",
+                None,
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            Ok::<_, SnapbackError>((
+                issued.secret.expose_secret().to_owned(),
+                credential.secret.expose_secret().to_owned(),
+            ))
+        })
+        .await
+        .unwrap();
+        let router = super::router_from_registrations(
+            vec![
+                super::RegisteredRoute::new(
+                    super::app_function_route("POST", "/query/{name}"),
+                    axum::routing::post(prepare_query),
+                ),
+                super::RegisteredRoute::new(
+                    super::app_auth_route("POST", "/query/{name}/authorized-lease"),
+                    axum::routing::post(prepare_query),
+                ),
+            ],
+            state.clone(),
+        )
+        .with_state(state.clone());
+        let request = |uri: &str, bearer: &str| {
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap()
+        };
+
+        let allowed = router
+            .clone()
+            .oneshot(request("/query/allowed", &token))
+            .await
+            .unwrap();
+        assert_eq!(allowed.status(), StatusCode::OK);
+        let projection = response_json(allowed).await;
+        assert_eq!(projection["userId"], "carrier-user");
+        assert_eq!(projection["kind"], "human");
+        assert_eq!(projection["actor"]["userId"], "carrier-agent");
+        assert_eq!(projection["actor"]["grantId"], "carrier-grant");
+
+        let denied = router
+            .clone()
+            .oneshot(request("/query/not-granted", &token))
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            response_json(denied).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+
+        let wrong_class = router
+            .clone()
+            .oneshot(request("/query/allowed", &agent_credential))
+            .await
+            .unwrap();
+        assert_eq!(wrong_class.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_class).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+
+        let retained = router
+            .clone()
+            .oneshot(request("/query/allowed/authorized-lease", &token))
+            .await
+            .unwrap();
+        assert_eq!(retained.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(retained).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+
+        with_snapback(&state.snapback, |snapback| {
+            snapback.auth_database_mut().with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_scope_bases
+                     SET generation = generation + 1, present = 0
+                     WHERE function_id = 'fn:allowed' AND kind = 'query'",
+                    [],
+                )?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        let stale = router
+            .clone()
+            .oneshot(request("/query/allowed", &token))
+            .await
+            .unwrap();
+        assert_eq!(stale.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            response_json(stale).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+
+        let mut hosted = state;
+        Arc::make_mut(&mut hosted.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let hosted_router = super::router_from_registrations(
+            vec![super::RegisteredRoute::new(
+                super::app_function_route("POST", "/query/{name}"),
+                axum::routing::post(prepare_query),
+            )],
+            hosted.clone(),
+        )
+        .with_state(hosted);
+        let hosted = hosted_router
+            .oneshot(request("/query/allowed", &token))
+            .await
+            .unwrap();
+        assert_eq!(
+            response_json(hosted).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED"
         );
     }
 

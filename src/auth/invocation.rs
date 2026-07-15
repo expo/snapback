@@ -16,6 +16,7 @@ use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
 };
 use crate::storage::auth_grants::ExactGrantScope;
+use crate::storage::auth_agent_credentials::ResolvedScopedToken;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -340,6 +341,23 @@ impl ResolvedAppAuthority {
             authority_instance_id: session.authority_instance_id,
             session_not_after_ms: session.expires_at_ms.min(session.absolute_expires_at_ms),
             provider_not_after_ms: None,
+        }
+    }
+
+    pub(crate) fn from_scoped_token(token: ResolvedScopedToken) -> Self {
+        Self::ServicePrincipal {
+            actor_user_id: token.actor_user_id,
+            credential_id: token.credential_id,
+            credential_generation: token.credential_generation,
+            grant_id: token.grant_id,
+            token_id: token.token_id,
+            effective_user_id: token.effective_user_id,
+            scopes: token
+                .scopes
+                .into_iter()
+                .map(ResolvedGrantScope::from_exact)
+                .collect(),
+            token_expires_at_ms: token.expires_at_ms,
         }
     }
 
@@ -1517,6 +1535,49 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn service_principal_scope_is_checked_before_function_preparation() {
+        let function = function(Some(AuthRequirement::Authenticated));
+        let service = |scopes| ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent_1".to_owned(),
+            credential_id: "credential_1".to_owned(),
+            credential_generation: 1,
+            grant_id: "grant_1".to_owned(),
+            token_id: "token_1".to_owned(),
+            effective_user_id: Some("user_1".to_owned()),
+            scopes,
+            token_expires_at_ms: 20_000,
+        };
+        let prepare = |resolved| {
+            InvocationGate::prepare_authority(
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                1,
+                1,
+                &WireAuthorityFields::default(),
+                resolved,
+            )
+            .unwrap()
+        };
+
+        InvocationGate::prepare_function(
+            prepare(service(vec![ResolvedGrantScope {
+                function_id: function.id.clone(),
+                kind: function.kind.clone(),
+                basis: 0,
+                authority_creating: false,
+            }])),
+            &function,
+        )
+        .unwrap();
+
+        let denied = InvocationGate::prepare_function(prepare(service(Vec::new())), &function)
+            .unwrap_err();
+        assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_DENIED");
+        assert_eq!(denied.diagnostic.details["reason"], "missing_scope");
     }
 
     #[test]

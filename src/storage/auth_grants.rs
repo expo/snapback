@@ -840,6 +840,27 @@ fn parse_scopes_json(encoded: &str) -> SnapbackResult<Vec<ExactGrantScope>> {
     Ok(scopes)
 }
 
+/// Resolve the still-live entries of an immutable grant against the durable
+/// scope-basis tombstones. A stale entry is terminally invalid but does not
+/// erase unrelated entries from the same grant.
+///
+/// @ref LLP 0055#grants — scope basis generations prevent remove/re-add ABA;
+///   the tombstone is consulted again when authority is exercised, not only
+///   when a token is minted.
+pub(super) fn current_grant_scopes_on(
+    tx: &Transaction<'_>,
+    encoded: &str,
+) -> SnapbackResult<Vec<ExactGrantScope>> {
+    let mut scopes = parse_scopes_json(encoded)?;
+    let mut current = Vec::with_capacity(scopes.len());
+    for scope in scopes.drain(..) {
+        if exact_scope_on(tx, &scope.function_id, scope.kind)?.as_ref() == Some(&scope) {
+            current.push(scope);
+        }
+    }
+    Ok(current)
+}
+
 fn pending_request_on(
     tx: &Transaction<'_>,
     request_id: &str,
@@ -1769,7 +1790,25 @@ mod tests {
             .resolve_scoped_token(&replacement.secret, 7_005)
             .unwrap();
         assert_eq!(resolved.grant_id, replacement.grant_id);
-        assert_eq!(replacement.scopes, resolved.scopes);
+        assert_eq!(
+            replacement.scopes,
+            serde_json::to_value(&resolved.scopes).unwrap()
+        );
+        db.conn
+            .execute(
+                "UPDATE _auth_scope_bases
+                 SET generation = generation + 1, present = 0
+                 WHERE function_id = 'fn:read' AND kind = 'query'",
+                [],
+            )
+            .unwrap();
+        let stale_basis = db
+            .resolve_scoped_token(&replacement.secret, 7_005)
+            .unwrap();
+        assert!(
+            stale_basis.scopes.is_empty(),
+            "an already-issued token cannot revive a terminally invalid scope"
+        );
         assert!(db.pending_grant_requests("user-a", 7_005).unwrap().is_empty());
         let grants = db.grants_for_user("user-a", 7_005).unwrap();
         assert_eq!(grants.len(), 1);
