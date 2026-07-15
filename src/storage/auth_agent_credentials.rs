@@ -981,17 +981,37 @@ mod tests {
     fn seed_grant(db: &LocalDatabase, id: &str, now_ms: u64) {
         db.conn
             .execute(
+                "INSERT OR IGNORE INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('query-a', 'query', 0, 1, 0)",
+                [],
+            )
+            .expect("live query scope basis");
+        db.conn
+            .execute(
                 "INSERT INTO _auth_grants(
                id, actor_user_id, effective_user_id, scopes, created_at_ms,
                expires_at_ms, revoked_at_ms, created_by, request_id,
                consent_digest, last_used_at_ms
              ) VALUES(?1, 'agent-a', NULL, ?2, ?3, NULL, NULL, 'test', NULL, NULL, ?3)",
-                params![id, r#"[{"fn":"query-a","kind":"query"}]"#, now_ms as i64],
+                params![
+                    id,
+                    r#"[{"fn":"query-a","kind":"query","basis":0,"authorityCreating":false}]"#,
+                    now_ms as i64
+                ],
             )
             .expect("grant");
     }
 
     fn seed_expiring_grant(db: &LocalDatabase, id: &str, now_ms: u64, expires_at_ms: u64) {
+        db.conn
+            .execute(
+                "INSERT OR IGNORE INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('query-a', 'query', 0, 1, 0)",
+                [],
+            )
+            .expect("live query scope basis");
         db.conn
             .execute(
                 "INSERT INTO _auth_grants(
@@ -1001,7 +1021,7 @@ mod tests {
              ) VALUES(?1, 'agent-a', 'user-a', ?2, ?3, ?4, NULL, 'test', NULL, NULL, ?3)",
                 params![
                     id,
-                    r#"[{"fn":"query-a","kind":"query"}]"#,
+                    r#"[{"fn":"query-a","kind":"query","basis":0,"authorityCreating":false}]"#,
                     now_ms as i64,
                     expires_at_ms as i64,
                 ],
