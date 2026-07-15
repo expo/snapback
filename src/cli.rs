@@ -1697,9 +1697,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // reports host/port/uptime and gates by loopback vs non-loopback.
     debug_assert_eq!(loopback, local_addr.ip().is_loopback());
     let published_server_context = Arc::make_mut(&mut app_state.server);
-    published_server_context.host = local_addr.ip().to_string();
-    published_server_context.port = local_addr.port();
-    published_server_context.loopback = loopback;
+    published_server_context.record_bound_address(local_addr);
     let app = server::app(app_state.clone());
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
@@ -1950,9 +1948,7 @@ async fn run_auth_collision_recovery(
         local_addr.ip().is_loopback(),
         "SNAPBACK_AUTH_TABLE_COLLISION: auth collision recovery refused a non-loopback listener"
     );
-    server_context.host = local_addr.ip().to_string();
-    server_context.port = local_addr.port();
-    server_context.loopback = true;
+    server_context.record_bound_address(local_addr);
     let profile = server_context.profile;
     let admin_token_file_display = server_context
         .admin_token_file

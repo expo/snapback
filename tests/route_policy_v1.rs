@@ -127,22 +127,18 @@ fn sessions_runtime(state: AppState) -> AppState {
         .expect("install exact future sessions runtime facts")
 }
 
+fn bound_loopback_state(snapback: LocalSnapback) -> AppState {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let context = ServerContext::from_bound_listener(&listener).unwrap();
+    AppState::from_snapback(snapback, context)
+}
+
 fn exposed_context(token: &str) -> ServerContext {
-    ServerContext {
-        host: "0.0.0.0".to_owned(),
-        port: 4287,
-        loopback: false,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        profile: ServerProfile::Dev,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: Some(token.to_owned()),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Dev;
+    context.admin_token = Some(token.to_owned());
+    context
 }
 
 fn set_json_path(value: &mut Value, path: &[&str], replacement: Value) {
@@ -1410,7 +1406,7 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
 /// a handler-specific error can win.
 #[tokio::test]
 async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
-    let state = AppState::detached(
+    let state = bound_loopback_state(
         LocalSnapback::memory().expect("in-memory sessions HTTP policy instance"),
     )
     .with_policy_auth_mode(PolicyAuthMode::Sessions);
@@ -1484,7 +1480,7 @@ async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
 /// resolver is not installed.
 #[tokio::test]
 async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
-    let router = app(sessions_runtime(AppState::detached(
+    let router = app(sessions_runtime(bound_loopback_state(
         LocalSnapback::memory().expect("in-memory optional-bearer policy instance"),
     )));
     for (uri, body) in [
@@ -1515,7 +1511,7 @@ async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
 /// are reserved, never descendants of `args`, `scope`, or an app value.
 #[tokio::test]
 async fn sessions_body_auth_rejection_does_not_scan_application_payloads() {
-    let state = AppState::detached(
+    let state = bound_loopback_state(
         LocalSnapback::memory().expect("in-memory sessions location policy instance"),
     )
     .with_policy_auth_mode(PolicyAuthMode::Sessions);
@@ -2011,7 +2007,7 @@ fn session_socket_body_probes() -> BTreeMap<&'static str, SocketBodyProbe> {
 /// dev DTO or room handler can observe the payload.
 #[tokio::test]
 async fn sessions_runtime_rejects_body_auth_for_every_websocket_operation() {
-    let state = AppState::detached(
+    let state = bound_loopback_state(
         LocalSnapback::memory().expect("in-memory sessions socket policy instance"),
     )
     .with_policy_auth_mode(PolicyAuthMode::Sessions);
@@ -2494,11 +2490,16 @@ async fn connection_carriers_are_authenticated_before_any_body_inspection() {
 async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let state = sessions_runtime(AppState::detached(runner_fixture()));
+    let std_listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind quiescence starvation server");
+    let context = ServerContext::from_bound_listener(&std_listener)
+        .expect("resolve quiescence starvation listener");
+    std_listener
+        .set_nonblocking(true)
+        .expect("make quiescence listener nonblocking");
+    let listener = TcpListener::from_std(std_listener).expect("adopt quiescence listener");
+    let state = sessions_runtime(AppState::from_snapback(runner_fixture(), context));
     let controller = state.auth_admission_controller();
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind quiescence starvation server");
     let addr = listener.local_addr().expect("quiescence server address");
     let server = tokio::spawn(async move {
         axum::serve(listener, app(state))

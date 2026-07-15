@@ -4571,8 +4571,21 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     } else {
         crate::manifest::AuthMode::Dev
     };
+    let session_transport = transport_active == crate::manifest::AuthMode::Sessions
+        || transport_desired == crate::manifest::AuthMode::Sessions;
+    let listener_loopback = match runtime.server.listener_transport_loopback() {
+        Some(loopback) => loopback,
+        None if session_transport => {
+            return Some(SnapbackError::error(
+                "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+                "auth",
+                "desired or active sessions require listener-owned loopback transport evidence",
+            ));
+        }
+        None => runtime.server.loopback,
+    };
     if let Err(error) = crate::admin::validate_plaintext_auth_transport(
-        runtime.server.loopback,
+        listener_loopback,
         runtime.server.profile,
         transport_active,
         transport_desired,
@@ -12920,7 +12933,7 @@ mod tests {
         retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
         spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     };
-    use crate::admin::{AppState, ServerContext, ServerProfile};
+    use crate::admin::{AppState, ListenerTransportPosture, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
@@ -13013,6 +13026,12 @@ mod tests {
         }
     }
 
+    fn bound_loopback_context() -> ServerContext {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback context fixture");
+        ServerContext::from_bound_listener(&listener).expect("read loopback fixture address")
+    }
+
     fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -13036,7 +13055,7 @@ mod tests {
                 Ok(())
             })
             .expect("capture test impersonation capability");
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-http-admin".to_owned());
         let state = AppState::from_snapback(snapback, context)
@@ -13066,7 +13085,7 @@ mod tests {
             )
             .expect("construct manual-clock auth provider"),
         );
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = activate_test_sessions(
             AppState::from_snapback(snapback, context)
@@ -13115,7 +13134,7 @@ mod tests {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install predecessor invalidation projections");
 
-        AppState::from_snapback(snapback, ServerContext::detached())
+        AppState::from_snapback(snapback, bound_loopback_context())
             .with_auth_provider(provider)
             .with_auth_invalidation(issuer)
             .with_auth_runtime_facts(
@@ -13137,7 +13156,7 @@ mod tests {
         let coordinator = runtime
             .build_coordinator(&mut snapback)
             .expect("build dormant stream coordinator");
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Dev;
         AppState::from_snapback(snapback, context).with_auth_runtime(&runtime, coordinator)
     }
@@ -13322,7 +13341,7 @@ mod tests {
             )
             .expect("raise projection HTTP obligations");
 
-        AppState::from_snapback(snapback, ServerContext::detached())
+        AppState::from_snapback(snapback, bound_loopback_context())
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
             .with_auth_provider(provider)
             .with_auth_invalidation(issuer)
@@ -13452,7 +13471,7 @@ mod tests {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install protected-room invalidation");
 
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = AppState::from_snapback(snapback, context)
             .with_auth_provider(provider)
@@ -13945,7 +13964,7 @@ mod tests {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install activation invalidation state");
 
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-http-admin".to_owned());
         AppState::from_snapback(snapback, context)
@@ -15842,7 +15861,8 @@ mod tests {
     #[tokio::test]
     async fn dev_transport_and_prod_profile_fail_closed_but_keep_health_available() {
         let (mut non_loopback, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
-        Arc::make_mut(&mut non_loopback.server).loopback = false;
+        Arc::make_mut(&mut non_loopback.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let router = app(non_loopback.clone());
         let refused = router
             .clone()
@@ -15900,7 +15920,8 @@ mod tests {
         );
 
         let (mut sessions, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
-        Arc::make_mut(&mut sessions.server).loopback = false;
+        Arc::make_mut(&mut sessions.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let sessions = sessions.with_insecure_dev_auth_override(true);
         let refused = app(sessions)
             .oneshot(
@@ -15937,7 +15958,8 @@ mod tests {
         }
 
         let (mut active, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
-        Arc::make_mut(&mut active.server).loopback = false;
+        Arc::make_mut(&mut active.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let active = active.with_insecure_dev_auth_override(true);
         assert_eq!(
             active
@@ -15959,7 +15981,8 @@ mod tests {
         desired
             .publish_auth_mode_state(pending_sessions_state(false))
             .unwrap();
-        Arc::make_mut(&mut desired.server).loopback = false;
+        Arc::make_mut(&mut desired.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let desired = desired.with_insecure_dev_auth_override(true);
         assert_eq!(
             desired
@@ -15990,12 +16013,110 @@ mod tests {
         assert!(!body.to_string().contains(BEARER_SENTINEL));
 
         let (mut dev, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
-        Arc::make_mut(&mut dev.server).loopback = false;
+        Arc::make_mut(&mut dev.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let dev = dev.with_insecure_dev_auth_override(true);
         let (status, body) = handshake(app(dev), None).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["activeMode"], "dev");
         assert_eq!(body["authority"]["isAuthenticated"], false);
+    }
+
+    #[tokio::test]
+    async fn detached_sessions_router_refuses_a_real_non_loopback_listener() {
+        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+        async fn request(port: u16, path: &str) -> (StatusCode, Value) {
+            let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+                .await
+                .unwrap_or_else(|error| panic!("connect detached {path}: {error}"));
+            stream
+                .write_all(
+                    format!(
+                        "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap_or_else(|error| panic!("write detached {path}: {error}"));
+            let mut response = Vec::new();
+            stream
+                .read_to_end(&mut response)
+                .await
+                .unwrap_or_else(|error| panic!("read detached {path}: {error}"));
+            let split = response
+                .windows(4)
+                .position(|window| window == b"\r\n\r\n")
+                .expect("HTTP response header delimiter");
+            let head = std::str::from_utf8(&response[..split]).expect("HTTP response headers");
+            let status = head
+                .lines()
+                .next()
+                .and_then(|line| line.split_whitespace().nth(1))
+                .and_then(|raw| raw.parse::<u16>().ok())
+                .and_then(|raw| StatusCode::from_u16(raw).ok())
+                .expect("HTTP response status");
+            let body = serde_json::from_slice(&response[split + 4..]).unwrap_or(Value::Null);
+            (status, body)
+        }
+
+        let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let detached = Arc::make_mut(&mut state.server);
+        detached.host = "127.0.0.1".to_owned();
+        detached.port = 0;
+        detached.loopback = true;
+        detached.listener_transport = ListenerTransportPosture::Unknown;
+
+        // This is the shipped bypass shape: the router claims loopback while
+        // an embedder serves it on every interface. Connect through loopback so
+        // the test remains hermetic; the socket itself is still non-loopback.
+        let listener = TcpListener::bind("0.0.0.0:0")
+            .await
+            .expect("bind real non-loopback embedded listener");
+        let port = listener
+            .local_addr()
+            .expect("embedded listener address")
+            .port();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app(state))
+                .await
+                .expect("serve detached sessions router");
+        });
+        let (health, _) = request(port, "/health").await;
+        assert_eq!(health, StatusCode::OK);
+
+        for path in ["/inspect", "/auth/session"] {
+            let (status, body) = request(port, path).await;
+            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{path}");
+            assert_eq!(
+                body["diagnostic"]["code"], "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+                "{path}: {body}"
+            );
+        }
+
+        server.abort();
+        let _ = server.await;
+
+        let (mut forged, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let context = Arc::make_mut(&mut forged.server);
+        context.record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
+        context.loopback = true;
+        context.host = "127.0.0.1".to_owned();
+        let response = app(forged)
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .body(Body::empty())
+                    .expect("forged-loopback request"),
+            )
+            .await
+            .expect("forged-loopback response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+            "public descriptive fields must not override listener-owned posture"
+        );
     }
 
     #[tokio::test]
@@ -16784,7 +16905,7 @@ mod tests {
         let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
         let keyring_path = AuthKeyringStore::keyring_path(&database_path);
         let retained = std::fs::read(&keyring_path).unwrap();
-        let router = app(AppState::from_snapback(snapback, ServerContext::detached())
+        let router = app(AppState::from_snapback(snapback, bound_loopback_context())
             .with_auth_provider(provider));
 
         let available = router
@@ -18164,7 +18285,7 @@ mod tests {
             )
             .expect("construct manual-clock cap provider"),
         );
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = activate_test_sessions(
             AppState::from_snapback(snapback, context)
@@ -18285,7 +18406,7 @@ mod tests {
             )
             .expect("construct manual-clock provider"),
         );
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = activate_test_sessions(
             AppState::from_snapback(snapback, context)
@@ -18529,7 +18650,7 @@ mod tests {
             )
             .expect("construct manual-clock auth provider"),
         );
-        let state = AppState::from_snapback(snapback, ServerContext::detached())
+        let state = AppState::from_snapback(snapback, bound_loopback_context())
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
             .with_auth_provider(provider);
         let credential = mint_test_credential(&state, "sliding-use@example.com").await;
@@ -18810,7 +18931,7 @@ mod tests {
             })
             .unwrap();
         let impersonation = impersonation.unwrap();
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-rescue-admin".to_owned());
         let state = AppState::from_snapback(snapback, context)

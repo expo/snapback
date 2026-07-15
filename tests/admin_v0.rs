@@ -28,7 +28,7 @@ use snapback::manifest::{
 use snapback::server::{ErrorResponse, MutationResponse, PolicyAuthMode};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tower::ServiceExt;
@@ -1617,13 +1617,9 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     assert!(second_id.starts_with("conn_"), "minted id: {second_id}");
 
     // Prod never adopts caller-selected ids.
-    let prod_state = AppState::from_snapback(
-        seeded_snapback(),
-        ServerContext {
-            profile: snapback::admin::ServerProfile::Prod,
-            ..loopback_context(None)
-        },
-    );
+    let mut prod_context = loopback_context(None);
+    prod_context.profile = snapback::admin::ServerProfile::Prod;
+    let prod_state = AppState::from_snapback(seeded_snapback(), prod_context);
     // Production refuses ordinary app data while durable auth is still dev.
     // Install exact future item-5 readiness so this assertion continues to
     // isolate the profile's caller-selected-id behavior.
@@ -2223,57 +2219,26 @@ fn sessions_runtime(state: AppState) -> AppState {
 }
 
 fn loopback_context(token: Option<&str>) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: "127.0.0.1".to_owned(),
-        port: 4287,
-        loopback: true,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: token.map(ToOwned::to_owned),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_token = token.map(ToOwned::to_owned);
+    context
 }
 
 fn exposed_context(token: Option<&str>) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: "0.0.0.0".to_owned(),
-        port: 4287,
-        loopback: false,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: token.map(ToOwned::to_owned),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_token = token.map(ToOwned::to_owned);
+    context
 }
 
 fn dist_context(dist: std::path::PathBuf) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: "127.0.0.1".to_owned(),
-        port: 4287,
-        loopback: true,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: None,
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: Some(dist),
-    }
+    let mut context = ServerContext::new("127.0.0.1", 4287, true);
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_dist = Some(dist);
+    context
 }
 
 fn get(uri: &str) -> Request<Body> {

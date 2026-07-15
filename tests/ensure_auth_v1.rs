@@ -14,27 +14,16 @@ use snapback::server::{
     CredentialResolution, InvocationAuthority, OperationTransport, PolicyAuthMode, RoutePolicy,
     app, operation_registry,
 };
-use std::time::Instant;
 use tower::ServiceExt;
 
 const ADMIN_TOKEN: &str = "ensure-admin-token";
 
 fn context(profile: ServerProfile) -> ServerContext {
-    ServerContext {
-        host: "127.0.0.1".to_owned(),
-        port: 4287,
-        loopback: true,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        profile,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: Some(ADMIN_TOKEN.to_owned()),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = profile;
+    context.admin_token = Some(ADMIN_TOKEN.to_owned());
+    context
 }
 
 fn manifests() -> (SchemaManifest, FunctionManifest) {
