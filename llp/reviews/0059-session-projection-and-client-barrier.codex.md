@@ -856,3 +856,35 @@ EVIDENCE
 - Deterministic owner/peer success cuts exist (`auth-coordinator-client.mjs:897-978`); mismatch cuts exist (`:989-1070,1176-1253`).
 - Production staging, locked flush, and failure discard are present (`client.mjs:1292-1315`; `auth-coordinator.mjs:1350-1360,1460-1517,1593-1603`).
 - HEAD `c77e238ee4009d649a284a346aecd5bd28d83683`; static read-only inspection only, no tests/builds.
+
+## FINAL7 corrected final-read evidence review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, model `gpt-5.6-sol`, high reasoning, read-only sandbox
+- Method: fresh blind targeted static review; FINAL7 review iteration of the corrected FINAL6 evidence closure
+- Session: `019f67d1-8f97-7d02-8472-8d67fc3f9387`
+- Reviewed commit: `0b031f70ec494d05d97c81de58443a21b33d9203`
+- Human authorization: ENG-25001 FINAL7 completion request
+- Secrets or redactions: none; reviewer was instructed not to inspect secrets or archived reviews
+- Source artifact: `/private/tmp/eng25001-final7-codex-0059.md`
+
+### Verbatim review
+
+VERDICT
+READY
+
+MATERIAL
+None.
+
+MINOR
+None.
+
+EVIDENCE
+- demos/_kit/tests/auth-coordinator-client.mjs:141-181 — ownership wrapper delegates earlier reads and injects only the armed owner-read failure.
+- demos/_kit/tests/auth-coordinator-client.mjs:1152-1220,1339-1410 — peer/owner fixtures prove post-staging arming, stale in-flight sessions, zero callbacks, clearing capture, clean refetch, and cache-only recovery.
+- demos/_kit/client.mjs:1292-1315 — real transport handshake completes before `stagePublication`.
+- packages/snapback-contract/auth-coordinator.mjs:1334-1360,1428-1517,1583-1603 — the next post-resume operation is final `#confirmDurableExact` owner.read; failures discard staged publications and reblank.
+- llp/0059-session-projection-and-client-barrier.spec.md:2085-2100,2139-2148 — wording precisely matches the evidence; FINAL6 labeling is consistent.
+- Exact HEAD `0b031f70ec494d05d97c81de58443a21b33d9203`; tracked status clean. Static read-only review only; no tests/builds/artifacts.
