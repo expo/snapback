@@ -239,7 +239,7 @@ async fn compose_auth_mode_startup(
                 let error = startup_blocking(|| {
                     snapback
                         .auth_database_mut()
-                        .consume_sessions_auth_mode(readiness)
+                        .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
                 })
                 .expect_err("item readiness must refuse sessions consume");
                 snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));

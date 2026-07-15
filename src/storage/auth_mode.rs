@@ -654,7 +654,8 @@ impl LocalDatabase {
     /// Consume dev -> sessions after the caller has prepared the bundle and a
     /// usable keyring. Catalog DDL, active manifest relocation, poison, staged
     /// deletion, and settled state share this one commit.
-    pub fn consume_sessions_auth_mode(
+    #[cfg(test)]
+    pub(crate) fn consume_sessions_auth_mode(
         &mut self,
         readiness: &AuthProgramReadiness,
     ) -> SnapbackResult<AuthModeStateRecord> {
