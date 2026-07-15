@@ -9,8 +9,11 @@ import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
 const suite = createSuite('_kit auth handshake', { expectedChecks: 15 });
 const originalFetch = globalThis.fetch;
+const APP_ID = 'snapback.test/auth-handshake';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 const AUTHORIZATION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
+const SESSION_ID = '018f0d90-7b25-7a22-8c33-445566778899';
+const USER_ID = '018f0d90-7b26-7a22-8c33-445566778899';
 const BEARER_SENTINEL = 'sbs_HANDSHAKE_SUCCESS_SENTINEL_MUST_NOT_ESCAPE';
 const NUMERIC_BEARER_SENTINEL = '2915031750813250';
 const PROTOCOL_HEADERS = {
@@ -34,6 +37,7 @@ const handshake = ({
   reason = null,
   nonce = 'startup-1',
   generation = 1,
+  appId = APP_ID,
 } = {}) => ({
   protocolVersion: 1,
   serverStartupNonce: nonce,
@@ -63,14 +67,58 @@ const handshake = ({
   },
   provider: { key: 'email-code', available: activeMode === 'sessions' },
   transports: ['bearer'],
-  authority: { userId: null, sessionId: null, isAuthenticated: false },
+  authority: activeMode === 'sessions'
+    ? { userId: USER_ID, sessionId: SESSION_ID, isAuthenticated: true }
+    : { userId: null, sessionId: null, isAuthenticated: false },
   authorityDescriptor: {
     descriptorVersion: 1,
     authorityInstanceId: AUTHORITY,
     sessionGeneration: activeMode === 'sessions' ? 1 : 0,
   },
+  deploymentIdentity: activeMode === 'sessions'
+    ? {
+        schemaVersion: 'snapback.auth-artifacts.v1',
+        authMode: 'sessions',
+        appId,
+        schemaHash: 'sha256:schema',
+        bundleHash: 'sha256:bundle',
+        inputsHash: 'sha256:inputs',
+      }
+    : null,
   authorizedLease: null,
 });
+
+// @ref LLP 0059#client-custody-and-authcoordinator — protocol-1 fixtures use
+// the production custody owner; authenticated cases seed bearer state through
+// its transition rather than bypassing it through a client constructor option.
+const coordinatedClient = async ({ bearerToken = null, ...options } = {}) => {
+  const authMode = bearerToken === null ? 'dev' : 'sessions';
+  const coordinator = new AuthCoordinator({
+    appId: APP_ID,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const capture = await coordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode,
+    authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+  });
+  if (bearerToken !== null) {
+    await coordinator.transition(capture, {
+      authority: {
+        kind: 'session',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+        sessionId: SESSION_ID,
+        userId: USER_ID,
+      },
+      bearer: bearerToken,
+      refreshAfterMs: 60_000,
+    }, 'test_session_fixture');
+  }
+  return new SnapbackClient('http://stub', { ...options, authCoordinator: coordinator });
+};
 
 try {
   await suite.check('dev rediscovers before every online operation and preserves legacy body authority', async () => {
@@ -83,7 +131,7 @@ try {
       if (path === '/action/reindex') return response({ ok: true });
       throw new Error(`unexpected path ${path}`);
     };
-    const db = new SnapbackClient('http://stub');
+    const db = await coordinatedClient();
     await db.query('listTodos', { userId: 'user_ada' });
     await db.action('reindex', { userId: 'user_ada' });
     assertEqual(calls.map(({ path }) => path), [
@@ -107,7 +155,7 @@ try {
       if (path === '/mutation/updateTodo') return response({ result: null });
       throw new Error(`unexpected path ${path}`);
     };
-    const db = new SnapbackClient('http://stub', {
+    const db = await coordinatedClient({
       bearerToken: 'session-secret',
       authorityDescriptorProtocol: 1,
     });
@@ -146,7 +194,7 @@ try {
       }
       throw new Error(`unexpected path ${path}`);
     };
-    const db = new SnapbackClient('http://stub');
+    const db = await coordinatedClient();
     await db.query('listTodos');
     await db.connectionGrant('client-label');
     assertEqual(calls.map(({ path }) => path), [
@@ -167,7 +215,7 @@ try {
       if (offline) throw new TypeError('fetch failed');
       return response(handshake({ activeMode: 'sessions', nonce: 'offline-cache' }));
     };
-    const db = new SnapbackClient('http://stub', { bearerToken: 'session-secret' });
+    const db = await coordinatedClient({ bearerToken: 'session-secret' });
     const established = await db.authSession();
     offline = true;
     await assertThrows(() => db.authSession({ force: true }));
@@ -190,7 +238,7 @@ try {
       await offline;
       assert(false, 'the offline sentinel never resolves');
     };
-    const db = new SnapbackClient('http://stub', { bearerToken: 'session-secret' });
+    const db = await coordinatedClient({ bearerToken: 'session-secret' });
     const established = await db.authSession();
     const first = db.authSession({ force: true });
     const second = db.authSession({ force: true });
@@ -212,7 +260,7 @@ try {
       calls += 1;
       return response(handshake({ nonce: `force-after-cache-${calls}`, generation: calls }));
     };
-    const db = new SnapbackClient('http://stub');
+    const db = await coordinatedClient();
     await db.authSession();
     const cached = db.authSession();
     const forced = db.authSession({ force: true });
@@ -235,7 +283,7 @@ try {
       }
       return response(handshake({ nonce: 'fresh-after-invalid' }));
     };
-    const db = new SnapbackClient('http://stub');
+    const db = await coordinatedClient();
     await db.authSession();
     const error = await assertThrows(() => db.authSession({ force: true }));
     assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
@@ -258,7 +306,7 @@ try {
       }
       throw new Error(`unexpected path ${path}`);
     };
-    const db = new SnapbackClient('http://stub', {
+    const db = await coordinatedClient({
       bearerToken: 'session-secret',
       authInvalidationProtocol: 1,
       authorizedLeaseProtocol: 1,
@@ -303,7 +351,7 @@ try {
       }
       throw new Error(`operation crossed pending handshake: ${path}`);
     };
-    const db = new SnapbackClient('http://stub');
+    const db = await coordinatedClient();
     const error = await assertThrows(() => db.query('listTodos'));
     assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_MODE_PENDING');
     assertEqual(calls.map(({ path }) => path), ['/auth/session']);
@@ -318,7 +366,7 @@ try {
         else poisoned.bearer = BEARER_SENTINEL;
         return response(poisoned);
       };
-      const db = new SnapbackClient('http://stub', { bearerToken: BEARER_SENTINEL });
+      const db = await coordinatedClient({ bearerToken: BEARER_SENTINEL });
       const error = await assertThrows(
         () => db.authSession({ force: true }),
         'SNAPBACK_AUTH_HANDSHAKE_INVALID',
@@ -349,7 +397,7 @@ try {
         poisoned.clientProtocols[axis] = 1;
         return response(poisoned);
       };
-      const db = new SnapbackClient('http://stub', {
+      const db = await coordinatedClient({
         bearerToken: 'session-secret',
         ...options,
       });
@@ -368,70 +416,32 @@ try {
     return { rejectedAxes: cases.length };
   });
 
-  await suite.check('an unsolicited auth-client echo fails the no-offer resume handshake', async () => {
-    // The only handshake a client can issue without offering the auth-client
-    // protocol is the custody resume of a coordinated legacy client whose
-    // custody another context installed. Its empty offer makes every non-null
-    // echo unsolicited, including authClient itself.
-    const coordinator = new AuthCoordinator({
-      appId: 'snapback.test/unsolicited-auth-client-echo',
-      storage: createMemoryAuthCustodyStorage(),
-      broadcastChannelFactory: null,
-      hintStorage: null,
-    });
-    const db = new SnapbackClient('http://stub', {
-      authCoordinator: coordinator,
-      authClientProtocol: null,
-      authorityDescriptorProtocol: null,
-    });
-    const sessionId = '018f0d90-7b25-7a22-8c33-445566778899';
-    const userId = '018f0d90-7b26-7a22-8c33-445566778899';
+  await suite.check('auth-client protocol 1 is coordinator-only and cannot be suppressed', async () => {
+    const error = await assertThrows(
+      () => new SnapbackClient('http://stub', { authClientProtocol: 1 }),
+      undefined,
+      'protocol 1 without coordinator custody must fail construction',
+    );
+    assert(error instanceof TypeError, 'the invalid construction is a caller type error');
+    assert(
+      error.message.includes('requires AuthCoordinator custody'),
+      'the refusal names the missing custody owner',
+    );
+
     let observedHeaders = null;
     globalThis.fetch = async (url, init) => {
       assertEqual(new URL(url).pathname, '/auth/session');
       observedHeaders = init.headers ?? {};
-      // The response matches the settling authority exactly, so the only
-      // invalid fact is the authClient echo — solicited for ordinary clients,
-      // unsolicited for this request, which carried no protocol offer at all.
-      const poisoned = handshake({ activeMode: 'sessions' });
-      poisoned.authority = { userId, sessionId, isAuthenticated: true };
-      poisoned.authorityDescriptor = {
-        descriptorVersion: 1,
-        authorityInstanceId: sessionId,
-        sessionGeneration: 1,
-      };
-      return response(poisoned);
+      return response(handshake());
     };
-    try {
-      const anonymousCapture = await coordinator.establishAnonymous({
-        kind: 'anonymous',
-        authMode: 'sessions',
-        authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
-      });
-      const error = await assertThrows(
-        () => coordinator.transition(anonymousCapture, {
-          authority: {
-            kind: 'session',
-            authMode: 'sessions',
-            authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
-            sessionId,
-            userId,
-          },
-          bearer: 'sbs_resume-bearer',
-          refreshAfterMs: 60_000,
-        }, 'test_unsolicited_auth_client_echo'),
-        'SNAPBACK_AUTH_TRANSITION_FAILED',
-        'the resume barrier must fail on the unsolicited auth-client echo',
-      );
-      assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_TRANSITION_FAILED');
-      for (const header of Object.values(PROTOCOL_HEADERS)) {
-        assertEqual(observedHeaders[header], undefined, `resume offered ${header}`);
-      }
-      return { rejected: true };
-    } finally {
-      await db.closeAuth();
-      await coordinator.close();
-    }
+    const db = await coordinatedClient({
+      authClientProtocol: null,
+      authorityDescriptorProtocol: null,
+    });
+    await db.authSession();
+    assertEqual(observedHeaders[PROTOCOL_HEADERS.authClient], '1');
+    assertEqual(observedHeaders[PROTOCOL_HEADERS.authorityDescriptor], undefined);
+    return { rejectedUncoordinated: true, coordinatedOffer: 1 };
   });
 
   await suite.check('exactly offered echoes still project on every axis', async () => {
@@ -449,7 +459,7 @@ try {
       };
       return response(echoed);
     };
-    const db = new SnapbackClient('http://stub', {
+    const db = await coordinatedClient({
       bearerToken: 'session-secret',
       authInvalidationProtocol: 1,
       authorizedLeaseProtocol: 1,
@@ -483,7 +493,7 @@ try {
         },
       }, 500);
     };
-    const db = new SnapbackClient('http://stub', { bearerToken: NUMERIC_BEARER_SENTINEL });
+    const db = await coordinatedClient({ bearerToken: NUMERIC_BEARER_SENTINEL });
     const error = await assertThrows(
       () => db.query('listTodos'),
       'SNAPBACK_TEST_NUMERIC_ECHO',
@@ -516,7 +526,7 @@ try {
         ...handshake({ activeMode: 'sessions' }),
         authorizedLease,
       });
-      const db = new SnapbackClient('http://stub', { bearerToken: 'session-secret' });
+      const db = await coordinatedClient({ bearerToken: 'session-secret' });
       const error = await assertThrows(() => db.authSession({ force: true }));
       assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
     }
