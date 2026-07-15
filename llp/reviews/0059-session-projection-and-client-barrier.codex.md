@@ -580,3 +580,33 @@ The revision is substantially stronger and most prior repairs are visibly implem
 No separate MINOR findings.
 
 **Readiness verdict: NOT READY**
+
+## Blind implementation re-review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `8825b3c27c9bc78b74aae5824257c903f767454c`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+# Verdict: NOT READY
+
+## MATERIAL
+
+- The acceptance/readiness contract is internally inconsistent. The spec says every acceptance is required before a readiness fact becomes true (`LLP 0059:1822`), but later admits the two-takeover assertion and exhaustive owner-kill/broadcast cases are not landed (`LLP 0059:1974`). Readiness nevertheless becomes true from receipt presence (`src/cli.rs:408`). Two further required cases lack matching evidence: the localStorage test exercises concurrent enqueue/crash takeover, not the specified stale-authority writer released after successor settlement (`packages/snapback-contract/offline-replay.test.mjs:1030`); and the worker test aborts an already-started worker rather than injecting the construction failure required by acceptance (`src/auth/runtime.rs:1141`). Resolution: either land every named readiness-gating test—including stale-authority localStorage and pre-bind coordinator/worker failures—or explicitly separate implemented readiness gates from later ratification acceptance and correct the “all acceptance obligations were present” claim.
+
+## MINOR
+
+- The implementation handoff says the app, coordinator, and worker plans are all consumed “before bind” (`LLP 0059:2048`), but production binds the socket before consuming the connection plan into `SnapbackApp` (`src/cli.rs:1877`, `src/cli.rs:1897`). Construction is infallible and serving has not begun, so this is not presently a safety break. Resolution: construct the app before socket bind or change the claim to “before serving.”
+
+## EDITORIAL
+
+None.
+
+The immutable expiry sample/frontier and durable-before-publication ordering are correctly implemented and tested (`src/auth/runtime.rs:434`, `src/auth/runtime.rs:1436`). Fresh coordinated handshake cache/returns are durably fenced (`demos/_kit/client.mjs:1117`), and the LLP 0008 one-key Web-Lock wording matches production structure.
