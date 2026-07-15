@@ -1212,7 +1212,8 @@ reopen the database "without agents" and silently strand live grants).
   run evaluates against; `kind` on session and dev-impersonation;
   the anonymous answer), the three auth-variable expression kinds in the
   protected-query input profile, and the **grant-scoped `delete`
-  disposition**.
+  disposition**. *Landed 2026-07-14 via ENG-24906 — LLP 0053 §Agent-auth
+  protected-query inputs.*
 - **Dated LLP 0039 amendments** — **step-up authentication** (an
   operation-bound, short-window re-verification of the built-in provider's
   challenge, required by the irreversible owner operations — 0039 has no such

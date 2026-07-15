@@ -1214,7 +1214,8 @@ semi-join amendment** and are not v1 acceptance.
   0053's default-deny profile refuses every helper-gated protected query. The
   event universe, trusted-code enumeration, and `permissionBacking` machinery
   need **no** amendment. (LLP 0055's sealed-projection/auth-variable amendment is
-  the sibling change to the same profile.)
+  the sibling change to the same profile.) *Landed 2026-07-14 via ENG-24906 —
+  LLP 0053 §Agent-auth protected-query inputs.*
 - **Dated LLP 0011 addendum** — the roles open question answered ("app data in a
   system-recognized shape"); the membership-denial cause wired to the gated
   details.

@@ -5,7 +5,18 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-14 (ENG-24992 verification-locus clarification: the lease
+**Revised:** 2026-07-14 (ENG-24906 agent-auth input admission: the new dated
+§Agent-auth protected-query inputs classifies the protected-query inputs
+LLP 0055 and LLP 0056 introduce — from 0056 the membership predicate node and
+the `ctx.permissions` membership read; from 0055 the sealed `ctx.auth`
+service-principal and direct projections, the `kind` key, the anonymous
+no-`kind` answer, the three auth-variable IR expression kinds, and the
+grant-scoped `delete` disposition — so the default-deny profile admits them
+instead of refusing every helper-gated live query and every delegated
+invocation. The authorization-event universe, the trusted-denial producer
+enumeration, and the `permissionBacking` machinery are explicitly left
+unchanged; Status stays Accepted. See §Agent-auth protected-query inputs and
+the dated changelog entry.) 2026-07-14 (ENG-24992 verification-locus clarification: the lease
 MAC and `key_id` are authenticated only by the server's keyring — where the
 unknown-key fail-closed rule lives — while client custody validation promises
 exactly structural/binding/clamp/expiry/rollback checks plus unkeyed-hash
@@ -24,7 +35,7 @@ history and §Changelog; artifacts in
 `reviews/0053-authorization-invalidation.{fable,codex}.md`. Split out of
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) §Permission dependencies on
 2026-07-12.)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051, LLP 0055, LLP 0056
 
 ## Summary
 
@@ -488,6 +499,157 @@ and retained: every mutable input either produces a database matcher wake,
 produces enumerated activation, crosses LLP 0039's authority fence, or is
 refused. There is no residual category of admitted ambient/future input and no
 open question asking implementers to discover one after the fact.
+
+### Agent-auth protected-query inputs (amended 2026-07-14, ENG-24906)
+
+This dated amendment admits the new protected-query inputs that
+[LLP 0055](./0055-agent-principals-and-scoped-grants.rfc.md) (agent principals
+and scoped grants) and [LLP 0056](./0056-scoped-roles-and-memberships.rfc.md)
+(scoped roles and memberships) introduce. It is required because the profile
+above is default-deny by construction: "**A newly added expression kind is
+denied for protected queries until this profile classifies it**" (§2) and
+"every unknown or future host op [is] also denied by default" (§4). Both RFCs
+add exactly those things, so absent this classification 0053 would refuse every
+helper-gated live query 0056 defines and every delegated/service-principal
+invocation 0055 defines. **Every input classified below lands inside an existing
+admitted category** — a `DatabaseCaptured` host op, a snapshot-bound
+capture-summary expression, or the sealed `ctx.auth` authority — so none is a
+new residual category and none is an ambient/future input in the sense the
+closure claim forbids; this amendment *is* the "this profile classifies it"
+step §2 promised.
+
+**From LLP 0056 (scoped roles and memberships):**
+
+1. **The membership predicate node is an admitted declarative IR expression
+   kind.** The declaration-bound membership predicate node LLP 0056 adds to the
+   structured filter IR — the first step past single-table filters — is
+   **admitted** under §2 rather than denied as a new expression kind. It is
+   **snapshot-bound** and **participates in the complete read/capture summary**
+   that contributes to the snapshot's data witness: a **successful** membership
+   lookup records ordinary snapshot-bound row/query dependencies through the
+   unique `(principal, resource)` index (never the legacy `Permission` kind),
+   and — load-bearing — an **empty** lookup records the corresponding
+   **empty-result query dependency over the same index range**, so a membership
+   insert or role upgrade wakes a subscription that previously matched nothing.
+   This **pinned empty-result capture** is why the captured-`Query`
+   short-circuit cannot prove a membership insert "disjoint" and strand a
+   newly-added member. The node admits no clock, id, or other
+   `MutableNonDatabase` input; its value is represented in the read/capture set
+   and bound to the snapshot version, exactly the `DatabaseCaptured` discipline
+   (LLP 0056 §What exists, what this adds; §Invalidation: the LLP 0053 mapping).
+
+2. **The `ctx.permissions` membership read is one new host operation, class
+   `DatabaseCaptured` on both outcomes.** The internal membership-read primitive
+   backing `requireRole` joins the §4 registry with a single admission class,
+   `DatabaseCaptured`, on **both** outcomes: whether the membership row is
+   **present or absent** it contributes its snapshot-bound dependency (including
+   the empty-result form) to the read summary and to commit-time read-set
+   validation. Denial is **not** a second class on this operation: on a failed
+   check the composition invokes the **already-classified `TerminalAuthorization`
+   deny operation** (`ctx.permissions.deny()`), which produces the **existing**
+   trusted `SNAPBACK_AUTH_PERMISSION_DENIED` and returns no application value. So
+   each primitive carries **exactly one** admission class and §4's
+   one-class-per-operation rule needs no change. The read has no
+   application-returning `.get()` form in v1 (that would re-open, as an API, the
+   membership-existence oracle the invariant denial payload closes)
+   (LLP 0056 §Rule helpers).
+
+**From LLP 0055 (agent principals and scoped grants):**
+
+3. **The sealed `ctx.auth` enumeration gains the `servicePrincipal` mode and a
+   `kind` key.** §3 seals `ctx.auth` as an exact, mode-specific value with extra
+   keys impossible; the new authority mode and fields join that enumeration as
+   further exact projections. Each remains a fresh, null-prototype,
+   data-property-only, recursively frozen record sealed before module evaluation
+   and identical for initial run and rerun — the new mode adds no accessor,
+   proxy, mutable backing object, or profile-dependent fallthrough:
+
+   - the two **`servicePrincipal`** projections —
+     - autonomous agent (actor == effective):
+       `{userId: <agentUserId>, sessionId: null, isAuthenticated: true,
+       provider: "agent-credential", roles: [], kind: "agent"}`;
+     - delegated agent (actor != effective):
+       `{userId: <effectiveUserId>, sessionId: null, isAuthenticated: true,
+       provider: "agent-credential", roles: [], kind: <effective user's kind>,
+       actor: {userId: <agentUserId>, kind: "agent", grantId: <grantId>}}`;
+   - the **direct (authorization) projection** the non-widening rule's dual run
+     evaluates each host-mediated authorization decision against — an enumerated
+     sealed value, exactly
+     `{userId: U, isAuthenticated: true, roles: [], kind: <U's kind>}` with
+     **no `sessionId` and no `provider`**, because the authorization projection
+     excludes authentication-shape fields so the direct baseline cannot be keyed
+     on *how* the user authenticated;
+   - **`kind` added to the session and dev-impersonation projections** — the
+     authenticated session becomes
+     `{userId, sessionId, isAuthenticated: true, provider, roles: [],
+     kind: <the user's kind>}`, and dev impersonation carries `kind = "human"`
+     by default (an impersonated agent kind is the 0024 `--as-agent` option);
+   - the **anonymous answer carries no `kind` key at all** — the sealed
+     anonymous projection stays
+     `{userId: null, sessionId: null, isAuthenticated: false}`, so a rule
+     referencing `auth.kind` resolves null and fails closed under LLP 0011's
+     missing-auth-variable rule. `adminBypass` and `system` continue to receive
+     the anonymous handler projection (LLP 0055 §Resolved authority;
+     §Principal kinds).
+
+4. **Three new auth-variable IR expression kinds are admitted analyzable
+   inputs.** Today the IR carries only `auth.userId` (`ValueExpr::AuthUserId`).
+   LLP 0055 adds `auth.kind`, `auth.actorKind`, and `auth.isDelegated`; under §2
+   these are **admitted**, not denied as newly added expression kinds. Each is a
+   pure function of the sealed current authority resolved from the `ctx.auth`
+   projection at subscribe time, carrying no `MutableNonDatabase` input:
+   `auth.kind` is the *effective* principal's kind, `auth.actorKind` the actor's
+   kind, and `auth.isDelegated` whether the invocation is delegated. Admitting
+   them does **not** relax the non-widening guarantee — that rule is
+   host-enforced by the dual run against the direct projection in classification
+   3 (a delegated invocation is authorized only where the effective user's direct
+   projection would also authorize it, and the result is intersected), and actor
+   variables can only ever *narrow* (LLP 0055 §Resolved authority). The
+   retainability invariant is unchanged: `auth.kind` is a pure function of the
+   immutable `userId` and stays compatible with `Retainable ⇒ userId-only`,
+   while `auth.actorKind` and `auth.isDelegated` are not, so a query reading them
+   is retention-ineligible — moot in v1, where service principals are
+   online-only.
+
+5. **The grant-scoped `delete` disposition is recorded here so the client-wide
+   session rule is not misapplied.** §Dispositions and the client-transition
+   table pin "**An authority transition under LLP 0039 always uses client-wide
+   `delete`**." That sentence is scoped to LLP 0039 **session** transitions,
+   where a client that has lost its identity may hold nothing. LLP 0055 defines a
+   **grant-scoped** narrowing for **multi-grant agent clients**: an agent client
+   may hold several live grants and tokens on one store at once, with the
+   **carrier axis** `(tokenId, connectionId)` deliberately separated from the
+   **durable authority axis** `(actorUserId, credentialId, credentialGeneration,
+   grantId)`. A single grant/credential/token ending therefore projects `delete`
+   only onto the state bound to that carrier/grant — token revocation or cap
+   eviction ends only the carrier instances bound to that `tokenId`, while
+   another live token's connections on the *same* grant are untouched (query
+   instances are never reused across carrier instances, so a stale callback from
+   an evicted token cannot address a surviving one). It is still a `delete`
+   disposition and still an **authority transition, not an authorization event**;
+   only the blast radius is grant-scoped rather than client-wide (LLP 0055
+   §Ending authority). A future reader at the client-wide sentence must not apply
+   it to a grant-scoped agent ending.
+
+**What this amendment deliberately does not touch — the narrowness is the
+point.** Each of the following needs **no** amendment, and the classifications
+above are written to leave them intact:
+
+- **The authorization-event universe is unchanged.** Pure grant, credential,
+  token, invitation, and principal transitions add **no** new enumerated event —
+  they are authority transitions (classification 5; LLP 0055 §Ending authority) —
+  and manifest activation remains the **existing event 2**. No event is added,
+  removed, or reclassified, and steady-state authorization-event amplification
+  stays zero.
+- **The trusted-denial producer enumeration is unchanged.** 0056's `requireRole`
+  denial is produced by the **existing** host-owned `ctx.permissions.deny()` /
+  `TerminalAuthorization` operation and the **existing**
+  `SNAPBACK_AUTH_PERMISSION_DENIED` code; no new trusted producer or code is
+  registered, and the closed enumeration in §Dispositions stands as written.
+- **The `permissionBacking` machinery is unchanged.** A membership declaration
+  *is* `permissionBacking: true` in the existing sense (LLP 0056 §Invalidation),
+  consumed by the same one-commit-hook rule, `permissionFields` narrowing, and
+  matcher/read-summary paths, with no new mechanism.
 
 ### Ephemeral room authority invalidation
 
@@ -1001,7 +1163,12 @@ The client transition is disposition-specific; "clear" is not one operation:
 | `quarantine` | hidden and read-blocked before resnapshot | kept but read-blocked | hidden and suspended; no reconciliation may publish | suspended; release on proof of continued authority, otherwise strand as redacted discard-only records |
 | `delete` | destroyed | destroyed; durable tombstone remains | destroyed in the affected scope | destroy affected entries; if independence cannot be proved, the current AuthCoordinator custody queue is the conservative scope |
 
-An authority transition under LLP 0039 always uses client-wide `delete`. A
+An authority transition under LLP 0039 always uses client-wide `delete`.
+(**Amended 2026-07-14, ENG-24906:** this client-wide rule is scoped to LLP 0039
+*session* transitions; LLP 0055 defines a **grant-scoped** `delete` for
+multi-grant agent clients, where only the state bound to the ending
+grant/carrier is destroyed — see §Agent-auth protected-query inputs,
+classification 5.) A
 coarse permission event uses query-scoped quarantine and therefore does **not**
 destroy queues and overlays on what is usually a false positive. The serialized
 barrier is: persist the fence/tombstone and hide or destroy the specified state,
@@ -1812,6 +1979,29 @@ spec must use the owning 0053 semantics and the registered wire spelling.
 
 ## Changelog
 
+- **2026-07-14 (ENG-24906 agent-auth input admission; still Accepted).** Added
+  §Agent-auth protected-query inputs, a dated amendment classifying the new
+  protected-query inputs LLP 0055 and LLP 0056 introduce so the default-deny
+  profile admits them instead of refusing every helper-gated live query (0056)
+  and every delegated/service-principal invocation (0055). From **LLP 0056**: the
+  declaration-bound **membership predicate node** as an admitted snapshot-bound
+  declarative IR expression kind (participating in the complete read/capture
+  summary, including the pinned empty-result capture), and the **`ctx.permissions`
+  membership read** as one host op classified `DatabaseCaptured` on both outcomes
+  (present and absent) — denial delivered by the already-classified
+  `TerminalAuthorization` deny op, so each primitive carries exactly one class and
+  the one-class-per-operation rule is unchanged. From **LLP 0055**: the sealed
+  `ctx.auth` enumeration extended with the two `servicePrincipal` projections, the
+  direct (authorization) projection the non-widening dual run evaluates against,
+  `kind` on the session and dev-impersonation projections, and the anonymous
+  no-`kind` answer; the three auth-variable IR expression kinds (`auth.kind`,
+  `auth.actorKind`, `auth.isDelegated`) admitted alongside the existing
+  `auth.userId` (`ValueExpr::AuthUserId`); and the **grant-scoped `delete`
+  disposition** recorded so the client-wide sentence — scoped to LLP 0039 session
+  transitions — is not misapplied to multi-grant agent clients. The
+  **authorization-event universe, the trusted-denial producer enumeration, and the
+  `permissionBacking` machinery are explicitly left unchanged.** No architectural
+  or wire change; no status transition.
 - **2026-07-14 (ENG-24992 verification-locus clarification; still Accepted).**
   Resolved the AuthorizedLease MAC client-verification mismatch by revising the
   contract text rather than shipping client verifier keys (option 2 of the
