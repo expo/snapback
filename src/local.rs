@@ -2139,6 +2139,19 @@ struct LiveSubscription {
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
 }
 
+impl LiveSubscription {
+    /// @ref LLP 0058#live-owner-and-replacement-predicate — a retained live
+    /// owner is the resolved authority *and* exact connection grant. `None`
+    /// remains the explicit unbound dev/test compatibility owner.
+    fn is_owned_by(
+        &self,
+        authority: &PreparedAuthority,
+        effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
+    ) -> bool {
+        self.authority.matches(authority) && self.effect_fence.as_ref() == effect_fence
+    }
+}
+
 #[derive(Clone, Debug)]
 struct LiveSubscriptionAuthorization {
     scope_id: ScopeId,
@@ -4489,15 +4502,21 @@ impl LocalSnapback {
         // A valid explicit supersession is a net-zero replacement. Identify
         // it before admission, but do not remove it until the new snapshot
         // succeeds: a query failure must leave the old live authority intact.
-        // Unknown or foreign ids remain the protocol's documented quiet
-        // no-op and therefore do not release capacity.
-        let superseded_subscription_id = input.supersedes.as_ref().and_then(|old_id| {
-            self.subscriptions.get(old_id).and_then(|existing| {
-                let same_connection = existing.connection_id == input.connection_id;
-                let same_owner = existing.authority.matches(&authority);
-                (same_connection && same_owner).then(|| old_id.clone())
-            })
-        });
+        // Unknown ids remain the protocol's documented quiet no-op and do not
+        // release capacity. Known foreign owners fail closed.
+        let superseded_subscription_id = match input.supersedes.as_ref() {
+            Some(old_id) => match self.subscriptions.get(old_id) {
+                Some(existing)
+                    if existing.connection_id == input.connection_id
+                        && existing.is_owned_by(&authority, effect_fence.as_ref()) =>
+                {
+                    Some(old_id.clone())
+                }
+                Some(existing) => return Err(live_owner_mismatch(&existing.id)),
+                None => None,
+            },
+            None => None,
+        };
         let release = usize::from(superseded_subscription_id.is_some());
 
         // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — retained
@@ -4733,7 +4752,7 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
         )?;
-        self.unsubscribe_live_prepared(name, input, authority)
+        self.unsubscribe_live_prepared(name, input, authority, None)
     }
 
     pub(crate) fn unsubscribe_live_prepared(
@@ -4741,6 +4760,7 @@ impl LocalSnapback {
         name: &str,
         input: LiveUnsubscribeInput,
         authority: PreparedAuthority,
+        effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
     ) -> SnapbackResult<LiveUnsubscribeOutput> {
         if authority.source() != InvocationSource::LiveUnsubscribe {
             return Err(SnapbackError::error(
@@ -4771,15 +4791,8 @@ impl LocalSnapback {
                 ),
             ));
         }
-        if !subscription.authority.matches(&authority) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
-                "realtime",
-                format!(
-                    "subscription {} is owned by a different principal",
-                    subscription.id
-                ),
-            ));
+        if !subscription.is_owned_by(&authority, effect_fence) {
+            return Err(live_owner_mismatch(&subscription.id));
         }
 
         let _publication = authority.effect_guard("live unsubscribe publication")?;
@@ -5087,15 +5100,8 @@ impl LocalSnapback {
             ));
         }
 
-        if !subscription.authority.matches(&authority) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
-                "realtime",
-                format!(
-                    "subscription {} is owned by a different principal",
-                    subscription.id
-                ),
-            ));
+        if !subscription.is_owned_by(&authority, invalidation.effect_fence.as_ref()) {
+            return Err(live_owner_mismatch(&subscription.id));
         }
         let predecessor_subscription = subscription.clone();
 
@@ -10129,6 +10135,14 @@ fn auth_resnapshot_required() -> SnapbackError {
     .with_details(json!({ "reason": "unknownOrReaped" }))
 }
 
+fn live_owner_mismatch(subscription_id: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+        "realtime",
+        format!("subscription {subscription_id} is owned by a different live owner"),
+    )
+}
+
 #[cfg(test)]
 mod authorization_acceptance;
 
@@ -13595,6 +13609,223 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn live_resume_requires_the_exact_connection_grant() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "resume-owner-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "resume-other-grant",
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "resume-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(200)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("owner subscription");
+        let resume = || LiveResumeInput {
+            subscription_id: subscribed.subscription_id.clone(),
+            connection_id: "resume-owner".to_owned(),
+            auth: AuthInput::default(),
+            recorded_permission_epochs: subscribed.permission_epochs.clone(),
+        };
+
+        let error = snapback
+            .resume_live_prepared_with_invalidation(
+                "listItems",
+                resume(),
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(other_fence),
+                    session_mode: true,
+                },
+            )
+            .expect_err("same authority under another grant cannot resume");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+        assert_eq!(
+            snapback
+                .subscriptions
+                .get(&subscribed.subscription_id)
+                .expect("failed hijack preserves owner")
+                .effect_fence
+                .as_ref(),
+            Some(&owner_fence),
+        );
+
+        let resumed = snapback
+            .resume_live_prepared_with_invalidation(
+                "listItems",
+                resume(),
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence),
+                    session_mode: true,
+                },
+            )
+            .expect("the exact owner grant may resume");
+        assert_eq!(resumed.subscription_id, subscribed.subscription_id);
+    }
+
+    #[test]
+    fn live_unsubscribe_requires_the_exact_connection_grant() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "unsubscribe-owner-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "unsubscribe-other-grant",
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "unsubscribe-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(201)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("owner subscription");
+        let unsubscribe = || LiveUnsubscribeInput {
+            subscription_id: subscribed.subscription_id.clone(),
+            connection_id: "unsubscribe-owner".to_owned(),
+            auth: AuthInput::default(),
+        };
+
+        let error = snapback
+            .unsubscribe_live_prepared(
+                "listItems",
+                unsubscribe(),
+                test_session_authority(InvocationSource::LiveUnsubscribe),
+                Some(&other_fence),
+            )
+            .expect_err("same authority under another grant cannot unsubscribe");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+
+        let disposed = snapback
+            .unsubscribe_live_prepared(
+                "listItems",
+                unsubscribe(),
+                test_session_authority(InvocationSource::LiveUnsubscribe),
+                Some(&owner_fence),
+            )
+            .expect("the exact owner grant may unsubscribe");
+        assert!(disposed.disposed);
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+    }
+
+    #[test]
+    fn live_supersession_requires_the_exact_connection_grant() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "supersede-owner-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "supersede-other-grant",
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "supersede-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(202)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("owner subscription");
+        let replacement = |instance| LiveSubscribeInput {
+            connection_id: "supersede-owner".to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: Some(test_authorization_namespace(instance)),
+            supersedes: Some(subscribed.subscription_id.clone()),
+        };
+
+        let error = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                replacement(203),
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(other_fence),
+                    session_mode: true,
+                },
+            )
+            .expect_err("same authority under another grant cannot supersede");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+        assert_eq!(snapback.subscriptions.len(), 1);
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+
+        let successor = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                replacement(204),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence),
+                    session_mode: true,
+                },
+            )
+            .expect("the exact owner grant may supersede");
+        assert_ne!(successor.subscription_id, subscribed.subscription_id);
+        assert_eq!(snapback.subscriptions.len(), 1);
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&successor.subscription_id)
+        );
+    }
+
+    #[test]
     fn terminal_topology_purge_does_not_reenter_room_or_outbox_cleanup() {
         let mut snapback = live_limit_snapback();
         let connection = install_test_invalidation(&mut snapback);
@@ -13645,20 +13876,14 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
-    fn changed_generation_live_resume_commits_scope_retirement_and_successor_owner() {
+    fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
         let mut snapback = live_limit_snapback();
         let connection = install_test_invalidation(&mut snapback);
-        let predecessor = crate::ephemeral::ConnectionEffectFence::session(
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::session(
             "incarnation",
-            "grant-old",
+            "grant-owner",
             "session",
             1,
-        );
-        let successor = crate::ephemeral::ConnectionEffectFence::session(
-            "incarnation",
-            "grant-new",
-            "session",
-            2,
         );
         let subscribed = snapback
             .subscribe_live_with_invalidation(
@@ -13671,7 +13896,7 @@ globalThis.__snapbackHandlers = {
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
-                    effect_fence: Some(predecessor),
+                    effect_fence: Some(owner_fence.clone()),
                     session_mode: true,
                 },
             )
@@ -13698,7 +13923,7 @@ globalThis.__snapbackHandlers = {
                 test_session_authority(InvocationSource::LiveResume),
                 LiveInvalidationAdmission {
                     connection: Some(successor_connection.clone()),
-                    effect_fence: Some(successor.clone()),
+                    effect_fence: Some(owner_fence.clone()),
                     session_mode: true,
                 },
             )
@@ -13729,7 +13954,7 @@ globalThis.__snapbackHandlers = {
             .get(&subscribed.subscription_id)
             .expect("retained successor")
             .clone();
-        assert_eq!(resumed.effect_fence.as_ref(), Some(&successor));
+        assert_eq!(resumed.effect_fence.as_ref(), Some(&owner_fence));
         assert_eq!(
             resumed
                 .authorization
@@ -13750,7 +13975,7 @@ globalThis.__snapbackHandlers = {
         snapback.enqueue_subscription_durable(&resumed, b"after-resume".to_vec());
         let payloads = snapback
             .ephemeral
-            .drain_outbox_for_send_bound("reused-resume", &successor)
+            .drain_outbox_for_send_bound("reused-resume", &owner_fence)
             .into_iter()
             .filter_map(|admitted| match admitted.into_parts().0 {
                 crate::ephemeral::RealtimeEnvelope::Durable(message) => Some(message.payload),
@@ -13767,12 +13992,6 @@ globalThis.__snapbackHandlers = {
         let predecessor_fence = crate::ephemeral::ConnectionEffectFence::session(
             "incarnation",
             "grant-old",
-            "session",
-            1,
-        );
-        let successor_fence = crate::ephemeral::ConnectionEffectFence::session(
-            "incarnation",
-            "grant-new",
             "session",
             1,
         );
@@ -13831,7 +14050,7 @@ globalThis.__snapbackHandlers = {
                     test_session_authority(InvocationSource::LiveResume),
                     LiveInvalidationAdmission {
                         connection: Some(successor_connection.clone()),
-                        effect_fence: Some(successor_fence.clone()),
+                        effect_fence: Some(predecessor_fence.clone()),
                         session_mode: true,
                     },
                 )
@@ -13876,7 +14095,7 @@ globalThis.__snapbackHandlers = {
             assert!(
                 snapback
                     .ephemeral
-                    .drain_outbox_for_send_bound("resume-successor", &successor_fence)
+                    .drain_outbox_for_send_bound("resume-successor", &predecessor_fence)
                     .is_empty(),
                 "an unpublished replacement cannot escape on its successor fence",
             );
@@ -13910,12 +14129,6 @@ globalThis.__snapbackHandlers = {
         let predecessor_fence = crate::ephemeral::ConnectionEffectFence::session(
             "incarnation",
             "grant-old",
-            "session",
-            1,
-        );
-        let successor_fence = crate::ephemeral::ConnectionEffectFence::session(
-            "incarnation",
-            "grant-new",
             "session",
             1,
         );
@@ -13954,14 +14167,14 @@ globalThis.__snapbackHandlers = {
                 "listItemsByValue",
                 LiveResumeInput {
                     subscription_id: subscribed.subscription_id.clone(),
-                    connection_id: "same-scope-successor".to_owned(),
+                    connection_id: "same-scope-predecessor".to_owned(),
                     auth: AuthInput::default(),
                     recorded_permission_epochs: subscribed.permission_epochs,
                 },
                 test_session_authority(InvocationSource::LiveResume),
                 LiveInvalidationAdmission {
                     connection: Some(connection),
-                    effect_fence: Some(successor_fence.clone()),
+                    effect_fence: Some(predecessor_fence.clone()),
                     session_mode: true,
                 },
             )
@@ -13980,13 +14193,6 @@ globalThis.__snapbackHandlers = {
                 .expect("retained authorization")
                 .scope_id,
             predecessor_scope,
-        );
-        assert!(
-            snapback
-                .ephemeral
-                .drain_outbox_for_send_bound("same-scope-successor", &successor_fence)
-                .is_empty(),
-            "failed resume must not publish on an unretained successor fence",
         );
         assert!(
             !snapback

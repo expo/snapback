@@ -10241,10 +10241,11 @@ async fn unsubscribe_live(
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let effect_fence = connection_act.effect_fence();
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.unsubscribe_live_prepared(&name, input, authority)
+        snapback.unsubscribe_live_prepared(&name, input, authority, Some(&effect_fence))
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
