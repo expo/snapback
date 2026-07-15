@@ -5,7 +5,11 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-25001: latest-review closure chooses one
+**Revised:** 2026-07-15 (final-review reconciliation: corrected the exhaustive
+credential-carrier matrix to name the shipped admin headers, restored frozen
+LLP 0039's division in which LLP 0051 D4 owns generated marker schemas while
+this RFC owns hosted semantics/rollout/proof, and removed stale lease/disposal
+claims; status remains Draft). 2026-07-15 (ENG-25001: latest-review closure chooses one
 serialized per-app authority for the first hosted topology, removes any public
 bearer-v1 waiver, requires predelivered first-contact TLS, pins centralized
 charge-on-denial limiting, closes the admission and old-receiver-safe handler
@@ -53,7 +57,7 @@ as defect obligations; C2 hardens the operator-origin rule for hosted exposure;
 C3 renames the v2 claim to off-device replay constraint — "XSS-resistant" is
 permanently forbidden for DPoP alone — and requires nonce for the
 pre-generated-proof claim.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0060-hosted-auth-security.codex.md` and applied its editorial corrections — D1 posture-matrix accuracy and the return-value sentinel scope; material findings remain for author triage). 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
-**Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0057, LLP 0058, LLP 0059
+**Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059
 
 ## Summary
 
@@ -445,7 +449,8 @@ cannot attest them, only what the target is *capable* of attesting. So:
    bound to the deployment identity and canonical configuration digest, with a
    monotone admission epoch. Serving admission consumes this, not the static
    profile.
-3. **Live health** — limiter reachability, invalidation currency, lease state.
+3. **Live health** — limiter reachability, invalidation currency, and serialized-
+   authority currency.
    Loss of a required health fact withdraws serving (refusal or bounded
    unavailability), it does not merely log.
 
@@ -484,9 +489,12 @@ ready. The shipped helpers are therefore `deployment_capable()` and
 `hosted_auth_capable()`; the local validator refuses every `hosted` request
 because no current target supplies admission authority.
 
-Two honesty rules apply: **an absent `hostedAuth` field
-deserializes to the all-unavailable, bearer-v1 local posture** (fail-closed —
-already implemented, now stated), and a hosted-candidate target MUST publish
+Two honesty rules apply: **an absent `hostedAuth` field deserializes to the
+exact local default tuple** `externalTls=unavailable`,
+`effectiveSource=unavailable`, `authenticationThrottle=processLocal`,
+`sessionInvalidation=singleProcess`, and
+`clientCredentialPosture=bearerV1XssExposed` (fail-closed for hosted admission
+— already implemented, now stated), and a hosted-candidate target MUST publish
 the descriptor explicitly rather than lean on the default. And the three
 non-TLS axes lack a value for "this target has no auth surface at all":
 `processLocal`, `singleProcess`, and `bearerV1XssExposed` assert mechanisms
@@ -510,8 +518,12 @@ environment variable, or app artifact can mint this object.
 
 LLP 0039 requires a must-understand invocation marker so a sessions-aware
 handler refuses an absent, unknown, or session-unaware coordinator before
-executing anything, and LLP 0058 explicitly delegates the hosted form of that
-marker — and its deployment interleavings — to this document. It is a
+executing anything. Its frozen ownership split remains authoritative:
+[LLP 0051 D4](./0051-language-neutral-data-tier.rfc.md#d4-error-diagnostic-and-effect-envelopes)
+owns the generated wire/serde schemas, registration, and schema drift gate;
+this RFC owns the hosted marker semantics, service-binding integrity,
+deployment ordering/interleavings, and conformance proof that LLP 0058 delegates
+here. Neither document may redefine the other's half. The composed boundary is a
 **positive prerequisite of hosted admission**, not an implementation
 detail:
 
@@ -635,8 +647,10 @@ payload**; and every issuing success is an exact, closed projection
 passthrough JSON). ENG-25001 closes the remaining client gaps: the kit, shared
 admin client, and embedded setup page replace 2xx read/parse failures on issuing
 paths with fixed errors, and `authRequestCode()` returns only the exact closed
-projection. Poison tests cover malformed text, reader failures, and unknown/
-nested/property-name/numeric positions.
+projection. Poison tests cover reader failures and unknown/nested/property-name/
+numeric positions; the implementation also maps malformed-text 2xx responses
+to the same opaque error, but this sentence does not claim a distinct malformed-
+text fixture on every client surface.
 
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
@@ -656,9 +670,9 @@ analytics, generated artifacts, and public diagnostics are forbidden for
 | Refresh successor | Coordinator custody, transiently during rotation; never returned, never persisted elsewhere |
 | Login code | Operator input, process-local capture mailbox, and exchange request; never durable and never logged |
 | Challenge id | Protected provider row and process-local mailbox key; exact challenge response; transient client memory; exchange request. It is a non-authenticating correlation handle, still omitted from public logs/diagnostics for privacy. |
-| Admin master credential | Operator input; headless `AdminClient` memory and `Authorization` header; console-mint request. Never browser-persisted by Snapback and cleared when the client is disposed. |
-| Derived `sbcc_` console credential | Admin-client memory **and its `localStorage` console record** — an intentional, named carrier (below), not an accident |
-| `AdminSecretRead` lease | Admin-client memory only; never persisted |
+| Admin master credential | Operator input; headless `AdminClient` memory; `x-snapback-admin-token` on the console-mint and headless admin requests. Never browser-persisted by Snapback; callers discard the client to end its in-memory lifetime, but v1 claims no deterministic zeroization API. |
+| Derived `sbcc_` console credential | Admin-client memory **and its `localStorage` console record** — an intentional, named carrier (below), not an accident; `x-snapback-console-credential` on ordinary admin requests |
+| `AdminSecretRead` lease | Admin-client memory and `x-snapback-secret-read-lease` on response-bearing inspection requests; never persisted |
 | DPoP private key (v2) | Platform keystore as a non-extractable `CryptoKey`; structured-cloned only through the dedicated v2 IndexedDB record, never JSON-serialized |
 
 The `sbcc_` `localStorage` row deserves its own honesty paragraph, because it
@@ -684,10 +698,12 @@ positions are not exempt in any of those projections (kit, shared admin, and
 embedded setup alike): a response value that is a JSON number is compared
 against every known secret in its canonical string form, so an all-numeric
 master, bearer, lease, login code, or config value reflected as a number is
-replaced exactly like its string twin. Error object property names are
-sanitized too, while a successful object whose property name contains a known
-secret is rejected generically rather than reinterpreted under a replacement
-key. The credential exchange accepts only its exact two-field response and
+replaced exactly like its string twin. The kit and shared admin client sanitize
+arbitrary error-object property names too; the embedded setup page projects
+only its closed flat `code`/`message` error shape. A successful object whose
+property name contains a known secret is rejected generically rather than
+reinterpreted under a replacement key. The credential exchange accepts only its
+exact two-field response and
 consumes it internally. Before persistence it also rejects a candidate derived
 record that would contain the submitted nonempty master anywhere in its
 serialized keys or values — the `sbcc_` credential as an exact substring
@@ -852,8 +868,9 @@ material.
   embedded-listener bypass test** proves a caller-supplied loopback flag
   cannot expose a sessions router (closes the shipped
   `ServerContext::detached()` / independent-`loopback` gap).
-- Diagnostic inventory and `ref-check` include the transport code and both
-  enforcement references.
+- LLP 0012's diagnostic inventory registers the transport code; `ref-check`
+  independently validates both enforcement `@ref` annotations. This does not
+  claim that `ref-check` validates diagnostic-code registration.
 
 ### Hosted target
 
@@ -887,6 +904,9 @@ material.
   per-invocation preflight refuses before handler execution. The V1 service
   binding is absent from legacy handlers, all request/response/host-call echoes
   are exact, and bad epochs or incarnations cannot publish.
+- LLP 0051 D4's generated request/response/host-call schemas are registered and
+  drift-gated against D6's closed envelope; this RFC's rollout and integrity
+  proof consumes those schemas without re-owning or hand-copying them.
 - Readiness is proven to be capability **plus** attestation **plus** health
   **plus** the D6/operator-origin gates: a build with all five capability enums
   positive but stale/rebound configuration, an unhealthy limiter, an
@@ -913,6 +933,10 @@ material.
   Arbitrary application payloads are not a credential-redaction
   boundary: an app that deliberately echoes a bearer as ordinary result data is
   out of this sentinel's scope and is covered by the client-page XSS contract.
+- Admin-carrier acceptance names and asserts the exact shipped headers:
+  `x-snapback-admin-token`, `x-snapback-console-credential`, and
+  `x-snapback-secret-read-lease`; the matrix does not use `Authorization` as an
+  alias for any of them.
 - One-, two-, and three-byte master/config sentinels prove known semantic
   carriers have no redaction floor. Poisoned diagnostic and successful-response
   property names prove keys cannot retain those values.
