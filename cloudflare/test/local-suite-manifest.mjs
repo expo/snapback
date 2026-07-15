@@ -8,6 +8,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-core',
   'acceptance-action-timeout',
   'acceptance-all-aboard',
+  'acceptance-built-client',
   'acceptance-cron',
   'acceptance-cron-recovery',
   'acceptance-egress',
@@ -24,7 +25,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'idle-evidence',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 18;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 19;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -42,6 +43,11 @@ export const LOCAL_SUITES = Object.freeze([
     id: 'acceptance-all-aboard',
     file: 'cloudflare/test/acceptance.all-aboard.mjs',
     evidence: ['all-aboard cloudflare acceptance: 19/19 checks passed'],
+  },
+  {
+    id: 'acceptance-built-client',
+    file: 'cloudflare/test/acceptance.built-client.all-aboard.mjs',
+    evidence: ['all-aboard built-client acceptance: 14/14 checks passed'],
   },
   {
     id: 'acceptance-cron',
@@ -122,6 +128,7 @@ export const LOCAL_SUITES = Object.freeze([
 export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.action-timeout.mjs', 'gate'],
   ['acceptance.all-aboard.mjs', 'gate'],
+  ['acceptance.built-client.all-aboard.mjs', 'gate'],
   ['acceptance.cron-recovery.mjs', 'gate'],
   ['acceptance.cron.mjs', 'gate'],
   ['acceptance.egress.mjs', 'gate'],
