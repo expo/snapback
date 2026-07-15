@@ -57,13 +57,22 @@ export const PRE_PORTABLE_ARTIFACT_EXACT_CONTRACT_VERSIONS = new Set([
 
 // Markers, not an exhaustive grammar: each one is a byte pattern that only
 // plausibly appears in an artifact because an absolute checkout/workstation
-// path leaked into it.
+// path leaked into it. The POSIX CI-root marker deliberately names common
+// build roots instead of rejecting every leading slash: Exact's canonical
+// /__exact_app__/, /__exact_runtime__/, and /__exact_workspace__/ module ids
+// are portable artifact tokens, not host paths.
 export const ABSOLUTE_PATH_MARKERS = [
   { id: 'macos-home', pattern: /\/Users\/[A-Za-z0-9_.-]+\// },
   { id: 'linux-home', pattern: /\/home\/[A-Za-z0-9_.-]+\// },
   { id: 'posix-tmp', pattern: /\/(?:private\/)?tmp\// },
   { id: 'macos-var', pattern: /\/(?:private\/)?var\/folders\// },
+  {
+    id: 'posix-ci-root',
+    pattern:
+      /\/(?:workspace|workspaces|builds|opt|mnt\/(?:agent|workspace)|var\/lib\/(?:buildkite-agent|jenkins))\//,
+  },
   { id: 'windows-home', pattern: /[A-Za-z]:[\\/]+Users[\\/]+/ },
+  { id: 'windows-drive-root', pattern: /[A-Za-z]:[\\/]+/ },
 ];
 
 function log(msg) {

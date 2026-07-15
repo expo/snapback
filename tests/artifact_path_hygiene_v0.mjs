@@ -46,6 +46,18 @@ try {
   assert.equal(scanArtifactBytes('p="/var/folders/xy/build/x.ts"')[0]?.marker, 'macos-var');
   assert.equal(scanArtifactBytes('p="/private/var/folders/xy/build/x.ts"')[0]?.marker, 'macos-var');
   assert.equal(scanArtifactBytes('p="C:\\\\Users\\\\dev\\\\x.ts"')[0]?.marker, 'windows-home');
+  assert.equal(
+    scanArtifactBytes('p="/workspace/exact/src/compiler.ts"')[0]?.marker,
+    'posix-ci-root',
+  );
+  assert.equal(
+    scanArtifactBytes('p="/opt/build/exact/src/compiler.ts"')[0]?.marker,
+    'posix-ci-root',
+  );
+  assert.equal(
+    scanArtifactBytes('p="D:\\\\a\\\\exact\\\\exact\\\\src\\\\compiler.ts"')[0]?.marker,
+    'windows-drive-root',
+  );
   assert.deepEqual(
     scanArtifactBytes(
       'import "/__exact_app__/main.ts"; import "/__exact_runtime__/router.ts"; ' +
