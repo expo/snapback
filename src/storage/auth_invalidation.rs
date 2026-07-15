@@ -9,6 +9,7 @@ use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH};
 use crate::auth::invalidation::{RetryEpisode, RetryEpisodeKey, RetryEpisodeRegistry};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
+#[cfg(test)]
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -51,29 +52,117 @@ impl LocalDatabase {
         Ok((authorization, version_stream, sequence))
     }
 
-    /// Load, mutate, and repersist the bounded retry registry under one
-    /// IMMEDIATE auth-control transaction. Counters are derived from the table
-    /// on every entry and rewritten in that same transaction; missing or
-    /// malformed counters therefore repair without resetting an episode.
-    pub(crate) fn with_invalidation_retry_registry<T>(
+    /// Run one retry-registry operation for exactly one episode key under one
+    /// IMMEDIATE auth-control transaction. Only the named episode row, the
+    /// affected `(authority_subject, client_store_id)` counter row, the global
+    /// count, and the shared clock high-water can be read strictly or written;
+    /// unrelated episodes are never deserialized or rewritten, so a refire
+    /// against one key performs bounded row writes regardless of how many
+    /// other episodes exist (ENG-24990).
+    ///
+    /// The episode table remains the authority: whenever admission of a new
+    /// episode is possible (the key has no durable episode) the capacity
+    /// baselines are derived from bounded `COUNT` queries against the table
+    /// itself, and missing/malformed counter projections are rebuilt from it.
+    ///
+    /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — counters
+    /// are maintained in the same auth-control transaction as episode
+    /// insert/replace/delete and rebuilt from the bounded table before
+    /// admission; no unresolved or exhausted episode is ever safety-evicted.
+    pub(crate) fn with_invalidation_retry_episode<T>(
         &mut self,
+        key: &RetryEpisodeKey,
         operation: impl FnOnce(&mut RetryEpisodeRegistry) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let clock_high_water_ms = strict_meta_u64(&tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
+        let loaded = load_retry_episode(&tx, key)?;
+        // Creation is possible only while the key has no durable episode; in
+        // that case both caps are enforced from exact table-derived counts.
+        // With the episode loaded, `reserve` can only attach or replace, so
+        // the (unused) global baseline may come from the maintained
+        // projection without another full-table scan.
+        let store_records = usize::try_from(count_store_episodes(&tx, key)?)
+            .map_err(|_| corrupt("retry per-store count is not representable"))?;
+        let global_records = if loaded.is_some() {
+            match lenient_meta_u64(&tx, RETRY_GLOBAL_COUNT_META_KEY) {
+                Some(value) => usize::try_from(value)
+                    .map_err(|_| corrupt("retry global count is not representable"))?,
+                None => usize::try_from(count_global_episodes(&tx)?)
+                    .map_err(|_| corrupt("retry global count is not representable"))?,
+            }
+        } else {
+            usize::try_from(count_global_episodes(&tx)?)
+                .map_err(|_| corrupt("retry global count is not representable"))?
+        };
+        let loaded_records = usize::from(loaded.is_some());
+        let mut registry = RetryEpisodeRegistry::from_persisted_scoped(
+            key,
+            loaded.clone(),
+            clock_high_water_ms,
+            global_records.saturating_sub(loaded_records),
+            store_records.saturating_sub(loaded_records),
+        )?;
+        let output = operation(&mut registry)?;
+        persist_scoped_retry_episode(&tx, key, loaded.as_ref(), clock_high_water_ms, &registry)?;
+        tx.commit()?;
+        Ok(output)
+    }
+
+    /// Test-only full snapshot of the durable retry registry. Reads and
+    /// validates every episode without rewriting anything; production paths
+    /// are key-local by design.
+    #[cfg(test)]
+    pub(crate) fn read_invalidation_retry_registry<T>(
+        &mut self,
+        operation: impl FnOnce(&RetryEpisodeRegistry) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let episodes = load_retry_episodes(&tx)?;
         let clock_high_water_ms = strict_meta_u64(&tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
-        let mut registry = RetryEpisodeRegistry::from_persisted(episodes, clock_high_water_ms)?;
-
-        // Repair before invoking the caller so an over-cap/corrupt counter can
-        // never turn into implicit admission. The episode table remains the
-        // authority and is itself bounded by the registry's fail-closed gate.
-        persist_retry_counters(&tx, registry.episodes())?;
-        let output = operation(&mut registry)?;
-        replace_retry_episodes(&tx, &registry)?;
+        let registry = RetryEpisodeRegistry::from_persisted(episodes, clock_high_water_ms)?;
+        let output = operation(&registry)?;
         tx.commit()?;
         Ok(output)
+    }
+
+    /// Test-only bulk fixture installer: durable episodes, counter rows, the
+    /// global count, and the clock high-water in one transaction, exactly as
+    /// incremental maintenance would have left them.
+    #[cfg(test)]
+    pub(crate) fn seed_invalidation_retry_episodes_for_test(
+        &mut self,
+        episodes: &BTreeMap<RetryEpisodeKey, RetryEpisode>,
+        clock_high_water_ms: u64,
+    ) -> SnapbackResult<()> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        {
+            let mut insert = tx.prepare(
+                "INSERT INTO _snapback_auth_retry_episodes(
+                     authority_subject, client_store_id, query_key, episode_json
+                 ) VALUES(?1, ?2, ?3, ?4)",
+            )?;
+            for (key, episode) in episodes {
+                let encoded = serde_json::to_string(episode)
+                    .map_err(|_| corrupt("retry episode could not be encoded"))?;
+                insert.execute(params![
+                    key.authority_subject,
+                    key.client_store_id,
+                    key.query_key,
+                    encoded
+                ])?;
+            }
+        }
+        persist_retry_counters(&tx, episodes)?;
+        write_meta_u64(&tx, AUTH_CLOCK_META_KEY, clock_high_water_ms)?;
+        tx.commit()?;
+        Ok(())
     }
 
     #[cfg(test)]
@@ -85,8 +174,206 @@ impl LocalDatabase {
         )?;
         u64::try_from(count).map_err(|_| corrupt("retry episode count is negative"))
     }
+
+    /// Total row inserts/updates/deletes performed on this connection since
+    /// open. Used by tests to prove key-local persistence writes a bounded
+    /// number of rows.
+    #[cfg(test)]
+    pub(crate) fn total_row_changes_for_test(&self) -> SnapbackResult<i64> {
+        Ok(self
+            .conn
+            .query_row("SELECT total_changes()", [], |row| row.get(0))?)
+    }
 }
 
+/// Load and strictly validate the one durable episode row for `key`.
+/// Canonical-encoding and key-binding corruption checks match the full
+/// loader row-for-row; unrelated rows are deliberately untouched and are
+/// checked when their own key is next operated on.
+fn load_retry_episode(
+    tx: &Transaction<'_>,
+    key: &RetryEpisodeKey,
+) -> SnapbackResult<Option<RetryEpisode>> {
+    let row: Option<(String, String)> = tx
+        .query_row(
+            "SELECT typeof(episode_json), episode_json
+             FROM _snapback_auth_retry_episodes
+             WHERE authority_subject = ?1 AND client_store_id = ?2 AND query_key = ?3",
+            params![key.authority_subject, key.client_store_id, key.query_key],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((storage_class, encoded)) = row else {
+        return Ok(None);
+    };
+    if storage_class != "text" {
+        return Err(corrupt("retry episode JSON is not SQLite text"));
+    }
+    let episode: RetryEpisode = serde_json::from_str(&encoded)
+        .map_err(|_| corrupt("retry episode JSON is malformed or non-canonical"))?;
+    if &episode.key != key {
+        return Err(corrupt(
+            "retry episode primary key does not match its payload",
+        ));
+    }
+    let canonical = serde_json::to_string(&episode)
+        .map_err(|_| corrupt("retry episode could not be canonically encoded"))?;
+    if canonical != encoded {
+        return Err(corrupt("retry episode JSON is not canonically encoded"));
+    }
+    Ok(Some(episode))
+}
+
+fn count_global_episodes(tx: &Transaction<'_>) -> SnapbackResult<u64> {
+    let count: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_auth_retry_episodes",
+        [],
+        |row| row.get(0),
+    )?;
+    u64::try_from(count).map_err(|_| corrupt("retry episode count is negative"))
+}
+
+fn count_store_episodes(tx: &Transaction<'_>, key: &RetryEpisodeKey) -> SnapbackResult<u64> {
+    let count: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_auth_retry_episodes
+         WHERE authority_subject = ?1 AND client_store_id = ?2",
+        params![key.authority_subject, key.client_store_id],
+        |row| row.get(0),
+    )?;
+    u64::try_from(count).map_err(|_| corrupt("retry per-store count is negative"))
+}
+
+/// A missing or malformed counter projection is repaired from the table, the
+/// same posture the previous full-rewrite persistence took by blindly
+/// re-deriving it on every entry.
+fn lenient_meta_u64(tx: &Transaction<'_>, key: &str) -> Option<u64> {
+    strict_meta_u64(tx, key).ok().flatten()
+}
+
+/// Persist exactly the state a key-scoped operation may have changed: the one
+/// episode row (insert/replace/delete only when its bytes changed), the shared
+/// clock high-water (only when advanced), the affected per-store counter row,
+/// and the global count. Counter and episode changes commit atomically or not
+/// at all.
+fn persist_scoped_retry_episode(
+    tx: &Transaction<'_>,
+    key: &RetryEpisodeKey,
+    loaded: Option<&RetryEpisode>,
+    loaded_clock_high_water_ms: u64,
+    registry: &RetryEpisodeRegistry,
+) -> SnapbackResult<()> {
+    if registry.episodes().keys().any(|candidate| candidate != key) {
+        return Err(corrupt(
+            "key-scoped retry operation escaped its episode key",
+        ));
+    }
+    let current = registry.episodes().get(key);
+    if current.is_some_and(|episode| &episode.key != key) {
+        return Err(corrupt("retry episode key does not match its storage key"));
+    }
+    match (loaded, current) {
+        (None, None) => {}
+        (Some(before), Some(after)) if before == after => {}
+        (_, Some(after)) => {
+            let encoded = serde_json::to_string(after)
+                .map_err(|_| corrupt("retry episode could not be encoded"))?;
+            tx.execute(
+                "INSERT INTO _snapback_auth_retry_episodes(
+                     authority_subject, client_store_id, query_key, episode_json
+                 ) VALUES(?1, ?2, ?3, ?4)
+                 ON CONFLICT(authority_subject, client_store_id, query_key)
+                 DO UPDATE SET episode_json = excluded.episode_json",
+                params![
+                    key.authority_subject,
+                    key.client_store_id,
+                    key.query_key,
+                    encoded
+                ],
+            )?;
+        }
+        (Some(_), None) => {
+            tx.execute(
+                "DELETE FROM _snapback_auth_retry_episodes
+                 WHERE authority_subject = ?1 AND client_store_id = ?2 AND query_key = ?3",
+                params![key.authority_subject, key.client_store_id, key.query_key],
+            )?;
+        }
+    }
+    if registry.clock_high_water_ms() != loaded_clock_high_water_ms {
+        write_meta_u64(tx, AUTH_CLOCK_META_KEY, registry.clock_high_water_ms())?;
+    }
+    // The affected store's counter row is re-derived from the table (bounded
+    // by the per-store cap through an indexed prefix count), repairing any
+    // missing or drifted projection for the store this operation touched.
+    let store_records = count_store_episodes(tx, key)?;
+    write_store_counter_if_changed(tx, key, store_records)?;
+    let created = loaded.is_none() && current.is_some();
+    let deleted = loaded.is_some() && current.is_none();
+    update_global_count(tx, created, deleted)?;
+    Ok(())
+}
+
+fn write_store_counter_if_changed(
+    tx: &Transaction<'_>,
+    key: &RetryEpisodeKey,
+    records: u64,
+) -> SnapbackResult<()> {
+    let stored: Option<rusqlite::types::Value> = tx
+        .query_row(
+            "SELECT records FROM _snapback_auth_retry_counters
+             WHERE authority_subject = ?1 AND client_store_id = ?2",
+            params![key.authority_subject, key.client_store_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let records_i64 = i64::try_from(records)
+        .map_err(|_| corrupt("retry per-store count is not representable"))?;
+    match (&stored, records) {
+        (None, 0) => Ok(()),
+        (Some(rusqlite::types::Value::Integer(value)), _)
+            if *value == records_i64 && records > 0 =>
+        {
+            Ok(())
+        }
+        (_, 0) => {
+            // Stores without episodes keep no counter row, matching the
+            // previous full-derivation projection exactly.
+            tx.execute(
+                "DELETE FROM _snapback_auth_retry_counters
+                 WHERE authority_subject = ?1 AND client_store_id = ?2",
+                params![key.authority_subject, key.client_store_id],
+            )?;
+            Ok(())
+        }
+        _ => {
+            tx.execute(
+                "INSERT INTO _snapback_auth_retry_counters(
+                     authority_subject, client_store_id, records
+                 ) VALUES(?1, ?2, ?3)
+                 ON CONFLICT(authority_subject, client_store_id)
+                 DO UPDATE SET records = excluded.records",
+                params![key.authority_subject, key.client_store_id, records_i64],
+            )?;
+            Ok(())
+        }
+    }
+}
+
+/// The global count is adjusted by the structural delta of this operation, or
+/// rebuilt from the (already updated) authoritative table when the stored
+/// projection is missing or malformed.
+fn update_global_count(tx: &Transaction<'_>, created: bool, deleted: bool) -> SnapbackResult<()> {
+    let stored = lenient_meta_u64(tx, RETRY_GLOBAL_COUNT_META_KEY);
+    let value = match stored {
+        Some(_) if !created && !deleted => return Ok(()),
+        Some(value) if created => value.saturating_add(1),
+        Some(value) => value.saturating_sub(1),
+        None => count_global_episodes(tx)?,
+    };
+    write_meta_u64(tx, RETRY_GLOBAL_COUNT_META_KEY, value.min(MAX_AUTHORIZATION_EPOCH))
+}
+
+#[cfg(test)]
 fn load_retry_episodes(
     tx: &Transaction<'_>,
 ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
@@ -127,33 +414,7 @@ fn load_retry_episodes(
     Ok(episodes)
 }
 
-fn replace_retry_episodes(
-    tx: &Transaction<'_>,
-    registry: &RetryEpisodeRegistry,
-) -> SnapbackResult<()> {
-    tx.execute("DELETE FROM _snapback_auth_retry_episodes", [])?;
-    {
-        let mut insert = tx.prepare(
-            "INSERT INTO _snapback_auth_retry_episodes(
-                 authority_subject, client_store_id, query_key, episode_json
-             ) VALUES(?1, ?2, ?3, ?4)",
-        )?;
-        for (key, episode) in registry.episodes() {
-            let encoded = serde_json::to_string(episode)
-                .map_err(|_| corrupt("retry episode could not be encoded"))?;
-            insert.execute(params![
-                key.authority_subject,
-                key.client_store_id,
-                key.query_key,
-                encoded
-            ])?;
-        }
-    }
-    write_meta_u64(tx, AUTH_CLOCK_META_KEY, registry.clock_high_water_ms())?;
-    persist_retry_counters(tx, registry.episodes())?;
-    Ok(())
-}
-
+#[cfg(test)]
 fn persist_retry_counters(
     tx: &Transaction<'_>,
     episodes: &BTreeMap<RetryEpisodeKey, RetryEpisode>,
@@ -279,7 +540,8 @@ fn write_text_meta(tx: &Transaction<'_>, key: &str, value: &str) -> SnapbackResu
 mod tests {
     use super::*;
     use crate::auth::invalidation::{
-        CompositeWitness, DataWitness, RetryReservation, RetryReservationKind,
+        AUTH_ERROR_ATTEMPTS_TOTAL, CompositeWitness, DataWitness, RetryReservation,
+        RetryReservationKind,
     };
     use crate::storage::AuthorizationVersion;
     use tempfile::tempdir;
@@ -329,7 +591,7 @@ mod tests {
         let path = directory.path().join("app.sqlite3");
         let mut first = LocalDatabase::open(&path).unwrap();
         first
-            .with_invalidation_retry_registry(|registry| {
+            .with_invalidation_retry_episode(&key(), |registry| {
                 assert!(matches!(
                     registry.reserve(key(), witness(10), 1_000, RetryReservationKind::Initial)?,
                     RetryReservation::Reserved(_)
@@ -352,7 +614,7 @@ mod tests {
             )
             .unwrap();
         second
-            .with_invalidation_retry_registry(|registry| {
+            .with_invalidation_retry_episode(&key(), |registry| {
                 let episode = registry.episodes().get(&key()).unwrap();
                 assert_eq!(episode.attempts_reserved, 1);
                 assert_eq!(episode.deadline_ms, Some(16_100));
@@ -374,5 +636,294 @@ mod tests {
             )
             .unwrap();
         assert_eq!(counter, 1);
+    }
+
+    fn exhausted_episode(key: &RetryEpisodeKey, label: String) -> RetryEpisode {
+        RetryEpisode {
+            episode_id: label,
+            key: key.clone(),
+            witness_floor: witness(10),
+            first_attempt_reserved_at_ms: 1_000,
+            first_failure_at_ms: Some(1_000),
+            attempts_reserved: AUTH_ERROR_ATTEMPTS_TOTAL,
+            deadline_ms: Some(16_000),
+            manual_retry_id: None,
+            last_reservation_at_ms: 1_000,
+        }
+    }
+
+    /// The ticket-24990 adversarial layout: the 10,000-episode global cap
+    /// filled across ten client stores, each below the 1,024 per-store cap.
+    fn ten_thousand_exhausted_episodes() -> BTreeMap<RetryEpisodeKey, RetryEpisode> {
+        let mut episodes = BTreeMap::new();
+        for store in 0..10_u32 {
+            for query in 0..1_000_u32 {
+                let key = RetryEpisodeKey {
+                    authority_subject: format!("user-{store}"),
+                    client_store_id: format!("store-{store}"),
+                    query_key: format!("todos-{query}:{{}}"),
+                };
+                let episode = exhausted_episode(&key, format!("retry-{store}-{query}"));
+                episodes.insert(key, episode);
+            }
+        }
+        episodes
+    }
+
+    fn store_counter(db: &LocalDatabase, key: &RetryEpisodeKey) -> Option<i64> {
+        db.conn
+            .query_row(
+                "SELECT records FROM _snapback_auth_retry_counters
+                 WHERE authority_subject = ?1 AND client_store_id = ?2",
+                params![key.authority_subject, key.client_store_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .unwrap()
+    }
+
+    /// ENG-24990: refiring one exhausted key must touch only that episode and
+    /// its affected counter rows — never rewrite the other 9,999 episodes —
+    /// and must stay fast regardless of unrelated episode count. The pre-fix
+    /// persistence rewrote the full table (>20,000 row writes and two full
+    /// JSON round-trips per refire).
+    #[test]
+    fn exhausted_refire_at_the_global_cap_performs_bounded_key_local_writes() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("app.sqlite3");
+        let mut db = LocalDatabase::open(&path).unwrap();
+        let episodes = ten_thousand_exhausted_episodes();
+        let target = episodes.keys().nth(4_321).cloned().unwrap();
+        db.seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
+            .unwrap();
+        assert_eq!(db.invalidation_retry_episode_count().unwrap(), 10_000);
+
+        // One production refire is the initial reservation reattaching and
+        // the automatic reservation reporting exhaustion, exactly as
+        // `invoke_authorization_resolution` performs them.
+        let mut now = 1_000_000_u64;
+        let mut max_row_writes = 0_i64;
+        let mut best = std::time::Duration::MAX;
+        for _ in 0..25 {
+            let changes_before = db.total_row_changes_for_test().unwrap();
+            let started = std::time::Instant::now();
+            now += 1;
+            let initial = db
+                .with_invalidation_retry_episode(&target, |registry| {
+                    registry.reserve(
+                        target.clone(),
+                        witness(10),
+                        now,
+                        RetryReservationKind::Initial,
+                    )
+                })
+                .unwrap();
+            assert!(matches!(initial, RetryReservation::Attached(_)));
+            now += 1;
+            let automatic = db
+                .with_invalidation_retry_episode(&target, |registry| {
+                    registry.reserve(
+                        target.clone(),
+                        witness(10),
+                        now,
+                        RetryReservationKind::Automatic,
+                    )
+                })
+                .unwrap();
+            assert!(matches!(automatic, RetryReservation::Exhausted(_)));
+            best = best.min(started.elapsed());
+            max_row_writes =
+                max_row_writes.max(db.total_row_changes_for_test().unwrap() - changes_before);
+        }
+
+        assert!(
+            max_row_writes <= 6,
+            "an exhausted refire wrote {max_row_writes} rows; key-local persistence \
+             touches only the episode, its counter row, and the clock high-water",
+        );
+        assert!(
+            best < std::time::Duration::from_millis(50),
+            "best exhausted refire took {best:?} against 9,999 unrelated episodes",
+        );
+        // No safety eviction and no counter drift under refire churn.
+        assert_eq!(db.invalidation_retry_episode_count().unwrap(), 10_000);
+        assert_eq!(store_counter(&db, &target), Some(1_000));
+    }
+
+    /// ENG-24990: the fail-closed hard caps still refuse creation from the
+    /// authoritative table, and resolution deletes exactly one episode,
+    /// freeing exactly one slot.
+    #[test]
+    fn hard_cap_refusal_and_resolution_stay_exact_and_key_local_at_capacity() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("app.sqlite3");
+        let mut db = LocalDatabase::open(&path).unwrap();
+        let episodes = ten_thousand_exhausted_episodes();
+        let target = episodes.keys().next().cloned().unwrap();
+        db.seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
+            .unwrap();
+
+        let fresh = RetryEpisodeKey {
+            authority_subject: "user-fresh".to_owned(),
+            client_store_id: "store-fresh".to_owned(),
+            query_key: "todos:{}".to_owned(),
+        };
+        let error = db
+            .with_invalidation_retry_episode(&fresh, |registry| {
+                registry.reserve(
+                    fresh.clone(),
+                    witness(10),
+                    1_000_001,
+                    RetryReservationKind::Initial,
+                )
+            })
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
+        );
+        assert_eq!(db.invalidation_retry_episode_count().unwrap(), 10_000);
+
+        // A satisfying proof removes exactly the resolved episode and its
+        // counter share in one bounded transaction.
+        let changes_before = db.total_row_changes_for_test().unwrap();
+        db.with_invalidation_retry_episode(&target, |registry| {
+            assert!(registry.resolve(&target, &witness(10)));
+            Ok(())
+        })
+        .unwrap();
+        let writes = db.total_row_changes_for_test().unwrap() - changes_before;
+        assert!(writes <= 4, "resolution wrote {writes} rows");
+        assert_eq!(db.invalidation_retry_episode_count().unwrap(), 9_999);
+        assert_eq!(store_counter(&db, &target), Some(999));
+
+        // The freed slot admits exactly one new key.
+        let reserved = db
+            .with_invalidation_retry_episode(&fresh, |registry| {
+                registry.reserve(
+                    fresh.clone(),
+                    witness(10),
+                    1_000_002,
+                    RetryReservationKind::Initial,
+                )
+            })
+            .unwrap();
+        assert!(matches!(reserved, RetryReservation::Reserved(_)));
+        assert_eq!(db.invalidation_retry_episode_count().unwrap(), 10_000);
+        assert_eq!(store_counter(&db, &fresh), Some(1));
+    }
+
+    /// ENG-24990: the per-store cap binds against the durable table for the
+    /// exact `(authority_subject, client_store_id)` under admission, while
+    /// other stores keep admitting.
+    #[test]
+    fn per_store_cap_binds_against_the_durable_table() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("app.sqlite3");
+        let mut db = LocalDatabase::open(&path).unwrap();
+        let mut episodes = BTreeMap::new();
+        for query in 0..1_024_u32 {
+            let key = RetryEpisodeKey {
+                authority_subject: "user-A".to_owned(),
+                client_store_id: "store-A".to_owned(),
+                query_key: format!("todos-{query}:{{}}"),
+            };
+            let episode = exhausted_episode(&key, format!("retry-a-{query}"));
+            episodes.insert(key, episode);
+        }
+        db.seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
+            .unwrap();
+
+        let full_store = RetryEpisodeKey {
+            authority_subject: "user-A".to_owned(),
+            client_store_id: "store-A".to_owned(),
+            query_key: "one-more:{}".to_owned(),
+        };
+        let error = db
+            .with_invalidation_retry_episode(&full_store, |registry| {
+                registry.reserve(
+                    full_store.clone(),
+                    witness(10),
+                    1_000_001,
+                    RetryReservationKind::Initial,
+                )
+            })
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
+        );
+
+        let other_store = RetryEpisodeKey {
+            authority_subject: "user-A".to_owned(),
+            client_store_id: "store-B".to_owned(),
+            query_key: "todos:{}".to_owned(),
+        };
+        let reserved = db
+            .with_invalidation_retry_episode(&other_store, |registry| {
+                registry.reserve(
+                    other_store.clone(),
+                    witness(10),
+                    1_000_002,
+                    RetryReservationKind::Initial,
+                )
+            })
+            .unwrap();
+        assert!(matches!(reserved, RetryReservation::Reserved(_)));
+    }
+
+    /// ENG-24990: per-row corruption checks are preserved for the touched
+    /// key and fail closed without blocking operations on other keys.
+    #[test]
+    fn corrupt_target_episode_fails_closed_without_blocking_other_keys() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("app.sqlite3");
+        let mut db = LocalDatabase::open(&path).unwrap();
+        let key_a = RetryEpisodeKey {
+            authority_subject: "user-A".to_owned(),
+            client_store_id: "store-A".to_owned(),
+            query_key: "todos:{}".to_owned(),
+        };
+        let key_b = RetryEpisodeKey {
+            authority_subject: "user-B".to_owned(),
+            client_store_id: "store-B".to_owned(),
+            query_key: "todos:{}".to_owned(),
+        };
+        let mut episodes = BTreeMap::new();
+        episodes.insert(key_a.clone(), exhausted_episode(&key_a, "retry-a".to_owned()));
+        episodes.insert(key_b.clone(), exhausted_episode(&key_b, "retry-b".to_owned()));
+        db.seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE _snapback_auth_retry_episodes SET episode_json = episode_json || ' '
+                 WHERE authority_subject = ?1",
+                params![key_a.authority_subject],
+            )
+            .unwrap();
+
+        let error = db
+            .with_invalidation_retry_episode(&key_a, |registry| {
+                registry.reserve(
+                    key_a.clone(),
+                    witness(10),
+                    1_000_001,
+                    RetryReservationKind::Initial,
+                )
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_INVALIDATION_CORRUPT");
+
+        let attached = db
+            .with_invalidation_retry_episode(&key_b, |registry| {
+                registry.reserve(
+                    key_b.clone(),
+                    witness(10),
+                    1_000_002,
+                    RetryReservationKind::Initial,
+                )
+            })
+            .unwrap();
+        assert!(matches!(attached, RetryReservation::Attached(_)));
     }
 }

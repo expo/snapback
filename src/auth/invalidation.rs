@@ -1806,6 +1806,14 @@ pub enum RetryReservation {
 pub struct RetryEpisodeRegistry {
     episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
     clock_high_water_ms: u64,
+    /// Durable episodes deliberately not loaded into this registry view.
+    /// A key-scoped view (ENG-24990) loads exactly one episode; the caps
+    /// still bind against the complete durable table through these
+    /// storage-derived baselines. Zero for a fully loaded registry.
+    #[serde(skip)]
+    unloaded_global_records: usize,
+    #[serde(skip)]
+    unloaded_store_records: usize,
 }
 
 impl RetryEpisodeRegistry {
@@ -1817,6 +1825,9 @@ impl RetryEpisodeRegistry {
         self.clock_high_water_ms
     }
 
+    // Full-table loads remain for test-only registry snapshots; production
+    // persistence is key-scoped (ENG-24990).
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn from_persisted(
         episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
         clock_high_water_ms: u64,
@@ -1829,6 +1840,39 @@ impl RetryEpisodeRegistry {
         Ok(Self {
             episodes,
             clock_high_water_ms,
+            unloaded_global_records: 0,
+            unloaded_store_records: 0,
+        })
+    }
+
+    /// Build a registry view holding at most the one episode a key-local
+    /// storage transaction loaded. Capacity baselines carry the durable
+    /// counts of the episodes deliberately left on disk so the fail-closed
+    /// caps still bind exactly (LLP 0053: counters are rebuilt from the
+    /// bounded table before admission).
+    ///
+    /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — retry
+    /// persistence is per-key insert/replace/delete, not a full-table
+    /// rewrite (ENG-24990).
+    pub(crate) fn from_persisted_scoped(
+        key: &RetryEpisodeKey,
+        episode: Option<RetryEpisode>,
+        clock_high_water_ms: u64,
+        unloaded_global_records: usize,
+        unloaded_store_records: usize,
+    ) -> SnapbackResult<Self> {
+        validate_counter(clock_high_water_ms, "retry.clockHighWaterMs", false)?;
+        key.validate()?;
+        let mut episodes = BTreeMap::new();
+        if let Some(episode) = episode {
+            episode.validate_persisted(key, clock_high_water_ms)?;
+            episodes.insert(key.clone(), episode);
+        }
+        Ok(Self {
+            episodes,
+            clock_high_water_ms,
+            unloaded_global_records,
+            unloaded_store_records,
         })
     }
 
@@ -2028,8 +2072,13 @@ impl RetryEpisodeRegistry {
                 candidate.authority_subject == key.authority_subject
                     && candidate.client_store_id == key.client_store_id
             })
-            .count();
-        if self.episodes.len() >= AUTH_RETRY_EPISODE_MAX_GLOBAL
+            .count()
+            .saturating_add(self.unloaded_store_records);
+        let global = self
+            .episodes
+            .len()
+            .saturating_add(self.unloaded_global_records);
+        if global >= AUTH_RETRY_EPISODE_MAX_GLOBAL
             || per_store >= AUTH_RETRY_EPISODE_MAX_PER_AUTH_STORE
         {
             return Err(invalidation_error(

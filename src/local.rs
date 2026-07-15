@@ -4940,7 +4940,7 @@ impl LocalSnapback {
         let reservation = {
             let _effect =
                 authority.effect_guard("authorization manual retry reservation transaction")?;
-            self.db.with_invalidation_retry_registry(|registry| {
+            self.db.with_invalidation_retry_episode(&key, |registry| {
                 registry.manual_retry(&key, input.manual_retry_id, now_millis())
             })?
         };
@@ -7807,7 +7807,7 @@ impl LocalSnapback {
             "authorization retry initial reservation transaction",
             None,
             |database| {
-                database.with_invalidation_retry_registry(|registry| {
+                database.with_invalidation_retry_episode(&key, |registry| {
                     registry.reserve(
                         key.clone(),
                         witness_floor.clone(),
@@ -7825,7 +7825,7 @@ impl LocalSnapback {
                     "authorization retry automatic reservation transaction",
                     None,
                     |database| {
-                        database.with_invalidation_retry_registry(|registry| {
+                        database.with_invalidation_retry_episode(&key, |registry| {
                             registry.reserve(
                                 key.clone(),
                                 witness_floor.clone(),
@@ -7912,7 +7912,7 @@ impl LocalSnapback {
                         "authorization retry failure transaction",
                         Some(episode.episode_id.clone()),
                         |database| {
-                            database.with_invalidation_retry_registry(|registry| {
+                            database.with_invalidation_retry_episode(&key, |registry| {
                                 registry.record_failure(&key, now_millis())
                             })
                         },
@@ -7923,7 +7923,7 @@ impl LocalSnapback {
                         "authorization retry automatic reservation transaction",
                         Some(episode.episode_id.clone()),
                         |database| {
-                            database.with_invalidation_retry_registry(|registry| {
+                            database.with_invalidation_retry_episode(&key, |registry| {
                                 registry.reserve(
                                     key.clone(),
                                     witness_floor.clone(),
@@ -7958,7 +7958,7 @@ impl LocalSnapback {
         let Some(key) = Self::authorization_retry_key(subscription) else {
             return Ok(());
         };
-        self.db.with_invalidation_retry_registry(|registry| {
+        self.db.with_invalidation_retry_episode(&key, |registry| {
             registry.resolve(&key, proof);
             Ok(())
         })
@@ -12382,7 +12382,7 @@ globalThis.__snapbackHandlers = {
             .expect("durable retry episode id");
         let episode = snapback
             .auth_database_mut()
-            .with_invalidation_retry_registry(|registry| {
+            .read_invalidation_retry_registry(|registry| {
                 Ok(registry
                     .episodes()
                     .values()
@@ -12446,7 +12446,7 @@ globalThis.__snapbackHandlers = {
             .witness(0);
         let before = snapback
             .auth_database_mut()
-            .with_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+            .read_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
             .expect("read retry registry");
         let failure = snapback
             .run_authorization_retry_transaction(
@@ -12454,8 +12454,13 @@ globalThis.__snapbackHandlers = {
                 "retired authorization retry transaction",
                 None,
                 |database| {
-                    database.with_invalidation_retry_registry(|registry| {
-                        registry.reserve(key, witness, now_millis(), RetryReservationKind::Initial)
+                    database.with_invalidation_retry_episode(&key, |registry| {
+                        registry.reserve(
+                            key.clone(),
+                            witness,
+                            now_millis(),
+                            RetryReservationKind::Initial,
+                        )
                     })
                 },
             )
@@ -12463,7 +12468,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(failure.error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
         let after = snapback
             .auth_database_mut()
-            .with_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+            .read_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
             .expect("read retry registry");
         assert_eq!(after, before);
     }
@@ -12811,6 +12816,126 @@ globalThis.__snapbackHandlers = {
                 issued_at,
             )
             .expect("a racing unrelated obligation must not fail the reservation");
+    }
+
+    /// ENG-24990: refiring one exhausted retry key while 10,000 episodes are
+    /// retained must not monopolize the app SQLite writer; unrelated
+    /// mutations continue within the local runtime latency budget.
+    #[test]
+    fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
+        let mut snapback = live_limit_snapback();
+        let mut episodes = BTreeMap::new();
+        let witness = crate::auth::invalidation::CompositeWitness {
+            authorization: crate::storage::AuthorizationVersion {
+                incarnation: "018f0d90-7b11-7a22-8c33-445566778899".to_owned(),
+                epoch: 0,
+            },
+            data: Some(crate::auth::invalidation::DataWitness {
+                version_stream: "stream-A".to_owned(),
+                min_commit_version: 10,
+            }),
+        };
+        for store in 0..10_u32 {
+            for query in 0..1_000_u32 {
+                let key = RetryEpisodeKey {
+                    authority_subject: format!("user-{store}"),
+                    client_store_id: format!("store-{store}"),
+                    query_key: format!("todos-{query}:{{}}"),
+                };
+                episodes.insert(
+                    key.clone(),
+                    crate::auth::invalidation::RetryEpisode {
+                        episode_id: format!("retry-{store}-{query}"),
+                        key,
+                        witness_floor: witness.clone(),
+                        first_attempt_reserved_at_ms: 1_000,
+                        first_failure_at_ms: Some(1_000),
+                        attempts_reserved: crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL,
+                        deadline_ms: Some(16_000),
+                        manual_retry_id: None,
+                        last_reservation_at_ms: 1_000,
+                    },
+                );
+            }
+        }
+        let target = episodes.keys().nth(5_005).cloned().expect("target key");
+        snapback
+            .auth_database_mut()
+            .seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
+            .expect("seed retry episodes");
+
+        // Interleave production-shaped exhausted refires (initial reattach,
+        // then automatic exhaustion — the exact transactions
+        // invoke_authorization_resolution performs) with unrelated mutations.
+        // LLP 0035 benchmarks the local target against a ~10ms interactive
+        // budget; the pre-fix full-table rewrite spent two 10,000-row
+        // rewrite transactions per refire on this same writer.
+        let budget = Duration::from_millis(100);
+        let mut now = 1_000_000_u64;
+        for round in 0..5 {
+            now += 1;
+            let churn_started = Instant::now();
+            let initial = snapback
+                .auth_database_mut()
+                .with_invalidation_retry_episode(&target, |registry| {
+                    registry.reserve(
+                        target.clone(),
+                        witness.clone(),
+                        now,
+                        RetryReservationKind::Initial,
+                    )
+                })
+                .expect("initial refire reservation");
+            assert!(matches!(
+                initial,
+                crate::auth::invalidation::RetryReservation::Attached(_)
+            ));
+            now += 1;
+            let automatic = snapback
+                .auth_database_mut()
+                .with_invalidation_retry_episode(&target, |registry| {
+                    registry.reserve(
+                        target.clone(),
+                        witness.clone(),
+                        now,
+                        RetryReservationKind::Automatic,
+                    )
+                })
+                .expect("automatic refire reservation");
+            assert!(matches!(
+                automatic,
+                crate::auth::invalidation::RetryReservation::Exhausted(_)
+            ));
+            let churn_elapsed = churn_started.elapsed();
+            assert!(
+                churn_elapsed < budget,
+                "round {round}: exhausted refire held the writer for {churn_elapsed:?}",
+            );
+
+            let mutation_started = Instant::now();
+            invoke_test_session_mutation(
+                &mut snapback,
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": format!("row-{round}") }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("unrelated mutation under retry churn");
+            let mutation_elapsed = mutation_started.elapsed();
+            assert!(
+                mutation_elapsed < budget,
+                "round {round}: unrelated mutation took {mutation_elapsed:?} under churn",
+            );
+        }
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .invalidation_retry_episode_count()
+                .expect("episode count"),
+            10_000,
+            "refire churn must not evict or duplicate episodes",
+        );
     }
 
     #[test]
