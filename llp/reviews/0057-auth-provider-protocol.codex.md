@@ -539,3 +539,20 @@ No independent EDITORIAL concern rises above these items.
 ## Readiness verdict
 
 **NOT READY**
+
+## Blind final re-review — 2026-07-15 (`c38eabc`)
+
+**Family:** GPT
+**Provider/runtime:** OpenAI Codex CLI 0.144.4, `gpt-5.6-sol`, high reasoning, read-only ephemeral sandbox
+**Redacted:** No
+**Method:** Independent per-document review at exact commit `c38eabc75ae48fb186c3a39c9b9e7feff39145b8`; reviewer was instructed not to read `llp/reviews/` and made no edits or status decision.
+
+### Review body
+
+**Verdict NOT READY**
+
+**MATERIAL —** LLP 0057 §Acceptance lines 1502–1511 and 1625 claim executable legacy-v1 reopen, preservation, and backup-marker evidence. No test constructs an exact v1 catalog or reaches `ReadyV1`; existing activation tests exercise only fresh `ReadyV2` (`src/storage/auth.rs` lines 2197–2240). Resolution criterion: add an exact frozen-v1 fixture proving reopen as `ReadyV1`, session usability, agent-surface refusal, no migration during activation, and backup/restore retaining marker `1`.
+
+**MATERIAL —** Rescue commit-boundary and managed-state evidence remains incomplete. LLP 0057 lines 1654–1666 explicitly disclaim injected rescue commit-boundary coverage and composed managed-state fixtures. The reconciliation branch in `src/storage/auth_rescue.rs` lines 221–233 is therefore unexercised. Its sole managed-state test, lines 1066–1095, inserts only an invalid `{}` `auth_mode_state_v1`, not a valid LLP 0058 four-key settled, pending, or quarantined snapshot. Resolution criterion: fault-inject definite rollback, committed-but-error, and divergent reconciliation outcomes; add valid four-key fixtures proving manifest-named rescue refuses without mutation and orphan handling preserves all keys.
+
+**MINOR —** `activate_auth_catalog_v1` and `activate_auth_catalog_v1_in` (`src/storage/auth.rs` lines 887 and 1375) now create `CURRENT_CATALOG = CATALOG_V2`. Behavior is correct, but the stale names obscure the newly established precedence. Resolution criterion: rename them to version-neutral/current-catalog activation names and update callers.

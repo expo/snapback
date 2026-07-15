@@ -460,3 +460,22 @@ Resolution criterion: add `deploymentIdentity` to the canonical DTO and exactnes
 ## Readiness verdict
 
 **NOT READY**
+
+## Blind final re-review — 2026-07-15 (`c38eabc`)
+
+**Family:** GPT
+**Provider/runtime:** OpenAI Codex CLI 0.144.4, `gpt-5.6-sol`, high reasoning, read-only ephemeral sandbox
+**Redacted:** No
+**Method:** Independent per-document review at exact commit `c38eabc75ae48fb186c3a39c9b9e7feff39145b8`; reviewer was instructed not to read `llp/reviews/` and made no edits or status decision.
+
+### Review body
+
+**Verdict NOT READY**
+
+**MATERIAL —** The handler-authority reconciliation is sound: `ServicePrincipal`, `kind`, and delegated `actor` match LLP 0055 and `src/auth/invocation.rs`, while the handshake correctly retains a separate three-field authority. However, `deploymentIdentity` is not exact. The accepted parity fixture uses invalid values (`schemaVersion: "v1-sessions"` and `sha256:*` hashes) in `tests/conformance/auth-session-parity.corpus.json`, contrary to LLP 0058 §§Exact deployment identity/Disjoint v1 identity strings. The kit checks only nonempty strings in `demos/_kit/client.mjs`, and the schema likewise lacks version/prefix/digest constraints in `schemas/auth.session.output.schema.json`. The parity test passes only because both sides accept the same invalid corpus. Resolution criterion: enforce the mode/version relationship and exact lowercase 64-hex identity namespaces in the schema and kit; replace the positive fixture with a valid identity and add negative corpus cases for every field and cross-field mismatch.
+
+**MATERIAL —** LLP 0012’s diagnostic registry is not faithfully implemented. LLP 0012 §Diagnostic Schema registers `SNAPBACK_CAPABILITY_UNSUPPORTED` and `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` as HTTP 503 top-level refusals, but `src/server.rs` maps both to HTTP 400 and its mapping tests encode that result. This changes retry/recovery semantics at the integration boundary. Resolution criterion: make the server and tests return the LLP 0012 statuses, or revise the owning LLP through the author-controlled process if 400 is intentional; add served-response tests for both codes.
+
+**MATERIAL —** The predecessor harness overstates its pre-bind evidence. In `tests/acceptance/auth-mode-predecessor-v1.mjs`, the poison case runs synchronously, checks only process failure and absence of the ready file, then records `listenerBound: false`; it never observes whether the reserved port transiently accepted connections. LLP 0058 §§Artifact and predecessor matrix/Status claim committed proof of no listener publication. Resolution criterion: run the predecessor asynchronously with a concurrent connection sentinel or equivalent bind instrumentation, and derive `listenerBound` from that observation.
+
+**MINOR —** LLP 0058 now specifies monthly/event/release cadence, but the receipt contains no run timestamp, runner provenance, or cadence gate. Resolution criterion: record dated successful executions and make ratification/release check that evidence is current.

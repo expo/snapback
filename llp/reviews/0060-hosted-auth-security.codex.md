@@ -753,3 +753,22 @@ Review was performed at exact HEAD `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`. N
 **NOT READY**
 
 Advisory only; no Status transition is implied.
+
+## Blind final re-review — 2026-07-15 (`c38eabc`)
+
+**Family:** GPT
+**Provider/runtime:** OpenAI Codex CLI 0.144.4, `gpt-5.6-sol`, high reasoning, read-only ephemeral sandbox
+**Redacted:** No
+**Method:** Independent per-document review at exact commit `c38eabc75ae48fb186c3a39c9b9e7feff39145b8`; reviewer was instructed not to read `llp/reviews/` and made no edits or status decision.
+
+### Review body
+
+**Verdict READY**
+
+**MATERIAL —** No material findings. The prior concern classes are resolved: LLP 0060 §C1 names the exact three shipped admin headers, matching `packages/snapback-admin-client/index.mjs` and passing credential tests; §D5’s local default tuple matches `HostedAuthCapabilities::local_target()` and the generated schema; §D4 removes v1 serving leases, while §C1 disclaims deterministic disposal/zeroization. `ref-check --verbose` passes, and §Acceptance accurately limits its claim to validating `@ref` annotations. Resolution criterion: none.
+
+**MINOR —** LLP 0060 §D6 links to nonexistent LLP 0051 anchor `#d4-error-diagnostic-and-effect-envelopes`; the actual heading is “D4. Finish DK-7: the live envelope becomes schema-governed.” LLP 0039 §Observability and contract registration does substantively delegate the hosted marker schema to LLP 0051, so ownership is not materially ambiguous, but LLP 0051 itself does not explicitly enumerate D6’s request/response/host-call schemas. Resolution criterion: correct the anchor and explicitly add those three private hosted envelope schemas to LLP 0051 D4’s generated, registered, drift-gated inventory.
+
+**MINOR —** LLP 0060 §D6 specifies `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE`, but the code is absent from §Diagnostics and observability and LLP 0012’s reserved hosted/v2 diagnostic inventory. Resolution criterion: register its response class and exposure rules in LLP 0012 and list it in LLP 0060, or explicitly designate it as an internal-only control-plane outcome.
+
+**MINOR —** LLP 0060 §Status claims a specific clean Chrome 150 execution, but commit `c38eabc` contains the rerunnable test (`admin-ui/tests/acceptance/csp-browser.mjs`), not a committed receipt recording that run and browser version. Resolution criterion: commit provenance-bearing output or phrase this as rerunnable acceptance rather than repository-verifiable historical evidence.
