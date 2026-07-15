@@ -961,7 +961,24 @@ struct ConnectionRegistryState {
     unknown_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     session_open_attempts:
         std::collections::HashMap<BoundSessionKey, std::collections::VecDeque<Instant>>,
+    agent_route_attempts: std::collections::HashMap<
+        AgentRouteThrottleKey,
+        std::collections::VecDeque<Instant>,
+    >,
     pressure_mint_only: bool,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct AgentRouteThrottleKey {
+    path: &'static str,
+    source: AgentRouteThrottleSource,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum AgentRouteThrottleSource {
+    Session(String),
+    Credential([u8; 32]),
+    Malformed,
 }
 
 struct ConnectionGrantRecord {
@@ -1592,13 +1609,14 @@ impl ConnectionRegistryState {
         Some(record)
     }
 
-    fn consume_open_bucket(
+    fn consume_bucket(
         bucket: &mut std::collections::VecDeque<Instant>,
         limit: usize,
+        window: Duration,
         now: Instant,
     ) -> Result<(), u64> {
         while bucket.front().is_some_and(|attempt| {
-            now.saturating_duration_since(*attempt) >= CONNECTION_OPEN_WINDOW
+            now.saturating_duration_since(*attempt) >= window
         }) {
             bucket.pop_front();
         }
@@ -1607,10 +1625,10 @@ impl ConnectionRegistryState {
                 .front()
                 .and_then(|oldest| {
                     oldest
-                        .checked_add(CONNECTION_OPEN_WINDOW)
+                        .checked_add(window)
                         .map(|deadline| deadline.saturating_duration_since(now))
                 })
-                .unwrap_or(CONNECTION_OPEN_WINDOW);
+                .unwrap_or(window);
             let millis = remaining.as_millis().max(1);
             let seconds = millis.div_ceil(1_000).min(u128::from(u64::MAX)) as u64;
             return Err(seconds.max(1));
@@ -1619,30 +1637,36 @@ impl ConnectionRegistryState {
         Ok(())
     }
 
-    fn prune_open_bucket(bucket: &mut std::collections::VecDeque<Instant>, now: Instant) {
+    fn prune_bucket(
+        bucket: &mut std::collections::VecDeque<Instant>,
+        window: Duration,
+        now: Instant,
+    ) {
         while bucket.front().is_some_and(|attempt| {
-            now.saturating_duration_since(*attempt) >= CONNECTION_OPEN_WINDOW
+            now.saturating_duration_since(*attempt) >= window
         }) {
             bucket.pop_front();
         }
     }
 
     fn consume_anonymous_open(&mut self, incarnation: &str, now: Instant) -> Result<(), u64> {
-        Self::consume_open_bucket(
+        Self::consume_bucket(
             self.anonymous_open_attempts
                 .entry(incarnation.to_owned())
                 .or_default(),
             CONNECTION_OPEN_COARSE_LIMIT,
+            CONNECTION_OPEN_WINDOW,
             now,
         )
     }
 
     fn consume_unknown_open(&mut self, incarnation: &str, now: Instant) -> Result<(), u64> {
-        Self::consume_open_bucket(
+        Self::consume_bucket(
             self.unknown_open_attempts
                 .entry(incarnation.to_owned())
                 .or_default(),
             CONNECTION_OPEN_COARSE_LIMIT,
+            CONNECTION_OPEN_WINDOW,
             now,
         )
     }
@@ -1652,12 +1676,42 @@ impl ConnectionRegistryState {
         // their empty buckets independently of grant pressure so this local
         // throttle cannot become an unbounded process-lifetime index.
         self.session_open_attempts.retain(|_, bucket| {
-            Self::prune_open_bucket(bucket, now);
+            Self::prune_bucket(bucket, CONNECTION_OPEN_WINDOW, now);
             !bucket.is_empty()
         });
-        Self::consume_open_bucket(
+        Self::consume_bucket(
             self.session_open_attempts.entry(key).or_default(),
             CONNECTION_OPEN_SESSION_LIMIT,
+            CONNECTION_OPEN_WINDOW,
+            now,
+        )
+    }
+
+    fn consume_agent_route(
+        &mut self,
+        path: &'static str,
+        mut source: AgentRouteThrottleSource,
+        limit: usize,
+        now: Instant,
+    ) -> Result<(), u64> {
+        self.agent_route_attempts.retain(|_, bucket| {
+            Self::prune_bucket(bucket, AGENT_ROUTE_THROTTLE_WINDOW, now);
+            !bucket.is_empty()
+        });
+        let mut key = AgentRouteThrottleKey {
+            path,
+            source: source.clone(),
+        };
+        if !self.agent_route_attempts.contains_key(&key)
+            && self.agent_route_attempts.len() >= AGENT_ROUTE_THROTTLE_SOURCE_CAP
+        {
+            source = AgentRouteThrottleSource::Malformed;
+            key = AgentRouteThrottleKey { path, source };
+        }
+        Self::consume_bucket(
+            self.agent_route_attempts.entry(key).or_default(),
+            limit,
+            AGENT_ROUTE_THROTTLE_WINDOW,
             now,
         )
     }
@@ -2074,6 +2128,20 @@ impl ConnectionRegistry {
     ) -> Result<(), ApiError> {
         self.lock()
             .consume_session_open(key, monotonic_now)
+            .map_err(ApiError::auth_throttled)
+    }
+
+    fn consume_agent_route(
+        &self,
+        path: &'static str,
+        source: AgentRouteThrottleSource,
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        let Some(limit) = agent_route_throttle_limit(path) else {
+            return Ok(());
+        };
+        self.lock()
+            .consume_agent_route(path, source, limit, monotonic_now)
             .map_err(ApiError::auth_throttled)
     }
 
@@ -2677,6 +2745,44 @@ const CONNECTION_GRANT_IDLE_TTL_MS: u64 = CONNECTION_IDLE_TTL_MS;
 const CONNECTION_OPEN_SESSION_LIMIT: usize = 60;
 const CONNECTION_OPEN_COARSE_LIMIT: usize = 240;
 const CONNECTION_OPEN_WINDOW: Duration = Duration::from_secs(60);
+const AGENT_ROUTE_THROTTLE_WINDOW: Duration = Duration::from_secs(60);
+const AGENT_ROUTE_THROTTLE_SOURCE_CAP: usize = 4_096;
+
+/// Each agent-management route owns a distinct closed budget. Equal limits do
+/// not share accounting: the canonical route path is the bucket key.
+///
+/// @ref LLP 0055#routes-and-credential-classes — every route has its own
+/// throttle budget, independent of its credential class.
+fn agent_route_throttle_limit(path: &str) -> Option<usize> {
+    match path {
+        "/auth/pairing-codes" => Some(20),
+        "/auth/agents/pair" => Some(60),
+        "/auth/grant-requests" => Some(120),
+        "/auth/grant-requests/{id}/approve" => Some(60),
+        "/auth/grant-requests/{id}/deny" => Some(60),
+        "/auth/grants" => Some(120),
+        "/auth/grants/by-actor/{actor_id}" => Some(60),
+        "/auth/grants/{id}" => Some(60),
+        "/auth/agents/rotate" => Some(10),
+        "/auth/agents/token" => Some(120),
+        "/auth/agents/revoke-self" => Some(20),
+        _ => None,
+    }
+}
+
+fn agent_body_throttle_source(body: Option<&Value>) -> AgentRouteThrottleSource {
+    let credential = body
+        .and_then(Value::as_object)
+        .and_then(|body| body.get("credential"))
+        .and_then(Value::as_str)
+        .and_then(|credential| AgentCredential::parse(credential).ok());
+    match credential {
+        Some(credential) => {
+            AgentRouteThrottleSource::Credential(*credential.token_hash().as_bytes())
+        }
+        None => AgentRouteThrottleSource::Malformed,
+    }
+}
 
 fn valid_suggested_connection_id(value: &str) -> bool {
     let bytes = value.as_bytes();
@@ -3927,6 +4033,19 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             RouteSpec::new(
                 "DELETE",
+                "/auth/grants/by-actor/{actor_id}",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            delete(auth_grants_revoke_by_actor).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "DELETE",
                 "/auth/grants/{id}",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
@@ -4935,6 +5054,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grant-requests/{id}/approve"
         | "/auth/grant-requests/{id}/deny"
         | "/auth/grants"
+        | "/auth/grants/by-actor/{actor_id}"
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
@@ -5724,6 +5844,28 @@ async fn enforce_registered_route_policy(
     } else {
         None
     };
+    // Session-owned management routes account against the resolved effective
+    // user before body inspection. One user's malformed requests therefore
+    // cannot consume another user's budget.
+    if let Some(authority) = early_prepared_authority.as_ref()
+        && agent_route_throttle_limit(spec.path).is_some()
+    {
+        let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+            unreachable!("session-owned agent route resolved non-session authority")
+        };
+        if let Err(error) = runtime.connections.consume_agent_route(
+            spec.path,
+            AgentRouteThrottleSource::Session(user_id.clone()),
+            Instant::now(),
+        ) {
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        }
+    }
     // @ref LLP 0031#enforcement — authenticate every connection carrier
     // before bounded JSON inspection. Body-carried connection ids get a
     // second exact id↔bearer check after decoding; an attacker-controlled
@@ -5820,6 +5962,7 @@ async fn enforce_registered_route_policy(
     let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         || connection_id_in_body
         || operation_deferred
+        || agent_route_throttle_limit(spec.path).is_some()
         || registered_source.is_some_and(|source| {
             !matches!(
                 source,
@@ -5868,6 +6011,22 @@ async fn enforce_registered_route_policy(
                         );
                     }
                 }
+                if agent_route_throttle_limit(spec.path).is_some()
+                    && early_prepared_authority.is_none()
+                    && let Err(accounting_error) = runtime.connections.consume_agent_route(
+                        spec.path,
+                        AgentRouteThrottleSource::Malformed,
+                        Instant::now(),
+                    )
+                    && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
+                {
+                    return finish_registered_response(
+                        effective,
+                        accounting_error.into_response(),
+                        route_admission.as_ref(),
+                        None,
+                    );
+                }
                 return finish_registered_response(
                     effective,
                     error.into_response(),
@@ -5875,6 +6034,24 @@ async fn enforce_registered_route_policy(
                     None,
                 );
             }
+        }
+    }
+    // Body-credential routes key valid attempts by the one-way bearer hash.
+    // Invalid shapes and the bounded overflow of distinct presented hashes
+    // share a coarse malformed bucket, preventing an attacker from growing
+    // the process-local key set without limit.
+    if agent_route_throttle_limit(spec.path).is_some() && early_prepared_authority.is_none() {
+        let source = agent_body_throttle_source(policy_body.as_ref());
+        if let Err(error) = runtime
+            .connections
+            .consume_agent_route(spec.path, source, Instant::now())
+        {
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
         }
     }
     let connection_open_protocol_error = connection_open_bearer
@@ -6715,6 +6892,31 @@ async fn auth_grant_revoke(
         snapback
             .auth_database_mut()
             .revoke_grant_for_user(&user_id, &grant_id, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+async fn auth_grants_revoke_by_actor(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(actor_id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let _revocation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
+        snapback
+            .auth_database_mut()
+            .revoke_grants_by_actor_for_user(&user_id, &actor_id, now_ms)
     })
     .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -18294,6 +18496,134 @@ mod tests {
         }
     }
 
+    /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — the
+    /// owner bulk endpoint ends every grant to the named actor, is idempotent,
+    /// and reveals nothing to a different signed-in user.
+    #[tokio::test]
+    async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http() {
+        let state = sessions_activation_server_fixture_async().await;
+        let owner = mint_test_credential(&state, "bulk-owner@example.com").await;
+        let stranger = mint_test_credential(&state, "bulk-stranger@example.com").await;
+        let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+        let owner_bearer = owner["token"].as_str().unwrap().to_owned();
+        let stranger_bearer = stranger["token"].as_str().unwrap().to_owned();
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let owner_id_for_setup = owner_id.clone();
+        with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.create_agent_principal(
+                "bulk-route-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Bulk Route Agent".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: "bulk-route-test".to_owned(),
+                    owner_user_id: Some(owner_id_for_setup.clone()),
+                },
+            )?;
+            db.with_auth_transaction(|tx| {
+                for (grant_id, request_id) in [
+                    ("bulk-route-grant-a", "bulk-route-request-a"),
+                    ("bulk-route-grant-b", "bulk-route-request-b"),
+                ] {
+                    tx.execute(
+                        "INSERT INTO _auth_grants(
+                           id, actor_user_id, effective_user_id, scopes,
+                           created_at_ms, expires_at_ms, revoked_at_ms,
+                           created_by, request_id, consent_digest, last_used_at_ms
+                         ) VALUES(?1, 'bulk-route-agent', ?2, ?3, ?4, ?5,
+                                  NULL, 'test', ?6, NULL, ?4)",
+                        rusqlite::params![
+                            grant_id,
+                            &owner_id_for_setup,
+                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                            now_ms as i64,
+                            (now_ms + 60_000) as i64,
+                            request_id,
+                        ],
+                    )?;
+                }
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        let router = app(state);
+
+        let request = |method: &'static str, uri: &'static str, bearer: &str| {
+            let mut request = auth_http_request(method, uri, Vec::new(), false, None, None);
+            offer_auth_client_protocol(&mut request);
+            request.headers_mut().insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {bearer}")).unwrap(),
+            );
+            request
+        };
+
+        let foreign = router
+            .clone()
+            .oneshot(request(
+                "DELETE",
+                "/auth/grants/by-actor/bulk-route-agent",
+                &stranger_bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(foreign.status(), StatusCode::NO_CONTENT);
+        assert_eq!(foreign.headers()[header::CACHE_CONTROL], "no-store, private");
+
+        let before = router
+            .clone()
+            .oneshot(request("GET", "/auth/grants", &owner_bearer))
+            .await
+            .unwrap();
+        let before_status = before.status();
+        let before = response_json(before).await;
+        assert_eq!(before_status, StatusCode::OK, "{before}");
+        assert_eq!(before.as_array().unwrap().len(), 2);
+        assert!(
+            before
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|grant| grant["revokedAtMs"].is_null()),
+            "the foreign caller cannot alter the owner's grants"
+        );
+
+        for attempt in 1..=2 {
+            let revoked = router
+                .clone()
+                .oneshot(request(
+                    "DELETE",
+                    "/auth/grants/by-actor/bulk-route-agent",
+                    &owner_bearer,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(revoked.status(), StatusCode::NO_CONTENT, "attempt {attempt}");
+            assert_eq!(
+                revoked.headers()[header::CACHE_CONTROL],
+                "no-store, private"
+            );
+        }
+
+        let after = router
+            .oneshot(request("GET", "/auth/grants", &owner_bearer))
+            .await
+            .unwrap();
+        let after = response_json(after).await;
+        assert_eq!(after.as_array().unwrap().len(), 2);
+        assert!(
+            after
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|grant| grant["revokedAtMs"].as_u64().is_some()),
+            "the first owner call revokes all grants and the retry is inert"
+        );
+    }
+
     /// @ref LLP 0058#gate-algorithm — required provider-route credentials are
     /// resolved before the closed body is parsed; only a valid live bearer may
     /// reach the provider DTO parser.
@@ -22077,6 +22407,98 @@ globalThis.__snapbackHandlers = {
             .expect("new session source admitted after old buckets expire");
         assert_eq!(state.session_open_attempts.len(), 1);
         assert!(state.session_open_attempts.contains_key(&survivor));
+    }
+
+    /// @ref LLP 0055#routes-and-credential-classes — every agent-management
+    /// route has a closed, independent budget, including malformed attempts.
+    #[test]
+    fn agent_management_routes_have_independent_exact_throttle_budgets() {
+        let agent_paths = super::core_route_registrations()
+            .into_iter()
+            .filter_map(|route| {
+                super::agent_route_throttle_limit(route.spec.path)
+                    .map(|limit| (route.spec.path, limit))
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(
+            agent_paths.keys().copied().collect::<Vec<_>>(),
+            vec![
+                "/auth/agents/pair",
+                "/auth/agents/revoke-self",
+                "/auth/agents/rotate",
+                "/auth/agents/token",
+                "/auth/grant-requests",
+                "/auth/grant-requests/{id}/approve",
+                "/auth/grant-requests/{id}/deny",
+                "/auth/grants",
+                "/auth/grants/by-actor/{actor_id}",
+                "/auth/grants/{id}",
+                "/auth/pairing-codes",
+            ]
+        );
+
+        let mut state = ConnectionRegistryState::default();
+        let start = Instant::now();
+        let path = "/auth/agents/rotate";
+        let limit = agent_paths[path];
+        let first = super::AgentRouteThrottleSource::Credential([1; 32]);
+        for _ in 0..limit {
+            state
+                .consume_agent_route(path, first.clone(), limit, start)
+                .expect("attempts through the exact route limit are admitted");
+        }
+        assert_eq!(
+            state.consume_agent_route(path, first.clone(), limit, start),
+            Err(60)
+        );
+        assert_eq!(
+            state.consume_agent_route(
+                path,
+                first.clone(),
+                limit,
+                start + Duration::from_secs(59)
+            ),
+            Err(1)
+        );
+
+        state
+            .consume_agent_route(
+                path,
+                super::AgentRouteThrottleSource::Credential([2; 32]),
+                limit,
+                start,
+            )
+            .expect("one credential cannot exhaust another credential's bucket");
+
+        let sibling = "/auth/agents/revoke-self";
+        state
+            .consume_agent_route(
+                sibling,
+                first.clone(),
+                agent_paths[sibling],
+                start,
+            )
+            .expect("one route cannot exhaust another route's bucket");
+        state
+            .consume_agent_route(path, first, limit, start + Duration::from_secs(60))
+            .expect("the exact window boundary drops predecessor attempts");
+
+        let user_a = super::AgentRouteThrottleSource::Session("user-a".to_owned());
+        let user_b = super::AgentRouteThrottleSource::Session("user-b".to_owned());
+        let session_path = "/auth/grants";
+        let session_limit = agent_paths[session_path];
+        for _ in 0..session_limit {
+            state
+                .consume_agent_route(session_path, user_a.clone(), session_limit, start)
+                .expect("user A reaches its exact limit");
+        }
+        assert_eq!(
+            state.consume_agent_route(session_path, user_a, session_limit, start),
+            Err(60)
+        );
+        state
+            .consume_agent_route(session_path, user_b, session_limit, start)
+            .expect("one user cannot exhaust another user's bucket");
     }
 
     /// @ref LLP 0059#connection-bound-authority — exact generation

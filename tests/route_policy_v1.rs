@@ -199,6 +199,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/grant-requests/{id}/approve"),
         ("POST", "/auth/grant-requests/{id}/deny"),
         ("GET", "/auth/grants"),
+        ("DELETE", "/auth/grants/by-actor/{actor_id}"),
         ("DELETE", "/auth/grants/{id}"),
         ("POST", "/auth/agents/rotate"),
         ("POST", "/auth/agents/token"),
@@ -312,7 +313,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 16);
+    assert_eq!(provider.len(), 17);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -375,6 +376,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         "/auth/grant-requests/{id}/approve",
         "/auth/grant-requests/{id}/deny",
         "/auth/grants",
+        "/auth/grants/by-actor/{actor_id}",
         "/auth/grants/{id}",
     ] {
         let route = provider[path];

@@ -178,6 +178,12 @@ pub(crate) struct GrantRevocation {
     pub token_ids: Vec<String>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct BulkGrantRevocation {
+    pub grant_ids: Vec<String>,
+    pub token_ids: Vec<String>,
+}
+
 impl LocalDatabase {
     /// Mint a short-lived, single-use consent secret for a human principal.
     /// The plaintext exists only in the returned wrapper.
@@ -646,6 +652,75 @@ impl LocalDatabase {
             )?;
             Ok(GrantRevocation {
                 grant_id: grant_id.to_owned(),
+                token_ids,
+            })
+        })
+    }
+
+    /// Revoke every live grant from one effective user to one actor. The
+    /// effective-user predicate is repeated in every read and write so an
+    /// actor id learned elsewhere cannot become a cross-user revocation or
+    /// enumeration oracle.
+    ///
+    /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — bulk
+    /// revoke-by-actor ends every grant from this user without disturbing the
+    /// user's own session.
+    pub(crate) fn revoke_grants_by_actor_for_user(
+        &mut self,
+        effective_user_id: &str,
+        actor_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<BulkGrantRevocation> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let mut grant_statement = tx.prepare(
+                "SELECT id FROM _auth_grants
+                 WHERE effective_user_id = ?1 AND actor_user_id = ?2
+                   AND revoked_at_ms IS NULL
+                 ORDER BY id",
+            )?;
+            let grant_ids = grant_statement
+                .query_map(params![effective_user_id, actor_user_id], |row| {
+                    row.get::<_, String>(0)
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            drop(grant_statement);
+
+            let mut token_statement = tx.prepare(
+                "SELECT tokens.id
+                 FROM _auth_grant_tokens AS tokens
+                 JOIN _auth_grants AS grants ON grants.id = tokens.grant_id
+                 WHERE grants.effective_user_id = ?1
+                   AND grants.actor_user_id = ?2
+                   AND grants.revoked_at_ms IS NULL
+                   AND tokens.revoked_at_ms IS NULL
+                 ORDER BY tokens.id",
+            )?;
+            let token_ids = token_statement
+                .query_map(params![effective_user_id, actor_user_id], |row| {
+                    row.get::<_, String>(0)
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            drop(token_statement);
+
+            tx.execute(
+                "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                 WHERE revoked_at_ms IS NULL AND grant_id IN (
+                   SELECT id FROM _auth_grants
+                   WHERE effective_user_id = ?2 AND actor_user_id = ?3
+                     AND revoked_at_ms IS NULL
+                 )",
+                params![now_ms as i64, effective_user_id, actor_user_id],
+            )?;
+            tx.execute(
+                "UPDATE _auth_grants SET revoked_at_ms = ?1
+                 WHERE effective_user_id = ?2 AND actor_user_id = ?3
+                   AND revoked_at_ms IS NULL",
+                params![now_ms as i64, effective_user_id, actor_user_id],
+            )?;
+            Ok(BulkGrantRevocation {
+                grant_ids,
                 token_ids,
             })
         })
@@ -1814,9 +1889,20 @@ mod tests {
         assert_eq!(grants.len(), 1);
         assert_eq!(grants[0].grant_id, replacement.grant_id);
 
-        let revoked = db
-            .revoke_grant_for_user("user-a", &replacement.grant_id, 7_006)
+        let foreign = db
+            .revoke_grants_by_actor_for_user("user-b", "agent-a", 7_006)
             .unwrap();
+        assert!(foreign.grant_ids.is_empty());
+        assert!(foreign.token_ids.is_empty());
+        let wrong_actor = db
+            .revoke_grants_by_actor_for_user("user-a", "agent-b", 7_006)
+            .unwrap();
+        assert_eq!(wrong_actor, foreign);
+
+        let revoked = db
+            .revoke_grants_by_actor_for_user("user-a", "agent-a", 7_006)
+            .unwrap();
+        assert_eq!(revoked.grant_ids, vec![replacement.grant_id]);
         assert_eq!(revoked.token_ids, vec![replacement.token_id]);
         assert_eq!(
             db.resolve_scoped_token(&replacement.secret, 7_006)
@@ -1826,8 +1912,9 @@ mod tests {
             "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
         );
         let repeated = db
-            .revoke_grant_for_user("user-a", &replacement.grant_id, 7_006)
+            .revoke_grants_by_actor_for_user("user-a", "agent-a", 7_006)
             .unwrap();
+        assert!(repeated.grant_ids.is_empty());
         assert!(repeated.token_ids.is_empty());
     }
 }
