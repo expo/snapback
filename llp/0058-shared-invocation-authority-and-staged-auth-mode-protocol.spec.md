@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (committed the pinned-predecessor rollback harness and
+**Revised:** 2026-07-15 (reconciled the current authority and handshake shapes:
+LLP 0055's dated amendment owns `ServicePrincipal` plus `kind`/`actor`, while
+the wire handshake keeps a distinct three-field `AuthSessionAuthority`; added
+LLP 0059's required nullable `deploymentIdentity`; status remains Draft).
+2026-07-15 (committed the pinned-predecessor rollback harness and
 receipt plus a direct corrupt database/WAL byte regression; corrected the LLP
 0012 registration account; status remains Draft). 2026-07-15 (ENG-25001 defect reconciliation: closed raw-loader,
 prepared-generation, seed provenance, composed-gate, session DTO, handshake
@@ -29,7 +33,7 @@ DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/versio
 exactness, truly-empty seed classification, content-verified deployment
 identities, and operator-recovery diagnostics). Full triage in §Review triage.)
 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0059, LLP 0060
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060
 
 ## Summary
 
@@ -82,8 +86,9 @@ This Spec owns:
 - the four durable metadata keys and their version-1 records;
 - stage, consume, quarantine, unstage, and downgrade ordering;
 - a single pre-bind `--startup-artifacts` carrier for a complete artifact pair;
-- `WireAuthorityFields`, `ResolvedAppAuthority`, `HandlerAuthProjection`,
-  `PreparedAuthority`, and `PreparedInvocation`;
+- the item-4 baselines for `WireAuthorityFields`, `ResolvedAppAuthority`,
+  `HandlerAuthProjection`, `PreparedAuthority`, and `PreparedInvocation`, as
+  subsequently amended by LLP 0055's service-principal authority/projection;
 - the shared invocation gate and its complete entry-path inventory;
 - session-mode body/owner-field rejection and the replacement live-owner
   predicate;
@@ -98,9 +103,13 @@ This Spec consumes without re-owning:
 - LLP 0057's provider resolver, session-family outcomes, auth catalog,
   keyring, collision check, and `ImpersonationCapability`;
 - LLP 0053's authorization-invalidation declarations, dispositions,
-  obligations, and retained lease, subsequently implemented by items 6/8; and
+  obligations, and retained lease, subsequently implemented by items 6/8;
+- LLP 0055's subsequently implemented `ServicePrincipal` resolved authority
+  and sealed `kind`/`actor` handler projections, which supersede item 4's
+  narrower authority enumeration; and
 - LLP 0059's subsequently implemented item-5 connection-bound authority,
-  revocation projection, and client coordinator.
+  revocation projection, client coordinator, and required handshake deployment
+  identity.
 
 This Spec does not implement or specify hosted coordinator security. A hosted
 sessions handler's must-understand invocation marker, handler-first deployment
@@ -866,10 +875,13 @@ invariant-satisfying state.
 
 ## Shared invocation authority
 
-### Five distinct internal types
+### Five internal type layers
 
-The names below are normative. The existing room-permission `AuthContext` in
-`src/ephemeral.rs` is not reused.
+The five names below count **type layers**, not authority variants. The names are
+normative. The existing room-permission `AuthContext` in `src/ephemeral.rs` is
+not reused. LLP 0055's dated amendment is authoritative for the current sealed
+resolved-authority variants and handler projection where it extends the item-4
+baseline below.
 
 #### `WireAuthorityFields`
 
@@ -889,13 +901,23 @@ session credential.
 
 #### `ResolvedAppAuthority`
 
+The current sealed variant set is exactly:
+
 ```text
 Anonymous
-Session { userId, sessionId, provider, generation, authorityInstanceId }
-DevImpersonation { userId, roles, localDevOnly: true }
-AdminBypass { reason }
+Session { ... }
+DevImpersonation { ... }
+ServicePrincipal { ... }
+AdminBypass { ... }
 System
 ```
+
+Item 4 introduced all variants except `ServicePrincipal`. LLP 0055 later added
+that sixth variant with the server-only actor, credential, grant, token,
+effective-user, scope, generation, and expiry facts required for autonomous and
+delegated agents. The Rust enum remains the source of truth for those internal
+payload fields; this Spec owns the shared-gate rules, not a second frozen copy of
+LLP 0055's service-principal record.
 
 This value is server-only. A session comes only from LLP 0057 credential
 resolution. Dev impersonation comes from a registered dev body-authority
@@ -914,7 +936,8 @@ item 7 owns that wire/store contract.
 
 #### `HandlerAuthProjection`
 
-The handler-visible projection is exactly:
+The current handler-visible projection, after LLP 0055's dated sealed-value
+amendment, is exactly:
 
 ```ts
 type HandlerAuthProjection = {
@@ -923,6 +946,12 @@ type HandlerAuthProjection = {
   isAuthenticated: boolean
   provider?: string
   roles?: readonly string[]
+  kind?: "human" | "agent"
+  actor?: {
+    userId: string
+    kind: "agent"
+    grantId: string
+  }
 }
 ```
 
@@ -930,9 +959,17 @@ Own-key rules are exact:
 
 - anonymous, `AdminBypass`, and `System` project exactly `userId`, `sessionId`,
   and `isAuthenticated`, with values `null`, `null`, and `false`;
-- a real session additionally projects `provider` and `roles: []`;
-- dev impersonation additionally projects `roles`, omits `provider`, and has a
-  null `sessionId`; and
+- a real human session additionally projects `provider`, `roles: []`, and
+  `kind: "human"`;
+- dev impersonation additionally projects `roles` and `kind: "human"`, omits
+  `provider`, and has a null `sessionId`;
+- an autonomous `ServicePrincipal` projects its agent `userId`, null
+  `sessionId`, `provider: "agent-credential"`, `roles: []`, and
+  `kind: "agent"`, with no `actor` block;
+- a delegated `ServicePrincipal` projects the effective human `userId`, null
+  `sessionId`, `provider: "agent-credential"`, `roles: []`,
+  `kind: "human"`, and the sealed agent `{userId, kind, grantId}` actor block;
+  and
 - `isAuthenticated` is true if and only if the resolved authority carries a
   user.
 
@@ -941,7 +978,10 @@ an own, non-accessor data property. The object, roles array, and every nested
 value are deep-frozen before application code evaluates. Therefore
 `Object.getPrototypeOf(ctx.auth) === null`; `Object.prototype` pollution cannot
 add visible authority. The projection has no getter, proxy, raw token,
-generation, authority-instance id, admin reason, or room permission set.
+generation, authority-instance id, credential/token secret, admin reason, or
+room permission set. LLP 0055 owns the service-principal non-widening semantics
+and the related rule-language `actorKind`/`isDelegated` projections; those rule
+inputs are not extra own keys on this handler DTO.
 
 #### `PreparedAuthority`
 
@@ -1224,21 +1264,35 @@ pending, the handshake remains anonymous until activation.
     "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000002",
     "sessionGeneration": 0
   },
+  "deploymentIdentity": {
+    "schemaVersion": "snapback.v1",
+    "authMode": "sessions",
+    "appId": "example-app",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bundleHash": "snapback.v1:sessions:function:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
   "authorizedLease": null
 }
 ```
 
-The response is a closed Rust/schemars authority for protocol version 1 and is
-`Cache-Control: no-store`; it never enters receipts, logs, or runtime snapshots.
+This is the **current composed** response after the later item amendments, not
+only the historical item-4 body. The Rust/schemars type is the sole current
+closed shape for protocol version 1; LLP 0059 owns the required
+`deploymentIdentity: DeploymentIdentity | null` amendment. Sessions mode
+requires the six-field identity above to be non-null; a legacy dev database may
+return null. The response is `Cache-Control: no-store`; it never enters
+receipts, logs, or runtime snapshots.
 `quarantineCode` is the stable safe code or null. `clientProtocols` echoes only
 exactly supported offered versions; unsupported/malformed offers are null and
 make the affected availability false.
 
 **Exactness (amended 2026-07-14, ENG-24991).** The generated schema is exact
 with the executable kit validator, not merely a superset of it. Every member
-above — including the nullable ones (`quarantineCode`, `authorizedLease`,
-`authority.userId`/`sessionId`, and every availability `reason`/protocol
-minimum) — is **required**: null is expressed by value, never by omission.
+above — including the nullable ones (`quarantineCode`, `deploymentIdentity`,
+`authorizedLease`, `authority.userId`/`sessionId`, and every availability
+`reason`/protocol minimum) — is **required**: null is expressed by value, never
+by omission.
 `protocolVersion` is `const: 1` (a different integer is a different protocol);
 protocol echoes and minima admit exactly `1` or `null`; `transports` is exactly
 `["bearer"]`; an authenticated authority carries non-empty `userId`/`sessionId`
@@ -1292,9 +1346,14 @@ server reports `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` instead.
 
 `provider.available` additionally requires settled sessions and LLP 0057
 provider readiness. Provider unavailability never leaks keyring details.
-`authority` is the same `HandlerAuthProjection` constructor used by handlers.
-Item 7 may add a versioned descriptor as an additive field only after revising
-the generated response schema; item 4 does not expose it accidentally.
+`authority` is deliberately **not** `HandlerAuthProjection`: the handshake uses
+the separate closed `AuthSessionAuthority` with exactly three required own
+fields, `{userId, sessionId, isAuthenticated}`. It never exposes handler-only
+`provider`, `roles`, `kind`, or `actor`. The current `authorityDescriptor`,
+`deploymentIdentity`, and `authorizedLease` members are the subsequently landed
+item-7, LLP-0059, and item-8 amendments already represented in the generated
+schema; their presence here does not retroactively assign their ownership to
+item 4.
 
 ### Kit ordering
 
@@ -1688,7 +1747,8 @@ Expected seams are:
 
 - `src/auth/mode.rs` for durable records, transition preflight, and startup
   consume;
-- `src/auth/invocation.rs` for the five authority types and shared gate;
+- `src/auth/invocation.rs` for the five type layers, current six-variant
+  resolved authority, sealed handler projections, and shared gate;
 - `src/manifest.rs`, codegen, and committed schemas for closed manifest fields;
 - `src/storage.rs` for four-key atomic reads/writes and poison;
 - `src/server.rs`, `src/live_wire.rs`, and `src/ephemeral.rs` for registered
