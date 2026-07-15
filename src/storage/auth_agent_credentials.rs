@@ -56,6 +56,8 @@ pub struct IssuedScopedToken {
     pub credential_id: String,
     pub credential_generation: u64,
     pub expires_at_ms: u64,
+    pub grant_expires_at_ms: Option<u64>,
+    pub scopes: Value,
     pub evicted_token_ids: Vec<String>,
     pub secret: ScopedToken,
 }
@@ -292,9 +294,9 @@ impl LocalDatabase {
             let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
                 .ok_or_else(agent_credential_invalid)?;
             require_agent_active_on(tx, &resolved.user_id)?;
-            let grant_expires_at_ms =
-                require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
-            let expires_at_ms = grant_expires_at_ms
+            let grant = require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
+            let expires_at_ms = grant
+                .expires_at_ms
                 .map_or(expires_at_ms, |grant_expiry| expires_at_ms.min(grant_expiry));
             let mut live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
             let mut evicted_token_ids = Vec::new();
@@ -329,7 +331,130 @@ impl LocalDatabase {
                 credential_id: resolved.credential_id,
                 credential_generation: resolved.generation,
                 expires_at_ms,
+                grant_expires_at_ms: grant.expires_at_ms,
+                scopes: grant.scopes,
                 evicted_token_ids,
+                secret,
+            })
+        })
+    }
+
+    /// Poll an approved pairing request for its first grant token. Every
+    /// successful re-poll revokes the prior pairing-poll token before minting
+    /// its replacement in the same transaction, so a lost response is
+    /// recoverable without retaining plaintext.
+    pub(crate) fn mint_scoped_token_for_pairing_request(
+        &mut self,
+        credential: &AgentCredential,
+        pairing_request_id: &str,
+        ttl_ms: Option<u64>,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedScopedToken> {
+        let ttl_ms = ttl_ms.unwrap_or(SCOPED_TOKEN_DEFAULT_TTL_MS);
+        if ttl_ms == 0 || ttl_ms > SCOPED_TOKEN_MAX_TTL_MS {
+            return Err(scoped_token_ttl_invalid());
+        }
+        let requested_expires_at_ms = now_ms
+            .checked_add(ttl_ms)
+            .filter(|expiry| *expiry <= MAX_AUTHORIZATION_EPOCH)
+            .ok_or_else(scoped_token_ttl_invalid)?;
+        self.observe_agent_authorization_clock(now_ms)?;
+        let secret = ScopedToken::generate(random).map_err(|_| secret_generation_failed())?;
+        let token_hash = secret.token_hash();
+        let token_id = format!("{pairing_request_id}:{}", new_id());
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
+                .ok_or_else(agent_credential_invalid)?;
+            require_agent_active_on(tx, &resolved.user_id)?;
+            let pairing = tx
+                .query_row(
+                    "SELECT agent_user_id, state, expires_at_ms, grant_id
+                     FROM _auth_pairing_requests WHERE id = ?1",
+                    params![pairing_request_id],
+                    |row| {
+                        Ok((
+                            row.get::<_, Option<String>>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let Some((bound_agent, state, pairing_expires_at_ms, grant_id)) = pairing else {
+                return Err(grant_invalid());
+            };
+            let pairing_expires_at_ms = u64::try_from(pairing_expires_at_ms)
+                .map_err(|_| agent_credential_state_corrupt())?;
+            if bound_agent.as_deref() != Some(resolved.user_id.as_str())
+                || pairing_expires_at_ms <= now_ms
+            {
+                return Err(grant_invalid());
+            }
+            if state == "pending" && grant_id.is_none() {
+                return Err(grant_pending());
+            }
+            if state != "approved" {
+                return Err(grant_invalid());
+            }
+            let grant_id = grant_id.ok_or_else(grant_invalid)?;
+            let grant = require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
+            let expires_at_ms = grant.expires_at_ms.map_or(requested_expires_at_ms, |expiry| {
+                requested_expires_at_ms.min(expiry)
+            });
+
+            let pairing_prefix = format!("{pairing_request_id}:%");
+            let mut replaced_token_ids = collect_token_ids(
+                tx,
+                "SELECT id FROM _auth_grant_tokens
+                 WHERE grant_id = ?1 AND id LIKE ?2 AND revoked_at_ms IS NULL
+                 ORDER BY created_at_ms, id",
+                params![grant_id, pairing_prefix],
+            )?;
+            for replaced in &replaced_token_ids {
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                     WHERE id = ?2 AND revoked_at_ms IS NULL",
+                    params![now_ms as i64, replaced],
+                )?;
+            }
+            let mut live = live_token_ids_for_grant(tx, &grant_id, now_ms)?;
+            while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
+                let evicted = live.remove(0);
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                     WHERE id = ?2 AND revoked_at_ms IS NULL",
+                    params![now_ms as i64, evicted],
+                )?;
+                replaced_token_ids.push(evicted);
+            }
+            tx.execute(
+                "INSERT INTO _auth_grant_tokens(
+                   id, token_hash, grant_id, credential_id,
+                   credential_generation, created_at_ms, expires_at_ms, revoked_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
+                params![
+                    token_id,
+                    token_hash.as_bytes(),
+                    grant_id,
+                    resolved.credential_id,
+                    resolved.generation as i64,
+                    now_ms as i64,
+                    expires_at_ms as i64,
+                ],
+            )?;
+            coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
+            Ok(IssuedScopedToken {
+                token_id,
+                grant_id,
+                credential_id: resolved.credential_id,
+                credential_generation: resolved.generation,
+                expires_at_ms,
+                grant_expires_at_ms: grant.expires_at_ms,
+                scopes: grant.scopes,
+                evicted_token_ids: replaced_token_ids,
                 secret,
             })
         })
@@ -588,25 +713,41 @@ pub(super) fn coalesce_credential_use(
     Ok(())
 }
 
+struct LiveGrant {
+    scopes: Value,
+    expires_at_ms: Option<u64>,
+}
+
 fn require_live_grant_for_actor(
     tx: &Transaction<'_>,
     grant_id: &str,
     actor_user_id: &str,
     now_ms: u64,
-) -> SnapbackResult<Option<u64>> {
-    let expires_at_ms = tx
+) -> SnapbackResult<LiveGrant> {
+    let grant = tx
         .query_row(
-            "SELECT expires_at_ms FROM _auth_grants
+            "SELECT scopes, expires_at_ms FROM _auth_grants
              WHERE id = ?1 AND actor_user_id = ?2 AND revoked_at_ms IS NULL
                AND (expires_at_ms IS NULL OR expires_at_ms > ?3)",
             params![grant_id, actor_user_id, now_ms as i64],
             |row| {
-                row.get::<_, Option<i64>>(0)
-                    .map(|expiry| expiry.map(|value| value as u64))
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<i64>>(1)?,
+                ))
             },
         )
         .optional()?;
-    expires_at_ms.ok_or_else(grant_invalid)
+    let (scopes, expires_at_ms) = grant.ok_or_else(grant_invalid)?;
+    let scopes = serde_json::from_str(&scopes).map_err(|_| agent_credential_state_corrupt())?;
+    let expires_at_ms = expires_at_ms
+        .map(u64::try_from)
+        .transpose()
+        .map_err(|_| agent_credential_state_corrupt())?;
+    Ok(LiveGrant {
+        scopes,
+        expires_at_ms,
+    })
 }
 
 fn live_token_ids_for_grant(
@@ -665,8 +806,16 @@ fn live_grant_ids_for_actor(tx: &Transaction<'_>, user_id: &str) -> SnapbackResu
 }
 
 fn collect_ids(tx: &Transaction<'_>, sql: &str, value: &str) -> SnapbackResult<Vec<String>> {
+    collect_token_ids(tx, sql, params![value])
+}
+
+fn collect_token_ids<P: rusqlite::Params>(
+    tx: &Transaction<'_>,
+    sql: &str,
+    params: P,
+) -> SnapbackResult<Vec<String>> {
     let mut statement = tx.prepare(sql)?;
-    let rows = statement.query_map(params![value], |row| row.get::<_, String>(0))?;
+    let rows = statement.query_map(params, |row| row.get::<_, String>(0))?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -747,6 +896,14 @@ fn grant_invalid() -> SnapbackError {
         "SNAPBACK_AUTH_GRANT_INVALID",
         "auth",
         "agent grant is invalid",
+    )
+}
+
+fn grant_pending() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_PENDING",
+        "auth",
+        "agent grant consent is still pending",
     )
 }
 

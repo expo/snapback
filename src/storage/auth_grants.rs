@@ -1526,4 +1526,81 @@ mod tests {
         assert_eq!(missing.diagnostic.code, foreign.diagnostic.code);
         assert_eq!(expired.diagnostic.code, foreign.diagnostic.code);
     }
+
+    #[test]
+    fn approved_pairing_poll_replaces_the_prior_plaintext_free_token() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        scope_basis(&db, "fn:read", "query", false);
+        let pairing = db.mint_pairing_code("user-a", 7_000, &random).unwrap();
+        db.present_pairing_code(
+            &credential,
+            &pairing.request_id,
+            &pairing.secret,
+            &[GrantScopeRequest::Exact {
+                function_id: "fn:read".to_owned(),
+                kind: ScopedFunctionKind::Query,
+            }],
+            7_001,
+        )
+        .unwrap();
+
+        let pending = db
+            .mint_scoped_token_for_pairing_request(
+                &credential,
+                &pairing.request_id,
+                None,
+                7_002,
+                &random,
+            )
+            .unwrap_err();
+        assert_eq!(pending.diagnostic.code, "SNAPBACK_AUTH_GRANT_PENDING");
+        db.approve_grant_request(
+            "user-a",
+            "session-a",
+            &pairing.request_id,
+            Some(1_000),
+            false,
+            7_003,
+        )
+        .unwrap();
+
+        let first = db
+            .mint_scoped_token_for_pairing_request(
+                &credential,
+                &pairing.request_id,
+                None,
+                7_004,
+                &random,
+            )
+            .unwrap();
+        assert_eq!(first.expires_at_ms, 8_003);
+        assert_eq!(first.grant_expires_at_ms, Some(8_003));
+        assert!(first.evicted_token_ids.is_empty());
+        let first_id = first.token_id.clone();
+        let first_secret = first.secret;
+
+        let replacement = db
+            .mint_scoped_token_for_pairing_request(
+                &credential,
+                &pairing.request_id,
+                None,
+                7_005,
+                &random,
+            )
+            .unwrap();
+        assert_eq!(replacement.evicted_token_ids, vec![first_id]);
+        assert_eq!(
+            db.resolve_scoped_token(&first_secret, 7_005)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+        );
+        let resolved = db
+            .resolve_scoped_token(&replacement.secret, 7_005)
+            .unwrap();
+        assert_eq!(resolved.grant_id, replacement.grant_id);
+        assert_eq!(replacement.scopes, resolved.scopes);
+    }
 }
