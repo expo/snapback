@@ -531,7 +531,7 @@ mod tests {
     #[test]
     fn storage_copies_one_complete_source_for_detached_rebuild() {
         let mut database = LocalDatabase::memory().expect("database");
-        database.activate_auth_catalog_v1().expect("catalog");
+        database.activate_current_auth_catalog().expect("catalog");
         let incarnation = database
             .ensure_authorization_stream_incarnation()
             .expect("stream migration");
@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn sqlite_row_type_failure_is_projection_corrupt_not_generic_storage() {
         let mut database = LocalDatabase::memory().expect("database");
-        database.activate_auth_catalog_v1().expect("catalog");
+        database.activate_current_auth_catalog().expect("catalog");
         database
             .ensure_authorization_stream_incarnation()
             .expect("stream migration");

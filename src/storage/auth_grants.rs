@@ -1425,7 +1425,7 @@ mod tests {
         mut db: LocalDatabase,
         random: &dyn RandomSource,
     ) -> (LocalDatabase, AgentCredential) {
-        db.activate_auth_catalog_v1().unwrap();
+        db.activate_current_auth_catalog().unwrap();
         db.conn
             .execute(
                 "INSERT INTO _auth_users(

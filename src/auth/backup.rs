@@ -1713,6 +1713,45 @@ mod tests {
     }
 
     #[test]
+    fn frozen_v1_backup_and_restore_retain_marker_one() {
+        let directory = tempfile::tempdir().unwrap();
+        let source_path = directory.path().join("frozen-v1.sqlite3");
+        let mut source = LocalDatabase::open(&source_path).unwrap();
+        crate::storage::auth::install_frozen_v1_catalog_fixture(&mut source).unwrap();
+        let keyring = AuthKeyringStore::file_for_database(&source_path);
+        let random = CountingRandom::default();
+        keyring.load_or_mint_initial(0, &random).unwrap();
+
+        let backup_directory = directory.path().join("frozen-v1-backup");
+        let outcome = create_backup(&source, &keyring, &backup_directory, 7, &random).unwrap();
+        assert_eq!(outcome.manifest.catalog_version, 1);
+        assert_eq!(outcome.publication_state, BackupPublicationState::Published);
+
+        let restored_path = directory
+            .path()
+            .join("frozen-v1-restored")
+            .join("restored.sqlite3");
+        restore_backup(&backup_directory, &restored_path, &random).unwrap();
+        let restored = LocalDatabase::open(&restored_path).unwrap();
+        assert_eq!(
+            restored.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV1
+        );
+        assert_eq!(
+            restored
+                .with_auth_read(|connection| {
+                    Ok(connection.query_row(
+                        "SELECT value FROM _snapback_meta WHERE key = 'auth_catalog_version'",
+                        [],
+                        |row| row.get::<_, String>(0),
+                    )?)
+                })
+                .unwrap(),
+            AUTH_CATALOG_VERSION_V1
+        );
+    }
+
+    #[test]
     fn backup_and_restore_publish_exact_owner_only_consistent_units() {
         use std::os::unix::fs::PermissionsExt as _;
 

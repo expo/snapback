@@ -963,7 +963,7 @@ mod tests {
 
     fn ready() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.activate_auth_catalog_v1().expect("auth catalog v2");
+        db.activate_current_auth_catalog().expect("auth catalog v2");
         db.create_agent_principal(
             "agent-a",
             0,
@@ -1172,7 +1172,7 @@ mod tests {
         let path = dir.path().join("agent.sqlite3");
         let original = {
             let mut db = LocalDatabase::open(&path).unwrap();
-            db.activate_auth_catalog_v1().unwrap();
+            db.activate_current_auth_catalog().unwrap();
             db.create_agent_principal(
                 "agent-a",
                 0,

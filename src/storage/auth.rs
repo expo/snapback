@@ -884,7 +884,7 @@ impl LocalDatabase {
     /// required keyring-before-DDL ordering explicit at the integration seam. A
     /// recognized catalog of any version is left in place (a first-class v1→v2
     /// migration is deferred; see [`AUTH_CATALOG_VERSION_V1`]).
-    pub(crate) fn activate_auth_catalog_v1(&mut self) -> SnapbackResult<()> {
+    pub(crate) fn activate_current_auth_catalog(&mut self) -> SnapbackResult<()> {
         match self.inspect_auth_catalog()? {
             AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => return Ok(()),
             AuthCatalogState::Uninitialized => {}
@@ -894,7 +894,7 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        activate_auth_catalog_v1_in(&tx)?;
+        activate_current_auth_catalog_in(&tx)?;
         let authorization_predecessor = super::auth_stream::read_authorization_version_on(&tx)?;
         let authorization = super::authorization::authorization_commit_hook_in(
             &tx,
@@ -1372,7 +1372,7 @@ fn normalize_backup_image_format(_image: &File) -> std::io::Result<()> {
 /// Install the current catalog inside a caller-owned transaction. The caller
 /// has already established usable keyring state; this seam lets LLP 0058 commit
 /// catalog activation together with manifest relocation and mode settlement.
-pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
+pub(super) fn activate_current_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     match inspect_auth_catalog_on(tx)? {
         AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => return Ok(()),
         AuthCatalogState::Uninitialized => {}
@@ -1397,6 +1397,39 @@ pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResul
     )?;
     activation_step_completed(activation_step)?;
     require_ready_on(tx)
+}
+
+/// Install the exact frozen version-1 catalog for compatibility fixtures.
+/// Production activation must always use [`activate_current_auth_catalog_in`]
+/// and therefore create the current version instead.
+///
+/// @ref LLP 0057#catalog-version-1 — version 1 is recognition-only test input,
+/// never a fresh production activation target.
+#[cfg(test)]
+pub(crate) fn install_frozen_v1_catalog_fixture(
+    database: &mut LocalDatabase,
+) -> SnapbackResult<()> {
+    if database.inspect_auth_catalog()? != AuthCatalogState::Uninitialized {
+        return Err(corrupt(
+            "frozen-v1 fixture requires an uninitialized auth catalog",
+        ));
+    }
+    let tx = database
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    for table in CATALOG_V1.tables {
+        tx.execute_batch(table.sql)?;
+    }
+    for index in CATALOG_V1.indexes {
+        tx.execute_batch(index.sql)?;
+    }
+    tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+        params![META_AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1],
+    )?;
+    require_ready_on(&tx)?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Revoke every still-live session inside a caller-owned downgrade
@@ -1971,7 +2004,7 @@ mod tests {
             db.inspect_auth_catalog().expect("inspect empty catalog"),
             AuthCatalogState::Uninitialized
         );
-        db.activate_auth_catalog_v1().expect("activate catalog");
+        db.activate_current_auth_catalog().expect("activate catalog");
         db
     }
 
@@ -1981,6 +2014,59 @@ mod tests {
                 row.get(0)
             })
             .expect("count rows")
+    }
+
+    #[test]
+    fn frozen_v1_reopens_without_migration_and_refuses_agent_surfaces() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("frozen-v1.sqlite3");
+        let mut database = LocalDatabase::open(&path).unwrap();
+        install_frozen_v1_catalog_fixture(&mut database).unwrap();
+        assert_eq!(
+            database.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV1
+        );
+        drop(database);
+
+        let mut reopened = LocalDatabase::open(&path).unwrap();
+        assert_eq!(
+            reopened.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV1
+        );
+        reopened.activate_current_auth_catalog().unwrap();
+        assert_eq!(
+            reopened.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV1,
+            "current activation must not silently migrate a frozen v1 catalog"
+        );
+        assert_eq!(
+            auth_catalog_marker(&reopened.conn).unwrap().as_deref(),
+            Some(AUTH_CATALOG_VERSION_V1)
+        );
+
+        let registration = crate::storage::auth_agents::AgentRegistration {
+            display_name: Some("legacy agent".to_owned()),
+            operator_contact: None,
+            registration_provenance: r#"{"createdBy":"operator"}"#.to_owned(),
+            owner_user_id: None,
+        };
+        reopened
+            .create_agent_principal("agent-on-v1", 1, &registration)
+            .expect_err("agent creation must be unavailable on the frozen v1 shape");
+        assert_eq!(row_count(&reopened, "_auth_users"), 0);
+        let agent_tables: i64 = reopened
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema
+                 WHERE type = 'table' AND name IN (
+                   '_auth_grants', '_auth_agent_credentials', '_auth_grant_tokens',
+                   '_auth_agent_invitations', '_auth_pairing_requests', '_auth_scope_bases'
+                 )",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(agent_tables, 0);
     }
 
     #[test]
@@ -2208,7 +2294,7 @@ mod tests {
             crate::storage::AuthorizationCommitFaultForTest::AfterRollback,
         );
         let error = db
-            .activate_auth_catalog_v1()
+            .activate_current_auth_catalog()
             .expect_err("absent durable predecessor proves activation rolled back");
         assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
         assert_eq!(
@@ -2220,7 +2306,7 @@ mod tests {
             crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
         );
 
-        db.activate_auth_catalog_v1()
+        db.activate_current_auth_catalog()
             .expect("exact catalog successor proves activation committed");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
@@ -2319,7 +2405,7 @@ mod tests {
             .execute("DROP TABLE ordinary", [])
             .expect("drop ordinary table");
 
-        db.activate_auth_catalog_v1()
+        db.activate_current_auth_catalog()
             .expect("activate exact catalog");
         assert_eq!(
             db.inspect_auth_catalog().expect("ready catalog"),
@@ -2386,7 +2472,7 @@ mod tests {
             let mut db = LocalDatabase::memory().expect("memory database");
             inject_auth_activation_failure_after_step(step);
             let error = db
-                .activate_auth_catalog_v1()
+                .activate_current_auth_catalog()
                 .expect_err("injected activation must fail");
             assert_eq!(error.diagnostic.code, "TEST_AUTH_ACTIVATION_FAILURE");
             assert_eq!(
@@ -2422,7 +2508,7 @@ mod tests {
                 params![META_AUTH_CATALOG_VERSION],
             )
             .expect("clear marker");
-        db.activate_auth_catalog_v1().expect("activate catalog");
+        db.activate_current_auth_catalog().expect("activate catalog");
         db.conn
             .execute("DROP INDEX \"_auth_sessions_token_uq\"", [])
             .expect("corrupt index");

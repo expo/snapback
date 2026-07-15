@@ -5050,7 +5050,7 @@ mod tests {
             .load_or_mint_initial(now_ms, &OsRandom)
             .expect("initial keyring");
         database
-            .activate_auth_catalog_v1()
+            .activate_current_auth_catalog()
             .expect("activate catalog");
         let provider =
             Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).expect("auth provider"));
@@ -5067,7 +5067,7 @@ mod tests {
             .load_or_mint_initial(now_ms, &OsRandom)
             .expect("initial keyring");
         database
-            .activate_auth_catalog_v1()
+            .activate_current_auth_catalog()
             .expect("activate catalog");
         let provider = Arc::new(
             AuthProvider::new_with_dependencies(
@@ -5079,6 +5079,42 @@ mod tests {
             .expect("auth provider"),
         );
         (provider, database)
+    }
+
+    #[tokio::test]
+    async fn frozen_v1_catalog_keeps_email_code_and_session_provider_usable() {
+        let mut database = LocalDatabase::memory().expect("memory database");
+        crate::storage::auth::install_frozen_v1_catalog_fixture(&mut database)
+            .expect("install exact frozen v1 fixture");
+        assert_eq!(
+            database.inspect_auth_catalog().unwrap(),
+            crate::storage::auth::AuthCatalogState::ReadyV1
+        );
+
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(0, &OsRandom)
+            .expect("initial keyring");
+        let provider =
+            Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).expect("auth provider"));
+        let (challenge, code) =
+            request_and_code(&provider, &mut database, "legacy@example.com", 0).await;
+        let issued = exchange(&provider, &mut database, &challenge.challenge_id, &code, 1)
+            .await
+            .expect("frozen v1 exchange");
+
+        assert_eq!(issued.response().session.provider, "email-code");
+        assert_eq!(
+            database.inspect_auth_catalog().unwrap(),
+            crate::storage::auth::AuthCatalogState::ReadyV1
+        );
+        let session_count: i64 = database
+            .with_auth_read(|connection| {
+                Ok(connection
+                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?)
+            })
+            .unwrap();
+        assert_eq!(session_count, 1);
     }
 
     #[test]
@@ -6279,7 +6315,7 @@ mod tests {
         let start_ms = 0;
         let mut database = LocalDatabase::memory().expect("memory database");
         database
-            .activate_auth_catalog_v1()
+            .activate_current_auth_catalog()
             .expect("activate catalog");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         keyring

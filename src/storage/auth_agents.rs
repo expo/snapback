@@ -402,7 +402,7 @@ mod tests {
 
     fn ready_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.activate_auth_catalog_v1().expect("activate catalog v2");
+        db.activate_current_auth_catalog().expect("activate catalog v2");
         db
     }
 
@@ -500,7 +500,7 @@ mod tests {
         let path = dir.path().join("app.sqlite");
         {
             let mut db = LocalDatabase::open(&path).expect("open db");
-            db.activate_auth_catalog_v1().expect("activate");
+            db.activate_current_auth_catalog().expect("activate");
             create_agent(&mut db, "agent-1", None);
             // No memberships → deactivation strands nothing.
             db.deactivate_agent("agent-1", 100, &empty_manifest())

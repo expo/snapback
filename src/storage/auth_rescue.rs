@@ -33,6 +33,16 @@ use std::path::Path;
 thread_local! {
     static FAIL_RESCUE_AFTER_STEP: std::cell::Cell<Option<usize>> =
         const { std::cell::Cell::new(None) };
+    static FAIL_RESCUE_COMMIT_BOUNDARY: std::cell::Cell<Option<RescueCommitFault>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RescueCommitFault {
+    RolledBack,
+    Committed,
+    CommittedDivergent,
 }
 
 #[cfg(test)]
@@ -40,6 +50,14 @@ pub(crate) fn inject_rescue_failure_after_step(step: usize) {
     FAIL_RESCUE_AFTER_STEP.with(|slot| {
         assert!(slot.get().is_none(), "rescue hook must be one-shot");
         slot.set(Some(step));
+    });
+}
+
+#[cfg(test)]
+fn inject_rescue_commit_fault(fault: RescueCommitFault) {
+    FAIL_RESCUE_COMMIT_BOUNDARY.with(|slot| {
+        assert!(slot.get().is_none(), "rescue commit hook must be one-shot");
+        slot.set(Some(fault));
     });
 }
 
@@ -219,7 +237,7 @@ fn rescue_on_connection(
     validate_boundary_names(source, target)?;
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let completion = rescue_in_transaction(&transaction, source, target)?;
-    match transaction.commit() {
+    match commit_rescue_transaction(transaction, target) {
         Ok(()) => Ok(completion),
         Err(commit_error) => {
             // Reconcile a lost COMMIT acknowledgement against the exact
@@ -229,10 +247,33 @@ fn rescue_on_connection(
             if rescue_successor_is_durable(connection, &completion.result)? {
                 Ok(completion)
             } else {
-                Err(commit_error.into())
+                Err(commit_error)
             }
         }
     }
+}
+
+fn commit_rescue_transaction(transaction: Transaction<'_>, target: &str) -> SnapbackResult<()> {
+    #[cfg(not(test))]
+    let _ = target;
+    #[cfg(test)]
+    if let Some(fault) = FAIL_RESCUE_COMMIT_BOUNDARY.with(|slot| slot.take()) {
+        match fault {
+            RescueCommitFault::RolledBack => transaction.execute_batch("ROLLBACK")?,
+            RescueCommitFault::Committed => transaction.execute_batch("COMMIT")?,
+            RescueCommitFault::CommittedDivergent => {
+                transaction.execute_batch("COMMIT")?;
+                transaction.execute_batch(&format!("DROP TABLE {}", quote_identifier(target)))?;
+            }
+        }
+        return Err(SnapbackError::error(
+            "TEST_AUTH_RESCUE_COMMIT_FAILURE",
+            "auth-rescue",
+            format!("injected rescue commit fault: {fault:?}"),
+        ));
+    }
+    transaction.commit()?;
+    Ok(())
 }
 
 fn rescue_successor_is_durable(
@@ -964,7 +1005,14 @@ fn rescue_unsupported(message: &str) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{FieldManifest, FieldType, IndexManifest, TableManifest};
+    use crate::auth::mode::{
+        AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeQuarantine, AuthModeStateRecord,
+        AuthModeStatus, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+        StagedAuthModeRecord,
+    };
+    use crate::manifest::{
+        AuthManifest, AuthMode, FieldManifest, FieldType, IndexManifest, TableManifest,
+    };
     use crate::storage::auth_mode::{
         META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
     };
@@ -1034,6 +1082,164 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy, Debug)]
+    enum ManagedFixtureState {
+        Settled,
+        Pending,
+        Quarantined,
+    }
+
+    fn v1_hash(prefix: &str, byte: char) -> String {
+        format!("{prefix}{}", byte.to_string().repeat(64))
+    }
+
+    fn requested_sessions_pair() -> (DeploymentIdentity, SchemaManifest) {
+        let schema_hash = v1_hash(SCHEMA_V1_PREFIX, 'a');
+        let inputs_hash = v1_hash(INPUTS_V1_PREFIX, 'c');
+        let identity = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "rescue-fixture".to_owned(),
+            schema_hash: schema_hash.clone(),
+            bundle_hash: v1_hash(FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: inputs_hash.clone(),
+        };
+        let manifest = SchemaManifest {
+            schema_version: "snapback.v1".to_owned(),
+            app_id: "rescue-fixture".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+            }),
+            schema_hash: Some(schema_hash),
+            inputs_hash: Some(inputs_hash),
+            ..SchemaManifest::default()
+        };
+        (identity, manifest)
+    }
+
+    fn install_valid_managed_fixture(database: &LocalDatabase, fixture_state: ManagedFixtureState) {
+        let active_manifest = legacy_manifest();
+        let active_raw = serde_json::to_string(&active_manifest).unwrap();
+        let (requested_deployment, requested_manifest) = requested_sessions_pair();
+        let generation = match fixture_state {
+            ManagedFixtureState::Settled => 0,
+            ManagedFixtureState::Pending => 1,
+            ManagedFixtureState::Quarantined => 2,
+        };
+        let staged = (!matches!(fixture_state, ManagedFixtureState::Settled)).then(|| {
+            StagedAuthModeRecord {
+                format_version: AUTH_MODE_FORMAT_VERSION,
+                transition_generation: generation,
+                requested_deployment: requested_deployment.clone(),
+                schema_manifest: requested_manifest,
+            }
+        });
+        let state = match fixture_state {
+            ManagedFixtureState::Settled => AuthModeStateRecord::initial_dev(None),
+            ManagedFixtureState::Pending | ManagedFixtureState::Quarantined => {
+                AuthModeStateRecord {
+                    format_version: AUTH_MODE_FORMAT_VERSION,
+                    transition_generation: generation,
+                    active: AuthMode::Dev,
+                    desired: AuthMode::Sessions,
+                    mode_state: if matches!(fixture_state, ManagedFixtureState::Pending) {
+                        AuthModeStatus::PendingRestart
+                    } else {
+                        AuthModeStatus::Quarantined
+                    },
+                    app_data_availability: AppDataAvailability::RefusedPending,
+                    sessions_ever_activated: false,
+                    active_deployment: None,
+                    requested_deployment: Some(requested_deployment),
+                    quarantine: matches!(fixture_state, ManagedFixtureState::Quarantined).then(
+                        || AuthModeQuarantine {
+                            transition_generation: generation,
+                            code: "SNAPBACK_AUTH_TABLE_COLLISION".to_owned(),
+                        },
+                    ),
+                }
+            }
+        };
+        state.validate_shape().unwrap();
+        database
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![META_SCHEMA_MANIFEST, active_raw],
+            )
+            .unwrap();
+        database
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![
+                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                    serde_json::to_string(&active_manifest).unwrap()
+                ],
+            )
+            .unwrap();
+        database
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![META_AUTH_MODE_STATE, serde_json::to_string(&state).unwrap()],
+            )
+            .unwrap();
+        match staged {
+            Some(staged) => {
+                database
+                    .conn
+                    .execute(
+                        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                        params![
+                            META_STAGED_AUTH_MODE_MANIFEST,
+                            serde_json::to_string(&staged).unwrap()
+                        ],
+                    )
+                    .unwrap();
+            }
+            None => {
+                database
+                    .conn
+                    .execute(
+                        "DELETE FROM _snapback_meta WHERE key = ?1",
+                        params![META_STAGED_AUTH_MODE_MANIFEST],
+                    )
+                    .unwrap();
+            }
+        }
+        assert!(matches!(
+            crate::storage::auth_mode::inspect_for_open(&database.conn).unwrap(),
+            crate::storage::auth_mode::OpenAuthModeInspection::Managed(_)
+        ));
+    }
+
+    fn four_key_values(connection: &Connection) -> BTreeMap<String, String> {
+        let mut statement = connection
+            .prepare(
+                "SELECT key, value FROM _snapback_meta
+                 WHERE key IN (?1, ?2, ?3, ?4) ORDER BY key",
+            )
+            .unwrap();
+        statement
+            .query_map(
+                params![
+                    META_SCHEMA_MANIFEST,
+                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                    META_STAGED_AUTH_MODE_MANIFEST,
+                    META_AUTH_MODE_STATE,
+                ],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+
     fn store_manifest(database: &LocalDatabase, manifest: &SchemaManifest) {
         // These fixtures model databases created before staged auth-mode
         // metadata existed. Retaining the managed-mode record would instead
@@ -1063,58 +1269,29 @@ mod tests {
     }
 
     #[test]
-    fn rescue_refuses_a_manifest_named_source_when_managed_mode_state_exists() {
-        let mut database = LocalDatabase::memory().unwrap();
-        source_fixture(&mut database, "_auth_legacy");
-        let manifest = legacy_manifest();
-        let serialized = serde_json::to_string(&manifest).unwrap();
-        database
-            .conn
-            .execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![META_SCHEMA_MANIFEST, serialized],
-            )
-            .unwrap();
-        database
-            .conn
-            .execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, '{}')
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![META_AUTH_MODE_STATE],
-            )
-            .unwrap();
+    fn rescue_preserves_valid_managed_mode_keys_for_every_refused_state() {
+        for fixture_state in [
+            ManagedFixtureState::Settled,
+            ManagedFixtureState::Pending,
+            ManagedFixtureState::Quarantined,
+        ] {
+            let mut database = LocalDatabase::memory().unwrap();
+            source_fixture(&mut database, "_auth_legacy");
+            install_valid_managed_fixture(&database, fixture_state);
+            let before = four_key_values(&database.conn);
 
-        let error = database
-            .rescue_auth_collision("_auth_legacy", "legacy_auth")
-            .unwrap_err();
+            let error = database
+                .rescue_auth_collision("_auth_legacy", "legacy_auth")
+                .unwrap_err();
 
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED"
-        );
-        assert_eq!(
-            database
-                .conn
-                .query_row(
-                    "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = '_auth_legacy'",
-                    [],
-                    |row| row.get::<_, i64>(0),
-                )
-                .unwrap(),
-            1
-        );
-        assert_eq!(
-            database
-                .conn
-                .query_row(
-                    "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'legacy_auth'",
-                    [],
-                    |row| row.get::<_, i64>(0),
-                )
-                .unwrap(),
-            0
-        );
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED",
+                "fixture state: {fixture_state:?}"
+            );
+            assert_eq!(four_key_values(&database.conn), before);
+            assert_eq!(table_row_count(&database.conn, "_auth_legacy").unwrap(), 3);
+            assert!(table_row_count(&database.conn, "legacy_auth").is_err());
+        }
     }
 
     #[test]
@@ -1387,6 +1564,42 @@ mod tests {
                 .unwrap_or_default();
             assert_eq!(after_manifest, before_manifest);
         }
+    }
+
+    #[test]
+    fn rescue_commit_boundary_classifies_rollback_successor_and_divergence() {
+        let mut rolled_back = LocalDatabase::memory().unwrap();
+        source_fixture(&mut rolled_back, "_auth_legacy");
+        inject_rescue_commit_fault(RescueCommitFault::RolledBack);
+        let error = rolled_back
+            .rescue_auth_collision("_auth_legacy", "legacy")
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_AUTH_RESCUE_COMMIT_FAILURE");
+        assert_eq!(
+            table_row_count(&rolled_back.conn, "_auth_legacy").unwrap(),
+            3
+        );
+        assert!(table_row_count(&rolled_back.conn, "legacy").is_err());
+
+        let mut committed = LocalDatabase::memory().unwrap();
+        source_fixture(&mut committed, "_auth_legacy");
+        inject_rescue_commit_fault(RescueCommitFault::Committed);
+        let result = committed
+            .rescue_auth_collision("_auth_legacy", "legacy")
+            .expect("an exact committed successor reconciles as success");
+        assert_eq!(result.copied_row_count, 3);
+        assert!(table_row_count(&committed.conn, "_auth_legacy").is_err());
+        assert_eq!(table_row_count(&committed.conn, "legacy").unwrap(), 3);
+
+        let mut divergent = LocalDatabase::memory().unwrap();
+        source_fixture(&mut divergent, "_auth_legacy");
+        inject_rescue_commit_fault(RescueCommitFault::CommittedDivergent);
+        let error = divergent
+            .rescue_auth_collision("_auth_legacy", "legacy")
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "TEST_AUTH_RESCUE_COMMIT_FAILURE");
+        assert!(table_row_count(&divergent.conn, "_auth_legacy").is_err());
+        assert!(table_row_count(&divergent.conn, "legacy").is_err());
     }
 
     #[test]

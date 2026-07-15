@@ -440,7 +440,7 @@ mod tests {
             true, true, true, true, true, true, true,
         ))
         .unwrap();
-        db.activate_auth_catalog_v1().unwrap();
+        db.activate_current_auth_catalog().unwrap();
         db.with_auth_transaction(|tx| {
             tx.execute(
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",

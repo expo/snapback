@@ -761,7 +761,7 @@ impl LocalDatabase {
                 functions,
             )?;
         }
-        crate::storage::auth::activate_auth_catalog_v1_in(&tx)?;
+        crate::storage::auth::activate_current_auth_catalog_in(&tx)?;
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.

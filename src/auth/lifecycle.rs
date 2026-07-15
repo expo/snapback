@@ -56,7 +56,7 @@ pub(crate) fn activate_catalog(
                 .load_or_mint_initial(now_ms, random)
                 .map_err(provider_unavailable)?;
             activation_keyring_ready()?;
-            database.activate_auth_catalog_v1()?;
+            database.activate_current_auth_catalog()?;
             if !database.inspect_auth_catalog()?.is_ready() {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_CATALOG_CORRUPT",
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn ready_catalog_never_remints_a_missing_keyring() {
         let mut database = LocalDatabase::memory().unwrap();
-        database.activate_auth_catalog_v1().unwrap();
+        database.activate_current_auth_catalog().unwrap();
         let keyring = AuthKeyringStore::in_memory();
         let result =
             activate_catalog(&mut database, &keyring, 10, &CountingRandom::default()).unwrap();
@@ -541,7 +541,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let declaration_path = directory.path().join(RESTORE_DECLARATION_FILE);
         let mut database = LocalDatabase::memory().unwrap();
-        database.activate_auth_catalog_v1().unwrap();
+        database.activate_current_auth_catalog().unwrap();
         insert_restore_fixture(&mut database, "session-1", 1);
         let declaration = RestoreDeclaration::fresh();
         let other = RestoreDeclaration::fresh();

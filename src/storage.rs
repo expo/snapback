@@ -9705,7 +9705,7 @@ mod membership_write_tests {
 
     fn ready_db() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.activate_auth_catalog_v1().expect("auth catalog");
+        db.activate_current_auth_catalog().expect("auth catalog");
         db.apply_schema(membership_schema()).expect("apply schema");
         db
     }
@@ -9771,7 +9771,7 @@ mod membership_write_tests {
         membership.bootstrap_role = None;
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.activate_auth_catalog_v1().expect("auth catalog");
+        db.activate_current_auth_catalog().expect("auth catalog");
         db.apply_schema(schema).expect("apply unprotected schema");
         let event_id = "event-empty";
         db.commit_buffered_writes(
@@ -10098,7 +10098,7 @@ mod membership_write_tests {
         let path = dir.path().join("membership-provenance.sqlite3");
         let (host_id, bob_id) = {
             let mut db = LocalDatabase::open(&path).expect("file database");
-            db.activate_auth_catalog_v1().expect("auth catalog");
+            db.activate_current_auth_catalog().expect("auth catalog");
             db.apply_schema(membership_schema()).expect("membership schema");
             let (event_id, host_id) = create_event(&mut db, "alice");
             invite(&mut db, "alice", &event_id, "bob");

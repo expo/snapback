@@ -275,7 +275,7 @@ mod tests {
 
     fn ready() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.activate_auth_catalog_v1().expect("auth catalog v2");
+        db.activate_current_auth_catalog().expect("auth catalog v2");
         db
     }
 
@@ -285,7 +285,7 @@ mod tests {
         let path = dir.path().join("scope-bases.sqlite3");
         {
             let mut db = LocalDatabase::open(&path).unwrap();
-            db.activate_auth_catalog_v1().unwrap();
+            db.activate_current_auth_catalog().unwrap();
             let initial = manifest(vec![function("fn:read", FunctionKind::Query, false)]);
             let added = db.reconcile_auth_scope_bases(&initial).unwrap();
             assert!(!added.advances_authorization());

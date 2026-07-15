@@ -12875,7 +12875,7 @@ globalThis.__snapbackHandlers = {
             true, true, true, true, true, true, true,
         ))
         .expect("consume sessions mode");
-        db.activate_auth_catalog_v1().expect("activate auth catalog");
+        db.activate_current_auth_catalog().expect("activate auth catalog");
         db.with_auth_transaction(|tx| {
             use rusqlite::params;
             tx.execute(

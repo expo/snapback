@@ -5,7 +5,12 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-25001 final review reconciliation: establishes
+**Revised:** 2026-07-15 (ENG-25001 blind-review evidence closure: adds an exact
+frozen-v1 compatibility fixture across reopen, provider/session use,
+agent-surface refusal, no-migration activation, and marker-preserving physical
+backup/restore; exercises rescue's rollback, exact-successor, and divergent
+commit outcomes at the SQLite boundary; and proves refusal preserves valid LLP
+0058 settled, pending, and quarantined four-key tuples); 2026-07-15 (ENG-25001 final review reconciliation: establishes
 this document as the v1 base protocol under LLP 0055's v2 precedence, makes
 legacy-v1 recognition versus fresh-v2 creation explicit throughout, exposes a
 stable three-state backup publication result on every exit, and narrows
@@ -1502,9 +1507,12 @@ authority.
 - `Uninitialized`, unmarked table collision, current-catalog global-name
   collision, exact legacy v1, exact current v2, unknown marker, corrupt marked
   catalog, and extra catalog-object states each produce the pinned result.
-  A legacy-v1 fixture reopens as `ReadyV1` with agent surfaces unavailable; a
-  fresh fixture activates directly to `ReadyV2`; no test or production path
-  creates a fresh v1 catalog.
+  A test-only fixture installs the exact frozen-v1 descriptor and marker,
+  closes and reopens it as `ReadyV1`, completes an email-code exchange that
+  creates a session, refuses an agent-principal write with no row created and
+  no agent tables present, and proves current-catalog activation leaves marker
+  `1` unchanged. A fresh production fixture activates directly to `ReadyV2`;
+  no production path creates a fresh v1 catalog.
 - Stage inspection is byte/WAL-frame read-only. Activation crash injection
   before/after keyring publication, each DDL group, marker insert, commit, and
   post-check yields only retryable pre-catalog or exact `ReadyV2` for a fresh
@@ -1622,7 +1630,9 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
   keyring, hashes match, and no half-published output directory is accepted.
   A raw directory lacking the closed backup manifest is rejected as a restore
   source; byte-copy race behavior is deliberately not represented as backup.
-  Exact v1 and v2 fixtures retain their actual marker in the manifest.
+  The exact frozen-v1 fixture records catalog version `1` in its backup
+  manifest and reopens the restored image as `ReadyV1` with marker `1`; v2
+  retains marker `2` through the same path.
   Publication tests assert `Published` for the clean path, `Unpublished` for a
   proven pre-rename failure, and `CommitAmbiguous` for a rename that takes
   effect but reports failure, post-rename validation failure, and parent-fsync
@@ -1655,16 +1665,20 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
   the commit boundary and proves exact-predecessor rollback, exact-successor
   finalize (returning the committed credential, never a re-execution), and
   fail-closed divergence — never a fresh re-mint on assumed rollback. Rescue
-  failure injection currently covers every pre-commit algorithm step; its
-  post-error exact-successor checker is unit-visible in the implementation, but
-  this acceptance set does not claim an injected rescue commit-boundary error.
+  separately injects the SQLite commit boundary: a definite rollback preserves
+  the source and refuses, a commit whose acknowledgement is replaced by an
+  error returns the already-computed success only for the exact durable
+  successor, and a committed but deliberately divergent state refuses rather
+  than reporting success. Pre-commit injection still covers every algorithm
+  step.
 - **Rescue identity**: a sparse-`rowid` and a deleted-high-water `AUTOINCREMENT`
   source are each either preserved exactly or refused (never renumbered);
-  a manifest-named collision with any LLP 0058 managed-state key is refused by
-  the `SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` branch without mutation;
-  this acceptance set does not claim a composed fixture for every
-  sessions-era/staged/quarantined state. A reserved source name outside the
-  app-identifier grammar is still nameable to the recovery verb.
+  valid LLP 0058 settled, pending-restart, and quarantined tuples whose active
+  manifest names the collision are each refused by
+  `SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` without changing any of the
+  four logical key values (including the settled staged-key absence) or either
+  physical table name. A reserved source name outside the app-identifier
+  grammar is still nameable to the recovery verb.
 - Planted code/token/carrier and caller-controlled selector sentinels cover the
   credential-bearing request, result, debug, diagnostic, and keyring seams;
   existing config/receipt tests continue to own their separate redaction
