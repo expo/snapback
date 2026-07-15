@@ -16,7 +16,7 @@ use snapback::manifest::{
 };
 use snapback::server::PolicyAuthMode;
 use std::collections::{BTreeMap, BTreeSet};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -387,25 +387,13 @@ async fn admin_bypass_runners_refuse_production_on_both_transports() {
     assert_eq!(body["diagnostics"][0]["code"], "SNAPBACK_PROFILE_FORBIDS");
 }
 
-fn sessions_app(profile: ServerProfile) -> (axum::Router, SecretReadOperator) {
-    let (state, operator) = AppState::from_snapback_with_secret_read_operator(
-        seeded_snapback(),
-        ServerContext {
-            profile,
-            host: "127.0.0.1".to_owned(),
-            port: 4287,
-            loopback: true,
-            auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-            pid: std::process::id(),
-            started: Instant::now(),
-            started_at_ms: 0,
-            admin_token: Some("ordinary-admin".to_owned()),
-            admin_token_minted: false,
-            admin_token_file: None,
-            console_credentials: Default::default(),
-            admin_dist: None,
-        },
-    );
+fn sessions_app(profile: ServerProfile) -> (snapback::server::SnapbackApp, SecretReadOperator) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = profile;
+    context.admin_token = Some("ordinary-admin".to_owned());
+    let (state, operator) =
+        AppState::from_snapback_with_secret_read_operator(seeded_snapback(), context);
     (
         snapback::server::app(state.with_policy_auth_mode(PolicyAuthMode::Sessions)),
         operator,
@@ -489,6 +477,7 @@ fn seeded_snapback() -> LocalSnapback {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             ),
@@ -504,6 +493,7 @@ fn seeded_snapback() -> LocalSnapback {
                     }],
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             ),

@@ -484,13 +484,32 @@
     // members.
     var parsedAuth = trustedJsonParse(authJson || "{}");
     var auth = trustedReflectApply(trustedCreate, Object, [null]);
-    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles"];
+    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles", "kind", "actor"];
     for (var authIndex = 0; authIndex < authKeys.length; authIndex++) {
       var authKey = authKeys[authIndex];
       if (!trustedReflectApply(trustedHasOwnProperty, parsedAuth, [authKey])) continue;
       var authValue = parsedAuth[authKey];
       if (authKey === "roles") {
         authValue = trustedFreeze(trustedReflectApply(trustedArraySlice, authValue || [], []));
+      } else if (authKey === "actor") {
+        // Delegation attribution is another sealed projection, not a plain
+        // parsed object whose prototype or surplus keys application code can
+        // observe. Copy only the enumerated server-owned keys, then freeze it
+        // before installing it on ctx.auth.
+        var parsedActor = authValue || {};
+        var actor = trustedReflectApply(trustedCreate, Object, [null]);
+        var actorKeys = ["userId", "kind", "grantId"];
+        for (var actorIndex = 0; actorIndex < actorKeys.length; actorIndex++) {
+          var actorKey = actorKeys[actorIndex];
+          if (!trustedReflectApply(trustedHasOwnProperty, parsedActor, [actorKey])) continue;
+          trustedDefineProperty(actor, actorKey, {
+            value: parsedActor[actorKey],
+            enumerable: true,
+            writable: false,
+            configurable: false
+          });
+        }
+        authValue = trustedFreeze(actor);
       }
       trustedDefineProperty(auth, authKey, {
         value: authValue,
@@ -519,6 +538,12 @@
     }
     var ctx = {
       auth: auth,
+      // @ref LLP 0055#principal-kinds —
+      // both conjuncts are load-bearing: kind alone admits delegation, while
+      // actor absence alone admits autonomous agents.
+      isDirectHuman: function() {
+        return auth.kind === "human" && auth.actor == null;
+      },
       db: db,
       runtime: {
         now: function() { return host("runtime.now", {}); },
@@ -566,6 +591,76 @@
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
       };
+      // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).
+      // The imperative role-gate twin, available in queries and mutations only
+      // (actions carry no transactional read set — the host op refuses there
+      // too). The ergonomic per-declaration spelling is LLP 0004 codegen; this
+      // is the host-backed binding it lowers onto. The membership read is
+      // captured server-side; a failed check throws the trusted
+      // SNAPBACK_AUTH_PERMISSION_DENIED, which the host records out-of-band so a
+      // handler cannot un-deny it by catching.
+      ctx.permissions = (typeof Proxy === "function")
+        ? new Proxy(Object.create(null), {
+            get: function(_target, declaration) {
+              if (typeof declaration !== "string") { return undefined; }
+              return {
+                requireRole: function(resource) {
+                  var roles = Array.prototype.slice.call(arguments, 1);
+                  return host("permissions.requireRole", {
+                    declaration: declaration,
+                    resource: resource === undefined ? null : resource,
+                    roles: roles
+                  });
+                }
+              };
+            }
+          })
+        : Object.create(null);
+      // LLP 0056 authoring bridge: declaration-bound helpers are generated
+      // sugar over one host op. The declaration id is resolved to its table by
+      // Rust and the writer carrier comes from the prepared invocation, never
+      // from this application-visible object.
+      if (mode === "mutation") {
+        ctx.membership = (typeof Proxy === "function")
+          ? new Proxy(Object.create(null), {
+              get: function(_target, declaration) {
+                if (typeof declaration !== "string") { return undefined; }
+                return {
+                  insert: function(values) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "insert",
+                      values: values || {}
+                    });
+                  },
+                  setRole: function(memberId, role) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "setRole",
+                      memberId: memberId,
+                      role: role
+                    });
+                  },
+                  remove: function(memberId) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "remove",
+                      memberId: memberId
+                    });
+                  },
+                  patch: function(memberId, values) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "patch",
+                      memberId: memberId,
+                      values: values || {}
+                    });
+                  }
+                };
+              }
+            })
+          : Object.create(null);
+      }
     }
     var handlers = g.__snapbackHandlers || {};
     var handler = handlers[name];

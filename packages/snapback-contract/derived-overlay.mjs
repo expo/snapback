@@ -436,6 +436,17 @@ export const evalValueExpr = (expr, env, depth = 0) => {
     }
     return output;
   }
+  if (hasOwn(expr, 'MembershipExists')) {
+    // Authoritative-only (LLP 0056 M3): a membership semi-join requires a
+    // non-recursive storage lookup this optimistic overlay cannot perform (and
+    // must not — an optimistically-forged role check is a security hole). It is
+    // REFUSED rather than mirrored, so a role check stays server-decided.
+    // @ref LLP 0056#rule-helpers — the role check is server-decided in v1.
+    return fail(
+      'SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY',
+      'a membership predicate cannot be evaluated optimistically; it is server-decided',
+    );
+  }
   return fail('SNAPBACK_EXPR_TYPE', `unsupported expression form ${Object.keys(expr)[0]}`);
 };
 
@@ -495,6 +506,8 @@ const exprIsStable = (expr, stableBindings) => {
     );
   }
   if ('Concat' in expr) return expr.Concat.every((part) => exprIsStable(part, stableBindings));
+  // Authoritative-only: a membership predicate is never optimistically stable.
+  if ('MembershipExists' in expr) return false;
   if ('Call' in expr) return expr.Call.args.every((arg) => exprIsStable(arg, stableBindings));
   if ('Record' in expr) {
     return Object.values(expr.Record.fields).every((field) => exprIsStable(field, stableBindings));

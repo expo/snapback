@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/card-game/myHand.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "gameId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "gameId"
+  ],
+  "title": "card-game:myHand arguments",
+  "type": "object"
+}

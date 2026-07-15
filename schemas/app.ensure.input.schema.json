@@ -917,6 +917,10 @@
           ],
           "default": null
         },
+        "authorityCreating": {
+          "description": "This entry point may reach a durable permission-backing write. The\nmarker is part of delegated consent: changing it terminally invalidates\nscopes minted against the prior function basis.\n\n@ref LLP 0055#grants — authority-creating functions require explicit,\n  displayed consent and never join a delegated tier expansion.",
+          "type": "boolean"
+        },
         "authorityIndependent": {
           "type": "boolean"
         },
@@ -1371,6 +1375,34 @@
       ],
       "type": "string"
     },
+    "MembershipPredicate": {
+      "description": "A declaration-bound membership semi-join: the structured-filter IR node the\n`eventMembers.memberOf(resourceRef)` / `eventMembers.hasRole(resourceRef,\n…)` rule helpers lower to. There is deliberately **no** global\n`memberOf`/`hasRole` resolver — two declarations can target the same\nresource type, and that ambiguity is an authorization bug factory\n(LLP 0056 §Rule helpers), so every predicate names its declaration.\n\nSemantics: the predicate holds for the effective principal iff a membership\nrow exists in the bound declaration whose `principal` axis is that\nprincipal, whose `resource` axis equals the resolved `resource` reference,\nand whose `role` is one of the effective roles. A null effective principal\n(unauthenticated) matches no rows — fail-closed.\n\nThe node is **authoritative-only**: it is evaluated by a non-recursive\nstorage semi-join that deliberately bypasses the membership table's own\nrow-visibility rules (a locked-down roster must not break role evaluation\nfor guests), never by the pure/optimistic `ValueExpr` evaluator — which has\nno storage and no business consulting membership facts.\n\n@ref LLP 0056#rule-helpers — declaration-bound; `memberOf` excludes\n  `pendingRoles`; `hasRole` names roles explicitly; `resourceRef` is a row\n  field of the queried table or a query argument of the declared resource\n  type.\n@ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 —\n  admitted `DatabaseCaptured` declarative expression kind, snapshot-bound,\n  with the pinned empty-result capture.",
+      "properties": {
+        "declaration": {
+          "description": "The stable declaration id this predicate binds to\n(`MembershipManifest::effective_id`).",
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/MembershipResourceRef",
+          "description": "Where the `resource` axis value is read from."
+        },
+        "roles": {
+          "description": "The satisfying roles. `None` is `memberOf` — every **non-pending** role\nof the declaration. `Some(list)` is `hasRole` with exactly the named\nroles (which may name pending roles explicitly).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "declaration",
+        "resource"
+      ],
+      "type": "object"
+    },
     "MembershipProvenance": {
       "description": "The two host-filled attribution levels. `authorityCreating` (LLP 0055)\nrequires `full`. M1 models the level on the declaration and enforces the\n`incidental` floor over the (future) generated provenance columns; the\nhost-filled columns and the append-only transition log are M5 work.\n\n@ref LLP 0056#agents — creation attribution vs. the append-only transition\n  log; `full` is `authorityCreating`'s precondition.",
       "enum": [
@@ -1378,6 +1410,37 @@
         "full"
       ],
       "type": "string"
+    },
+    "MembershipResourceRef": {
+      "description": "Where a [`MembershipPredicate`] reads its `resource` axis value from. Both\nforms are analyzable at subscribe time; anything else — a computed\nexpression, a different resource type, a join through a third table — is a\nload-time error (LLP 0056 §Rule helpers).\n\n@ref LLP 0056#rule-helpers — the two analyzable resource-reference forms.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A column of the queried (primary) table whose type is the declared\nresource reference. The per-row semi-join; v1 captures a **conservative\ntable-level** dependency for it (coarse wake = re-query cost; the\nreverse choice would be a correctness loss).",
+          "properties": {
+            "rowField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "rowField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A query argument (dotted path) of the declared resource type. The\nresource is fixed for the whole query, so v1 captures the fine-grained\n`(principal, resource)` index-range dependency, including the\nempty-result form.",
+          "properties": {
+            "arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "arg"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "MembershipScope": {
       "description": "The scope a membership declaration binds its `resource` axis to.\n\n@ref LLP 0056#global-roles — a `resource`-scoped declaration references one\n  resource table; `app` scope is the degenerate global-role case whose\n  resource is a system-constant singleton (never a null column).",
@@ -1804,6 +1867,13 @@
             "integer",
             "null"
           ]
+        },
+        "membershipFilters": {
+          "description": "Declaration-bound membership semi-joins ANDed onto the field filters —\nthe first structured-filter IR nodes past single-table filters. Empty\nfor an ordinary single-table query. Each entry gates the query rows by a\nnon-recursive membership existence check and contributes an *ordinary*\nsnapshot-bound capture (never the legacy `Permission` kind) so the\nmatcher and commit-time read-set validation both wake on membership\nwrites — including the empty-to-visible direction.\n\n@ref LLP 0056#what-exists-what-this-adds — the declaration-bound\n  membership predicate node, the first step past single-table filters.",
+          "items": {
+            "$ref": "#/$defs/MembershipPredicate"
+          },
+          "type": "array"
         },
         "order": {
           "default": [],
@@ -2346,6 +2416,19 @@
           },
           "required": [
             "Record"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A declaration-bound membership semi-join as a composable boolean\nexpression kind — the form the `eventMembers.memberOf(...)` /\n`hasRole(...)` rule helpers and the `ctx.permissions.<decl>.requireRole`\ntwin lower to (LLP 0053 §Agent-auth item 1 admits it as a new\ndeclarative IR expression kind).\n\nIt is **authoritative-only**: unlike every other variant it cannot be\nanswered by the pure `ValueExpr` evaluator, because deciding it requires\na non-recursive storage semi-join over the membership table (bypassing\nthat table's row-visibility rules). The pure evaluator therefore refuses\nit (`SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY`), the query path answers it\nthrough `QueryPlan::membership_filters` / the `ctx.permissions` read, and\nthe derived optimistic overlay refuses rather than mirrors it — so a\nrole check is server-decided, never optimistically forged client-side.\n\n@ref LLP 0056#rule-helpers — the declaration-bound membership predicate.",
+          "properties": {
+            "MembershipExists": {
+              "$ref": "#/$defs/MembershipPredicate"
+            }
+          },
+          "required": [
+            "MembershipExists"
           ],
           "type": "object"
         }

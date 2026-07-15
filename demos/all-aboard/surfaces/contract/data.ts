@@ -41,6 +41,7 @@ import {
   stationPhotoCredit as modelStationPhotoCredit,
 } from '../../snapback/shared/model.mjs';
 import { STATION_ART_SCENES } from '../../snapback/shared/station-art.gen.mjs';
+import { openExternalUrl } from './external-url';
 const DEFAULT_LOCATION = Object.freeze({ lat: 37.3894, lng: -122.0819 }); // Mountain View fallback
 
 type LatLng = { lat: number; lng: number };
@@ -117,6 +118,14 @@ export function directionsUrl(stationId: string, app: 'apple' | 'google', mode: 
     return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=${travelmode}`;
   }
   return `https://maps.apple.com/?daddr=${dest}&dirflg=${mode === 'bike' ? 'c' : 'w'}`;
+}
+
+export async function openDirectionsLink(
+  stationId: string,
+  app: 'apple' | 'google',
+  mode: RouteMode,
+): Promise<void> {
+  await openExternalUrl(directionsUrl(stationId, app, mode));
 }
 // A transport handle may be shared by resources, but no async result or TTL
 // state may escape the Contract `resource` that owns it (LLP 0052 D1/D2).
@@ -302,15 +311,14 @@ export function requestGeolocationRefresh(): void {
   });
 }
 
-export function openClipperLink(): void {
-  if (typeof globalThis.open !== 'function') return;
+export async function openClipperLink(): Promise<void> {
   const ua = globalThis.navigator?.userAgent ?? '';
   const url = /iPhone|iPad|iPod/.test(ua)
     ? 'https://apps.apple.com/us/app/clipper-card/id1481471559'
     : /Android/.test(ua)
       ? 'https://play.google.com/store/apps/details?id=com.cubic.ctp.app'
       : 'https://www.clippercard.com/';
-  globalThis.open(url, '_blank', 'noopener');
+  await openExternalUrl(url);
 }
 
 // --- Sticky-footer icons -------------------------------------------------------

@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/todo/setCompleted.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "completed": {
+      "type": "boolean"
+    },
+    "id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "completed"
+  ],
+  "title": "todo:setCompleted arguments",
+  "type": "object"
+}

@@ -5,7 +5,13 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-3 dual-family revision, /llp-super-refine:
+**Revised:** 2026-07-15 (ENG-25000: detached and caller-described server
+contexts now carry an unforgeable `Unknown` listener posture; only the
+listener-owning serve path records the bound socket, and sessions app-data plus
+`/auth/session` fail closed while posture is unknown; a real `0.0.0.0`
+embedded-listener regression closes the reviewed bypass; review follow-up makes
+the public network surface consume the serving listener and overwrite posture
+previously derived from a different socket). 2026-07-14 (round-3 dual-family revision, /llp-super-refine:
 withdrew D6's `_snapback_meta`-before-preflight carve-out that **contradicted
 frozen LLP 0039** — preflight now precedes all DDL, split into startup and
 per-invocation domains; removed D2's strict-transport prose escape hatch (HSTS
@@ -169,22 +175,30 @@ for embedded/test composition. Staging sessions is enough to trigger it: a
 pending deployment may not bind plaintext to a non-loopback interface and wait
 for a restart to become dangerous.
 
-**The middleware's posture input must be unforgeable, and today it is not.**
-The repeated refusal trusts `ServerContext`'s `loopback` field, but the shipped
-constructors let a caller supply `host` and `loopback` independently, and the
-detached constructor treats an unknown bind as loopback for local-tooling
-convenience (`src/admin.rs` `ServerContext::new`/`detached`). An embedder can
-therefore expose a sessions router on a routable interface while the defense
-believes it is loopback — the defense in depth defends nothing on exactly the
-composition path it exists for. The pinned rule: **transport posture derives
+**The middleware's posture input is unforgeable as built (ENG-25000).** The
+legacy `ServerContext` fields remain descriptive for admin/dev compatibility,
+but they do not establish session transport authority. Detached and
+caller-described contexts carry a private `Unknown` posture. The CLI records
+the address returned by its actual listener before composing the router; an
+embedded caller may instead construct from an already-bound listener. Active
+or desired sessions on `Unknown` refuse app-data and `/auth/session`, while
+`/health` remains diagnostic. The pinned rule: **transport posture derives
 from the actual bound socket address, or from an unforgeable
 listener-construction token minted by the code that bound the socket — never
 from a caller-supplied boolean.** An unknown or detached posture **fails closed
 for sessions** (refuse app-data and `/auth/session`; identity and diagnostics
 may remain), and detached construction is a test-and-tooling seam that must
-never carry a network listener. Closing the shipped gap is a named defect
-obligation of this contract, with a real non-loopback embedded-listener bypass
-test in acceptance.
+never carry a sessions network listener. A real `0.0.0.0` embedded-listener
+regression serves the detached router and proves both protected paths refuse
+with `SNAPBACK_AUTH_TRANSPORT_INSECURE` before bearer handling.
+
+The public embedded network path is `server::app(state).bind(listener)`: it
+consumes the Tokio listener, overwrites any posture already present in the
+context from that exact socket, and returns a bound application whose listener
+and router are private and inseparable. The unbound `SnapbackApp` remains a
+direct `Service<Request>` for tests and in-process callers but intentionally is
+not Axum's incoming-connection make-service. Thus the ordinary public API
+cannot repeat the reviewed `axum::serve(other_listener, app(state))` mismatch.
 
 The diagnostic is an operator/startup failure, not a client-authentication
 failure. `/health` may remain available only in an already-composed embedded
@@ -969,7 +983,7 @@ transport/edge-to-origin, D3 bucket algorithm, D4 conforming topologies, D5
 naming/layers/compat request, new D6 mixed-version boundary, C1 custody
 matrix and issuing-path rule, C2 operator-origin requirement, C3 claim
 renaming and protocol inventory) or recorded as a named defect obligation
-with acceptance rows (the detached-loopback bypass; the issuing-path 2xx
+with acceptance rows (the now-closed detached-loopback bypass; the issuing-path 2xx
 snippet and request-code passthrough; the descriptor's missing not-applicable
 values; the structural browser/headless custody split). Dispositions live in
 the review ledger alongside the verbatim reviews. The review advises — it
@@ -977,6 +991,11 @@ does not ratify, and this document remains Draft pending author ratification.
 
 ## Changelog
 
+- **2026-07-15 (ENG-25000):** separated listener-owned transport posture from
+  descriptive `host`/`loopback` fields, made unknown posture fail closed for
+  active or desired sessions, recorded concrete addresses only from bound
+  listeners, migrated external fixtures off struct-literal posture forgery,
+  and added a real non-loopback detached-router bypass regression.
 - **2026-07-13 (ENG-24607 final review hardening):** made both real operator
   credential exchanges reject an exact derived record whose credential embeds
   its submitted master, including a one-byte `sbcc_` prefix collision, before

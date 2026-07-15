@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "RemoteCredentialPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "type": "string"
+        },
+        "presentation": {
+          "type": "string"
+        },
+        "supportsRotation": {
+          "type": "boolean"
+        },
+        "valueInArguments": {
+          "type": "boolean"
+        },
+        "valueInArtifacts": {
+          "type": "boolean"
+        },
+        "valueInEnvironment": {
+          "type": "boolean"
+        },
+        "valueInInfoPlist": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "presentation",
+        "authority",
+        "valueInArtifacts",
+        "valueInArguments",
+        "valueInEnvironment",
+        "valueInInfoPlist",
+        "supportsRotation"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/remote-service.auth-capability.manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "artifactKind": {
+      "type": "string"
+    },
+    "capabilityId": {
+      "type": "string"
+    },
+    "credentialPolicy": {
+      "$ref": "#/$defs/RemoteCredentialPolicy"
+    },
+    "manifestVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "manifestVersion",
+    "capabilityId",
+    "appId",
+    "targetProfileId",
+    "credentialPolicy"
+  ],
+  "title": "RemoteAuthCapabilityManifest",
+  "type": "object"
+}

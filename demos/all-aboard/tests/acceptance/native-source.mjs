@@ -35,6 +35,14 @@ function run(command, args, options = {}) {
   return (result.stdout ?? '').trim();
 }
 
+function embeddedModuleSource(startup, modulePath) {
+  const prefix = '  const __exactDevModules = ';
+  const moduleTable = startup.split('\n').find((line) => line.startsWith(prefix));
+  if (!moduleTable?.endsWith(';')) return null;
+  const modules = JSON.parse(moduleTable.slice(prefix.length, -1));
+  return Object.values(modules).find((module) => module.path === modulePath)?.source ?? null;
+}
+
 if (!exactRoot) {
   fail(`EXACT_ALL_ABOARD_SOURCE_ROOT is required (expected ${pin.repository} at ${pin.commit})`);
 }
@@ -59,9 +67,14 @@ for (const target of ['mac-appkit-hermes', 'ios-uikit-hermes']) {
     if (!existsSync(path)) fail(`${target} did not emit ${file}`);
   }
   const manifest = JSON.parse(readFileSync(resolve(nativeRoot, target, 'exact-native.json'), 'utf8'));
+  const startup = readFileSync(resolve(nativeRoot, target, 'startup.js'), 'utf8');
+  const externalUrlSource = embeddedModuleSource(startup, '/external-url.ts');
   const expectedPlatform = target.startsWith('mac-') ? 'mac' : 'ios';
   if (manifest.platform !== expectedPlatform || manifest.startup?.hbc?.status !== 'ready') {
     fail(`${target} manifest is not a ready ${expectedPlatform} envelope`);
+  }
+  if (!externalUrlSource?.includes('desktop.shell.openExternal')) {
+    fail(`${target} startup does not carry All Aboard's Contract URL-open host capability`);
   }
   console.log(`ok - ${target} production envelope`);
 }

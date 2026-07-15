@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/graffiti/paintCell.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "boardId": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "x": {
+      "type": "integer"
+    },
+    "y": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "boardId",
+    "x",
+    "y",
+    "color"
+  ],
+  "title": "graffiti:paintCell arguments",
+  "type": "object"
+}

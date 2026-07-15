@@ -178,22 +178,28 @@ async fn compose_auth_mode_startup(
                 if requested_mode == AuthMode::Dev {
                     let publication_generation =
                         snapback.reserve_function_publication_generation()?;
-                    snapback.auth_database_mut().apply_same_mode_deployment(
-                        deployment,
-                        carrier.schema.clone(),
-                        carrier.seed.clone(),
-                    )?;
+                    snapback
+                        .auth_database_mut()
+                        .apply_same_mode_dev_deployment_with_functions(
+                            deployment,
+                            carrier.schema.clone(),
+                            &carrier.functions,
+                            carrier.seed.clone(),
+                        )?;
                     snapback.publish_preflighted_functions(
                         carrier.functions.clone(),
                         publication_generation,
                     );
                     return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
                 }
-                snapback.auth_database_mut().stage_auth_mode(
-                    deployment,
-                    carrier.schema.clone(),
-                    carrier.seed.clone(),
-                )?;
+                snapback
+                    .auth_database_mut()
+                    .stage_auth_mode_with_functions(
+                        deployment,
+                        carrier.schema.clone(),
+                        &carrier.functions,
+                        carrier.seed.clone(),
+                    )?;
                 snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
             }
         }
@@ -239,7 +245,7 @@ async fn compose_auth_mode_startup(
                 let error = startup_blocking(|| {
                     snapback
                         .auth_database_mut()
-                        .consume_sessions_auth_mode(readiness)
+                        .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
                 })
                 .expect_err("item readiness must refuse sessions consume");
                 snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
@@ -255,7 +261,7 @@ async fn compose_auth_mode_startup(
             let state = match startup_blocking(|| {
                 snapback
                     .auth_database_mut()
-                    .consume_sessions_auth_mode(readiness)
+                    .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
             }) {
                 Ok(state) => state,
                 Err(error) => {
@@ -275,7 +281,11 @@ async fn compose_auth_mode_startup(
             let state = match startup_blocking(|| {
                 snapback
                     .auth_database_mut()
-                    .consume_dev_downgrade(args.allow_auth_downgrade, now_ms)
+                    .consume_dev_downgrade_with_functions(
+                        args.allow_auth_downgrade,
+                        now_ms,
+                        &carrier.functions,
+                    )
             }) {
                 Ok(result) => result.state,
                 Err(error) => {
@@ -1697,9 +1707,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // reports host/port/uptime and gates by loopback vs non-loopback.
     debug_assert_eq!(loopback, local_addr.ip().is_loopback());
     let published_server_context = Arc::make_mut(&mut app_state.server);
-    published_server_context.host = local_addr.ip().to_string();
-    published_server_context.port = local_addr.port();
-    published_server_context.loopback = loopback;
+    published_server_context.record_bound_address(local_addr);
     let app = server::app(app_state.clone());
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
@@ -1845,9 +1853,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         auth_terminal_sink,
         auth_gc_initial_delay,
     );
-    let server = std::future::IntoFuture::into_future(
-        axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()),
-    );
+    let server = app
+        .bind(listener)?
+        .serve_with_graceful_shutdown(shutdown_signal());
     tokio::pin!(server);
     let server_result: anyhow::Result<()> = tokio::select! {
         result = &mut server => result.map_err(anyhow::Error::new),
@@ -1950,9 +1958,7 @@ async fn run_auth_collision_recovery(
         local_addr.ip().is_loopback(),
         "SNAPBACK_AUTH_TABLE_COLLISION: auth collision recovery refused a non-loopback listener"
     );
-    server_context.host = local_addr.ip().to_string();
-    server_context.port = local_addr.port();
-    server_context.loopback = true;
+    server_context.record_bound_address(local_addr);
     let profile = server_context.profile;
     let admin_token_file_display = server_context
         .admin_token_file
@@ -4267,7 +4273,7 @@ mod tests {
             ),
         ));
         let server = tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            app.bind(listener).unwrap().serve().await.unwrap();
         });
 
         let mut descriptor = stop_descriptor(Some(&startup_nonce));

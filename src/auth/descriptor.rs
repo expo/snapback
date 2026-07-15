@@ -45,6 +45,14 @@ pub fn descriptor_for_resolved_authority(
             generation,
             ..
         } => (authority_instance_id.clone(), *generation),
+        ResolvedAppAuthority::ServicePrincipal { .. } => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "queued replay is unavailable for service-principal authority",
+            )
+            .with_details(serde_json::json!({ "capability": "queuedReplay" })));
+        }
         ResolvedAppAuthority::Anonymous
         | ResolvedAppAuthority::DevImpersonation { .. }
         | ResolvedAppAuthority::AdminBypass { .. }

@@ -7,18 +7,19 @@
 //! where the guard is subtle, comments what would happen without it.
 //!
 //! Write-path enforcement (the transition matrix, generated methods, and the
-//! raw-`ctx.db` refusal) is M2, so these tests deliberately drive ordinary
-//! inserts to exercise the index and the activation scan directly.
+//! raw-`ctx.db` refusal) is M2. The live uniqueness test uses sanctioned
+//! membership plans; brownfield activation tests seed the pre-declaration
+//! shape directly so the adoption scan still sees adversarial existing rows.
 //!
 //! @ref LLP 0056#declaring-a-membership-table — the M1 declaration surface.
 
 use serde_json::{Value, json};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, HandlerInput, MembershipExpiry, MembershipLastHolder,
-    MembershipManifest, MembershipScope, MutationPlan, MutationStep, QueryPlan, SchemaManifest,
-    TableManifest, ValueExpr,
+    MembershipManifest, MembershipOp, MembershipScope, MembershipTarget, MembershipTransition,
+    MutationPlan, MutationStep, QueryPlan, SchemaManifest, TableManifest, ValueExpr,
 };
-use snapback::storage::LocalDatabase;
+use snapback::storage::{LocalDatabase, MembershipWriter};
 use std::collections::BTreeMap;
 
 // ---------------------------------------------------------------------------
@@ -133,30 +134,6 @@ fn insert_row(db: &mut LocalDatabase, table: &str, values: &[(&str, Value)]) {
     .unwrap_or_else(|error| panic!("insert into {table} failed: {error}"));
 }
 
-fn try_insert_row(
-    db: &mut LocalDatabase,
-    table: &str,
-    values: &[(&str, Value)],
-) -> Result<(), String> {
-    let values = values
-        .iter()
-        .map(|(k, v)| ((*k).to_owned(), ValueExpr::Literal(v.clone())))
-        .collect::<BTreeMap<_, _>>();
-    db.execute_mutation(
-        &MutationPlan {
-            steps: vec![MutationStep::Insert {
-                table: table.to_owned(),
-                values,
-                bind_id_as: None,
-            }],
-            return_value: None,
-        },
-        &input(),
-    )
-    .map(|_| ())
-    .map_err(|error| error.diagnostic.code)
-}
-
 fn row_count(db: &LocalDatabase, table: &str) -> usize {
     db.query(
         &QueryPlan {
@@ -164,6 +141,7 @@ fn row_count(db: &LocalDatabase, table: &str) -> usize {
             filters: vec![],
             order: vec![],
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         },
         &input(),
@@ -416,26 +394,47 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
     // commit (LLP 0004's concurrency model). Two inserts of the same
     // (principal, resource) pair: the first commits, the second fails with one
     // typed conflict, and the table holds exactly one row.
+    let mut membership = base_membership();
+    membership.transitions = vec![MembershipTransition {
+        op: MembershipOp::Insert,
+        by: vec!["none".to_owned()],
+        target: MembershipTarget::Own,
+        from: None,
+        to: Some(vec!["guest".to_owned()]),
+        fields: None,
+    }];
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(app_schema(base_membership()))
+    db.apply_schema(app_schema(membership))
         .expect("apply membership schema");
+    seed_event(&mut db, "event_1");
 
-    let pair = &[
-        ("userId", json!("user_1")),
-        ("eventId", json!("event_1")),
-        ("role", json!("guest")),
-    ];
-    insert_row(&mut db, "event_members", pair);
-    let conflict = try_insert_row(
-        &mut db,
-        "event_members",
-        &[
-            ("userId", json!("user_1")),
-            ("eventId", json!("event_1")),
-            ("role", json!("host")), // different role, same key pair
-        ],
-    )
-    .expect_err("a duplicate (principal, resource) pair must be refused");
+    let writer = MembershipWriter::User {
+        effective_principal: "user_1".to_owned(),
+    };
+    let values = json!({
+        "userId": "user_1",
+        "eventId": "event_1",
+        "role": "guest"
+    })
+    .as_object()
+    .expect("object")
+    .clone();
+    // Plan both from the same pre-insert snapshot. The sanctioned gate owns
+    // membership authorization; the generated true-unique index still owns
+    // the exactly-one-wins serialization result.
+    let first = db
+        .plan_membership_insert(&writer, "event_members", values.clone())
+        .expect("first plan");
+    let second = db
+        .plan_membership_insert(&writer, "event_members", values)
+        .expect("concurrent second plan");
+    db.commit_membership_plan(&writer, first)
+        .expect("first plan commits");
+    let conflict = db
+        .commit_membership_plan(&writer, second)
+        .map(|_| ())
+        .map_err(|error| error.diagnostic.code)
+        .expect_err("a duplicate (principal, resource) pair must be refused");
     assert_eq!(conflict, "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION");
     assert_eq!(
         row_count(&db, "event_members"),
@@ -445,15 +444,20 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
 
     // A different resource for the same principal is a distinct pair and is
     // admitted — the index is over the pair, not the principal alone.
-    insert_row(
-        &mut db,
-        "event_members",
-        &[
-            ("userId", json!("user_1")),
-            ("eventId", json!("event_2")),
-            ("role", json!("guest")),
-        ],
-    );
+    seed_event(&mut db, "event_2");
+    let other_resource = json!({
+        "userId": "user_1",
+        "eventId": "event_2",
+        "role": "guest"
+    })
+    .as_object()
+    .expect("object")
+    .clone();
+    let other_resource = db
+        .plan_membership_insert(&writer, "event_members", other_resource)
+        .expect("different-resource plan");
+    db.commit_membership_plan(&writer, other_resource)
+        .expect("different resource commits");
     assert_eq!(row_count(&db, "event_members"), 2);
 }
 

@@ -127,22 +127,18 @@ fn sessions_runtime(state: AppState) -> AppState {
         .expect("install exact future sessions runtime facts")
 }
 
+fn bound_loopback_state(snapback: LocalSnapback) -> AppState {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let context = ServerContext::from_bound_listener(&listener).unwrap();
+    AppState::from_snapback(snapback, context)
+}
+
 fn exposed_context(token: &str) -> ServerContext {
-    ServerContext {
-        host: "0.0.0.0".to_owned(),
-        port: 4287,
-        loopback: false,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        profile: ServerProfile::Dev,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: Some(token.to_owned()),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Dev;
+    context.admin_token = Some(token.to_owned());
+    context
 }
 
 fn set_json_path(value: &mut Value, path: &[&str], replacement: Value) {
@@ -197,6 +193,18 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/refresh"),
         ("POST", "/auth/logout"),
         ("POST", "/auth/family-alarm"),
+        ("POST", "/auth/step-up/request"),
+        ("POST", "/auth/pairing-codes"),
+        ("POST", "/auth/agents/pair"),
+        ("POST", "/auth/agents/rotate"),
+        ("POST", "/auth/agents/token"),
+        ("POST", "/auth/agents/revoke-self"),
+        ("GET", "/auth/grant-requests"),
+        ("POST", "/auth/grant-requests/{id}/approve"),
+        ("POST", "/auth/grant-requests/{id}/deny"),
+        ("GET", "/auth/grants"),
+        ("DELETE", "/auth/grants/by-actor/{actor_id}"),
+        ("DELETE", "/auth/grants/{id}"),
         ("POST", "/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
@@ -306,7 +314,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 6);
+    assert_eq!(provider.len(), 18);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -363,6 +371,65 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         ResponseSensitivity::PublicNoStore
     );
 
+    for path in [
+        "/auth/step-up/request",
+        "/auth/pairing-codes",
+        "/auth/grant-requests",
+        "/auth/grant-requests/{id}/approve",
+        "/auth/grant-requests/{id}/deny",
+        "/auth/grants",
+        "/auth/grants/by-actor/{actor_id}",
+        "/auth/grants/{id}",
+    ] {
+        let route = provider[path];
+        assert_eq!(route.path_policy, RoutePolicy::SessionAuth, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::RequiredSessionBearer,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ResolvedCaller,
+            "{path}"
+        );
+    }
+
+    for path in [
+        "/auth/agents/pair",
+        "/auth/agents/rotate",
+        "/auth/agents/token",
+    ] {
+        let route = provider[path];
+        assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AgentCredentialBody,
+            "{path}"
+        );
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::CredentialSecret,
+            "{path}"
+        );
+    }
+    let revoke_self = provider["/auth/agents/revoke-self"];
+    assert_eq!(revoke_self.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        revoke_self.credential_resolution,
+        CredentialResolution::AgentFamilySecretBody
+    );
+    assert_eq!(
+        revoke_self.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
+
+    let step_up = provider["/auth/step-up/request"];
+    assert_eq!(
+        step_up.response_sensitivity,
+        ResponseSensitivity::SensitiveApplicationData
+    );
+
     let mailbox = registry
         .iter()
         .find(|route| route.path == "/_snapback/api/auth/mailbox")
@@ -384,17 +451,17 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     let router = app(AppState::detached(
         LocalSnapback::memory().expect("in-memory auth route fixture"),
     ));
-    for path in provider
-        .keys()
-        .copied()
-        .filter(|path| *path != "/auth/session")
+    for route in provider
+        .values()
+        .filter(|route| route.path != "/auth/session")
     {
+        let path = materialize_path(route.path);
         let response = router
             .clone()
             .oneshot(
                 Request::builder()
-                    .method("POST")
-                    .uri(path)
+                    .method(route.method)
+                    .uri(&path)
                     .header("content-type", "application/json")
                     .header(header::AUTHORIZATION, "Bearer planted-dev-oracle")
                     .body(Body::from(r#"{"auth":{"userId":"planted"}}"#))
@@ -402,11 +469,12 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
             )
             .await
             .expect("probe dev-mode provider route");
-        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{}", route.path);
         assert_eq!(
             response.headers()[header::CACHE_CONTROL],
             "no-store, private",
-            "{path}"
+            "{}",
+            route.path
         );
         assert_eq!(diagnostic_code(response).await, "SNAPBACK_AUTH_MODE_DEV");
     }
@@ -487,9 +555,18 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     InvocationAuthority::ClientAsserted
                 );
                 assert_eq!(sessions.path_policy, RoutePolicy::Public);
+                let expected_resolution = match route.path {
+                    "/query/{name}" | "/mutation/{name}" | "/action/{name}" => {
+                        CredentialResolution::OptionalSessionOrScopedToken
+                    }
+                    _ => CredentialResolution::OptionalSessionBearer,
+                };
                 assert_eq!(
                     sessions.credential_resolution,
-                    CredentialResolution::OptionalSessionBearer
+                    expected_resolution,
+                    "unexpected sessions carrier for {} {}",
+                    route.method,
+                    route.path
                 );
                 assert_eq!(
                     sessions.invocation_authority,
@@ -788,7 +865,7 @@ fn impersonation_state(profile: ServerProfile) -> (AppState, String) {
 }
 
 async fn impersonation_host_request(
-    router: &axum::Router,
+    router: &snapback::server::SnapbackApp,
     body: Value,
     admin: Option<&str>,
     capabilities: &[&str],
@@ -1410,7 +1487,7 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
 /// a handler-specific error can win.
 #[tokio::test]
 async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
-    let state = AppState::detached(
+    let state = bound_loopback_state(
         LocalSnapback::memory().expect("in-memory sessions HTTP policy instance"),
     )
     .with_policy_auth_mode(PolicyAuthMode::Sessions);
@@ -1484,7 +1561,7 @@ async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
 /// resolver is not installed.
 #[tokio::test]
 async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
-    let router = app(sessions_runtime(AppState::detached(
+    let router = app(sessions_runtime(bound_loopback_state(
         LocalSnapback::memory().expect("in-memory optional-bearer policy instance"),
     )));
     for (uri, body) in [
@@ -1515,7 +1592,7 @@ async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
 /// are reserved, never descendants of `args`, `scope`, or an app value.
 #[tokio::test]
 async fn sessions_body_auth_rejection_does_not_scan_application_payloads() {
-    let state = AppState::detached(
+    let state = bound_loopback_state(
         LocalSnapback::memory().expect("in-memory sessions location policy instance"),
     )
     .with_policy_auth_mode(PolicyAuthMode::Sessions);
@@ -1695,7 +1772,7 @@ struct AdminPolicyProbe {
 }
 
 async fn admin_policy_outcome(
-    router: &axum::Router,
+    router: &snapback::server::SnapbackApp,
     probe: &AdminPolicyProbe,
     credential: Option<&str>,
 ) -> (StatusCode, String) {
@@ -2011,7 +2088,7 @@ fn session_socket_body_probes() -> BTreeMap<&'static str, SocketBodyProbe> {
 /// dev DTO or room handler can observe the payload.
 #[tokio::test]
 async fn sessions_runtime_rejects_body_auth_for_every_websocket_operation() {
-    let state = AppState::detached(
+    let state = bound_loopback_state(
         LocalSnapback::memory().expect("in-memory sessions socket policy instance"),
     )
     .with_policy_auth_mode(PolicyAuthMode::Sessions);
@@ -2057,7 +2134,10 @@ async fn sessions_runtime_rejects_body_auth_for_every_websocket_operation() {
         .expect("bind sessions socket policy server");
     let addr = listener.local_addr().expect("sessions socket address");
     let server = tokio::spawn(async move {
-        axum::serve(listener, app(state))
+        app(state)
+            .bind(listener)
+            .expect("bind sessions socket policy app")
+            .serve()
             .await
             .expect("serve sessions socket policy app");
     });
@@ -2494,14 +2574,22 @@ async fn connection_carriers_are_authenticated_before_any_body_inspection() {
 async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let state = sessions_runtime(AppState::detached(runner_fixture()));
+    let std_listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind quiescence starvation server");
+    let context = ServerContext::from_bound_listener(&std_listener)
+        .expect("resolve quiescence starvation listener");
+    std_listener
+        .set_nonblocking(true)
+        .expect("make quiescence listener nonblocking");
+    let listener = TcpListener::from_std(std_listener).expect("adopt quiescence listener");
+    let state = sessions_runtime(AppState::from_snapback(runner_fixture(), context));
     let controller = state.auth_admission_controller();
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind quiescence starvation server");
     let addr = listener.local_addr().expect("quiescence server address");
     let server = tokio::spawn(async move {
-        axum::serve(listener, app(state))
+        app(state)
+            .bind(listener)
+            .expect("bind quiescence starvation app")
+            .serve()
             .await
             .expect("serve quiescence starvation app");
     });

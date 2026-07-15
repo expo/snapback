@@ -8,15 +8,18 @@ use crate::auth::coordinator::{
     CommittedRevocationTarget, ConnectionBearerResolution, ConnectionSessionThrottleKey,
     IssuanceFinish, RevocationFinish, RotationFinish,
 };
-use crate::auth::crypto::SessionBearer;
+use crate::auth::crypto::{
+    AgentCredential, CredentialClass, PairingCode, ScopedToken, SessionBearer,
+    classify_credential, dispatch_credential_class,
+};
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
     AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority,
-    ResolvedAppAuthority, WireAuthorityFields,
+    FunctionAttribution, HandlerAuthProjection, InvocationGate, InvocationSource,
+    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -24,7 +27,8 @@ use crate::auth::lease::{
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
-    PlannedRevocationCommit, ProviderError, auth_required as provider_auth_required,
+    PlannedRevocationCommit, ProviderError, StepUpBinding,
+    auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
 };
@@ -64,7 +68,7 @@ use axum::extract::{DefaultBodyLimit, Extension, OriginalUri, Path, Query, State
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{MethodRouter, get, post};
+use axum::routing::{MethodRouter, delete, get, post};
 use axum::{
     Json, Router,
     body::{Body, Bytes, to_bytes},
@@ -72,7 +76,10 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use http_body::Body as HttpBody;
 use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct as _;
 use serde_json::{Value, json};
+use std::convert::Infallible;
+use std::future::Future;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::OnceLock;
@@ -81,6 +88,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
+use tower_service::Service;
 use uuid::Uuid;
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
@@ -650,15 +658,13 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                 // another Snapback host call. Linearize completion against the
                 // same staging generation so a reload/reset during that await
                 // cannot escape as success — and so a spurious settlement-floor
-                // diagnostic cannot mask that fence (ENG-24530). The vendored
-                // Ibex fetch completion erases its pending-request registry
-                // entry before it enqueues the resolve callback, so the eval
-                // loop can momentarily observe "no pending work" and report
-                // SNAPBACK_HANDLER_DID_NOT_SETTLE for a fetch that did settle at
-                // the network layer. When a reload/reset crossed the async span,
+                // diagnostic cannot mask that fence (ENG-24530). ENG-25006
+                // closes Ibex's historical erase-before-enqueue fetch window,
+                // but this caller-side precedence remains defense in depth:
+                // when a reload/reset crossed the async span,
                 // SNAPBACK_ACTION_GENERATION_CONFLICT is the precise, stable
-                // cause and must win over that transient floor. The watchdog is
-                // still the hard upper bound: validate_live reports
+                // cause and must still win over a settlement floor. The
+                // watchdog is the hard upper bound: validate_live reports
                 // abandonment/deadline (SNAPBACK_ACTION_TIMEOUT) ahead of the
                 // generation fence, so a genuinely stuck native op keeps timing
                 // out and a truly unsettled handler with no generation drift
@@ -956,7 +962,23 @@ struct ConnectionRegistryState {
     unknown_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     session_open_attempts:
         std::collections::HashMap<BoundSessionKey, std::collections::VecDeque<Instant>>,
+    service_open_attempts: std::collections::HashMap<[u8; 32], std::collections::VecDeque<Instant>>,
+    agent_route_attempts:
+        std::collections::HashMap<AgentRouteThrottleKey, std::collections::VecDeque<Instant>>,
     pressure_mint_only: bool,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct AgentRouteThrottleKey {
+    path: &'static str,
+    source: AgentRouteThrottleSource,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum AgentRouteThrottleSource {
+    Session(String),
+    Credential([u8; 32]),
+    Malformed,
 }
 
 struct ConnectionGrantRecord {
@@ -1002,6 +1024,20 @@ enum BoundGrantAuthority {
         deadline_ms: u64,
         publication: FencedPublication,
     },
+    /// A finite-only G5 carrier. The connection can be minted and resumed,
+    /// but every connection act refuses before an effect fence is produced;
+    /// G6 replaces that refusal with live validation and the carrier-axis
+    /// invalidation machinery.
+    ///
+    /// @ref LLP 0055#plane-boundary — scoped tokens address connection open,
+    /// while grant-backed live registration remains unavailable until item 6.
+    ServicePrincipal {
+        authorization_stream_incarnation: String,
+        authority: ResolvedAppAuthority,
+        token_id: String,
+        deadline_ms: u64,
+        publication: FencedPublication,
+    },
 }
 
 impl std::fmt::Debug for BoundGrantAuthority {
@@ -1037,6 +1073,20 @@ impl std::fmt::Debug for BoundGrantAuthority {
                 .field("generation", generation)
                 .field("deadline_ms", deadline_ms)
                 .finish(),
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                token_id,
+                deadline_ms,
+                ..
+            } => formatter
+                .debug_struct("BoundGrantAuthority::ServicePrincipal")
+                .field(
+                    "authorization_stream_incarnation",
+                    authorization_stream_incarnation,
+                )
+                .field("token_id", token_id)
+                .field("deadline_ms", deadline_ms)
+                .finish_non_exhaustive(),
         }
     }
 }
@@ -1044,7 +1094,9 @@ impl std::fmt::Debug for BoundGrantAuthority {
 impl BoundGrantAuthority {
     fn publication(&self) -> &FencedPublication {
         match self {
-            Self::Anonymous { publication, .. } | Self::Session { publication, .. } => publication,
+            Self::Anonymous { publication, .. }
+            | Self::Session { publication, .. }
+            | Self::ServicePrincipal { publication, .. } => publication,
         }
     }
 
@@ -1068,6 +1120,9 @@ impl BoundGrantAuthority {
                 session_id.clone(),
                 *generation,
             ),
+            Self::ServicePrincipal { .. } => {
+                unreachable!("G5 service-principal connections cannot own live effects")
+            }
         }
     }
 
@@ -1087,6 +1142,10 @@ impl BoundGrantAuthority {
                 session_id: session_id.clone(),
                 generation: *generation,
             }),
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                ..
+            } => GrantReverseKey::Anonymous(authorization_stream_incarnation.clone()),
         }
     }
 
@@ -1126,6 +1185,24 @@ impl BoundGrantAuthority {
                     && left_provider == right_provider
                     && left_generation == right_generation
             }
+            (
+                Self::ServicePrincipal {
+                    authorization_stream_incarnation: left_incarnation,
+                    authority: left_authority,
+                    token_id: left_token,
+                    ..
+                },
+                Self::ServicePrincipal {
+                    authorization_stream_incarnation: right_incarnation,
+                    authority: right_authority,
+                    token_id: right_token,
+                    ..
+                },
+            ) => {
+                left_incarnation == right_incarnation
+                    && left_authority == right_authority
+                    && left_token == right_token
+            }
             _ => false,
         }
     }
@@ -1141,6 +1218,11 @@ impl BoundGrantAuthority {
                 "SNAPBACK_AUTH_SESSION_EXPIRED",
                 "auth",
                 "the connection session is no longer current",
+            ),
+            Self::ServicePrincipal { .. } => SnapbackError::error(
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "auth",
+                "the connection scoped token is no longer current",
             ),
         }
     }
@@ -1172,6 +1254,16 @@ impl BoundGrantAuthority {
                 authorization_stream_incarnation: authorization_stream_incarnation.clone(),
                 session_id: Some(session_id.clone()),
                 generation: Some(*generation),
+            },
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                ..
+            } => BoundConnectionTerminalCapture {
+                connection_id,
+                grant_id,
+                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+                session_id: None,
+                generation: None,
             },
         }
     }
@@ -1250,7 +1342,8 @@ struct PreparedConnectionAct {
 impl PreparedConnectionOpenAuthority {
     fn authenticated_use_key(&self) -> Option<(String, u64)> {
         match &self.bound {
-            BoundGrantAuthority::Anonymous { .. } => None,
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => None,
             BoundGrantAuthority::Session {
                 session_id,
                 generation,
@@ -1267,7 +1360,8 @@ impl PreparedConnectionAct {
 
     fn authenticated_use_key(&self) -> Option<(String, u64)> {
         match &self.bound {
-            BoundGrantAuthority::Anonymous { .. } => None,
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => None,
             BoundGrantAuthority::Session {
                 session_id,
                 generation,
@@ -1587,13 +1681,14 @@ impl ConnectionRegistryState {
         Some(record)
     }
 
-    fn consume_open_bucket(
+    fn consume_bucket(
         bucket: &mut std::collections::VecDeque<Instant>,
         limit: usize,
+        window: Duration,
         now: Instant,
     ) -> Result<(), u64> {
         while bucket.front().is_some_and(|attempt| {
-            now.saturating_duration_since(*attempt) >= CONNECTION_OPEN_WINDOW
+            now.saturating_duration_since(*attempt) >= window
         }) {
             bucket.pop_front();
         }
@@ -1602,10 +1697,10 @@ impl ConnectionRegistryState {
                 .front()
                 .and_then(|oldest| {
                     oldest
-                        .checked_add(CONNECTION_OPEN_WINDOW)
+                        .checked_add(window)
                         .map(|deadline| deadline.saturating_duration_since(now))
                 })
-                .unwrap_or(CONNECTION_OPEN_WINDOW);
+                .unwrap_or(window);
             let millis = remaining.as_millis().max(1);
             let seconds = millis.div_ceil(1_000).min(u128::from(u64::MAX)) as u64;
             return Err(seconds.max(1));
@@ -1614,30 +1709,36 @@ impl ConnectionRegistryState {
         Ok(())
     }
 
-    fn prune_open_bucket(bucket: &mut std::collections::VecDeque<Instant>, now: Instant) {
+    fn prune_bucket(
+        bucket: &mut std::collections::VecDeque<Instant>,
+        window: Duration,
+        now: Instant,
+    ) {
         while bucket.front().is_some_and(|attempt| {
-            now.saturating_duration_since(*attempt) >= CONNECTION_OPEN_WINDOW
+            now.saturating_duration_since(*attempt) >= window
         }) {
             bucket.pop_front();
         }
     }
 
     fn consume_anonymous_open(&mut self, incarnation: &str, now: Instant) -> Result<(), u64> {
-        Self::consume_open_bucket(
+        Self::consume_bucket(
             self.anonymous_open_attempts
                 .entry(incarnation.to_owned())
                 .or_default(),
             CONNECTION_OPEN_COARSE_LIMIT,
+            CONNECTION_OPEN_WINDOW,
             now,
         )
     }
 
     fn consume_unknown_open(&mut self, incarnation: &str, now: Instant) -> Result<(), u64> {
-        Self::consume_open_bucket(
+        Self::consume_bucket(
             self.unknown_open_attempts
                 .entry(incarnation.to_owned())
                 .or_default(),
             CONNECTION_OPEN_COARSE_LIMIT,
+            CONNECTION_OPEN_WINDOW,
             now,
         )
     }
@@ -1647,12 +1748,55 @@ impl ConnectionRegistryState {
         // their empty buckets independently of grant pressure so this local
         // throttle cannot become an unbounded process-lifetime index.
         self.session_open_attempts.retain(|_, bucket| {
-            Self::prune_open_bucket(bucket, now);
+            Self::prune_bucket(bucket, CONNECTION_OPEN_WINDOW, now);
             !bucket.is_empty()
         });
-        Self::consume_open_bucket(
+        Self::consume_bucket(
             self.session_open_attempts.entry(key).or_default(),
             CONNECTION_OPEN_SESSION_LIMIT,
+            CONNECTION_OPEN_WINDOW,
+            now,
+        )
+    }
+
+    fn consume_service_open(&mut self, token_hash: [u8; 32], now: Instant) -> Result<(), u64> {
+        self.service_open_attempts.retain(|_, bucket| {
+            Self::prune_bucket(bucket, CONNECTION_OPEN_WINDOW, now);
+            !bucket.is_empty()
+        });
+        Self::consume_bucket(
+            self.service_open_attempts.entry(token_hash).or_default(),
+            CONNECTION_OPEN_SESSION_LIMIT,
+            CONNECTION_OPEN_WINDOW,
+            now,
+        )
+    }
+
+    fn consume_agent_route(
+        &mut self,
+        path: &'static str,
+        mut source: AgentRouteThrottleSource,
+        limit: usize,
+        now: Instant,
+    ) -> Result<(), u64> {
+        self.agent_route_attempts.retain(|_, bucket| {
+            Self::prune_bucket(bucket, AGENT_ROUTE_THROTTLE_WINDOW, now);
+            !bucket.is_empty()
+        });
+        let mut key = AgentRouteThrottleKey {
+            path,
+            source: source.clone(),
+        };
+        if !self.agent_route_attempts.contains_key(&key)
+            && self.agent_route_attempts.len() >= AGENT_ROUTE_THROTTLE_SOURCE_CAP
+        {
+            source = AgentRouteThrottleSource::Malformed;
+            key = AgentRouteThrottleKey { path, source };
+        }
+        Self::consume_bucket(
+            self.agent_route_attempts.entry(key).or_default(),
+            limit,
+            AGENT_ROUTE_THROTTLE_WINDOW,
             now,
         )
     }
@@ -1686,6 +1830,9 @@ impl ConnectionRegistryState {
                 assert!(matches!(
                     self.grants.get(connection_id).map(|record| &record.authority),
                     Some(BoundGrantAuthority::Anonymous {
+                        authorization_stream_incarnation,
+                        ..
+                    }) | Some(BoundGrantAuthority::ServicePrincipal {
                         authorization_stream_incarnation,
                         ..
                     }) if authorization_stream_incarnation == incarnation
@@ -2072,6 +2219,30 @@ impl ConnectionRegistry {
             .map_err(ApiError::auth_throttled)
     }
 
+    fn consume_service_open(
+        &self,
+        token_hash: [u8; 32],
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        self.lock()
+            .consume_service_open(token_hash, monotonic_now)
+            .map_err(ApiError::auth_throttled)
+    }
+
+    fn consume_agent_route(
+        &self,
+        path: &'static str,
+        source: AgentRouteThrottleSource,
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        let Some(limit) = agent_route_throttle_limit(path) else {
+            return Ok(());
+        };
+        self.lock()
+            .consume_agent_route(path, source, limit, monotonic_now)
+            .map_err(ApiError::auth_throttled)
+    }
+
     /// Open a grant. A caller-suggested id is adopted only in non-prod
     /// profiles (trusted local: readable ids keep demos, acceptance suites,
     /// and gated-inspect output debuggable) and only while unclaimed — a
@@ -2367,7 +2538,7 @@ impl ConnectionRegistry {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<ResolvedRoomConnectionAuthority> {
-        let (grant_id, managed_authority, bound, effect_fence) = {
+        let (grant_id, managed_authority, bound) = {
             let state = self.lock();
             let Some(record) = state.grants.get(connection_id) else {
                 return Ok(ResolvedRoomConnectionAuthority::Absent);
@@ -2376,9 +2547,17 @@ impl ConnectionRegistry {
                 record.grant_id.clone(),
                 record.managed_authority,
                 record.authority.clone(),
-                record.authority.effect_fence(&record.grant_id),
             )
         };
+        if matches!(bound, BoundGrantAuthority::ServicePrincipal { .. }) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "grant-backed live and ephemeral operations are unavailable until the agent live fence is ready",
+            )
+            .with_details(json!({ "capability": "grantBackedLive" })));
+        }
+        let effect_fence = bound.effect_fence(&grant_id);
         if expected_effect_fence.is_some_and(|expected| expected != &effect_fence) {
             return Ok(ResolvedRoomConnectionAuthority::Replaced);
         }
@@ -2390,6 +2569,9 @@ impl ConnectionRegistry {
         }
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::ServicePrincipal { .. } => {
+                unreachable!("service-principal room authority refused above")
+            }
             BoundGrantAuthority::Session {
                 authorization_stream_incarnation,
                 session_id,
@@ -2486,6 +2668,16 @@ impl ConnectionRegistry {
         };
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::ServicePrincipal { .. } => {
+                return Err(ApiError::from(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "grant-backed live and connection operations are unavailable until the agent live fence is ready",
+                    )
+                    .with_details(json!({ "capability": "grantBackedLive" })),
+                ))
+            }
             BoundGrantAuthority::Session {
                 authorization_stream_incarnation,
                 session_id,
@@ -2644,6 +2836,7 @@ fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiE
         ),
         None,
         None,
+        None,
     )
 }
 
@@ -2672,6 +2865,44 @@ const CONNECTION_GRANT_IDLE_TTL_MS: u64 = CONNECTION_IDLE_TTL_MS;
 const CONNECTION_OPEN_SESSION_LIMIT: usize = 60;
 const CONNECTION_OPEN_COARSE_LIMIT: usize = 240;
 const CONNECTION_OPEN_WINDOW: Duration = Duration::from_secs(60);
+const AGENT_ROUTE_THROTTLE_WINDOW: Duration = Duration::from_secs(60);
+const AGENT_ROUTE_THROTTLE_SOURCE_CAP: usize = 4_096;
+
+/// Each agent-management route owns a distinct closed budget. Equal limits do
+/// not share accounting: the canonical route path is the bucket key.
+///
+/// @ref LLP 0055#routes-and-credential-classes — every route has its own
+/// throttle budget, independent of its credential class.
+fn agent_route_throttle_limit(path: &str) -> Option<usize> {
+    match path {
+        "/auth/pairing-codes" => Some(20),
+        "/auth/agents/pair" => Some(60),
+        "/auth/grant-requests" => Some(120),
+        "/auth/grant-requests/{id}/approve" => Some(60),
+        "/auth/grant-requests/{id}/deny" => Some(60),
+        "/auth/grants" => Some(120),
+        "/auth/grants/by-actor/{actor_id}" => Some(60),
+        "/auth/grants/{id}" => Some(60),
+        "/auth/agents/rotate" => Some(10),
+        "/auth/agents/token" => Some(120),
+        "/auth/agents/revoke-self" => Some(20),
+        _ => None,
+    }
+}
+
+fn agent_body_throttle_source(body: Option<&Value>) -> AgentRouteThrottleSource {
+    let credential = body
+        .and_then(Value::as_object)
+        .and_then(|body| body.get("credential"))
+        .and_then(Value::as_str)
+        .and_then(|credential| AgentCredential::parse(credential).ok());
+    match credential {
+        Some(credential) => {
+            AgentRouteThrottleSource::Credential(*credential.token_hash().as_bytes())
+        }
+        None => AgentRouteThrottleSource::Malformed,
+    }
+}
 
 fn valid_suggested_connection_id(value: &str) -> bool {
     let bytes = value.as_bytes();
@@ -2859,6 +3090,8 @@ pub struct ErrorResponse {
     /// Present only when a mutation reached the provider receipt boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<Receipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
 }
 
 /// Successful `POST /mutation/{name}` response. The mutation output and its
@@ -2876,6 +3109,23 @@ pub struct MutationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
     pub receipt: Receipt,
+}
+
+#[derive(Serialize)]
+struct FunctionResponse<T> {
+    #[serde(flatten)]
+    output: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attribution: Option<FunctionAttribution>,
+}
+
+impl<T> FunctionResponse<T> {
+    fn new(output: T, attribution: Option<FunctionAttribution>) -> Self {
+        Self {
+            output,
+            attribution,
+        }
+    }
 }
 
 /// Closed request carrier for the sole full-query lease issuance path. The
@@ -3018,6 +3268,8 @@ pub enum CredentialResolution {
     /// A closed email-code challenge body proves authority only to exchange
     /// that challenge for a fresh credential; it is never a caller identity.
     ChallengeProof,
+    AgentCredentialBody,
+    AgentFamilySecretBody,
     /// A bearer accepted only by the opaque revoke-only family alarm.
     FamilyAlarmBearer,
     LegacyBodyAuth,
@@ -3027,6 +3279,7 @@ pub enum CredentialResolution {
     BoundConnectionGrant,
     AdminCredential,
     OptionalSessionBearer,
+    OptionalSessionOrScopedToken,
     RequiredSessionBearer,
     AdminSecretReadLease,
     OperationSpecific,
@@ -3166,6 +3419,17 @@ impl SessionModeOverlay {
             // that to required at the shared invocation gate (item 4).
             path_policy: Some(RoutePolicy::Public),
             credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+            invocation_authority: Some(InvocationAuthority::ResolvedCaller),
+            legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    }
+
+    pub const fn app_function_session() -> Self {
+        Self {
+            path_policy: Some(RoutePolicy::Public),
+            credential_resolution: Some(CredentialResolution::OptionalSessionOrScopedToken),
             invocation_authority: Some(InvocationAuthority::ResolvedCaller),
             legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
             effect_policy: None,
@@ -3361,6 +3625,8 @@ impl RouteSpec {
                 self.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::AgentCredentialBody
+                    | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OperationSpecific
             ),
@@ -3424,6 +3690,24 @@ impl RouteSpec {
                 "challenge proof must be public, install no caller, and return only a credential-secret response",
             );
         }
+        if self.credential_resolution == CredentialResolution::AgentCredentialBody
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "agent credential body must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::AgentFamilySecretBody
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::PublicNoStore)
+        {
+            return fail(
+                "agent family secret body must be public, install no caller, and return an opaque no-store response",
+            );
+        }
         if self.credential_resolution == CredentialResolution::FamilyAlarmBearer
             && (self.path_policy != RoutePolicy::Public
                 || self.invocation_authority != InvocationAuthority::None
@@ -3466,7 +3750,11 @@ impl RouteSpec {
         let sessions = self.effective_for(PolicyAuthMode::Sessions);
         if self.path_policy == RoutePolicy::AppAuth
             && (sessions.path_policy != RoutePolicy::Public
-                || sessions.credential_resolution != CredentialResolution::OptionalSessionBearer
+                || !matches!(
+                    sessions.credential_resolution,
+                    CredentialResolution::OptionalSessionBearer
+                        | CredentialResolution::OptionalSessionOrScopedToken
+                )
                 || sessions.invocation_authority != InvocationAuthority::ResolvedCaller
                 || sessions.legacy_body_policy != LegacyBodyPolicy::Rejected)
         {
@@ -3515,8 +3803,11 @@ impl RouteSpec {
                 sessions.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::AgentCredentialBody
+                    | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OptionalSessionBearer
+                    | CredentialResolution::OptionalSessionOrScopedToken
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => false,
@@ -3601,6 +3892,20 @@ const fn app_auth_route(method: &'static str, path: &'static str) -> RouteSpec {
         ResponseSensitivity::ApplicationData,
     )
     .with_session_overlay(SessionModeOverlay::app_session())
+}
+
+const fn app_function_route(method: &'static str, path: &'static str) -> RouteSpec {
+    RouteSpec::new(
+        method,
+        path,
+        RouteClass::AppData,
+        RoutePolicy::AppAuth,
+        CredentialResolution::LegacyBodyAuth,
+        InvocationAuthority::ClientAsserted,
+        LegacyBodyPolicy::Allowed,
+        ResponseSensitivity::ApplicationData,
+    )
+    .with_session_overlay(SessionModeOverlay::app_function_session())
 }
 
 const fn connection_route(
@@ -3784,7 +4089,165 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(auth_family_alarm).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
-        RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/step-up/request",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(auth_step_up_request).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/pairing-codes",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_pairing_code).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/pair",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_pair).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/auth/grant-requests",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            get(auth_grant_requests).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/grant-requests/{id}/approve",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(auth_grant_request_approve)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/grant-requests/{id}/deny",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(auth_grant_request_deny)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/auth/grants",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            get(auth_grants).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "DELETE",
+                "/auth/grants/by-actor/{actor_id}",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            delete(auth_grants_revoke_by_actor).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "DELETE",
+                "/auth/grants/{id}",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            delete(auth_grant_revoke).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/rotate",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_rotate).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/token",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_token).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/revoke-self",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentFamilySecretBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            post(auth_agent_revoke_self).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(app_function_route("POST", "/query/{name}"), post(invoke_query)),
         RegisteredRoute::new(
             app_auth_route("POST", "/query/{name}/authorized-lease"),
             post(invoke_authorized_lease_query),
@@ -3794,11 +4257,11 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(acknowledge_mutations),
         ),
         RegisteredRoute::new(
-            app_auth_route("POST", "/mutation/{name}"),
+            app_function_route("POST", "/mutation/{name}"),
             post(invoke_mutation),
         ),
         RegisteredRoute::new(
-            app_auth_route("POST", "/action/{name}"),
+            app_function_route("POST", "/action/{name}"),
             post(invoke_action),
         ),
         RegisteredRoute::new(
@@ -3831,7 +4294,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             )
             .with_session_overlay(SessionModeOverlay {
                 path_policy: None,
-                credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+                credential_resolution: Some(CredentialResolution::OptionalSessionOrScopedToken),
                 invocation_authority: Some(InvocationAuthority::ResolvedCaller),
                 legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
                 effect_policy: None,
@@ -4571,8 +5034,21 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     } else {
         crate::manifest::AuthMode::Dev
     };
+    let session_transport = transport_active == crate::manifest::AuthMode::Sessions
+        || transport_desired == crate::manifest::AuthMode::Sessions;
+    let listener_loopback = match runtime.server.listener_transport_loopback() {
+        Some(loopback) => loopback,
+        None if session_transport => {
+            return Some(SnapbackError::error(
+                "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+                "auth",
+                "desired or active sessions require listener-owned loopback transport evidence",
+            ));
+        }
+        None => runtime.server.loopback,
+    };
     if let Err(error) = crate::admin::validate_plaintext_auth_transport(
-        runtime.server.loopback,
+        listener_loopback,
         runtime.server.profile,
         transport_active,
         transport_desired,
@@ -4725,6 +5201,14 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
+        "/auth/step-up/request"
+        | "/auth/pairing-codes"
+        | "/auth/grant-requests"
+        | "/auth/grant-requests/{id}/approve"
+        | "/auth/grant-requests/{id}/deny"
+        | "/auth/grants"
+        | "/auth/grants/by-actor/{actor_id}"
+        | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
@@ -4920,6 +5404,7 @@ async fn prepare_registered_route_authority(
                 } else if matches!(
                     effective.credential_resolution,
                     CredentialResolution::OptionalSessionBearer
+                        | CredentialResolution::OptionalSessionOrScopedToken
                         | CredentialResolution::RequiredSessionBearer
                 ) && (effective.credential_resolution
                     == CredentialResolution::RequiredSessionBearer
@@ -4932,21 +5417,56 @@ async fn prepare_registered_route_authority(
                     let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
                     let provider = installed_auth_provider(runtime)?;
                     let now_ms = provider.now_ms();
-                    let prepared = if matches!(
-                        source,
-                        InvocationSource::AuthRefresh | InvocationSource::AuthLogout
-                    ) {
-                        coordinator.resolve_family_bearer(&bearer, now_ms, provider.monotonic_now())
+                    if effective.credential_resolution
+                        == CredentialResolution::OptionalSessionOrScopedToken
+                        && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
+                    {
+                        dispatch_credential_class(&bearer, CredentialClass::ScopedToken)
+                            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+                        let token = ScopedToken::parse(&bearer).map_err(|_| {
+                            ApiError::from(SnapbackError::error(
+                                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                                "auth",
+                                "scoped agent token is invalid",
+                            ))
+                        })?;
+                        let resolved = with_snapback(&runtime.snapback, move |snapback| {
+                            snapback
+                                .auth_database_mut()
+                                .resolve_scoped_token(&token, now_ms)
+                        })
+                        .await?;
+                        (ResolvedAppAuthority::from_scoped_token(resolved), None)
                     } else {
-                        coordinator.resolve_required_bearer(
-                            &bearer,
-                            now_ms,
-                            provider.monotonic_now(),
-                        )
+                        if classify_credential(&bearer).is_some_and(|class| {
+                            class != CredentialClass::Session
+                        }) {
+                            dispatch_credential_class(&bearer, CredentialClass::Session)
+                                .map_err(|error| {
+                                    ApiError::from(error.into_snapback_error())
+                                })?;
+                            unreachable!("wrong-class dispatch always refuses");
+                        }
+                        let prepared = if matches!(
+                            source,
+                            InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+                        ) {
+                            coordinator.resolve_family_bearer(
+                                &bearer,
+                                now_ms,
+                                provider.monotonic_now(),
+                            )
+                        } else {
+                            coordinator.resolve_required_bearer(
+                                &bearer,
+                                now_ms,
+                                provider.monotonic_now(),
+                            )
+                        }
+                        .map_err(ApiError::from)?;
+                        let (resolved, publication) = prepared.into_parts();
+                        (resolved, Some(publication))
                     }
-                    .map_err(ApiError::from)?;
-                    let (resolved, publication) = prepared.into_parts();
-                    (resolved, Some(publication))
                 } else {
                     (
                         ResolvedAppAuthority::Anonymous,
@@ -5477,6 +5997,28 @@ async fn enforce_registered_route_policy(
     } else {
         None
     };
+    // Session-owned management routes account against the resolved effective
+    // user before body inspection. One user's malformed requests therefore
+    // cannot consume another user's budget.
+    if let Some(authority) = early_prepared_authority.as_ref()
+        && agent_route_throttle_limit(spec.path).is_some()
+    {
+        let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+            unreachable!("session-owned agent route resolved non-session authority")
+        };
+        if let Err(error) = runtime.connections.consume_agent_route(
+            spec.path,
+            AgentRouteThrottleSource::Session(user_id.clone()),
+            Instant::now(),
+        ) {
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        }
+    }
     // @ref LLP 0031#enforcement — authenticate every connection carrier
     // before bounded JSON inspection. Body-carried connection ids get a
     // second exact id↔bearer check after decoding; an attacker-controlled
@@ -5573,6 +6115,7 @@ async fn enforce_registered_route_policy(
     let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         || connection_id_in_body
         || operation_deferred
+        || agent_route_throttle_limit(spec.path).is_some()
         || registered_source.is_some_and(|source| {
             !matches!(
                 source,
@@ -5605,11 +6148,10 @@ async fn enforce_registered_route_policy(
                 // already-selected shape error; every other credential result
                 // stays private on this rejected request.
                 if let Some(presented) = connection_open_bearer.as_ref() {
-                    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-                    if let Err(accounting_error) = prepare_connection_open_authority(
+                    let (_, monotonic_now) = auth_runtime_now(&runtime);
+                    if let Err(accounting_error) = account_connection_open_attempt(
                         &runtime,
                         presented.as_presented(),
-                        epoch_now_ms,
                         monotonic_now,
                     ) && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
                     {
@@ -5621,6 +6163,22 @@ async fn enforce_registered_route_policy(
                         );
                     }
                 }
+                if agent_route_throttle_limit(spec.path).is_some()
+                    && early_prepared_authority.is_none()
+                    && let Err(accounting_error) = runtime.connections.consume_agent_route(
+                        spec.path,
+                        AgentRouteThrottleSource::Malformed,
+                        Instant::now(),
+                    )
+                    && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
+                {
+                    return finish_registered_response(
+                        effective,
+                        accounting_error.into_response(),
+                        route_admission.as_ref(),
+                        None,
+                    );
+                }
                 return finish_registered_response(
                     effective,
                     error.into_response(),
@@ -5630,18 +6188,33 @@ async fn enforce_registered_route_policy(
             }
         }
     }
+    // Body-credential routes key valid attempts by the one-way bearer hash.
+    // Invalid shapes and the bounded overflow of distinct presented hashes
+    // share a coarse malformed bucket, preventing an attacker from growing
+    // the process-local key set without limit.
+    if agent_route_throttle_limit(spec.path).is_some() && early_prepared_authority.is_none() {
+        let source = agent_body_throttle_source(policy_body.as_ref());
+        if let Err(error) = runtime
+            .connections
+            .consume_agent_route(spec.path, source, Instant::now())
+        {
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        }
+    }
     let connection_open_protocol_error = connection_open_bearer
         .as_ref()
         .and_then(|_| session_online_protocol_refusal(spec, &runtime, request.headers()));
     let prepared_connection_open = if let Some(presented) = connection_open_bearer.as_ref() {
         if connection_open_protocol_error.is_some() {
-            let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            if let Err(accounting_error) = prepare_connection_open_authority(
-                &runtime,
-                presented.as_presented(),
-                epoch_now_ms,
-                monotonic_now,
-            ) && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
+            let (_, monotonic_now) = auth_runtime_now(&runtime);
+            if let Err(accounting_error) =
+                account_connection_open_attempt(&runtime, presented.as_presented(), monotonic_now)
+                && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
             {
                 return finish_registered_response(
                     effective,
@@ -5653,12 +6226,14 @@ async fn enforce_registered_route_policy(
             None
         } else {
             let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            match prepare_connection_open_authority(
+            match prepare_connection_open_authority_with_scoped_token(
                 &runtime,
                 presented.as_presented(),
                 epoch_now_ms,
                 monotonic_now,
-            ) {
+            )
+            .await
+            {
                 Ok(prepared) => Some(prepared),
                 Err(error) => {
                     return finish_registered_response(
@@ -6125,6 +6700,599 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
         .ok_or_else(auth_provider_unavailable)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentCredentialRequest {
+    credential: SecretInput,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum AgentTokenRequest {
+    Grant(AgentGrantTokenRequest),
+    Pairing(AgentPairingTokenRequest),
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentGrantTokenRequest {
+    credential: SecretInput,
+    grant_id: String,
+    ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentPairingTokenRequest {
+    credential: SecretInput,
+    pairing_request_id: String,
+    ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentPairRequest {
+    credential: SecretInput,
+    pairing_request_id: String,
+    pairing_code: SecretInput,
+    requested_scopes: Vec<crate::storage::auth_grants::GrantScopeRequest>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct GrantApprovalRequest {
+    requested_ttl_ms: Option<u64>,
+    step_up: Option<StepUpProofRequest>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StepUpProofRequest {
+    challenge_id: String,
+    code: SecretInput,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "operation", rename_all = "camelCase", deny_unknown_fields)]
+enum StepUpRequest {
+    GrantApproval {
+        #[serde(rename = "requestId")]
+        request_id: String,
+    },
+}
+
+struct PairingCodeSecretResponse {
+    pairing_request_id: String,
+    expires_at_ms: u64,
+    pairing_code: PairingCode,
+}
+
+impl Serialize for PairingCodeSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("PairingCodeResponse", 3)?;
+        state.serialize_field("pairingRequestId", &self.pairing_request_id)?;
+        state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("pairingCode", self.pairing_code.expose_secret())?;
+        state.end()
+    }
+}
+
+struct AgentCredentialSecretResponse {
+    credential_id: String,
+    user_id: String,
+    generation: u64,
+    credential: AgentCredential,
+}
+
+impl Serialize for AgentCredentialSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AgentCredentialResponse", 4)?;
+        state.serialize_field("credentialId", &self.credential_id)?;
+        state.serialize_field("userId", &self.user_id)?;
+        state.serialize_field("generation", &self.generation)?;
+        state.serialize_field("credential", self.credential.expose_secret())?;
+        state.end()
+    }
+}
+
+struct AgentTokenSecretResponse {
+    token_id: String,
+    grant_id: String,
+    credential_id: String,
+    credential_generation: u64,
+    expires_at_ms: u64,
+    grant_expires_at_ms: Option<u64>,
+    scopes: serde_json::Value,
+    token: crate::auth::crypto::ScopedToken,
+}
+
+impl Serialize for AgentTokenSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AgentTokenResponse", 8)?;
+        state.serialize_field("tokenId", &self.token_id)?;
+        state.serialize_field("grantId", &self.grant_id)?;
+        state.serialize_field("credentialId", &self.credential_id)?;
+        state.serialize_field("credentialGeneration", &self.credential_generation)?;
+        state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("grantExpiresAtMs", &self.grant_expires_at_ms)?;
+        state.serialize_field("scopes", &self.scopes)?;
+        state.serialize_field("token", self.token.expose_secret())?;
+        state.end()
+    }
+}
+
+fn parse_agent_credential(input: &SecretInput) -> Result<AgentCredential, ApiError> {
+    dispatch_credential_class(input.as_str(), CredentialClass::AgentCredential)
+        .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+    AgentCredential::parse(input.as_str()).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID",
+            "auth",
+            "agent credential is invalid",
+        ))
+    })
+}
+
+fn parse_pairing_code(input: &SecretInput) -> Result<PairingCode, ApiError> {
+    dispatch_credential_class(input.as_str(), CredentialClass::PairingCode)
+        .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+    PairingCode::parse(input.as_str()).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GRANT_INVALID",
+            "auth",
+            "agent grant is invalid",
+        ))
+    })
+}
+
+fn reject_agent_route_authorization_header(headers: &HeaderMap) -> Result<(), ApiError> {
+    if !headers.contains_key(header::AUTHORIZATION) {
+        return Ok(());
+    }
+    Err(auth_request_invalid())
+}
+
+fn require_agent_routes_available(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiError> {
+    if runtime.auth_mode_state().active != AuthMode::Sessions {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "agent credential routes require active sessions mode",
+        )
+        .into());
+    }
+    installed_auth_provider(runtime)
+}
+
+fn require_grant_session(authority: &PreparedAuthority) -> Result<(String, String), ApiError> {
+    require_provider_session_authority(authority, InvocationSource::AgentGrantManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("grant-management source requires session authority");
+    };
+    Ok((user_id.clone(), session_id.clone()))
+}
+
+fn grant_step_up_binding(
+    authority: &PreparedAuthority,
+    request_id: String,
+) -> Result<StepUpBinding, ApiError> {
+    require_provider_session_authority(authority, InvocationSource::AgentGrantManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        generation,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("grant-management source requires session authority");
+    };
+    Ok(StepUpBinding::grant_approval(
+        user_id.clone(),
+        session_id.clone(),
+        *generation,
+        authority_instance_id.clone(),
+        request_id,
+    ))
+}
+
+/// Fresh-authentication requests derive their human address from the exact
+/// live session. The wire chooses only a closed operation and target; it can
+/// neither redirect delivery nor mint an unbound proof.
+///
+/// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant — step-up is operation/target bound,
+/// five-minute, single-use, and capture-only outside production until LLP 0045.
+async fn auth_step_up_request(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<RequestCodeResponse>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    let request: StepUpRequest = parse_auth_json(&headers, body)?;
+    let binding = match request {
+        StepUpRequest::GrantApproval { request_id } => {
+            grant_step_up_binding(&authority, request_id)?
+        }
+    };
+    let admission = provider.admit().await;
+    let now_ms = provider.now_ms();
+    let lookup_binding = binding.clone();
+    let (admission, address) = with_snapback(&runtime.snapback, move |snapback| {
+        let address =
+            admission.step_up_address(snapback.auth_database_mut(), &lookup_binding, now_ms);
+        (admission, address)
+    })
+    .await;
+    let address = address.map_err(map_provider_error)?;
+    let admission = admission
+        .for_address(address)
+        .await
+        .map_err(map_provider_error)?;
+    let effect_authority = authority.clone();
+    let response = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority
+            .effect_guard("step-up challenge transaction")
+            .map_err(ProviderError::from)?;
+        admission.request_step_up(snapback.auth_database_mut(), &binding)
+    })
+    .await
+    .map_err(map_provider_error)?;
+    Ok(Json(response))
+}
+
+async fn auth_pairing_code(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<PairingCodeSecretResponse>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let minted = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("pairing-code mint transaction")?;
+        snapback.auth_database_mut().mint_pairing_code(
+            &user_id,
+            now_ms,
+            provider.agent_random_source(),
+        )
+    })
+    .await?;
+    Ok(Json(PairingCodeSecretResponse {
+        pairing_request_id: minted.request_id,
+        expires_at_ms: minted.expires_at_ms,
+        pairing_code: minted.secret,
+    }))
+}
+
+async fn auth_agent_pair(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::storage::auth_grants::PendingGrantRequest>, ApiError> {
+    let _provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentPairRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let pairing_code = parse_pairing_code(&request.pairing_code)?;
+    let now_ms = _provider.now_ms();
+    let presentation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission.effect_guard("agent pairing transaction")?;
+        snapback.auth_database_mut().present_pairing_code(
+            &credential,
+            &request.pairing_request_id,
+            &pairing_code,
+            &request.requested_scopes,
+            now_ms,
+        )
+    })
+    .await?;
+    Ok(Json(match presentation {
+        crate::storage::auth_grants::PairingPresentation::Created(request)
+        | crate::storage::auth_grants::PairingPresentation::Existing(request) => request,
+    }))
+}
+
+async fn auth_grant_requests(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<Vec<crate::storage::auth_grants::PendingGrantRequest>>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    Ok(Json(
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .pending_grant_requests(&user_id, now_ms)
+        })
+        .await?,
+    ))
+}
+
+async fn auth_grant_request_approve(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::storage::auth_grants::ApprovedGrant>, ApiError> {
+    let (user_id, session_id) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let request: GrantApprovalRequest = parse_auth_json(&headers, body)?;
+    let requested_ttl_ms = request.requested_ttl_ms;
+    let proof_admission = match request.step_up {
+        Some(step_up) => {
+            let binding = grant_step_up_binding(&authority, request_id.clone())?;
+            let admission = provider.admit().await;
+            let challenge_id = step_up.challenge_id.clone();
+            let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+                let coordination =
+                    admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                (admission, coordination)
+            })
+            .await;
+            let coordination = coordination.map_err(map_provider_error)?;
+            Some(
+                admission
+                    .for_step_up(coordination, binding, step_up.code.as_str())
+                    .await
+                    .map_err(map_provider_error)?,
+            )
+        }
+        None => None,
+    };
+    let effect_authority = authority.clone();
+    let effect_provider = provider.clone();
+    let approval = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("grant approval transaction")?;
+        // Freshness and grant TTL linearize here, after proof coordination and
+        // its asynchronous address-stripe wait.
+        let now_ms = effect_provider.now_ms();
+        snapback.auth_database_mut().approve_grant_request(
+            &user_id,
+            &session_id,
+            &request_id,
+            requested_ttl_ms,
+            proof_admission.as_ref().map(|admission| admission.proof()),
+            now_ms,
+        )
+    })
+    .await?;
+    Ok(Json(match approval {
+        crate::storage::auth_grants::GrantApproval::Created(grant)
+        | crate::storage::auth_grants::GrantApproval::Existing(grant) => grant,
+    }))
+}
+
+async fn auth_grant_request_deny(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("grant denial transaction")?;
+        snapback
+            .auth_database_mut()
+            .deny_grant_request(&user_id, &request_id, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+async fn auth_grants(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<Vec<crate::storage::auth_grants::UserGrant>>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    Ok(Json(
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.auth_database_mut().grants_for_user(&user_id, now_ms)
+        })
+        .await?,
+    ))
+}
+
+async fn auth_grant_revoke(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(grant_id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let _revocation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("grant revocation transaction")?;
+        snapback
+            .auth_database_mut()
+            .revoke_grant_for_user(&user_id, &grant_id, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+async fn auth_grants_revoke_by_actor(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(actor_id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let _revocation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
+        snapback
+            .auth_database_mut()
+            .revoke_grants_by_actor_for_user(&user_id, &actor_id, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// Rotate a long-lived agent credential. The request is body-credential-only:
+/// session/admin/AppData bearer classes are structurally refused before the
+/// resolver, and the response carries one typed zeroizing secret wrapper.
+///
+/// @ref LLP 0055#credentials-and-tokens — rotation is revocation-strength and
+///   invalidates the predecessor generation immediately.
+async fn auth_agent_rotate(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AgentCredentialSecretResponse>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let now_ms = provider.now_ms();
+    let issued = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().rotate_agent_credential(
+            &credential,
+            now_ms,
+            provider.agent_random_source(),
+        )
+    })
+    .await?;
+    // `invalidated_token_ids` is the exact connection-projection input. The
+    // service-principal connection registry lands with G7; no session-shaped
+    // connection may be guessed here.
+    let _invalidated = issued.invalidated_token_ids;
+    Ok(Json(AgentCredentialSecretResponse {
+        credential_id: issued.credential_id,
+        user_id: issued.user_id,
+        generation: issued.generation,
+        credential: issued.secret,
+    }))
+}
+
+/// Mint a short-lived token bound to one live grant and exact credential
+/// generation. Cap evictions are returned by storage as projection witnesses.
+async fn auth_agent_token(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AgentTokenSecretResponse>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentTokenRequest = parse_auth_json(&headers, body)?;
+    let now_ms = provider.now_ms();
+    let issued = match request {
+        AgentTokenRequest::Grant(request) => {
+            let credential = parse_agent_credential(&request.credential)?;
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.auth_database_mut().mint_scoped_token(
+                    &credential,
+                    &request.grant_id,
+                    request.ttl_ms,
+                    now_ms,
+                    provider.agent_random_source(),
+                )
+            })
+            .await?
+        }
+        AgentTokenRequest::Pairing(request) => {
+            let credential = parse_agent_credential(&request.credential)?;
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback
+                    .auth_database_mut()
+                    .mint_scoped_token_for_pairing_request(
+                        &credential,
+                        &request.pairing_request_id,
+                        request.ttl_ms,
+                        now_ms,
+                        provider.agent_random_source(),
+                    )
+            })
+            .await?
+        }
+    };
+    let _evicted = issued.evicted_token_ids;
+    Ok(Json(AgentTokenSecretResponse {
+        token_id: issued.token_id,
+        grant_id: issued.grant_id,
+        credential_id: issued.credential_id,
+        credential_generation: issued.credential_generation,
+        expires_at_ms: issued.expires_at_ms,
+        grant_expires_at_ms: issued.grant_expires_at_ms,
+        scopes: issued.scopes,
+        token: issued.secret,
+    }))
+}
+
+/// Destroy the complete attributable credential family. The response is
+/// intentionally empty and identical across already-terminal family state.
+async fn auth_agent_revoke_self(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let _provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let now_ms = _provider.now_ms();
+    let _revoked = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .revoke_agent_credential_family(&credential, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
 /// Public bootstrap discovery. It accepts no body or query and echoes only
 /// exact supported protocol offers; every presented session credential is
 /// still validated on this request.
@@ -6244,6 +7412,95 @@ fn installed_auth_coordinator(runtime: &AppState) -> Result<Arc<AuthCoordinator>
             "authentication projection is unavailable",
         ))
     })
+}
+
+/// Charge a rejected connection-open request to the same bounded source bucket
+/// as a well-formed attempt without resolving durable service authority. In
+/// particular, malformed JSON or a missing protocol offer must not update an
+/// agent credential/grant's last-used facts merely because its token was valid.
+fn account_connection_open_attempt(
+    runtime: &AppState,
+    presented: PresentedSessionBearer<'_>,
+    monotonic_now: Instant,
+) -> Result<(), ApiError> {
+    if let PresentedSessionBearer::Candidate(raw) = presented
+        && classify_credential(raw) == Some(CredentialClass::ScopedToken)
+        && let Ok(token) = ScopedToken::parse(raw)
+    {
+        return runtime
+            .connections
+            .consume_service_open(*token.token_hash().as_bytes(), monotonic_now);
+    }
+    let (epoch_now_ms, _) = auth_runtime_now(runtime);
+    prepare_connection_open_authority(runtime, presented, epoch_now_ms, monotonic_now).map(drop)
+}
+
+async fn prepare_connection_open_authority_with_scoped_token(
+    runtime: &AppState,
+    presented: PresentedSessionBearer<'_>,
+    epoch_now_ms: u64,
+    monotonic_now: Instant,
+) -> Result<PreparedConnectionOpenAuthority, ApiError> {
+    if let PresentedSessionBearer::Candidate(raw) = presented
+        && classify_credential(raw).is_some_and(|class| {
+            !matches!(
+                class,
+                CredentialClass::Session | CredentialClass::ScopedToken
+            )
+        })
+    {
+        dispatch_credential_class(raw, CredentialClass::Session)
+            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+        unreachable!("wrong-class dispatch always refuses");
+    }
+    if let PresentedSessionBearer::Candidate(raw) = presented
+        && classify_credential(raw) == Some(CredentialClass::ScopedToken)
+    {
+        if runtime.auth_mode_state().active != AuthMode::Sessions {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "scoped agent tokens are unavailable while auth mode is dev",
+            )));
+        }
+        dispatch_credential_class(raw, CredentialClass::ScopedToken)
+            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+        let token = ScopedToken::parse(raw).map_err(|_| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "auth",
+                "scoped agent token is invalid",
+            ))
+        })?;
+        runtime
+            .connections
+            .consume_service_open(*token.token_hash().as_bytes(), monotonic_now)?;
+        let now_ms = installed_auth_provider(runtime)?.now_ms();
+        let resolved = with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .resolve_scoped_token(&token, now_ms)
+        })
+        .await?;
+        let token_id = resolved.token_id.clone();
+        let deadline_ms = resolved.expires_at_ms;
+        let authority = ResolvedAppAuthority::from_scoped_token(resolved);
+        let prepared = installed_auth_coordinator(runtime)?
+            .prepare_anonymous_connection()
+            .map_err(ApiError::from)?;
+        return Ok(PreparedConnectionOpenAuthority {
+            resolved: authority.clone(),
+            managed_authority: true,
+            bound: BoundGrantAuthority::ServicePrincipal {
+                authorization_stream_incarnation: prepared.authorization_stream_incarnation,
+                authority,
+                token_id,
+                deadline_ms,
+                publication: prepared.publication,
+            },
+        });
+    }
+    prepare_connection_open_authority(runtime, presented, epoch_now_ms, monotonic_now)
 }
 
 fn prepare_connection_open_authority(
@@ -6523,6 +7780,7 @@ fn auth_bearer(headers: &HeaderMap) -> Option<&str> {
 /// Preserve absence versus malformed/duplicate Authorization syntax so
 /// connection-open can account both in the coarse prebudget without ever
 /// hashing malformed bytes or consulting the projection.
+#[derive(Clone, Copy)]
 enum PresentedSessionBearer<'a> {
     Absent,
     Malformed,
@@ -7056,14 +8314,95 @@ pub(crate) fn router_from_registrations(
         })
 }
 
-/// The full Snapback HTTP surface is installed only from registered entries;
-/// there is no second route-literal list that can drift outside policy.
+/// A direct Snapback HTTP service.
 ///
-/// @ref LLP 0031#enforcement — router↔registry parity is structural.
-pub fn app(state: AppState) -> Router {
+/// This deliberately implements request service only, not Axum's incoming
+/// connection make-service. Network embedders must call [`SnapbackApp::bind`],
+/// which consumes the listener that supplies transport posture. Keeping the
+/// inner `Router` private prevents the former accidental composition where a
+/// context derived from one listener was served on another.
+#[derive(Clone)]
+pub struct SnapbackApp {
+    state: AppState,
+    router: Router,
+}
+
+impl SnapbackApp {
+    /// Couple this application to the exact listener that will serve it.
+    ///
+    /// @ref LLP 0060#d1-plaintext-listener-fence — listener-owned transport
+    /// posture is refreshed from the consumed socket at the network boundary.
+    pub fn bind(self, listener: tokio::net::TcpListener) -> std::io::Result<BoundSnapbackApp> {
+        let address = listener.local_addr()?;
+        let mut state = self.state;
+        Arc::make_mut(&mut state.server).record_bound_address(address);
+        Ok(BoundSnapbackApp {
+            listener,
+            router: router_for_state(state),
+        })
+    }
+}
+
+impl Service<Request<Body>> for SnapbackApp {
+    type Response = Response;
+    type Error = Infallible;
+    type Future = <Router as Service<Request<Body>>>::Future;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        <Router as Service<Request<Body>>>::poll_ready(&mut self.router, cx)
+    }
+
+    fn call(&mut self, request: Request<Body>) -> Self::Future {
+        self.router.call(request)
+    }
+}
+
+/// A Snapback application whose transport posture and serving listener are one
+/// private, inseparable value.
+pub struct BoundSnapbackApp {
+    listener: tokio::net::TcpListener,
+    router: Router,
+}
+
+impl BoundSnapbackApp {
+    pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
+        self.listener.local_addr()
+    }
+
+    pub async fn serve(self) -> std::io::Result<()> {
+        axum::serve(self.listener, self.router).await
+    }
+
+    pub async fn serve_with_graceful_shutdown<F>(self, signal: F) -> std::io::Result<()>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        axum::serve(self.listener, self.router)
+            .with_graceful_shutdown(signal)
+            .await
+    }
+}
+
+fn router_for_state(state: AppState) -> Router {
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
         .layer(middleware::from_fn(local_dev_cors))
+}
+
+/// The full Snapback HTTP surface is installed only from registered entries;
+/// there is no second route-literal list that can drift outside policy. The
+/// returned value is safe for direct `Service<Request>` use; call `.bind()` to
+/// serve it on a network listener.
+///
+/// @ref LLP 0031#enforcement — router↔registry parity is structural.
+pub fn app(state: AppState) -> SnapbackApp {
+    SnapbackApp {
+        router: router_for_state(state.clone()),
+        state,
+    }
 }
 
 /// The registry is the metadata projection of the exact entries `app()`
@@ -8441,7 +9780,7 @@ fn yaml_string_list(values: &[String]) -> String {
 
 /// Backwards-compatible entry point: build the full app with a detached
 /// (loopback, address-unknown) server context.
-pub fn router(snapback: LocalSnapback) -> Router {
+pub fn router(snapback: LocalSnapback) -> SnapbackApp {
     app(AppState::detached(snapback))
 }
 
@@ -9757,22 +11096,27 @@ async fn invoke_query(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<HandlerInput>, JsonRejection>,
-) -> Result<Json<crate::manifest::QueryOutput>, ApiError> {
-    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+) -> Result<Json<FunctionResponse<crate::manifest::QueryOutput>>, ApiError> {
+    let attribution = authority.function_attribution();
+    let Json(input) = input
+        .map_err(ApiError::from_json_rejection)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     let output = if read.available() {
         with_read_lane(&read, move |lane| {
             lane.invoke_query_prepared(&name, input, authority)
         })
-        .await?
+        .await
     } else {
         with_snapback(&state, move |snapback| {
             snapback
                 .invoke_query_with_dependencies_prepared(&name, input, authority)
                 .map(|invocation| invocation.output)
         })
-        .await?
-    };
-    Ok(Json(output))
+        .await
+    }
+    .map_err(ApiError::from)
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
+    Ok(Json(FunctionResponse::new(output, attribution)))
 }
 
 /// Run a fresh full query, sign outside the app lock (preserving the global
@@ -9868,21 +11212,24 @@ async fn invoke_mutation(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<MutationResponse>, ApiError> {
-    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+) -> Result<Json<FunctionResponse<MutationResponse>>, ApiError> {
+    let attribution = authority.function_attribution();
+    let Json(request) = input
+        .map_err(ApiError::from_json_rejection)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     if let Some(current_id) = request.client_mutation_id.as_deref()
         && request
             .acknowledged_client_mutation_ids
             .iter()
             .any(|acknowledged| acknowledged == current_id)
     {
-        return Err(SnapbackError::error(
+        return Err(ApiError::from(SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
             "sync",
             "the current client mutation id cannot be acknowledged by the same request",
         )
-        .with_details(json!({ "clientMutationId": current_id }))
-        .into());
+        .with_details(json!({ "clientMutationId": current_id })))
+        .with_attribution(attribution));
     }
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
@@ -9898,10 +11245,17 @@ async fn invoke_mutation(
             authority,
         )
     })
-    .await?;
+    .await
+    .map_err(ApiError::from)
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
     match result {
-        Ok(output) => Ok(Json(MutationResponse::from_output(output, receipt))),
-        Err(error) => Err(ApiError::with_receipt(error, receipt)),
+        Ok(output) => Ok(Json(FunctionResponse::new(
+            MutationResponse::from_output(output, receipt),
+            attribution,
+        ))),
+        Err(error) => Err(
+            ApiError::with_receipt(error, receipt).with_attribution(attribution),
+        ),
     }
 }
 
@@ -9921,8 +11275,11 @@ async fn invoke_action(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<HandlerInput>, JsonRejection>,
-) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
-    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
+    let attribution = authority.function_attribution();
+    let Json(input) = input
+        .map_err(ApiError::from_json_rejection)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     let staged = {
         let name = name.clone();
         with_snapback(&state, move |snapback| {
@@ -9936,7 +11293,7 @@ async fn invoke_action(
             run_staged_app_action(&state, &name, input, stage, "action").await
         }
     };
-    Ok(Json(result))
+    Ok(Json(FunctionResponse::new(result, attribution)))
 }
 
 /// Commit one already-preflighted provisioning pair. Cross-mode changes and
@@ -10228,10 +11585,11 @@ async fn unsubscribe_live(
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
+    let effect_fence = connection_act.effect_fence();
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.unsubscribe_live_prepared(&name, input, authority)
+        snapback.unsubscribe_live_prepared(&name, input, authority, Some(&effect_fence))
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
@@ -11292,6 +12650,10 @@ fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContex
             user_id: Some(user_id.clone()),
             permissions: Default::default(),
         },
+        // The invocation gate refuses service-principal authority for every
+        // ephemeral source in v1. Keep the projection userless as a second
+        // fail-closed wall if a caller reaches this conversion unexpectedly.
+        ResolvedAppAuthority::ServicePrincipal { .. } => AuthContext::default(),
         ResolvedAppAuthority::Anonymous
         | ResolvedAppAuthority::AdminBypass { .. }
         | ResolvedAppAuthority::System => AuthContext::default(),
@@ -12440,12 +13802,18 @@ async fn disconnect(
 }
 
 #[derive(Debug)]
-pub struct ApiError(SnapbackError, Option<Receipt>, Option<u64>);
+pub struct ApiError(
+    SnapbackError,
+    Option<Receipt>,
+    Option<u64>,
+    Option<FunctionAttribution>,
+);
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
         Self(
             SnapbackError::new(diagnostic_from_ephemeral(error)),
+            None,
             None,
             None,
         )
@@ -12465,13 +13833,19 @@ impl ApiError {
             .with_details(json!({ "error": error.into() })),
             None,
             None,
+            None,
         )
     }
 
     /// Attach a receipt to an error response (a REJECTED mutation still
     /// produces its receipt — LLP 0034 §3.2, ENG-22478).
     fn with_receipt(error: SnapbackError, receipt: Receipt) -> Self {
-        Self(error, Some(receipt), None)
+        Self(error, Some(receipt), None, None)
+    }
+
+    fn with_attribution(mut self, attribution: Option<FunctionAttribution>) -> Self {
+        self.3 = attribution;
+        self
     }
 
     fn auth_throttled(retry_after_seconds: u64) -> Self {
@@ -12483,6 +13857,7 @@ impl ApiError {
             ),
             None,
             Some(retry_after_seconds.max(1)),
+            None,
         )
     }
 }
@@ -12496,7 +13871,7 @@ fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnos
 
 impl From<SnapbackError> for ApiError {
     fn from(value: SnapbackError) -> Self {
-        Self(value, None, None)
+        Self(value, None, None, None)
     }
 }
 
@@ -12531,6 +13906,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_INVALIDATION_PENDING"
         | "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE"
         | "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED"
+        | "SNAPBACK_AUTH_GRANT_PENDING"
+        | "SNAPBACK_AUTH_GRANT_SCOPE_STALE"
         | "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED"
         | "SNAPBACK_AUTH_RETRY_NOT_PENDING"
         | "SNAPBACK_AUTHORIZED_LEASE_BOUNDARY_MISMATCH"
@@ -12545,6 +13922,15 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         //   leave a protected LLP 0056 resource with no eligible holder; the
         //   operation conflicts with the last-eligible-holder invariant.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
+        | "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the M2 write invariants conflict with durable state: removing/demoting
+        //   the final eligible holder, deleting a resource whose roster remains,
+        //   and creating a protected resource without seating its bootstrap holder.
+        | "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
+        | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -12563,9 +13949,22 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID"
         | "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
         | "SNAPBACK_AUTH_PERMISSION_DENIED"
+        | "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
         //   refused fail-closed at every authority-creating/exercising path.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATED"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the M2 writer-class seam and transition matrix are authorization
+        //   refusals: raw/HostPlan membership writes, a write matching no declared
+        //   transition, a userless authority, a field outside the matched
+        //   transition, seating a corpse, and the system-only sweep.
+        | "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED"
+        | "SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED"
+        | "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        | "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL"
+        | "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER"
+        | "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED"
+        | "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -12579,12 +13978,20 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         //   presented on another class's surface is a typed mismatch, never an
         //   anonymous fall-through.
         | "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
-        | "SNAPBACK_AUTH_CODE_INVALID" => StatusCode::UNAUTHORIZED,
+        | "SNAPBACK_AUTH_CODE_INVALID"
+        | "SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID"
+        | "SNAPBACK_AUTH_GRANT_INVALID"
+        | "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
         | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED"
         | "SNAPBACK_AUTH_THROTTLED"
+        | "SNAPBACK_AUTH_AGENT_CREDENTIAL_ROTATION_THROTTLED"
+        | "SNAPBACK_AUTH_GRANT_CAP"
+        | "SNAPBACK_AUTH_PAIRING_CODE_CAP"
+        | "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
         | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
@@ -12636,6 +14043,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
+        | "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN"
+        | "SNAPBACK_AUTH_GRANT_STATE_CORRUPT"
+        | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
@@ -12667,11 +14078,14 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
         | "SNAPBACK_AUTH_REQUEST_INVALID"
+        | "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID"
+        | "SNAPBACK_AUTH_GRANT_SCOPE_INVALID"
         | "SNAPBACK_AUTH_RESCUE_INVALID"
         | "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
         | "SNAPBACK_AUTH_USER_MISSING"
+        | "SNAPBACK_AUTH_SCOPED_TOKEN_TTL_INVALID"
         | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_BINDING_MISSING"
         | "SNAPBACK_CAPTURED_READ_INVALID"
@@ -12767,15 +14181,19 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE_TABLE"
         | "SNAPBACK_MEMBERSHIP_AXIS_COLLISION"
         | "SNAPBACK_MEMBERSHIP_AXIS_FIELD_UNKNOWN"
+        | "SNAPBACK_MEMBERSHIP_OPERATION_INVALID"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES"
         | "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE"
+        | "SNAPBACK_MEMBERSHIP_EMPTY_ROLE_LIST"
         | "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_ID_COLLISION"
         | "SNAPBACK_MEMBERSHIP_ID_INVALID"
+        | "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_AMBIGUOUS"
+        | "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_INVALID"
         | "SNAPBACK_MEMBERSHIP_INCIDENTAL_FLOOR"
         | "SNAPBACK_MEMBERSHIP_INCIDENTAL_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_INDEX_NAME_COLLISION"
@@ -12785,8 +14203,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_OPTIONAL_KEY_AXIS"
         | "SNAPBACK_MEMBERSHIP_PERMISSION_BACKING_CONFLICT"
         | "SNAPBACK_MEMBERSHIP_PRINCIPAL_TYPE"
+        | "SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED"
         | "SNAPBACK_MEMBERSHIP_RESERVED_ROLE"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE"
         | "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER"
         | "SNAPBACK_MEMBERSHIP_ROLE_EMPTY"
@@ -12798,6 +14218,26 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_ROLE"
+        | "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION"
+        | "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE"
+        | "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the M2 write-path malformed/structural refusals: a null axis, a
+        //   missing resource/target/expiry, an immutable-axis patch, and the
+        //   bootstrap/teardown shape mismatches. (The privileged-writer guard
+        //   is an internal misuse surfaced as a bad request.)
+        | "SNAPBACK_MEMBERSHIP_NULL_AXIS"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        | "SNAPBACK_MEMBERSHIP_TARGET_MISSING"
+        | "SNAPBACK_MEMBERSHIP_PATCH_AXIS"
+        | "SNAPBACK_MEMBERSHIP_NOT_DECLARED"
+        | "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE"
+        | "SNAPBACK_MEMBERSHIP_TEARDOWN_RESOURCE_MISSING"
+        | "SNAPBACK_MEMBERSHIP_NO_EXPIRY"
+        | "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_MATRIX"
+        | "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_REQUIRED"
         | "SNAPBACK_PERMISSION_SCOPE_MISSING"
         | "SNAPBACK_PLAN_BOUNDS"
         | "SNAPBACK_PLAN_INVALID"
@@ -12829,6 +14269,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SYSTEM_FIELD_WRITE"
         | "SNAPBACK_TIMESTAMP_OUT_OF_RANGE"
         | "SNAPBACK_UNSUPPORTED_BLOB"
+        | "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
         | "SNAPBACK_V8_COMPAT_CONFIG_INVALID"
         | "SNAPBACK_V8_COMPAT_FLAG_REFUSED"
         | "SNAPBACK_WEBSOCKET_MESSAGE_INVALID"
@@ -12845,6 +14286,7 @@ impl IntoResponse for ApiError {
             Json(ErrorResponse {
                 diagnostic: self.0.diagnostic,
                 receipt: self.1,
+                attribution: self.3,
             }),
         )
             .into_response();
@@ -12872,7 +14314,7 @@ mod tests {
         CRON_DISPATCH_CONCURRENCY_DEFAULT,
         CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
         DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
-        RealtimeEnvelope, SharedSnapback, app, configured_action_worker_limit,
+        RealtimeEnvelope, SharedSnapback, SnapbackApp, app, configured_action_worker_limit,
         configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
         finish_registered_response, parse_action_watchdog_timeout, parse_optional_json,
         reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
@@ -12920,7 +14362,7 @@ mod tests {
     use crate::storage::auth::AuthTransactionAttempt;
     use axum::Json;
     use axum::body::{Body, Bytes, to_bytes};
-    use axum::extract::{Extension, State};
+    use axum::extract::{Extension, Path as AxumPath, State};
     use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header};
     use axum::response::IntoResponse as _;
     use futures_util::{SinkExt as _, StreamExt as _};
@@ -12972,6 +14414,12 @@ mod tests {
         }
     }
 
+    fn bound_loopback_context() -> ServerContext {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback context fixture");
+        ServerContext::from_bound_listener(&listener).expect("read loopback fixture address")
+    }
+
     fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -12995,7 +14443,7 @@ mod tests {
                 Ok(())
             })
             .expect("capture test impersonation capability");
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-http-admin".to_owned());
         let state = AppState::from_snapback(snapback, context)
@@ -13025,7 +14473,7 @@ mod tests {
             )
             .expect("construct manual-clock auth provider"),
         );
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = activate_test_sessions(
             AppState::from_snapback(snapback, context)
@@ -13074,7 +14522,7 @@ mod tests {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install predecessor invalidation projections");
 
-        AppState::from_snapback(snapback, ServerContext::detached())
+        AppState::from_snapback(snapback, bound_loopback_context())
             .with_auth_provider(provider)
             .with_auth_invalidation(issuer)
             .with_auth_runtime_facts(
@@ -13096,7 +14544,7 @@ mod tests {
         let coordinator = runtime
             .build_coordinator(&mut snapback)
             .expect("build dormant stream coordinator");
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Dev;
         AppState::from_snapback(snapback, context).with_auth_runtime(&runtime, coordinator)
     }
@@ -13134,6 +14582,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -13280,7 +14729,7 @@ mod tests {
             )
             .expect("raise projection HTTP obligations");
 
-        AppState::from_snapback(snapback, ServerContext::detached())
+        AppState::from_snapback(snapback, bound_loopback_context())
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
             .with_auth_provider(provider)
             .with_auth_invalidation(issuer)
@@ -13410,7 +14859,7 @@ mod tests {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install protected-room invalidation");
 
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = AppState::from_snapback(snapback, context)
             .with_auth_provider(provider)
@@ -13630,7 +15079,10 @@ mod tests {
         let address = listener.local_addr().expect("WebSocket server address");
         let ws_server_state = state.clone();
         let server = tokio::spawn(async move {
-            axum::serve(listener, app(ws_server_state))
+            app(ws_server_state)
+                .bind(listener)
+                .expect("bind protected-room WebSocket app")
+                .serve()
                 .await
                 .expect("serve protected-room WebSocket test");
         });
@@ -13743,7 +15195,7 @@ mod tests {
 
     fn auth_http_fixture_with_provider(
         mode: PolicyAuthMode,
-    ) -> (axum::Router, String, Arc<AuthProvider>) {
+    ) -> (SnapbackApp, String, Arc<AuthProvider>) {
         let (state, capability) = auth_runtime_fixture(mode);
         let provider = state
             .auth_provider
@@ -13752,7 +15204,7 @@ mod tests {
         (app(state), capability, provider)
     }
 
-    fn auth_http_fixture(mode: PolicyAuthMode) -> (axum::Router, String) {
+    fn auth_http_fixture(mode: PolicyAuthMode) -> (SnapbackApp, String) {
         let (state, capability) = auth_runtime_fixture(mode);
         (app(state), capability)
     }
@@ -13785,6 +15237,7 @@ mod tests {
                         .collect(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             )
@@ -13902,7 +15355,7 @@ mod tests {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install activation invalidation state");
 
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-http-admin".to_owned());
         AppState::from_snapback(snapback, context)
@@ -14882,6 +16335,7 @@ mod tests {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             )],
@@ -15480,6 +16934,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -15493,6 +16948,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -15796,7 +17252,8 @@ mod tests {
     #[tokio::test]
     async fn dev_transport_and_prod_profile_fail_closed_but_keep_health_available() {
         let (mut non_loopback, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
-        Arc::make_mut(&mut non_loopback.server).loopback = false;
+        Arc::make_mut(&mut non_loopback.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let router = app(non_loopback.clone());
         let refused = router
             .clone()
@@ -15854,7 +17311,8 @@ mod tests {
         );
 
         let (mut sessions, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
-        Arc::make_mut(&mut sessions.server).loopback = false;
+        Arc::make_mut(&mut sessions.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let sessions = sessions.with_insecure_dev_auth_override(true);
         let refused = app(sessions)
             .oneshot(
@@ -15877,7 +17335,7 @@ mod tests {
     {
         const BEARER_SENTINEL: &str = "sbs_PLAINTEXT_HANDSHAKE_SENTINEL_MUST_NOT_BE_CONSUMED";
 
-        async fn handshake(router: axum::Router, bearer: Option<&str>) -> (StatusCode, Value) {
+        async fn handshake(router: SnapbackApp, bearer: Option<&str>) -> (StatusCode, Value) {
             let mut request = Request::builder().uri("/auth/session");
             if let Some(bearer) = bearer {
                 request = request.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
@@ -15891,7 +17349,8 @@ mod tests {
         }
 
         let (mut active, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
-        Arc::make_mut(&mut active.server).loopback = false;
+        Arc::make_mut(&mut active.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let active = active.with_insecure_dev_auth_override(true);
         assert_eq!(
             active
@@ -15913,7 +17372,8 @@ mod tests {
         desired
             .publish_auth_mode_state(pending_sessions_state(false))
             .unwrap();
-        Arc::make_mut(&mut desired.server).loopback = false;
+        Arc::make_mut(&mut desired.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let desired = desired.with_insecure_dev_auth_override(true);
         assert_eq!(
             desired
@@ -15944,12 +17404,112 @@ mod tests {
         assert!(!body.to_string().contains(BEARER_SENTINEL));
 
         let (mut dev, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
-        Arc::make_mut(&mut dev.server).loopback = false;
+        Arc::make_mut(&mut dev.server)
+            .record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
         let dev = dev.with_insecure_dev_auth_override(true);
         let (status, body) = handshake(app(dev), None).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["activeMode"], "dev");
         assert_eq!(body["authority"]["isAuthenticated"], false);
+    }
+
+    #[tokio::test]
+    async fn loopback_context_cannot_authorize_a_different_non_loopback_listener() {
+        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+        async fn request(port: u16, path: &str) -> (StatusCode, Value) {
+            let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+                .await
+                .unwrap_or_else(|error| panic!("connect detached {path}: {error}"));
+            stream
+                .write_all(
+                    format!(
+                        "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap_or_else(|error| panic!("write detached {path}: {error}"));
+            let mut response = Vec::new();
+            stream
+                .read_to_end(&mut response)
+                .await
+                .unwrap_or_else(|error| panic!("read detached {path}: {error}"));
+            let split = response
+                .windows(4)
+                .position(|window| window == b"\r\n\r\n")
+                .expect("HTTP response header delimiter");
+            let head = std::str::from_utf8(&response[..split]).expect("HTTP response headers");
+            let status = head
+                .lines()
+                .next()
+                .and_then(|line| line.split_whitespace().nth(1))
+                .and_then(|raw| raw.parse::<u16>().ok())
+                .and_then(|raw| StatusCode::from_u16(raw).ok())
+                .expect("HTTP response status");
+            let body = serde_json::from_slice(&response[split + 4..]).unwrap_or(Value::Null);
+            (status, body)
+        }
+
+        // auth_runtime_fixture deliberately carries positive posture from a
+        // different, throwaway loopback listener. The network bind below must
+        // replace that evidence rather than trusting the prebuilt context.
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        assert_eq!(state.server.listener_transport_loopback(), Some(true));
+
+        // This is the shipped bypass shape: the router claims loopback while
+        // an embedder serves it on every interface. Connect through loopback so
+        // the test remains hermetic; the socket itself is still non-loopback.
+        let listener = TcpListener::bind("0.0.0.0:0")
+            .await
+            .expect("bind real non-loopback embedded listener");
+        let port = listener
+            .local_addr()
+            .expect("embedded listener address")
+            .port();
+        let server = tokio::spawn(async move {
+            app(state)
+                .bind(listener)
+                .expect("couple sessions app to real non-loopback listener")
+                .serve()
+                .await
+                .expect("serve detached sessions router");
+        });
+        let (health, _) = request(port, "/health").await;
+        assert_eq!(health, StatusCode::OK);
+
+        for path in ["/inspect", "/auth/session"] {
+            let (status, body) = request(port, path).await;
+            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{path}");
+            assert_eq!(
+                body["diagnostic"]["code"], "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+                "{path}: {body}"
+            );
+        }
+
+        server.abort();
+        let _ = server.await;
+
+        let (mut forged, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let context = Arc::make_mut(&mut forged.server);
+        context.record_bound_address("0.0.0.0:4287".parse().expect("non-loopback address"));
+        context.loopback = true;
+        context.host = "127.0.0.1".to_owned();
+        let response = app(forged)
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .body(Body::empty())
+                    .expect("forged-loopback request"),
+            )
+            .await
+            .expect("forged-loopback response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_TRANSPORT_INSECURE",
+            "public descriptive fields must not override listener-owned posture"
+        );
     }
 
     #[tokio::test]
@@ -16242,7 +17802,278 @@ mod tests {
         );
     }
 
-    async fn request_captured_challenge(router: &axum::Router, email: &str) -> String {
+    #[tokio::test]
+    async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scope() {
+        async fn prepare_query(
+            AxumPath(name): AxumPath<String>,
+            Extension(authority): Extension<PreparedAuthority>,
+        ) -> Result<Json<super::FunctionResponse<Value>>, super::ApiError> {
+            let function = FunctionDefinition::new(
+                name,
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })),
+            );
+            let attribution = authority.function_attribution();
+            let prepared = InvocationGate::prepare_function(authority, &function)
+                .map_err(super::ApiError::from)
+                .map_err(|error| error.with_attribution(attribution.clone()))?;
+            Ok(Json(super::FunctionResponse::new(
+                serde_json::to_value(prepared.projection()).unwrap(),
+                attribution,
+            )))
+        }
+
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES('carrier-user', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    rusqlite::params![now_ms as i64],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:allowed', 'query', 0, 1, 0)",
+                    [],
+                )?;
+                Ok(())
+            })?;
+            db.create_agent_principal(
+                "carrier-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: None,
+                    operator_contact: None,
+                    registration_provenance: "carrier-test".to_owned(),
+                    owner_user_id: Some("carrier-user".to_owned()),
+                },
+            )?;
+            let credential = db.issue_initial_agent_credential(
+                "carrier-agent",
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES('carrier-grant', 'carrier-agent', 'carrier-user', ?1, ?2, ?3,
+                              NULL, 'test', NULL, NULL, ?2)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                Ok(())
+            })?;
+            let issued = db.mint_scoped_token(
+                &credential.secret,
+                "carrier-grant",
+                None,
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            Ok::<_, SnapbackError>((
+                issued.secret.expose_secret().to_owned(),
+                credential.secret.expose_secret().to_owned(),
+            ))
+        })
+        .await
+        .unwrap();
+
+        let connection_router = super::app(state.clone());
+        let opened = connection_router
+            .clone()
+            .oneshot(connection_open_request(Some(&token), json!({})))
+            .await
+            .unwrap();
+        assert_eq!(opened.status(), StatusCode::OK);
+        assert_eq!(
+            opened.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-store, private"
+        );
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"].as_str().unwrap();
+        let connection_token = opened["connectionToken"].as_str().unwrap();
+        state.connections.lock().assert_grant_indexes_consistent();
+
+        let wrong_open = connection_router
+            .clone()
+            .oneshot(connection_open_request(Some(&agent_credential), json!({})))
+            .await
+            .unwrap();
+        assert_eq!(wrong_open.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_open).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+
+        let live = connection_router
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/live/{connection_id}/stream"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(live.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let live = response_json(live).await;
+        assert_eq!(
+            live["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            live["diagnostic"]["details"]["capability"],
+            "grantBackedLive"
+        );
+
+        let router = super::router_from_registrations(
+            vec![
+                super::RegisteredRoute::new(
+                    super::app_function_route("POST", "/query/{name}"),
+                    axum::routing::post(prepare_query),
+                ),
+                super::RegisteredRoute::new(
+                    super::app_auth_route("POST", "/query/{name}/authorized-lease"),
+                    axum::routing::post(prepare_query),
+                ),
+            ],
+            state.clone(),
+        )
+        .with_state(state.clone());
+        let request = |uri: &str, bearer: &str| {
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap()
+        };
+
+        let allowed = router
+            .clone()
+            .oneshot(request("/query/allowed", &token))
+            .await
+            .unwrap();
+        assert_eq!(allowed.status(), StatusCode::OK);
+        let projection = response_json(allowed).await;
+        assert_eq!(projection["userId"], "carrier-user");
+        assert_eq!(projection["kind"], "human");
+        assert_eq!(projection["actor"]["userId"], "carrier-agent");
+        assert_eq!(projection["actor"]["grantId"], "carrier-grant");
+        assert_eq!(
+            projection["attribution"],
+            json!({
+                "actorUserId": "carrier-agent",
+                "effectiveUserId": "carrier-user",
+                "grantId": "carrier-grant",
+                "dryRun": false
+            })
+        );
+
+        let denied = router
+            .clone()
+            .oneshot(request("/query/not-granted", &token))
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+        let denied = response_json(denied).await;
+        assert_eq!(
+            denied["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+        assert_eq!(denied["attribution"], projection["attribution"]);
+
+        let wrong_class = router
+            .clone()
+            .oneshot(request("/query/allowed", &agent_credential))
+            .await
+            .unwrap();
+        assert_eq!(wrong_class.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_class).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+
+        let retained = router
+            .clone()
+            .oneshot(request("/query/allowed/authorized-lease", &token))
+            .await
+            .unwrap();
+        assert_eq!(retained.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(retained).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+
+        with_snapback(&state.snapback, |snapback| {
+            snapback.auth_database_mut().with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_scope_bases
+                     SET generation = generation + 1, present = 0
+                     WHERE function_id = 'fn:allowed' AND kind = 'query'",
+                    [],
+                )?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        let stale = router
+            .clone()
+            .oneshot(request("/query/allowed", &token))
+            .await
+            .unwrap();
+        assert_eq!(stale.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            response_json(stale).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+
+        let mut hosted = state;
+        Arc::make_mut(&mut hosted.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let hosted_router = super::router_from_registrations(
+            vec![super::RegisteredRoute::new(
+                super::app_function_route("POST", "/query/{name}"),
+                axum::routing::post(prepare_query),
+            )],
+            hosted.clone(),
+        )
+        .with_state(hosted);
+        let hosted = hosted_router
+            .oneshot(request("/query/allowed", &token))
+            .await
+            .unwrap();
+        assert_eq!(
+            response_json(hosted).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED"
+        );
+    }
+
+    async fn request_captured_challenge(router: &SnapbackApp, email: &str) -> String {
         let response = router
             .clone()
             .oneshot(auth_http_request(
@@ -16738,7 +18569,7 @@ mod tests {
         let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
         let keyring_path = AuthKeyringStore::keyring_path(&database_path);
         let retained = std::fs::read(&keyring_path).unwrap();
-        let router = app(AppState::from_snapback(snapback, ServerContext::detached())
+        let router = app(AppState::from_snapback(snapback, bound_loopback_context())
             .with_auth_provider(provider));
 
         let available = router
@@ -16929,6 +18760,693 @@ mod tests {
             response_json(repeated).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_SESSION_EXPIRED"
         );
+    }
+
+    #[tokio::test]
+    async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_receipts() {
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let credential = with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES('grant-user', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    rusqlite::params![now_ms as i64],
+                )?;
+                Ok(())
+            })?;
+            db.create_agent_principal(
+                "route-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Route Agent".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: "route-test".to_owned(),
+                    owner_user_id: Some("grant-user".to_owned()),
+                },
+            )?;
+            let issued = db.issue_initial_agent_credential(
+                "route-agent",
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES('route-grant', 'route-agent', 'grant-user', ?1, ?2, ?3,
+                              NULL, 'test', 'route-pairing', NULL, ?2)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_pairing_requests(
+                       id, code_hash, minted_by_user_id, agent_user_id,
+                       requested_scopes, state, attempts, created_at_ms,
+                       expires_at_ms, consumed_at_ms, grant_id
+                     ) VALUES('route-pairing', zeroblob(32), 'grant-user', 'route-agent',
+                              ?1, 'approved', 0, ?2, ?3, ?2, 'route-grant')",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_pairing_requests(
+                       id, code_hash, minted_by_user_id, agent_user_id,
+                       requested_scopes, state, attempts, created_at_ms,
+                       expires_at_ms, consumed_at_ms, grant_id
+                     ) VALUES('route-pending',
+                              X'0101010101010101010101010101010101010101010101010101010101010101',
+                              'grant-user', 'route-agent',
+                              ?1, 'pending', 0, ?2, ?3, NULL, NULL)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                Ok(())
+            })?;
+            Ok::<_, SnapbackError>(issued.secret.expose_secret().to_owned())
+        })
+        .await
+        .unwrap();
+        let router = app(state);
+
+        let mut ordinary_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "grantId": "route-grant",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut ordinary_request);
+        let ordinary = router
+            .clone()
+            .oneshot(ordinary_request)
+            .await
+            .unwrap();
+        let ordinary_status = ordinary.status();
+        let ordinary = response_json(ordinary).await;
+        assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
+        assert_eq!(ordinary["grantId"], "route-grant");
+        assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
+        assert_eq!(ordinary["scopes"][0]["fn"], "fn:listItems");
+        assert!(ordinary["token"].as_str().unwrap().starts_with("sbagt_"));
+
+        let mut pairing_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "pairingRequestId": "route-pairing",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut pairing_request);
+        let pairing = router
+            .clone()
+            .oneshot(pairing_request)
+            .await
+            .unwrap();
+        let pairing_status = pairing.status();
+        let pairing = response_json(pairing).await;
+        assert_eq!(pairing_status, StatusCode::OK, "{pairing}");
+        assert_eq!(pairing["grantId"], "route-grant");
+        assert_eq!(pairing["grantExpiresAtMs"], now_ms + 60_000);
+        assert_eq!(pairing["scopes"], ordinary["scopes"]);
+
+        let mut pending_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "pairingRequestId": "route-pending",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut pending_request);
+        let pending = router
+            .clone()
+            .oneshot(pending_request)
+            .await
+            .unwrap();
+        assert_eq!(pending.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            response_json(pending).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_PENDING"
+        );
+
+        for invalid in [
+            json!({"credential": credential}),
+            json!({
+                "credential": credential,
+                "grantId": "route-grant",
+                "pairingRequestId": "route-pairing",
+            }),
+        ] {
+            let mut request = auth_http_request(
+                "POST",
+                "/auth/agents/token",
+                serde_json::to_vec(&invalid).unwrap(),
+                true,
+                None,
+                None,
+            );
+            offer_auth_client_protocol(&mut request);
+            let response = router
+                .clone()
+                .oneshot(request)
+                .await
+                .unwrap();
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUEST_INVALID"
+            );
+        }
+    }
+
+    /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — the
+    /// owner bulk endpoint ends every grant to the named actor, is idempotent,
+    /// and reveals nothing to a different signed-in user.
+    #[tokio::test]
+    async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http() {
+        let state = sessions_activation_server_fixture_async().await;
+        let owner = mint_test_credential(&state, "bulk-owner@example.com").await;
+        let stranger = mint_test_credential(&state, "bulk-stranger@example.com").await;
+        let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+        let owner_bearer = owner["token"].as_str().unwrap().to_owned();
+        let stranger_bearer = stranger["token"].as_str().unwrap().to_owned();
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let owner_id_for_setup = owner_id.clone();
+        with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.create_agent_principal(
+                "bulk-route-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Bulk Route Agent".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: "bulk-route-test".to_owned(),
+                    owner_user_id: Some(owner_id_for_setup.clone()),
+                },
+            )?;
+            db.with_auth_transaction(|tx| {
+                for (grant_id, request_id) in [
+                    ("bulk-route-grant-a", "bulk-route-request-a"),
+                    ("bulk-route-grant-b", "bulk-route-request-b"),
+                ] {
+                    tx.execute(
+                        "INSERT INTO _auth_grants(
+                           id, actor_user_id, effective_user_id, scopes,
+                           created_at_ms, expires_at_ms, revoked_at_ms,
+                           created_by, request_id, consent_digest, last_used_at_ms
+                         ) VALUES(?1, 'bulk-route-agent', ?2, ?3, ?4, ?5,
+                                  NULL, 'test', ?6, NULL, ?4)",
+                        rusqlite::params![
+                            grant_id,
+                            &owner_id_for_setup,
+                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                            now_ms as i64,
+                            (now_ms + 60_000) as i64,
+                            request_id,
+                        ],
+                    )?;
+                }
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        let router = app(state);
+
+        let request = |method: &'static str, uri: &'static str, bearer: &str| {
+            let mut request = auth_http_request(method, uri, Vec::new(), false, None, None);
+            offer_auth_client_protocol(&mut request);
+            request.headers_mut().insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {bearer}")).unwrap(),
+            );
+            request
+        };
+
+        let foreign = router
+            .clone()
+            .oneshot(request(
+                "DELETE",
+                "/auth/grants/by-actor/bulk-route-agent",
+                &stranger_bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(foreign.status(), StatusCode::NO_CONTENT);
+        assert_eq!(foreign.headers()[header::CACHE_CONTROL], "no-store, private");
+
+        let before = router
+            .clone()
+            .oneshot(request("GET", "/auth/grants", &owner_bearer))
+            .await
+            .unwrap();
+        let before_status = before.status();
+        let before = response_json(before).await;
+        assert_eq!(before_status, StatusCode::OK, "{before}");
+        assert_eq!(before.as_array().unwrap().len(), 2);
+        assert!(
+            before
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|grant| grant["revokedAtMs"].is_null()),
+            "the foreign caller cannot alter the owner's grants"
+        );
+
+        for attempt in 1..=2 {
+            let revoked = router
+                .clone()
+                .oneshot(request(
+                    "DELETE",
+                    "/auth/grants/by-actor/bulk-route-agent",
+                    &owner_bearer,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(revoked.status(), StatusCode::NO_CONTENT, "attempt {attempt}");
+            assert_eq!(
+                revoked.headers()[header::CACHE_CONTROL],
+                "no-store, private"
+            );
+        }
+
+        let after = router
+            .oneshot(request("GET", "/auth/grants", &owner_bearer))
+            .await
+            .unwrap();
+        let after = response_json(after).await;
+        assert_eq!(after.as_array().unwrap().len(), 2);
+        assert!(
+            after
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|grant| grant["revokedAtMs"].as_u64().is_some()),
+            "the first owner call revokes all grants and the retry is inert"
+        );
+    }
+
+    /// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant — authority-creating consent consumes
+    /// one operation/target/session-bound proof in the grant transaction;
+    /// ordinary consent remains frictionless.
+    #[tokio::test]
+    async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let credential = mint_test_credential(&state, "step-up@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let second_credential = mint_test_credential(&state, "step-up@example.com").await;
+        let second_bearer = second_credential["token"].as_str().unwrap().to_owned();
+        let user_id = credential["session"]["userId"].as_str().unwrap().to_owned();
+        let now_ms = provider.now_ms();
+        let request_ids = with_snapback(&state.snapback, {
+            let provider = provider.clone();
+            let user_id = user_id.clone();
+            move |snapback| {
+                let db = snapback.auth_database_mut();
+                db.create_agent_principal(
+                    "step-up-agent",
+                    now_ms,
+                    &crate::storage::auth_agents::AgentRegistration {
+                        display_name: Some("Step-up Agent".to_owned()),
+                        operator_contact: None,
+                        registration_provenance: "step-up-route-test".to_owned(),
+                        owner_user_id: Some(user_id.clone()),
+                    },
+                )?;
+                let agent_credential = db
+                    .issue_initial_agent_credential(
+                        "step-up-agent",
+                        now_ms,
+                        provider.agent_random_source(),
+                    )?
+                    .secret;
+                db.with_auth_transaction(|tx| {
+                    tx.execute(
+                        "INSERT INTO _auth_scope_bases(
+                           function_id, kind, generation, present, authority_creating
+                         ) VALUES
+                           ('fn:seatRole', 'mutation', 0, 1, 1),
+                           ('fn:listItems', 'query', 0, 1, 0)",
+                        [],
+                    )?;
+                    Ok(())
+                })?;
+
+                let mut present = |function_id: &str,
+                                   kind: crate::storage::auth_grants::ScopedFunctionKind|
+                 -> crate::diagnostic::SnapbackResult<String> {
+                    let pairing =
+                        db.mint_pairing_code(&user_id, now_ms, provider.agent_random_source())?;
+                    db.present_pairing_code(
+                        &agent_credential,
+                        &pairing.request_id,
+                        &pairing.secret,
+                        &[crate::storage::auth_grants::GrantScopeRequest::Exact {
+                            function_id: function_id.to_owned(),
+                            kind,
+                        }],
+                        now_ms,
+                    )?;
+                    Ok(pairing.request_id)
+                };
+                Ok::<_, SnapbackError>((
+                    present(
+                        "fn:seatRole",
+                        crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    )?,
+                    present(
+                        "fn:seatRole",
+                        crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    )?,
+                    present(
+                        "fn:listItems",
+                        crate::storage::auth_grants::ScopedFunctionKind::Query,
+                    )?,
+                ))
+            }
+        })
+        .await
+        .unwrap();
+        let (bound_request, other_request, ordinary_request) = request_ids;
+        let router = app(state.clone());
+
+        let ordinary = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{ordinary_request}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(ordinary.status(), StatusCode::OK);
+
+        let missing = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{bound_request}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(missing).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+
+        let login_admission = provider.admit_email("step-up@example.com").await.unwrap();
+        let login_now_ms = provider.now_ms();
+        let login_challenge = with_snapback(&state.snapback, move |snapback| {
+            login_admission
+                .request_code(snapback.auth_database_mut(), login_now_ms)
+                .map(|response| response.challenge_id)
+        })
+        .await
+        .unwrap();
+        let login_mailbox =
+            serde_json::to_value(provider.mailbox_entry(&login_challenge).await.unwrap()).unwrap();
+        let login_code = login_mailbox["code"].as_str().unwrap().to_owned();
+        let login_as_step_up = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{bound_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": login_challenge, "code": login_code}
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(login_as_step_up.status(), StatusCode::UNAUTHORIZED);
+
+        let challenge_response = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({
+                    "operation": "grantApproval",
+                    "requestId": bound_request,
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(challenge_response.status(), StatusCode::OK);
+        assert_eq!(
+            challenge_response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let challenge = response_json(challenge_response).await;
+        let challenge_id = challenge["challengeId"].as_str().unwrap().to_owned();
+        let expires_at = challenge["expiresAt"].as_u64().unwrap();
+        assert!(expires_at >= now_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS);
+        assert!(expires_at <= now_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS + 1_000);
+        let mailbox =
+            serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
+        let code = mailbox["code"].as_str().unwrap().to_owned();
+
+        let substituted = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": challenge_id, "code": code}
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(substituted.status(), StatusCode::UNAUTHORIZED);
+        let substituted_json = response_json(substituted).await;
+        assert_eq!(
+            substituted_json["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+        assert!(!substituted_json.to_string().contains(&code));
+
+        let wrong_session = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{bound_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": challenge_id, "code": code}
+                }))
+                .unwrap(),
+                &second_bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(wrong_session.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_session).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+
+        let approval_body = serde_json::to_vec(&json!({
+            "stepUp": {"challengeId": challenge_id, "code": code}
+        }))
+        .unwrap();
+        // Simulate a lost SQLite COMMIT acknowledgement after the first
+        // concurrent transaction actually commits. Exact request/grant/proof
+        // reconciliation must still publish one successful immutable grant.
+        crate::storage::auth_grants::inject_next_grant_commit_uncertain(&bound_request);
+        let first = router.clone().oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{bound_request}/approve"),
+            approval_body.clone(),
+            &bearer,
+        ));
+        let second = router.clone().oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{bound_request}/approve"),
+            approval_body,
+            &bearer,
+        ));
+        let (first, second) = tokio::join!(first, second);
+        assert_eq!(first.unwrap().status(), StatusCode::OK);
+        assert_eq!(second.unwrap().status(), StatusCode::OK);
+
+        let replay_for_other = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": challenge_id, "code": code}
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(replay_for_other.status(), StatusCode::UNAUTHORIZED);
+
+        let second_challenge_response = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({
+                    "operation": "grantApproval",
+                    "requestId": other_request,
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(second_challenge_response.status(), StatusCode::OK);
+        let second_challenge = response_json(second_challenge_response).await;
+        let second_challenge_id = second_challenge["challengeId"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let second_mailbox = serde_json::to_value(
+            provider
+                .mailbox_entry(&second_challenge_id)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        let second_code = second_mailbox["code"].as_str().unwrap().to_owned();
+        crate::storage::auth_grants::inject_next_grant_reconciliation_failure(&other_request);
+        let unavailable = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {
+                        "challengeId": second_challenge_id,
+                        "code": second_code,
+                    }
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(unavailable).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN"
+        );
+        let reconciled_retry = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(reconciled_retry.status(), StatusCode::OK);
+
+        with_snapback(&state.snapback, move |snapback| {
+            snapback.auth_database_mut().with_auth_read(|connection| {
+                let grants: i64 = connection.query_row(
+                    "SELECT COUNT(*) FROM _auth_grants WHERE request_id = ?1",
+                    rusqlite::params![bound_request],
+                    |row| row.get(0),
+                )?;
+                let plaintext_matches: i64 = connection.query_row(
+                    "SELECT COUNT(*) FROM _auth_verification_codes
+                     WHERE challenge_id = ?1 AND code_digest = CAST(?2 AS BLOB)",
+                    rusqlite::params![&challenge_id, &code],
+                    |row| row.get(0),
+                )?;
+                let (attempts, consumed): (i64, bool) = connection.query_row(
+                    "SELECT attempts, consumed_at_ms IS NOT NULL
+                     FROM _auth_verification_codes WHERE challenge_id = ?1",
+                    rusqlite::params![&challenge_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?;
+                assert_eq!(grants, 1);
+                assert_eq!(plaintext_matches, 0);
+                assert_eq!(attempts, 3);
+                assert!(consumed);
+                Ok::<_, SnapbackError>(())
+            })
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn production_step_up_delivery_fails_closed_without_capture() {
+        let state = sessions_activation_server_fixture_async().await;
+        let credential = mint_test_credential(&state, "prod-step-up@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(super::now_millis(), &OsRandom)
+            .unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Prod, keyring).unwrap());
+        let state = state.with_auth_provider(provider);
+        let router = app(state.clone());
+        let response = router
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({
+                    "operation": "grantApproval",
+                    "requestId": "prod-target",
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
+        );
+        let challenge_count = with_snapback(&state.snapback, |snapback| {
+            snapback.auth_database_mut().with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM _auth_verification_codes
+                         WHERE canonical_address = 'prod-step-up@example.com'",
+                        [],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .map_err(SnapbackError::from)
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(challenge_count, 0);
     }
 
     /// @ref LLP 0058#gate-algorithm — required provider-route credentials are
@@ -17772,7 +20290,10 @@ mod tests {
         let (opened, act) = prepare_session_connection_act(&state, bearer, "leased-expiry");
         let deadline_ms = match &act.bound {
             BoundGrantAuthority::Session { deadline_ms, .. } => *deadline_ms,
-            BoundGrantAuthority::Anonymous { .. } => panic!("expected session-bound act"),
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => {
+                panic!("expected session-bound act")
+            }
         };
         let response = leased_outbox_http_response(&state, act, b"expiry-preserved");
 
@@ -17808,7 +20329,10 @@ mod tests {
                 session_id.clone(),
                 *generation,
             ),
-            BoundGrantAuthority::Anonymous { .. } => panic!("expected session-bound act"),
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => {
+                panic!("expected session-bound act")
+            }
         };
         let response = leased_outbox_http_response(&state, act, b"revoke-preserved");
 
@@ -18118,7 +20642,7 @@ mod tests {
             )
             .expect("construct manual-clock cap provider"),
         );
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = activate_test_sessions(
             AppState::from_snapback(snapback, context)
@@ -18239,7 +20763,7 @@ mod tests {
             )
             .expect("construct manual-clock provider"),
         );
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         let state = activate_test_sessions(
             AppState::from_snapback(snapback, context)
@@ -18483,7 +21007,7 @@ mod tests {
             )
             .expect("construct manual-clock auth provider"),
         );
-        let state = AppState::from_snapback(snapback, ServerContext::detached())
+        let state = AppState::from_snapback(snapback, bound_loopback_context())
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
             .with_auth_provider(provider);
         let credential = mint_test_credential(&state, "sliding-use@example.com").await;
@@ -18764,7 +21288,7 @@ mod tests {
             })
             .unwrap();
         let impersonation = impersonation.unwrap();
-        let mut context = ServerContext::detached();
+        let mut context = bound_loopback_context();
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-rescue-admin".to_owned());
         let state = AppState::from_snapback(snapback, context)
@@ -19180,11 +21704,14 @@ mod tests {
         "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
         "SNAPBACK_AUTH_REQUEST_INVALID",
+        "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID",
+        "SNAPBACK_AUTH_GRANT_SCOPE_INVALID",
         "SNAPBACK_AUTH_RESCUE_INVALID",
         "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED",
         "SNAPBACK_AUTH_STALE_RESULT",
         "SNAPBACK_AUTH_UNDECLARABLE_RETENTION",
         "SNAPBACK_AUTH_USER_MISSING",
+        "SNAPBACK_AUTH_SCOPED_TOKEN_TTL_INVALID",
         "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_BINDING_MISSING",
         "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
@@ -19281,15 +21808,19 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE_TABLE",
         "SNAPBACK_MEMBERSHIP_AXIS_COLLISION",
         "SNAPBACK_MEMBERSHIP_AXIS_FIELD_UNKNOWN",
+        "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
         "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN",
         "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES",
         "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE",
+        "SNAPBACK_MEMBERSHIP_EMPTY_ROLE_LIST",
         "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY",
         "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED",
         "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS",
         "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN",
         "SNAPBACK_MEMBERSHIP_ID_COLLISION",
         "SNAPBACK_MEMBERSHIP_ID_INVALID",
+        "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_AMBIGUOUS",
+        "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_INVALID",
         "SNAPBACK_MEMBERSHIP_INCIDENTAL_FLOOR",
         "SNAPBACK_MEMBERSHIP_INCIDENTAL_UNKNOWN",
         "SNAPBACK_MEMBERSHIP_INDEX_NAME_COLLISION",
@@ -19299,8 +21830,10 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_OPTIONAL_KEY_AXIS",
         "SNAPBACK_MEMBERSHIP_PERMISSION_BACKING_CONFLICT",
         "SNAPBACK_MEMBERSHIP_PRINCIPAL_TYPE",
+        "SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED",
         "SNAPBACK_MEMBERSHIP_RESERVED_ROLE",
         "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID",
         "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE",
         "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER",
         "SNAPBACK_MEMBERSHIP_ROLE_EMPTY",
@@ -19312,6 +21845,22 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER",
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD",
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_ROLE",
+        "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+        "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
+        "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
+        // LLP 0056 M2 write-path malformed/structural refusals.
+        "SNAPBACK_MEMBERSHIP_NULL_AXIS",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+        "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
+        "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
+        "SNAPBACK_MEMBERSHIP_NOT_DECLARED",
+        "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE",
+        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH",
+        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",
+        "SNAPBACK_MEMBERSHIP_TEARDOWN_RESOURCE_MISSING",
+        "SNAPBACK_MEMBERSHIP_NO_EXPIRY",
+        "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_MATRIX",
+        "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_REQUIRED",
         "SNAPBACK_PERMISSION_SCOPE_MISSING",
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
@@ -19343,6 +21892,7 @@ mod tests {
         "SNAPBACK_SYSTEM_FIELD_WRITE",
         "SNAPBACK_TIMESTAMP_OUT_OF_RANGE",
         "SNAPBACK_UNSUPPORTED_BLOB",
+        "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY",
         "SNAPBACK_V8_COMPAT_CONFIG_INVALID",
         "SNAPBACK_V8_COMPAT_FLAG_REFUSED",
         "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
@@ -19353,11 +21903,15 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "SNAPBACK_ADMIN_TOKEN_REQUIRED",
         "SNAPBACK_AUTH_CODE_INVALID",
+        "SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID",
         "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH",
         "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED",
+        "SNAPBACK_AUTH_GRANT_INVALID",
         "SNAPBACK_AUTH_REQUIRED",
+        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
         "SNAPBACK_AUTH_SESSION_EXPIRED",
         "SNAPBACK_AUTH_STREAM_RESET",
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
         "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
         "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
     ];
@@ -19375,9 +21929,18 @@ mod tests {
         "SNAPBACK_AUTH_CODE_LOCKED",
         "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
         "SNAPBACK_AUTH_PERMISSION_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+        // LLP 0056 M2 writer-class seam + transition-matrix authorization refusals.
+        "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED",
+        "SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED",
+        "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED",
+        "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL",
+        "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER",
+        "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED",
+        "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
         "SNAPBACK_PROFILE_FORBIDS",
     ];
 
@@ -19395,10 +21958,18 @@ mod tests {
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
+        "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
+        // LLP 0056 M2 write invariants that conflict with durable state.
+        "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED",
+        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED",
+        "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED",
         "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
         "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
         "SNAPBACK_AUTH_INVALIDATION_PENDING",
         "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE",
+        "SNAPBACK_AUTH_GRANT_PENDING",
+        "SNAPBACK_AUTH_GRANT_SCOPE_STALE",
         "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
         "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
         "SNAPBACK_AUTH_RETRY_NOT_PENDING",
@@ -19432,6 +22003,10 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
         "SNAPBACK_AUTH_THROTTLED",
+        "SNAPBACK_AUTH_AGENT_CREDENTIAL_ROTATION_THROTTLED",
+        "SNAPBACK_AUTH_GRANT_CAP",
+        "SNAPBACK_AUTH_PAIRING_CODE_CAP",
+        "SNAPBACK_AUTH_PAIRING_REQUEST_CAP",
         "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY",
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED",
         "SNAPBACK_EPHEMERAL_RATE_LIMITED",
@@ -19471,6 +22046,10 @@ mod tests {
         "SNAPBACK_AUTH_PROJECTION_CORRUPT",
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
+        "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN",
+        "SNAPBACK_AUTH_GRANT_STATE_CORRUPT",
+        "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT",
         "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
         "SNAPBACK_AUTH_RETRY_EXHAUSTED",
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
@@ -19557,6 +22136,9 @@ mod tests {
         "SNAPBACK_JSON_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+        "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT",
+        "SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID",
+        "SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE",
         "SNAPBACK_READY_FILE_PATH_COLLISION",
         "SNAPBACK_RUNTIME_CREATE_FAILED",
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
@@ -20217,6 +22799,7 @@ globalThis.__snapbackHandlers = {
     ) -> PreparedConnectionOpenAuthority {
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::ServicePrincipal { authority, .. } => authority.clone(),
             BoundGrantAuthority::Session {
                 session_id,
                 user_id,
@@ -20660,6 +23243,98 @@ globalThis.__snapbackHandlers = {
             .expect("new session source admitted after old buckets expire");
         assert_eq!(state.session_open_attempts.len(), 1);
         assert!(state.session_open_attempts.contains_key(&survivor));
+    }
+
+    /// @ref LLP 0055#routes-and-credential-classes — every agent-management
+    /// route has a closed, independent budget, including malformed attempts.
+    #[test]
+    fn agent_management_routes_have_independent_exact_throttle_budgets() {
+        let agent_paths = super::core_route_registrations()
+            .into_iter()
+            .filter_map(|route| {
+                super::agent_route_throttle_limit(route.spec.path)
+                    .map(|limit| (route.spec.path, limit))
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(
+            agent_paths.keys().copied().collect::<Vec<_>>(),
+            vec![
+                "/auth/agents/pair",
+                "/auth/agents/revoke-self",
+                "/auth/agents/rotate",
+                "/auth/agents/token",
+                "/auth/grant-requests",
+                "/auth/grant-requests/{id}/approve",
+                "/auth/grant-requests/{id}/deny",
+                "/auth/grants",
+                "/auth/grants/by-actor/{actor_id}",
+                "/auth/grants/{id}",
+                "/auth/pairing-codes",
+            ]
+        );
+
+        let mut state = ConnectionRegistryState::default();
+        let start = Instant::now();
+        let path = "/auth/agents/rotate";
+        let limit = agent_paths[path];
+        let first = super::AgentRouteThrottleSource::Credential([1; 32]);
+        for _ in 0..limit {
+            state
+                .consume_agent_route(path, first.clone(), limit, start)
+                .expect("attempts through the exact route limit are admitted");
+        }
+        assert_eq!(
+            state.consume_agent_route(path, first.clone(), limit, start),
+            Err(60)
+        );
+        assert_eq!(
+            state.consume_agent_route(
+                path,
+                first.clone(),
+                limit,
+                start + Duration::from_secs(59)
+            ),
+            Err(1)
+        );
+
+        state
+            .consume_agent_route(
+                path,
+                super::AgentRouteThrottleSource::Credential([2; 32]),
+                limit,
+                start,
+            )
+            .expect("one credential cannot exhaust another credential's bucket");
+
+        let sibling = "/auth/agents/revoke-self";
+        state
+            .consume_agent_route(
+                sibling,
+                first.clone(),
+                agent_paths[sibling],
+                start,
+            )
+            .expect("one route cannot exhaust another route's bucket");
+        state
+            .consume_agent_route(path, first, limit, start + Duration::from_secs(60))
+            .expect("the exact window boundary drops predecessor attempts");
+
+        let user_a = super::AgentRouteThrottleSource::Session("user-a".to_owned());
+        let user_b = super::AgentRouteThrottleSource::Session("user-b".to_owned());
+        let session_path = "/auth/grants";
+        let session_limit = agent_paths[session_path];
+        for _ in 0..session_limit {
+            state
+                .consume_agent_route(session_path, user_a.clone(), session_limit, start)
+                .expect("user A reaches its exact limit");
+        }
+        assert_eq!(
+            state.consume_agent_route(session_path, user_a, session_limit, start),
+            Err(60)
+        );
+        state
+            .consume_agent_route(session_path, user_b, session_limit, start)
+            .expect("one user cannot exhaust another user's bucket");
     }
 
     /// @ref LLP 0059#connection-bound-authority — exact generation
@@ -21691,7 +24366,10 @@ globalThis.__snapbackHandlers = {
             .expect("bind test server");
         let address = listener.local_addr().expect("test server address");
         let server = tokio::spawn(async move {
-            axum::serve(listener, super::app(state))
+            super::app(state)
+                .bind(listener)
+                .expect("bind socket test app")
+                .serve()
                 .await
                 .expect("serve socket test");
         });
@@ -21786,7 +24464,10 @@ globalThis.__snapbackHandlers = {
             .expect("bind test server");
         let address = listener.local_addr().expect("test server address");
         let server = tokio::spawn(async move {
-            axum::serve(listener, super::app(state))
+            super::app(state)
+                .bind(listener)
+                .expect("bind socket test app")
+                .serve()
                 .await
                 .expect("serve socket test");
         });

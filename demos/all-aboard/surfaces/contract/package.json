@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun --bun node_modules/.bin/vite --config vite.config.ts --host 127.0.0.1 --port 5178",
-    "build": "bun --bun node_modules/.bin/vite build --config vite.config.ts"
+    "build": "bun --bun node_modules/.bin/vite build --config vite.config.ts",
+    "test:url-open": "bun test external-url.test.ts"
   },
   "dependencies": {
     "@exact/contract": "npm:@ccheever/exact-contract@0.1.4",

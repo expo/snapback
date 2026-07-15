@@ -90,6 +90,7 @@ use countdownTemporal from "./data.ts"
 use serviceColor from "./data.ts"
 use serviceTint from "./data.ts"
 use etaModeLabel from "./data.ts"
+use effectiveEtaMode from "./data.ts"
 use nextEtaMode from "./preferences.ts"
 use loadEtaModePreference from "./preferences.ts"
 use persistEtaModePreference from "./preferences.ts"
@@ -116,6 +117,7 @@ use positionFraction from "./data.ts"
 use positionLabel from "./data.ts"
 use fractionPercent from "./data.ts"
 use requestGeolocationRefresh from "./data.ts"
+use openDirectionsLink from "./data.ts"
 use openClipperLink from "./data.ts"
 
 component AllAboard
@@ -172,6 +174,7 @@ component AllAboard
   resource routeEstimate = loadRouteEstimate(station, etaMode, location, backend, invalidateAt(routeEstimateRefreshDeadline(now())))
   derive walkBike = walkBikeLine(station, etaMode, location, routeEstimate.value)
   derive dirLabel = directionsLabel(station, etaMode, location)
+  derive directionsMode = effectiveEtaMode(station, etaMode, location)
   derive feedIssue = feedProblem(feedRows)
   derive feedSource = feedSourceBadge(feedRows, feedNow, scheme)
   derive bootNote = backendStatusNote(backend)
@@ -209,8 +212,16 @@ component AllAboard
     persistMapsAppPreference(nextMapsApp(mapsApp))
   action openClipper
     openClipperLink()
+  action openPreferredDirections
+    openDirectionsLink(station.id, mapsApp, directionsMode)
   action openDirections writes directionsOpen
     directionsOpen = true
+  action openAppleDirections writes directionsOpen
+    openDirectionsLink(station.id, "apple", directionsMode)
+    directionsOpen = false
+  action openGoogleDirections writes directionsOpen
+    openDirectionsLink(station.id, "google", directionsMode)
+    directionsOpen = false
   action closeDirections writes directionsOpen
     directionsOpen = false
   action openStations writes query
@@ -250,7 +261,7 @@ component AllAboard
 
         when screen == "home"
           column position="absolute" top=0 left=0 right=0 bottom=0 background=theme.bg testId="station-screen"
-            StationHeader(station=station, art=art, prevStation=prevStation, prevArt=prevArt, nextStation=nextStation, nextArt=nextArt, prevStationId=prevStationId, nextStationId=nextStationId, walkBike=walkBike, dirLabel=dirLabel, mapsApp=mapsApp, topInset=insets.top, headerHeight=headerHeight, goToStation=goToStation, openStations=openStations, openDirections=openDirections)
+            StationHeader(station=station, art=art, prevStation=prevStation, prevArt=prevArt, nextStation=nextStation, nextArt=nextArt, prevStationId=prevStationId, nextStationId=nextStationId, walkBike=walkBike, dirLabel=dirLabel, mapsApp=mapsApp, topInset=insets.top, headerHeight=headerHeight, goToStation=goToStation, openStations=openStations, openPreferredDirections=openPreferredDirections, openDirections=openDirections)
 
             scroll position="absolute" top=headerHeight left=0 right=0 bottom=footerHeight background=theme.bg testId="board-content"
               column gap=10 padding=18 paddingTop=14 paddingBottom=24 maxWidth=620 alignSelf="center" width="100%"
@@ -282,7 +293,7 @@ component AllAboard
             StickyFooter(feedSource=feedSource, feedRows=feedRows, backend=backend, oppositeDir=oppositeDir, oppositeBoard=oppositeBoard, locColor=locColor, theme=theme, footerHeight=footerHeight, bottomInset=insets.bottom, toggleDirection=toggleDirection, requestLocation=requestLocation, openClipper=openClipper, doRefresh=doRefresh, openSettings=openSettings)
 
             when directionsOpen
-              DirectionsSheet(station=station, theme=theme, bottomInset=insets.bottom, closeDirections=closeDirections)
+              DirectionsSheet(station=station, theme=theme, bottomInset=insets.bottom, openAppleDirections=openAppleDirections, openGoogleDirections=openGoogleDirections, closeDirections=closeDirections)
         else
           when screen == "stations"
             StationsPicker(query=query, matches=matches, logicNow=boardNow, location=location, currentStationId=station.id, etaMode=etaMode, activeDir=activeDir, theme=theme, topInset=insets.top, barHeight=barHeight, bottomInset=insets.bottom, delayRows=delayRows, departureRows=departureRows, feedRows=feedRows, setQuery=setQuery, goToStation=goToStation, goHome=goHome)
@@ -336,6 +347,7 @@ component StationHeader
     headerHeight: number
     goToStation: action(id: string)
     openStations: () => void
+    openPreferredDirections: () => void
     openDirections: () => void
 
   view
@@ -363,9 +375,9 @@ component StationHeader
                     column gap=2 align="flex-start"
                       text "CALTRAIN" size=10 weight=800 letterSpacing=2.4 color="#ffffffa6"
                       text station.name size=23 weight=800 lineHeight=26 color="#ffffff" testId="station-name" headingLevel=1
-                  // Long-press delivery is framework-owned on web. The click
-                  // side-effect bridge still opens the preferred maps app.
-                  button press=openDirections longpress=openDirections label=`${dirLabel}; preferred app ${mapsAppLabel(mapsApp)}` testId=`station-directions-${station.id}` background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
+                  // Press opens the preferred app through Contract's named URL
+                  // capability; long-press keeps the explicit app-choice sheet.
+                  button press=openPreferredDirections longpress=openDirections label=`${dirLabel}; preferred app ${mapsAppLabel(mapsApp)}` testId=`station-directions-${station.id}` background="transparent" borderWidth=0 paddingTop=0 paddingBottom=0 paddingLeft=0 paddingRight=0 align="flex-start"
                     text `Zone ${station.zone} · ${walkBike}` size=12 color="#ffffffcc" testId="walk-bike"
               button press=goToStation(nextStationId) label="Next station" testId="next-station" width=40 height="100%" background="transparent" borderWidth=0 justify="center" align="center" opacity=nextStationId == station.id ? 0.25 : 1
                 text "›" size=30 weight=700 color="#ffffff"
@@ -558,10 +570,9 @@ component StickyFooter
             image svgSource=settingsIconSvg(theme.secondary) alt="" width=17 height=17
 
 // The directions bottom sheet (ENG-23795): reached by framework-delivered
-// long-press on the header directions line or plain press on hosts without it.
-// The open/copy side effects are web glue over these presses (directions.ts);
-// each press also closes the sheet, so hosts without the glue degrade to a
-// visible sheet that dismisses honestly instead of half-working.
+// long-press on the header directions line. URL opening is a named Contract
+// capability backed by Exact's native shell bridge and window.open on web;
+// copying the station address remains browser-only glue.
 // Layout: the sheet is centered through a full-width flex wrapper
 // (align="center"), NOT alignSelf on an absolutely positioned node — the
 // native kernel does not center absolute nodes that way, which left the
@@ -572,6 +583,8 @@ component DirectionsSheet
     station: object
     theme: object
     bottomInset: number
+    openAppleDirections: () => void
+    openGoogleDirections: () => void
     closeDirections: () => void
 
   view
@@ -583,9 +596,9 @@ component DirectionsSheet
           column gap=2 align="flex-start" width="100%"
             text `Directions to ${station.name}` size=16 weight=800 color=theme.ink
             text stationAddress(station.id) size=12 color=theme.secondary testId="station-address"
-          button press=closeDirections label="Open in Apple Maps" testId="directions-apple" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 radius=12 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%" align="flex-start"
+          button press=openAppleDirections label="Open in Apple Maps" testId="directions-apple" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 radius=12 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%" align="flex-start"
             text "Open in Apple Maps" size=14 weight=600 color=theme.ink
-          button press=closeDirections label="Open in Google Maps" testId="directions-google" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 radius=12 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%" align="flex-start"
+          button press=openGoogleDirections label="Open in Google Maps" testId="directions-google" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 radius=12 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%" align="flex-start"
             text "Open in Google Maps" size=14 weight=600 color=theme.ink
           button press=closeDirections label="Copy station address" testId="directions-copy" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 radius=12 background=theme.soft borderWidth=1 borderColor=theme.hairline width="100%" align="flex-start"
             text "Copy station address" size=14 weight=600 color=theme.ink

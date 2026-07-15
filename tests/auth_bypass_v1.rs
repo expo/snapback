@@ -15,7 +15,7 @@ use snapback::manifest::{
 };
 use snapback::server::PolicyAuthMode;
 use std::collections::{BTreeMap, BTreeSet};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tower::ServiceExt;
 
 const MASTER: &str = "master-admin";
@@ -311,27 +311,15 @@ async fn only_a_committed_reset_invalidates_existing_leases() {
 }
 
 fn sessions_app() -> (
-    axum::Router,
+    snapback::server::SnapbackApp,
     snapback::admin_secret_read::SecretReadOperator,
 ) {
-    let (state, operator) = AppState::from_snapback_with_secret_read_operator(
-        seeded_snapback(),
-        ServerContext {
-            host: "127.0.0.1".to_owned(),
-            port: 4287,
-            loopback: true,
-            auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-            profile: ServerProfile::Dev,
-            pid: std::process::id(),
-            started: Instant::now(),
-            started_at_ms: 0,
-            admin_token: Some(MASTER.to_owned()),
-            admin_token_minted: false,
-            admin_token_file: None,
-            console_credentials: Default::default(),
-            admin_dist: None,
-        },
-    );
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Dev;
+    context.admin_token = Some(MASTER.to_owned());
+    let (state, operator) =
+        AppState::from_snapback_with_secret_read_operator(seeded_snapback(), context);
     (
         snapback::server::app(state.with_policy_auth_mode(PolicyAuthMode::Sessions)),
         operator,
@@ -391,6 +379,7 @@ fn seeded_snapback() -> LocalSnapback {
                     }],
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             ),
@@ -402,6 +391,7 @@ fn seeded_snapback() -> LocalSnapback {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             ),

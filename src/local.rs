@@ -1095,6 +1095,47 @@ pub struct LiveDeliveryStats {
     pub last_deliveries: usize,
     pub last_skipped: usize,
     pub last_failed: usize,
+    /// The deliberately coarse v1 authorization blast radius, reported both
+    /// globally and against each stable membership declaration that caused an
+    /// event. These are cumulative runtime-epoch counters; delivery-frame
+    /// counters above retain their existing reset semantics.
+    ///
+    /// @ref LLP 0056#invalidation-the-llp-0053-mapping -- make membership churn's global
+    ///   quarantine cost measurable before declaration-scoped narrowing.
+    #[serde(default)]
+    pub authorization_blast_radius: AuthorizationBlastRadiusStats,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationBlastRadiusStats {
+    pub global: AuthorizationBlastRadiusCounters,
+    pub membership_declarations: BTreeMap<String, AuthorizationBlastRadiusCounters>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationBlastRadiusCounters {
+    pub version_advances: u64,
+    pub quarantined_subscriptions: u64,
+    pub resnapshots: u64,
+}
+
+impl AuthorizationBlastRadiusStats {
+    fn for_event(
+        &mut self,
+        declarations: &[String],
+        update: impl Fn(&mut AuthorizationBlastRadiusCounters),
+    ) {
+        update(&mut self.global);
+        for declaration in declarations {
+            update(
+                self.membership_declarations
+                    .entry(declaration.clone())
+                    .or_default(),
+            );
+        }
+    }
 }
 
 /// The result of running a generated function from the admin function runner.
@@ -2139,6 +2180,19 @@ struct LiveSubscription {
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
 }
 
+impl LiveSubscription {
+    /// @ref LLP 0058#live-owner-and-replacement-predicate — a retained live
+    /// owner is the resolved authority *and* exact connection grant. `None`
+    /// remains the explicit unbound dev/test compatibility owner.
+    fn is_owned_by(
+        &self,
+        authority: &PreparedAuthority,
+        effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
+    ) -> bool {
+        self.authority.matches(authority) && self.effect_fence.as_ref() == effect_fence
+    }
+}
+
 #[derive(Clone, Debug)]
 struct LiveSubscriptionAuthorization {
     scope_id: ScopeId,
@@ -2942,9 +2996,12 @@ impl LocalSnapback {
             let publication_generation = self
                 .reserve_function_publication_generation()
                 .map_err(ModeCommitFailure::RolledBack)?;
-            let committed = self.db.apply_same_mode_network_deployment_classified(
+            let committed = self
+                .db
+                .apply_same_mode_network_deployment_with_functions_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
+                prepared.artifacts.functions.clone(),
                 prepared.artifacts.seed,
             );
             let NetworkDeploymentCommit {
@@ -3000,9 +3057,10 @@ impl LocalSnapback {
             (seed_outcome.as_str(), state, diagnostics)
         } else {
             let seeded = prepared.artifacts.seed.is_some();
-            let committed = self.db.stage_auth_mode_classified(
+            let committed = self.db.stage_auth_mode_with_functions_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
+                &prepared.artifacts.functions,
                 prepared.artifacts.seed,
             );
             let state = match committed {
@@ -4153,10 +4211,14 @@ impl LocalSnapback {
                 ),
             ));
         }
+        let membership_plans = self
+            .db
+            .authorize_membership_commands(executed.membership_commands)?;
         let commit = self.db.commit_buffered_writes_idempotent_guarded(
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
+                membership_plans,
                 read_dependencies: executed.reads,
                 result: executed.result,
                 ctx_ledger: executed.ctx_ledger,
@@ -4489,15 +4551,21 @@ impl LocalSnapback {
         // A valid explicit supersession is a net-zero replacement. Identify
         // it before admission, but do not remove it until the new snapshot
         // succeeds: a query failure must leave the old live authority intact.
-        // Unknown or foreign ids remain the protocol's documented quiet
-        // no-op and therefore do not release capacity.
-        let superseded_subscription_id = input.supersedes.as_ref().and_then(|old_id| {
-            self.subscriptions.get(old_id).and_then(|existing| {
-                let same_connection = existing.connection_id == input.connection_id;
-                let same_owner = existing.authority.matches(&authority);
-                (same_connection && same_owner).then(|| old_id.clone())
-            })
-        });
+        // Unknown ids remain the protocol's documented quiet no-op and do not
+        // release capacity. Known foreign owners fail closed.
+        let superseded_subscription_id = match input.supersedes.as_ref() {
+            Some(old_id) => match self.subscriptions.get(old_id) {
+                Some(existing)
+                    if existing.connection_id == input.connection_id
+                        && existing.is_owned_by(&authority, effect_fence.as_ref()) =>
+                {
+                    Some(old_id.clone())
+                }
+                Some(existing) => return Err(live_owner_mismatch(&existing.id)),
+                None => None,
+            },
+            None => None,
+        };
         let release = usize::from(superseded_subscription_id.is_some());
 
         // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — retained
@@ -4733,7 +4801,7 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
         )?;
-        self.unsubscribe_live_prepared(name, input, authority)
+        self.unsubscribe_live_prepared(name, input, authority, None)
     }
 
     pub(crate) fn unsubscribe_live_prepared(
@@ -4741,6 +4809,7 @@ impl LocalSnapback {
         name: &str,
         input: LiveUnsubscribeInput,
         authority: PreparedAuthority,
+        effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
     ) -> SnapbackResult<LiveUnsubscribeOutput> {
         if authority.source() != InvocationSource::LiveUnsubscribe {
             return Err(SnapbackError::error(
@@ -4771,15 +4840,8 @@ impl LocalSnapback {
                 ),
             ));
         }
-        if !subscription.authority.matches(&authority) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
-                "realtime",
-                format!(
-                    "subscription {} is owned by a different principal",
-                    subscription.id
-                ),
-            ));
+        if !subscription.is_owned_by(&authority, effect_fence) {
+            return Err(live_owner_mismatch(&subscription.id));
         }
 
         let _publication = authority.effect_guard("live unsubscribe publication")?;
@@ -5087,15 +5149,8 @@ impl LocalSnapback {
             ));
         }
 
-        if !subscription.authority.matches(&authority) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_LIVE_RESUME_OWNERSHIP",
-                "realtime",
-                format!(
-                    "subscription {} is owned by a different principal",
-                    subscription.id
-                ),
-            ));
+        if !subscription.is_owned_by(&authority, invalidation.effect_fence.as_ref()) {
+            return Err(live_owner_mismatch(&subscription.id));
         }
         let predecessor_subscription = subscription.clone();
 
@@ -8484,6 +8539,11 @@ impl LocalSnapback {
                     .obligations
                     .advance_authenticated_authorization(authorization.version.clone())
             })?;
+        self.live_delivery
+            .authorization_blast_radius
+            .for_event(&authorization.membership_declarations, |counters| {
+                counters.version_advances += 1;
+            });
         let subscriptions = self
             .subscriptions
             .values()
@@ -8541,6 +8601,11 @@ impl LocalSnapback {
                     .collect());
             }
         };
+        self.live_delivery
+            .authorization_blast_radius
+            .for_event(&authorization.membership_declarations, |counters| {
+                counters.quarantined_subscriptions += preprojected.len() as u64;
+            });
         for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
@@ -8574,6 +8639,11 @@ impl LocalSnapback {
                     Ok(()) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
+                        self.live_delivery
+                            .authorization_blast_radius
+                            .for_event(&authorization.membership_declarations, |counters| {
+                                counters.resnapshots += 1;
+                            });
                     }
                     Err(error) => self.fail_subscription_fanout(
                         &subscription,
@@ -10129,6 +10199,14 @@ fn auth_resnapshot_required() -> SnapbackError {
     .with_details(json!({ "reason": "unknownOrReaped" }))
 }
 
+fn live_owner_mismatch(subscription_id: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+        "realtime",
+        format!("subscription {subscription_id} is owned by a different live owner"),
+    )
+}
+
 #[cfg(test)]
 mod authorization_acceptance;
 
@@ -10138,7 +10216,8 @@ mod auth_room_kick_acceptance;
 #[cfg(test)]
 mod tests {
     use super::{
-        AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
+        AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK,
         BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput,
@@ -10372,6 +10451,7 @@ mod tests {
                     .collect(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         )];
@@ -10409,7 +10489,7 @@ mod tests {
         let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
         let settled = snapback
             .auth_database_mut()
-            .consume_sessions_auth_mode(&readiness)
+            .consume_sessions_auth_mode_with_functions(&readiness, &predecessor_functions)
             .expect("consume initial sessions pair");
         snapback
             .synchronize_auth_mode_admission(&settled)
@@ -10462,7 +10542,8 @@ mod tests {
             .authorization
             .clone();
 
-        let (_, successor_functions) = sessions_activation_pair('d', true);
+        let (_, mut successor_functions) = sessions_activation_pair('d', true);
+        successor_functions.functions[0].authority_creating = true;
         let successor_bundle = successor_functions.bundle_hash.clone();
         let prepared = snapback
             .prepare_auth_provision(
@@ -10489,6 +10570,20 @@ mod tests {
             .expect("commit and project successor activation");
 
         assert_eq!(committed.state, state);
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, true)
+                .expect("read committed authority-creating basis"),
+            Some(1)
+        );
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .expect("old marker shape is terminal"),
+            None
+        );
         assert_eq!(
             state.active_deployment.unwrap().bundle_hash,
             successor_bundle.unwrap()
@@ -10532,6 +10627,87 @@ mod tests {
                 .all(|frame| !frame.contains("\"kind\":\"live_delta\"")),
             "deployment authorization changes never escape as an unfenced live delta"
         );
+    }
+
+    #[test]
+    fn real_sessions_activation_keeps_removed_function_basis_terminal_across_readd() {
+        let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(
+            schema,
+            predecessor_functions.clone(),
+        );
+        install_test_invalidation(&mut snapback);
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .unwrap(),
+            Some(0)
+        );
+        let initial_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .unwrap();
+
+        let mut removed = predecessor_functions.clone();
+        removed.bundle_hash = Some(format!("{FUNCTION_V1_PREFIX}{}", "e".repeat(64)));
+        removed.functions.clear();
+        let prepared = snapback
+            .prepare_auth_provision(EnsureAppMode::Sessions, None, Some(removed), None)
+            .unwrap();
+        let transition = snapback.admission.clone().begin_transition().unwrap();
+        transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .expect("remove function through real sessions activation");
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .unwrap(),
+            None
+        );
+        let removed_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .unwrap();
+        assert_eq!(removed_authorization.epoch, initial_authorization.epoch + 1);
+
+        let mut readded = predecessor_functions;
+        readded.bundle_hash = Some(format!("{FUNCTION_V1_PREFIX}{}", "f".repeat(64)));
+        let prepared = snapback
+            .prepare_auth_provision(EnsureAppMode::Sessions, None, Some(readded), None)
+            .unwrap();
+        let transition = snapback.admission.clone().begin_transition().unwrap();
+        transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .expect("re-add function through real sessions activation");
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .unwrap(),
+            Some(1),
+            "re-add resumes at the removal tombstone generation"
+        );
+        let readded_authorization = snapback
+            .auth_database_mut()
+            .authorization_version()
+            .unwrap();
+        assert_eq!(readded_authorization.epoch, initial_authorization.epoch + 2);
     }
 
     #[test]
@@ -10619,6 +10795,7 @@ mod tests {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             );
@@ -10715,6 +10892,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -10811,6 +10989,7 @@ mod tests {
             filters: Vec::new(),
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         }));
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
@@ -11070,6 +11249,7 @@ globalThis.__snapbackHandlers = {
                         filters: Vec::new(),
                         order: Vec::new(),
                         limit: None,
+                        membership_filters: Vec::new(),
                         indexed_by: None,
                     })),
                 ),
@@ -11602,6 +11782,7 @@ globalThis.__snapbackHandlers = {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -11617,6 +11798,7 @@ globalThis.__snapbackHandlers = {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: Some("by_value".to_owned()),
             })),
         );
@@ -12271,6 +12453,30 @@ globalThis.__snapbackHandlers = {
                 .all(|message| !message.contains("\"kind\":\"live_delta\"")),
             "coarse authorization events override positive-delta best effort"
         );
+        let blast_radius = &snapback.live_delivery.authorization_blast_radius;
+        assert_eq!(blast_radius.global.version_advances, 1);
+        assert_eq!(blast_radius.global.quarantined_subscriptions, 1);
+        assert_eq!(blast_radius.global.resnapshots, 1);
+        assert!(blast_radius.membership_declarations.is_empty());
+    }
+
+    #[test]
+    fn blast_radius_counters_attribute_each_membership_declaration_and_global_total() {
+        let mut stats = AuthorizationBlastRadiusStats::default();
+        let declarations = ["board-members".to_owned(), "org-members".to_owned()];
+        stats.for_event(&declarations, |counters| {
+            counters.version_advances += 1;
+            counters.quarantined_subscriptions += 3;
+            counters.resnapshots += 2;
+        });
+
+        assert_eq!(stats.global.version_advances, 1);
+        assert_eq!(stats.global.quarantined_subscriptions, 3);
+        assert_eq!(stats.global.resnapshots, 2);
+        assert_eq!(stats.membership_declarations.len(), 2);
+        for declaration in declarations {
+            assert_eq!(stats.membership_declarations[&declaration], stats.global);
+        }
     }
 
     #[test]
@@ -12542,6 +12748,7 @@ globalThis.__snapbackHandlers = {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: Some("by_owner".to_owned()),
             })),
         );
@@ -13211,6 +13418,7 @@ globalThis.__snapbackHandlers = {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         ));
@@ -13331,6 +13539,7 @@ globalThis.__snapbackHandlers = {
                 id: "guarded_item".to_owned(),
                 values,
             }],
+            membership_commands: Vec::new(),
             reads: Vec::new(),
             result: json!("guarded_item"),
             ctx_ledger: CtxAnswerLedger {
@@ -13586,6 +13795,223 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn live_resume_requires_the_exact_connection_grant() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "resume-owner-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "resume-other-grant",
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "resume-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(200)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("owner subscription");
+        let resume = || LiveResumeInput {
+            subscription_id: subscribed.subscription_id.clone(),
+            connection_id: "resume-owner".to_owned(),
+            auth: AuthInput::default(),
+            recorded_permission_epochs: subscribed.permission_epochs.clone(),
+        };
+
+        let error = snapback
+            .resume_live_prepared_with_invalidation(
+                "listItems",
+                resume(),
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(other_fence),
+                    session_mode: true,
+                },
+            )
+            .expect_err("same authority under another grant cannot resume");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+        assert_eq!(
+            snapback
+                .subscriptions
+                .get(&subscribed.subscription_id)
+                .expect("failed hijack preserves owner")
+                .effect_fence
+                .as_ref(),
+            Some(&owner_fence),
+        );
+
+        let resumed = snapback
+            .resume_live_prepared_with_invalidation(
+                "listItems",
+                resume(),
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence),
+                    session_mode: true,
+                },
+            )
+            .expect("the exact owner grant may resume");
+        assert_eq!(resumed.subscription_id, subscribed.subscription_id);
+    }
+
+    #[test]
+    fn live_unsubscribe_requires_the_exact_connection_grant() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "unsubscribe-owner-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "unsubscribe-other-grant",
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "unsubscribe-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(201)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("owner subscription");
+        let unsubscribe = || LiveUnsubscribeInput {
+            subscription_id: subscribed.subscription_id.clone(),
+            connection_id: "unsubscribe-owner".to_owned(),
+            auth: AuthInput::default(),
+        };
+
+        let error = snapback
+            .unsubscribe_live_prepared(
+                "listItems",
+                unsubscribe(),
+                test_session_authority(InvocationSource::LiveUnsubscribe),
+                Some(&other_fence),
+            )
+            .expect_err("same authority under another grant cannot unsubscribe");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+
+        let disposed = snapback
+            .unsubscribe_live_prepared(
+                "listItems",
+                unsubscribe(),
+                test_session_authority(InvocationSource::LiveUnsubscribe),
+                Some(&owner_fence),
+            )
+            .expect("the exact owner grant may unsubscribe");
+        assert!(disposed.disposed);
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+    }
+
+    #[test]
+    fn live_supersession_requires_the_exact_connection_grant() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "supersede-owner-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "live-owner-incarnation",
+            "supersede-other-grant",
+        );
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "supersede-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(202)),
+                    supersedes: None,
+                },
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("owner subscription");
+        let replacement = |instance| LiveSubscribeInput {
+            connection_id: "supersede-owner".to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: Some(test_authorization_namespace(instance)),
+            supersedes: Some(subscribed.subscription_id.clone()),
+        };
+
+        let error = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                replacement(203),
+                LiveInvalidationAdmission {
+                    connection: Some(connection.clone()),
+                    effect_fence: Some(other_fence),
+                    session_mode: true,
+                },
+            )
+            .expect_err("same authority under another grant cannot supersede");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+        assert_eq!(snapback.subscriptions.len(), 1);
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+
+        let successor = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                replacement(204),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence),
+                    session_mode: true,
+                },
+            )
+            .expect("the exact owner grant may supersede");
+        assert_ne!(successor.subscription_id, subscribed.subscription_id);
+        assert_eq!(snapback.subscriptions.len(), 1);
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&successor.subscription_id)
+        );
+    }
+
+    #[test]
     fn terminal_topology_purge_does_not_reenter_room_or_outbox_cleanup() {
         let mut snapback = live_limit_snapback();
         let connection = install_test_invalidation(&mut snapback);
@@ -13636,20 +14062,14 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
-    fn changed_generation_live_resume_commits_scope_retirement_and_successor_owner() {
+    fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
         let mut snapback = live_limit_snapback();
         let connection = install_test_invalidation(&mut snapback);
-        let predecessor = crate::ephemeral::ConnectionEffectFence::session(
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::session(
             "incarnation",
-            "grant-old",
+            "grant-owner",
             "session",
             1,
-        );
-        let successor = crate::ephemeral::ConnectionEffectFence::session(
-            "incarnation",
-            "grant-new",
-            "session",
-            2,
         );
         let subscribed = snapback
             .subscribe_live_with_invalidation(
@@ -13662,7 +14082,7 @@ globalThis.__snapbackHandlers = {
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
-                    effect_fence: Some(predecessor),
+                    effect_fence: Some(owner_fence.clone()),
                     session_mode: true,
                 },
             )
@@ -13689,7 +14109,7 @@ globalThis.__snapbackHandlers = {
                 test_session_authority(InvocationSource::LiveResume),
                 LiveInvalidationAdmission {
                     connection: Some(successor_connection.clone()),
-                    effect_fence: Some(successor.clone()),
+                    effect_fence: Some(owner_fence.clone()),
                     session_mode: true,
                 },
             )
@@ -13720,7 +14140,7 @@ globalThis.__snapbackHandlers = {
             .get(&subscribed.subscription_id)
             .expect("retained successor")
             .clone();
-        assert_eq!(resumed.effect_fence.as_ref(), Some(&successor));
+        assert_eq!(resumed.effect_fence.as_ref(), Some(&owner_fence));
         assert_eq!(
             resumed
                 .authorization
@@ -13741,7 +14161,7 @@ globalThis.__snapbackHandlers = {
         snapback.enqueue_subscription_durable(&resumed, b"after-resume".to_vec());
         let payloads = snapback
             .ephemeral
-            .drain_outbox_for_send_bound("reused-resume", &successor)
+            .drain_outbox_for_send_bound("reused-resume", &owner_fence)
             .into_iter()
             .filter_map(|admitted| match admitted.into_parts().0 {
                 crate::ephemeral::RealtimeEnvelope::Durable(message) => Some(message.payload),
@@ -13758,12 +14178,6 @@ globalThis.__snapbackHandlers = {
         let predecessor_fence = crate::ephemeral::ConnectionEffectFence::session(
             "incarnation",
             "grant-old",
-            "session",
-            1,
-        );
-        let successor_fence = crate::ephemeral::ConnectionEffectFence::session(
-            "incarnation",
-            "grant-new",
             "session",
             1,
         );
@@ -13822,7 +14236,7 @@ globalThis.__snapbackHandlers = {
                     test_session_authority(InvocationSource::LiveResume),
                     LiveInvalidationAdmission {
                         connection: Some(successor_connection.clone()),
-                        effect_fence: Some(successor_fence.clone()),
+                        effect_fence: Some(predecessor_fence.clone()),
                         session_mode: true,
                     },
                 )
@@ -13867,7 +14281,7 @@ globalThis.__snapbackHandlers = {
             assert!(
                 snapback
                     .ephemeral
-                    .drain_outbox_for_send_bound("resume-successor", &successor_fence)
+                    .drain_outbox_for_send_bound("resume-successor", &predecessor_fence)
                     .is_empty(),
                 "an unpublished replacement cannot escape on its successor fence",
             );
@@ -13901,12 +14315,6 @@ globalThis.__snapbackHandlers = {
         let predecessor_fence = crate::ephemeral::ConnectionEffectFence::session(
             "incarnation",
             "grant-old",
-            "session",
-            1,
-        );
-        let successor_fence = crate::ephemeral::ConnectionEffectFence::session(
-            "incarnation",
-            "grant-new",
             "session",
             1,
         );
@@ -13945,14 +14353,14 @@ globalThis.__snapbackHandlers = {
                 "listItemsByValue",
                 LiveResumeInput {
                     subscription_id: subscribed.subscription_id.clone(),
-                    connection_id: "same-scope-successor".to_owned(),
+                    connection_id: "same-scope-predecessor".to_owned(),
                     auth: AuthInput::default(),
                     recorded_permission_epochs: subscribed.permission_epochs,
                 },
                 test_session_authority(InvocationSource::LiveResume),
                 LiveInvalidationAdmission {
                     connection: Some(connection),
-                    effect_fence: Some(successor_fence.clone()),
+                    effect_fence: Some(predecessor_fence.clone()),
                     session_mode: true,
                 },
             )
@@ -13971,13 +14379,6 @@ globalThis.__snapbackHandlers = {
                 .expect("retained authorization")
                 .scope_id,
             predecessor_scope,
-        );
-        assert!(
-            snapback
-                .ephemeral
-                .drain_outbox_for_send_bound("same-scope-successor", &successor_fence)
-                .is_empty(),
-            "failed resume must not publish on an unretained successor fence",
         );
         assert!(
             !snapback

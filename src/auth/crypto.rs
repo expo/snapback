@@ -18,6 +18,9 @@ const KEY_PREFIX: &str = "sbak_";
 const SESSION_PREFIX: &str = "sbs_";
 const IMPERSONATION_PREFIX: &str = "sbic_";
 const CODE_DIGEST_DOMAIN: &[u8] = b"snapback.auth.email-code.v1";
+// @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15 — login
+// and fresh-operation challenges share storage but never a digest domain.
+const STEP_UP_DIGEST_DOMAIN: &[u8] = b"snapback.auth.step-up.v1";
 
 // @ref LLP 0055#credentials-and-tokens — the five agent-principal secret
 //   classes. They must be mutually prefix-free with every already-minted class
@@ -287,6 +290,60 @@ impl CodeDigest {
 
     pub fn verify(&self, expected: &[u8]) -> bool {
         expected.len() == 32 && bool::from(self.0.as_ref().ct_eq(expected))
+    }
+}
+
+/// A verification-code digest for one exact fresh-authentication operation.
+/// The distinct domain makes ordinary login challenges and step-up challenges
+/// cryptographically non-interchangeable even though they share the bounded
+/// durable challenge table and process-local capture mailbox.
+pub(crate) struct StepUpDigest(Zeroizing<[u8; 32]>);
+
+impl StepUpDigest {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn compute(
+        key: &AuthKeyMaterial,
+        challenge_id: &ChallengeId,
+        address: &CanonicalAddress,
+        user_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
+        operation: &str,
+        target_id: &str,
+        code: &VerificationCode,
+    ) -> Self {
+        let mut mac = Hmac::<Sha256>::new_from_slice(key.expose_secret())
+            .expect("HMAC-SHA-256 accepts every key length");
+        update_lp(&mut mac, STEP_UP_DIGEST_DOMAIN);
+        update_lp(&mut mac, challenge_id.as_str().as_bytes());
+        update_lp(&mut mac, address.as_str().as_bytes());
+        update_lp(&mut mac, user_id.as_bytes());
+        update_lp(&mut mac, session_id.as_bytes());
+        update_lp(&mut mac, &session_generation.to_be_bytes());
+        update_lp(&mut mac, authority_instance_id.as_bytes());
+        update_lp(&mut mac, operation.as_bytes());
+        update_lp(&mut mac, target_id.as_bytes());
+        update_lp(&mut mac, code.expose_secret().as_bytes());
+        let mut output = mac.finalize().into_bytes();
+        let mut digest = [0_u8; 32];
+        digest.copy_from_slice(&output);
+        output.as_mut_slice().zeroize();
+        Self(Zeroizing::new(digest))
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub(crate) fn verify(&self, expected: &[u8]) -> bool {
+        expected.len() == 32 && bool::from(self.0.as_ref().ct_eq(expected))
+    }
+}
+
+impl fmt::Debug for StepUpDigest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("StepUpDigest([REDACTED])")
     }
 }
 
@@ -755,6 +812,30 @@ mod tests {
         assert!(CanonicalAddress::parse(&exact_limit).is_ok());
         let too_long = format!("{}@x", "a".repeat(319));
         assert!(CanonicalAddress::parse(&too_long).is_err());
+    }
+
+    #[test]
+    fn login_and_step_up_digest_domains_are_not_interchangeable() {
+        let random = ScriptedRandom::new([vec![7_u8; 16]]);
+        let challenge = ChallengeId::generate(&random).unwrap();
+        let address = CanonicalAddress::parse("person@example.com").unwrap();
+        let code = VerificationCode::parse("123456").unwrap();
+        let key = AuthKeyMaterial::from_bytes([9_u8; 32]);
+        let login = CodeDigest::compute(&key, &challenge, &address, &code);
+        let step_up = StepUpDigest::compute(
+            &key,
+            &challenge,
+            &address,
+            "user-a",
+            "session-a",
+            1,
+            "authority-a",
+            "grantApproval",
+            "request-a",
+            &code,
+        );
+        assert!(!step_up.verify(login.as_bytes()));
+        assert!(!login.verify(step_up.as_bytes()));
     }
 
     #[test]

@@ -166,6 +166,77 @@ fn is_deactivated_on(conn: &Connection, user_id: &str) -> rusqlite::Result<bool>
     Ok(matches!(deactivated, Some(Some(_))))
 }
 
+/// LLP 0056 M2 reuses G1's eligibility predicate from the write side: a holder
+/// principal is **eligible** iff it is not permanently deactivated. A principal
+/// absent from `_auth_users` (e.g. a plain human user) is not deactivated, hence
+/// eligible. This is the exact predicate `has_other_eligible_holder` uses, kept
+/// in one module so the two sides can never disagree.
+///
+/// @ref LLP 0055#principal-kinds — eligibility, not sole-ness; same predicate as
+///   LLP 0056 M2's eligible-holder rule.
+pub(crate) fn principal_is_eligible_on(conn: &Connection, principal: &str) -> SnapbackResult<bool> {
+    // No auth catalog means no deactivation state, so every principal is
+    // eligible — the same fallback the activation scan uses.
+    if !table_exists(conn, "_auth_users")? {
+        return Ok(true);
+    }
+    Ok(!is_deactivated_on(conn, principal)?)
+}
+
+/// The **eligible** holder member rows of the protected role on one resource,
+/// excluding `excluding_principal` (the acting/target principal). Each entry is
+/// `(member_row_id, member_row_version, principal)`. LLP 0056 M2 captures one of
+/// these rows as a snapshot-bound dependency so two concurrent removals of the
+/// final two eligible holders cannot both commit — the same eligibility filter
+/// (`NOT IN` the deactivated set) `has_other_eligible_holder` applies, but
+/// returning the row identity the write path must capture.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
+///   holder-set read is captured; the survivor row linearizes the race.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn eligible_protected_holder_rows(
+    conn: &Connection,
+    table: &str,
+    principal_column: &str,
+    resource_column: &str,
+    role_column: &str,
+    resource: &str,
+    protect: &str,
+    excluding_principal: &str,
+) -> SnapbackResult<Vec<(String, u64, String)>> {
+    // The `NOT IN` deactivation filter only applies when the auth catalog
+    // exists; without it, no principal is deactivated so every holder is eligible.
+    let deactivation_filter = if table_exists(conn, "_auth_users")? {
+        format!(
+            "AND m.{principal} NOT IN (
+               SELECT id FROM _auth_users WHERE deactivated_at_ms IS NOT NULL
+             )",
+            principal = quote_ident(principal_column),
+        )
+    } else {
+        String::new()
+    };
+    let sql = format!(
+        "SELECT m._id, m._version, m.{principal} FROM {table} AS m
+         WHERE m.{resource} = ?1 AND m.{role} = ?2 AND m.{principal} <> ?3
+           {deactivation_filter}
+         ORDER BY m._id",
+        table = quote_ident(table),
+        resource = quote_ident(resource_column),
+        role = quote_ident(role_column),
+        principal = quote_ident(principal_column),
+    );
+    let mut statement = conn.prepare(&sql)?;
+    let rows = statement.query_map(params![resource, protect, excluding_principal], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, i64>(1)? as u64,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
 /// The `lastHolder`-protected resources that deactivating `principal` would
 /// strand: for each membership declaration with `lastHolder`, every resource in
 /// which `principal` holds the protected role and no **other eligible** holder

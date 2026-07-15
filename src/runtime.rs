@@ -12,8 +12,9 @@ use crate::manifest::{
     QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, effective_query_limit,
 };
 use crate::storage::{
-    BufferedCommitPayload, BufferedWrite, CapturedReadDependency, CapturedReadKind,
-    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit,
+    BufferedCommitPayload, BufferedMembershipCommand, BufferedWrite, CapturedReadDependency,
+    CapturedReadKind, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
+    MutationCommit,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -99,6 +100,7 @@ pub trait IbexActionHost {
 /// instance mutex; only the bounded validation/SQLite commit re-enters it.
 pub(crate) struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
+    pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
@@ -166,10 +168,12 @@ impl RuntimeManager {
             pool,
             None,
         )?;
+        let membership_plans = db.authorize_membership_commands(executed.membership_commands)?;
         db.commit_buffered_writes_idempotent_guarded(
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
+                membership_plans,
                 read_dependencies: executed.reads,
                 result: executed.result,
                 ctx_ledger: executed.ctx_ledger,
@@ -197,12 +201,32 @@ impl RuntimeManager {
             input.clone(),
             prepared.projection().clone(),
             prepared.admission_lease().clone(),
+            MembershipWriter::from_resolved(prepared.authority().resolved()),
             true,
         )?;
-        let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
+        let result = run_ibex_handler_with_context(module, &mut invocation, pool);
+        // A terminal role denial fails the (dry-run) mutation and never commits,
+        // preserving the trusted brand regardless of a handler catch.
+        if let Some(denial) = invocation.take_terminal_denial() {
+            return Err(denial);
+        }
+        let result = result?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
-        let IbexHostContext { writes, reads, .. } = invocation;
-        db.dry_run_buffered_writes(&input, writes, reads, result, ctx_ledger)
+        let IbexHostContext {
+            writes,
+            membership_commands,
+            reads,
+            ..
+        } = invocation;
+        let membership_plans = db.authorize_membership_commands(membership_commands)?;
+        db.dry_run_buffered_writes(
+            &input,
+            writes,
+            membership_plans,
+            reads,
+            result,
+            ctx_ledger,
+        )
     }
 
     // This is the explicit runtime boundary: keeping the independently named
@@ -247,16 +271,29 @@ pub(crate) fn execute_ibex_mutation_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
+        MembershipWriter::from_resolved(prepared.authority().resolved()),
         true,
     )?;
-    let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline)?;
+    let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
+    // A terminal role denial fails the mutation before commit and preserves the
+    // trusted brand regardless of a handler catch (LLP 0056 M3).
+    if let Some(denial) = invocation.take_terminal_denial() {
+        return Err(denial);
+    }
+    let result = result?;
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
-    let IbexHostContext { writes, reads, .. } = invocation;
+    let IbexHostContext {
+        writes,
+        membership_commands,
+        reads,
+        ..
+    } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
     Ok(ExecutedIbexMutation {
         writes,
+        membership_commands,
         reads,
         result,
         ctx_ledger,
@@ -281,6 +318,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
+        MembershipWriter::from_resolved(prepared.authority().resolved()),
         false,
     )?;
     invocation.protected_query_profile = protected_query_profile;
@@ -291,7 +329,14 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     // @ref LLP 0053#the-authorization-event-universe-closed — protected
     //   module state must be fresh or reset-equivalent.
     let pool = if protected_query_profile { None } else { pool };
-    let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
+    let value = run_ibex_handler_with_context(module, &mut invocation, pool);
+    // A terminal role denial terminates the query subscription (LLP 0056 M3:
+    // denied-at-subscribe is terminated, not parked), with the trusted brand
+    // preserved regardless of a handler catch.
+    if let Some(denial) = invocation.take_terminal_denial() {
+        return Err(denial);
+    }
+    let value = value?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
     let rows = value.as_array().cloned().ok_or_else(|| {
@@ -543,6 +588,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// This bit is host-owned and cannot be changed by handler code.
     protected_query_profile: bool,
     writes: Vec<BufferedWrite>,
+    /// Declaration-bound membership operations carry their host-derived writer
+    /// separately from raw `ctx.db` writes all the way to the central commit seam.
+    membership_commands: Vec<BufferedMembershipCommand>,
+    membership_writer: MembershipWriter,
     reads: Vec<CapturedReadDependency>,
     read_keys: HashSet<String>,
     now_ms: u64,
@@ -563,6 +612,19 @@ pub(crate) struct IbexHostContext<'a> {
     recorded_ids: Vec<String>,
     /// Replay-mode state; `Some` iff the input carried a `ctx_ledger`.
     replay: Option<ReplayLedger>,
+    /// An out-of-band **trusted** role denial produced by
+    /// `ctx.permissions.<decl>.requireRole` (LLP 0056 M3). The trusted brand on
+    /// a `SnapbackError` cannot survive the JS error round-trip, so the real
+    /// terminal denial is recorded here and the outer result-assembly returns it
+    /// **regardless of what the handler did with the thrown error** — a handler
+    /// that catches it cannot un-deny (terminalization), and a handler that
+    /// *forges* `SNAPBACK_AUTH_PERMISSION_DENIED` never sets this, so a forged
+    /// throw stays untrusted.
+    ///
+    /// @ref LLP 0056#rule-helpers — the imperative twin's trusted, terminal
+    ///   denial; @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 — delivered
+    ///   by the existing TerminalAuthorization deny, no new trusted code.
+    terminal_denial: Option<SnapbackError>,
 }
 
 /// Replay-mode cursor over a supplied ctx-answer ledger (LLP 0051 D1).
@@ -577,6 +639,7 @@ impl<'a> IbexHostContext<'a> {
         input: HandlerInput,
         handler_auth: HandlerAuthProjection,
         admission: AdmissionLease,
+        membership_writer: MembershipWriter,
         writable: bool,
     ) -> SnapbackResult<Self> {
         let replay = validate_replay_ledger(&input)?;
@@ -586,6 +649,10 @@ impl<'a> IbexHostContext<'a> {
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
         crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+        crate::membership_rules::validate_impersonated_global_roles(
+            db.schema(),
+            handler_auth.roles(),
+        )?;
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
         Ok(Self {
@@ -600,6 +667,8 @@ impl<'a> IbexHostContext<'a> {
             },
             protected_query_profile: false,
             writes: Vec::new(),
+            membership_commands: Vec::new(),
+            membership_writer,
             reads,
             read_keys,
             now_ms,
@@ -609,6 +678,7 @@ impl<'a> IbexHostContext<'a> {
             grants: Value::Null,
             recorded_ids: Vec::new(),
             replay,
+            terminal_denial: None,
         })
     }
 
@@ -650,6 +720,8 @@ impl<'a> IbexHostContext<'a> {
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
             writes: Vec::new(),
+            membership_commands: Vec::new(),
+            membership_writer: MembershipWriter::System,
             reads,
             read_keys,
             now_ms: run.due_at_ms,
@@ -659,6 +731,7 @@ impl<'a> IbexHostContext<'a> {
             grants,
             recorded_ids: Vec::new(),
             replay: None,
+            terminal_denial: None,
         }
     }
 
@@ -763,8 +836,12 @@ impl<'a> IbexHostContext<'a> {
             match op {
                 // Closed v1 allowlist: database reads carry captured witnesses;
                 // log has a specified constant null result and cannot affect
-                // visibility through mutable output.
-                "db.query" | "db.get" | "runtime.log" => {}
+                // visibility through mutable output. The membership read backing
+                // requireRole is `DatabaseCaptured` on both outcomes (its
+                // snapshot-bound dependency joins the read summary), so it is
+                // admitted for protected queries exactly like `db.query`.
+                // @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906
+                "db.query" | "db.get" | "runtime.log" | "permissions.requireRole" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
                         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
@@ -909,6 +986,76 @@ impl<'a> IbexHostContext<'a> {
                 self.writes.push(BufferedWrite::Delete { table, id });
                 Ok(Value::Bool(existed))
             }
+            // Declaration-bound membership authoring. The JS helper supplies a
+            // stable declaration id and operation arguments; the host resolves
+            // the table and attaches the immutable writer derived from the
+            // prepared invocation. Raw `ctx.db` writes never enter this lane.
+            // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+            "membership.write" => {
+                self.ensure_writable("membership")?;
+                self.ensure_buffered_write_capacity()?;
+                // Each planner authorizes against one immutable snapshot. Until
+                // sequential read-your-membership-writes planning lands, refuse
+                // a second command instead of letting two individually valid
+                // transitions compose into an undeclared authority escalation.
+                if !self.membership_commands.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED",
+                        "runtime",
+                        "v1 permits one generated membership write per mutation",
+                    ));
+                }
+                let declaration = required_string(&args, "declaration")?;
+                let operation = required_string(&args, "operation")?;
+                let table = crate::membership_rules::find_declaration(
+                    self.db().schema(),
+                    &declaration,
+                )
+                .map(|(table, _)| table.name.clone())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+                        "runtime",
+                        format!(
+                            "ctx.membership names declaration {declaration:?}, which is not declared"
+                        ),
+                    )
+                })?;
+                let writer = self.membership_writer.clone();
+                let command = match operation.as_str() {
+                    "insert" => BufferedMembershipCommand::insert(
+                        writer,
+                        table,
+                        required_object(&args, "values")?,
+                    ),
+                    "setRole" => BufferedMembershipCommand::set_role(
+                        writer,
+                        table,
+                        required_string(&args, "memberId")?,
+                        required_string(&args, "role")?,
+                    ),
+                    "remove" => BufferedMembershipCommand::remove(
+                        writer,
+                        table,
+                        required_string(&args, "memberId")?,
+                    ),
+                    "patch" => BufferedMembershipCommand::patch(
+                        writer,
+                        table,
+                        required_string(&args, "memberId")?,
+                        required_object(&args, "values")?,
+                    ),
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
+                            "runtime",
+                            format!("unknown membership helper operation {operation:?}"),
+                        ));
+                    }
+                };
+                self.membership_commands.push(command);
+                Ok(Value::Null)
+            }
             "runtime.now" => Ok(json!(self.now_ms)),
             // Diagnostics-routed console (LLP 0048 allowlist slice 1): the
             // routed console shim forwards handler console output here. It is
@@ -961,12 +1108,126 @@ impl<'a> IbexHostContext<'a> {
                 let output = host.run_mutation(&name, input)?;
                 Ok(output.result)
             }
+            // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
+            // The imperative twin, decomposed so LLP 0053's one-class-per-op
+            // rule holds exactly: the membership read (DatabaseCaptured, both
+            // outcomes) captured into the read set, then — on a failed check —
+            // the EXISTING TerminalAuthorization deny (`role_denial`), which
+            // reuses the existing `SNAPBACK_AUTH_PERMISSION_DENIED` (no new
+            // trusted code). It is generated sugar over that composition, not a
+            // third host operation.
+            "permissions.requireRole" => {
+                // `ctx.permissions` does not exist in actions — no transactional
+                // read set, so no capture. Typed refusal.
+                // @ref LLP 0056#non-goals — `ctx.permissions` in actions refused.
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
+                        "runtime",
+                        "ctx.permissions does not exist in actions (no transactional read set to capture into)",
+                    ));
+                }
+                let declaration = required_string(&args, "declaration")?;
+                let resource_arg = args.get("resource").cloned().unwrap_or(Value::Null);
+                let requested_roles: Vec<String> = args
+                    .get("roles")
+                    .and_then(Value::as_array)
+                    .map(|roles| {
+                        roles
+                            .iter()
+                            .filter_map(|role| role.as_str().map(str::to_owned))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                // Resolve the declaration to owned data so no borrow of `self`
+                // (via the schema) is held across the mutable capture below.
+                let (table_name, membership) = {
+                    let schema = self.db().schema();
+                    match crate::membership_rules::find_declaration(schema, &declaration) {
+                        Some((table, membership)) => (table.name.clone(), membership.clone()),
+                        None => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+                                "runtime",
+                                format!(
+                                    "ctx.permissions names declaration {declaration:?}, which is not declared"
+                                ),
+                            ));
+                        }
+                    }
+                };
+                // Unauthenticated / null effective principal: deny with the same
+                // invariant payload (the `optional-user` split; `authenticated`
+                // functions fail AUTH_REQUIRED before the handler runs).
+                let Some(principal) = self.input.auth.user_id.clone() else {
+                    let denial = crate::membership_rules::role_denial();
+                    self.terminal_denial = Some(denial.clone());
+                    return Err(denial);
+                };
+                let requested = if requested_roles.is_empty() {
+                    None
+                } else {
+                    Some(requested_roles.as_slice())
+                };
+                let roles = crate::membership_rules::effective_roles(&membership, requested);
+                if membership.scope == crate::manifest::MembershipScope::App
+                    && crate::membership_rules::impersonated_global_role_satisfies(
+                        &membership,
+                        &declaration,
+                        &roles,
+                        self.handler_auth.roles(),
+                    )
+                {
+                    // Dev-only fidelity seam: this succeeds from frozen
+                    // session-role input, not from a membership row. Real
+                    // sessions always project roles: [].
+                    return Ok(Value::Bool(true));
+                }
+                let binding = if membership.resource.is_none() {
+                    // scope:"app" — the singleton system-constant resource.
+                    crate::membership_rules::ResourceBinding::AppSingleton
+                } else {
+                    crate::membership_rules::ResourceBinding::Fixed(resource_arg)
+                };
+                let outcome = crate::membership_rules::require_role(
+                    self.db(),
+                    &membership,
+                    &table_name,
+                    &principal,
+                    binding,
+                    &roles,
+                )?;
+                // The membership read is captured on BOTH outcomes (present or
+                // absent) as an ORDINARY snapshot-bound dependency — never the
+                // dead `Permission` kind — so a role revoked between check and
+                // commit fails commit-time read-set validation, and
+                // terminalization preserves the denial witness.
+                self.push_read_dependency(outcome.dependency);
+                match outcome.denial {
+                    None => Ok(Value::Bool(true)),
+                    Some(denial) => {
+                        // Record the trusted brand out-of-band; the outer
+                        // result-assembly returns it regardless of handler catch.
+                        self.terminal_denial = Some(denial.clone());
+                        Err(denial)
+                    }
+                }
+            }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
                 "runtime",
                 format!("unknown handler host call {op}"),
             )),
         }
+    }
+
+    /// Take any out-of-band trusted role denial recorded by
+    /// `permissions.requireRole`. The outer result-assembly calls this after the
+    /// handler returns and, if it is `Some`, fails the invocation with the
+    /// trusted denial — overriding a handler that caught the thrown error
+    /// (terminalization) and preserving the trusted brand a forged throw lacks.
+    fn take_terminal_denial(&mut self) -> Option<SnapbackError> {
+        self.terminal_denial.take()
     }
 
     fn ensure_writable(&self, op: &str) -> SnapbackResult<()> {
@@ -1097,7 +1358,7 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn ensure_buffered_write_capacity(&self) -> SnapbackResult<()> {
-        if self.writes.len() >= QUERY_MAX_BUFFERED_WRITES {
+        if self.writes.len() + self.membership_commands.len() >= QUERY_MAX_BUFFERED_WRITES {
             return Err(SnapbackError::error(
                 "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
                 "runtime",
@@ -2546,5 +2807,305 @@ mod parse_handler_output_tests {
                 "output: {output}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod membership_bridge_tests {
+    use super::IbexHostContext;
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{
+        AuthInput, FieldManifest, FieldType, HandlerInput, MembershipManifest, MembershipOp,
+        MembershipProvenance, MembershipScope, MembershipTarget, MembershipTransition,
+        SchemaManifest, TableManifest,
+    };
+    use crate::storage::{BufferedCommitPayload, DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::json;
+
+    fn schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "app_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: Some(MembershipManifest {
+                    id: None,
+                    principal: "userId".to_owned(),
+                    resource: None,
+                    role: "role".to_owned(),
+                    roles: vec!["member".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance: Some(MembershipProvenance::Full),
+                    transitions: vec![MembershipTransition {
+                        op: MembershipOp::Insert,
+                        by: vec!["none".to_owned()],
+                        target: MembershipTarget::Own,
+                        from: None,
+                        to: Some(vec!["member".to_owned()]),
+                        fields: None,
+                    }],
+                    scope: MembershipScope::App,
+                    resource_table: None,
+                }),
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn input() -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                principal: Some("alice".to_owned()),
+                user_id: Some("alice".to_owned()),
+                session_id: None,
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn context<'a>(db: &'a LocalDatabase) -> IbexHostContext<'a> {
+        let input = input();
+        let authority = ResolvedAppAuthority::dev_from_auth(&input.auth);
+        IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            true,
+        )
+        .expect("membership bridge context")
+    }
+
+    fn ready_db() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_auth_catalog_v1().expect("auth catalog");
+        db.apply_schema(schema()).expect("membership schema");
+        db
+    }
+
+    #[test]
+    fn generated_membership_command_commits_with_provenance_and_raw_writes_stay_denied() {
+        let mut db = ready_db();
+        let mut ctx = context(&db);
+        ctx.handle_host_call(
+            "membership.write",
+            json!({
+                "declaration": "app_members",
+                "operation": "insert",
+                "values": { "userId": "alice", "role": "member" }
+            }),
+        )
+        .expect("generated helper command");
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        let plans = db
+            .authorize_membership_commands(commands)
+            .expect("authorized plans");
+        db.commit_buffered_writes_idempotent_guarded(
+            &input(),
+            BufferedCommitPayload {
+                writes: Vec::new(),
+                membership_plans: plans,
+                read_dependencies: Vec::new(),
+                result: json!(null),
+                ctx_ledger: crate::manifest::CtxAnswerLedger {
+                    version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                    ids: Vec::new(),
+                    now: 1,
+                    auth_fingerprint: None,
+                },
+            },
+            None,
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("sanctioned bridge commit");
+        let rows = db.scan_table("app_members", 10, 0).expect("membership rows");
+        assert_eq!(rows.total, 1);
+        let id = rows.rows[0]["_id"].as_str().expect("member id");
+        let provenance = db
+            .membership_creation_provenance("app_members", id)
+            .expect("provenance")
+            .expect("full provenance");
+        assert_eq!(provenance.actor, "alice");
+        assert_eq!(provenance.effective, "alice");
+
+        let mut raw_db = ready_db();
+        let error = raw_db
+            .commit_buffered_writes(
+                &input(),
+                vec![crate::storage::BufferedWrite::Insert {
+                    table: "app_members".to_owned(),
+                    id: "forged".to_owned(),
+                    values: serde_json::from_value(json!({
+                        "userId": "alice",
+                        "role": "member"
+                    }))
+                    .expect("raw values"),
+                }],
+                Vec::new(),
+                json!(null),
+            )
+            .expect_err("raw membership write remains refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED");
+    }
+
+    #[test]
+    fn membership_bridge_dry_run_rolls_back_and_refuses_snapshot_composition() {
+        let mut db = ready_db();
+        let mut ctx = context(&db);
+        let args = json!({
+            "declaration": "app_members",
+            "operation": "insert",
+            "values": { "userId": "alice", "role": "member" }
+        });
+        ctx.handle_host_call("membership.write", args.clone())
+            .expect("first command");
+        let error = ctx
+            .handle_host_call("membership.write", args)
+            .expect_err("two snapshot-authorized commands must not compose");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED");
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        let plans = db
+            .authorize_membership_commands(commands)
+            .expect("authorized plans");
+        db.dry_run_buffered_writes(
+            &input(),
+            Vec::new(),
+            plans,
+            Vec::new(),
+            json!(null),
+            crate::manifest::CtxAnswerLedger {
+                version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                ids: Vec::new(),
+                now: 1,
+                auth_fingerprint: None,
+            },
+        )
+        .expect("membership dry run");
+        assert_eq!(
+            db.scan_table("app_members", 10, 0)
+                .expect("post-dry-run scan")
+                .total,
+            0
+        );
+    }
+}
+
+#[cfg(test)]
+mod direct_human_projection_tests {
+    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{HandlerInput, IbexModule};
+    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::{Value, json};
+
+    fn run(authority: ResolvedAppAuthority) -> Value {
+        let mut db = LocalDatabase::memory().unwrap();
+        let projection = HandlerAuthProjection::from_authority(&authority);
+        let mut invocation = IbexHostContext::new_with_projection(
+            DbRead::Live(&mut db),
+            HandlerInput::default(),
+            projection,
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            false,
+        )
+        .unwrap();
+        let module = IbexModule {
+            source: r#"
+              globalThis.__snapbackHandlers = {
+                probe(ctx) {
+                  return [{
+                    direct: ctx.isDirectHuman(),
+                    auth: ctx.auth,
+                    authPrototypeIsNull: Object.getPrototypeOf(ctx.auth) === null,
+                    actorPrototypeIsNull: ctx.auth.actor == null
+                      ? null
+                      : Object.getPrototypeOf(ctx.auth.actor) === null,
+                    authFrozen: Object.isFrozen(ctx.auth),
+                    actorFrozen: ctx.auth.actor == null
+                      ? null
+                      : Object.isFrozen(ctx.auth.actor)
+                  }];
+                }
+              };
+            "#
+            .to_owned(),
+            export: "probe".to_owned(),
+        };
+        run_ibex_handler_with_context(&module, &mut invocation, None).unwrap()
+    }
+
+    fn service(effective_user_id: Option<&str>) -> ResolvedAppAuthority {
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-1".to_owned(),
+            credential_id: "credential-1".to_owned(),
+            credential_generation: 2,
+            grant_id: "grant-1".to_owned(),
+            token_id: "token-1".to_owned(),
+            effective_user_id: effective_user_id.map(str::to_owned),
+            scopes: Vec::new(),
+            token_expires_at_ms: 20_000,
+        }
+    }
+
+    #[test]
+    fn handler_projection_preserves_sealed_kind_actor_and_direct_human_helper() {
+        let session = run(ResolvedAppAuthority::Session {
+            user_id: "user-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "authority-1".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
+        });
+        assert_eq!(session[0]["direct"], true);
+        assert_eq!(session[0]["auth"]["kind"], "human");
+        assert!(session[0]["auth"].get("actor").is_none());
+
+        let delegated = run(service(Some("user-1")));
+        assert_eq!(delegated[0]["direct"], false);
+        assert_eq!(delegated[0]["auth"]["kind"], "human");
+        assert_eq!(
+            delegated[0]["auth"]["actor"],
+            json!({"userId": "agent-1", "kind": "agent", "grantId": "grant-1"})
+        );
+        assert_eq!(delegated[0]["actorPrototypeIsNull"], true);
+        assert_eq!(delegated[0]["actorFrozen"], true);
+
+        let autonomous = run(service(None));
+        assert_eq!(autonomous[0]["direct"], false);
+        assert_eq!(autonomous[0]["auth"]["kind"], "agent");
+        assert!(autonomous[0]["auth"].get("actor").is_none());
+
+        let anonymous = run(ResolvedAppAuthority::Anonymous);
+        assert_eq!(anonymous[0]["direct"], false);
+        assert!(anonymous[0]["auth"].get("kind").is_none());
+        assert_eq!(anonymous[0]["authPrototypeIsNull"], true);
+        assert_eq!(anonymous[0]["authFrozen"], true);
     }
 }

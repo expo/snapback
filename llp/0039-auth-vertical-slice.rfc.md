@@ -5,7 +5,10 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (ENG-24592 focused exact confirmation completed READY
+**Revised:** 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
+non-production step-up slice now reuses the bounded challenge/mailbox protocol
+with a distinct operation-bound digest and transactional consumption; production
+human delivery remains fail-closed on LLP 0045); 2026-07-13 (ENG-24592 focused exact confirmation completed READY
 by both reviewer families on the final ClientQuery/room-seam corpus; the
 author-authorized LLP 0053 transition to Accepted is complete while this umbrella
 RFC remains Draft/FROZEN); 2026-07-13 (ENG-24593 post-review bounded corrections: closed the
@@ -1947,6 +1950,46 @@ The remaining invalidation questions — structural proof for subject-scoped
 suppression, non-user scope algebra, and hosted-coordinator parity — live in
 [LLP 0053](./0053-authorization-invalidation.rfc.md) §Open Questions. Mutable
 protected inputs and the 24-hour lease default/hard maximum are pinned, not open.
+
+## Dated amendment: operation-bound step-up (2026-07-15)
+
+ENG-24913 G2 adds a narrow fresh-authentication projection without widening the
+frozen provider protocol or pretending that production delivery exists:
+
+- `POST /auth/step-up/request` is `SessionAuth`. Its closed request currently
+  names `grantApproval` plus the exact pairing-request id. The server derives
+  the canonical email address from the exact still-live session; callers cannot
+  redirect delivery.
+- The challenge uses the existing bounded `_auth_verification_codes` lifecycle
+  and process-local capture mailbox, with a five-minute lifetime and the same
+  five-attempt ceiling. Its HMAC has a distinct step-up domain and binds the
+  canonical address, user, session id, session generation, authority-instance
+  id, operation, and target. Ordinary login challenges and step-up challenges
+  are therefore non-interchangeable despite sharing bounded storage.
+- The protected operation carries `{challengeId, code}` as a redacted proof
+  candidate. Verification, failed-attempt accounting, single-use
+  `consumed_at_ms` CAS, and authority-creating grant creation share one SQLite
+  transaction. A rollback consumes neither proof nor effect; concurrent use can
+  create at most one grant. There is no boolean "step-up proven" trust seam and
+  no second durable bearer registry. Time is sampled after the asynchronous
+  admission waits, immediately before the durable effect. If SQLite loses the
+  commit acknowledgement, the server reconciles the exact request, candidate
+  grant, and challenge successor state; any mismatch fails unavailable with
+  `SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN` instead of guessing success.
+- `authorityCreating` grant approval requires this proof; ordinary grant
+  approval does not. The closed operation vocabulary can grow when the owner
+  invitation, credential, and deactivation routes land, but those routes are
+  not claimed by this checkpoint.
+- Capture remains available only in `dev`, `test`, and `demo`. On `prod`,
+  challenge creation returns
+  `SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE`; no capture fallback is exposed.
+  LLP 0045's future ephemeral human-delivery adapter is the prerequisite for
+  enabling this path in production, and plaintext codes remain forbidden from
+  the durable notifications outbox.
+
+This amendment implements only the non-production proof and
+`authorityCreating` consent slice. LLP 0055's owner re-credentialing and
+compromise-response cascade remain separate pending work.
 
 ## Status
 

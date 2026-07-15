@@ -2138,3 +2138,39 @@ useful property for Snapback: one client cannot silently reinterpret a missing
 security protocol as an anonymous legacy server. Exact was neutral here; its
 Vite build-time define was a convenient carrier, while the auth decision and
 the Cloudflare capability truth remained Snapback-owned.
+
+## 2026-07-15 — one URL-open intent reaches web and native (ENG-24997)
+
+The directions experience finally uses the same declared effect on every
+host. All Aboard now exposes URL opening as a named Contract capability. On
+macOS and iOS it calls Exact's existing CapSec-admitted
+`desktop.shell.openExternal` bridge; with no Exact host bridge, the same helper
+falls back synchronously to `window.open`, preserving the browser popup path.
+The header press opens the persisted preferred maps app, long-press still
+opens the Apple/Google choice sheet, and those two sheet rows now invoke the
+same capability before closing. The Clipper footer action moved onto the same
+bridge. Copy-address remains browser clipboard glue and stays an explicit
+native gap rather than being bundled into the URL-open claim.
+
+What felt good was that Exact already had the hard platform primitive. The
+implementation was mostly making ownership honest: Contract actions own the
+intent and app state, while a small adapter chooses native host call versus
+browser fallback. The native production-envelope test now proves both macOS
+and iOS bundles carry the host operation, and a focused unit test pins native
+bridge precedence, browser fallback, and empty-input behavior. No new Exact
+kernel or Snapback backend work was needed.
+
+What felt bad was the old split between declared UI and DOM interception. The
+web sheet listener used to augment Apple/Google presses because Contract could
+only close the sheet; once the Contract actions gained the capability, leaving
+that listener in place would have opened every URL twice. Retiring those two
+augmentations while keeping copy-address made the migration less mechanical
+than replacing `window.open`. The related metadata also had to be corrected in
+three places: capability inventory, known gaps, and non-claims.
+
+Compared with React plus Convex or Supabase, the final helper is no more code
+than a typical `Linking.openURL`/`window.open` adapter. Contract adds useful
+friction by requiring the effect to be declared in contract metadata; that
+made the native omission visible and testable instead of letting a web global
+quietly no-op. Snapback is neutral for this change—the demo diary and build
+gates live here, but URL opening remains an Exact host concern.

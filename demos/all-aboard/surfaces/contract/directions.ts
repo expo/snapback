@@ -10,8 +10,8 @@
 //     open the directions sheet, so the tap is intercepted;
 //   - LONG-PRESS delivery belongs to Exact's shared recognizer; this module
 //     deliberately owns no timers or pointer state;
-//   - the sheet's rows keep their contract press (which closes the sheet) and
-//     get their side effect from a NON-blocking capture listener here;
+//   - the sheet's maps rows are Contract capabilities on every host; this
+//     module retains only the browser clipboard augmentation;
 //   - Contract owns the maps-app preference as ordinary app state. Its current
 //     value rides in the affordance's accessible label, so this side-effect
 //     bridge never re-reads storage or invents a second live state channel.
@@ -20,7 +20,7 @@
 // mode and preferred app ride in its accessible label — the .contract owns
 // what to open; this module only owns how.
 
-import { directionsUrl, stationAddress } from './data';
+import { openDirectionsLink, stationAddress } from './data';
 
 type Cleanup = () => void;
 
@@ -49,11 +49,6 @@ function travelModeFrom(el: Element): 'walk' | 'bike' {
   return /biking/i.test(el.getAttribute('aria-label') ?? '') ? 'bike' : 'walk';
 }
 
-function openMaps(url: string): void {
-  if (!url) return;
-  window.open(url, '_blank', 'noopener');
-}
-
 export function installDirections(root: HTMLElement): Cleanup {
   // Tap on the directions line: open the preferred maps app instead of the
   // contract's sheet press (which stays the long-press / native path).
@@ -65,31 +60,29 @@ export function installDirections(root: HTMLElement): Cleanup {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    openMaps(directionsUrl(stationIdFrom(affordance), resolveMapsApp(affordance), travelModeFrom(affordance)));
+    void openDirectionsLink(
+      stationIdFrom(affordance),
+      resolveMapsApp(affordance),
+      travelModeFrom(affordance),
+    );
   };
 
-  // Sheet rows: NON-blocking side effects — the contract press still runs
-  // (and closes the sheet). The Settings preference is wholly Contract-owned.
+  // Copy remains browser glue; maps rows now run through their Contract-owned
+  // URL-open capability and still close the sheet in the same action.
   const onAugmentingClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const sheetAction = target.closest(
-      '[data-testid="directions-apple"], [data-testid="directions-google"], [data-testid="directions-copy"]',
+      '[data-testid="directions-copy"]',
     );
     if (!sheetAction) return;
     const affordance = directionsAffordance(root);
     const stationId = affordance ? stationIdFrom(affordance) : '';
     if (!stationId) return;
-    const mode = affordance ? travelModeFrom(affordance) : 'walk';
-    const action = sheetAction.getAttribute('data-testid');
-    if (action === 'directions-copy') {
-      const address = stationAddress(stationId);
-      void navigator.clipboard?.writeText(address).catch(() => {
-        console.warn('[all-aboard] clipboard write failed');
-      });
-      return;
-    }
-    openMaps(directionsUrl(stationId, action === 'directions-apple' ? 'apple' : 'google', mode));
+    const address = stationAddress(stationId);
+    void navigator.clipboard?.writeText(address).catch(() => {
+      console.warn('[all-aboard] clipboard write failed');
+    });
   };
 
   root.addEventListener('click', onDirectionsClick, true);

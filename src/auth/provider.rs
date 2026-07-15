@@ -28,7 +28,7 @@ use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
     AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, OsRandom, RandomSource,
-    SessionBearer, TokenHash, VerificationCode,
+    SessionBearer, StepUpDigest, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
 use super::lease::{
@@ -49,6 +49,9 @@ use crate::storage::auth::AuthTransactionAttempt;
 pub const AUTH_ADDRESS_STRIPES: usize = 256;
 pub const AUTH_MAX_COLLISION_ATTEMPTS: usize = 3;
 pub const AUTH_CHALLENGE_TTL_MS: u64 = 10 * 60 * 1_000;
+// @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15 — the
+// non-production proof is deliberately shorter than an ordinary login code.
+pub const AUTH_STEP_UP_TTL_MS: u64 = 5 * 60 * 1_000;
 pub const AUTH_MAXIMUM_ATTEMPTS: u32 = 5;
 pub const AUTH_ADDRESS_REQUEST_LIMIT: usize = 5;
 pub const AUTH_ADDRESS_REQUEST_WINDOW_MS: u64 = 10 * 60 * 1_000;
@@ -161,6 +164,273 @@ pub struct ExchangeCoordination {
     challenge_id: ChallengeId,
     address: CanonicalAddress,
     key_id: AuthKeyId,
+}
+
+/// Server-derived identity and one closed operation target. No wire value can
+/// construct this binding without first passing the session authority gate.
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct StepUpBinding {
+    user_id: String,
+    session_id: String,
+    session_generation: u64,
+    authority_instance_id: String,
+    operation: &'static str,
+    target_id: String,
+}
+
+impl StepUpBinding {
+    pub(crate) fn grant_approval(
+        user_id: String,
+        session_id: String,
+        session_generation: u64,
+        authority_instance_id: String,
+        request_id: String,
+    ) -> Self {
+        Self {
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation: "grantApproval",
+            target_id: request_id,
+        }
+    }
+}
+
+impl fmt::Debug for StepUpBinding {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("StepUpBinding")
+            .field("operation", &self.operation)
+            .field("target_id", &self.target_id)
+            .field("principal", &"[REDACTED]")
+            .finish()
+    }
+}
+
+pub(crate) struct StepUpCoordination {
+    challenge_id: ChallengeId,
+    address: CanonicalAddress,
+    key_id: Option<AuthKeyId>,
+}
+
+impl fmt::Debug for StepUpCoordination {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("StepUpCoordination([REDACTED])")
+    }
+}
+
+/// An HMAC-verified candidate retained with the address stripe until the
+/// protected transaction either consumes it or rolls back.
+pub(crate) struct StepUpProofAdmission {
+    _admission: AuthAdmission,
+    _stripe: OwnedMutexGuard<()>,
+    proof: StepUpProof,
+}
+
+impl StepUpProofAdmission {
+    pub(crate) fn proof(&self) -> &StepUpProof {
+        &self.proof
+    }
+}
+
+impl fmt::Debug for StepUpProofAdmission {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("StepUpProofAdmission([REDACTED])")
+    }
+}
+
+pub(crate) struct StepUpProof {
+    challenge_id: ChallengeId,
+    address: CanonicalAddress,
+    key_id: Option<AuthKeyId>,
+    submitted_digest: StepUpDigest,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StepUpConsumption {
+    Verified,
+    Rejected,
+}
+
+impl fmt::Debug for StepUpProof {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("StepUpProof([REDACTED])")
+    }
+}
+
+impl StepUpProof {
+    pub(crate) fn reconcile_consumed_on(
+        &self,
+        connection: &Connection,
+    ) -> SnapbackResult<bool> {
+        let Some(expected_key_id) = self.key_id.as_ref() else {
+            return Ok(false);
+        };
+        connection
+            .query_row(
+                "SELECT canonical_address, key_id,
+                        consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                params![self.challenge_id.as_str()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, bool>(2)?,
+                        row.get::<_, bool>(3)?,
+                    ))
+                },
+            )
+            .optional()
+            .map(|row| {
+                row.is_some_and(|(address, key_id, consumed, superseded)| {
+                    address == self.address.as_str()
+                        && key_id == expected_key_id.as_str()
+                        && consumed
+                        && !superseded
+                })
+            })
+            .map_err(SnapbackError::from)
+    }
+
+    pub(crate) fn reconcile_unconsumed_on(
+        &self,
+        connection: &Connection,
+    ) -> SnapbackResult<bool> {
+        let Some(expected_key_id) = self.key_id.as_ref() else {
+            return Ok(true);
+        };
+        connection
+            .query_row(
+                "SELECT canonical_address, key_id, consumed_at_ms IS NULL
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                params![self.challenge_id.as_str()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, bool>(2)?,
+                    ))
+                },
+            )
+            .optional()
+            .map(|row| {
+                row.is_some_and(|(address, key_id, unconsumed)| {
+                    address == self.address.as_str()
+                        && key_id == expected_key_id.as_str()
+                        && unconsumed
+                })
+            })
+            .map_err(SnapbackError::from)
+    }
+
+    /// Verify and consume the proof inside the protected operation's writer
+    /// transaction. A successful proof can therefore commit at most one
+    /// authority-creating effect; rollback leaves both proof and effect
+    /// untouched.
+    pub(crate) fn consume_on(
+        &self,
+        transaction: &Transaction<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<StepUpConsumption> {
+        let row = transaction
+            .query_row(
+                "SELECT canonical_address, code_digest, key_id, attempts,
+                        max_attempts, expires_at_ms,
+                        consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                params![self.challenge_id.as_str()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        Zeroizing::new(row.get::<_, Vec<u8>>(1)?),
+                        row.get::<_, String>(2)?,
+                        row.get::<_, i64>(3)?,
+                        row.get::<_, i64>(4)?,
+                        row.get::<_, i64>(5)?,
+                        row.get::<_, bool>(6)?,
+                        row.get::<_, bool>(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((
+            address,
+            digest,
+            key_id,
+            attempts,
+            max_attempts,
+            expires_at,
+            consumed,
+            superseded,
+        )) = row
+        else {
+            return Ok(StepUpConsumption::Rejected);
+        };
+        let Some(expected_key_id) = self.key_id.as_ref() else {
+            return Ok(StepUpConsumption::Rejected);
+        };
+        let attempts = u32::try_from(attempts).map_err(|_| internal_state_snapback())?;
+        let max_attempts = u32::try_from(max_attempts).map_err(|_| internal_state_snapback())?;
+        let expires_at_ms = checked_stored_time(expires_at)?;
+        if address != self.address.as_str()
+            || key_id != expected_key_id.as_str()
+            || digest.len() != 32
+            || max_attempts != AUTH_MAXIMUM_ATTEMPTS
+            || attempts > max_attempts
+        {
+            return Err(internal_state_snapback());
+        }
+        if consumed || superseded || now_ms >= expires_at_ms || attempts == max_attempts {
+            return Ok(StepUpConsumption::Rejected);
+        }
+
+        let next_attempts = attempts
+            .checked_add(1)
+            .ok_or_else(internal_state_snapback)?;
+        if !self.submitted_digest.verify(&digest) {
+            let changed = transaction.execute(
+                "UPDATE _auth_verification_codes SET attempts = ?1
+                 WHERE challenge_id = ?2 AND attempts = ?3
+                   AND code_digest = ?4 AND key_id = ?5 AND expires_at_ms = ?6
+                   AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+                params![
+                    next_attempts as i64,
+                    self.challenge_id.as_str(),
+                    attempts as i64,
+                    digest.as_slice(),
+                    expected_key_id.as_str(),
+                    expires_at_ms as i64,
+                ],
+            )?;
+            if changed != 1 {
+                return Ok(StepUpConsumption::Rejected);
+            }
+            return Ok(StepUpConsumption::Rejected);
+        }
+
+        let changed = transaction.execute(
+            "UPDATE _auth_verification_codes
+             SET attempts = ?1, consumed_at_ms = ?2
+             WHERE challenge_id = ?3 AND attempts = ?4
+               AND code_digest = ?5 AND key_id = ?6 AND expires_at_ms = ?7
+               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+            params![
+                next_attempts as i64,
+                now_ms as i64,
+                self.challenge_id.as_str(),
+                attempts as i64,
+                digest.as_slice(),
+                expected_key_id.as_str(),
+                expires_at_ms as i64,
+            ],
+        )?;
+        if changed != 1 {
+            return Ok(StepUpConsumption::Rejected);
+        }
+        Ok(StepUpConsumption::Verified)
+    }
 }
 
 impl fmt::Debug for ExchangeCoordination {
@@ -819,6 +1089,13 @@ impl AuthProvider {
         self.profile
     }
 
+    /// CSPRNG dependency shared with the agent-secret storage transactions.
+    /// The returned boundary can mint only typed, zeroizing secret wrappers;
+    /// callers never receive raw random bytes or provider key material.
+    pub(crate) fn agent_random_source(&self) -> &dyn RandomSource {
+        self.random.as_ref()
+    }
+
     /// Sample the wall clock clamped up to the process-local floor. The
     /// returned epoch is non-decreasing for the life of the process and never
     /// below the durable floor seeded at startup, so no auth lifetime decision
@@ -1031,6 +1308,140 @@ impl fmt::Debug for AuthAdmission {
 }
 
 impl AuthAdmission {
+    /// Resolve the human delivery address from the exact still-live session.
+    /// The caller keeps this maintenance admission while acquiring the
+    /// resulting address stripe, preserving the provider lock order.
+    pub(crate) fn step_up_address(
+        &self,
+        database: &LocalDatabase,
+        binding: &StepUpBinding,
+        now_ms: u64,
+    ) -> ProviderResult<CanonicalAddress> {
+        validate_now(now_ms)?;
+        let address = database
+            .with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT identity.subject
+                         FROM _auth_sessions AS session
+                         JOIN _auth_identities AS identity
+                           ON identity.id = session.identity_id
+                          AND identity.user_id = session.user_id
+                         WHERE session.id = ?1 AND session.user_id = ?2
+                           AND session.generation = ?3
+                           AND session.authority_instance_id = ?4
+                           AND session.revoked_at_ms IS NULL
+                           AND session.expires_at_ms > ?5
+                           AND session.absolute_expires_at_ms > ?5
+                           AND identity.provider = 'email-code'",
+                        params![
+                            binding.session_id,
+                            binding.user_id,
+                            binding.session_generation as i64,
+                            binding.authority_instance_id,
+                            now_ms as i64,
+                        ],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                    .map_err(SnapbackError::from)
+            })
+            .map_err(|_| provider_unavailable())?
+            .ok_or_else(auth_required)?;
+        CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())
+    }
+
+    /// First proof pass selects only the address stripe and digest key. The
+    /// protected writer transaction remains the authorization point.
+    pub(crate) fn step_up_coordination(
+        &self,
+        database: &LocalDatabase,
+        challenge_id: &str,
+    ) -> ProviderResult<StepUpCoordination> {
+        let challenge_id = ChallengeId::parse(challenge_id).map_err(|_| request_invalid())?;
+        let row = database
+            .with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT canonical_address, key_id
+                         FROM _auth_verification_codes WHERE challenge_id = ?1",
+                        params![challenge_id.as_str()],
+                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                    )
+                    .optional()
+                    .map_err(SnapbackError::from)
+            })
+            .map_err(|_| provider_unavailable())?;
+        match row {
+            Some((address, key_id)) => Ok(StepUpCoordination {
+                challenge_id,
+                address: CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())?,
+                key_id: Some(AuthKeyId::parse(&key_id).map_err(|_| provider_unavailable())?),
+            }),
+            None => Ok(StepUpCoordination {
+                challenge_id,
+                address: self.provider.dummy_address.clone(),
+                key_id: None,
+            }),
+        }
+    }
+
+    pub(crate) async fn for_step_up(
+        self,
+        coordination: StepUpCoordination,
+        binding: StepUpBinding,
+        code: &str,
+    ) -> ProviderResult<StepUpProofAdmission> {
+        let code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
+        let submitted_digest = match coordination.key_id.as_ref() {
+            Some(key_id) => self
+                .provider
+                .keyring
+                .with_key(key_id, |key| {
+                    StepUpDigest::compute(
+                        key,
+                        &coordination.challenge_id,
+                        &coordination.address,
+                        &binding.user_id,
+                        &binding.session_id,
+                        binding.session_generation,
+                        &binding.authority_instance_id,
+                        binding.operation,
+                        &binding.target_id,
+                        &code,
+                    )
+                })
+                .map_err(|_| provider_unavailable())?,
+            None => StepUpDigest::compute(
+                &self.provider.dummy_key,
+                &coordination.challenge_id,
+                &coordination.address,
+                &binding.user_id,
+                &binding.session_id,
+                binding.session_generation,
+                &binding.authority_instance_id,
+                binding.operation,
+                &binding.target_id,
+                &code,
+            ),
+        };
+        let stripe = self
+            .provider
+            .stripe(&coordination.address)
+            .lock_owned()
+            .await;
+        Ok(StepUpProofAdmission {
+            _admission: self,
+            _stripe: stripe,
+            proof: StepUpProof {
+                challenge_id: coordination.challenge_id,
+                address: coordination.address,
+                key_id: coordination.key_id,
+                submitted_digest,
+            },
+        })
+    }
+
     /// First exchange pass. A missing row deliberately returns `None`; the
     /// caller must still run `exchange_unknown` so unknown ids take a writer
     /// transaction and one HMAC just like terminal known challenges.
@@ -1754,6 +2165,177 @@ impl AddressAdmission {
 
     fn provider(&self) -> &AuthProvider {
         &self.admission.provider
+    }
+
+    /// Mint one five-minute, operation-bound challenge. The plaintext is
+    /// published only to the existing bounded capture mailbox after the
+    /// durable row commits; production refuses until LLP 0045 supplies a
+    /// human-delivery adapter.
+    pub(crate) fn request_step_up(
+        &self,
+        database: &mut LocalDatabase,
+        binding: &StepUpBinding,
+    ) -> ProviderResult<RequestCodeResponse> {
+        // Sample after every asynchronous admission/stripe wait, immediately
+        // before the durable effect, so the five-minute window cannot be
+        // lengthened by request-queue delay.
+        let now_ms = self.provider().now_ms();
+        validate_now(now_ms)?;
+        if !self.provider().profile.permits_capture() {
+            return Err(step_up_delivery_unavailable());
+        }
+        let expires_at_ms = checked_time_add(now_ms, AUTH_STEP_UP_TTL_MS)?;
+        let expires_at = self
+            .provider()
+            .clock
+            .monotonic_now()
+            .checked_add(Duration::from_millis(AUTH_STEP_UP_TTL_MS))
+            .ok_or_else(provider_unavailable)?;
+
+        for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
+            let challenge_id = ChallengeId::generate(self.provider().random.as_ref())
+                .map_err(|_| provider_unavailable())?;
+            let code = VerificationCode::generate(self.provider().random.as_ref())
+                .map_err(|_| provider_unavailable())?;
+            let (key_id, digest) = self
+                .provider()
+                .keyring
+                .with_active_key(now_ms, self.provider().random.as_ref(), |key_id, key| {
+                    (
+                        key_id.as_str().to_owned(),
+                        StepUpDigest::compute(
+                            key,
+                            &challenge_id,
+                            &self.address,
+                            &binding.user_id,
+                            &binding.session_id,
+                            binding.session_generation,
+                            &binding.authority_instance_id,
+                            binding.operation,
+                            &binding.target_id,
+                            &code,
+                        ),
+                    )
+                })
+                .map_err(|_| provider_unavailable())?;
+            let entry = CaptureMailboxEntry::new(
+                challenge_id.clone(),
+                self.address.clone(),
+                code,
+                expires_at,
+                expires_at_ms,
+            )
+            .map_err(ProviderError::from)?;
+            let reservation = match self.provider().mailbox.reserve(entry) {
+                Ok(reservation) => reservation,
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_THROTTLED" => {
+                    return Err(ProviderError::new(error));
+                }
+                Err(_) => continue,
+            };
+
+            let outcome = database.with_auth_transaction(|transaction| {
+                let live_address = transaction
+                    .query_row(
+                        "SELECT identity.subject
+                         FROM _auth_sessions AS session
+                         JOIN _auth_identities AS identity
+                           ON identity.id = session.identity_id
+                          AND identity.user_id = session.user_id
+                         WHERE session.id = ?1 AND session.user_id = ?2
+                           AND session.generation = ?3
+                           AND session.authority_instance_id = ?4
+                           AND session.revoked_at_ms IS NULL
+                           AND session.expires_at_ms > ?5
+                           AND session.absolute_expires_at_ms > ?5
+                           AND identity.provider = 'email-code'",
+                        params![
+                            binding.session_id,
+                            binding.user_id,
+                            binding.session_generation as i64,
+                            binding.authority_instance_id,
+                            now_ms as i64,
+                        ],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()?;
+                if live_address.as_deref() != Some(self.address.as_str()) {
+                    return Err(auth_required().into_snapback_error());
+                }
+
+                let global_lower = now_ms as i64 - AUTH_GLOBAL_REQUEST_WINDOW_MS as i64;
+                let global_count: i64 = transaction.query_row(
+                    "SELECT COUNT(*) FROM _auth_verification_codes
+                     WHERE requested_at_ms > ?1 AND requested_at_ms <= ?2",
+                    params![global_lower, now_ms as i64],
+                    |row| row.get(0),
+                )?;
+                if global_count >= AUTH_GLOBAL_REQUEST_LIMIT as i64 {
+                    return Err(throttled_snapback());
+                }
+
+                let address_lower = now_ms as i64 - AUTH_ADDRESS_REQUEST_WINDOW_MS as i64;
+                let address_count: i64 = transaction.query_row(
+                    "SELECT COUNT(*) FROM _auth_verification_codes
+                     WHERE canonical_address = ?1
+                       AND requested_at_ms > ?2 AND requested_at_ms <= ?3",
+                    params![self.address.as_str(), address_lower, now_ms as i64],
+                    |row| row.get(0),
+                )?;
+                if address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64 {
+                    return Err(throttled_snapback());
+                }
+
+                transaction.execute(
+                    "UPDATE _auth_verification_codes SET superseded_by = ?1
+                     WHERE canonical_address = ?2
+                       AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+                    params![challenge_id.as_str(), self.address.as_str()],
+                )?;
+                match transaction.execute(
+                    "INSERT INTO _auth_verification_codes(
+                       challenge_id, canonical_address, code_digest, key_id,
+                       attempts, max_attempts, requested_at_ms, expires_at_ms,
+                       consumed_at_ms, superseded_by
+                     ) VALUES(?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, NULL, NULL)",
+                    params![
+                        challenge_id.as_str(),
+                        self.address.as_str(),
+                        digest.as_bytes().as_slice(),
+                        key_id,
+                        AUTH_MAXIMUM_ATTEMPTS as i64,
+                        now_ms as i64,
+                        expires_at_ms as i64,
+                    ],
+                ) {
+                    Ok(_) => Ok(RequestInsertOutcome::Inserted),
+                    Err(error) if is_constraint_error(&error) => Err(internal_collision_snapback()),
+                    Err(error) => Err(error.into()),
+                }
+            });
+
+            match outcome {
+                Ok(RequestInsertOutcome::Inserted) => {
+                    self.provider()
+                        .mailbox
+                        .erase_address_except(&self.address, &challenge_id);
+                    reservation.publish().map_err(|_| provider_unavailable())?;
+                    return Ok(RequestCodeResponse {
+                        challenge_id: challenge_id.as_str().to_owned(),
+                        expires_at: expires_at_ms,
+                    });
+                }
+                Err(error) if error.diagnostic.code == INTERNAL_AUTH_COLLISION => continue,
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_THROTTLED" => {
+                    return Err(ProviderError::new(error));
+                }
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_REQUIRED" => {
+                    return Err(ProviderError::new(error));
+                }
+                Err(_) => return Err(provider_unavailable()),
+            }
+        }
+        Err(provider_unavailable())
     }
 
     /// Create, durably supersede, and publish one capture-provider challenge.
@@ -4171,6 +4753,22 @@ fn provider_unavailable() -> ProviderError {
         "auth",
         "authentication provider is unavailable",
     ))
+}
+
+fn step_up_delivery_unavailable() -> ProviderError {
+    ProviderError::new(SnapbackError::error(
+        "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
+        "auth",
+        "fresh authentication delivery is unavailable for this deployment profile",
+    ))
+}
+
+pub(crate) fn step_up_required_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
+        "auth",
+        "authority-creating consent requires fresh step-up authentication",
+    )
 }
 
 fn authorized_lease_key_unavailable() -> SnapbackError {

@@ -4003,11 +4003,6 @@ impl LocalEphemeralBackend {
                     selector.collections.insert(collection.name.clone());
                     continue;
                 };
-                let projection_fields = projection
-                    .scope_fields
-                    .values()
-                    .chain(std::iter::once(&projection.subject_field))
-                    .collect::<BTreeSet<_>>();
                 if matches!(change.op, ChangeOp::Update) {
                     if change.changed_fields.is_empty() {
                         selector.collections.insert(collection.name.clone());
@@ -4023,10 +4018,14 @@ impl LocalEphemeralBackend {
                         selector.collections.insert(collection.name.clone());
                         continue;
                     }
+                    // @ref LLP 0056#invalidation-the-llp-0053-mapping -- role, expiry, and
+                    //   other membership-policy changes invalidate the room
+                    //   even when the projection keys themselves are stable;
+                    //   only declared incidental fields may be ignored.
                     if change
                         .changed_fields
                         .iter()
-                        .all(|field| !projection_fields.contains(field))
+                        .all(|field| !table.field_affects_authorization(field))
                     {
                         continue;
                     }
@@ -6994,7 +6993,7 @@ pub fn validate_collection_permission_backing(
                 ),
             ));
         };
-        if !table.permission_backing {
+        if !table.is_permission_backing() {
             return Err(EphemeralError::new(
                 EphemeralErrorCode::IncompatibleCollectionDefinition,
                 format!(
@@ -7037,10 +7036,9 @@ pub fn validate_collection_permission_backing(
                 ),
             ));
         }
-        if let Some(permission_fields) = &table.permission_fields
-            && !read_fields
-                .iter()
-                .all(|field| permission_fields.contains(field))
+        if !read_fields
+            .iter()
+            .all(|field| table.field_affects_authorization(field))
         {
             return Err(EphemeralError::new(
                 EphemeralErrorCode::IncompatibleCollectionDefinition,
@@ -8035,6 +8033,137 @@ mod tests {
         assert!(selector.matches(&other_room));
     }
 
+    #[test]
+    fn membership_declaration_is_a_room_permission_backing_table() {
+        use crate::manifest::{
+            FieldManifest, FieldType, MembershipManifest, MembershipScope, SchemaManifest,
+            TableManifest,
+        };
+        use crate::storage::ChangedRow;
+        use serde_json::json;
+
+        let projection = RoomPermissionProjection {
+            table: "memberships".to_owned(),
+            subject_field: "userId".to_owned(),
+            scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+        };
+        let ephemeral_collection = collection().permission_backed_by(projection);
+        let table = TableManifest {
+            name: "memberships".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "userId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "boardId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "role".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "nickname".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "expiresAt".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: true,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: Some(MembershipManifest {
+                id: Some("board-members".to_owned()),
+                principal: "userId".to_owned(),
+                resource: Some("boardId".to_owned()),
+                role: "role".to_owned(),
+                roles: vec!["member".to_owned()],
+                pending_roles: None,
+                bootstrap_role: None,
+                last_holder: None,
+                expiry: None,
+                incidental: Some(vec!["nickname".to_owned()]),
+                provenance: None,
+                transitions: Vec::new(),
+                scope: MembershipScope::Resource,
+                resource_table: Some("boards".to_owned()),
+            }),
+        };
+
+        validate_collection_permission_backing(
+            std::slice::from_ref(&ephemeral_collection),
+            std::slice::from_ref(&table),
+            true,
+        )
+        .expect("membership declaration derives the durable room backing");
+
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(ephemeral_collection).unwrap();
+        let role_downgrade = [ChangedRow {
+            table: "memberships".to_owned(),
+            id: "member-a".to_owned(),
+            op: ChangeOp::Update,
+            row: Some(json!({
+                "boardId": "board-1",
+                "userId": "user-a",
+                "role": "guest"
+            })),
+            changed_fields: vec!["role".to_owned()],
+        }];
+        let schema = SchemaManifest {
+            tables: vec![table],
+            ..SchemaManifest::default()
+        };
+        let selector = backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
+            schema: &schema,
+            changes: &role_downgrade,
+        });
+        let affected = room_id_for(
+            &collection(),
+            &Scope::from_pairs([("boardId", "board-1")]),
+        )
+        .unwrap();
+        let unrelated = room_id_for(
+            &collection(),
+            &Scope::from_pairs([("boardId", "board-2")]),
+        )
+        .unwrap();
+        assert!(selector.matches(&affected), "downgrade suspends its room");
+        assert!(!selector.matches(&unrelated), "scope attribution stays narrow");
+
+        let expiry = [ChangedRow {
+            changed_fields: vec!["expiresAt".to_owned()],
+            ..role_downgrade[0].clone()
+        }];
+        let expiry_selector =
+            backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
+                schema: &schema,
+                changes: &expiry,
+            });
+        assert!(expiry_selector.matches(&affected), "expiry suspends its room");
+        assert!(!expiry_selector.matches(&unrelated));
+
+        let incidental = [ChangedRow {
+            changed_fields: vec!["nickname".to_owned()],
+            ..role_downgrade[0].clone()
+        }];
+        let incidental_selector =
+            backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
+                schema: &schema,
+                changes: &incidental,
+            });
+        assert!(!incidental_selector.matches(&affected));
+    }
+
     fn publish_request(connection_id: &str, value: &[u8]) -> PublishRequest {
         let scope = scope();
         PublishRequest {
@@ -8151,6 +8280,7 @@ mod tests {
                     version: authorization(1),
                     event: true,
                     incarnation_rotated: false,
+                    membership_declarations: Vec::new(),
                 },
                 AuthorizationCommitImpact::AllProtectedRooms,
             )
@@ -8328,6 +8458,7 @@ mod tests {
             version: authorization(1),
             event: true,
             incarnation_rotated: false,
+            membership_declarations: Vec::new(),
         };
         let prepared = AuthorizationCommitInterlock::prepare(
             &backend,

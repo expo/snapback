@@ -9,6 +9,13 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "operations/createTodo.args.schema.json",
+    "operations/deleteTodo.args.schema.json",
+    "operations/editTitle.args.schema.json",
+    "operations/listTodos.args.schema.json",
+    "operations/listTodosOnce.args.schema.json",
+    "operations/setCompleted.args.schema.json",
+    "operations/setPriority.args.schema.json",
     "contract/runtime-links.ts",
     "contract/todoPresence.ephemeral.ts",
     "contract/todoPresence.ephemeral.contract-meta.ts",
@@ -73,8 +80,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f68328561a6800eae16ada47a2ca70ab7fa70b5752fdc3dc5d59b676d386b3f2",
-  "schemaHash": "sha256:2cc8c61386d14f05",
+  "inputsHash": "137c1d7bfecafb2c8717f198fe67e51a82152f94e89b833b38b5b0be21a463f5",
+  "schemaHash": "sha256:c9698afd81a8e71c",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

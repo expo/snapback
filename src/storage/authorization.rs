@@ -8,6 +8,7 @@ use super::{AuthorizationCommitWitness, ChangeOp, ChangedRow};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::SchemaManifest;
 use rusqlite::Transaction;
+use std::collections::BTreeSet;
 
 /// The closed authorization-event universe owned by the storage commit hook.
 pub(super) enum AuthorizationCommitCause<'a> {
@@ -36,6 +37,7 @@ pub(super) fn authorization_commit_hook_in(
                 version,
                 event: true,
                 incarnation_rotated: true,
+                membership_declarations: Vec::new(),
             })
         }
         AuthorizationCommitCause::Activation => {
@@ -44,6 +46,7 @@ pub(super) fn authorization_commit_hook_in(
                 version,
                 event: true,
                 incarnation_rotated: false,
+                membership_declarations: Vec::new(),
             })
         }
         AuthorizationCommitCause::AppWrites { schema, changes } => {
@@ -59,9 +62,31 @@ pub(super) fn authorization_commit_hook_in(
                 version,
                 event,
                 incarnation_rotated: false,
+                membership_declarations: if event {
+                    affected_membership_declarations(schema, changes)
+                } else {
+                    Vec::new()
+                },
             })
         }
     }
+}
+
+fn affected_membership_declarations(
+    schema: &SchemaManifest,
+    changes: &[ChangedRow],
+) -> Vec<String> {
+    changes
+        .iter()
+        .filter(|change| change_is_authorization_event(schema, change))
+        .filter_map(|change| {
+            let table = schema.table(&change.table)?;
+            let membership = table.membership.as_ref()?;
+            Some(membership.effective_id(&table.name).to_owned())
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn change_is_authorization_event(schema: &SchemaManifest, change: &ChangedRow) -> bool {
@@ -71,15 +96,12 @@ fn change_is_authorization_event(schema: &SchemaManifest, change: &ChangedRow) -
         // invalidation rather than silently treating the unknown as ordinary.
         return true;
     };
-    if !table.permission_backing {
+    if !table.is_permission_backing() {
         return false;
     }
     if !matches!(change.op, ChangeOp::Update) {
         return true;
     }
-    let Some(permission_fields) = table.permission_fields.as_ref() else {
-        return true;
-    };
     if change.changed_fields.is_empty() {
         return true;
     }
@@ -94,7 +116,7 @@ fn change_is_authorization_event(schema: &SchemaManifest, change: &ChangedRow) -
         || change
             .changed_fields
             .iter()
-            .any(|changed| permission_fields.contains(changed))
+            .any(|changed| table.field_affects_authorization(changed))
 }
 
 pub(super) fn epoch_exhausted() -> SnapbackError {
@@ -108,7 +130,9 @@ pub(super) fn epoch_exhausted() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{FieldManifest, FieldType, TableManifest};
+    use crate::manifest::{
+        FieldManifest, FieldType, MembershipManifest, MembershipScope, TableManifest,
+    };
 
     fn schema(permission_fields: Option<Vec<&str>>) -> SchemaManifest {
         SchemaManifest {
@@ -144,6 +168,63 @@ mod tests {
             op: ChangeOp::Update,
             row: None,
             changed_fields: fields.iter().map(|field| (*field).to_owned()).collect(),
+        }
+    }
+
+    fn membership_schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "event_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "principalId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "eventId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "nickname".to_owned(),
+                        field_type: FieldType::String,
+                        optional: true,
+                    },
+                    FieldManifest {
+                        name: "expiresAt".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: true,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                // The declaration, not a duplicated raw flag, owns this.
+                permission_backing: false,
+                permission_fields: None,
+                membership: Some(MembershipManifest {
+                    id: Some("event-members".to_owned()),
+                    principal: "principalId".to_owned(),
+                    resource: Some("eventId".to_owned()),
+                    role: "role".to_owned(),
+                    roles: vec!["host".to_owned(), "guest".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: Some(vec!["nickname".to_owned()]),
+                    provenance: None,
+                    transitions: Vec::new(),
+                    scope: MembershipScope::Resource,
+                    resource_table: Some("events".to_owned()),
+                }),
+            }],
+            ..SchemaManifest::default()
         }
     }
 
@@ -199,6 +280,47 @@ mod tests {
         assert!(!change_is_authorization_event(
             &no_permission_fields,
             &update(&["avatar"])
+        ));
+    }
+
+    #[test]
+    fn membership_declaration_derives_event_one_and_incidental_narrowing() {
+        let schema = membership_schema();
+        let change = |op, fields: &[&str]| ChangedRow {
+            table: "event_members".to_owned(),
+            id: "member-1".to_owned(),
+            op,
+            row: None,
+            changed_fields: fields.iter().map(|field| (*field).to_owned()).collect(),
+        };
+
+        assert!(change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Insert, &[])
+        ));
+        assert!(change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Delete, &[])
+        ));
+        assert!(change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Update, &["role"])
+        ));
+        assert!(change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Update, &["expiresAt"])
+        ));
+        assert!(!change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Update, &["nickname"])
+        ));
+        assert!(change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Update, &[])
+        ));
+        assert!(change_is_authorization_event(
+            &schema,
+            &change(ChangeOp::Update, &["futureField"])
         ));
     }
 }

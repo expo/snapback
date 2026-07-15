@@ -1,0 +1,158 @@
+{
+  "appId": "todo-v2",
+  "artifactKind": "remoteDataCapabilityManifest",
+  "capabilityId": "snapback.data.todo-v2",
+  "capabilityManifest": {
+    "path": "demos/todo-v2/snapback/generated-remote-service/capability.manifest.json",
+    "sha256": "sha256:e1d7910b0950a3e0d56326c8963456eab2b3f2c50b35079921493183a1e993de"
+  },
+  "functionManifest": {
+    "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
+    "sha256": "sha256:c82acfdfa9ea6ad5a2c9f2e576d6148a921735995cbbf10262ca5f3c6654a326"
+  },
+  "manifestVersion": 1,
+  "operations": [
+    {
+      "argumentsSchema": {
+        "path": "demos/todo-v2/snapback/generated-remote-service/operations/createTodo.args.schema.json",
+        "sha256": "sha256:a302ee1b717b5f8a792c9845a9f567de7268df8a873c8c3e8e7b6de9aeab7af8"
+      },
+      "authRequirement": "optional-user",
+      "errorSchema": {
+        "path": "schemas/error.response.schema.json",
+        "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+      },
+      "functionId": "todo-v2:createTodo",
+      "kind": "Mutation",
+      "name": "createTodo",
+      "receiptSchema": {
+        "path": "schemas/receipt.schema.json",
+        "sha256": "sha256:b1965bd510cbcddf5d229f66294fcf0884a46fee85eb4f924621f31fbce372cd"
+      },
+      "requestSchema": {
+        "path": "schemas/mutation.input.schema.json",
+        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+      },
+      "responseSchema": {
+        "path": "schemas/mutation.output.schema.json",
+        "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+      }
+    },
+    {
+      "argumentsSchema": {
+        "path": "demos/todo-v2/snapback/generated-remote-service/operations/setCompleted.args.schema.json",
+        "sha256": "sha256:2cccdc54223429f68d56b8e8d5f54f34cd27f7d25ec3a997053b55db7be5a36d"
+      },
+      "authRequirement": "optional-user",
+      "errorSchema": {
+        "path": "schemas/error.response.schema.json",
+        "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+      },
+      "functionId": "todo-v2:setCompleted",
+      "kind": "Mutation",
+      "name": "setCompleted",
+      "receiptSchema": {
+        "path": "schemas/receipt.schema.json",
+        "sha256": "sha256:b1965bd510cbcddf5d229f66294fcf0884a46fee85eb4f924621f31fbce372cd"
+      },
+      "requestSchema": {
+        "path": "schemas/mutation.input.schema.json",
+        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+      },
+      "responseSchema": {
+        "path": "schemas/mutation.output.schema.json",
+        "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+      }
+    },
+    {
+      "argumentsSchema": {
+        "path": "demos/todo-v2/snapback/generated-remote-service/operations/deleteTodo.args.schema.json",
+        "sha256": "sha256:8d27a10492f40535a3af9d8fe0ebeee75bd3fe4d99ab740ee1790442ac75c602"
+      },
+      "authRequirement": "optional-user",
+      "errorSchema": {
+        "path": "schemas/error.response.schema.json",
+        "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+      },
+      "functionId": "todo-v2:deleteTodo",
+      "kind": "Mutation",
+      "name": "deleteTodo",
+      "receiptSchema": {
+        "path": "schemas/receipt.schema.json",
+        "sha256": "sha256:b1965bd510cbcddf5d229f66294fcf0884a46fee85eb4f924621f31fbce372cd"
+      },
+      "requestSchema": {
+        "path": "schemas/mutation.input.schema.json",
+        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+      },
+      "responseSchema": {
+        "path": "schemas/mutation.output.schema.json",
+        "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+      }
+    }
+  ],
+  "schemaManifest": {
+    "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
+    "sha256": "sha256:3b7b6e0cec596c5163ac6439ca56d65a5dcc57ff7e7854b1cded9b528ba65cf4"
+  },
+  "schemaVersion": "snapback.v0",
+  "targetProfileId": "remote-service-sqlite-ibex",
+  "wireSchemas": {
+    "connectionGrant": {
+      "path": "schemas/connection.grant.schema.json",
+      "sha256": "sha256:acdcafcd678255013586a61a1c597c31f467a87a8fea0031b725ee6ea7217110"
+    },
+    "connectionOpenInput": {
+      "path": "schemas/connection.open.input.schema.json",
+      "sha256": "sha256:f7f714d7746e034379d993d480ef3a52f750799fc9ce89dd96d7102597c58e22"
+    },
+    "errorResponse": {
+      "path": "schemas/error.response.schema.json",
+      "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+    },
+    "liveEnvelope": {
+      "path": "schemas/live.envelope.schema.json",
+      "sha256": "sha256:eb86bcff525a6936ae0c0941e5e3ddcf0c2297ca669d267536670293da557b89"
+    },
+    "liveResumeInput": {
+      "path": "schemas/live.resume.input.schema.json",
+      "sha256": "sha256:8c800405592526a7f7068a5a49bb68ce3fee1ce2c1fefd8169d9a9351844078c"
+    },
+    "liveResumeOutput": {
+      "path": "schemas/live.resume.output.schema.json",
+      "sha256": "sha256:eca1023db7df5d65d190db6f1ad8769b5434e9219b4ef8b4ac9906e6b39c7d9b"
+    },
+    "liveSubscribeInput": {
+      "path": "schemas/live.subscribe.input.schema.json",
+      "sha256": "sha256:419bfad36da88e4c0c17970418d9673f9125cec5a064052eafc1928a4981a80e"
+    },
+    "liveSubscribeOutput": {
+      "path": "schemas/live.subscribe.output.schema.json",
+      "sha256": "sha256:566293f7282477f86d9ecb4aae8324570f3a3e3492de52225d2bc409277773b4"
+    },
+    "liveUnsubscribeInput": {
+      "path": "schemas/live.unsubscribe.input.schema.json",
+      "sha256": "sha256:69cb20f76936a189f782936c9b3e51e7c753be9f7d0c9834444f70dd8df70d26"
+    },
+    "liveUnsubscribeOutput": {
+      "path": "schemas/live.unsubscribe.output.schema.json",
+      "sha256": "sha256:222df3851ce38fe19ef34bf707f8b7b26e5c59406e1534670c156e02de986cd4"
+    },
+    "mutationInput": {
+      "path": "schemas/mutation.input.schema.json",
+      "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+    },
+    "mutationOutput": {
+      "path": "schemas/mutation.output.schema.json",
+      "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+    },
+    "queryInput": {
+      "path": "schemas/query.input.schema.json",
+      "sha256": "sha256:8c26ae4ff4de78d3ea78b980d5c863d5ca3f92ecdcc348823deedd7696b9fff4"
+    },
+    "receipt": {
+      "path": "schemas/receipt.schema.json",
+      "sha256": "sha256:b1965bd510cbcddf5d229f66294fcf0884a46fee85eb4f924621f31fbce372cd"
+    }
+  }
+}

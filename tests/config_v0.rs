@@ -15,7 +15,6 @@ use snapback::manifest::{
     ConfigEntryDefinition, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
 };
-use std::time::Instant;
 use tower::ServiceExt;
 
 // --- Manifest fixtures --------------------------------------------------------
@@ -402,24 +401,14 @@ async fn body_json(resp: axum::response::Response) -> Value {
 }
 
 fn context(loopback: bool, token: Option<&str>) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: if loopback { "127.0.0.1" } else { "0.0.0.0" }.to_owned(),
-        port: 4288,
-        loopback,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: token.map(ToOwned::to_owned),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let host = if loopback { "127.0.0.1" } else { "0.0.0.0" };
+    let mut context = ServerContext::new(host, 4288, loopback);
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_token = token.map(ToOwned::to_owned);
+    context
 }
 
-fn app(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
+fn app(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
     snapback::server::app(AppState::from_snapback(snapback, ctx))
 }
 

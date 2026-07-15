@@ -28,7 +28,7 @@ use snapback::manifest::{
 use snapback::server::{ErrorResponse, MutationResponse, PolicyAuthMode};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tower::ServiceExt;
@@ -420,7 +420,7 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
@@ -1617,13 +1617,9 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     assert!(second_id.starts_with("conn_"), "minted id: {second_id}");
 
     // Prod never adopts caller-selected ids.
-    let prod_state = AppState::from_snapback(
-        seeded_snapback(),
-        ServerContext {
-            profile: snapback::admin::ServerProfile::Prod,
-            ..loopback_context(None)
-        },
-    );
+    let mut prod_context = loopback_context(None);
+    prod_context.profile = snapback::admin::ServerProfile::Prod;
+    let prod_state = AppState::from_snapback(seeded_snapback(), prod_context);
     // Production refuses ordinary app data while durable auth is still dev.
     // Install exact future item-5 readiness so this assertion continues to
     // isolate the profile's caller-selected-id behavior.
@@ -1814,7 +1810,10 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
-        axum::serve(listener, snapback::server::app(state))
+        snapback::server::app(state)
+            .bind(listener)
+            .unwrap()
+            .serve()
             .await
             .unwrap();
     });
@@ -2103,7 +2102,7 @@ async fn stream_upgrade_requires_the_connection_token() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     let upgrade_status = |error: tokio_tungstenite::tungstenite::Error| match error {
@@ -2170,11 +2169,11 @@ async fn stream_upgrade_requires_the_connection_token() {
 
 /* ---------- harness ---------- */
 
-fn loopback_app(snapback: LocalSnapback) -> axum::Router {
+fn loopback_app(snapback: LocalSnapback) -> snapback::server::SnapbackApp {
     app_with_context(snapback, loopback_context(None))
 }
 
-fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
+fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
     snapback::server::app(AppState::from_snapback(snapback, ctx))
 }
 
@@ -2223,57 +2222,26 @@ fn sessions_runtime(state: AppState) -> AppState {
 }
 
 fn loopback_context(token: Option<&str>) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: "127.0.0.1".to_owned(),
-        port: 4287,
-        loopback: true,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: token.map(ToOwned::to_owned),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_token = token.map(ToOwned::to_owned);
+    context
 }
 
 fn exposed_context(token: Option<&str>) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: "0.0.0.0".to_owned(),
-        port: 4287,
-        loopback: false,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: token.map(ToOwned::to_owned),
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: None,
-    }
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_token = token.map(ToOwned::to_owned);
+    context
 }
 
 fn dist_context(dist: std::path::PathBuf) -> ServerContext {
-    ServerContext {
-        profile: snapback::admin::ServerProfile::Dev,
-        host: "127.0.0.1".to_owned(),
-        port: 4287,
-        loopback: true,
-        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
-        pid: std::process::id(),
-        started: Instant::now(),
-        started_at_ms: 0,
-        admin_token: None,
-        admin_token_minted: false,
-        admin_token_file: None,
-        console_credentials: Default::default(),
-        admin_dist: Some(dist),
-    }
+    let mut context = ServerContext::new("127.0.0.1", 4287, true);
+    context.profile = snapback::admin::ServerProfile::Dev;
+    context.admin_dist = Some(dist);
+    context
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -2328,7 +2296,7 @@ fn post_with_connection_token(uri: &str, body: Value, token: &str) -> Request<Bo
 
 /// Open a connection grant over HTTP (ENG-23442) and return its token. In the
 /// dev-profile test contexts the suggested id is adopted verbatim.
-async fn open_connection(app: axum::Router, connection_id: &str) -> String {
+async fn open_connection(app: snapback::server::SnapbackApp, connection_id: &str) -> String {
     let resp = app
         .oneshot(post(
             "/connection/open",
@@ -2446,6 +2414,7 @@ fn todo_functions() -> FunctionManifest {
                         direction: OrderDirection::Asc,
                     }],
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             ),
@@ -2487,7 +2456,7 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
@@ -2583,7 +2552,7 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;

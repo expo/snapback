@@ -5,7 +5,11 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-16 dual-family revision: **reconciled the
+**Revised:** 2026-07-15 (G6 prerequisite: landed the mutation-only,
+declaration-bound `ctx.membership.<decl>.{insert,setRole,remove,patch}` bridge;
+its closed host-owned writer carrier remains separate from raw writes through
+direct, nested, replay, and dry-run commit paths). Earlier: 2026-07-14
+(round-16 dual-family revision: **reconciled the
 eligibility divergence this session's LLP 0055 round-6 edit created** — LLP 0055
 now owns the ineligibility predicate (durable recoverability), this document
 consumes it rather than restating "not permanently ended", the shipped
@@ -915,6 +919,72 @@ M1-completion obligations, because it is the one holding the fail-open window
 open. Capability honesty is the corpus posture: a declared guarantee either
 binds or refuses to activate — it is never decorative.
 
+*M3 landed 2026-07-14 via ENG-24909* — the **rule helpers, the membership
+predicate IR, and `ctx.permissions`**: the declaration-bound membership
+predicate node in the structured filter IR (`ValueExpr::MembershipExists` +
+`QueryPlan.membershipFilters` carrying `MembershipPredicate` /
+`MembershipResourceRef`, the first step past single-table filters), its
+correlated-`EXISTS` SQL lowering (non-recursive — the query executor applies no
+row-visibility rules), and — the load-bearing part — its capture as **ordinary**
+snapshot-bound `Query` dependencies over the membership table (never the dead
+`CapturedReadKind::Permission` kind that both the matcher and commit-time
+read-set validation ignore), including the pinned **empty-result** form (a
+membership insert wakes a previously-empty subscription) and the conservative
+table-level dependency for row-field resource refs. `memberOf` excludes
+`pendingRoles`; `hasRole` names roles explicitly. `ctx.permissions.<decl>.
+requireRole(...)` is decomposed into the membership read (`DatabaseCaptured` on
+both outcomes, captured into the read set) plus — on a failed check — the
+**existing** `TerminalAuthorization` deny (the existing
+`SNAPBACK_AUTH_PERMISSION_DENIED`, no new trusted code), with the trusted brand
+recorded out-of-band on the host context so a handler cannot un-deny by catching
+and a forged throw stays untyped. The client denial payload is the invariant
+`{ kind: "role" }` (no existence oracle); there is no application-returning
+`get()`; and `ctx.permissions` is a typed refusal in actions. The authoritative-
+only `MembershipExists` is refused by both the pure `ValueExpr` evaluator and the
+derived optimistic overlay, so a role check stays server-decided.
+
+M3 deliberately does **not** land: the matcher/room invalidation wiring beyond
+the conservative capture (M4/M5); the incremental membership semi-join lane and
+retained/offline role-gated reads (the named LLP 0008 follow-on); and the
+generated per-declaration authoring spelling for the helpers and
+`ctx.permissions.<decl>` (LLP 0004 codegen — the shipped binding is the
+host-backed lowering it targets). The stricter *resource-type* load check
+(row field / argument **of the declared resource type**, rejecting a different
+resource type) is enforced conservatively (declaration existence, field
+existence on the queried table, and vocabulary membership) until codegen fills
+the field-reference types alongside `resourceTable`, matching M1's posture; the
+runtime fail-closes on an unresolved declaration or a bad row field either way.
+*M2 landed 2026-07-14 via ENG-24908* — the **write path**, enforced at the host
+below every writer: the **writer-class seam** (one gate below both buffered Ibex
+writes and HostPlan — a raw `ctx.db` membership write, every generic HostPlan form
+including dry-run and nested action→mutation, and a resource delete that would
+orphan memberships are refused typed; the `system` sweep is the only
+system-authority write; `adminBypass`/anonymous match no class); the **declared
+transition matrix**, closed by default, with the host deriving caller class /
+self-other / from / to from the target row read in the write transaction, and
+`insert`/`patch` **field-bound**; **`lastHolder` counting eligible holders**
+(reusing G1's `deactivated_at` predicate) across all three legs, with the
+holder-set, resource-existence, and roster-emptiness aggregates **captured** so
+concurrent finals yield exactly one commit and one typed commit-time refusal; the
+**creation/teardown witnesses** (bootstrap seats the server-derived effective
+principal on the resource row it actually created; teardown waives `lastHolder`
+and clears the roster with the resource); and the host-bound **`sweepExpired()`**
+(remove-only, rollback-checked clock, `lastHolder` wins over expiry with a typed
+diagnostic). The activation scan's `lastHolder` leg is upgraded from row-counting
+to the **eligible**-holder predicate now that G1 has landed. The 2026-07-15 G6
+prerequisite lands the generated JS authoring methods and
+`ctx.membership.<decl>.*` host-op dispatch, carrying the resolved invocation
+writer separately from raw buffered writes through direct, nested, replay, and
+dry-run paths. M2 deliberately does **not** land: the cron→sweep wiring and
+`--as-membership` (the remaining LLP 0004 codegen/bridge follow-on); the
+rule helpers and `ctx.permissions` read (M3); the matcher/predicate-IR and
+invalidation wiring (M4/M5); and the provenance columns/log (M5). One residual is
+named rather than guessed: a membership removal racing a **concurrent
+deactivation** of the relied-upon survivor is not linearized by the captured
+membership-row dependency (deactivation touches `_auth_users`, not the survivor's
+row); the sequential two-step schedule and concurrent membership-row removals are
+both closed, and G1's deactivation-would-strand refusal closes the reverse side.
+
 **Delivery lanes, honestly.** A helper-gated query rides the **conservative
 re-query/`live_replace` lane** — which exists today and is exactly the lane
 0053's witnessed obligations protect. "Analyzable by construction" buys, in v1:
@@ -1354,6 +1424,16 @@ lost:
    authorized transition from the sweep enforces nothing. Deferred to
    implementation: the carrier's exact representation, witness non-reuse
    mechanics, and the bootstrap exception's exactly-once property.
+
+*Resolved for ordinary user transitions 2026-07-15:* the representation is a
+Rust-only buffered membership command carrying `MembershipWriter`; commit-time
+planning converts it to an authorized plan kept in a lane distinct from raw
+`BufferedWrite`. Bootstrap/sweep/privileged producers retain their existing
+dedicated host entry points, and their broader generated wiring remains scoped
+to the follow-ons above. This first bridge permits one generated membership
+write per mutation: until sequential read-your-membership-writes planning is
+implemented, a second command is refused typed rather than allowing two plans
+authorized against the same pre-state to compose into an undeclared transition.
 5. **Blast-radius instrumentation:** the per-declaration counters, their
    reporting surface, and whether a numeric bar gates blessing memberships for
    the reference apps before narrowing lands.

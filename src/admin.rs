@@ -375,11 +375,21 @@ impl fmt::Debug for ConsoleCredentialResponse {
 
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ListenerTransportPosture {
+    Unknown,
+    Loopback,
+    NonLoopback,
+}
+
 #[derive(Clone)]
 pub struct ServerContext {
     pub host: String,
     pub port: u16,
     pub loopback: bool,
+    // Kept private so an embedder cannot turn an assertion into transport
+    // authority. Only a bound-listener path may resolve this posture.
+    pub(crate) listener_transport: ListenerTransportPosture,
     pub profile: ServerProfile,
     /// Must-understand exposure requested at process composition. The local
     /// target can satisfy only `local`; `hosted` is rejected before bind and
@@ -416,6 +426,7 @@ impl fmt::Debug for ServerContext {
             .field("host", &self.host)
             .field("port", &self.port)
             .field("loopback", &self.loopback)
+            .field("listener_transport", &self.listener_transport)
             .field("profile", &self.profile)
             .field("auth_deployment", &self.auth_deployment)
             .field("pid", &self.pid)
@@ -433,13 +444,32 @@ impl fmt::Debug for ServerContext {
 }
 
 impl ServerContext {
+    /// Build a context from a listener for direct request-service composition.
+    /// Network embedders must still pass their serving listener through
+    /// `server::app(state).bind(listener)`, which overwrites this posture from
+    /// the consumed socket. The detached and caller-described constructors
+    /// intentionally carry unknown posture.
+    pub fn from_bound_listener(listener: &std::net::TcpListener) -> std::io::Result<Self> {
+        let address = listener.local_addr()?;
+        let mut context = Self::new(
+            address.ip().to_string(),
+            address.port(),
+            address.ip().is_loopback(),
+        );
+        context.record_bound_address(address);
+        Ok(context)
+    }
+
     /// Build a context for a bound listener. The admin token is read once from
-    /// `SNAPBACK_ADMIN_TOKEN`; an empty value is treated as unset.
+    /// `SNAPBACK_ADMIN_TOKEN`; an empty value is treated as unset. This legacy
+    /// caller-described form does not establish listener transport authority;
+    /// network session embedders use `server::app(state).bind(listener)`.
     pub fn new(host: impl Into<String>, port: u16, loopback: bool) -> Self {
         Self {
             host: host.into(),
             port,
             loopback,
+            listener_transport: ListenerTransportPosture::Unknown,
             profile: env_profile(loopback),
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
@@ -454,12 +484,14 @@ impl ServerContext {
     }
 
     /// A context for embedded or test use where the bind address is unknown.
-    /// Treated as loopback so local tooling and tests keep their open defaults.
+    /// Legacy dev tooling retains loopback-open defaults, but the independent
+    /// listener posture stays unknown and therefore cannot carry sessions.
     pub fn detached() -> Self {
         Self {
             host: "127.0.0.1".to_owned(),
             port: 0,
             loopback: true,
+            listener_transport: ListenerTransportPosture::Unknown,
             profile: env_profile(true),
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
@@ -470,6 +502,31 @@ impl ServerContext {
             admin_token_file: None,
             console_credentials: ConsoleCredentialRegistry::default(),
             admin_dist: env_admin_dist(),
+        }
+    }
+
+    /// Record the socket address returned by the listener that will serve this
+    /// exact context. This is deliberately crate-private: callers that merely
+    /// construct a Router never receive the authority to assert where it was
+    /// bound.
+    // @ref LLP 0060#d1-plaintext-listener-fence — session transport posture is
+    // listener-owned, never a caller-supplied loopback boolean.
+    pub(crate) fn record_bound_address(&mut self, address: std::net::SocketAddr) {
+        self.host = address.ip().to_string();
+        self.port = address.port();
+        self.loopback = address.ip().is_loopback();
+        self.listener_transport = if self.loopback {
+            ListenerTransportPosture::Loopback
+        } else {
+            ListenerTransportPosture::NonLoopback
+        };
+    }
+
+    pub(crate) fn listener_transport_loopback(&self) -> Option<bool> {
+        match self.listener_transport {
+            ListenerTransportPosture::Unknown => None,
+            ListenerTransportPosture::Loopback => Some(true),
+            ListenerTransportPosture::NonLoopback => Some(false),
         }
     }
 
@@ -2120,6 +2177,7 @@ fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
         Json(crate::server::ErrorResponse {
             diagnostic: error.diagnostic,
             receipt: None,
+            attribution: None,
         }),
     )
         .into_response()
@@ -2528,6 +2586,7 @@ mod tests {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             )],

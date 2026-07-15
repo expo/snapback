@@ -41,6 +41,45 @@ if (!['local-dev-sqlite-ibex', 'cloudflare-do-sqlite-v8'].includes(snapbackTarge
   );
 }
 
+// Exact's static-native module collector runs inside Vite's transform pipeline,
+// but captures module source before Vite's built-in `define` replacement. Fold
+// these deployment constants in a pre-transform so the web bundle and the
+// emitted native module table receive the same target profile and API origin.
+const buildConstantSources = new Map([
+  [
+    resolve(__dirname, 'snapback-target.ts'),
+    new Map([['__SNAPBACK_TARGET_PROFILE__', snapbackTargetProfile]]),
+  ],
+  [
+    resolve(__dirname, 'main.ts'),
+    new Map([['__SNAPBACK_API_ORIGIN__', snapbackApiOrigin]]),
+  ],
+  [
+    resolve(__dirname, 'native.ts'),
+    new Map([['__SNAPBACK_API_ORIGIN__', snapbackApiOrigin]]),
+  ],
+]);
+
+const foldSnapbackBuildConstants = {
+  name: 'snapback-fold-build-constants',
+  enforce: 'pre' as const,
+  transform(source: string, id: string) {
+    const constants = buildConstantSources.get(id.split('?', 1)[0]);
+    if (!constants) return null;
+
+    let transformed = source;
+    for (const [identifier, value] of constants) {
+      transformed = transformed
+        .replace(
+          new RegExp(`^\\s*declare const ${identifier}: string \\| undefined;\\s*$`, 'm'),
+          '',
+        )
+        .replace(new RegExp(`\\b${identifier}\\b`, 'g'), JSON.stringify(value));
+    }
+    return { code: transformed, map: null };
+  },
+};
+
 // ENG-22753: dev-only source-provenance probe. The acceptance suites reuse an
 // already-running Vite only after this probe proves it serves THIS checkout's
 // tree against THIS run's API origin (the Diary 0008 2026-07-01 :4420 gotcha:
@@ -138,6 +177,7 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
   return ({
   root: __dirname,
   plugins: [
+    foldSnapbackBuildConstants,
     sourceProvenanceProbe,
     exactContractWeb({
       data: 'snapback',

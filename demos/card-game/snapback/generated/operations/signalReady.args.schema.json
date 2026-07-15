@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/card-game/signalReady.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "gameId": {
+      "type": "string"
+    },
+    "ready": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "gameId",
+    "ready"
+  ],
+  "title": "card-game:signalReady arguments",
+  "type": "object"
+}
