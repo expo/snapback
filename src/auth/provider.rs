@@ -819,6 +819,13 @@ impl AuthProvider {
         self.profile
     }
 
+    /// CSPRNG dependency shared with the agent-secret storage transactions.
+    /// The returned boundary can mint only typed, zeroizing secret wrappers;
+    /// callers never receive raw random bytes or provider key material.
+    pub(crate) fn agent_random_source(&self) -> &dyn RandomSource {
+        self.random.as_ref()
+    }
+
     /// Sample the wall clock clamped up to the process-local floor. The
     /// returned epoch is non-decreasing for the life of the process and never
     /// below the durable floor seeded at startup, so no auth lifetime decision

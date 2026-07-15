@@ -8,7 +8,9 @@ use crate::auth::coordinator::{
     CommittedRevocationTarget, ConnectionBearerResolution, ConnectionSessionThrottleKey,
     IssuanceFinish, RevocationFinish, RotationFinish,
 };
-use crate::auth::crypto::SessionBearer;
+use crate::auth::crypto::{
+    AgentCredential, CredentialClass, SessionBearer, dispatch_credential_class,
+};
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
@@ -72,6 +74,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use http_body::Body as HttpBody;
 use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct as _;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
@@ -3016,6 +3019,8 @@ pub enum CredentialResolution {
     /// A closed email-code challenge body proves authority only to exchange
     /// that challenge for a fresh credential; it is never a caller identity.
     ChallengeProof,
+    AgentCredentialBody,
+    AgentFamilySecretBody,
     /// A bearer accepted only by the opaque revoke-only family alarm.
     FamilyAlarmBearer,
     LegacyBodyAuth,
@@ -3359,6 +3364,8 @@ impl RouteSpec {
                 self.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::AgentCredentialBody
+                    | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OperationSpecific
             ),
@@ -3420,6 +3427,24 @@ impl RouteSpec {
         {
             return fail(
                 "challenge proof must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::AgentCredentialBody
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "agent credential body must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::AgentFamilySecretBody
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::PublicNoStore)
+        {
+            return fail(
+                "agent family secret body must be public, install no caller, and return an opaque no-store response",
             );
         }
         if self.credential_resolution == CredentialResolution::FamilyAlarmBearer
@@ -3513,6 +3538,8 @@ impl RouteSpec {
                 sessions.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::AgentCredentialBody
+                    | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OptionalSessionBearer
                     | CredentialResolution::OperationSpecific
@@ -3781,6 +3808,45 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::PublicNoStore,
             ),
             post(auth_family_alarm).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/rotate",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_rotate).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/token",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_token).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/revoke-self",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentFamilySecretBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            post(auth_agent_revoke_self).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(app_auth_route("POST", "/query/{name}"), post(invoke_query)),
         RegisteredRoute::new(
@@ -6134,6 +6200,187 @@ fn installed_auth_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiE
         .auth_provider
         .clone()
         .ok_or_else(auth_provider_unavailable)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentCredentialRequest {
+    credential: SecretInput,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentTokenRequest {
+    credential: SecretInput,
+    grant_id: String,
+    ttl_ms: Option<u64>,
+}
+
+struct AgentCredentialSecretResponse {
+    credential_id: String,
+    user_id: String,
+    generation: u64,
+    credential: AgentCredential,
+}
+
+impl Serialize for AgentCredentialSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AgentCredentialResponse", 4)?;
+        state.serialize_field("credentialId", &self.credential_id)?;
+        state.serialize_field("userId", &self.user_id)?;
+        state.serialize_field("generation", &self.generation)?;
+        state.serialize_field("credential", self.credential.expose_secret())?;
+        state.end()
+    }
+}
+
+struct AgentTokenSecretResponse {
+    token_id: String,
+    grant_id: String,
+    credential_id: String,
+    credential_generation: u64,
+    expires_at_ms: u64,
+    token: crate::auth::crypto::ScopedToken,
+}
+
+impl Serialize for AgentTokenSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AgentTokenResponse", 6)?;
+        state.serialize_field("tokenId", &self.token_id)?;
+        state.serialize_field("grantId", &self.grant_id)?;
+        state.serialize_field("credentialId", &self.credential_id)?;
+        state.serialize_field("credentialGeneration", &self.credential_generation)?;
+        state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("token", self.token.expose_secret())?;
+        state.end()
+    }
+}
+
+fn parse_agent_credential(input: &SecretInput) -> Result<AgentCredential, ApiError> {
+    dispatch_credential_class(input.as_str(), CredentialClass::AgentCredential)
+        .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+    AgentCredential::parse(input.as_str()).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID",
+            "auth",
+            "agent credential is invalid",
+        ))
+    })
+}
+
+fn reject_agent_route_authorization_header(headers: &HeaderMap) -> Result<(), ApiError> {
+    if !headers.contains_key(header::AUTHORIZATION) {
+        return Ok(());
+    }
+    Err(auth_request_invalid())
+}
+
+fn require_agent_routes_available(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiError> {
+    if runtime.auth_mode_state().active != AuthMode::Sessions {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "agent credential routes require active sessions mode",
+        )
+        .into());
+    }
+    installed_auth_provider(runtime)
+}
+
+/// Rotate a long-lived agent credential. The request is body-credential-only:
+/// session/admin/AppData bearer classes are structurally refused before the
+/// resolver, and the response carries one typed zeroizing secret wrapper.
+///
+/// @ref LLP 0055#credentials-and-tokens — rotation is revocation-strength and
+///   invalidates the predecessor generation immediately.
+async fn auth_agent_rotate(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AgentCredentialSecretResponse>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let now_ms = provider.now_ms();
+    let issued = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().rotate_agent_credential(
+            &credential,
+            now_ms,
+            provider.agent_random_source(),
+        )
+    })
+    .await?;
+    // `invalidated_token_ids` is the exact connection-projection input. The
+    // service-principal connection registry lands with G7; no session-shaped
+    // connection may be guessed here.
+    let _invalidated = issued.invalidated_token_ids;
+    Ok(Json(AgentCredentialSecretResponse {
+        credential_id: issued.credential_id,
+        user_id: issued.user_id,
+        generation: issued.generation,
+        credential: issued.secret,
+    }))
+}
+
+/// Mint a short-lived token bound to one live grant and exact credential
+/// generation. Cap evictions are returned by storage as projection witnesses.
+async fn auth_agent_token(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AgentTokenSecretResponse>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentTokenRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let now_ms = provider.now_ms();
+    let issued = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().mint_scoped_token(
+            &credential,
+            &request.grant_id,
+            request.ttl_ms,
+            now_ms,
+            provider.agent_random_source(),
+        )
+    })
+    .await?;
+    let _evicted = issued.evicted_token_ids;
+    Ok(Json(AgentTokenSecretResponse {
+        token_id: issued.token_id,
+        grant_id: issued.grant_id,
+        credential_id: issued.credential_id,
+        credential_generation: issued.credential_generation,
+        expires_at_ms: issued.expires_at_ms,
+        token: issued.secret,
+    }))
+}
+
+/// Destroy the complete attributable credential family. The response is
+/// intentionally empty and identical across already-terminal family state.
+async fn auth_agent_revoke_self(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let _provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let now_ms = _provider.now_ms();
+    let _revoked = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .revoke_agent_credential_family(&credential, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 /// Public bootstrap discovery. It accepts no body or query and echoes only
