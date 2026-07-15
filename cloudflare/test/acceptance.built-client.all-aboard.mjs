@@ -16,9 +16,11 @@
 // SNAPBACK_ALL_ABOARD_TARGET_PROFILE contract vite.config.ts consumes), boots
 // the compiled client against an intercepted stub gateway, drives a query, and
 // asserts runtime behavior. It builds BOTH the cloudflare and the local
-// profiles so the assertions are execution evidence — the local build visibly
-// probes /auth/session and offers authClient=1, which literal retention could
-// never distinguish from the pre-auth build.
+// profiles so the assertions are execution evidence. The Cloudflare branch
+// returns explicit nulls for all four axes, while the local branch leaves them
+// unconfigured: protocol 1 may be enabled only by supplying a real
+// AuthCoordinator. That runtime shape distinguishes the folded branches
+// without reintroducing an independent bearer/protocol owner.
 //
 // @ref LLP 0040#capability-report — external auth is an explicit Cloudflare gap.
 // @ref LLP 0058#kit-ordering — auth probing is selected by target, never by a
@@ -156,7 +158,7 @@ function installStubGateway() {
     if (pathname.endsWith('/query/stationsQuery')) {
       return json({ ok: true, rows: [{ stationId: 'san-francisco' }], version: 1 });
     }
-    // Present only so an auth-capable (regressed) client's handshake does not
+    // Present only so an accidentally auth-capable client's handshake does not
     // crash before we can observe that it probed the endpoint at all.
     if (pathname.endsWith('/auth/session')) {
       return json({ protocol: 1, availability: { onlineRequestResponse: 'available' } });
@@ -240,18 +242,19 @@ async function main() {
           ),
       );
 
-      // --- discriminator: the auth-capable local artifact -----------------
-      // Proves the assertions above are EXECUTION evidence. The identical guard
-      // literal is compiled into both builds; only running them tells the
-      // pre-auth branch apart from the auth-capable branch.
+      // --- discriminator: the coordinator-neutral local artifact ----------
+      // Proves the assertions above are EXECUTION evidence. Protocol 1 no
+      // longer has an implicit local default: a real surface must provide its
+      // AuthCoordinator. The local branch is therefore distinguishable by
+      // absent option members rather than a forbidden coordinator-free offer.
       const local = await driveClient(localBuild, surface);
       check(
-        `${surface}: built local client offers a non-null authClient axis`,
-        local.authProtocols?.authClient === 1,
+        `${surface}: built local target leaves auth axes unconfigured for explicit coordinator custody`,
+        AUTH_PROTOCOL_AXES.every((axis) => local.options[`${axis}Protocol`] === undefined),
       );
       check(
-        `${surface}: built local client DOES probe /auth/session (branch discriminated by execution)`,
-        probedAuthSession(local.requestedPaths),
+        `${surface}: coordinator-free local client does not forge a protocol-1 handshake`,
+        local.authProtocols?.authClient === null && !probedAuthSession(local.requestedPaths),
       );
     }
 
