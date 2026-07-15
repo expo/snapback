@@ -484,13 +484,32 @@
     // members.
     var parsedAuth = trustedJsonParse(authJson || "{}");
     var auth = trustedReflectApply(trustedCreate, Object, [null]);
-    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles"];
+    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles", "kind", "actor"];
     for (var authIndex = 0; authIndex < authKeys.length; authIndex++) {
       var authKey = authKeys[authIndex];
       if (!trustedReflectApply(trustedHasOwnProperty, parsedAuth, [authKey])) continue;
       var authValue = parsedAuth[authKey];
       if (authKey === "roles") {
         authValue = trustedFreeze(trustedReflectApply(trustedArraySlice, authValue || [], []));
+      } else if (authKey === "actor") {
+        // Delegation attribution is another sealed projection, not a plain
+        // parsed object whose prototype or surplus keys application code can
+        // observe. Copy only the enumerated server-owned keys, then freeze it
+        // before installing it on ctx.auth.
+        var parsedActor = authValue || {};
+        var actor = trustedReflectApply(trustedCreate, Object, [null]);
+        var actorKeys = ["userId", "kind", "grantId"];
+        for (var actorIndex = 0; actorIndex < actorKeys.length; actorIndex++) {
+          var actorKey = actorKeys[actorIndex];
+          if (!trustedReflectApply(trustedHasOwnProperty, parsedActor, [actorKey])) continue;
+          trustedDefineProperty(actor, actorKey, {
+            value: parsedActor[actorKey],
+            enumerable: true,
+            writable: false,
+            configurable: false
+          });
+        }
+        authValue = trustedFreeze(actor);
       }
       trustedDefineProperty(auth, authKey, {
         value: authValue,
@@ -519,6 +538,12 @@
     }
     var ctx = {
       auth: auth,
+      // @ref LLP 0055#principal-kinds —
+      // both conjuncts are load-bearing: kind alone admits delegation, while
+      // actor absence alone admits autonomous agents.
+      isDirectHuman: function() {
+        return auth.kind === "human" && auth.actor == null;
+      },
       db: db,
       runtime: {
         now: function() { return host("runtime.now", {}); },

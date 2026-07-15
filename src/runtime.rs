@@ -3012,3 +3012,100 @@ mod membership_bridge_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod direct_human_projection_tests {
+    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{HandlerInput, IbexModule};
+    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::{Value, json};
+
+    fn run(authority: ResolvedAppAuthority) -> Value {
+        let mut db = LocalDatabase::memory().unwrap();
+        let projection = HandlerAuthProjection::from_authority(&authority);
+        let mut invocation = IbexHostContext::new_with_projection(
+            DbRead::Live(&mut db),
+            HandlerInput::default(),
+            projection,
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            false,
+        )
+        .unwrap();
+        let module = IbexModule {
+            source: r#"
+              globalThis.__snapbackHandlers = {
+                probe(ctx) {
+                  return [{
+                    direct: ctx.isDirectHuman(),
+                    auth: ctx.auth,
+                    authPrototypeIsNull: Object.getPrototypeOf(ctx.auth) === null,
+                    actorPrototypeIsNull: ctx.auth.actor == null
+                      ? null
+                      : Object.getPrototypeOf(ctx.auth.actor) === null,
+                    authFrozen: Object.isFrozen(ctx.auth),
+                    actorFrozen: ctx.auth.actor == null
+                      ? null
+                      : Object.isFrozen(ctx.auth.actor)
+                  }];
+                }
+              };
+            "#
+            .to_owned(),
+            export: "probe".to_owned(),
+        };
+        run_ibex_handler_with_context(&module, &mut invocation, None).unwrap()
+    }
+
+    fn service(effective_user_id: Option<&str>) -> ResolvedAppAuthority {
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-1".to_owned(),
+            credential_id: "credential-1".to_owned(),
+            credential_generation: 2,
+            grant_id: "grant-1".to_owned(),
+            token_id: "token-1".to_owned(),
+            effective_user_id: effective_user_id.map(str::to_owned),
+            scopes: Vec::new(),
+            token_expires_at_ms: 20_000,
+        }
+    }
+
+    #[test]
+    fn handler_projection_preserves_sealed_kind_actor_and_direct_human_helper() {
+        let session = run(ResolvedAppAuthority::Session {
+            user_id: "user-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "authority-1".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
+        });
+        assert_eq!(session[0]["direct"], true);
+        assert_eq!(session[0]["auth"]["kind"], "human");
+        assert!(session[0]["auth"].get("actor").is_none());
+
+        let delegated = run(service(Some("user-1")));
+        assert_eq!(delegated[0]["direct"], false);
+        assert_eq!(delegated[0]["auth"]["kind"], "human");
+        assert_eq!(
+            delegated[0]["auth"]["actor"],
+            json!({"userId": "agent-1", "kind": "agent", "grantId": "grant-1"})
+        );
+        assert_eq!(delegated[0]["actorPrototypeIsNull"], true);
+        assert_eq!(delegated[0]["actorFrozen"], true);
+
+        let autonomous = run(service(None));
+        assert_eq!(autonomous[0]["direct"], false);
+        assert_eq!(autonomous[0]["auth"]["kind"], "agent");
+        assert!(autonomous[0]["auth"].get("actor").is_none());
+
+        let anonymous = run(ResolvedAppAuthority::Anonymous);
+        assert_eq!(anonymous[0]["direct"], false);
+        assert!(anonymous[0]["auth"].get("kind").is_none());
+        assert_eq!(anonymous[0]["authPrototypeIsNull"], true);
+        assert_eq!(anonymous[0]["authFrozen"], true);
+    }
+}
