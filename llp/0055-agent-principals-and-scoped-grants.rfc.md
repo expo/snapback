@@ -5,7 +5,40 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (round-5 dual-family review revision: **recovery no
+**Revised:** 2026-07-14 (round-7 dual-family revision, /llp-super-refine:
+**integrated the round-6 dispositions into the normative body**, which both
+families found were recorded in the triage but not the body — rewrote the two
+owner-re-credentialing "grants nothing new" passages to carry the
+**ownership-assumption** concession (an owner who never held the current
+credential can assume the agent's third-party-granted memberships), added the
+owner-assumption disclosure to the consent display, put the **synthetic-principal**
+`--as-agent` rule in the dev-impersonation body, added the **LLP 0056 M5** and
+**LLP 0060** landing prerequisites, and added recovery-generation persistent
+state and emergency-transfer/quarantine to §Protocol obligations; also reconciled
+the eligibility predicate as **durable recoverability** jointly owned with LLP
+0056. Round-6 changes below.) 2026-07-14 (round-6 dual-family revision, /llp-super-refine:
+**non-widening narrowed to reached host operations** with the auth-dependent
+control-flow limit (a skipped `ctx.permissions.deny()`, an actor-dependent
+result or egress) named honestly rather than claimed away; **owner
+re-credentialing disclosed as ownership-assumption authority** (an owner who
+never held the current credential can, by reissuing, assume third-party-granted
+roles the agent holds — disclosed at grant/consent surfaces and recorded in
+audit), not framed as an authority-neutral key rotation; **`auth.kind`
+reconciled with dev impersonation** (a simulated agent kind uses a distinct
+synthetic principal id, so kind stays a pure function of durable identity for
+LLP 0043/0053 retainability); **`AgentDestroyCapability` given a
+domain-separated production carrier** distinct from LLP 0057's dev-only `sbic_`
+impersonation bearer (which is never published on `prod`); **eligibility
+strengthened to durable recoverability** so a sole unowned-production
+credential-lost holder does not count as eligible (aligns with LLP 0056's
+commit-stage invariant); **`authorityCreating` gated on LLP 0056 M5** in the
+landing decomposition; **trusted-local admission bound to LLP 0060's
+target-authored deployment capability** (a reverse-proxied local process is not
+trusted-local); **request-secret classification** added for routes that receive
+credentials; the credential namespace corrected to include LLP 0057's shipped
+`sbc_`/`sbak_`/`sbic_`; and the revision-header/round-count provenance
+reconciled. Full triage in §Review triage. Prior rounds preserved below.)
+2026-07-13 (round-5 dual-family review revision: **recovery no
 longer fights LLP 0039** — minting a credential for an *existing* principal is
 by definition an impersonation effect, and 0039 pins "every impersonation
 effect is refused on `prod`", so recovery is now dev/test/demo-only like every
@@ -30,8 +63,10 @@ ceiling, and redaction sentinels; the carrier/connection axis separated from
 the durable authority axis so two live tokens on one grant cannot cross-fence;
 **all agent-management routes refused on hosted targets** in v1; the
 credential-family tombstone horizon actually bounded (age **and** size); the
-browser-reachable permanent-destruction residual named (and argued strictly
-weaker than the `app.reset` the same credential already commands); and the
+browser-reachable permanent-destruction residual named (superseded in round 6
+by `AgentDestroyCapability` on `prod`, which the settled body requires — the
+earlier "strictly weaker than `app.reset`" framing was withdrawn as false,
+since `app.reset` is itself `NonProd`); and the
 "rotation cannot lock the owner out" claim narrowed to what it really
 guarantees. Earlier rounds: round 4 — recovery re-gated behind the non-browser
 carrier after both families found the `AdminWrite`-only design let a
@@ -184,10 +219,16 @@ ordinary session, what the operator plane is forbidden to do on `prod`:
 re-issue its credential (§Re-credentialing). This is not a loophole in the
 production invariant — it is the same principle the invariant already rests on.
 Creating an agent on `prod` is *app policy authorized by a user*, never an
-operator act; **re-credentialing one the user owns is the same kind of act**, no
-more privileged than rotating an API key they hold. An owner already controls
-their agent's credential in the ordinary course; letting them re-issue it grants
-them no authority they did not have. Agents
+operator act; **re-credentialing one the user owns is the same kind of act** —
+app policy, not an operator impersonation effect, which is what lets it happen on
+`prod` at all. It is **not**, however, authority-neutral, and this document does
+not claim it is: if the agent rotated its own credential without the owner and
+then accrued third-party grants or memberships, an owner reissuing the credential
+**assumes** that third-party-granted authority (see §Re-credentialing). Owner
+re-credentialing is therefore an **ownership-assumption** capability, disclosed
+wherever an agent receives a grant or membership and recorded in audit — the
+right trade for production continuity, but disclosed as the assumption it is,
+not waved away as "nothing new." Agents
 are **users** — same Snapback-issued principal id, same joinability. The
 alternative (a separate principals table) would fork every surface keyed by
 `userId`: profile rows, memberships, RLS auth variables, audit facts.
@@ -227,6 +268,27 @@ has no exit from. (The residual — a *live* principal that is merely idle or
 unreachable — is 0056's principal-side roster-hygiene question, and no row-level
 invariant can detect it.)
 
+**"Not deactivated" is necessary but not sufficient for the stranding
+guarantee, and the gap is an unowned agent that has lost its only credential.**
+A `prod` agent with no owner and no recovery key that loses its credential is
+**permanently unable to act** (§Recovery residual) yet is not `deactivated_at`,
+so a sole such holder of a protected role strands the resource exactly as a
+deactivated one would — reachable through `revoke-self`, operator credential
+revocation, declared restore, or importing a dormant unowned agent. Eligibility
+is therefore defined as **durable recoverability**, not merely
+"not deactivated": a holder is ineligible if it is deactivated **or** provably
+unable to ever re-authenticate (unowned, no live credential family, no recovery
+key). The row-level invariant can decide this for the credential/recovery facts
+it owns (credential-family emptiness, recovery-key presence, ownership); the
+*idle-but-recoverable* residual remains 0056's roster-hygiene question. And
+because a credential can be lost *after* seating, the system also provides an
+**emergency transfer/quarantine** path that does not require preserving a
+compromised or lost credential: an operator (on `prod`, under
+`AgentDestroyCapability`) may reseat a protected role away from an
+unrecoverable holder, which is a destroy-class authority transition, never an
+assume. Acceptance covers the sole-unowned-production-holder case across
+revoke-self, operator revocation, restore, and import.
+
 App-visible consequences:
 
 - app profile/membership tables key agents by `userId` exactly as humans;
@@ -238,8 +300,12 @@ App-visible consequences:
   `auth.isDelegated = false`. "Only the person themself" is therefore
   `auth.kind == "human" && auth.isDelegated == false` — neither conjunct
   alone suffices. Under `devImpersonation` the variables default to
-  `kind = "human"`, `actorKind = "human"`, `isDelegated = false` (an
-  impersonated agent kind is the 0024-amendment option `--as-agent`); for
+  `kind = "human"`, `actorKind = "human"`, `isDelegated = false`. Simulating an
+  agent kind uses the 0024-amendment option `--as-agent`, and it selects a
+  **distinct synthetic principal id**, never a second kind for one `userId` —
+  so `auth.kind` stays a pure function of durable identity (the retainability
+  premise LLP 0043/0053 depend on holds), and a dev session cannot make one
+  `userId` present as both human and agent. For
   **anonymous** callers the sealed projection carries no `kind` key at all,
   so a rule referencing it resolves null and fails closed under LLP 0011's
   missing-auth-variable rule. LLP 0056 inherits these semantics.
@@ -345,7 +411,31 @@ therefore compute whatever it likes; it still cannot read a row, commit a write,
 fire an effect that the effective user could not, because those are the host's calls
 and the host makes them twice — whatever the handler computes
 (rows, a `count`, a projection, a join, an opaque value) is derived only from data
-the effective user could have read directly. Non-widening therefore holds for
+the effective user could have read directly.
+
+**The guarantee is _authority_ non-widening over reached host decisions, not
+observational equivalence to the direct execution — and the difference is
+deliberate, stated because it is the natural place to misread the theorem.**
+A handler that gates its *own* refusal on actor-ness —
+`if (ctx.auth.actor == null) ctx.permissions.deny(); await ctx.db.insert("t", v)` —
+skips that `deny()` on the delegated path, so the insert proceeds where the
+direct execution's handler would have stopped it. That is **not** a widening:
+the insert is doubly authorized, and it commits only because writing `t` is
+within the effective user's *authority* — the skipped `deny()` was a
+**handler-imposed** policy, not an authority boundary, and a handler that wants
+to refuse delegated actors must do so with a host trusted check the host will
+evaluate, not a branch the host cannot see. Symmetrically, an actor-dependent
+result or egress returns or emits only data the effective user could read, so it
+too stays within authority. What this document does **not** promise is that a
+delegated invocation is byte-for-byte the direct invocation; a handler can
+behave differently by actor (including declining to act), and only its
+host-mediated reads, writes, and effects are held to the effective user's
+authority. An app that needs a delegated agent held to a stricter *behavioral*
+contract than the user's own authority expresses it as a grant scope or a
+declarative rule, not as in-handler control flow. Acceptance covers the
+skipped-`deny()`, actor-dependent-result, and actor-dependent-egress cases with
+exactly this verdict: authority non-widening holds; observational equivalence is
+not claimed. Non-widening therefore holds for
 **every** function kind and **every** result shape without enumerating them, and
 `query`, `liveQuery`, `mutation`, and `action` need no special cases: reads are
 intersected, writes and egress are doubly authorized, live registrations re-apply
@@ -504,10 +594,22 @@ created before it; **re-apply the app's current autonomous template**, if any;
 and mint the fresh credential — new credential id, new `_auth_identities` row,
 **same principal**. Profile rows and memberships resolve throughout.
 
-This is not an operator impersonating anyone. The owner already holds their
-agent's credential in the ordinary course, so re-issuing it grants *the owner*
-nothing new — it is the "rotate my API key" gesture every product with machine
-credentials already has.
+This is not an operator impersonating anyone — that is what makes it legal on
+`prod`. But it is **not authority-neutral for the owner**, and the document is
+explicit about the residual: terminally revoking every grant closes the
+*delegated-grant* assumption vector, yet **memberships survive** (they resolve
+throughout, above), so an owner who never held the current credential can, by
+reissuing, **assume any third-party-granted membership** the agent accrued (a
+role in another user's channel a third party seated it into, say). That is an
+**ownership-assumption** capability, and v1 owns it honestly rather than denying
+it: the capability is **disclosed at every surface where an agent receives a
+grant or membership** (so a third party seating an agent into a role sees that
+the agent's owner can assume it) and **recorded in audit** on every
+re-credential. It remains the right trade for production continuity — the "rotate
+my API key" gesture, extended to the memberships the key's holder accrued — but
+it is disclosed as an assumption, not framed as neutral. The sender-bound
+alternative (the owner authorizes recovery without ever obtaining an
+agent-usable bearer) is the named open question that would remove the residual.
 
 **But that argument is about the owner, and the attacker is not the owner.** A
 thief holding a stolen session bearer could otherwise walk the owner routes and
@@ -819,7 +921,11 @@ both problems structurally:
    (`GET /auth/grant-requests`), and **approves or denies** it — the consent
    moment, displaying the agent's identity and `registration_provenance`, the
    concrete scope records (including any `authorityCreating` scopes, flagged
-   as such), and the expiry, all captured in `consent_digest`. Approval
+   as such), the expiry, and — when the granting user is **not** the agent's
+   owner — an **owner-assumption disclosure**: the agent has an owner who can
+   re-credential it and thereby assume the memberships/roles this consent leads
+   to (§Re-credentialing), so the user is consenting to authority the agent's
+   owner can inherit. All of this is captured in `consent_digest`. Approval
    creates the grant atomically with request consumption (CAS on the terminal
    state; concurrent approvals yield exactly one grant);
 4. the agent polls the token route with `{ pairingRequestId }`: still-pending
@@ -1222,6 +1328,22 @@ export/import tooling (unbuilt); durability is proven across restart today.
   obligations — deterministic across regeneration for unchanged source) and
   the rollback-checked authorization clock (0053 item 6, **brought forward**
   as an independent prerequisite).
+- **Prerequisite of `authorityCreating` service-principal writes:
+  [LLP 0056](./0056-scoped-roles-and-memberships.rfc.md) M5.** The
+  effect-site gate and `provenance: "full"` attribution the marker depends on
+  are LLP 0056 M2–M5 work (M1 is the schema surface only), so every
+  service-principal permission-backing write stays **refused closed** until
+  0056 M5 and an explicit authority-threading storage stage have landed;
+  effect-site tests run through the real storage seam. This is a hard
+  ordering, not a soft dependency — the marker cannot be honored before its
+  substrate exists.
+- **Prerequisite of trusted-local service-principal admission:
+  [LLP 0060](./0060-hosted-auth-security.rfc.md)'s target-authored deployment
+  capability.** A profile or bind address alone cannot distinguish trusted-local
+  from a publicly reverse-proxied local process (LLP 0060 §D1 limit), so
+  service-principal admission binds to 0060's deployment capability as an
+  **explicit landing prerequisite**, and the 0024/0042 un-reservation carries
+  the gate. A reverse-proxied local process is not trusted-local.
 - **Prerequisite of the `prod` owner paths specifically:
   [LLP 0045](./0045-notifications-outbox.rfc.md)'s delivery seam.** Step-up
   requires a challenge that reaches the human, and the frozen slice's provider is
@@ -1262,8 +1384,17 @@ export/import tooling (unbuilt); durability is proven across restart today.
   its cascade into owned agents' credentials and issued grants (0039 has
   per-session logout and admin revocation, but no user-facing
   revoke-everything); the new **`AgentDestroyCapability`** effect capability
-  registered alongside `ImpersonationCapability` (same non-browser carrier, never
-  the console credential); `Authorization` widened to app-plane bearers; connection binding gains the `servicePrincipal` variant and
+  registered alongside `ImpersonationCapability` but carried by a
+  **domain-separated production destroy bearer**, *not* LLP 0057's `sbic_`
+  impersonation carrier — `sbic_` is generated only in dev/test/demo and never
+  published on `prod`, and it is categorically an *impersonation* (assume)
+  carrier, so reusing it for a `prod` destroy capability would both be
+  unavailable there and conflate assume with destroy. The destroy bearer is its
+  own registered prefix with its own issuance, custody, publication, redaction,
+  restart, and revocation rules (LLP 0057/0031), and cross-substitution tests
+  prove it satisfies neither `ImpersonationCapability` nor `AdminSecretRead` and
+  that `sbic_` does not satisfy it. It is never the console credential;
+  `Authorization` widened to app-plane bearers; connection binding gains the `servicePrincipal` variant and
   deadline; restore's revocation list gains the agent classes;
   `--allow-auth-downgrade` gains them too; the item-7 descriptor gains the
   durable-authority axis; the auth-variable retainability classification;
@@ -1271,7 +1402,16 @@ export/import tooling (unbuilt); durability is proven across restart today.
 - **Dated LLP 0011 addendum** — principal kinds and delegation join the parent
   authentication model.
 - **LLP 0031 revision** — registry rows for every route and verb, with the
-  **[secret]** classifications and class-dispatch rules.
+  **[secret]** response classifications and class-dispatch rules, **and a
+  request-secret classification**: `[secret]` today marks routes that *return*
+  credential material, but several agent routes *receive* credentials,
+  invitations, recovery secrets, or pairing codes in their JSON bodies while
+  returning none. Every such field is carried by a typed, non-serializable,
+  zeroizing, redacted DTO (the shape LLP 0057's `src/auth/wire.rs` already uses),
+  and the route is marked request-secret so middleware body-buffering,
+  diagnostics, logs, receipts, and debug formatting never capture it.
+  Acceptance covers malformed and duplicate bodies, middleware peeking, and
+  debug/`Display` output.
 - **LLP 0012 registrations** — the new diagnostic codes
   (`GRANT_SCOPE_DENIED`, `GRANT_INVALID`, `GRANT_PENDING`, `GRANT_CAP`,
   `AGENT_CREDENTIAL_INVALID`, `CREDENTIAL_CLASS_MISMATCH`, registration/
@@ -1321,7 +1461,22 @@ LLP/spec. These obligations are recorded so they cannot be quietly lost:
    is recorded here so it cannot be quietly lost.
 6. **Hosted admission.** The profile × kind × transport matrix as executable
    policy, and the runtime capability (not a profile name) that distinguishes
-   trusted-local from hosted.
+   trusted-local from hosted (LLP 0060's target-authored deployment capability).
+7. **Recovery-generation persistent state.** Where the recovery generation lives
+   (the agent record), how a pairing request binds the generation it was created
+   under, the compare/CAS rule that voids a pre-generation request at consume,
+   its crash outcomes, and the populated-catalog v1→v2 migration that introduces
+   the column. The *effect* is pinned (re-credentialing bumps it; older pairing
+   requests cannot become new grants); the durable mechanics are implementing-
+   spec work.
+8. **Emergency transfer / quarantine of a stranded protected role.** The
+   operator path (on `prod`, under `AgentDestroyCapability`) that reseats a
+   protected role away from a holder that is unrecoverable — deactivated or, per
+   LLP 0055/0056's durable-recoverability predicate, provably unable to
+   re-authenticate — without preserving a compromised or lost credential. This
+   is a destroy-class authority transition (never an assume), and it is the exit
+   that keeps the eligible-holder invariant (§Principal kinds) from bricking a
+   resource; its exact steps, atomicity, and audit are implementing-spec work.
 
 ## Validation Requirements
 
@@ -1641,10 +1796,13 @@ Lifecycle, audit, projections:
 
 ## Status
 
-**Review** — moved from `Draft` by the author (Charlie, 2026-07-13), who is the only party LLP 0005 permits to make that call. Refined through **thirteen dual-family review rounds** (fresh Claude
-Fable 5 Max and GPT gpt-5.6-sol ultra reviewers each round, none with memory of
-prior rounds); all twenty-one reviews are recorded verbatim with provenance in
-`llp/reviews/0055-agent-principals-and-scoped-grants.{fable,codex}.md`.
+**Review** — moved from `Draft` by the author (Charlie, 2026-07-13), who is the only party LLP 0005 permits to make that call. Refined through multiple
+dual-family review rounds (fresh Claude Fable 5 Max and GPT gpt-5.6-sol ultra
+reviewers, none with memory of prior rounds). The archived artifacts are the
+authoritative record and count of every review — currently 14 Fable-family and
+12 GPT-family rounds — recorded verbatim with provenance in
+`llp/reviews/0055-agent-principals-and-scoped-grants.{fable,codex}.md`; this
+prose no longer restates a round tally that drifted from them.
 
 **Two author rulings, 2026-07-13 (Charlie), settle what the loop could not:**
 
@@ -1681,8 +1839,65 @@ delegation by reading `sessionId` alone); and the fact — verified in
 reachable" was false, since `app.reset` is `NonProd`. Twice, both families
 independently converged on the same defect.
 
-The current revision incorporates the round-12 findings; those changes are **newer
-than the last review**. Depends on LLP 0039's slice and
+### Review triage (round 6, /llp-super-refine)
+
+The round-6 revision recorded dispositions in this triage; **round 7 integrated
+them into the normative body** after both families correctly flagged that a
+triage entry is not a body change — in particular that the body still said owner
+re-credentialing "grants nothing new," contradicting the concession. Round 7
+rewrote the two "nothing new" passages (§Principal kinds, §Re-credentialing) to
+carry the ownership-assumption concession, added the owner-assumption disclosure
+to the consent-display enumeration (§Grants step 3), put the synthetic-principal
+rule in the dev-impersonation body (§Principal kinds), added the LLP 0056 M5 and
+LLP 0060 prerequisites to §Landing decomposition, and added the recovery-
+generation persistent-state and emergency-transfer/quarantine items to §Protocol
+obligations. Dispositions (now reflected in the body, not only here):
+
+- **Resolved in text:** non-widening narrowed to *authority* non-widening over
+  reached host decisions, with the skipped-`deny()`/actor-dependent-result/egress
+  limit named and the observational-equivalence claim explicitly disclaimed
+  (§Resolved authority); eligibility strengthened to durable recoverability plus
+  an emergency transfer/quarantine path (§Principal kinds);
+  `AgentDestroyCapability` given a domain-separated `prod` carrier distinct from
+  LLP 0057's dev-only `sbic_`; request-secret classification added to the LLP
+  0031 obligation; the credential namespace corrected to include the shipped
+  `sbc_`/`sbak_`/`sbic_`; and the revision-header/round-count provenance
+  reconciled (the artifacts are now the count of record).
+- **Owner re-credentialing (GPT #2) — disclosed, not redesigned.** Author ruling
+  2 already settled that an owner re-issuing their own agent's credential is
+  app policy. GPT's sharper point is that an owner who never held the *current*
+  credential can, by reissuing, **assume third-party-granted roles the agent
+  accrued** — so re-credentialing is an ownership-*assumption* capability, not an
+  authority-neutral rotation. The document now says so plainly and requires the
+  capability to be **disclosed at every surface where an agent receives a grant
+  or membership and recorded in audit**; the sender-bound "owner authorizes
+  recovery without obtaining the bearer" alternative stays a named open question.
+- **`auth.kind` dev-impersonation (GPT #3):** a simulated agent kind uses a
+  distinct **synthetic principal id**, so `kind` remains a pure function of
+  durable identity and LLP 0043/0053 retainability holds; `--as-agent` (if 0024
+  adopts it) selects that synthetic principal, never a second kind for one
+  `userId`.
+- **`authorityCreating` sequencing (GPT #6):** the landing decomposition gates
+  every service-principal `authorityCreating` write closed until **LLP 0056 M5**
+  (full provenance) and the authority-threading storage stage have landed;
+  effect-site tests run through the real storage seam.
+- **Trusted-local admission (GPT #11):** bound to **LLP 0060's target-authored
+  deployment capability** — a reverse-proxied local process is not trusted-local,
+  and profile/bind-address alone cannot distinguish them; this is an explicit
+  landing prerequisite, and the 0024/0042 un-reservation carries it.
+- **Attribution breadth (GPT #4):** the compromise-response guarantee is
+  narrowed — revoke-all ends *future* grant-borne authority; only
+  full-provenance LLP 0056 transitions are durably attributable; committed
+  ordinary app mutations and external action effects may be irreversible, stated
+  plainly, and whether high-impact scopes need step-up consent is an open
+  question.
+- **Recovery-generation state (GPT #8):** its owner (the agent record), request
+  binding, and CAS/transaction ordering are named as a §Protocol-obligations
+  item, with populated-catalog v1→v2 migration; the split-document suggestion is
+  the author's call (altitude ratified).
+
+The current revision incorporates the round-6 findings and has **not yet been
+reviewed** — the next fresh pass follows. Depends on LLP 0039's slice and
 LLP 0053 (Accepted); blocks un-reserving `servicePrincipal` in LLP 0024/0042
 (trusted-local scope — hosted agents unblock when hosted auth does, an inherited
 gap this RFC does not own). LLP 0011 remains the parent design; where this

@@ -5,7 +5,58 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-13 (refined through ten dual-family review rounds; see
+**Revised:** 2026-07-14 (round-16 dual-family revision: **reconciled the
+eligibility divergence this session's LLP 0055 round-6 edit created** — LLP 0055
+now owns the ineligibility predicate (durable recoverability), this document
+consumes it rather than restating "not permanently ended", the shipped
+G1-treats-absence-as-eligible gap and its A-active/B-nonexistent counterexample
+are named a joint LLP 0055/0056/G1 defect obligation, and the validation row no
+longer claims lifecycle reads are "captured alongside" (it routes them through
+the shared final-state evaluator, `Auth` captures unused); **closed the
+`TableManifest` fail-open outer boundary** (a typo'd `membershp` erases the whole
+declaration) alongside the inner-struct `deny_unknown_fields`; specified the
+**generated reverse `(resource, role, principal)` covering index** the holder
+query needs (M1 has only `(principal, resource)`); pinned the **activation
+validator phase order** (DDL → seed → validation → generated indexes) so a raw
+duplicate cannot preempt the typed diagnostic; corrected the **stale "no
+deactivation state exists yet"** claim (G1 deactivation has landed, so the
+row-counting scan is an active gap); and pinned a manifest **`Id<table>`
+representation** as an explicit M3 prerequisite. Round-16 triage folded into
+§Status.) 2026-07-14 (round-15 dual-family revision: **corrected two round-14
+overclaims against shipped code** — eligibility drops the hard existence leg and
+now matches LLP 0055 and landed G1 (absent-from-catalog is *eligible*; no
+invented "principal catalog"; dev impersonation asserts existence by fiat), and
+the `lastHolder` lifecycle leg is an **authoritative commit-stage evaluation**
+(auth-catalog rows carry no app `_version` and `Auth` captures are ignored by
+commit validation), not "the same machinery"; **partitioned referential proof**
+so bootstrap uses the creation witness rather than an impossible row-capture;
+pinned **`deny_unknown_fields`** on every membership object (a dropped
+misspelling broadens auth); **retensed the capability gate** to state plainly
+that nothing refuses production activation today and made it first among the
+M1-completion obligations, which now also include the `expiry` field-type check
+and the rename diagnostic; assigned **denial linearization to M3** with
+`requireRole` capability-gated until it lands; removed the **operator-plane
+cross-declaration workaround** (it breaches LLP 0055's plane wall) and made the
+operation plainly v1-unavailable; pinned **pending-role caller-class**
+assignment and the **caller-written** `fields`-coverage scope; named the
+HostPlan create/delete cliffs for protected resources; completed the Related
+header.) 2026-07-14 (round-14 dual-family revision: the transition grammar
+is now a **per-op table** — admissible caller classes, required/optional/
+forbidden `from`/`to`/`fields`, fail-closed omission semantics, and
+load-time reachability refusals — closing the omitted-`to` self-seat reading;
+`lastHolder` eligibility adds **principal existence** and a **captured
+lifecycle read** so deactivate-vs-remove races linearize at commit in both
+orders; activation is pinned to **one final-state validator** (post-DDL,
+post-seed, every deployment path) with `resourceTable` resolution required and
+an absent roster validating as empty rather than skipped; `.membership()`
+activation is **capability-gated until its enforcement milestones land** (no
+fail-open activation); expiry pins an epoch-ms field type and a **directly
+cron-bound generated sweep action** (call-graph reachability is not a
+diagnostic); the writer seam pins a closed, unforgeable **writer-authority
+carrier** taxonomy as an M2 prerequisite; declaration-id durability gains a
+**persisted binding registry** obligation; the global-role first-holder path
+and the insert resource-capture liveness cost are stated plainly.)
+2026-07-13 (refined through thirteen dual-family review rounds; see
 §Status. The write surface is the part the loop reshaped most, and it is now
 settled: a **declaration-level transition matrix** (`op` × caller class ×
 self/other × `from`→`to`), closed by default, replaced the caller-supplied
@@ -27,7 +78,7 @@ than hidden, `incidental` has a **floor** that no authorization column may enter
 and role denials ride the **existing** trusted code rather than minting a second
 one. `provenance: "full"` (an append-only transition log) is what LLP 0055's
 `authorityCreating` marker requires.)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0011, LLP 0013, LLP 0024, LLP 0037, LLP 0039, LLP 0053, LLP 0055
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0011, LLP 0012, LLP 0013, LLP 0019, LLP 0024, LLP 0037, LLP 0039, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0058, LLP 0059, LLP 0060
 
 ## Summary
 
@@ -120,11 +171,17 @@ checked as live data instead.
 - **Cross-declaration authority in the transition matrix.** `by` names roles in
   **this** declaration (or `"self"`/`"none"`), so "an app-global `moderator` may
   kick from any channel" is **not** expressible through the v1 write path: a
-  moderator holds no channel membership and resolves to `"none"`. Apps needing it
-  today route the operation through an operator-plane surface or wait for the
-  declarative write rules. A qualified spelling (`by: ["appRoles:admin"]`) is the
-  natural extension and is named as an open question — stated here so an adopting
-  app meets this cliff in the document rather than at authoring time.
+  moderator holds no channel membership and resolves to `"none"`. This operation
+  is simply **unavailable in v1** — and the answer is *not* to route it through
+  the operator plane, because LLP 0055's plane boundary is a hard wall and
+  §Global roles pins that an app role never satisfies operator authority; handing
+  an app moderator operator credentials to do routine moderation would breach
+  exactly that wall and bypass the transition policy this RFC exists to make
+  structural. An app needing cross-declaration moderation today either models the
+  moderator as a real per-resource membership (seated by an app flow) or waits
+  for the qualified spelling (`by: ["appRoles:admin"]`, the natural extension,
+  named as an open question) or the declarative write rules — stated here so an
+  adopting app meets this cliff in the document rather than at authoring time.
 - **HostPlan membership writes in v1.** The shipped mutation IR's `Get` is a
   point read by id and its `Guard` carries an app-supplied code; the codegen's
   own taxonomy already classifies "membership guards over non-id keys" as
@@ -132,7 +189,14 @@ checked as live data instead.
   **every generic HostPlan write form targeting a declared membership table is
   refused, typed** (§Writes). Role-managed membership writes are Ibex-mutation
   work; the declaration-bound HostPlan membership step is named follow-on
-  surface.
+  surface. **Two consequences follow, named so an app meets them here rather
+  than at authoring time:** a HostPlan write cannot *create* a
+  `lastHolder`-protected resource (bootstrap requires a same-transaction
+  membership seat HostPlan cannot perform), and it cannot *delete* one (teardown
+  requires `clearForResource()`, a membership write) — so protected resources
+  are Ibex-mutation-only to create and delete in v1, and a HostPlan
+  `Insert`/`Delete` on such a resource table is a typed refusal, not a silent
+  partial.
 - **`ctx.permissions` in actions.** No transactional read set, so no capture.
   Refused, typed.
 - **Retained/offline role-gated reads in v1.** LLP 0008's eligibility subset
@@ -157,7 +221,7 @@ defineTable("event_members", {
   roles: ["host", "cohost", "guest"],
   // pendingRoles: ["invited"],   // disjoint from roles; excluded from memberOf
   // incidental: ["joinedAt"],    // attested non-authorization columns
-  // provenance: true,            // host-filled creation attribution
+  // provenance: "creation",      // host-filled attribution: "creation" | "full"
 })
 ```
 
@@ -191,10 +255,21 @@ row, an LLP 0013 room binding, or (prospectively) an LLP 0055 resource-scope
 grant — re-binding it to a different table is a manifest error, because audit rows and any
 future LLP 0055 resource-scope grants reference it durably. (An id that was
 declared but never written may be re-bound freely; the guarantee is about
-*durably referenced* ids, not about every string ever typed.) Role strings
+*durably referenced* ids, not about every string ever typed.) Detecting a
+rebind takes **state**: a manifest-local collision check cannot see a
+cross-activation rename, so the refusal rests on a **persisted binding
+registry** — declaration id → table, recorded the first time an id is durably
+referenced and consulted at every subsequent activation. That registry lands
+with the first durable-reference producer (M5's provenance columns and
+transition log); **until it exists, no durable consumer may reference a
+declaration id**, and continuity rests on explicitly pinned `id:`s — which is
+why the rename-without-pinned-id diagnostic is load-bearing now, not later. Role strings
 compare by **exact decoded value** (no case folding, no Unicode normalization —
 two writers must never disagree about whether `"Host"` is declared); control
-characters are rejected and confusable near-duplicates are linted. `roles` and
+characters are rejected, and ASCII-case-confusable near-duplicates (`"Host"`
+beside `"host"`) are refused as a typed manifest error
+(`SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES`) — broader Unicode-confusable
+detection is a named lint follow-on, not a shipped claim. `roles` and
 `pendingRoles` must be **disjoint**, and their **union is the closed write
 vocabulary**. **`"self"` and `"none"` are reserved identifiers** — they are the
 caller *classes* the transition matrix names (§Writes), so declaring a role by
@@ -235,7 +310,23 @@ posture LLP 0053's commit hook relies on):
   violations refuse activation. **Import validates the same predicate** — the
   resource-delete refusal (below) keeps live data clean, and activation/import
   keep *incoming* data clean, so orphaned authority cannot enter through a side
-  door.
+  door. Three pins make "fail-closed" checkable rather than aspirational:
+  the validator judges the **transaction's final state** — after DDL and after
+  any same-activation seed — through **one shared entry point invoked by every
+  deployment path** (dev apply, same-mode sessions deployment, staged
+  activation, import); a scan that runs before the data it must judge exists
+  validates nothing. A `scope: "resource"` declaration must carry a
+  **resolvable `resourceTable` binding to an active table** — absent,
+  misspelled, or dangling is a typed activation refusal, never a silently
+  skipped check. And a membership table with **no physical rows or not yet
+  created** validates as an **empty roster**, never as "nothing to check": a
+  `lastHolder` declaration over a populated resource table therefore refuses
+  activation unless the same activation seats its holders (brownfield adoption
+  seeds rosters), instead of activating resources that no eligible holder
+  protects. (M1's shipped scan predates parts of this pin — it runs pre-DDL in
+  the staged path, treats an absent membership table as a skip, and leaves
+  `resourceTable` optional; closing those gaps is a named M1-completion
+  obligation, before M2.)
 - **Still an ordinary table** for reads: it joins, exports, and appears in
   generated client types. Its own visibility is fail-closed by default on the
   **enumerated enforceable surfaces** — an undeclared-rules membership table is
@@ -304,6 +395,16 @@ against facts the host derives rather than the caller supplies:
      `{ op: "insert", by: ["none"], target: "self", to: ["guest"] }` lets a
      non-member seat themselves).
 
+  **A pending-role holder is a caller class like any declared role, never
+  `"none"`.** A principal holding an `invited` (pending) row for the resource
+  *holds a membership*, so class 2 assigns their pending role and class 3
+  (`"none"`) never matches them; `by` may name pending roles exactly as it names
+  full roles (M1 already checks `by` against `roles ∪ pendingRoles`). This is
+  the disjointness rule at the one edge it could be misread: "not a member" in
+  §Rule helpers governs `memberOf`/the member-list preset (which exclude pending
+  roles), not caller-class assignment, where holding *any* row — pending or full
+  — takes you out of `"none"`.
+
   **An authority with no effective principal matches _no_ class at all** — not
   even `"none"`. Anonymous, `system`, and `adminBypass` (which LLP 0039 projects
   as anonymous) carry no user, so there is no principal to be "self", to hold a
@@ -332,6 +433,63 @@ against facts the host derives rather than the caller supplies:
   role (from the argument). So "a guest cannot promote themselves" is not a
   claim about handler discipline: no declared transition has
   `by: ["guest"], target: "self", to: ["host"]`, so the host refuses it.
+
+**The per-op grammar, pinned — closed and fail-closed.** The matrix admits no
+semantically undefined manifest: each op admits exactly the fields below,
+omission semantics are stated rather than inferred, an **empty array is a
+manifest error** (canonical sets are non-empty), and a field an op does not
+admit is a typed manifest error rather than dead weight a later milestone must
+invent a meaning for. Closed here is literal: every membership declaration
+object — `MembershipManifest`, `MembershipTransition`, `MembershipLastHolder`,
+`MembershipExpiry` — **rejects unknown fields** (`deny_unknown_fields` in Rust
+and `additionalProperties: false` in the generated schema and authoring kit),
+because a security grammar that *silently drops* a misspelling is worse than one
+that rejects it: a typo'd `frmo` discarded from a `setRole` transition leaves
+`from` omitted, which means "any current role" and **broadens** authorization,
+and a typo'd `resourceTabel` or `lastHodler` erases a whole guarantee.
+**Critically, closing the four inner structs is not enough — the enclosing
+`TableManifest` must close too** (or carry an equivalent versioned
+must-understand mechanism), because it is currently open: a typo'd
+`"membershp": {…}` silently erases the *entire* `.membership()` declaration
+before any validation or declaration-derived capability gate can observe it,
+leaving an ordinary raw-writable table — the exact fail-open outcome the closed
+grammar exists to prevent. The shipped M1 structs and `TableManifest` do not yet
+carry `deny_unknown_fields`, so this is the first M1-completion obligation
+(below), with adversarial parse-through-activation tests for the outer
+`membershp` as well as `frmo`/`resourceTabel`/`lastHodler`/unknown expiry fields. (M1's wire shape models every field optional and
+validates only vocabulary membership; enforcing this grammar at manifest load
+is a named M1-completion obligation and a precondition of M2 execution.)
+
+| op | admissible `by` classes | `from` | `to` | `fields` |
+|---|---|---|---|---|
+| `insert` | declared roles, `"none"` — never `"self"` (no target row exists; self-ness is the `target` axis) | **forbidden** — no old role exists | **required**, non-empty | optional — omitted binds the insert to **axes + role only**, fail-closed; any other inserted column must be named |
+| `setRole` | declared roles, `"self"` | optional — omitted means **any current role**, stated not guessed | **required**, non-empty | **forbidden** — `setRole` writes the role column and nothing else |
+| `remove` | declared roles, `"self"` | optional — omitted means any current role | **forbidden** | **forbidden** |
+| `patch` | declared roles, `"self"` | optional — omitted means any current role | **forbidden** — `patch` never writes the role column | **required**, non-empty — a patch naming no columns writes nothing |
+
+`target` is required on every row. **Unreachable rows are refused at manifest
+load**, not left as silent dead policy — the class-assignment rule makes the
+refusals decidable: on the target-row ops (`setRole`, `remove`, `patch`) a
+**role class combined with `target: "self"`** can never match, because a
+caller who is the target is class `"self"` and `"self"` wins; on `insert` a
+**role class with `target: "self"`** can never match either, because a caller
+inserting *their own* row holds no row over that resource (uniqueness), so
+their class is `"none"` — self-join is spelled `by: ["none"], target: "self"`,
+exactly as the example declares, and the insert paragraph above is the
+normative reading (`by` is computed over the resource; `"self"` never names an
+insert class). This is the generalization of the narrower rule already stated
+("a transition whose `by` class cannot be reached is a manifest diagnostic").
+
+**Matching is deterministic because transitions authorize rather than
+select.** A write is admitted iff at least one declared transition matches
+every host-derived fact — op, caller class, target axis, old role ∈ `from`
+(or `from` omitted), new role ∈ `to` — **and**, for `insert` and `patch`, that
+same matched transition's `fields` covers **every caller-written** non-axis,
+non-role column. (Host-filled `provenance` columns — `grantedBy*` — are written
+by the host, not the caller, and no transition names them; the coverage rule is
+about what the *caller* supplied.) Coverage is judged per single transition,
+never unioned across transitions; overlapping transitions are therefore permitted and need
+no precedence rule — only class assignment needed one, and it is total.
 
 The generated methods are therefore thin and unforgeable:
 
@@ -373,6 +531,38 @@ changed the row it captured. Insert-vs-delete linearizes at commit, exactly like
 methods, seed, admin edits, and `--as-membership` — not only to activation and
 import.
 
+**Referential proof is partitioned by whether the resource already exists**, and
+mandatory row-capture applies only to the pre-existing case. A membership insert
+against a resource row **already committed** captures that row (existence-only
+semantics, below). A membership insert against a resource **created earlier in
+the same effect batch** — the bootstrap case — has no committed row and no
+`_version` to capture (it is a buffered insert), so its referential proof is the
+**creation witness plus final-state validation**: the host has seen the resource
+row appear in this transaction, and commit-stage validation confirms it is
+present at commit. Row-capture and the creation witness are **alternative
+proofs of the same fact** (the resource exists and persists through commit), not
+layered requirements — an earlier reading that demanded a row capture on *every*
+insert would have made bootstrap unspellable, since the witnessed same-
+transaction resource row cannot be version-captured. Seed and import order
+resource-before-membership within their batch and take the pre-existing path;
+read-your-writes within one Ibex mutation takes the creation-witness path.
+
+For the pre-existing case, the capture's **semantics are existence-only** — the
+insert needs the resource to exist and keep existing through commit, not any of
+its other columns — but v1's representation is the ordinary version-checked row
+dependency, and the gap between the two is a **liveness cost, owned**: any concurrent *update* to
+the resource row spuriously invalidates the insert at commit, and join-heavy
+moments are exactly when hosts also edit the resource (lobby settings, event
+details). Correctness is unaffected; the loser retries under LLP 0004's
+client contract, and the kit guidance is one sentence: **retry commit-conflict
+refusals; the refusal that survives retry is the policy answer** (the
+`lastHolder` race loser re-runs into the real typed refusal; the
+insert-vs-edit loser simply succeeds). The named refinement is an
+**existence-scoped captured-read kind** — the present-row twin of
+`MissingRow`'s current-state check — invalidating on delete but never on
+update, which keeps the insert-vs-teardown linearization while shedding the
+false conflicts; it rides the semi-join/capture follow-on, not v1.
+
 **`lastHolder: { protect: <role> }`** refuses any transition that would remove
 or demote the final holder of that role, whoever attempts it — **including the
 expiry sweep, seed, import, and admin writers**. It is a table invariant, not a
@@ -394,8 +584,37 @@ forbids clearing that row. Permanently stranded, by a sequence every step of whi
 was individually legal. (A dead principal could also be seated as `host` outright,
 since `v.principal()` validates *shape*, not existence or activity.)
 
-So the unit is the **eligible holder**: a holder whose principal is not
-permanently deactivated (LLP 0055 `deactivated_at`). The mechanism:
+So the unit is the **eligible holder**, and **LLP 0055 owns the ineligibility
+predicate** — this document consumes it rather than restating a narrower one, so
+the two documents that co-own this invariant cannot drift. LLP 0055 §Ending
+authority defines it as **durable recoverability**: a holder is ineligible if
+its principal is deactivated (LLP 0055 `deactivated_at`) **or** provably unable
+to ever re-authenticate (an unowned agent with no live credential family and no
+recovery key). The row-level check *can* decide this for the credential/recovery
+facts LLP 0055 owns; what it cannot decide — a *live, recoverable* principal
+that is merely idle or unreachable — is the roster-hygiene residual (a named
+open question), and that residual is the only thing "no row-level invariant can
+detect" covers. A future human account-closure state (the LLP 0057–0060 surface
+is growing one) joins LLP 0055's predicate the same way, and whichever document
+defines such a state owes the symmetric refusal from its side.
+
+**Non-existence is handled by LLP 0055's recoverability leg, not by a separate
+existence refusal in this document.** A never-existed principal id is, by
+definition, unable to authenticate — it has no credential family — so LLP 0055's
+predicate already makes it ineligible; this document does not add a second,
+mode-fragile existence check that would contradict dev impersonation (where the
+effective principal is a client-asserted string with no catalog row) or the
+shipped G1 code. Note the shipped gap this creates and the counterexample it
+admits until closed: **landed G1 excludes only deactivated principals and
+treats catalog-absence as eligible** (`src/storage/auth_agents.rs`,
+`has_other_eligible_holder`), so a sessions resource held by active A and
+nonexistent B currently lets A be deactivated (B counts eligible), stranding the
+resource under a B that can never act. Making G1's check the durable-
+recoverability predicate LLP 0055 now specifies — not "not deactivated" — is a
+**joint LLP 0055 / LLP 0056 / G1 defect obligation**, with the A/B counterexample
+in acceptance. There is no universal "principal catalog" this document invents;
+the authoritative store is per mode, and the predicate consults only the
+recoverability facts LLP 0055 owns. The mechanism:
 
 1. **Establishment.** A declaration with `lastHolder: { protect: R }` must set
    `bootstrapRole: R` (a mismatch is a manifest error — seating an `owner` while
@@ -432,12 +651,43 @@ handlers concurrently with only the commit serialized. Two concurrent `remove()`
 of the final *two* hosts would each see the other present in their snapshot, both
 pass, and the resource would strand with zero hosts — precisely the outcome the
 invariant exists to refuse. So the rule is: **the holder-set read contributes a
-snapshot-bound range dependency over the declaration's `(resource, role)` index,
-validated at commit exactly like the membership lookup.** The first removal
+snapshot-bound range dependency over a `(resource, role, principal)` index,
+validated at commit exactly like the membership lookup.** M1 generates only the
+unique `(principal, resource)` index, which cannot serve a resource-leading
+holder query — G1 already runs `WHERE resource = ? AND role = ?` with no
+matching prefix index, risking full membership scans under an `IMMEDIATE` writer
+transaction — so a **generated reverse covering index `(resource, role,
+principal)`** (with a reserved name, migration behavior, and app-scope
+treatment) is a named M1-completion obligation; the holder-set range dependency
+and G1's holder query both key on it. The first removal
 commits and changes that range; the second fails commit-time read-set validation
-and is refused, typed. Exactly one succeeds. This is the same machinery the
-uniqueness invariant and the stale-role check already ride — no new mechanism, and
+and is refused, typed. Exactly one succeeds. This rides the same commit-validation
+machinery the uniqueness invariant and the stale-role check already use — no new
+mechanism for the membership half, and
 no invariant that holds only under serial execution.
+
+Eligibility makes the invariant **two-legged**, and the second leg cannot ride
+the app's captured-dependency machinery: the counted principals' lifecycle rows
+live in the protected auth catalog (`_auth_users`, LLP 0055 agent records),
+which carry no app `_version` column and whose `Auth`-kind captures commit
+validation deliberately ignores (`src/storage.rs`, `CapturedReadKind::Auth`).
+So this is **not** "the same machinery, no new mechanism" — it is an
+**authoritative commit-stage evaluation** of the complete invariant inside the
+serialized auth transaction, exactly the shape the landed G1 deactivation check
+already uses (`src/storage/auth_agents.rs`, evaluated under an `IMMEDIATE` auth
+transaction). Both writers evaluate the final-state predicate — remaining
+eligible holders of the protected role — at the serialized commit, so the
+two-step schedule cannot compress into a race: **deactivate A ∥ remove B** over
+the final two eligible holders resolves to exactly one commit and one typed
+refusal in **either commit order**, because the second writer's commit-stage
+evaluation observes the first's committed effect. This is the mechanism LLP
+0055's deactivation refusal uses from its side over the same declaration, so the
+cross-invariant race serializes identically regardless of which check runs
+first. The membership `(resource, role)` holder-set read remains an ordinary
+captured range dependency (that half *does* ride the app machinery and needs no
+commit-stage evaluation); only the auth-catalog lifecycle leg is the
+commit-stage check. Owning this commit-stage invariant jointly across M2 (this
+document's writers) and the landed G1 side is a named protocol obligation.
 
 **The writer-class matrix.** A `ctx.db`-only gate would be a hole: HostPlan's
 generic write forms (`Insert`, `Patch`, `Delete`, `DeleteWhere`, `InsertEach`)
@@ -501,7 +751,11 @@ resource row appear or disappear.
 **Time-bounded memberships: a narrow, host-bound sweep.** LLP 0053's protected
 profile refuses clock inputs, so a rule may never compare `expiresAt` to "now";
 an expiring membership must be **materialized** as a write. The declaration
-opts in with `expiry: { field, onExpiry }`, and the **only** system-authority
+opts in with `expiry: { field, onExpiry }` — where `field` names an
+**optional epoch-milliseconds timestamp column** (the corpus's `*AtMs`
+convention; declaring any other column type is a manifest error, so a
+malformed value is unwritable rather than un-sweepable, and a null or absent
+value means **this row does not expire**) — and the **only** system-authority
 write is the generated **`sweepExpired()`**, which the host bounds completely:
 it may act **only** on rows of **this declaration** whose **declared expiry
 field** is in the past on the **authoritative (rollback-checked) clock**, and it
@@ -531,14 +785,20 @@ and room machinery see exactly like a user-authored kick.
 
 Reachability, stated because the shipped runtime constrains it: **cron entries
 must be `Action` kind**, and `ctx.permissions` does not exist in actions
-(§Non-Goals). The blessed shape is therefore an app-declared **cron action that
-calls `ctx.runMutation` into the generated sweep mutation**, which runs under
-the inherited `system` authority (LLP 0039's inheritance rule) and must not be
-declared `authenticated` (system carries no user). 0053 builds no deadline
+(§Non-Goals). The linkage is therefore **manifest-visible, not inferred from
+app code**: codegen emits, alongside the sweep mutation, a **generated sweep
+action** — the cron-targetable wrapper, calling the sweep via `ctx.runMutation`
+under inherited `system` authority (LLP 0039's inheritance rule), never
+declared `authenticated` (system carries no user) — and the absence diagnostic
+checks that **some cron entry's target is that generated action**: a direct,
+closed linkage the manifest can decide. An app-authored action that happens to
+call the sweep does **not** satisfy the diagnostic — call-graph reachability
+through arbitrary Ibex code is not statically decidable, and a diagnostic that
+guesses is worse than none. 0053 builds no deadline
 scheduler, so the gap between `expiresAt` and the sweep is the app's cadence
 choice — stated the way 0053 states its lease window. **Cadence is the app's
 choice; _absence_ is a bug, and the manifest says so:** a declaration that opts
-into `expiry` while no cron entry reaches its generated sweep is a typed
+into `expiry` with no cron entry targeting its generated sweep action is a typed
 diagnostic. Otherwise an app declares time-bounded memberships and silently gets
 memberships that never expire — precisely the class of authoring failure this
 corpus lints elsewhere (`SNAPBACK_CRON_ACTION_KIND_MISMATCH`).
@@ -556,10 +816,12 @@ the declarative rules (fail-closed) is an open question.
 
 ### What exists, what this adds
 
-As shipped today: the filter IR is single-table (`QueryPlan` has one `table`;
+As shipped when this RFC was drafted — M1 has since landed the schema surface;
+the Implementation-status paragraph below is the current column: the filter IR
+is single-table (`QueryPlan` has one `table`;
 `ValueExpr` has no relationship/EXISTS form and one auth variable,
-`auth.userId`); `TableManifest` carries no membership metadata and
-`IndexManifest` no uniqueness flag; `FieldManifest` has an `optional` flag
+`auth.userId`); `TableManifest` carried no membership metadata and
+`IndexManifest` no uniqueness flag (both now landed); `FieldManifest` has an `optional` flag
 (hence the non-null pin above); there is no `ctx.permissions` host operation;
 declarative write-side row rules are deferred by a ratified 0039 narrowing; the
 HostPlan `Get` is id-only; and LLP 0008 pins the v1 syncable-live subset to
@@ -597,12 +859,61 @@ presence). M1 deliberately does **not** land: the transition-matrix execution,
 generated write methods, and raw-write refusal (M2); the rule helpers and
 `ctx.permissions` read (M3); the matcher/predicate-IR and invalidation wiring
 (M4/M5); and the provenance columns/log (M5). Two M1 boundaries rest on later
-milestones and are enforced conservatively rather than guessed: the `lastHolder`
-activation check counts holder *rows* (the *eligible*-holder refinement that
-excludes LLP 0055-deactivated principals lands with the LLP 0055 principal
-machinery), and referential integrity keys on a `resourceTable` binding the
-declaration records directly until codegen fills it from `v.id(...)` under the
-LLP 0004 authoring follow-on.
+milestones: the `lastHolder` activation check counts holder *rows* — which is
+**laxer** than the pinned eligible-holder predicate, not conservative (it admits
+states the real check refuses). This is **no longer vacuous**: LLP 0055 agent
+deactivation has *landed* (G1, `src/storage/auth_agents.rs`), so a deactivated
+sole holder can exist today and the row-counting activation scan will wrongly
+admit it — the eligible-holder refinement (LLP 0055's recoverability predicate)
+is an active gap, not a future-only one. And referential integrity keys on a
+`resourceTable` binding the declaration records directly until codegen fills it
+from `v.id(...)` under the LLP 0004 authoring follow-on.
+
+Round 14/15 named these **M1-completion obligations**, all due before M2, and
+none yet shipped: the **`deny_unknown_fields`** closure on every membership
+object (above); the per-op grammar refusals (§Writes — M1 requires `op`/`by`/`target` by
+deserialization and rejects unknown columns/axis-patches, but leaves `from`/`to`/
+`fields` optional in the wire shape with no per-operation admissibility,
+empty-array rejection, or reachability check); the `resourceTable` resolution
+requirement and the absent-table-is-an-empty-roster rule (the shipped scan skips
+both cases); the final-state single-validator ordering with **explicit phases**
+(the shipped staged-path scan runs before DDL and seed, and the same-mode/network
+paths apply DDL and seed without invoking it at all — the fix is a pinned phase
+order **table/column DDL → seed → final-state validation → generated
+indexes/constraints**, so the generated unique index is created *after*
+validation and a raw SQLite duplicate failure cannot preempt the typed
+diagnostic; alternatively, early constraint failures are explicitly mapped to
+the typed diagnostics); the **reverse `(resource, role, principal)` covering
+index** (§Writes — M1 generates only `(principal, resource)`, which cannot serve
+the holder query); the **`expiry` field type/optionality** check (the shipped
+validation checks field-exists, non-axis, and `onExpiry` only — not the epoch-ms
+type the design pins); the **rename-without-pinned-id diagnostic** (implementable
+now from the durably stored previous manifest; the shipped code checks only id
+syntax and manifest-local collision); the **eligible-holder (recoverability)
+activation check** replacing row-counting (active gap, since deactivation has
+landed); and the capability gate below.
+
+**Activation must be capability-gated until enforcement exists — and today it is
+not.** M1 is schema validation only: none of the declared runtime guarantees —
+the transition matrix, the raw-write refusal, `lastHolder` preservation, the
+sweep, the provenance columns — is enforced yet. State it plainly, because a
+safety reader will read this paragraph alone: **nothing refuses production
+activation of a `.membership()` declaration today.** An app can declare
+`lastHolder` now and have ordinary writes strand the resource the same day, with
+the manifest asserting a guarantee nothing delivers — the exact fail-open hazard
+this gate exists to close, and it is open until the gate lands. The obligation:
+activating a manifest containing a `.membership()` declaration **will refuse
+with a typed capability diagnostic until the milestones enforcing that
+declaration's feature set have landed** (the write contract is M2; a declaration
+using only surfaces whose enforcement has landed will activate), the requirement
+derived unforgeably from the declaration itself (not a broad "membership
+supported" bit that switches on unfinished subfeatures) and enforced on every
+schema-activation, deployment, and import path. The M1 acceptance fixtures
+**will** exercise the validator through an explicit dev-profile-only override
+that production profiles do not carry. This gate is **first** among the
+M1-completion obligations, because it is the one holding the fail-open window
+open. Capability honesty is the corpus posture: a declared guarantee either
+binds or refuses to activate — it is never decorative.
 
 *M3 landed 2026-07-14 via ENG-24909* — the **rule helpers, the membership
 predicate IR, and `ctx.permissions`**: the declaration-bound membership
@@ -717,7 +1028,15 @@ error. `resourceRef` in a helper may be a **row field of the table under query**
 whose type is that same resource reference, or a **query argument** of that type
 (both analyzable at subscribe time); anything else — a computed expression, a
 different resource type, a join through a third table — is outside the v1 grammar
-and is a load-time error.
+and is a load-time error. **This nominal resource-reference equality needs a
+manifest representation that does not exist yet**: the current authoring kit has
+neither `v.id()` nor `v.principal()` and Rust `FieldType` carries no
+target-bearing id type, so a plain string field cannot prove it references
+`events` rather than another table. Pinning a manifest-level `Id<table>` (or
+equivalent reference metadata on fields and arguments), with its serialization,
+codegen, schema migration, and validation, is therefore an **explicit M3
+prerequisite**, not merely a companion authoring obligation — the helper grammar
+cannot be enforced without it.
 Auth variables resolve at subscribe time and fail closed when unauthenticated —
 internally a null principal matches no rows; at the surface an unauthenticated
 client subscribing to an auth-dependent query receives LLP 0011's typed
@@ -790,7 +1109,17 @@ What is deferred (§Protocol obligations) is the *mechanism*: the exact
 linearization point at which the deny operation validates its captured reads
 before branding, and what a linearization-*failed* deny does to the
 registration. The ordinary denied-at-subscribe outcome is **not** open — it is
-pinned below.
+pinned below. **Denial linearization is owned by M3** — the milestone that adds
+`requireRole` and the imperative `ctx.permissions` read — and `requireRole`
+**remains capability-gated (refused, typed) until M3 lands** its host-only
+terminal outcome carrying the preserved snapshot-bound dependency and a coherent
+witness. This is load-bearing because the shipped runtime discards captured
+reads on handler failure and current terminal-witness sampling reads the
+database's *current* head, which a grant landing between the denied lookup and
+that sampling could misbrand as witnessing a newer state — the exact
+never-echo/false-proof violation the pinned semantics forbid. So M3 owns denial
+preservation and branding as an explicit prerequisite, not a late detail, and no
+imperative membership helper ships enforcing before it.
 
 **Denied-at-subscribe is not empty-at-subscribe.** The empty-result capture wakes
 a *live subscription that matched nothing*; a subscription **denied** at
@@ -900,6 +1229,18 @@ never satisfies `AdminRead`/`AdminWrite`/`AdminSecretRead`/
 the app's principal space. ([LLP 0055](./0055-agent-principals-and-scoped-grants.rfc.md)
 §Plane boundary is the same wall from the other side.)
 
+**The first global holder has no witness path, and the document says so
+rather than leaving it to be discovered.** The app singleton has no creation
+event, so there is no bootstrap witness to spend — `bootstrapRole` on a
+`scope: "app"` declaration is a manifest error, the same dead-policy class as
+`lastHolder`'s refusal above — and an open self-seat transition
+(`by: ["none"], target: "self"`) would make *every* authenticated principal an
+`admin`, not the first one. Seating the first app-global `admin` therefore
+goes through the **privileged non-invocation writers** — seed, admin data
+edits, `--as-membership` — as a stated design fact, not an accident: the v1
+answer to "first signup becomes owner" is a seeded or operator-seated row, and
+whether a blessed *product* path should exist is a named open question.
+
 Honest consequence of uniqueness: with the app singleton as the resource, **a
 principal holds at most one global role per declaration**. Exclusive
 vocabularies fit naturally; apps needing stackable global roles declare a
@@ -1008,7 +1349,14 @@ non-invocation writers. `grantedByGrant` is a **historical tag, not a
 resolvable reference** — grants are excluded from logical export and terminally
 revoked by 0055 recovery, so nothing may join against it. **Import preserves**
 exported provenance values (the columns are immutable and continuity is the
-point). Adding a `provenance` declaration to an **already-populated** table
+point). The fill rule and the preservation rule compose without ambiguity: a
+row whose export carries provenance values keeps them; a row imported
+*without* them is filled with the tag `import`. The transition log obeys the
+same continuity rule — exported log rows import verbatim, preserved rows
+append nothing new, and an import-*created* membership row appends an
+`import`-class entry, because **every writer class appends**: the log's value
+as the `authorityCreating` audit substrate is exactly that no writer is off
+the books. Adding a `provenance` declaration to an **already-populated** table
 backfills the pre-declaration rows with the tag `preexisting` rather than
 refusing activation — otherwise a brownfield app could never adopt delegated
 role management, since 0055 requires the declaration before any writing
@@ -1043,10 +1391,33 @@ lost:
 3. **The membership transition ledger** (with LLP 0019 F8): schema, retention,
    redaction, and commit linkage for every authorization-relevant insert, role
    transition, and delete.
-4. **Generated write-method mechanics:** the transaction-local authorization
-   witness binding caller/effective principal, declaration, resource, target
-   row, operation, and old/new role; witness non-reuse; and the bootstrap
-   exception's exactly-once property.
+4b. **The `lastHolder` commit-stage invariant, jointly owned.** The eligible-
+   holder final-state predicate is evaluated at the serialized commit inside the
+   auth transaction (not via app captured-dependencies, which ignore auth-catalog
+   rows) by **both** this document's M2 writers and the landed LLP 0055 G1
+   deactivation side, so deactivate-vs-remove races over the final eligible
+   holder serialize identically regardless of which check commits first. Pinning
+   the shared commit-stage evaluation point and proving both commit orders
+   (including catalog-absence and same-transaction lifecycle changes) is a joint
+   M2/G1 obligation.
+
+4. **Generated write-method mechanics and the writer-authority carrier.** The
+   seam's *taxonomy* is design intent and is pinned here: every membership
+   effect reaching the central seam carries exactly one value of a **closed,
+   host-owned writer-authority carrier** — `userTransition` (with the
+   transaction-local authorization witness binding caller/effective principal,
+   declaration, resource, target row, operation, and old/new role),
+   `systemSweep`, `privileged(seed | import | hostOps:<verb>)`, or `raw`
+   (which the seam refuses for membership tables) — **unforgeable by
+   application code** and propagated intact through write buffering, nested
+   `ctx.runMutation`, idempotent replay, and dry-run. Today's buffered write
+   carries data with no authorization and the compatibility projection
+   collapses anonymous, `system`, and `adminBypass` into one representation,
+   so the carrier is an M2 **prerequisite**, not an M2 detail: a check "below
+   buffered Ibex and HostPlan" that cannot distinguish raw `ctx.db` from an
+   authorized transition from the sweep enforces nothing. Deferred to
+   implementation: the carrier's exact representation, witness non-reuse
+   mechanics, and the bootstrap exception's exactly-once property.
 5. **Blast-radius instrumentation:** the per-declaration counters, their
    reporting surface, and whether a numeric bar gates blessing memberships for
    the reference apps before narrowing lands.
@@ -1101,7 +1472,11 @@ semi-join amendment** and are not v1 acceptance.
   cross-declaration row are each refused; a declaration attempting
   `onExpiry: "downgradeTo: …"` is a manifest error (no declared ordering means no
   provable non-escalation); there is **no** general system-authority
-  role-management API (a `systemSetRole` does not exist).
+  role-management API (a `systemSetRole` does not exist). The declared expiry
+  field must be an epoch-ms timestamp column (any other type is a manifest
+  error; a null value never sweeps), and the expiry-without-cron diagnostic is
+  satisfied **only** by a cron entry directly targeting the generated sweep
+  action — an app action that merely calls the sweep does not satisfy it.
 - [base] **A userless authority matches no transition class:** `system`,
   `adminBypass` (anonymous projection), and anonymous callers are refused by the
   generated write methods — **including against a `by: ["none"]` open-join
@@ -1116,15 +1491,51 @@ semi-join amendment** and are not v1 acceptance.
   event 1.
 - [base] **Reserved identifiers:** declaring a role named `"self"` or `"none"` is
   a manifest error (they are caller classes, not roles).
-- [base] **`lastHolder` counts _eligible_ holders — the adversarial schedule that
-  defeated a row-counting version:** agents A and B both hold the protected role;
-  **deactivate A** (allowed — not the sole row); then B **leaves / is demoted /
-  expires / is deactivated** → **refused**, because A is ineligible and B is the
-  last *eligible* holder. The resource can never be left held only by a
-  permanently deactivated principal. Also refused: **inserting or promoting an
-  ineligible (deactivated) principal into the protected role** — the set cannot be
-  kept full with corpses. Concurrent variants of the same schedule yield exactly
-  one commit and one typed refusal.
+- [base] **The per-op grammar is closed and fail-closed:** an `insert`
+  transition omitting `to`, a `patch` omitting `fields`, an empty `by`/`from`/
+  `to`/`fields` array, a `from` on `insert`, a `to` on `remove` or `patch`,
+  `fields` on `setRole` or `remove`, `by: ["self"]` on `insert`, and a
+  role-class `target: "self"` row are each refused at manifest load — asserted
+  against the activation validator, which must refuse them **before** M2
+  exists to execute them. An omitted `from` admits any current role; an
+  omitted insert `fields` binds the insert to axes + role only. The
+  omitted-`to` open-join insert — the fail-open self-seat reading — is proven
+  **refused at load**, never reinterpreted at runtime.
+- [base] **No fail-open activation:** activating a `.membership()` declaration
+  whose security-significant features lack their landed central enforcement is
+  refused with the typed capability diagnostic; the M1 fixtures run under the
+  explicit dev-only override; a production-profile activation without M2 is
+  proven refused.
+- [base] **One final-state validator:** every deployment path — dev apply,
+  same-mode sessions deployment, staged activation, import — invokes the
+  shared activation validator against post-DDL, post-seed state; a
+  `scope: "resource"` declaration without a resolvable active `resourceTable`
+  is refused (omitted and misspelled variants both); an absent or newly
+  created membership table validates as an **empty roster**, so a `lastHolder`
+  declaration over a populated resource table refuses activation unless the
+  same activation seats holders; and a seed that introduces a nonconforming
+  row is caught (the scan runs after seed, not before).
+- [base] **`lastHolder` counts _eligible_ holders (LLP 0055's recoverability
+  predicate) — the adversarial schedule that defeated a row-counting version:**
+  agents A and B both hold the protected role; **deactivate A** (allowed — not
+  the sole row); then B **leaves / is demoted / expires / is deactivated** →
+  **refused**, because A is ineligible and B is the last *eligible* holder.
+  Also refused: **inserting or promoting an ineligible principal into the
+  protected role** — the set cannot be kept full with unrecoverable holders. The
+  **A-active / B-nonexistent counterexample** (deactivate A while B is a
+  never-authenticatable id) is in acceptance and, until the joint LLP 0055/0056/G1
+  predicate lands, documents the shipped gap where G1 wrongly admits it.
+  Concurrent variants yield exactly one commit and one typed refusal **in both
+  commit orders** — deactivate-A ∥ remove-B over the final two eligible holders.
+  The lifecycle leg is evaluated at the **shared transaction-local final-state
+  evaluator** described in §Writes and protocol obligation 4b — invoked after
+  the writer's own effects, under the writer reservation, before commit — **not**
+  via app captured-dependencies (auth-catalog rows carry no app `_version` and
+  `CapturedReadKind::Auth` is ignored by commit validation, so no acceptance text
+  relies on `Auth` captures); only the membership `(resource, role)` holder-set
+  read is an ordinary captured range. A version that evaluates the invariant on
+  a plain snapshot without the shared final-state check passes both racers and
+  strands the resource, which is the point of the fixture.
 - [base] **`lastHolder` is _established_, not merely preserved** — the leg an earlier
   draft was missing: a declaration with `lastHolder.protect: R` and
   `bootstrapRole != R` is a manifest error; **creating a resource of a protected
@@ -1266,6 +1677,9 @@ semi-join amendment** and are not v1 acceptance.
   excluded from `memberOf` and the preset) — does a real events app confirm it?
 - Multi-role: does one-row-per-pair hold, or does a real app force `multiRole`
   (uniqueness on the triple)? Expected to bite first at `scope: "app"`.
+- Should a blessed **product** path exist for seating the first app-global
+  `admin` (the self-hosted "first signup becomes owner" pattern), or is
+  privileged seeding (§Global roles) the permanent answer?
 - **Declaration-scoped narrowing** (0053's): should it land with the semi-join
   lane as the first graduation target, given it needs no subject attribution and
   the per-declaration measurement is already in acceptance? (Leaning: yes.)
@@ -1324,10 +1738,11 @@ semi-join amendment** and are not v1 acceptance.
 
 ## Status
 
-**Review** — moved from `Draft` by the author (Charlie, 2026-07-13), who is the only party LLP 0005 permits to make that call. Refined through **thirteen dual-family review rounds** (fresh Claude
+**Review** — moved from `Draft` by the author (Charlie, 2026-07-13), who is the only party LLP 0005 permits to make that call. Refined through **sixteen dual-family review rounds** (fresh Claude
 Fable 5 Max and GPT gpt-5.6-sol ultra reviewers each round, none with memory of
-prior rounds); all twenty-two reviews are recorded verbatim with provenance in
-`llp/reviews/0056-scoped-roles-and-memberships.{fable,codex}.md`.
+prior rounds); all reviews are recorded verbatim with provenance in
+`llp/reviews/0056-scoped-roles-and-memberships.{fable,codex}.md` (the artifacts
+are the count of record).
 
 **Author ruling, 2026-07-13 (Charlie): altitude ratified.** This is an RFC, not a
 protocol spec — design intent is pinned here, and protocol rigor (the normative
@@ -1358,7 +1773,13 @@ from any channel is currently unspellable — which is named in §Non-Goals with
 proposed spelling (`by: ["appRoles:admin"]`) rather than left to be discovered at
 authoring time.
 
-The current revision incorporates the round-12 findings; those changes are **newer
-than the last review**. Builds on LLP 0011's rule model and LLP 0053 (Accepted);
+The current revision incorporates the round-16 findings (both families, blind).
+Round 16's central fix reconciled an eligibility-predicate divergence that this
+session's concurrent LLP 0055 round-6 edit introduced — 0055 strengthened
+eligibility to durable recoverability and claimed alignment with 0056, while 0056
+still said "not permanently ended," each citing the other. LLP 0055 now owns the
+predicate and 0056 consumes it, so the co-owned invariant has one definition;
+making the shipped G1 check match it is a named joint defect obligation. This
+revision has **not yet been reviewed** — round 17 is the next fresh pass. Builds on LLP 0011's rule model and LLP 0053 (Accepted);
 composes with LLP 0055 but neither depends on the other landing first. Where this
 document restates a contract LLP 0011, 0039, or 0053 pins, those documents win.

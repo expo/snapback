@@ -5,7 +5,24 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
+**Revised:** 2026-07-14 (round-2 dual-family revision, /llp-super-refine:
+**separated committed executable coverage from one-time recorded evidence** in
+Acceptance/Status — the "actual-predecessor runs" and "byte-for-byte database/WAL
+comparison" are recorded ENG-24597 evidence, not a rerunnable committed harness,
+and the text no longer overstates the committed tests; **defined
+`AuthorizationCommitWitness`** ownership (this Spec owns the same-mode activation
+witness; mapped to LLP 0053's `CompositeWitness` vocabulary); **registered the
+kit-produced `SNAPBACK_AUTH_HANDSHAKE_INVALID` and `SNAPBACK_REQUEST_BODY_TIMEOUT`**
+as LLP 0012 obligations; **labeled the §Activation-readiness JSON as the item-4
+boundary exhibit** (later items flip their facts); named the 20 s ingest
+deadline's collateral class; and recorded, as named defect obligations, the
+GPT-family spec-vs-code findings (exact connection-grant live ownership,
+settled-dev raw-loader tuple enforcement, prepared-generation compilation before
+consume, readiness-before-prerequisites, the composed gate boundary, HTTP session
+DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/version
+exactness, truly-empty seed classification, content-verified deployment
+identities, and operator-recovery diagnostics). Full triage in §Review triage.)
+2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0057, LLP 0059, LLP 0060
 
 ## Summary
@@ -511,8 +528,12 @@ poison, or monotonicity invariant failure returns
 `SNAPBACK_AUTH_MODE_STATE_CORRUPT`, binds no app-data listener, and performs
 **no durable write at all**. In particular, startup does not quarantine,
 rewrite a staged record, increment a generation, adopt, unstage, repair, or
-guess which key is authoritative. Tests compare all four values and the
-database/WAL byte-for-byte before and after this refusal.
+guess which key is authoritative. Committed tests compare all four meta values
+logically before and after this refusal; a **byte-for-byte database/WAL
+comparison** across the full corrupt-state matrix is a named acceptance
+obligation (§Review triage), not yet a committed fixture — the current test
+asserts the logical no-write invariant, and the stronger byte-identity fixture
+is the gap to close.
 
 Quarantine is eligible only after all four keys form a valid pending snapshot.
 It records a transition-specific refusal discovered after that point, such as a
@@ -732,6 +753,17 @@ projection admission for those local reruns/publications; it is never exposed
 as ordinary request admission and is dropped before reopen. Only after every
 required projection succeeds does the controller retire the predecessor and
 open a fresh increasing `admissionEpoch` for the still-settled sessions mode.
+
+**`AuthorizationCommitWitness` is owned here** (this Spec owns same-mode
+activation): it is the record a completing authorization-event transaction
+returns to the transition owner — the committed authorization version, the
+active deployment identity, and the incarnation — and it is the concrete
+same-mode instance of LLP 0053's `CompositeWitness` vocabulary and LLP 0059's
+"durable witness floor." The **minimum commit-version floor** is the version at
+or above which every projected obligation and successor snapshot must be
+witnessed; a projection carrying a witness below the floor is rejected. The
+record shape is pinned here so the name is not used normatively while defined
+only in code.
 
 Projection is conservative over the complete retained-live registry, not only
 queries that already own an authorization scope. An
@@ -1273,7 +1305,14 @@ dev/test-only; item 4 must not broaden it to demo.
 
 ## Activation-readiness and later-item fences
 
-The capability/runtime authority carries these exact facts:
+The capability/runtime authority carries these exact facts. **This exhibit is
+the item-4 boundary snapshot**: at item 4, the first seven facts are true and
+the later-item facts (`connectionBinding`, `twoPhaseRevocation`, `authCoordinator`,
+`sessionActivationReady`) are false. Later items **flip their own facts to true**
+as they land (item 5 has, per §Summary), so a live runtime composes more true
+facts than shown here — read the JSON as the boundary exhibit, not current
+reality, exactly as §Live and replay admission brackets boundary-vs-current
+behavior.
 
 ```json
 {
@@ -1380,6 +1419,14 @@ pins the producer semantics and safe-detail boundary.
 | `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | 503 pre-item-6 auth-scoped live/protected-room refusal |
 | `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` | actual pre-auth predecessor rejects the v1 header |
 | `SNAPBACK_CAPABILITY_UNSUPPORTED` | requested pair/required capability unsupported by knowing target |
+| `SNAPBACK_AUTH_HANDSHAKE_INVALID` | **kit-produced**; a `clientProtocols` echo did not match the exact per-request offer tuple, or a required handshake field (descriptor version, incarnation UUIDv7) was malformed before custody change |
+
+`SNAPBACK_REQUEST_BODY_TIMEOUT` and the **kit-produced**
+`SNAPBACK_AUTH_HANDSHAKE_INVALID` are both new codes this Spec introduces, so
+both are LLP 0012 item-4 registration obligations before ship (the body-timeout
+code is emitted and 408-mapped in the server today but is absent from LLP 0012's
+registry — a named registration gap). Client-produced codes are marked
+kit-produced in the registry so their producer is unambiguous.
 
 Existing LLP 0057 credential diagnostics retain their meanings and precedence.
 Mode/artifact failures include only expected/observed versions, modes, identity
@@ -1417,12 +1464,20 @@ loaded strings where structurally possible, proving no equality shortcut bypass.
 For each refusal the database/WAL, logical schema/version, functions, mode keys,
 and seed are unchanged relative to the immediate snapshot.
 
-The pinned actual unmodified pre-auth predecessor runs in its provisioning-
-allowed `dev` profile against (a) a fresh database and (b) an identical-content
-v0-dev database. The complete v1-sessions request is refused in both with exact
-`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`; the three v1 identity strings differ
-from v0, the provisioned case cannot report `matched`, and neither request
-changes bytes or logical state.
+**Predecessor evidence — committed coverage vs recorded evidence, stated
+honestly.** The *committed* tests prove the **current** binary rejecting foreign
+v1 identity strings with exact `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` (the v1
+strings differ from v0, the provisioned case cannot report `matched`, and no
+bytes or logical state change). Running an **actual pinned pre-auth predecessor
+binary** against (a) a fresh database and (b) an identical-content v0-dev
+database — the run that most directly evidences load-bearing claim 4 (a
+pre-auth binary fails *parsing* rather than silently reopening under body
+authority) — is **recorded ENG-24597 evidence, not a rerunnable committed
+harness**. Making it one (a pinned predecessor SHA built in a cached toolchain,
+the two-database matrix, and the poisoned-DB-open case, e.g. as a nightly CI
+job) is a named acceptance obligation (§Review triage); until then the
+distinction between committed executable coverage and one-time recorded
+evidence is stated rather than blurred.
 
 Golden vectors pin all three exact `snapback.v1:sessions:*:sha256:` spellings,
 the three LLP 0012 domains, the three constant framed items followed by `appId`,
@@ -1623,10 +1678,13 @@ a fallback when the pinned v1 mechanism refuses.
 ## Status
 
 **Draft.** ENG-24597/item 4 is implemented. Executable pair matrices,
-actual-predecessor runs, crash injection, route/operation parity, and
-cross-transport authority negatives provide its implementation evidence; prose
-alone would not have been sufficient. LLP 0059/item 5 has subsequently closed
-the activation fence for an explicitly staged local sessions deployment.
+crash injection, route/operation parity, and cross-transport authority negatives
+are its **committed** implementation evidence; the **actual-predecessor runs**
+and the **byte-for-byte** corrupt-state comparison are **recorded ENG-24597
+evidence, not rerunnable committed harnesses** (Acceptance separates the two,
+and making them committed is a named obligation). LLP 0059/item 5 has
+subsequently closed the activation fence for an explicitly staged local sessions
+deployment.
 
 Implementation completion does not make this foundational, security-sensitive
 Spec Accepted. It still needs an LLP review scaled to its stakes and explicit
@@ -1634,9 +1692,51 @@ author ratification; this reconciliation performs neither on the author's
 behalf.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
-document on 2026-07-14; its verbatim report and provenance are archived in
-`reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md`
-(verdict: NOT READY — thirteen material spec-vs-code fidelity and security
-findings). Small editorial corrections from that review are applied above; its
-material findings await author triage. The review advises — it does not
-ratify.
+document on 2026-07-14 (round 1, verdict: NOT READY). A second dual-family round
+(fresh Codex ultra + fresh Fable Max, blind, via /llp-super-refine) reviewed the
+committed revision at `b11a6fa` the same day; both artifacts are archived with
+provenance in
+`reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.{codex,fable}.md`.
+
+### Review triage
+
+Both families rate the design and implementation fidelity highly; the concerns
+are spec-vs-code fidelity, over-claimed evidence, and hygiene. Dispositions:
+
+**Resolved in text (round 2):** the Acceptance/Status over-claim — committed
+executable coverage is now separated from one-time recorded ENG-24597 evidence
+(the actual-predecessor runs and byte-for-byte corrupt-state comparison), and the
+byte-for-byte fixture and a rerunnable predecessor harness are named obligations;
+`AuthorizationCommitWitness` defined and mapped to LLP 0053's `CompositeWitness`;
+`SNAPBACK_AUTH_HANDSHAKE_INVALID` and `SNAPBACK_REQUEST_BODY_TIMEOUT` registered
+as LLP 0012 obligations with the body-timeout registry gap named; the
+§Activation-readiness JSON labeled the item-4 boundary exhibit; the 20 s
+ingest-deadline collateral class named.
+
+**Named defect obligations (spec pins the correct behavior; shipped code has the
+gap — code fixes, not design changes, each with an acceptance obligation):**
+exact connection-grant live ownership (unsubscribe/resume/supersede must compare
+the stored grant id/effect fence, not authority alone); settled-dev raw loaders
+must enforce the v0-dev tuple before DDL/function replacement (including the
+null-`activeDeployment` fresh/adopted case); a non-callable prepared generation
+must compile every module and validate exports **before** consume/same-mode
+commit; every mandatory readiness prerequisite (coordinator rebuild, invalidation
+install, connection binding, worker) must be probed/constructed before durable
+consume or a safe durable intermediate state defined; the composed
+gate/connection-act boundary must be described normatively **or** unified into one
+production gate consumed by every HTTP/WebSocket/local/nested/system ingress, with
+an exhaustive ingress-to-gate registry test; HTTP session-mode ephemeral DTOs must
+be closed (`deny_unknown_fields`) and share the WebSocket twins' schema;
+handshake cache must invalidate across a replacement process; handshake exactness
+must validate canonical UUIDv7 and `descriptorVersion === 1` (descriptor and
+incarnation) before custody change; "truly empty" seed eligibility must exclude
+adopted-legacy/empty-table applications; deployment identities must be recomputed
+(content-verified) in the receiver or a trusted-producer premise stated; and
+operator-recovery diagnostics must carry expected/observed deployment identity,
+the downgrade audit fact must be recorded before bind, and the alternate offer
+carrier on ordinary HTTP bootstrap resolved. The split-document suggestion is left
+to the author. These are code-fidelity obligations: the normative design is
+unchanged, but the Spec cannot advance past Draft until they close.
+
+The review advises — it does not ratify; this document remains Draft pending
+author triage completion and explicit ratification.

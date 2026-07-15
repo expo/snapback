@@ -1571,3 +1571,404 @@ The loop then resumed with the ratified standard in the reviewers' briefs, and
 findings dropped sharply and became precise. `/llp-super-refine` authorizes only
 the Draft→Review transition, and only on convergence; no reviewer accepts on the
 author's behalf.
+
+## Round 13 — 2026-07-14
+
+**Revision under review:** `llp/0055-agent-principals-and-scoped-grants.rfc.md`, sha256 `5e0dfe45d58022296d4e186c0dece619c21fd6726e1fdae73c5e4b05cf3593e2` (committed at repo HEAD `b11a6fa`)
+**Runtime detail:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, reasoning effort ultra, read-only sandbox, session id 019f637b-dceb-7cb2-a353-fb45977d079d; 376,146 tokens used; fresh session, blind to all archived reviews and to the concurrent Fable-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+## 1. Overall assessment
+
+First-class agent principals with explicit, expiring, revocable grants are a good and necessary direction for Snapback. The actor/effective-principal distinction, strict operator/app-plane boundary, consent-based delegation, and fail-closed hosted posture are conceptually strong.
+
+The proposal is not ready, however. Its central non-widening theorem is unsound for auth-dependent handler control flow; owner re-credentialing silently grants principal-takeover power; several recovery and retention invariants contradict one another; and critical security mechanisms lack viable carriers or implemented prerequisites. These are design-level issues, not implementation polish.
+
+## 2. Strengths — with section citations
+
+- The separation between application authority and operator authority is clear and valuable. `servicePrincipal` cannot satisfy `Admin*` policy, and operator credentials cannot silently become app principals ([LLP 0055 §Plane boundary](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:396)).
+
+- The actor/effective-principal/grant tuple is the right foundation for autonomous and delegated agents. It preserves existing `userId`-keyed application models while making delegation attributable ([§Resolved authority](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:258)).
+
+- The consent flow avoids user-handle enumeration by having the user initiate pairing and correctly binds consent to concrete scopes, expiry, and displayed agent provenance ([§Consent](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:803)).
+
+- Credential rotation, family tombstones, single-use invitations, class dispatch, and cross-class refusal show unusually good attention to bearer lifecycle failure modes ([§Credentials](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:641)).
+
+- `authorityCreating` correctly recognizes that static inspection is insufficient and requires an authoritative effect-site gate for dynamically reached permission-backing writes ([§Grants](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:864)).
+
+- The validation section is strong. It includes concurrency races, ABA revival, wrong-class credentials, stale grants, nested calls, rotation theft, and dynamic alias/wrapper cases rather than relying on happy-path tests ([§Validation Requirements](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1285)).
+
+- Hosted invocation remains refused, and the document explicitly avoids claiming durable audit, attestation, retained agent reads, or hosted safety before those systems exist ([§Non-Goals](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:140)).
+
+## 3. Concerns
+
+### 1. MATERIAL — The single-execution dual-projection rule does not prove the claimed non-widening property
+
+The RFC claims that a delegated invocation is authorized only where the effective user’s direct invocation would also be authorized, while running the handler once and dual-evaluating only host decisions reached by that execution ([§Resolved authority](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:304)).
+
+Auth-dependent control flow defeats that claim:
+
+```ts
+if (ctx.auth.actor == null) {
+  ctx.permissions.deny()
+}
+await ctx.db.insert("broadlyWritable", value)
+```
+
+The direct execution denies, while the delegated execution skips the denial. A skipped host operation cannot be evaluated under the second projection. Actor-dependent constant results or action payloads have the same problem even when all reached database operations independently pass both policies.
+
+The current architecture illustrates the constraint: one `HandlerAuthProjection` is installed in one host context ([src/auth/invocation.rs:405](/Users/ccheever/projects/snapback/src/auth/invocation.rs:405), [src/runtime.rs:533](/Users/ccheever/projects/snapback/src/runtime.rs:533)), and the host sees only operations reached along that execution path ([src/runtime.rs:802](/Users/ccheever/projects/snapback/src/runtime.rs:802)). Moreover, the general RLS language on which per-row dual evaluation depends remains open ([LLP 0011 §Status](/Users/ccheever/projects/snapback/llp/0011-auth-and-permissions.rfc.md:407)).
+
+**Resolution criterion:** Either supply an enforceable mechanism that accounts for counterfactual auth-dependent control flow—such as declarative pre-handler authorization, enforceable control-flow restrictions, or a side-effect-suppressed direct execution—or narrow the guarantee to reached host operations and amend LLP 0053 accordingly. Acceptance must include skipped-denial, actor-dependent result, and actor-dependent egress cases.
+
+### 2. MATERIAL — Owner re-credentialing is principal takeover, not ordinary key rotation
+
+The RFC says owners already control their agents’ credentials and therefore gain no new authority by reissuing one ([§Principal kinds](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:178), [§Re-credentialing](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:495)). That is not guaranteed by the registration protocol. A human mints an invitation, but the registration caller receives the sole credential ([§Registration](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:456)). The agent may subsequently rotate it without the owner.
+
+Owner reissue then gives the owner a fresh credential for the same principal while preserving that principal’s memberships. Consequently, an owner who never possessed the current credential can assume third-party-granted roles held by the agent. Step-up proves who the owner is; it does not eliminate this privilege transfer. This conflicts with LLP 0039’s host-ops-only impersonation boundary and its production refusal of impersonation effects ([LLP 0039 §Credential carriers](/Users/ccheever/projects/snapback/llp/0039-auth-vertical-slice.rfc.md:437), [§Validation](/Users/ccheever/projects/snapback/llp/0039-auth-vertical-slice.rfc.md:1725)).
+
+**Resolution criterion:** Choose explicitly between:
+
+1. ownership as permanent controller/assumption authority, disclosed wherever an agent receives grants or memberships and recorded in audit, with LLP 0039 amended; or
+2. agent-held/sender-bound recovery in which the owner authorizes recovery but cannot obtain the agent bearer.
+
+Test: owner never saw the credential → agent rotates → third party grants a protected role → owner reissues.
+
+### 3. MATERIAL — `auth.kind` is both immutable and caller-selectable
+
+The RFC says an impersonated development identity defaults to `kind = "human"` and may be changed with `--as-agent`, then says `auth.kind` is a pure function of immutable `userId` ([§Principal kinds](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:230)). LLP 0053 relies on that premise to classify `auth.kind` as retention-compatible ([LLP 0053 §Agent-auth protected-query inputs](/Users/ccheever/projects/snapback/llp/0053-authorization-invalidation.rfc.md:582)). LLP 0043’s retained-data ownership axis is keyed by auth mode, stream incarnation, and `userId`, not a caller-selected kind ([LLP 0043 §Auth posture](/Users/ccheever/projects/snapback/llp/0043-offline-replay-retention.rfc.md:215)).
+
+Thus the same `userId` can apparently produce different kind-gated authority while the retainability proof assumes it cannot.
+
+**Resolution criterion:** Derive kind canonically from durable principal identity for every authority source. If development needs arbitrary agent simulation, use a distinct synthetic principal identity. Otherwise add kind to every relevant authority/lease key and make kind-dependent queries retention-ineligible. Reconcile LLPs 0024, 0043, and 0053.
+
+### 4. MATERIAL — The compromise-response provenance claim is broader than the designed system
+
+The RFC correctly says revoke-all cannot undo app data, but then claims that “any durable row a delegate wrote” is attributable and removable ([§Re-credentialing](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:575)). Only LLP 0056 membership tables with full provenance receive that guarantee. Ordinary delegated mutations can write arbitrary application rows, and actions can produce irreversible external effects.
+
+The RFC explicitly defers the durable audit log ([§Audit](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1132)). The current generic write path records row changes without actor or grant provenance; its authorization hook receives schema and changed rows only ([src/storage.rs:2263](/Users/ccheever/projects/snapback/src/storage.rs:2263), [src/storage.rs:2359](/Users/ccheever/projects/snapback/src/storage.rs:2359)).
+
+**Resolution criterion:** Narrow the guarantee to: revoke-all ends future grant-borne authority; only explicitly full-provenance permission-backing transitions are attributable through this RFC. If broader attribution is required, make durable actor/effective/grant logging a prerequisite. State separately that committed app mutations and external effects may be irreversible, and decide whether high-impact scopes require step-up consent.
+
+### 5. MATERIAL — “Eligible means not deactivated” still permits permanent resource stranding
+
+Eligibility is defined solely as “principal is not permanently deactivated” ([§Principal kinds](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:204)). But the RFC later states that an unowned production agent which loses its credential is permanently unrecoverable ([§Recovery residual](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:622)).
+
+Therefore `revoke-self`, operator credential revocation, declared restore, or importing a dormant unowned agent can leave a sole protected-role holder unable ever to act while still counted as eligible. Current membership work anticipates excluding only deactivated principals and presently validates holder rows ([src/storage.rs:3570](/Users/ccheever/projects/snapback/src/storage.rs:3570), [src/storage.rs:3715](/Users/ccheever/projects/snapback/src/storage.rs:3715)).
+
+**Resolution criterion:** Define eligibility in terms of durable recoverability, not merely deactivation, and provide an emergency transfer/quarantine workflow that does not require preserving a compromised credential. Test sole unowned production holders across revoke-self, operator revocation, restore, and import.
+
+### 6. MATERIAL — `authorityCreating` is sequenced before its required LLP 0056 substrate
+
+The dynamic effect-site gate and full provenance are essential to `authorityCreating` ([§Grants](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:886)). Yet LLP 0056 has implemented only M1; transition enforcement, generated writes, raw-write refusal, invalidation, and provenance remain M2–M5 ([LLP 0056 §Implementation status](/Users/ccheever/projects/snapback/llp/0056-scoped-roles-and-memberships.rfc.md:587)). Code and tests explicitly confirm this boundary ([src/manifest.rs:488](/Users/ccheever/projects/snapback/src/manifest.rs:488), [tests/membership_schema_v0.rs:1](/Users/ccheever/projects/snapback/tests/membership_schema_v0.rs:1)).
+
+The current storage commit seam also lacks the resolved grant and root entry-point authority needed for a dynamic consent check. Nevertheless, the landing plan promises grants and finite agent invocation after LLP 0039 item 5 without making LLP 0056 M2–M5 a prerequisite ([§Landing decomposition](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1178)).
+
+**Resolution criterion:** Gate every service-principal permission-backing write closed until LLP 0056 M5 and an explicit authority-threading stage have landed, or defer `authorityCreating` entirely from the first slice. The dependency must appear in the landing decomposition and have effect-site tests through the real storage seam.
+
+### 7. MATERIAL — Production `AgentDestroyCapability` has no viable carrier
+
+Production operator revocation requires `AgentDestroyCapability`, which the RFC says uses the same non-browser carrier as `ImpersonationCapability` ([§Routes](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1004), [§Companion obligations](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1217)).
+
+LLP 0057 defines that carrier as `sbic_`, generates it only in dev/test/demo, and never publishes it in production ([LLP 0057 §ImpersonationCapability carrier](/Users/ccheever/projects/snapback/llp/0057-auth-provider-protocol.spec.md:721)). It is categorically an impersonation-effect carrier. Current middleware likewise refuses the effect in production ([src/server.rs:5870](/Users/ccheever/projects/snapback/src/server.rs:5870)), and the effect-policy enum has no destroy capability ([src/server.rs:3061](/Users/ccheever/projects/snapback/src/server.rs:3061)).
+
+**Resolution criterion:** Define either a domain-separated production destroy bearer—with issuance, prefix, custody, publication, redaction, restart, and revocation rules—or a generalized scoped operator-effect carrier whose destroy capability provably cannot satisfy impersonation. Amend LLP 0057/0031 and add cross-substitution tests.
+
+### 8. MATERIAL — Persistent recovery state and catalog migration are incomplete
+
+`recovery generation` is load-bearing: re-credentialing bumps it so old pairing requests cannot become new grants ([§Validation](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1347)). But the catalog-record inventory does not locate the generation on the agent, credential family, or pairing request, nor define its comparison/CAS rule ([§Grants](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:760)).
+
+The RFC also adds columns and six protected tables, bumps the catalog version, and permits `auth.agents.*` to hot-apply, without specifying how a populated sessions catalog migrates. The implementation recognizes exact catalog version 1 and rejects every other marker ([src/storage/auth.rs:21](/Users/ccheever/projects/snapback/src/storage/auth.rs:21), [src/storage/auth.rs:931](/Users/ccheever/projects/snapback/src/storage/auth.rs:931)).
+
+**Resolution criterion:** Add an owned persistent-state specification defining the recovery-generation owner, request binding, transaction/CAS ordering, crash outcomes, and v1-to-next-version catalog migration. Validate populated-catalog migration, crash recovery, restore, downgrade, and old-binary refusal.
+
+### 9. MATERIAL — Request-side secret handling is not part of the security contract
+
+`[secret]` classifies routes that return credential material ([§Routes and credential classes](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:977)). Several routes also receive credentials, invitations, recovery secrets, or pairing codes in JSON bodies, including routes that return no secret and therefore are not marked `[secret]`.
+
+The current route registry models response sensitivity but no request sensitivity ([src/server.rs:3071](/Users/ccheever/projects/snapback/src/server.rs:3071), [src/server.rs:3213](/Users/ccheever/projects/snapback/src/server.rs:3213)), while middleware may buffer and inspect request bodies ([src/server.rs:5571](/Users/ccheever/projects/snapback/src/server.rs:5571)). Existing auth avoids leaks through non-serializable, zeroizing, redacted request types ([src/auth/wire.rs:1](/Users/ccheever/projects/snapback/src/auth/wire.rs:1), [src/auth/wire.rs:60](/Users/ccheever/projects/snapback/src/auth/wire.rs:60)); LLP 0055 does not require the equivalent.
+
+**Resolution criterion:** Add request-secret classification to LLP 0031 or mandate typed zeroizing/non-serializable/redacted DTOs for every secret field. Acceptance must cover malformed and duplicate bodies, middleware peeking, diagnostics, logs, receipts, inspection, and debug formatting.
+
+### 10. MINOR — The supposedly exhaustive credential namespace is incomplete and stale
+
+The “whole namespace” omits existing `sbc_`, `sbak_`, and the actual `sbic_` bearer ([§Credentials](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:701); implementations at [src/auth/crypto.rs:16](/Users/ccheever/projects/snapback/src/auth/crypto.rs:16)). The document also calls `sbs_` and the impersonation carrier unbuilt, although both exist, and says “all four new classes” despite registering five.
+
+**Resolution criterion:** Generate one authoritative identifier/bearer registry and derive prefix-freedom, resolver cross-negatives, sensitivity, and redaction tests from it. Correct the implementation-status and class-count statements.
+
+### 11. MATERIAL — The trusted-local/hosted admission boundary is mis-owned
+
+The RFC un-reserves service principals for “local and trusted-local,” says hosted security remains unowned, and omits hosted security from its stage prerequisites ([§Summary](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:61)). LLP 0060 now owns this boundary and explains why a public reverse proxy can still appear loopback/local to Snapback ([LLP 0060 §Summary](/Users/ccheever/projects/snapback/llp/0060-hosted-auth-security.rfc.md:11), [§D1 limit](/Users/ccheever/projects/snapback/llp/0060-hosted-auth-security.rfc.md:152)). A profile or bind address alone therefore cannot distinguish trusted-local from publicly exposed local execution.
+
+**Resolution criterion:** Bind service-principal admission to the target-authored deployment capability defined by LLP 0060, make that capability an explicit landing prerequisite, and decide whether reverse-proxied local service principals are refused or require a conspicuous unsafe opt-in.
+
+### 12. EDITORIAL — The revision provenance is internally inconsistent
+
+The metadata describes the current text as the round-5 revision ([revision header](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:8)); Status says thirteen two-family rounds but twenty-one reviews ([§Status](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1601)); and it says the current text contains round-12 changes newer than the last review ([§Status](/Users/ccheever/projects/snapback/llp/0055-agent-principals-and-scoped-grants.rfc.md:1643)).
+
+**Resolution criterion:** Reconcile the round labels and counts, identify exactly which revision was last reviewed, and obtain a fresh blind review after the material redesign.
+
+## 4. Suggestions
+
+- Split this 1,600-line RFC into a short decision document plus implementing specifications for principal ownership, credential/recovery state, consent/grants, authorization composition, and client/transport behavior. That follows LLP 0005’s guidance for large documents with independently reviewable subjects.
+
+- Prefer sender-bound or agent-key-bound recovery. The owner could authorize a rebind without ever receiving a credential capable of assuming the agent.
+
+- Introduce versioned capability contracts for high-impact functions. Stable function identity alone does not communicate a material change in effects, cost, or data reach.
+
+- Start with a narrower vertical slice: finite HTTP invocation, explicit function scopes, no actions, no `authorityCreating`, and no CLI/MCP parity claim until the authorization substrate is proven.
+
+- Model-check the invitation, pairing, credential-family, recovery-generation, grant, and token state machines. The RFC already identifies enough concurrent transitions to justify executable state exploration.
+
+- Generate route policy, secret-class, prefix, diagnostic-status, and cross-resolver matrices from common registries rather than maintaining parallel prose lists.
+
+## 5. Open questions
+
+1. Is an owner permanently entitled to assume an agent principal, or only to authorize recovery without obtaining its credential?
+2. Is the intended non-widening property full observational equivalence to direct execution, or merely that each reached host operation passes both authority projections?
+3. Must every protected resource retain a human-controlled or production-recoverable holder?
+4. Does compromise response promise only termination of future authority, or also durable attribution and remediation of prior mutations and external effects?
+5. Which scopes are sufficiently consequential to require step-up at consent even when they are not `authorityCreating`?
+6. Should production destruction use a separate bearer from impersonation, or a generalized capability carrier with independently scoped effects?
+7. What exact target capability distinguishes trusted-local execution from an externally exposed reverse-proxied local process?
+8. Are CLI and MCP part of v1 acceptance, or should HTTP be the first authoritative application-data transport?
+9. What application change—function body, declared effects, permission dependencies, or capability-contract version—requires renewed consent?
+
+## 6. Readiness verdict
+
+The proposal has a strong product direction and several excellent security instincts, but unresolved material concerns remain in its core authorization theorem, principal-control semantics, recovery invariants, carrier model, persistent state, dependency sequencing, request-secret handling, and deployment boundary. It requires substantive redesign and another blind review before acceptance.
+
+READINESS VERDICT: NOT READY
+### Orchestrator disposition (round 13, outside the verbatim body)
+
+Spot-checks verified against `b11a6fa`: one `HandlerAuthProjection` per host
+context (src/auth/invocation.rs, src/runtime.rs); `sbic_` generated dev/test/demo
+only and impersonation refused on prod (LLP 0057, src/server.rs); the route
+registry models response sensitivity but no request sensitivity; the credential
+prefixes shipped (`sbc_`/`sbak_`/`sbic_`, src/auth/crypto.rs).
+
+Disposition (round-6 revision): #1 (non-widening) → narrowed to authority
+non-widening over reached host decisions, skipped-deny/actor-result/egress limit
+named, observational equivalence disclaimed; #2 (owner re-credentialing) →
+disclosed as ownership-assumption authority (author ruling 2 permits it; now
+disclosed at grant/consent surfaces + audit); #3 (auth.kind) → synthetic
+principal for dev-simulated kinds; #4 (attribution breadth) → narrowed to
+future-authority + full-provenance transitions, irreversibility stated; #5
+(eligibility) → durable recoverability + emergency transfer/quarantine; #6
+(authorityCreating sequencing) → gated on LLP 0056 M5 in landing; #7
+(AgentDestroy carrier) → domain-separated prod destroy bearer, cross-substitution
+tests; #8 (recovery-generation state) → named protocol obligation with migration;
+#9 (request-secret) → added to LLP 0031 obligation; #10 (namespace) → corrected;
+#11 (trusted-local) → bound to LLP 0060 capability; #12 (provenance) → header and
+round counts reconciled (artifacts are the count of record). Split-document
+suggestion left to the author (altitude ratified 2026-07-12). See §Review triage.
+
+## Round 14 — 2026-07-14
+
+**Revision under review:** `llp/0055-agent-principals-and-scoped-grants.rfc.md`, sha256 `64c7358bb3fd802bd9ea1302f79f29ae199ec4de97a8b43552d7ec2f43a511c9` (round-6 revision; repo HEAD `b11a6fa`)
+**Runtime detail:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, reasoning effort ultra, read-only sandbox; 384,395 tokens used; fresh session, blind to all archived reviews and to the concurrent Fable-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+# 1. Overall assessment
+
+LLP 0055 addresses a real and important gap, and its core direction is sound: agents should be first-class application principals, delegated authority should be explicit and scoped, and operator authority must remain separate from application authority.
+
+The proposal is not ready, however. Several security decisions claimed in the latest revision header and review triage were not incorporated into the operative design, validation requirements, protocol obligations, or landing plan. More seriously, the proposed non-widening theorem conflicts with the governing authorization model; eligibility and emergency recovery are internally contradictory; owner recovery silently conveys third-party-granted authority; and the claimed landed catalog foundation is inconsistent with both LLP 0057 and the current implementation.
+
+The RFC should remain in Review until these material correctness, safety, and coherence issues are resolved.
+
+# 2. Strengths
+
+- The first-class-principal model avoids forking every application surface keyed by `userId`. Reusing `_auth_users`, memberships, profiles, RLS variables, and audit identities is a strong architectural choice (§Principal kinds, `llp/0055-agent-principals-and-scoped-grants.rfc.md:192-217`).
+
+- The actor/effective-principal/grant tuple is the right conceptual basis for autonomous and delegated agents. It makes delegation explicit and gives audit and client fencing a stable authority identity (§Resolved authority, `:303-347`).
+
+- The operator/application plane separation is unusually clear. Refusing hosted service principals in v1 and refusing scoped tokens on host-operations surfaces are conservative and appropriate decisions (§Summary, `:79-115`; §Plane boundary, `:465-500`).
+
+- The scope design has several good safety properties: structured immutable entries, explicit function identity, finite delegated scopes, terminal invalidation through basis generations, and an effect-site gate for permission-backing writes (§Grants, `:821-1044`).
+
+- Credential rotation, revocation, settlement, and client fencing are treated as state transitions rather than merely token parsing. The distinction between durable authority and carrier identity is especially useful (§Credentials and tokens, `:710-819`; §Ending authority, `:1102-1188`).
+
+- The RFC is candid about several residuals and dependencies, including unowned production agents, real challenge delivery, hosted deployment security, retained reads, and durable audit (§Re-credentialing, `:593-708`; §Landing decomposition, `:1288-1311`; §Open Questions, `:1689-1727`).
+
+# 3. Concerns
+
+1. **MATERIAL — The latest revision is not integrated into the normative document.**
+
+   The revision header and §Review triage claim that owner recovery is disclosed as authority assumption, synthetic agent IDs preserve `auth.kind`, LLP 0056 M5 is a landing gate, trusted-local is tied to an LLP 0060 capability, attribution is narrowed, and recovery-generation protocol ownership was added (`:8-29`, `:1791-1822`). The operative text still:
+
+   - says owner reissue grants no new authority (`:202-214`, `:576-579`);
+   - leaves `--as-agent` without a synthetic-ID rule (`:275-295`);
+   - omits M5 from §Landing decomposition (`:1288-1311`);
+   - contains only a generic deferred trusted-local capability (`:1409-1411`);
+   - retains the broad attribution claim (`:644-655`);
+   - contains no recovery-generation item in §Protocol obligations (`:1387-1411`).
+
+   This is not merely stale history: the header asserts security properties a reader cannot find in the contract they are expected to implement.
+
+   **Resolution criterion:** Move every claimed round-six decision into its owning normative section, protocol obligation, landing prerequisite, validation case, and companion amendment. Remove or correct every superseded operative statement. The revision history should describe the resulting contract, not substitute for it.
+
+2. **MATERIAL — The non-widening theorem is false under the governing authorization model.**
+
+   The RFC first promises that a delegated invocation succeeds only where the same direct invocation would be authorized (`:356-359`). It then explicitly accepts this counterexample:
+
+   ```js
+   if (ctx.auth.actor == null) ctx.permissions.deny();
+   await ctx.db.insert("t", v);
+   ```
+
+   The direct invocation terminates at a trusted permission denial, while the delegated invocation commits the write (`:395-417`). The RFC calls that non-widening because the insert itself passes data-layer checks.
+
+   That contradicts LLP 0011, which defines authorization as including both function-level checks and data visibility (`llp/0011-auth-and-permissions.rfc.md:169-175`), and defines `ctx.permissions.deny()` as a host-owned terminal permission boundary (`:321-328`). Accepted LLP 0053 likewise treats it as a trusted authorization producer (`llp/0053-authorization-invalidation.rfc.md:1133-1144`). A host cannot dual-evaluate a trusted check that the delegated control flow never reaches.
+
+   The same problem applies to actor-dependent action effects: a delegated branch may emit an effect that direct execution would never authorize behaviorally, even if the underlying data was readable.
+
+   **Resolution criterion:** Either enforce invocation-level direct-baseline authorization, including direct-only trusted denials and effect selection, or withdraw that theorem and rename the guarantee accurately—for example, row-access and effect-capability non-widening over operations reached by delegated control flow. The latter requires corresponding amendments to LLPs 0011 and 0053 and explicit consent semantics explaining that actor-dependent handler behavior is additional delegated behavior.
+
+3. **MATERIAL — Eligibility has two incompatible definitions, and the emergency escape violates the production invariant.**
+
+   LLP 0055 first defines an eligible holder as one not permanently deactivated (`:242-248`), then redefines eligibility as durable recoverability, including ownership, credential-family state, and recovery keys (`:254-266`). LLP 0056 still normatively defines eligibility as “not permanently ended” and deliberately treats unreachable-but-live principals as eligible (`llp/0056-scoped-roles-and-memberships.rfc.md:563-618`).
+
+   The landed code implements the older rule: `has_other_eligible_holder` excludes only rows whose `_auth_users.deactivated_at_ms` is non-null (`src/storage/auth_agents.rs:261-289`). Nevertheless, LLP 0055 claims the shared eligible-holder predicate landed in G1 (`:1247-1269`).
+
+   The proposed escape is also incoherent. An operator may “reseat” a protected role under `AgentDestroyCapability`, described as destroy-only (`:267-273`). Assigning the role to a replacement creates durable application authority, contradicting the production rule that the operator plane may end but never create or assume authority (`:551-559`). Merely removing the old holder would require a separately modeled quarantine state, which does not exist. There is no route, state transition, audit rule, or acceptance case for this operation in the route inventory (`:1046-1075`).
+
+   **Resolution criterion:** Adopt one eligibility definition across LLPs 0055 and 0056 and code. Define transactional behavior for revoke-self, operator revocation, restore, import, deactivation, and membership changes. Model a genuine quarantine state with an application/user-authorized exit, or classify successor seating honestly as authority-creating and reconcile it with LLP 0039. Add route, race, audit, and sole-unowned-holder acceptance coverage.
+
+4. **MATERIAL — Owner re-credentialing is an unresolved third-party authority-assumption capability.**
+
+   The body says an owner already controls the agent credential and gains nothing new by reissuing it (`:202-214`, `:564-579`). That is not generally true: the agent may hold the credential, and it may later acquire memberships or roles from third parties. Reissue preserves memberships while producing a bearer the owner can use. The revision triage correctly recognizes this as assumption of third-party-granted authority (`:1791-1799`).
+
+   Step-up proves that the caller is the owner; it does not establish that third-party grantors consented to the owner assuming the agent’s accumulated application roles. The promised disclosure is absent from the grant and consent display (`:831-838`, `:887-892`), and §Audit defines invocation response attribution rather than a durable owner-recovery event (`:1201-1214`). LLP 0056’s membership provenance rules likewise contain no owner-assumption disclosure.
+
+   **Resolution criterion:** Either define ownership normatively as a super-principal recovery/assumption capability and bind that fact into agent creation, grant, membership, consent, and reissue displays and records, with a durable owner-agent-reissue audit event; or redesign recovery so owner authorization rotates an agent-held/sender-constrained key without giving the owner an agent bearer. The treatment of existing third-party memberships after recovery must be explicit.
+
+5. **MATERIAL — “Trusted-local” admission is not presently enforceable.**
+
+   LLP 0055 allows service principals on local/trusted-local deployments while refusing hosted ones (`:85-92`, `:465-500`). The revision triage says a reverse-proxied local process is excluded through an LLP 0060 target-authored capability (`:1809-1812`), but no such positive capability appears in the operative plan.
+
+   LLP 0060 explicitly states that a loopback server cannot see whether a public reverse proxy fronts it (`llp/0060-hosted-auth-security.rfc.md:50-55`, `:206-210`) and that loopback does not establish hosted readiness (`:408-410`). A static target capability or profile name cannot distinguish direct loopback traffic from traffic relayed through that same listener.
+
+   **Resolution criterion:** Define an unforgeable admission primitive tied to the actual ingress—for example process-local invocation, a protected Unix-domain socket with peer evidence, or a deployment-bound listener capability that a reverse proxy cannot satisfy. Amend LLPs 0060, 0031, 0024, and 0042, make the primitive an explicit landing prerequisite, and test the reverse-proxy negative. Otherwise restrict v1 more narrowly and state the residual honestly.
+
+6. **MATERIAL — `authorityCreating` is not operationally gated on the enforcement it requires.**
+
+   The effect design depends on LLP 0056 full provenance and host-threaded writer authority (`:933-1004`, `:1373-1376`). The revision header and triage say M5 is a hard gate (`:23-24`, `:1805-1808`), but §Landing decomposition omits it (`:1288-1311`).
+
+   LLP 0056 says provenance columns/logging remain unbuilt M5 work (`llp/0056-scoped-roles-and-memberships.rfc.md:813-825`) and, more seriously, that membership activation is currently not capability-gated even though runtime enforcement is absent (`:847-867`). `src/manifest.rs:488-494` also describes full provenance as future work.
+
+   **Resolution criterion:** The operative landing plan must refuse approval, minting, invocation, and every service-principal permission-backing write until LLP 0056’s writer-authority carrier, effect-site gate, and M5 full provenance are live through the real storage seam. Acceptance must exercise aliases, wrappers, nested calls, and actual storage writes—not only manifest derivation.
+
+7. **MATERIAL — `auth.kind` retainability relies on an undefined synthetic identity rule.**
+
+   Operative text allows dev impersonation to select `--as-agent` while claiming `auth.kind` is a pure function of immutable `userId` (`:275-295`). Only the revision triage says the simulated agent receives a distinct synthetic ID (`:1800-1804`), while §Companion obligations says 0024 owns the option only “if adopted” (`:1315-1319`).
+
+   Accepted LLP 0053 already assumes kind is a pure function of `userId` for retention (`llp/0053-authorization-invalidation.rfc.md:582-612`). Without a mandatory synthetic namespace, one asserted dev ID can resolve as both human and agent, invalidating that classification.
+
+   **Resolution criterion:** Either remove `--as-agent` from v1 or normatively define collision-free synthetic principal allocation, namespace, lifecycle, and projections. Amend LLPs 0024 and 0053 and add a test proving one principal ID can never resolve to both kinds before `auth.kind` is admitted to retainable queries.
+
+8. **MATERIAL — The landed catalog version is inconsistent with its governing spec and omits already-required lifecycle state.**
+
+   LLP 0055 calls catalog v2 and its six-table shape landed, while retaining v1 as a recognized legacy catalog (`:1247-1286`). Governing LLP 0057 still fixes `AUTH_CATALOG_VERSION` at `1` and treats every other marker as unsupported (`llp/0057-auth-provider-protocol.spec.md:123-152`, `:264-285`). Code has already moved to version 2 (`src/storage/auth.rs:21-35`).
+
+   The supposedly exact v2 schema also lacks state required by this RFC’s settled lifecycle:
+
+   - owner recovery must bump a recovery generation (`:571-574`, `:1475-1481`);
+   - `_auth_users` has no recovery-generation field (`src/storage/auth.rs:384-400`);
+   - `_auth_pairing_requests` has no generation binding (`src/storage/auth.rs:593-614`);
+   - §Protocol obligations omits the recovery-generation item that triage claims was added (`:1387-1411`, `:1819-1822`).
+
+   Physical backup compatibility is already broken: backup accepts either recognized catalog (`src/auth/backup.rs:100-108`) but always records the current version 2 (`:147-153`); manifest validation rejects historical version-1 manifests (`:47-60`), while restore accepts either ready staged catalog without cross-checking its actual marker (`:247-254`).
+
+   **Resolution criterion:** Land an explicit LLP 0057 amendment defining v2, dual recognition, exact shape, migration policy, and backup/restore compatibility. Specify recovery-generation ownership and CAS binding, then provide the required migration for already-created v2 databases. Backup metadata must record and validate the actual source catalog version, with v1 and v2 round-trip fixtures.
+
+9. **MATERIAL — The claimed downgrade “refuse-at-open” boundary is not implemented at database open.**
+
+   LLP 0055 says a binary refuses an unsupported catalog at open (`:1222-1225`, `:1261-1264`, `:1678-1679`). `LocalDatabase::open`, however, performs auth-mode inspection, database configuration, and infrastructure creation without inspecting the auth catalog (`src/storage.rs:687-716`). Unsupported-version refusal occurs only when `inspect_auth_catalog_on` is called (`src/storage/auth.rs:1448-1472`). Normal serve reaches that inspection later, before listener bind (`src/auth/runtime.rs:134-155`), but generic database opening does not.
+
+   The purported regression test mutates the marker and directly calls `inspect_auth_catalog`; it never reopens the database (`src/storage/auth_agents.rs:542-559`).
+
+   **Resolution criterion:** Either enforce exact catalog inspection before configuration or writes on every applicable database open, with a narrowly specified collision-recovery exception, or narrow the contract to pre-bind admission and audit every non-serve opener for downgrade safety. Add a real reopen/no-mutation test and an older-binary-against-v2 fixture.
+
+10. **MATERIAL — Compromise-response attribution and reversibility remain overstated.**
+
+   The body promises that any durable row written by a delegate before compromise is attributable and removable by the app (`:644-655`). The actual provenance design covers only full-provenance LLP 0056 transitions; ordinary application writes may have no durable actor/grant provenance, and external action effects may be irreversible. §Audit supplies only response attribution and explicitly defers a durable general audit log (`:1201-1214`).
+
+   The revision triage acknowledges this and says the guarantee was narrowed and high-impact consent retained as an open question (`:1813-1818`), but neither change appears in the operative body or §Open Questions.
+
+   **Resolution criterion:** Limit the normative guarantee to ending future grant-borne authority and attributing full-provenance transitions. State explicitly that ordinary committed mutations and external effects may be irreversible, align validation accordingly, and decide or retain normatively whether high-impact scopes require step-up consent.
+
+11. **MATERIAL — In-flight finite work is not fenced against authority ending.**
+
+   Tokens and grants are validated per invocation, and scope enforcement occurs before the handler (`:718-724`, `:1036-1044`, `:1133-1135`). Nothing requires live grant, credential, or principal validation at mutation commit, external-effect dispatch, nested-call execution, or response publication. A revocation racing an already-running action can therefore lose while the action still emits an effect.
+
+   Governing LLP 0039 requires revocation checking atomic with the act at every sink, including mutation, outbox drain, WebSocket send, and response publication (`llp/0039-auth-vertical-slice.rfc.md:1571-1577`). LLP 0055 supplies settlement rules for queued work and transitions for live connections, but not this finite in-flight case.
+
+   **Resolution criterion:** Define service-principal transition generations/tickets and require live-authority validation atomic with every effect and publication sink. Add races for grant revocation, credential rotation, deactivation, expiry, and recovery against in-flight mutations, actions, nested calls, and responses.
+
+12. **MINOR — Credential namespace and implementation-status claims remain stale.**
+
+   The normative prefix and acceptance lists omit shipped `sbc_`, `sbak_`, and `sbic_` (`:770-779`, `:1511-1514`), despite the revision header saying they were added and code registering them (`src/auth/crypto.rs:518-535`). The body calls `sbs_` and the impersonation carrier unbuilt (`:667-675`, `:775-776`), although those are implemented. `dispatch_credential_class` exists only as a helper/test (`src/auth/crypto.rs:587-595`); current session resolvers parse directly and return `AUTH_REQUIRED`, not the claimed typed class mismatch (`src/server.rs:1932-1939`, `src/auth/provider.rs:1109-1121`).
+
+   **Resolution criterion:** Reconcile the operative namespace and status text with the full implemented registry, assign an exact prefix and lifecycle to the future destroy bearer, and either wire structural class dispatch into every production resolver or narrow the G1 claim to classifier/newtype scaffolding.
+
+# 4. Suggestions
+
+- Split this RFC according to LLP 0005’s large-RFC guidance. At 1,829 lines with independently landing principal lifecycle, consent/grants, execution semantics, storage effects, and client fencing, it is well beyond the guide’s suggested threshold (`vendor/llp/llp/0005-rfc-process.guide.md:101-103`). Keep an umbrella RFC and create separately reviewable specifications for:
+
+  - principal ownership and recovery;
+  - grant/consent and credential protocols;
+  - service-principal execution and non-widening;
+  - client fencing and settlement.
+
+- Introduce a machine-readable transition inventory from which route tables, credential-class matrices, catalog fields, acceptance cases, and companion LLP obligations can be checked. The present prose duplicated these facts enough times that the latest revision changed history without changing the contract.
+
+- Prefer quarantine over operator reseating. A system-managed quarantined-resource state can freeze operations without inventing replacement application authority; recovery from quarantine can then require an application-authorized principal or quorum.
+
+- Explore sender-constrained agent keys for owner recovery. The owner could authorize a key replacement bound to an agent-provided public key without ever receiving a bearer capable of acting as the agent.
+
+- If behavioral direct-execution equivalence is intentionally impossible, add an explicit `delegatable` function contract and make consent acknowledge actor-dependent behavior. That is clearer than calling a weaker data-access property full non-widening.
+
+# 5. Open questions
+
+- Is “non-widening” intended to cover complete invocation authorization, including function-level trusted denials and effect selection, or only row/effect capabilities reached by delegated control flow?
+
+- Does agent ownership inherently authorize the owner to assume every present and future application membership held by that agent? If so, what exactly must third-party grantors see and consent to?
+
+- Can `revoke-self` ever be refused to preserve `lastHolder`? If not, what atomic quarantine transition keeps compromised credentials revocable without granting replacement authority?
+
+- What ingress evidence can distinguish genuinely local service-principal use from a public reverse proxy relaying requests to the same loopback listener?
+
+- Will catalog v2 be treated as provisional and migrated again, or must all already-known G3/G4 lifecycle state be included before v2 is considered a stable exact schema?
+
+- Must ordinary high-impact mutations and external actions require step-up consent, even when they are not `authorityCreating` membership writes?
+
+- At which sinks must an in-flight service-principal invocation revalidate live authority, and what generation/ticket participates in those atomic checks?
+
+- Are the LLP 0056 enforcement and provenance milestones, LLP 0060 admission primitive, request-secret route taxonomy, and LLP 0045 delivery seam acceptance prerequisites or merely implementation dependencies? The landing plan should distinguish those categories explicitly.
+
+# 6. Readiness verdict
+
+The proposal has a strong core direction, but unresolved material issues remain in its authorization theorem, ownership semantics, protected-role recovery, deployment admission, catalog/versioning, revocation safety, and operative revision coherence. It is not ready for acceptance.
+
+READINESS VERDICT: NOT READY
+### Orchestrator disposition (round 14, outside the verbatim body)
+
+Round 7 responds. The recurring theme (both families): round-6 dispositions were
+recorded in the triage but not integrated into the body — integrated in round 7
+(ownership-assumption concession rewritten into §Principal kinds and
+§Re-credentialing and the consent display; synthetic-principal rule in the
+dev-impersonation body; LLP 0056 M5 and LLP 0060 landing prerequisites; recovery-
+generation and emergency-transfer/quarantine protocol obligations). The GPT-14
+material items (authorization theorem, ownership semantics, protected-role
+recovery, deployment admission, catalog/versioning, revocation safety, revision
+coherence) map onto these: the ownership-semantics and recovery items are now
+body-integrated; catalog v1→v2 migration and recovery-generation state are named
+protocol obligations; deployment admission is bound to LLP 0060; the
+authorization-theorem narrowing (authority non-widening, observational
+equivalence disclaimed) was pinned in round 6 and the round-7 body carries it.
+Eligibility is now the durable-recoverability predicate jointly owned with 0056.

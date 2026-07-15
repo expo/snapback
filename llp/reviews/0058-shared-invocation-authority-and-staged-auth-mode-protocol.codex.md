@@ -194,3 +194,202 @@ The document is not yet a faithful implementation-derived Spec, however. Several
 ## Readiness verdict
 
 **NOT READY.** The durable state machine is promising, but material defects undermine the document’s core claims: live grant ownership is insecure, compilation occurs after activation, the single-gate theorem is not implemented, and several closed wire/provisioning protocols disagree with shipped code. These require implementation or author-level design decisions before ratification.
+## Round 2 — 2026-07-14
+
+**Revision under review:** `llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md`, sha256 `250005ca03eedf10d343035745023d3ba6bbbc017653099db91cb2fc7bd05dfa` (committed at repo HEAD `b11a6fa`)
+**Runtime detail:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, reasoning effort ultra, read-only sandbox, session id 019f637b-f680-7c03-bc00-bdff0d3b6757; 470,818 tokens used; fresh session, blind to all archived reviews and to the concurrent Fable-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+## 1. Overall assessment
+
+The proposal’s core architecture is a good idea: closed artifact/auth tuples, durable staged transitions, permanent rollback poison, generation-fenced invocation authority, and independently negotiated client capabilities form a strong security model.
+
+The plan is not ready for acceptance, however. Several load-bearing guarantees are either contradicted by production code or supported only by narrower tests than the document claims. Most seriously, live subscriptions are not bound to their exact connection grant, raw loaders bypass the closed artifact tuple, function generations are not prepared before durable activation, readiness is asserted before its implementations exist, and the “single shared gate” is not the authority boundary described by the Spec.
+
+The document should remain Draft until the normative design and actual implementation agree.
+
+## 2. Strengths — with section citations
+
+- LLP 0058 §The two admissible tuples, §Disjoint v1 identity strings, and §Complete candidate-pair preflight establish an admirably closed compatibility model. Codegen and the capability manifest implement the two intended pairs and the closed capability registry (`packages/snapback-codegen/index.mjs:301`, `src/manifest.rs:2614-2664`, `src/manifest.rs:2944-2960`).
+
+- §The four keys, §Corrupt-state boundary, and §Crash and publication traces are unusually precise. The four keys and poison bytes are explicit, open-time inspection precedes WAL or infrastructure writes, and consume is one atomic catalog/mode/poison transaction (`src/storage/auth_mode.rs:25-28`, `src/auth/mode.rs:18-23`, `src/storage.rs:679-704`, `src/storage/auth_mode.rs:657-726`).
+
+- §Admitted body ingestion and the mode-transition fencing model are well designed. The implementation enforces the 20-second body deadline below the 30-second quiescence deadline, watches epoch closure, and releases admission roots deterministically (`src/server.rs:4239-4249`, `src/server.rs:4311-4376`, `src/auth/admission.rs:511-702`).
+
+- §Five distinct internal types makes the right conceptual distinction between wire data, resolved authority, handler projection, and prepared invocation. The actual handler projection is also strong: Rust emits the closed fields, while the harness constructs null-prototype, data-only, frozen objects with separately frozen roles (`src/auth/invocation.rs:405-451`, `packages/snapback-harness/ctx-bootstrap.js:479-502`).
+
+- §Exact response DTO correctly treats the four client capabilities as independent axes. Offer/echo closure and availability derivation are substantially implemented (`src/auth/handshake.rs:67-73`, `src/auth/handshake.rs:344-459`).
+
+- §Acceptance is commendably adversarial. It names crash cuts, transport parity, explicit-null cases, predecessor work, carrier substitution, and negative authority cases rather than relying on broad “works end to end” assertions.
+
+## 3. Concerns
+
+### 1. MATERIAL — Live ownership does not include the exact connection grant
+
+LLP 0058 §Live owner and replacement predicate requires equality over both `resolvedAuthorityKey` and `connectionGrantId`; §Live owner negatives specifically requires anonymous and same-authority/different-grant callers to fail.
+
+The implementation stores an optional connection effect fence on each subscription (`src/local.rs:2130-2140`, `src/local.rs:4645-4656`), but `RetainedLiveAuthority::matches` compares only mode, profile, and resolved authority (`src/auth/invocation.rs:751-756`). Unsubscribe performs that authority-only comparison and removes the subscription without comparing the stored connection or fence (`src/local.rs:4753-4788`). Resume likewise checks only authority, then replaces the stored connection id and effect fence with the caller’s (`src/local.rs:5064-5108`). The existing test explicitly allows the same principal on a different connection to resume (`tests/local_v0.rs:3138-3149`).
+
+Although `PreparedConnectionAct` proves that the caller owns some current grant, the destructive local operation never compares that grant with the subscription’s stored grant. Consequently, another anonymous grant or same-session grant that learns the subscription id can resume or unsubscribe it.
+
+**Resolution criterion:** Persist an exact owner key containing resolved authority and grant id/effect fence, and compare both atomically with the destructive resume, unsubscribe, or supersede operation. Add production-path negatives for anonymous B, authenticated B, and same-authority/different-grant B, plus exact-grant positives. If reconnect is intended to transfer ownership, specify a separate authenticated handoff protocol.
+
+### 2. MATERIAL — Settled-dev raw loaders bypass the closed tuple
+
+LLP 0058 §The two admissible tuples explicitly rejects v1-dev and mixed deployments. §Complete candidate-pair preflight requires every provisioning ingress to enforce the pair before effects.
+
+`load_functions_in_settled_dev` checks only that durable mode is settled dev and then calls the generic loader (`src/local.rs:2500-2524`). `FunctionManifest::validate_artifact` accepts either v0 or v1 (`src/manifest.rs:764-774`, `src/manifest.rs:3278-3299`). Both direct and host-op loaders reach this path (`src/server.rs:8732-8755`, `src/server.rs:9172-9235`).
+
+The schema path has the same gap. `apply_schema_mode_aware` requires active durable mode to be dev, but checks the candidate against `activeDeployment` only when that identity is non-null (`src/storage/auth_mode.rs:1086-1120`). A fresh or adopted database has a null deployment, so it can accept a valid v1-sessions schema while durable mode remains dev.
+
+**Resolution criterion:** Every raw dev ingress must require a v0-dev candidate before DDL or function replacement. Add fresh, adopted, and established-database tests proving v1 schemas, v1 functions, and mixed halves leave schema, functions, WAL/database bytes, and mode keys unchanged.
+
+### 3. MATERIAL — “Prepared” function generations are not compiled before activation
+
+LLP 0058 §Cold startup artifact carrier and §Consume ordering: dev to sessions require all handler preparation and compilation before the durable commit. §Same-mode provisioning makes the same guarantee and describes publication as an infallible swap.
+
+`preflight_auth_artifacts` validates manifests, references, capabilities, cron, and catalog shape but does not compile Ibex modules (`src/local.rs:2294-2356`). Manifest validation explicitly accepts every `IbexModule` without checking source or export existence (`src/manifest.rs:818-844`). Source evaluation and export resolution happen lazily on first invocation (`src/runtime.rs:1316-1400`). `publish_preflighted_functions` assigns the manifest but still performs no compilation (`src/local.rs:2527-2581`).
+
+A syntax error or missing export can therefore survive durable sessions consume, permanent poison installation, and listener bind, only to fail on first invocation.
+
+**Resolution criterion:** Introduce a non-callable prepared-generation object that compiles every module and validates required exports before consume or same-mode commit. Publication must consume that object without additional artifact failure. Test malformed source and missing exports at both activation paths.
+
+### 4. MATERIAL — Readiness is asserted before the named implementations and probes exist
+
+LLP 0058 §Activation-readiness and later-item fences says every readiness fact is positive server-owned evidence. LLP 0059 §Readiness facts further requires completed projection rebuild and a running terminal worker.
+
+`AuthProgramReadiness::new` hardcodes the first seven facts true (`src/auth/mode.rs:381-395`). Production additionally hardcodes connection binding, two-phase revocation, coordinator, and authority descriptor readiness (`src/cli.rs:322-340`). Startup consumes the durable transition with those assertions (`src/cli.rs:1565-1580`) before the fallible coordinator rebuild (`src/cli.rs:1598-1602`), invalidation installation (`src/cli.rs:1603-1624`), and expiry-worker startup (`src/cli.rs:1669-1680`).
+
+Thus a fallible prerequisite can fail after the database has already settled into sessions, contrary to the specified consume-time proof.
+
+**Resolution criterion:** Probe or construct every mandatory prerequisite before durable consume, or explicitly design a safe durable intermediate state that cannot claim settled sessions. Failure injection must independently negate coordinator rebuild, invalidation installation, connection binding, and worker startup and prove that sessions never settles prematurely.
+
+### 5. MATERIAL — The normative shared gate is not the implemented authority boundary
+
+LLP 0058 §Gate algorithm assigns route-policy resolution, credential resolution, protocol fences, and function-specific availability to `InvocationGate`; §Complete gate coverage says every authority-bearing entry uses it.
+
+In production, `prepare_admitted_authority` receives an already-selected mode, profile, admission lease, and already-resolved authority (`src/auth/invocation.rs:869-951`). Route policy, queued-replay negotiation, body-authority selection, and bearer resolution happen in server middleware before that call (`src/server.rs:4836-4975`). `PreparedInvocation` has no availability decision, and `prepare_function` checks only source kind and `AuthRequirement` (`src/auth/invocation.rs:779-787`, `src/auth/invocation.rs:987-1023`). `authorityIndependent` and live protocol decisions remain separate (`src/server.rs:4663-4720`).
+
+WebSocket frames bypass `PreparedAuthority` entirely: the loop combines `AdmissionLease` with `PreparedConnectionAct`, then passes raw `ResolvedAppAuthority` into the frame handler (`src/server.rs:10695-10776`, `src/server.rs:11624-11739`). Several registry labels, including `ConnectionClose`, `EphemeralUnsubscribe`, and `LiveSupersede`, have no production call sites. The purported drift test merely iterates enum values and calls `target()` (`src/auth/invocation.rs:1314-1319`); it cannot detect an unregistered ingress.
+
+**Resolution criterion:** Either implement one production gate that owns the documented decisions and is consumed by every HTTP, WebSocket, local, nested, and system entry, or revise the Spec to normatively describe the composed middleware/connection-act architecture. In either case, generate an exhaustive operation-to-gate registry test that fails when an ingress or frame variant lacks a real classification.
+
+### 6. MATERIAL — HTTP session-mode ephemeral DTOs are open and differ from WebSocket DTOs
+
+LLP 0058 §Session mode body closure requires closed session variants and states that HTTP and WebSocket twins use the same operation-owned schema.
+
+WebSocket uses dedicated `deny_unknown_fields` session DTOs (`src/server.rs:11219-11275`). HTTP instead deserializes legacy `WirePublishRequest`, `WireDeleteRequest`, and `WireSubscribeRequest` without `deny_unknown_fields` (`src/server.rs:12161-12195`). `EnsureEphemeralCollectionsInput` is open as well (`src/server.rs:12139-12149`). The outer scanner catches current known identity fields, but arbitrary siblings and future aliases are silently ignored.
+
+**Resolution criterion:** Define shared closed session DTOs for both transports, retaining a separate explicit legacy decoder for dev. Paired transport tests must inject arbitrary unknown siblings, every registered alias, and explicit null at every nesting position and require identical rejection.
+
+### 7. MATERIAL — A cached handshake can cross to a replacement server process
+
+LLP 0058 §Kit ordering permits caching only for one startup nonce, transition generation, and connection attempt and forbids reusing a handshake after reconnecting to another process. §Handshake and later-item fences requires a two-process sentinel.
+
+The kit returns its cached handshake indefinitely unless `force` is requested (`demos/_kit/client.mjs:886-915`). Only a short allowlist of paths forces freshness (`demos/_kit/client.mjs:321-334`, `demos/_kit/client.mjs:1357-1365`), so an ordinary query or mutation can be sent to a replacement process using the predecessor handshake. Transport-unavailable handling deliberately preserves that cache (`demos/_kit/client.mjs:336-345`, `demos/_kit/client.mjs:933-940`).
+
+**Resolution criterion:** Define an observable connection-attempt boundary and invalidate/freshen the handshake after transport failure or retry, or perform a fresh handshake before every top-level online operation. Add a same-URL, two-process test proving that no predecessor nonce or generation is reused.
+
+### 8. MATERIAL — Handshake “exactness” has two known counterexamples
+
+LLP 0058 §Exact response DTO says the schema and executable kit validator have identical verdicts, then immediately acknowledges that `AuthorityDescriptor` remains looser. The divergence is real: the kit requires `descriptorVersion === 1` and a canonical UUIDv7 (`demos/_kit/client.mjs:149-162`), while the schema accepts any unsigned version and only length-checks the id (`schemas/auth.session.output.schema.json:154-180`). The shared corpus omits both cases (`tests/conformance/auth-session-parity.corpus.json:171-176`).
+
+Separately, LLP 0059 §Bootstrap response revision requires `authorizationStreamIncarnation` to be a canonical UUIDv7 and treats malformed values as handshake errors. Rust, the schema, and initial kit validation require only a nonempty string (`src/auth/handshake.rs:262-265`, `schemas/auth.session.output.schema.json:419-422`, `demos/_kit/client.mjs:594-599`). UUID validation occurs only later in `currentAuthorizationScope` (`demos/_kit/client.mjs:1058-1069`), after handshake projection.
+
+**Resolution criterion:** Introduce handshake-specific exact descriptor and incarnation newtypes, validate canonical UUIDv7 and version 1 before custody changes, and add wrong-version, wrong-variant, uppercase, noncanonical, and malformed cases to the shared corpus.
+
+### 9. MATERIAL — “Truly empty” seed eligibility misclassifies adopted applications
+
+LLP 0058 §Cold startup artifact carrier and §Fresh sessions provisioning allow a non-null seed only for a truly empty database, never an existing application.
+
+The implementation checks only that `activeDeployment` is null and physical user tables contain zero rows (`src/storage/auth_mode.rs:1362-1378`). Legacy adoption intentionally writes `activeDeployment: null` even when a legacy active manifest exists (`src/storage/auth_mode.rs:1252-1294`; confirmed by `src/storage/auth_mode.rs:1635-1665`). An adopted application with empty tables therefore passes the seed gate.
+
+**Resolution criterion:** Define freshness to exclude any legacy or capability-aware active manifest/application identity and decide whether existing user-schema objects also disqualify it. Add a negative adopted-legacy/empty-table case and a positive truly fresh crash-retry case.
+
+### 10. MATERIAL — Deployment identities are not verified against artifact content
+
+LLP 0058 §Disjoint v1 identity strings defines each identity as SHA-256 over canonical content, and §Complete candidate-pair preflight treats those identities as the deployment pin.
+
+The receiver instead copies declared hash fields into `DeploymentIdentity` (`src/auth/mode.rs:51-89`). Header validation checks kind/version but does not recompute canonical digests (`src/manifest.rs:3252-3299`), and carrier matching compares the same declarations (`src/auth/mode.rs:321-328`). Different function bytes can therefore retain a claimed `bundleHash` and pass identity matching.
+
+**Resolution criterion:** Either state and justify a trusted/authenticated artifact-producer premise, or recompute all canonical content identities in the receiver. The safer design is a content-addressed carrier whose verified digest covers both manifests and seed. Add mutation-with-unchanged-header tests.
+
+### 11. MATERIAL — Operator recovery and diagnostic obligations are incomplete
+
+Three explicit contracts are missing:
+
+- §Cold startup artifact carrier promises the exact expected deployment identity on missing, unreadable, or mismatched carriers. Current errors are generic (`src/cli.rs:30-50`, `src/cli.rs:138-159`, `src/cli.rs:206-233`, `src/auth/mode.rs:321-328`).
+
+- §Sessions-to-dev downgrade and LLP 0039 require an audit fact before bind. Storage returns `sessions_revoked`, but startup discards it through `Ok(result) => result.state` (`src/storage/auth_mode.rs:729-803`, `src/cli.rs:272-297`).
+
+- §Diagnostics and failure semantics says LLP 0012 must register every new code before shipment. `SNAPBACK_REQUEST_BODY_TIMEOUT` is emitted and mapped to 408 (`src/server.rs:4277-4285`, `src/server.rs:12588-12590`) but is absent from LLP 0012’s item-4 registry (`llp/0012-headless-integration-contract.spec.md:613-632`).
+
+**Resolution criterion:** Emit safe expected/observed deployment details on every carrier failure; durably record or reconcile a redacted downgrade audit before bind; and register the body-timeout code/status in LLP 0012 and adapter schemas. Tests must prove ordering and absence of paths, bodies, seeds, credentials, and secrets.
+
+### 12. MATERIAL — The claimed exhaustive acceptance evidence is not present
+
+LLP 0058 §Stage, consume, poison, and downgrade requires every four-key corruption class with database and WAL bytes unchanged. The direct test exercises one malformed mode record and compares selected metadata rows, not full database/WAL bytes or the parse/version/enum/generation/presence/identity/poison matrix (`src/storage/auth_mode.rs:2043-2067`).
+
+The same section requires the complete settled-sessions carrier matrix. Existing tests separately cover carrier shape (`src/cli.rs:3684-3722`), some secure-file properties (`src/secure_file.rs:728-780`), and selected fresh/pending cases (`src/cli.rs:3768-3918`), but not the stated correct/missing/swapped/mutable/oversized/mismatched settled-restart matrix.
+
+**Resolution criterion:** Add a table-driven corruption corpus with database and WAL hashes before and after every refusal, plus the full settled-carrier process matrix. Every acceptance claim should map to a named executable test.
+
+### 13. MINOR — The bootstrap accepts an undocumented offer carrier
+
+LLP 0058 §Request and protocol offer specifies four named decimal headers. `AuthClientProtocolOffers` also accepts `Sec-WebSocket-Protocol` tokens when the named header is absent (`src/auth/handshake.rs:90-117`), and ordinary `GET /auth/session` uses that parser.
+
+**Resolution criterion:** Either reject the alternate carrier on ordinary HTTP bootstrap requests or document it explicitly and restrict it to genuine WebSocket upgrades.
+
+## 4. Suggestions
+
+- Split the document into a current normative protocol and a historical landing appendix. The interleaving of item-4 history with composed item-5-through-item-8 behavior makes it difficult to tell which statements are current requirements.
+
+- Generate route classification, `InvocationSource`, transport DTOs, protocol requirements, and diagnostic/status registration from one closed operation registry. That would turn several prose parity claims into construction-time invariants.
+
+- Use typestate-like internal objects such as `VerifiedV1SessionsPair`, `CompiledGeneration`, `BoundLiveOwner`, and `CanonicalHandshake`. Each should be constructible only after its owning validation succeeds.
+
+- Add a state-machine/property test for durable keys, admission epochs, crash boundaries, and ambiguous commits. The Spec is precise enough to serve as an executable transition model.
+
+- Make the startup carrier self-authenticating and content-addressed. A single verified root digest over schema, functions, and seed would simplify identity matching and recovery diagnostics.
+
+- Maintain a machine-readable acceptance manifest mapping every normative assertion to one or more test names. Status should not advance while any required row lacks evidence.
+
+## 5. Open questions
+
+1. Is reconnect supposed to preserve a live subscription across a new connection grant? The Spec says no; current code and tests permit same-principal transfer. Which behavior is intended?
+
+2. What is the normative shared authority boundary: `InvocationGate`, the full HTTP middleware composition, or separate HTTP and connection-act gates?
+
+3. Can all coordinator and worker prerequisites be constructed before durable consume? If not, what durable intermediate state safely represents “catalog committed but runtime not ready”?
+
+4. Are artifact producers trusted principals, or must the receiver verify canonical hashes? How is that trust authenticated for HTTP provisioning and startup files?
+
+5. What exact conditions define a “truly empty database”: no rows, no user tables, no active manifest, no application identity, or all of these?
+
+6. What observable event defines a new HTTP connection attempt for handshake-cache invalidation?
+
+7. Should handshake descriptors use a dedicated schema instead of sharing mutation-input definitions, so exact response validation does not alter mutation error classes?
+
+8. What delivery guarantee is required for the downgrade audit across a crash after the downgrade commit but before listener bind?
+
+## 6. Readiness verdict
+
+The architecture is promising, but unresolved material authorization, activation, artifact-integrity, handshake, conformance, and evidence gaps remain. The Spec is not ready for acceptance.
+
+READINESS VERDICT: NOT READY
+### Orchestrator disposition (round 2, outside the verbatim body)
+
+The 12 GPT-family MATERIALs are spec-vs-code fidelity gaps (the shipped code does
+not yet enforce a guarantee the Spec pins). Disposition: each is recorded as a
+named defect obligation in §Review triage with an acceptance obligation — exact
+connection-grant live ownership (#1), settled-dev raw-loader tuple enforcement
+(#2), prepared-generation compilation before consume (#3), readiness-before-
+prerequisites (#4), composed-gate boundary normative description or unification
+(#5), HTTP session DTO closure (#6), cross-process handshake-cache invalidation
+(#7), handshake UUIDv7/version exactness (#8), truly-empty seed classification
+(#9), content-verified deployment identities (#10), operator-recovery diagnostics
+(#11), the acceptance evidence harness (#12), and the alternate offer carrier
+(#13, minor). The normative design is unchanged; the Spec cannot advance past
+Draft until they close. Split-document suggestion left to the author.

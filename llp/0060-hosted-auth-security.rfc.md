@@ -5,7 +5,40 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0060-hosted-auth-security.codex.md` and applied its editorial corrections — D1 posture-matrix accuracy and the return-value sentinel scope; material findings remain for author triage). 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
+**Revised:** 2026-07-14 (round-3 dual-family revision, /llp-super-refine:
+withdrew D6's `_snapback_meta`-before-preflight carve-out that **contradicted
+frozen LLP 0039** — preflight now precedes all DDL, split into startup and
+per-invocation domains; removed D2's strict-transport prose escape hatch (HSTS
+is a required component of `externalTls = enforced`); clarified the five static
+enums attest `*Capable`, with D6 compatibility and C2 operator-origin isolation
+as mandatory fail-closed **admission** inputs alongside deployment attestation
+and live health; **bounded the D4 serving-lease state machine** (normative max
+lifetime, skew, durable epoch, no-renewal-after-fence, admission, rollback),
+reproduced LLP 0053's exact durability matrix, and flagged `multiReplicaConvergent`
+as a companion rename; completed the acceptance surface. Round-3 triage in
+§Status.) 2026-07-14 (round-2 dual-family revision, /llp-super-refine: D5
+splits **target support profile / deployment-bound attestation / live health**
+and renames the four-fact conjunction *deployment readiness* — `--auth-deployment
+hosted` requires all five facts, matching the shipped gate, and hosted bearer-v1
+compatibility becomes a **distinct named must-understand request** rather than an
+open question; new **D6** owns the coordinator-to-handler mixed-version boundary
+LLP 0058 delegates here (marker, preflight-before-effects, rollout/rollback
+interleavings); D4 defines the **two conforming invalidation topologies**
+(single serialized authority; replicated projections with pre-commit fencing and
+expiring serving leases) with a conformance-grade completion bound; D3 pins the
+**simultaneous bucket set** with atomic acquisition and unattributed-failure
+charging; D2 requires refusal (never redirect) for credential-bearing plaintext,
+strict transport as part of `externalTls`, and confidential mutually
+authenticated edge-to-origin hops; D1 pins transport posture to the **actual
+bound socket** and names the shipped detached/caller-supplied-loopback gap; C1
+replaces universal custody assertions with a **carrier-by-carrier matrix**
+(naming the intentional `localStorage` console record and the uncoordinated
+headless seam) and pins the **opaque-failure rule for credential-issuing
+endpoints** with the shipped 2xx-snippet and request-code-passthrough gaps named
+as defect obligations; C2 hardens the operator-origin rule for hosted exposure;
+C3 renames the v2 claim to off-device replay constraint — "XSS-resistant" is
+permanently forbidden for DPoP alone — and requires nonce for the
+pre-generated-proof claim.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0060-hosted-auth-security.codex.md` and applied its editorial corrections — D1 posture-matrix accuracy and the return-value sentinel scope; material findings remain for author triage). 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
 **Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0053, LLP 0057, LLP 0058, LLP 0059
 
 ## Summary
@@ -32,17 +65,21 @@ This RFC makes three decisions:
 1. A session-enabled local server MUST refuse a plaintext non-loopback listener
    before bind with `SNAPBACK_AUTH_TRANSPORT_INSECURE`. There is no sessions
    override. A loopback reverse proxy remains explicitly outside that fence.
-2. A target MUST NOT advertise hosted deployment readiness until it can attest
-   all four edge facts in this RFC: end-to-end external TLS, trustworthy
-   effective-source derivation, shared throttling, and multi-replica
-   invalidation convergence. Secure hosted-browser auth additionally requires
-   the sender-constrained client posture; the two derived facts remain distinct
-   so CSP cannot silently upgrade bearer v1.
+2. A target MUST NOT advertise hosted **deployment readiness** until it can
+   attest all four edge facts in this RFC: end-to-end external transport
+   confidentiality, trustworthy effective-source derivation, shared throttling,
+   and convergent session invalidation — plus the mixed-version
+   coordinator-to-handler boundary (D6). Secure hosted-browser auth
+   (**hosted-auth readiness**) additionally requires the sender-constrained
+   client posture; the two derived facts remain distinct so CSP cannot silently
+   upgrade bearer v1.
 3. Browser auth v1 remains bearer-first and honestly not XSS-resistant.
    Sender-constrained credentials are the v2 direction. They are required
-   before Snapback advertises an XSS-hardened hosted-browser posture, and their
-   guarantee is off-device replay resistance—not immunity to an attacker
-   executing inside the live page.
+   before Snapback advertises an **off-device-replay-hardened** hosted-browser
+   posture — never an "XSS-hardened" one: their guarantee is that a copied
+   credential cannot be replayed from another device, not immunity to an
+   attacker executing inside the live page, and that naming rule is permanent
+   rather than pending v2.
 
 ENG-24607 implements the **local enforcement and claim-honesty boundary** for
 those decisions: pre-bind plaintext refusal, a target-owned capability
@@ -132,6 +169,23 @@ for embedded/test composition. Staging sessions is enough to trigger it: a
 pending deployment may not bind plaintext to a non-loopback interface and wait
 for a restart to become dangerous.
 
+**The middleware's posture input must be unforgeable, and today it is not.**
+The repeated refusal trusts `ServerContext`'s `loopback` field, but the shipped
+constructors let a caller supply `host` and `loopback` independently, and the
+detached constructor treats an unknown bind as loopback for local-tooling
+convenience (`src/admin.rs` `ServerContext::new`/`detached`). An embedder can
+therefore expose a sessions router on a routable interface while the defense
+believes it is loopback — the defense in depth defends nothing on exactly the
+composition path it exists for. The pinned rule: **transport posture derives
+from the actual bound socket address, or from an unforgeable
+listener-construction token minted by the code that bound the socket — never
+from a caller-supplied boolean.** An unknown or detached posture **fails closed
+for sessions** (refuse app-data and `/auth/session`; identity and diagnostics
+may remain), and detached construction is a test-and-tooling seam that must
+never carry a network listener. Closing the shipped gap is a named defect
+obligation of this contract, with a real non-loopback embedded-listener bypass
+test in acceptance.
+
 The diagnostic is an operator/startup failure, not a client-authentication
 failure. `/health` may remain available only in an already-composed embedded
 router used for diagnostics; normal CLI startup binds no listener after the
@@ -157,10 +211,34 @@ the backend.
 
 ### D2. External TLS and effective source
 
-A hosted target MUST prove that the browser-to-public-edge leg is HTTPS and that
-HTTP is redirected or refused before credentials are accepted. TLS termination
-may live outside Snapback, but the target—not an operator convention—must own the
-fact.
+A hosted target MUST prove that the browser-to-public-edge leg is HTTPS, and
+`externalTls = enforced` covers the **whole credential path**, not one hop:
+
+- **Credential-bearing plaintext is refused, never redirected.** A redirect
+  answers a request whose bearer, login code, or secret-bearing body has
+  already crossed the wire in the clear; the useful response is a refusal, and
+  a target SHOULD treat a credential observed on plaintext as compromised
+  (revoke or force-rotate its family). Redirects are permitted only for
+  credential-free navigation.
+- **Strict transport is part of the fact, with no prose escape.** HSTS — or a
+  target-native equivalent that closes the first-visit/SSL-stripping window — is
+  a **required component of `externalTls = enforced`**: a target that cannot
+  attest it cannot attest `enforced`. There is deliberately no "exclusion
+  recorded with a justification" hatch, because the fact is a two-value machine
+  enum the readiness derivation reads and D5 forbids truthy aliases —
+  a justification living in prose the derivation cannot see would let two
+  targets both claim `enforced` while differing on the SSL-stripping window.
+  Both derived facts are browser-facing (hosted-auth readiness by definition;
+  the bearer-v1 compatibility request too), so there is no deployment where the
+  exclusion is harmless.
+- **Edge-to-origin hops are in scope.** The Summary says end-to-end and means
+  it: every hop between the TLS-terminating edge and the origin process is
+  either same-host loopback/Unix-socket transport or confidential **and
+  mutually authenticated**. A plaintext LAN hop behind the edge is a failed
+  fact, not an internal detail.
+
+TLS termination may live outside Snapback, but the target—not an operator
+convention—must own the fact.
 
 The target MUST derive one canonical effective source for security decisions:
 
@@ -186,13 +264,30 @@ effective-source capability and MUST NOT claim per-source hosted throttling.
 
 Hosted auth needs atomic, shared limits at least for challenge request,
 challenge exchange, refresh, connection open, and repeated invalid-credential
-attempts. Limits MUST combine dimensions so neither NAT concentration nor
-identity spraying defeats the model:
+attempts. "Combine dimensions" is an algorithm, not a mood: one composite key
+such as `(source, subject, app)` still lets one source spray many subjects and
+many sources converge on one subject. So **every attempt charges a set of
+independent buckets simultaneously**, and the operation is admitted only when
+every bucket in the set admits it, acquired atomically (no partial charge that
+a concurrent attempt can slip past):
 
-- effective source;
-- normalized provider subject or challenge destination where available;
-- session family / user after credential resolution; and
-- application/deployment identity.
+- the **app/deployment-global** bucket (the backstop that survives every
+  attribution failure);
+- the **per-effective-source** bucket;
+- the **per-subject/destination** bucket (normalized provider subject or
+  challenge destination), where one is present in the request;
+- the **source × subject** bucket, so neither NAT concentration (many users,
+  one source) nor identity spraying (one source, many subjects) borrows the
+  other's headroom; and
+- the **session-family/user** bucket, once a credential resolves.
+
+**Unattributed failures still charge.** A malformed, unparseable, or
+unresolved credential charges the per-source and global buckets — the attempts
+least able to identify themselves are exactly the ones an attacker controls.
+Bucket key cardinality is bounded (normalization caps per-source keys;
+subject keys are hashed/normalized so the limiter is not a directory of
+attempted identities), and normalization is privacy-preserving: bucket keys
+never appear on public surfaces.
 
 The shared limiter MUST have bounded state, monotone retry windows, explicit
 clock ownership, and one documented failure policy. A target may choose
@@ -219,10 +314,58 @@ monotone invalidation stream for:
 
 The target MUST reserve or recover stream positions durably, authenticate the
 publisher, reject stale incarnations, make duplicate delivery idempotent, and
-rebuild before declaring ready. A replica may not accept a credential or drain a
-live payload while it knows its projection is behind the required position.
-Partitions therefore degrade to refusal or bounded unavailability, never to a
-replica-local authorization guess.
+rebuild before declaring ready.
+
+**"While it knows it is behind" is not a conforming bound** — a partitioned
+replica that has heard nothing knows nothing, and an asynchronous post-commit
+stream cannot, by itself, make refusal fail-closed. The
+`sessionInvalidation = multiReplicaConvergent` fact attests a **guarantee, not
+a topology**, and exactly two topology families conform:
+
+1. **A single serialized authority.** All session acceptance and live-payload
+   drains flow through one linearizable authority (LLP 0040's single Durable
+   Object is this shape). Convergence is trivial; the fact is satisfied by the
+   serialization itself, and calling this "not multi-replica" would punish the
+   safer design.
+2. **Replicated projections with pre-commit fencing and expiring serving
+   leases.** A replica may accept credentials or drain payloads only inside an
+   unexpired **serving lease** granted at a proven stream position by a single
+   lease-issuing authority; a replica that cannot prove currency refuses with
+   `SNAPBACK_AUTH_INVALIDATION_LAGGING`. The lease is a bounded, linearizable
+   state machine, not an open-ended grant: it has a **normative maximum
+   lifetime** (short — on the order of seconds, so "fence or wait out the lease"
+   is a bounded delay, not an unbounded one), a stated **clock-skew allowance**,
+   a **durable lease epoch** so a restart cannot resurrect an expired lease, a
+   **no-renewal-after-fence** rule (a fenced replica cannot re-lease at the old
+   position), and defined **new-replica admission** and **exact-owner rollback**
+   on an ambiguous fence outcome. Revocation-class operations report complete
+   only when every lease-holding replica is fenced **or its bounded lease has
+   provably expired** — "every live replica" is enumerable precisely because
+   leasing makes the live set the set of unexpired-lease holders, not an
+   unbounded population a partition hides. The local implementation's safety
+   comes from installing the pending fence before the provider transaction
+   begins, and the distributed protocol must reproduce that ordering, not
+   approximate it after commit.
+
+The `sessionInvalidation` axis attests the **guarantee**, and the single-
+authority topology satisfies it without being replicated — so the value
+`multiReplicaConvergent` is a semantic misnomer for topology 1. This document
+names the axis's *meaning* as **globally-fenced revocation** and flags the enum
+label as a companion rename (either a topology-neutral positive value, or
+distinct positive values for single-serialized-authority and replicated-fenced).
+
+**LLP 0053's obligations are level-triggered state — but its durability matrix
+is exact and must be reproduced, not paraphrased.** Accepted LLP 0053 makes
+**client-query tombstones and authorization versions genuinely durable**, while
+**subscription and connection projections are persistent only while continuity
+exists and are deliberately *not* disk-durable** — process loss destroys them
+and forces a fresh subscribe. So "durable level-triggered state" here means the
+durable half (tombstones, versions, the fence high-water) survives loss,
+duplication, and reordering because a replica converges to it; the
+continuity-scoped projections do not, and a replica that loses them re-derives
+by forcing resubscribe, never by serving stale. The stream is only the ordered
+replication/wakeup transport. Partitions therefore degrade to refusal or bounded
+unavailability, never to a replica-local authorization guess.
 
 Session projection in one Rust process is not multi-replica invalidation. A
 shared database without a wakeup/ordering protocol is also insufficient: it
@@ -230,12 +373,30 @@ would reintroduce per-operation durable reads or leave a stale-memory window.
 
 ### D5. Hosted readiness is conjunctive
 
-A target's hosted-auth readiness is the conjunction of:
+Conjunctive — and layered: the derived facts are named exactly, and static
+capability is only the first of three layers.
+
+Two derived facts, named consistently everywhere in this document:
+**deployment readiness** is the conjunction of the four deployment facts —
 
 - `externalTls = enforced`;
 - `effectiveSource = trusted`;
 - `authenticationThrottle = sharedEnforced`; and
-- `sessionInvalidation = multiReplicaConvergent`.
+- `sessionInvalidation = multiReplicaConvergent`
+
+— and **hosted-auth readiness** additionally requires
+`clientCredentialPosture = senderConstrainedV2`: five facts, never four. The
+must-understand request `--auth-deployment hosted` requires **hosted-auth
+readiness (all five)**, exactly as the shipped gate implements. A future
+hosted product that wants public bearer v1 as C3's explicit compatibility
+posture does **not** get it by weakening `hosted`: it is a **distinct, named
+must-understand deployment request** (a separate flag value, never the
+default, never `hosted`) that requires deployment readiness (the four edge
+facts), records an explicit operator acceptance artifact, and surfaces the
+bearer-v1 residual in deployment facts and UI. The silent alternative — an
+operator-managed public bearer deployment running under the default `local`
+posture — is exactly what this section exists to make impossible to mistake
+for a supported configuration.
 
 Unknown, advisory, operator-asserted, or target-inapplicable values are not
 truthy aliases. Deployment tooling and the receiving target MUST both reject a
@@ -246,6 +407,21 @@ plaintext-bind violation.
 
 The current local target's hosted readiness is always false, including when its
 listener is loopback and an operator happens to place a proxy in front of it.
+
+**Readiness is three layers, because most of these facts are not static.** TLS
+routing, trusted-proxy configuration, limiter binding and health, and
+invalidation catch-up are deployment or runtime facts; a committed manifest
+cannot attest them, only what the target is *capable* of attesting. So:
+
+1. **Target support profile** — the committed, immutable `hostedAuth`
+   descriptor below: what mechanisms this target build *has*. This is the only
+   layer that exists today.
+2. **Deployment-bound attestation** — produced when a concrete deployment is
+   configured, bound to the deployment identity and configuration hash, with a
+   freshness epoch. Serving admission consumes this, not the static profile.
+3. **Live health** — limiter reachability, invalidation currency, lease state.
+   Loss of a required health fact withdraws serving (refusal or bounded
+   unavailability), it does not merely log.
 
 The machine-readable `hostedAuth` target descriptor uses five independent,
 closed values:
@@ -263,21 +439,105 @@ closed values:
 It is target-authored in the capability manifest and has its own generated,
 drift-gated schema. Candidate artifacts and operator config cannot supply or
 override it. `deploymentReady` is derived from the first four exact positive
-values. `hostedAuthReady` additionally requires
+values; `hostedAuthReady` additionally requires
 `clientCredentialPosture = senderConstrainedV2`. The executable matrix covers
 all 32 combinations and fails closed for the 31 non-conjunctive cases. Public
 diagnostics expose only the names of missing axes.
+
+**The static descriptor attests `*Capable`, not `*Ready`; readiness has more
+inputs than the five fields.** The five enum values describe mechanisms a target
+build *has*; serving admission consumes the deployment-bound attestation and
+live health (layers 2 and 3), plus **two mandatory gates the five fields do not
+encode**: D6's mixed-version compatibility (a compatible handler/coordinator
+pair, both preflight domains satisfied) and C2's operator-surface isolation (a
+separately trusted operator origin, or `/_snapback/*` disabled on the app
+origin). Both are **closed, fail-closed inputs to actual hosted admission** — a
+build with all five capability enums positive but stale configuration, an
+unhealthy limiter, an incompatible handler, or same-origin operator pages is
+**not ready** and admission refuses. The naming follows: the static enums mean
+`externalTlsCapable`/…, and `deploymentReady`/`hostedAuthReady` are the
+admission-time conjunctions of capability **and** attestation **and** health
+**and** the D6/operator-origin gates. Reconciling the shipped
+`deployment_ready()`/`hosted_auth_ready()` names (which today read only the five
+static enums) with this layered predicate is a named companion obligation.
+
+Two honesty rules the descriptor still owes: **an absent `hostedAuth` field
+deserializes to the all-unavailable, bearer-v1 local posture** (fail-closed —
+already implemented, now stated), and a hosted-candidate target MUST publish
+the descriptor explicitly rather than lean on the default. And the three
+non-TLS axes lack a value for "this target has no auth surface at all":
+`processLocal`, `singleProcess`, and `bearerV1XssExposed` assert mechanisms
+that *exist*, which the dev-only Cloudflare target — advertising no auth
+protocol — currently publishes anyway. Extending those axes with an explicit
+`unavailable`/not-applicable value (a schema change with matrix coverage) is a
+named companion obligation, so a no-auth target's descriptor stops implying
+mechanisms it does not have.
+
+### D6. Mixed-version coordinator-to-handler boundary
+
+LLP 0039 requires a must-understand invocation marker so a sessions-aware
+handler refuses an absent, unknown, or session-unaware coordinator before
+executing anything, and LLP 0058 explicitly delegates the hosted form of that
+marker — and its deployment interleavings — to this document. It is a
+**positive prerequisite of deployment readiness**, not an implementation
+detail:
+
+- **The marker.** Every coordinator-to-handler invocation under sessions
+  carries a versioned, must-understand auth-protocol marker naming the
+  session-authority contract it was built against. A handler that does not
+  understand the marker's version — or receives no marker — refuses the
+  invocation, typed, before any application effect. Marker semantics compose
+  with LLP 0058's per-request offer/echo handshake; this section owns the
+  hosted deployment story, not a second handshake.
+- **Preflight precedes effects — and D6 does not weaken frozen LLP 0039.** LLP
+  0039 requires refusal **before any durable mutation**, names `_snapback_meta`
+  explicitly, and moves the preflight ahead of its DDL so a refusal leaves the
+  target byte-for-byte unchanged. This document does not reinterpret that, so
+  there is **no "app-invisible metadata" carve-out**: the earlier round-2
+  wording that blessed creating `_snapback_meta` before validating is withdrawn
+  as a contradiction of frozen 0039. The distinction D6 actually needs is
+  between **two preflight domains**, because they guard different effects: a
+  **startup/deployment preflight** runs before the coordinator performs *any*
+  DDL (the Cloudflare constructor's current constructor-time DDL must move
+  behind it, per 0039), and a **per-invocation preflight** validates the marker
+  before any handler app effect. A per-invocation marker cannot guard
+  constructor effects; both domains exist, and both are prerequisites of
+  deployment readiness.
+- **Rollout order is pinned.** Activation is **handler-first**: handlers that
+  understand the marker deploy before any coordinator emits it; a coordinator
+  never emits a marker version some serving handler cannot understand.
+  Rollback is **coordinator-first**, reversing the same edge. The acceptance
+  matrix covers handler-first activation, coordinator-first rollback, delayed
+  deployment (a coordinator meeting a handler several versions behind), and
+  third-party stale-worker interleavings (a platform reviving an old handler
+  instance mid-rollout must be refused by incarnation, not trusted by
+  liveness).
+
+The current Cloudflare target is dev-only and advertises no auth protocol;
+nothing here retroactively blesses it. This section exists so the first real
+hosted target has its transition contract before it needs one.
 
 ## Client-page credential contract
 
 ### C1. The v1 custody claim
 
-Browser auth v1 uses bearer credentials. The `AuthCoordinator` is the sole
-custody authority and serializes cross-context replacement through Web Locks or
-a transactionally fenced IndexedDB lease. Its durable record contains the
-current bearer so a browser restart can resume the session. `localStorage` may
-carry only a secret-free revision hint; it is neither a mutex nor credential
-storage.
+Browser auth v1 uses bearer credentials. For coordinated browser clients the
+`AuthCoordinator` is the custody authority and serializes cross-context
+replacement through Web Locks or a transactionally fenced IndexedDB lease. Its
+durable record contains the current bearer so a browser restart can resume the
+session. For the **session family**, `localStorage` may carry only a
+secret-free revision hint; it is neither a mutex nor credential storage.
+
+The coordinator is not the only seam that can hold a bearer, and pretending
+otherwise would be the kind of universal claim this document exists to refuse.
+The kit's `SnapbackClient` accepts a directly supplied `bearerToken` and
+performs an uncoordinated handshake when no coordinator is composed — a
+**headless/test seam**, useful for servers and harnesses, that a browser page
+can nonetheless reach. The pinned rule: **a browser client that observes
+sessions mode uses coordinator custody**; the direct-bearer seam is for
+non-browser composition, and hosted-browser capability claims never cover a
+page that opts out of custody through it. Making the browser/headless split
+structural (rather than a usage convention) is a named obligation.
 
 That architecture prevents stale-tab overwrites, late-A-clears-B races, and
 accidental token exposure through ordinary client return values. It does **not**
@@ -306,15 +566,57 @@ failure after the transport has already supplied a 2xx status: only status,
 empty-body false, and read-failed true cross the transport boundary; the body
 reader error and credential do not.
 
+**Credential-issuing endpoints get a stricter failure rule than redaction can
+deliver.** Request-scoped redaction can only replace secrets the client
+already knows; a **newly issued** credential in a malformed 2xx body is
+unknown until parsing succeeds, so a diagnostic that embeds any response bytes
+can exfiltrate the successor no redaction set contains. The rule: on the
+issuing paths — exchange, refresh, console mint, and challenge request — a
+parse failure, body-read failure, or shape failure after a 2xx produces a
+**fixed, opaque error carrying no response bytes and no reader-error
+payload**; and every issuing success is an exact, closed projection
+(challenge request returns exactly `{challengeId, expiresAt}`, never
+passthrough JSON). The shipped clients do not fully meet this rule yet — the
+kit and shared admin client both include a redacted body snippet in 2xx
+parse-failure diagnostics before the successor is known, and the kit's
+`authRequestCode()` returns successful JSON unprojected — and closing those
+gaps, with poison tests for malformed 2xx text, reader failures, and unknown/
+nested/property-name/numeric positions across all four paths, is a named
+defect obligation of this contract.
+
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
 exercise it during the remaining window. The root minting authority never
 enters the browser; that bounds the loss without making the window zero.
 
-The client MUST NOT place session bearers, refresh successors, login codes,
-admin master credentials, `AdminSecretRead` leases, keyring material, or DPoP
-private keys in logs, errors, URLs, wakeup payloads, analytics, generated
-artifacts, or public diagnostics.
+**The custody matrix.** Universal "never anywhere" assertions invite exactly
+the contradictions a reviewer will find, so custody is a carrier-by-carrier
+matrix: each credential class has its named permitted locations, and every
+location not named is forbidden — logs, errors, URLs, wakeup payloads,
+analytics, generated artifacts, and public diagnostics are forbidden for
+**every** class.
+
+| Credential class | Permitted locations (exhaustive) |
+| --- | --- |
+| Session bearer | Coordinator's transactional IndexedDB record; `Authorization` header via the narrow transport accessor; the headless direct-bearer seam (above) |
+| Refresh successor | Coordinator custody, transiently during rotation; never returned, never persisted elsewhere |
+| Login code / challenge id | The exchange request itself; nowhere at rest |
+| Admin master credential | Operator input and the mint request; never persisted by any Snapback client |
+| Derived `sbcc_` console credential | Admin-client memory **and its `localStorage` console record** — an intentional, named carrier (below), not an accident |
+| `AdminSecretRead` lease | Admin-client memory only; never persisted |
+| DPoP private key (v2) | Platform keystore as a non-extractable `CryptoKey`; never serialized |
+
+The `sbcc_` `localStorage` row deserves its own honesty paragraph, because it
+is the one carrier whose custody is weaker than the session family's: the
+shared admin client persists the derived console record (credential plus
+`expiresAtMs`) in origin `localStorage` so an operator page reload does not
+re-prompt for the master. That record grants ordinary `AdminRead`/`AdminWrite`
+for its remaining lifetime (about ten minutes), and **any script in that
+origin can read it** — which is why the operator-origin rule in C2 is a hosted
+requirement, not advice: if application pages and `/_snapback/*` operator
+pages share an origin, an application XSS escalates from the logged-in user's
+authority to administrative write authority for the window. Locally the
+exposure is an operator's own machine; hosted, it is a boundary violation.
 
 Snapback's shared admin client applies the same last-mile rule to its distinct
 operator carriers. Master tokens, derived `sbcc_` console credentials,
@@ -344,9 +646,20 @@ rule before writing DOM text or browser storage.
 ### C2. Defenses that do not change the boundary
 
 Hosted applications SHOULD use a restrictive CSP, Trusted Types where
-available, integrity-pinned/static dependencies, framework escaping, no unsafe
-HTML sinks, and a separate operator surface when practical. Snapback should
-provide deployment guidance and tests that make these controls observable.
+available, integrity-pinned/static dependencies, framework escaping, and no
+unsafe HTML sinks. Snapback should provide deployment guidance and tests that
+make these controls observable.
+
+**Operator-origin separation is a hosted requirement, not a courtesy.** The
+custody matrix (C1) shows why: the operator surface persists a derived
+`sbcc_` credential readable by any same-origin script, so a shared origin
+turns application XSS into administrative authority. A hosted exposure MUST
+either serve `/_snapback/*` operator pages from a **separately trusted
+origin** or keep them **disabled on the application origin**; hosted
+administration stays disabled until its control-plane authorization contract
+exists (this document deliberately does not design one). Locally, where the
+operator and the application author are the same person on the same machine,
+same-origin operator pages remain acceptable and the residual is theirs.
 
 These are prevention and blast-radius controls. No combination of headers turns
 a JavaScript-readable bearer into an XSS-proof credential. The product must say
@@ -361,8 +674,10 @@ admits no `unsafe-eval`, enforces Trusted Types, and adds `nosniff`,
 no-referrer, denied browser powers, and same-origin opener/resource policies.
 A router test hashes each document's served inline bytes and compares them with
 that response's CSP; shared middleware preserves the built shell's dynamic
-policy instead of overwriting it with the setup fallback. Inline styles remain
-admitted for the embedded setup page and React style props. This controls
+policy instead of overwriting it with the setup fallback (the setup-script
+hash is the fallback policy for any Snapback-owned static document that does
+not install a response-specific one, not a per-document admission). Inline
+styles remain admitted for the embedded setup page and React style props. This controls
 Snapback's operator surface only; an application or hosting target still owns
 the app document's CSP and dependencies, so these headers do not promote the
 local target or bearer v1 to hosted readiness.
@@ -389,29 +704,50 @@ proof:
 - the public-key thumbprint bound into access and refresh-family state;
 - a proof on every protected HTTP request and connection open, covering method,
   canonical target URI, issued-at time, unique proof id, and access-token hash;
-- bounded proof replay storage and server nonce support where the target needs
-  stronger freshness;
+- bounded proof replay storage, and **server nonce as a required part of the
+  off-device claim**: RFC 9449 itself records that an XSS attacker can
+  pre-generate future-dated proofs for off-device use and that server nonce is
+  the mitigation, so a target either enforces nonce on the protected surfaces
+  it claims replay resistance for, or narrows its claim to
+  copied-token-without-proof-material explicitly;
 - rotation/recovery rules that treat loss of the private key as loss of the
   session family rather than silently falling back to bearer-only; and
 - a closed protocol/capability version so old clients cannot downgrade a bound
   family.
 
 The private key MUST be generated by the platform with `extractable: false` and
-must never be serialized by Snapback. Native targets should use their equivalent
+must never be serialized by Snapback. (Non-extractable `CryptoKey` handles
+survive structured clone into IndexedDB, so origin-IndexedDB custody and
+non-extractability are compatible.) Native targets should use their equivalent
 hardware/OS-backed key facility when available.
 
 Sender constraint prevents a copied token from being replayed on another device
 and narrows refresh-family takeover. It does not stop active same-origin code
-from asking the live key to sign while compromised. Stronger active-XSS
-isolation would require a separately trusted origin/process or a user-presence
-boundary and is not claimed here.
+from asking the live key to sign while compromised. The only same-device
+boundary that changes the active-XSS story short of user presence is a
+**separately origined signing broker** (a postMessage-brokered iframe or
+worker on its own origin holding the key) — recorded here as the deferred
+stronger-isolation option so v2 does not re-litigate it — and it is not
+claimed.
+
+Before any positive sender-constraint capability is emitted, v2 owes a
+versioned wire/storage specification covering at minimum: issuance and refresh
+proofs versus protected-resource proofs (including the `ath` access-token
+hash), every protected credential class (session family, connection tokens,
+console credentials, secret-read leases — or their explicit exclusion),
+HTTP **and** WebSocket proof transport, canonical external URI reconstruction
+behind proxy rewrites, admitted JOSE algorithms, time-window and nonce policy,
+replay-store key dimensions and shared-store failure behavior, downgrade
+refusal, and key persistence/deletion/recovery.
 
 Browser auth v1 remains supported for local development and explicitly
-operator-accepted self-hosted deployments. Snapback MUST NOT advertise an
-“XSS-resistant” or equivalent hosted-browser capability until v2 lands. A
-hosted product may expose bearer v1 only as an explicit, named compatibility
-posture whose UI and deployment facts state this residual; it is never the
-secure default.
+operator-accepted self-hosted deployments. The claim name is pinned
+permanently: sender constraint is a **copied-credential / off-device-replay
+constraint**, and Snapback MUST NOT advertise an “XSS-resistant” or equivalent
+hosted-browser capability for DPoP alone — not before v2 lands and not after.
+A hosted product may expose bearer v1 only through D5's distinct named
+compatibility request, whose UI and deployment facts state this residual; it
+is never the secure default.
 
 ## Diagnostics and observability
 
@@ -448,6 +784,12 @@ material.
   does not validate a reverse proxy or create hosted readiness.
 - The request-level app-data fence repeats the non-loopback refusal for
   embedded/router composition; diagnostic health remains available.
+- The middleware's posture input is unforgeable: transport posture derives
+  from the actual bound socket or a listener-construction token, a detached or
+  unknown posture fails closed for sessions, and a **real non-loopback
+  embedded-listener bypass test** proves a caller-supplied loopback flag
+  cannot expose a sessions router (closes the shipped
+  `ServerContext::detached()` / independent-`loopback` gap).
 - Diagnostic inventory and `ref-check` include the transport code and both
   enforcement references.
 
@@ -460,17 +802,59 @@ material.
   fail-closed, only the four deployment positives produce deployment readiness,
   and only those four plus sender constraint produce hosted-browser readiness.
 - Direct access to an origin cannot forge trusted forwarding metadata.
-- Rate limits converge across at least two replicas and remain bounded during
-  shared-limiter failure.
+- Plaintext requests carrying credentials are refused, never redirected; a
+  WebSocket downgrade attempt, a direct-origin bypass of the edge, and an
+  unauthenticated edge-to-origin hop each fail their fact.
+- Rate limits converge across replicas and remain bounded during
+  shared-limiter failure; the bucket set holds under source spray (one source,
+  many subjects), identity spray (many sources, one subject), NAT
+  concentration, and malformed/unattributable credentials (which still charge
+  source and global buckets).
 - Logout, rotation, expiry, reset/restore, and permission invalidation each
-  fence a stale replica before it accepts or delivers session work.
+  fence a stale replica before it accepts or delivers session work —
+  revocation-class operations do not report complete until every live replica
+  is fenced or its serving lease has expired. The invalidation matrix covers
+  partitions beginning before and after a mutation starts, commit-before-
+  delivery, ambiguous outcomes, duplication, reordering, restart, rebuild,
+  lease expiry, and payload-drain fencing; a single-serialized-authority
+  target satisfies the same rows by construction and proves the serialization
+  instead.
+- The mixed-version matrix (D6) covers handler-first activation,
+  coordinator-first rollback, delayed deployment, a marker-less coordinator
+  against a sessions-aware handler (refused before any app effect), and a
+  revived stale handler instance (refused by incarnation). Both preflight
+  domains are proven: a startup/deployment preflight refuses **before any DDL**
+  (the target left byte-for-byte unchanged, per frozen LLP 0039), and a
+  per-invocation preflight refuses before any handler app effect.
+- Readiness is proven to be capability **plus** attestation **plus** health
+  **plus** the D6/operator-origin gates: a build with all five capability enums
+  positive but stale/rebound configuration, an unhealthy limiter, an
+  incompatible handler, or same-origin operator pages is refused hosted
+  admission; and losing a required live-health fact **withdraws serving** (HTTP
+  refusal and existing socket/drain) rather than only logging.
+- The `externalTls = enforced` attestation is proven to require strict
+  transport (no prose-exclusion hatch): a target that cannot attest HSTS/
+  equivalent cannot attest `enforced`.
+- The serving-lease state machine is proven bounded: a lease past its normative
+  maximum never serves, a fenced replica cannot renew at the old position, a
+  restart cannot resurrect an expired lease, and revocation completes only once
+  every lease-holder is fenced or provably expired.
+- Operator-surface isolation (C2) is proven for hosted exposure: `/_snapback/*`
+  is served from a separately trusted origin or disabled on the application
+  origin, so an application XSS cannot reach the derived `sbcc_` console
+  credential.
 
 ### Browser custody
 
-- Secret sentinels prove `localStorage`, wakeups, diagnostics, URLs, errors,
-  and auth-control/coordinator return values never contain session bearer,
-  master admin, derived console, secret-read lease, or submitted config
-  material. Arbitrary application payloads are not a credential-redaction
+- Secret sentinels prove every carrier stays inside its C1 matrix row:
+  `localStorage` never contains session-family, master, secret-read-lease, or
+  submitted-config material (the derived `sbcc_` console record is the one
+  named `localStorage` carrier, and its sentinel asserts the record contains
+  no embedded master rather than pretending the record is not there); wakeups,
+  diagnostics, URLs, errors, and auth-control/coordinator return values
+  contain no credential of any class, with the narrow transport accessor and
+  the headless direct-bearer seam named as the intentional exceptions.
+  Arbitrary application payloads are not a credential-redaction
   boundary: an app that deliberately echoes a bearer as ordinary result data is
   out of this sentinel's scope and is covered by the client-page XSS contract.
 - One-, two-, and three-byte master/config sentinels prove known semantic
@@ -480,6 +864,13 @@ material.
   refresh predecessor and successor, and logout body reflection. Exact empty
   204 alone returns `null`; malformed 2xx logout clears only current captured
   custody and then returns a generic credential-free error.
+- Issuing-path opaque-failure cases (currently failing; the named defect
+  obligation in C1): a malformed 2xx on exchange, refresh, console mint, and
+  challenge request produces a fixed error with **no response bytes and no
+  reader-error payload** — proven with a poisoned body containing a
+  freshly-issued credential the client could not know — and challenge-request
+  success is the exact `{challengeId, expiresAt}` projection, never
+  passthrough JSON.
 - Console-mint poison cases cover a longer master embedded after `sbcc_` and a
   one-byte master colliding with the fixed prefix; neither candidate reaches
   storage. A known-2xx logout whose body reader rejects with credential-bearing
@@ -513,14 +904,20 @@ material.
 
 ## Open questions
 
-- Which hosted target first implements the four deployment facts: the
-  Cloudflare profile, a single-region reverse-proxy profile, or both?
+- Which hosted target first implements the four deployment facts, and via
+  which conforming D4 topology: a single serialized authority (the LLP 0040
+  Durable Object shape), a single-region reverse-proxy profile with
+  lease-based replicas, or both?
 - Is v2 custody isolated in a service worker/dedicated worker, or does the
   initial sender-constrained slice use origin IndexedDB with the narrower
-  off-device-replay claim?
+  off-device-replay claim? (A separately origined signing broker is the
+  recorded stronger option, deliberately deferred — C3.)
 - What key-recovery UX is acceptable when a non-extractable key is lost?
-- Does a hosted compatibility mode permit bearer v1 after an explicit operator
-  acceptance, or should production tooling refuse it categorically?
+- What is the exact shape of the operator-acceptance artifact behind D5's
+  named bearer-v1 compatibility request — a signed deployment-config fact, a
+  console acknowledgement, or both? (Whether such a posture exists at all is
+  now pinned: it does, as a distinct request; it is never `hosted` and never
+  the default.)
 
 ## Status
 
@@ -547,10 +944,36 @@ the author's behalf.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
 document on 2026-07-14; its verbatim report and provenance are archived in
-`reviews/0060-hosted-auth-security.codex.md` (verdict: NOT READY — nine
-material implemented-boundary and hosted/future-contract findings). Small
-editorial corrections from that review are applied above; its material findings
-await author triage. The review advises — it does not ratify.
+`reviews/0060-hosted-auth-security.codex.md` (round 1, verdict: NOT READY —
+nine material implemented-boundary and hosted/future-contract findings). A
+**round 3 (the latest) corrected the D6-vs-frozen-0039 contradiction** (the
+`_snapback_meta`-before-preflight carve-out is withdrawn; preflight precedes all
+DDL, split into startup and per-invocation domains), removed D2's strict-
+transport prose escape hatch, clarified that the five static enums attest
+`*Capable` not `*Ready` with D6/operator-origin as mandatory admission inputs,
+bounded the D4 serving-lease state machine and reproduced LLP 0053's exact
+durability matrix (projections are continuity-scoped, not disk-durable), flagged
+`multiReplicaConvergent` as a companion rename, and completed the acceptance
+surface. Remaining protocol-grade items (the marker schema owner/wire form, the
+lease constants, the machine-readable attestation/health authorities) are named
+implementation-altitude obligations, since this RFC does not design the control
+plane and its altitude is not yet author-ratified.
+
+Two further dual-family rounds (fresh Codex and fresh Fable, blind, via
+/llp-super-refine) reviewed the committed revision at `b11a6fa`;
+all artifacts are archived with provenance in
+`reviews/0060-hosted-auth-security.{codex,fable}.md`. **The round-2 revision
+was the author-side triage of the first two rounds**: every material finding is
+either resolved in the text (D1 unforgeable posture, D2 refusal/strict-
+transport/edge-to-origin, D3 bucket algorithm, D4 conforming topologies, D5
+naming/layers/compat request, new D6 mixed-version boundary, C1 custody
+matrix and issuing-path rule, C2 operator-origin requirement, C3 claim
+renaming and protocol inventory) or recorded as a named defect obligation
+with acceptance rows (the detached-loopback bypass; the issuing-path 2xx
+snippet and request-code passthrough; the descriptor's missing not-applicable
+values; the structural browser/headless custody split). Dispositions live in
+the review ledger alongside the verbatim reviews. The review advises — it
+does not ratify, and this document remains Draft pending author ratification.
 
 ## Changelog
 

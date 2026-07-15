@@ -164,3 +164,353 @@ Equivalent Rust layout is allowed, but these observable classification and accou
 ## Readiness verdict
 
 **NOT READY.** The stale cross-context publication window, terminal reconnect/clearing failure, unfenced handshake path, localStorage contradiction, and crash-recovery disposition loss undermine the document’s central authority-barrier claims and frozen LLP 0039 outcomes. Those defects require implementation and protocol reconciliation before ratification; the MINOR model and wording corrections should land with that work.
+## Round 2 — 2026-07-14
+
+**Revision under review:** `llp/0059-session-projection-and-client-barrier.spec.md`, sha256 `d78399dcc37cca8a6f385519405149aa89d1ffa62e3bc1634e6cdc5b2a799d3c` (committed at repo HEAD `b11a6fa`)
+**Runtime detail:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, reasoning effort ultra, read-only sandbox, session id 019f637b-fe34-79d1-9439-5a2f7d371c86; 529,331 tokens used; fresh session, blind to all archived reviews and to the concurrent Fable-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+## 1. Overall assessment
+
+The proposal’s core architecture is sound: durable server authority, exact act-time publication fences, and a client-wide epoch barrier are the right primitives. The grant/outbox work is particularly strong, and the acceptance plan is unusually concrete.
+
+However, LLP 0059 is not ready for ratification. It currently mixes an aspirational protocol, historical item-5 behavior, composed production behavior, and claims that the implementation and readiness evidence have landed. Several load-bearing guarantees are contradicted by the implementation; two server traces can violate restart/restore guarantees; and the browser barrier lacks a coherent durable and cross-context completion protocol.
+
+## 2. Strengths
+
+- The authority model is precise. [§Connection-bound authority](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:599) separates readable connection identity from immutable grant authority, while [§Act-time validation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:709) requires a final synchronous publication cut. Exact grant identity, reverse invalidation, and registry-held handoff are substantively implemented in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:990), [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:1896), and [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:2593).
+
+- [§Durable and ephemeral outboxes](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:914) gives a credible leased-delivery protocol: recovery markers win, acknowledgement follows ownership transfer, and HTTP’s first-body cut is explicit. The queue selection and acknowledgement machinery in [src/ephemeral.rs](/Users/ccheever/projects/snapback/src/ephemeral.rs:2286) and [src/ephemeral.rs](/Users/ccheever/projects/snapback/src/ephemeral.rs:2399), plus HTTP fencing in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:5220), largely match that design.
+
+- The client model correctly identifies delayed success as dangerous, not merely delayed failure. [§Authority identity and captures](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1093) and [§Coordinator interface](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1223) make authority capture and final compare-and-commit central rather than treating logout as a cache clear.
+
+- The document is honest about browser limits. [§Durable custody record](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1208) explicitly declines to claim IndexedDB protects against same-origin XSS, and [§Cross-context ownership](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1296) avoids pretending one tab can synchronously blank every suspended peer.
+
+- The independent capability axes in [§Independent item-5 availability axes](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1547) compose correctly with LLP 0053/0043. The server negotiates later-item axes independently in [src/auth/handshake.rs](/Users/ccheever/projects/snapback/src/auth/handshake.rs:373), and the format-5 store has real independent authority, queue, and retention state in [client-store.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store.mjs:649).
+
+- [§Executable acceptance](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1739) appropriately calls for deterministic schedulers and failpoints rather than timing-based race tests. That is the right standard for this protocol.
+
+## 3. Concerns
+
+### 1. MATERIAL — The durable-time design does not make terminal authority irreversible
+
+[§Durable session clock floor](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:321) says maintenance persists progress only up to its cadence, but then concludes that once a generation terminalizes at epoch `E`, the floor has been committed and restart cannot revive it. [§Operation-specific publication](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:455) consequently makes expiry write-free.
+
+The implementation raises only an in-memory atomic in [AuthProvider::now_ms](/Users/ccheever/projects/snapback/src/auth/provider.rs:830). The expiry worker terminalizes directly in memory in [src/auth/runtime.rs](/Users/ccheever/projects/snapback/src/auth/runtime.rs:383) and [src/auth/session_projection.rs](/Users/ccheever/projects/snapback/src/auth/session_projection.rs:863); durable persistence happens later during GC in [src/storage/auth.rs](/Users/ccheever/projects/snapback/src/storage/auth.rs:502). Therefore:
+
+- a forward jump can terminalize a session, followed by a crash before GC, after which a lower clock rebuilds it as current; and
+- if the monotonic deadline fires while wall time has moved backward, GC can persist only the lower sampled epoch rather than the elapsed session deadline, so even GC followed by restart can revive the generation.
+
+Declared restore has the inverse failure. Startup passes raw `SystemTime::now()` into restore before seeding from the durable floor in [src/cli.rs](/Users/ccheever/projects/snapback/src/cli.rs:1474). Restore writes that value as `revoked_at_ms` in [src/storage/auth.rs](/Users/ccheever/projects/snapback/src/storage/auth.rs:624), while rebuild rejects a revocation earlier than creation in [src/auth/session_projection.rs](/Users/ccheever/projects/snapback/src/auth/session_projection.rs:647). The declaration is removed before rebuild in [src/auth/lifecycle.rs](/Users/ccheever/projects/snapback/src/auth/lifecycle.rs:230). A backup created at time 100 and restored under clock 50 can therefore be durably rendered projection-corrupt with its retry declaration already gone.
+
+**Resolution criterion:** Before publishing any time-derived terminal event, durably advance a shared frontier to at least the authoritative deadline or durably record that generation’s terminality. Restore must derive its timestamp from durable state and guarantee it is at least every affected session’s creation timestamp. Add deterministic crash tests for forward-jump expiry, monotonic expiry under backward wall time, and restore under a lower host clock.
+
+### 2. MATERIAL — LLP 0057 and LLP 0059 specify different public outcomes for commit ambiguity
+
+LLP 0059 says it consumes LLP 0057’s provider protocol “without re-owning” it in [§Scope](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:111). LLP 0057 nevertheless requires plaintext successor/code state to be discarded and an unavailable result returned after an initially unknown commit outcome in [§Concurrency, locks, and linearization](/Users/ccheever/projects/snapback/llp/0057-auth-provider-protocol.spec.md:1179).
+
+By contrast, LLP 0059’s [§Rollback and ambiguous commit](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:428) finalizes an exact durable successor. The code follows LLP 0059: rotation maps an exact successor back to committed in [src/auth/provider.rs](/Users/ccheever/projects/snapback/src/auth/provider.rs:1369), then returns the retained plaintext successor in [src/auth/coordinator.rs](/Users/ccheever/projects/snapback/src/auth/coordinator.rs:649). Issuance does the same in [src/auth/provider.rs](/Users/ccheever/projects/snapback/src/auth/provider.rs:3430).
+
+Exact-successor recovery may be a reasonable refinement, but there cannot be two normative public-response rules for the same provider operation.
+
+**Resolution criterion:** Choose the owning rule explicitly. If exact durable proof permits publishing the retained successor, revise or supersede LLP 0057 and specify the proof and plaintext-custody requirements. Otherwise discard the carrier after every initially ambiguous commit. Before-/after-commit fault tests must assert the selected public response.
+
+### 3. MATERIAL — Auth-client protocol 1 is advertised without the required coordinator
+
+[§Authority identity and captures](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1095) requires one coordinator per app/partition, and [§Contract and kit barrier participation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1619) says `setBearerToken` is no longer a local token swap. Protocol 1 is supposed to represent completion of that sequence.
+
+The kit instead defaults `authClientProtocol` to `1` while defaulting `authCoordinator` to `null` in [demos/_kit/client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:808). It has a full uncoordinated handshake path at [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:891), permits local bearer replacement at [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:945), and returns request results without a final authority commit when no coordinator exists at [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:1404). Contract likewise treats a missing coordinator as successful direct commit in [packages/snapback-contract/index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:231). The handshake suite positively tests a sessions mutation using protocol 1, an injected bearer, and no coordinator in [auth-handshake.mjs](/Users/ccheever/projects/snapback/demos/_kit/tests/auth-handshake.mjs:98).
+
+**Resolution criterion:** The bundled client may offer protocol 1 only after installing canonical per-app custody, a singleton coordinator, and mandatory participants. A no-coordinator client must offer no compatible sessions protocol and must fail closed. Add default-construction and two-context tests that prove this invariant.
+
+### 4. MATERIAL — Durable transition state is insufficient across crashes and contexts
+
+The exact custody shape in [§Durable custody record](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1162) removes the predecessor during `clearing` and retains only the successor. That cannot reproduce all rows in the transition table, particularly same-user/new-session preservation.
+
+The implementation demonstrates the loss:
+
+- The clearing write drops predecessor identity in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:893).
+- Recovery reconstructs `previousAuthority: null` in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:969).
+- The store maps an unknown predecessor to delete-all in [client-store.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store.mjs:3005).
+- A production test explicitly expects same-user/new-session crash recovery to delete the queue and retained state in [client-store-authority.test.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store-authority.test.mjs:870), contradicting the ordinary table and its acceptance claim.
+
+Cross-context completion is also not durable. Online peer adoption explicitly skips `commitDurable` in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:1096), while physical-store registration is only a realm-local `WeakMap` in [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:113). If tab A owns the transition but has no Contract store, a suspended tab B’s physical store remains at the predecessor epoch. Participant unregistration can similarly mark an entry removed before its durable phase and later loops skip it in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:918).
+
+**Resolution criterion:** Persist a versioned transition intent containing predecessor and successor authority, classification/disposition, epoch, and transition identity. Every physical store must idempotently record application of that intent before exposure, regardless of which tab initiated it. Mandatory participants must remain phase-eligible until durable completion. Crash tests must reproduce every transition-table row exactly; if conservative deletion is intentional, the Spec must explicitly ratify that data-loss policy.
+
+### 5. MATERIAL — The barrier lacks a coherent ownership cut between durable settle and online resume
+
+[§Transition barrier](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1365) says exclusive ownership spans the durable transition, while phase 9 requires fresh handshake, grant, resubscription, and participant readiness before exposure. But those participant operations ultimately use `compareAndCommit`, which reacquires custody ownership under [§Coordinator interface](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1252).
+
+The implementation holds `withOwnership` around the entire transition in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:869) and awaits `resume` before returning in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:1013). A genuine Contract resume would deadlock when it re-entered the same Web Lock. Contract avoids this by scheduling its refresh and returning immediately in [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:2205) and [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:2388), allowing the coordinator to report transition success before the mandatory surface is ready.
+
+This long ownership interval also blocks peers. A clearing wake merely sets `publicationPaused` and asynchronously waits for ownership in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:1265); it does not synchronously blank existing boundaries. The owner may meanwhile hold the lock across the resume handshake, and refresh explicitly holds it across an unbounded network request in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:771). The required `pageshow`, visibility, and focus gates are not installed by the constructor at [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:462).
+
+**Resolution criterion:** Define an explicit phase-8 ownership release. Durable custody may settle under ownership, but all contexts must remain locally blank until successor-fenced readiness completes after release. No network request may hold the cross-context mutex. Wake and lifecycle handlers must synchronously pause/blank before awaiting durable reload. Tests must cover a hung network resume, dropped broadcast, frozen peer, and focus/pageshow before successor exposure.
+
+### 6. MATERIAL — A close-code-only terminal event reconnects instead of clearing
+
+[§Typed terminal auth error](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:995) requires either the typed frame or close code to suppress reconnect and run captured-authority `compareAndClear`. The server emits close code `4401` with reason `auth_error` in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:10333).
+
+The managed client handles terminal auth only in its message branch. Its close handler discards `CloseEvent` details in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:3784), and generic loss always schedules reconnect in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:3800). The raw stream also ignores close details in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:2200). Thus losing the frame but receiving the mandated close produces exactly the generic reconnect loop the Spec says is closed.
+
+**Resolution criterion:** Both live APIs must terminal-latch `4401/auth_error`, suppress reconnect, clear only the captured current authority, and ignore a delayed A close after B settles. Add close-without-frame and delayed-close race tests.
+
+### 7. MATERIAL — The closed handshake cannot prove its claimed identity boundary
+
+[§Bootstrap response revision](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1644) requires canonical UUIDv7 incarnation values, and handshake acceptance requires cross-app values to fail in [§Handshake and activation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1910).
+
+The exact response DTO contains no app or deployment identity in [src/auth/handshake.rs](/Users/ccheever/projects/snapback/src/auth/handshake.rs:234). The client validator rejects unknown fields and therefore cannot receive such proof in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:566). A coordinator’s `appId` is merely local configuration, so a client pointed at the wrong app accepts that app’s incarnation under its locally chosen id. Cross-app rejection is impossible under the current closed shape.
+
+Canonical identity is also under-enforced: the Rust schema requires only nonempty session/user/incarnation strings in [src/auth/handshake.rs](/Users/ccheever/projects/snapback/src/auth/handshake.rs:119), and the kit performs the same nonempty-string checks in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:593).
+
+**Resolution criterion:** Add a server-proven canonical app/deployment identity and validate it before any custody transition, likely through a revised protocol version. Validate canonical UUIDv7 spelling for stream, session, and user identifiers at the wire projection boundary. Add wrong-app, wrong-version, uppercase, and noncanonical UUID tests.
+
+### 8. MATERIAL — The handshake is not consistently captured and final-fenced
+
+[§Bootstrap response revision](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1652) requires authority projection and incarnation to come from one prepared authority. In the admission-closed path, the server resolves the bearer and discards its `FencedPublication` in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:6172), separately rereads the current incarnation in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:6202), and returns unfenced JSON in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:6230). A reset/revoke between those steps can produce a hybrid or stale response. The associated test explicitly expects no prepared authority or admission lease while pending in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:14482).
+
+The client side has the same gap. Cached handshake reads use only in-memory capture equality in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:891), and post-network coordinated completion checks only `isCurrent` before caching in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:1095), despite the Spec defining `isCurrent` as a hint. Pending/unavailable handshakes are cached and thrown as availability errors without running the required blank barrier.
+
+**Resolution criterion:** Carry one prepared authority and incarnation through the response’s final body-publication fence, including diagnostic mode, or retry/refuse. Client cache reads and post-await completion must pass a durable compare-and-commit. Pending/unavailable mode must enter a custody-preserving blank barrier. Add reset/revoke-at-body-handoff and missed-broadcast-during-handshake tests.
+
+### 9. MATERIAL — Readiness is asserted rather than derived from the required evidence
+
+[§Allowed order](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:536) requires test/dev lock-rank assertions. [§Readiness facts](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1669) and [§Handshake and activation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1912) require each omitted module, wiring edge, or worker to keep its fact false, and [§Implementation handoff](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1942) claims real probes landed.
+
+The relevant locks remain raw mutexes in [src/auth/session_projection.rs](/Users/ccheever/projects/snapback/src/auth/session_projection.rs:401), [src/auth/coordinator.rs](/Users/ccheever/projects/snapback/src/auth/coordinator.rs:1052), and [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:941); no rank facility or inversion assertion is present. Production readiness passes literal `true` values for connection binding, two-phase revocation, and auth coordinator in [src/cli.rs](/Users/ccheever/projects/snapback/src/cli.rs:327). Its test verifies those literals rather than omission/failure behavior in [src/cli.rs](/Users/ccheever/projects/snapback/src/cli.rs:3406).
+
+**Resolution criterion:** Implement rank-aware dev/test guards with intentional inversion failures and connect each readiness fact to executable module/wiring/worker probes. Otherwise distinguish static build facts from runtime readiness, remove the landed-evidence claim, and keep the affected fact false.
+
+### 10. MATERIAL — The specified localStorage protocol is the opposite of the implementation and governing LLP
+
+[§Format 3 and authority tags](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1514) says a localStorage adapter MUST use immutable generation-segmented namespaces and MUST NOT use read-then-`setItem` or a mutable current pointer. Acceptance requires the segmented stale-writer proof in [§Client store and Contract boundaries](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1881).
+
+The actual adapter reads and overwrites one mutable key with `storage.setItem(key, JSON.stringify(state))` under a Web Lock in [client-store.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store.mjs:2937). Governing LLP 0008 explicitly ratifies this one-key load/modify/save protocol in [§Serialization](/Users/ccheever/projects/snapback/llp/0008-local-first-sync-and-realtime.rfc.md:427).
+
+**Resolution criterion:** Either implement immutable epoch/key-segmented namespaces and their stale-writer/GC acceptance, or revise LLP 0059 with a complete proof for the Web-Lock design and reconcile LLP 0008. The implementation, governing RFC, and acceptance suite must specify one protocol.
+
+## 4. Suggestions
+
+- Replace the mutable clearing record with an append-only transition journal containing transition id, predecessor, successor, disposition, and per-store applied epoch. Custody can be a derived current pointer, while recovery and peer catch-up remain exact.
+
+- Split client transition into two cuts: a short durable custody cut under cross-context ownership, followed by local successor preparation while blank. Publish local readiness atomically only after handshake/store/surface preparation succeeds.
+
+- Make protocol support an installed capability object produced by the canonical coordinator factory, rather than a numeric constructor default that can exist without its implementation.
+
+- Commit one global time frontier before terminalizing a batch of due sessions. This preserves batching without requiring a separate session-row write for every expiry.
+
+- Since the document remains Draft, introduce a revised handshake protocol now with explicit app/deployment identity instead of preserving an under-specified closed v1 shape.
+
+- Add a conformance table mapping every readiness fact to its implementation edge, failpoint test, and negative omission test. Remove “landed” claims until every row is evidenced.
+
+- Correct Grants acceptance item 2: it currently says revoked, expired, malformed, and random bearers are indistinguishable, contradicting [§Diagnostics and safe exposure](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1729) and LLP 0057’s deliberate `AUTH_REQUIRED` versus `SESSION_EXPIRED` distinction.
+
+## 5. Open questions
+
+1. After an initially ambiguous credential commit, is exact durable successor proof sufficient to release the retained plaintext credential, or is LLP 0057’s unavailable outcome still authoritative?
+
+2. Must crash recovery preserve every transition-table disposition exactly, or is conservative delete-all an accepted data-loss policy?
+
+3. What precisely constitutes transition success: settled custody, all local durable commits, or completed handshake/grant/resubscription for every mandatory local surface?
+
+4. Who applies a physical client-store transition when the initiating tab has no instance of that store and the owning tab is suspended?
+
+5. Which operations may perform network I/O while holding custody ownership? If any remain, what is their hard liveness bound and takeover mechanism under Web Locks?
+
+6. What server identity must the handshake bind: canonical app id, database identity, deployment identity, origin, or a tuple of these?
+
+7. Which durable mechanism closes monotonic-deadline expiry across restart without imposing unacceptable write amplification?
+
+8. Are readiness fields static build facts or live process facts? How does a server prove the client coordinator package and its mandatory participants are actually present?
+
+## 6. Readiness verdict
+
+Not ready. The server time frontier, restore path, client protocol negotiation, crash/cross-context transition recovery, terminal close handling, handshake identity/fencing, readiness proof, and localStorage protocol all have unresolved material correctness or coherence problems.
+
+READINESS VERDICT: NOT READY
+## Round 2 — 2026-07-14
+
+**Revision under review:** `llp/0059-session-projection-and-client-barrier.spec.md`, sha256 `d78399dcc37cca8a6f385519405149aa89d1ffa62e3bc1634e6cdc5b2a799d3c` (committed at repo HEAD `b11a6fa`)
+**Runtime detail:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, reasoning effort ultra, read-only sandbox; fresh session, blind to all archived reviews and to the concurrent Fable-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+## 1. Overall assessment
+
+The proposal’s core architecture is sound: durable server authority, exact act-time publication fences, and a client-wide epoch barrier are the right primitives. The grant/outbox work is particularly strong, and the acceptance plan is unusually concrete.
+
+However, LLP 0059 is not ready for ratification. It currently mixes an aspirational protocol, historical item-5 behavior, composed production behavior, and claims that the implementation and readiness evidence have landed. Several load-bearing guarantees are contradicted by the implementation; two server traces can violate restart/restore guarantees; and the browser barrier lacks a coherent durable and cross-context completion protocol.
+
+## 2. Strengths
+
+- The authority model is precise. [§Connection-bound authority](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:599) separates readable connection identity from immutable grant authority, while [§Act-time validation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:709) requires a final synchronous publication cut. Exact grant identity, reverse invalidation, and registry-held handoff are substantively implemented in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:990), [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:1896), and [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:2593).
+
+- [§Durable and ephemeral outboxes](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:914) gives a credible leased-delivery protocol: recovery markers win, acknowledgement follows ownership transfer, and HTTP’s first-body cut is explicit. The queue selection and acknowledgement machinery in [src/ephemeral.rs](/Users/ccheever/projects/snapback/src/ephemeral.rs:2286) and [src/ephemeral.rs](/Users/ccheever/projects/snapback/src/ephemeral.rs:2399), plus HTTP fencing in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:5220), largely match that design.
+
+- The client model correctly identifies delayed success as dangerous, not merely delayed failure. [§Authority identity and captures](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1093) and [§Coordinator interface](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1223) make authority capture and final compare-and-commit central rather than treating logout as a cache clear.
+
+- The document is honest about browser limits. [§Durable custody record](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1208) explicitly declines to claim IndexedDB protects against same-origin XSS, and [§Cross-context ownership](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1296) avoids pretending one tab can synchronously blank every suspended peer.
+
+- The independent capability axes in [§Independent item-5 availability axes](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1547) compose correctly with LLP 0053/0043. The server negotiates later-item axes independently in [src/auth/handshake.rs](/Users/ccheever/projects/snapback/src/auth/handshake.rs:373), and the format-5 store has real independent authority, queue, and retention state in [client-store.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store.mjs:649).
+
+- [§Executable acceptance](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1739) appropriately calls for deterministic schedulers and failpoints rather than timing-based race tests. That is the right standard for this protocol.
+
+## 3. Concerns
+
+### 1. MATERIAL — The durable-time design does not make terminal authority irreversible
+
+[§Durable session clock floor](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:321) says maintenance persists progress only up to its cadence, but then concludes that once a generation terminalizes at epoch `E`, the floor has been committed and restart cannot revive it. [§Operation-specific publication](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:455) consequently makes expiry write-free.
+
+The implementation raises only an in-memory atomic in [AuthProvider::now_ms](/Users/ccheever/projects/snapback/src/auth/provider.rs:830). The expiry worker terminalizes directly in memory in [src/auth/runtime.rs](/Users/ccheever/projects/snapback/src/auth/runtime.rs:383) and [src/auth/session_projection.rs](/Users/ccheever/projects/snapback/src/auth/session_projection.rs:863); durable persistence happens later during GC in [src/storage/auth.rs](/Users/ccheever/projects/snapback/src/storage/auth.rs:502). Therefore:
+
+- a forward jump can terminalize a session, followed by a crash before GC, after which a lower clock rebuilds it as current; and
+- if the monotonic deadline fires while wall time has moved backward, GC can persist only the lower sampled epoch rather than the elapsed session deadline, so even GC followed by restart can revive the generation.
+
+Declared restore has the inverse failure. Startup passes raw `SystemTime::now()` into restore before seeding from the durable floor in [src/cli.rs](/Users/ccheever/projects/snapback/src/cli.rs:1474). Restore writes that value as `revoked_at_ms` in [src/storage/auth.rs](/Users/ccheever/projects/snapback/src/storage/auth.rs:624), while rebuild rejects a revocation earlier than creation in [src/auth/session_projection.rs](/Users/ccheever/projects/snapback/src/auth/session_projection.rs:647). The declaration is removed before rebuild in [src/auth/lifecycle.rs](/Users/ccheever/projects/snapback/src/auth/lifecycle.rs:230). A backup created at time 100 and restored under clock 50 can therefore be durably rendered projection-corrupt with its retry declaration already gone.
+
+**Resolution criterion:** Before publishing any time-derived terminal event, durably advance a shared frontier to at least the authoritative deadline or durably record that generation’s terminality. Restore must derive its timestamp from durable state and guarantee it is at least every affected session’s creation timestamp. Add deterministic crash tests for forward-jump expiry, monotonic expiry under backward wall time, and restore under a lower host clock.
+
+### 2. MATERIAL — LLP 0057 and LLP 0059 specify different public outcomes for commit ambiguity
+
+LLP 0059 says it consumes LLP 0057’s provider protocol “without re-owning” it in [§Scope](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:111). LLP 0057 nevertheless requires plaintext successor/code state to be discarded and an unavailable result returned after an initially unknown commit outcome in [§Concurrency, locks, and linearization](/Users/ccheever/projects/snapback/llp/0057-auth-provider-protocol.spec.md:1179).
+
+By contrast, LLP 0059’s [§Rollback and ambiguous commit](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:428) finalizes an exact durable successor. The code follows LLP 0059: rotation maps an exact successor back to committed in [src/auth/provider.rs](/Users/ccheever/projects/snapback/src/auth/provider.rs:1369), then returns the retained plaintext successor in [src/auth/coordinator.rs](/Users/ccheever/projects/snapback/src/auth/coordinator.rs:649). Issuance does the same in [src/auth/provider.rs](/Users/ccheever/projects/snapback/src/auth/provider.rs:3430).
+
+Exact-successor recovery may be a reasonable refinement, but there cannot be two normative public-response rules for the same provider operation.
+
+**Resolution criterion:** Choose the owning rule explicitly. If exact durable proof permits publishing the retained successor, revise or supersede LLP 0057 and specify the proof and plaintext-custody requirements. Otherwise discard the carrier after every initially ambiguous commit. Before-/after-commit fault tests must assert the selected public response.
+
+### 3. MATERIAL — Auth-client protocol 1 is advertised without the required coordinator
+
+[§Authority identity and captures](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1095) requires one coordinator per app/partition, and [§Contract and kit barrier participation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1619) says `setBearerToken` is no longer a local token swap. Protocol 1 is supposed to represent completion of that sequence.
+
+The kit instead defaults `authClientProtocol` to `1` while defaulting `authCoordinator` to `null` in [demos/_kit/client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:808). It has a full uncoordinated handshake path at [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:891), permits local bearer replacement at [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:945), and returns request results without a final authority commit when no coordinator exists at [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:1404). Contract likewise treats a missing coordinator as successful direct commit in [packages/snapback-contract/index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:231). The handshake suite positively tests a sessions mutation using protocol 1, an injected bearer, and no coordinator in [auth-handshake.mjs](/Users/ccheever/projects/snapback/demos/_kit/tests/auth-handshake.mjs:98).
+
+**Resolution criterion:** The bundled client may offer protocol 1 only after installing canonical per-app custody, a singleton coordinator, and mandatory participants. A no-coordinator client must offer no compatible sessions protocol and must fail closed. Add default-construction and two-context tests that prove this invariant.
+
+### 4. MATERIAL — Durable transition state is insufficient across crashes and contexts
+
+The exact custody shape in [§Durable custody record](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1162) removes the predecessor during `clearing` and retains only the successor. That cannot reproduce all rows in the transition table, particularly same-user/new-session preservation.
+
+The implementation demonstrates the loss:
+
+- The clearing write drops predecessor identity in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:893).
+- Recovery reconstructs `previousAuthority: null` in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:969).
+- The store maps an unknown predecessor to delete-all in [client-store.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store.mjs:3005).
+- A production test explicitly expects same-user/new-session crash recovery to delete the queue and retained state in [client-store-authority.test.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store-authority.test.mjs:870), contradicting the ordinary table and its acceptance claim.
+
+Cross-context completion is also not durable. Online peer adoption explicitly skips `commitDurable` in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:1096), while physical-store registration is only a realm-local `WeakMap` in [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:113). If tab A owns the transition but has no Contract store, a suspended tab B’s physical store remains at the predecessor epoch. Participant unregistration can similarly mark an entry removed before its durable phase and later loops skip it in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:918).
+
+**Resolution criterion:** Persist a versioned transition intent containing predecessor and successor authority, classification/disposition, epoch, and transition identity. Every physical store must idempotently record application of that intent before exposure, regardless of which tab initiated it. Mandatory participants must remain phase-eligible until durable completion. Crash tests must reproduce every transition-table row exactly; if conservative deletion is intentional, the Spec must explicitly ratify that data-loss policy.
+
+### 5. MATERIAL — The barrier lacks a coherent ownership cut between durable settle and online resume
+
+[§Transition barrier](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1365) says exclusive ownership spans the durable transition, while phase 9 requires fresh handshake, grant, resubscription, and participant readiness before exposure. But those participant operations ultimately use `compareAndCommit`, which reacquires custody ownership under [§Coordinator interface](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1252).
+
+The implementation holds `withOwnership` around the entire transition in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:869) and awaits `resume` before returning in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:1013). A genuine Contract resume would deadlock when it re-entered the same Web Lock. Contract avoids this by scheduling its refresh and returning immediately in [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:2205) and [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/index.mjs:2388), allowing the coordinator to report transition success before the mandatory surface is ready.
+
+This long ownership interval also blocks peers. A clearing wake merely sets `publicationPaused` and asynchronously waits for ownership in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:1265); it does not synchronously blank existing boundaries. The owner may meanwhile hold the lock across the resume handshake, and refresh explicitly holds it across an unbounded network request in [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:771). The required `pageshow`, visibility, and focus gates are not installed by the constructor at [auth-coordinator.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/auth-coordinator.mjs:462).
+
+**Resolution criterion:** Define an explicit phase-8 ownership release. Durable custody may settle under ownership, but all contexts must remain locally blank until successor-fenced readiness completes after release. No network request may hold the cross-context mutex. Wake and lifecycle handlers must synchronously pause/blank before awaiting durable reload. Tests must cover a hung network resume, dropped broadcast, frozen peer, and focus/pageshow before successor exposure.
+
+### 6. MATERIAL — A close-code-only terminal event reconnects instead of clearing
+
+[§Typed terminal auth error](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:995) requires either the typed frame or close code to suppress reconnect and run captured-authority `compareAndClear`. The server emits close code `4401` with reason `auth_error` in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:10333).
+
+The managed client handles terminal auth only in its message branch. Its close handler discards `CloseEvent` details in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:3784), and generic loss always schedules reconnect in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:3800). The raw stream also ignores close details in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:2200). Thus losing the frame but receiving the mandated close produces exactly the generic reconnect loop the Spec says is closed.
+
+**Resolution criterion:** Both live APIs must terminal-latch `4401/auth_error`, suppress reconnect, clear only the captured current authority, and ignore a delayed A close after B settles. Add close-without-frame and delayed-close race tests.
+
+### 7. MATERIAL — The closed handshake cannot prove its claimed identity boundary
+
+[§Bootstrap response revision](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1644) requires canonical UUIDv7 incarnation values, and handshake acceptance requires cross-app values to fail in [§Handshake and activation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1910).
+
+The exact response DTO contains no app or deployment identity in [src/auth/handshake.rs](/Users/ccheever/projects/snapback/src/auth/handshake.rs:234). The client validator rejects unknown fields and therefore cannot receive such proof in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:566). A coordinator’s `appId` is merely local configuration, so a client pointed at the wrong app accepts that app’s incarnation under its locally chosen id. Cross-app rejection is impossible under the current closed shape.
+
+Canonical identity is also under-enforced: the Rust schema requires only nonempty session/user/incarnation strings in [src/auth/handshake.rs](/Users/ccheever/projects/snapback/src/auth/handshake.rs:119), and the kit performs the same nonempty-string checks in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:593).
+
+**Resolution criterion:** Add a server-proven canonical app/deployment identity and validate it before any custody transition, likely through a revised protocol version. Validate canonical UUIDv7 spelling for stream, session, and user identifiers at the wire projection boundary. Add wrong-app, wrong-version, uppercase, and noncanonical UUID tests.
+
+### 8. MATERIAL — The handshake is not consistently captured and final-fenced
+
+[§Bootstrap response revision](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1652) requires authority projection and incarnation to come from one prepared authority. In the admission-closed path, the server resolves the bearer and discards its `FencedPublication` in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:6172), separately rereads the current incarnation in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:6202), and returns unfenced JSON in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:6230). A reset/revoke between those steps can produce a hybrid or stale response. The associated test explicitly expects no prepared authority or admission lease while pending in [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:14482).
+
+The client side has the same gap. Cached handshake reads use only in-memory capture equality in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:891), and post-network coordinated completion checks only `isCurrent` before caching in [client.mjs](/Users/ccheever/projects/snapback/demos/_kit/client.mjs:1095), despite the Spec defining `isCurrent` as a hint. Pending/unavailable handshakes are cached and thrown as availability errors without running the required blank barrier.
+
+**Resolution criterion:** Carry one prepared authority and incarnation through the response’s final body-publication fence, including diagnostic mode, or retry/refuse. Client cache reads and post-await completion must pass a durable compare-and-commit. Pending/unavailable mode must enter a custody-preserving blank barrier. Add reset/revoke-at-body-handoff and missed-broadcast-during-handshake tests.
+
+### 9. MATERIAL — Readiness is asserted rather than derived from the required evidence
+
+[§Allowed order](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:536) requires test/dev lock-rank assertions. [§Readiness facts](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1669) and [§Handshake and activation](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1912) require each omitted module, wiring edge, or worker to keep its fact false, and [§Implementation handoff](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1942) claims real probes landed.
+
+The relevant locks remain raw mutexes in [src/auth/session_projection.rs](/Users/ccheever/projects/snapback/src/auth/session_projection.rs:401), [src/auth/coordinator.rs](/Users/ccheever/projects/snapback/src/auth/coordinator.rs:1052), and [src/server.rs](/Users/ccheever/projects/snapback/src/server.rs:941); no rank facility or inversion assertion is present. Production readiness passes literal `true` values for connection binding, two-phase revocation, and auth coordinator in [src/cli.rs](/Users/ccheever/projects/snapback/src/cli.rs:327). Its test verifies those literals rather than omission/failure behavior in [src/cli.rs](/Users/ccheever/projects/snapback/src/cli.rs:3406).
+
+**Resolution criterion:** Implement rank-aware dev/test guards with intentional inversion failures and connect each readiness fact to executable module/wiring/worker probes. Otherwise distinguish static build facts from runtime readiness, remove the landed-evidence claim, and keep the affected fact false.
+
+### 10. MATERIAL — The specified localStorage protocol is the opposite of the implementation and governing LLP
+
+[§Format 3 and authority tags](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1514) says a localStorage adapter MUST use immutable generation-segmented namespaces and MUST NOT use read-then-`setItem` or a mutable current pointer. Acceptance requires the segmented stale-writer proof in [§Client store and Contract boundaries](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1881).
+
+The actual adapter reads and overwrites one mutable key with `storage.setItem(key, JSON.stringify(state))` under a Web Lock in [client-store.mjs](/Users/ccheever/projects/snapback/packages/snapback-contract/client-store.mjs:2937). Governing LLP 0008 explicitly ratifies this one-key load/modify/save protocol in [§Serialization](/Users/ccheever/projects/snapback/llp/0008-local-first-sync-and-realtime.rfc.md:427).
+
+**Resolution criterion:** Either implement immutable epoch/key-segmented namespaces and their stale-writer/GC acceptance, or revise LLP 0059 with a complete proof for the Web-Lock design and reconcile LLP 0008. The implementation, governing RFC, and acceptance suite must specify one protocol.
+
+## 4. Suggestions
+
+- Replace the mutable clearing record with an append-only transition journal containing transition id, predecessor, successor, disposition, and per-store applied epoch. Custody can be a derived current pointer, while recovery and peer catch-up remain exact.
+
+- Split client transition into two cuts: a short durable custody cut under cross-context ownership, followed by local successor preparation while blank. Publish local readiness atomically only after handshake/store/surface preparation succeeds.
+
+- Make protocol support an installed capability object produced by the canonical coordinator factory, rather than a numeric constructor default that can exist without its implementation.
+
+- Commit one global time frontier before terminalizing a batch of due sessions. This preserves batching without requiring a separate session-row write for every expiry.
+
+- Since the document remains Draft, introduce a revised handshake protocol now with explicit app/deployment identity instead of preserving an under-specified closed v1 shape.
+
+- Add a conformance table mapping every readiness fact to its implementation edge, failpoint test, and negative omission test. Remove “landed” claims until every row is evidenced.
+
+- Correct Grants acceptance item 2: it currently says revoked, expired, malformed, and random bearers are indistinguishable, contradicting [§Diagnostics and safe exposure](/Users/ccheever/projects/snapback/llp/0059-session-projection-and-client-barrier.spec.md:1729) and LLP 0057’s deliberate `AUTH_REQUIRED` versus `SESSION_EXPIRED` distinction.
+
+## 5. Open questions
+
+1. After an initially ambiguous credential commit, is exact durable successor proof sufficient to release the retained plaintext credential, or is LLP 0057’s unavailable outcome still authoritative?
+
+2. Must crash recovery preserve every transition-table disposition exactly, or is conservative delete-all an accepted data-loss policy?
+
+3. What precisely constitutes transition success: settled custody, all local durable commits, or completed handshake/grant/resubscription for every mandatory local surface?
+
+4. Who applies a physical client-store transition when the initiating tab has no instance of that store and the owning tab is suspended?
+
+5. Which operations may perform network I/O while holding custody ownership? If any remain, what is their hard liveness bound and takeover mechanism under Web Locks?
+
+6. What server identity must the handshake bind: canonical app id, database identity, deployment identity, origin, or a tuple of these?
+
+7. Which durable mechanism closes monotonic-deadline expiry across restart without imposing unacceptable write amplification?
+
+8. Are readiness fields static build facts or live process facts? How does a server prove the client coordinator package and its mandatory participants are actually present?
+
+## 6. Readiness verdict
+
+Not ready. The server time frontier, restore path, client protocol negotiation, crash/cross-context transition recovery, terminal close handling, handshake identity/fencing, readiness proof, and localStorage protocol all have unresolved material correctness or coherence problems.
+
+READINESS VERDICT: NOT READY
+### Orchestrator disposition (round 2, outside the verbatim body)
+
+Disposition: #1 (durable-time terminal) → cross-referenced the LLP 0057 restore
+clock-floor fix; durable-frontier-before-terminal-event named an obligation; #2
+(0057/0059 commit-ambiguity contradiction) → resolved from the 0057 side (0057
+now defers to this document's exact-successor reconciliation); #3 (protocol-1
+without coordinator) → named defect obligation (no-coordinator client fails
+closed); #4 (durable transition intent) → named defect obligation or explicit
+data-loss ratification; #5 (ownership cut) → phase-8 release obligation, no
+network I/O under the mutex; #6 (close-code terminal latch) → named obligation
+for both live APIs; #7 (handshake app-identity/UUIDv7) → named obligation; #8
+(final-fence handshake capture) → named obligation; #9 (readiness probes) →
+overclaim corrected, probes named an obligation; #10 (localStorage vs LLP 0008)
+→ flagged as a genuine cross-document conflict requiring reconciliation. The
+suggestions (append-only transition journal, two-cut client transition, capability
+object for protocol support) are recorded for the implementer.
