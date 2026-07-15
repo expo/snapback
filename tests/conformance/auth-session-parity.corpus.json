@@ -46,6 +46,7 @@
         "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000001",
         "sessionGeneration": 0
       },
+      "deploymentIdentity": null,
       "authorizedLease": null
     },
     "settledSessionsAuthenticated": {
@@ -94,6 +95,14 @@
         "descriptorVersion": 1,
         "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000004",
         "sessionGeneration": 1
+      },
+      "deploymentIdentity": {
+        "schemaVersion": "v1-sessions",
+        "authMode": "sessions",
+        "appId": "schema-parity-app",
+        "schemaHash": "sha256:schema",
+        "bundleHash": "sha256:bundle",
+        "inputsHash": "sha256:inputs"
       },
       "authorizedLease": {
         "protocolVersion": 1,

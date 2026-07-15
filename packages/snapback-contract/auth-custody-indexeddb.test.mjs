@@ -37,6 +37,7 @@ const settledAnonymous = () => ({
   bearer: null,
   pendingBearer: null,
   refreshAfterMs: null,
+  transitionIntent: null,
 });
 
 const deferred = () => {

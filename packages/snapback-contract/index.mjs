@@ -230,7 +230,12 @@ function staleContractAuthorityError() {
 
 function resolveAuthCoordinator(client, explicit) {
   const coordinator = explicit ?? client?.authCoordinator ?? null;
-  if (!coordinator) return null;
+  if (!coordinator) {
+    if (client?.authProtocols?.authClient === 1) {
+      throw new TypeError('auth-client protocol v1 requires canonical AuthCoordinator custody');
+    }
+    return null;
+  }
   for (const method of ['capture', 'isCurrent', 'compareAndCommit', 'registerParticipant']) {
     if (typeof coordinator[method] !== 'function') {
       throw new TypeError(`authCoordinator requires ${method}()`);

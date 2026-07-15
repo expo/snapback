@@ -5,7 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-2 dual-family revision, /llp-super-refine:
+**Revised:** 2026-07-15 (ENG-25001 defect resolution: durable terminal
+frontiers and monotonic restore; coordinator-only protocol 1; custody format 2
+transition intent; ownership release before resume/network; close-only 4401
+terminal latch; deployment identity and UUIDv7 boundary; counted prepared
+handshake authority and durable cache fence; executable readiness probes;
+LLP 0008 Web-Lock one-key reconciliation; and dev/test lock-rank assertions).
+2026-07-14 (round-2 dual-family revision, /llp-super-refine:
 reconciled the LLP 0057/0059 commit-ambiguity contradiction from the 0057 side
 (exact-durable-successor reconciliation is now the single owning rule); restated
 the **lock-rank assertions as a named defect obligation** (shipped locks are raw
@@ -361,6 +367,13 @@ maximum epoch the process has ever committed. The rule is:
 - Every maintenance/GC pass persists the advancing floor atomically with its
   reclamation write, so forward progress made while serving survives a later
   restart up to the maintenance cadence.
+- Before publishing any time-derived terminal event, the expiry authority
+  durably advances the floor to the maximum epoch deadline of every due
+  generation. This applies when monotonic time proves expiry while the wall
+  sample moved backward and closes the crash window before the next GC pass.
+- A declared restore computes its destructive timestamp as the maximum of the
+  host sample, restored durable floor, and restored session creation frontier,
+  then advances the floor in the same transaction before writing revocations.
 
 Consequently, once either authoritative deadline terminalizes a session
 generation at some epoch `E` the process has committed to the floor, no ordinary
@@ -606,12 +619,11 @@ old socket cannot unregister or close its replacement. Terminal purge may
 remove still-uncommitted outbox/room work, but it cannot retract a buffer already
 accepted by a writer handoff before `Begin`; that buffer is honestly in flight.
 
-The server **is obligated to** supply lock-rank assertions in test/dev builds:
-this is a **named defect obligation, not a landed fact**. The shipped locks are
-raw mutexes with no rank facility or inversion assertion
-(`src/auth/session_projection.rs`, `src/auth/coordinator.rs`, `src/server.rs`),
-so §Implementation handoff must not claim rank-aware guards landed; a rank-aware
-dev/test guard with intentional inversion-failure tests is the obligation. The
+The server supplies test/dev lock-rank assertions for projection topology →
+authorization stream → session leaf. An intentional inversion fails before the
+lower-ranked mutex acquisition. Connection/room independence is proven by the
+existing L9 server fixture rather than nesting those registries under projection
+guards. The
 L9 concurrency suite must show that a stalled revocation transaction for session
 A does not delay an unrelated finite request or publication for session B beyond
 normal scheduler noise — and that stalled-revocation-independence fixture is
@@ -1186,8 +1198,8 @@ a late tab overwrite a successor credential.
 The coordinator's closed durable record is:
 
 ```ts
-type AuthCustodyV1 = {
-  formatVersion: 1
+type AuthCustodyV2 = {
+  formatVersion: 2
   appId: CanonicalAppId
   authorityEpoch: SafeNonnegativeInteger
   revision: SafePositiveInteger
@@ -1197,6 +1209,7 @@ type AuthCustodyV1 = {
   bearer: string | null
   pendingBearer: string | null
   refreshAfterMs: SafeIntegerTimestamp | null
+  transitionIntent: ClientAuthorityTransitionIntentV1 | null
 }
 ```
 
@@ -1205,7 +1218,11 @@ In `settled`, `authority` is non-null and is the only readable authority;
 a null bearer and null refresh time; a settled session has a non-null bearer
 and bounded refresh time. In `clearing`, current authority and bearer are null,
 the record is non-readable to app participants, and pending fields plus
-`refreshAfterMs` describe only the successor being installed. No broadcast
+`refreshAfterMs` describe the successor being installed. A required clearing
+intent carries its version/digest, predecessor and successor epochs, authority
+keys and complete authorities, reason, and disposition. The intent remains on
+the settled successor so peer contexts can idempotently apply the same physical
+store transition before resume. No broadcast
 contains either bearer field.
 
 A fresh store is created only after a successful anonymous bootstrap handshake,
@@ -1536,30 +1553,14 @@ record. Item 5's `queuedReplay:false` forbids every automatic send.
 Transactional IndexedDB/SQLite adapters publish their current namespace pointer
 with the same expected-epoch CAS as collection changes.
 
-**The localStorage adapter's protocol must be reconciled with governing LLP
-0008, which currently ratifies the opposite design — this is a genuine
-cross-document conflict, flagged not papered over.** This section pins that a
-non-transactional localStorage adapter MUST NOT emulate CAS with
-read-then-`setItem` or keep a mutable current pointer, and MUST use immutable
-generation-segmented namespaces keyed by `(appIdHash, authorityEpoch,
-authorityKey)`. But LLP 0008 §Serialization ratifies a one-key load/modify/save
-protocol under a Web Lock, and the shipped adapter implements *that*
-(`client-store.mjs`, `storage.setItem(key, JSON.stringify(state))` under a Web
-Lock). One protocol must win across this Spec, LLP 0008, and the implementation:
-either LLP 0059 adopts the ratified Web-Lock one-key design (and this
-segmented-namespace text is withdrawn), **or** a dated LLP 0008 amendment adopts
-the segmented-namespace design with its stale-writer/GC proof and the adapter is
-rewritten. Until that reconciliation lands, this is a **named cross-document
-defect obligation**, and the segmented-namespace acceptance below is contingent
-on it — this Draft does not unilaterally override the governing RFC. The
-remainder of this paragraph describes the segmented design *if* it is the one
-chosen: every writer selects only its captured namespace; the sole current
-pointer is the settled transactional custody record. A late old writer
-can therefore add bytes only to an unreachable old namespace. Transition makes
-the predecessor unreachable by settling the next custody epoch, and later GC
-may delete its keys. A reader derives the namespace from current custody and
-never scans/falls back to another epoch. It is forbidden to delete sequentially
-while leaving the old namespace readable or to retag an old segment as current.
+The localStorage adapter adopts governing LLP 0008's ratified one-key
+load/modify/save protocol under the canonical per-app Web Lock. It performs no
+read-then-`setItem` CAS outside that lock and keeps no independently mutable
+current pointer. Each operation reloads the one record under ownership and
+compares its expected authority epoch/key before replacement. A delayed
+predecessor writer that resumes after a successor therefore waits for the Web
+Lock, reloads the successor, and fails the expected-authority comparison without
+writing or exposing predecessor bytes.
 
 The historical item-5 migration from format 2 validated the old shape but did
 not reinterpret its `generation` or client-asserted `authFingerprint` as an
@@ -1684,10 +1685,14 @@ LLP 0058's closed `GET /auth/session` success body gains the required field:
 
 ```ts
 authorizationStreamIncarnation: CanonicalUuidV7
+deploymentIdentity: DeploymentIdentity | null
 ```
 
-The response's session projection and this incarnation are captured from one
-prepared authority. A sessions-mode success without the field, an invalid UUID,
+The response's session projection, deployment identity, and incarnation are
+captured from one counted prepared authority and retained through the final
+body sink. Sessions mode requires non-null deployment identity and the client
+checks its app id before custody changes. A sessions-mode success without the
+field, an invalid UUID,
 or a value different from settled client custody is a protocol error and
 triggers a blank coordinator transition/reload. Anonymous responses carry the
 same current incarnation. Dev mode thereby claims only authorization-stream
@@ -1932,7 +1937,7 @@ wall-clock sleeps are not proof of ordering.
    reject format 5.
 2. For every store operation, race transition between expected-epoch read and
    commit. CAS rejects the stale mutation and reads suppress mismatched tags.
-   Repeat for generation-segmented fallback namespaces.
+   Repeat for a delayed LLP 0008 one-key writer released after the successor.
 3. Transition anonymous to auth, A to different-user B, A to same-user/new
    session, auth to anonymous, and incarnation to successor. Verify the exact
    delete/strand table, same-user principal data is not wiped, different-user
@@ -1944,9 +1949,9 @@ wall-clock sleeps are not proof of ordering.
    and error callbacks. None may change the successor boundary or durable
    store. A fresh handshake, grant, and resubscribe of each permitted surface
    occurs exactly once per successful local transition.
-6. On a localStorage segmented adapter, release an old writer after successor
-   custody settles. It writes only its old namespace; current reads do not scan
-   or expose it, and no mutable localStorage pointer can select it.
+6. On the LLP 0008 localStorage adapter, release an old writer after successor
+   custody settles. Web-Lock serialization forces a reload and the stale
+   expected-authority comparison rejects without changing the one stored key.
 7. The item-5 producer matrix emits `delete` for every session-authority loss
    and never emits `retain` or `quarantine`; unsupported injected values fail
    rather than bypassing the barrier.
@@ -1983,10 +1988,9 @@ invariant across an externally enableable commit:
    historical item-5 client-store format 3, and mandatory kit/Contract
    participants; composed production now uses LLP 0043's format 5, which
    preserves these barriers and migrates formats 1 through 4 fail closed;
-5. revised the closed handshake DTO and ran the full interleaving and activation
-   matrix (the "real readiness probes" claim is corrected: production readiness
-   currently passes literal facts, and rank-aware guards plus module/wiring/
-   worker probes are named defect obligations, not landed evidence); and
+5. revised the closed handshake DTO, derived activation facts from executable
+   route-registry and coordinator-module probes, and ran the interleaving and
+   activation matrix; and
 6. ran `./ref-check --verbose` and added non-mechanical `@ref LLP 0059#...`
    annotations at each non-obvious ticket, lock-order, fence, custody, and
    epoch-CAS implementation boundary.
@@ -2028,12 +2032,10 @@ revision at `b11a6fa`; both artifacts are archived with provenance in
 contradiction (GPT #2) — reconciled **from the LLP 0057 side**, which now defers
 to this document's exact-durable-successor reconciliation (0057 §Concurrency no
 longer states the contradictory discard-and-unavailable rule); the lock-rank
-overclaim (both families) — restated as a named defect obligation, since the
-shipped locks are raw mutexes and §Implementation handoff must not claim
-rank-aware guards landed; the localStorage protocol conflict with governing LLP
-0008 (GPT #10) — flagged as a genuine cross-document conflict requiring either
-0059 adopting LLP 0008's ratified Web-Lock one-key design or a dated 0008
-amendment for the segmented-namespace design, not a unilateral override; the
+overclaim (both families) and localStorage conflict with governing LLP 0008
+(GPT #10) were accurately recorded as implementation defects at that revision;
+ENG-25001 subsequently landed rank guards and selected LLP 0008's ratified
+Web-Lock one-key design; the
 grant-mint "indistinguishable" acceptance sentence (both) — scoped to grant
 minting so it no longer flattens LLP 0057's `AUTH_REQUIRED` vs `SESSION_EXPIRED`
 distinction; and the durable-time terminal irreversibility (GPT #1) — cross-
@@ -2041,25 +2043,17 @@ referenced to the LLP 0057 declared-restore clock-floor fix, with "durably
 advance a shared frontier to the authoritative deadline before publishing a
 time-derived terminal event" named as an obligation.
 
-**Named defect obligations (spec pins the behavior; shipped code has the gap —
-code fixes with acceptance obligations, not design changes):** auth-client
-protocol 1 must not be advertised without the canonical coordinator and
-mandatory participants (a no-coordinator client fails closed) (#3); durable
-transition intent must carry predecessor+successor authority so crash/cross-
-context recovery reproduces every transition-table row, or the conservative
-delete-all data-loss policy is explicitly ratified (#4); an explicit phase-8
-ownership release so no network request holds the cross-context mutex and all
-contexts stay blank until successor-fenced readiness (#5); both live APIs must
-terminal-latch `4401/auth_error` on a close-code-only event and suppress
-reconnect (#6); a server-proven canonical app/deployment identity validated
-before custody transition, and canonical UUIDv7 enforcement at the wire boundary
-(#7); one prepared authority+incarnation carried through the response's final
-body-publication fence, with client cache reads passing a durable
-compare-and-commit (#8); and readiness facts derived from executable
-module/wiring/worker probes rather than literal `true`, or static build facts
-distinguished from runtime readiness with the landed-evidence claim removed (#9).
-The rank-aware dev/test guards, the stalled-revocation-independence fixture, and
-the segmented-namespace acceptance are the associated test obligations.
+**Resolved defect obligations (ENG-25001):** protocol 1 now requires the
+canonical coordinator; custody format 2 carries durable predecessor/successor
+intent and peers run the physical-store commit; phase 8 and credential refresh
+release ownership before network work; both live APIs terminal-latch a
+close-only `4401/auth_error`; the handshake carries canonical deployment/app
+identity and UUIDv7 boundaries; stable pending handshakes retain one counted
+prepared authority through final publication and cached responses use durable
+compare-and-commit; readiness uses executable route/module probes; projection
+locks carry dev/test rank assertions; the L9 fixture proves unrelated
+publication during a stalled affected commit; and this Spec adopts LLP 0008's
+Web-Lock one-key localStorage protocol.
 
 This document remains **Draft** pending author triage completion and explicit
 ratification; the reviews advise, they do not ratify, and neither LLP 0039 nor

@@ -349,6 +349,45 @@ impl AdmissionController {
         self.admit_locked(&mut state, Some(mode))
     }
 
+    /// Admit the bootstrap diagnostic on a stable, non-transition-owned
+    /// epoch. Unlike ordinary app admission this may enter a deliberately
+    /// closed pending epoch, but it is still counted and cancelled so the
+    /// final response cannot mix authority facts from different epochs.
+    ///
+    /// @ref LLP 0059#handshake-and-readiness — diagnostic
+    /// availability does not permit an uncounted handshake response.
+    pub fn admit_diagnostic_for_mode(&self, mode: AuthMode) -> SnapbackResult<AdmissionLease> {
+        let mut state = lock(&self.inner.state);
+        let epoch = state.current_epoch;
+        let current = state
+            .epochs
+            .get_mut(&epoch)
+            .expect("current admission epoch exists");
+        if current.retired || current.transition_owned {
+            return Err(admission_closed());
+        }
+        if current.active_mode != mode {
+            return Err(mode_mismatch(mode, current.active_mode));
+        }
+        current.in_flight = current.in_flight.checked_add(1).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                "auth",
+                "process admission count overflowed",
+            )
+        })?;
+        Ok(AdmissionLease {
+            token: Arc::new(LeaseToken {
+                controller: Some(self.inner.clone()),
+                transition_generation: current.transition_generation,
+                admission_epoch: epoch,
+                active_mode: Some(current.active_mode),
+                cancellation: current.cancellation.clone(),
+                diagnostic: true,
+            }),
+        })
+    }
+
     /// Retire/cancel the current accepting epoch after an ambiguous same-mode
     /// durable commit. The process must restart and re-read durable state; it
     /// must never keep serving from an in-memory predecessor it can no longer
@@ -429,6 +468,7 @@ impl AdmissionController {
                 admission_epoch: epoch,
                 active_mode: Some(current.active_mode),
                 cancellation: current.cancellation.clone(),
+                diagnostic: false,
             }),
         })
     }
@@ -726,6 +766,7 @@ struct LeaseToken {
     admission_epoch: u64,
     active_mode: Option<AuthMode>,
     cancellation: Arc<CancellationSignal>,
+    diagnostic: bool,
 }
 
 impl Drop for LeaseToken {
@@ -759,6 +800,7 @@ impl AdmissionLease {
                 admission_epoch,
                 active_mode: None,
                 cancellation: Arc::new(CancellationSignal::default()),
+                diagnostic: false,
             }),
         }
     }
@@ -788,6 +830,10 @@ impl AdmissionLease {
 
     pub fn is_cancelled(&self) -> bool {
         self.token.cancellation.is_cancelled()
+    }
+
+    pub(crate) fn is_diagnostic(&self) -> bool {
+        self.token.diagnostic
     }
 
     /// Complete once retirement cancels this exact admitted epoch. Callers
@@ -1017,6 +1063,7 @@ impl ModeTransitionGuard {
                 admission_epoch: self.admission_epoch,
                 active_mode: Some(epoch.active_mode),
                 cancellation: epoch.cancellation.clone(),
+                diagnostic: false,
             }),
         })
     }

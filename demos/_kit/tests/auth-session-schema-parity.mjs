@@ -16,12 +16,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SnapbackClient } from '../client.mjs';
+import { AuthCoordinator, createMemoryAuthCustodyStorage } from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import { assert, assertEqual, createSuite } from '../harness.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const CORPUS_PATH = join(ROOT, 'tests', 'conformance', 'auth-session-parity.corpus.json');
 
 const corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8'));
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const caseValue = ({ base, remove = [], set = [] }) => {
   const value = structuredClone(corpus.bases[base]);
@@ -64,12 +66,44 @@ const kitVerdict = async (body) => {
     if (new URL(url).pathname === '/auth/session') return response(body);
     throw new Error(`unexpected path ${new URL(url).pathname}`);
   };
-  const protocols = body?.clientProtocols ?? {};
+  const coordinator = new AuthCoordinator({
+    appId: 'schema-parity-app',
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const authMode = body.activeMode === 'sessions' ? 'sessions' : 'dev';
+  const incarnation = UUID_V7.test(body.authorizationStreamIncarnation ?? '')
+    ? body.authorizationStreamIncarnation
+    : '01890f3c-9d5b-7000-8000-000000000001';
+  let capture = await coordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode,
+    authorizationStreamIncarnation: incarnation,
+  });
+  if (
+    authMode === 'sessions'
+    && body.authority?.isAuthenticated
+    && UUID_V7.test(body.authority.sessionId ?? '')
+    && UUID_V7.test(body.authority.userId ?? '')
+  ) {
+    capture = await coordinator.transition(capture, {
+      authority: {
+        kind: 'session',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: incarnation,
+        sessionId: body.authority.sessionId,
+        userId: body.authority.userId,
+      },
+      bearer: 'schema-parity-bearer',
+      refreshAfterMs: 1,
+    });
+  }
   const db = new SnapbackClient('http://stub', {
-    authClientProtocol: protocols.authClient ?? null,
-    authInvalidationProtocol: protocols.authInvalidation ?? null,
-    authorityDescriptorProtocol: protocols.authorityDescriptor ?? null,
-    authorizedLeaseProtocol: protocols.authorizedLease ?? null,
+    authCoordinator: coordinator,
+    authInvalidationProtocol: body.clientProtocols?.authInvalidation ?? null,
+    authorityDescriptorProtocol: body.clientProtocols?.authorityDescriptor ?? null,
+    authorizedLeaseProtocol: body.clientProtocols?.authorizedLease ?? null,
   });
   try {
     const projected = await db.authSession();
@@ -111,7 +145,7 @@ try {
   await suite.check('every exact root member is load-bearing for the kit validator', async () => {
     const base = corpus.bases.settledDevAnonymous;
     const members = Object.keys(base);
-    assertEqual(members.length, 16, 'root member census changed');
+    assertEqual(members.length, 17, 'root member census changed');
     assertEqual(await kitVerdict(structuredClone(base)), 'accept');
     for (const member of members) {
       const omitted = structuredClone(base);

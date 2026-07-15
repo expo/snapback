@@ -337,18 +337,47 @@ pub(crate) async fn run_periodic_gc_pass(
 ) -> ProviderResult<AuthGcPass> {
     let maintenance = provider.exclusive_maintenance().await;
     let now_ms = provider.now_ms();
-    // Durable deletion follows, and can never race ahead of, process-local
-    // terminalization. A projection failure aborts this pass before SQLite.
-    // @ref LLP 0059#operation-specific-publication — the projection owns live
-    // expiry authority; GC only reclaims rows after that authority is closed.
-    let expired = coordinator
-        .expire_due(now_ms, provider.monotonic_now())
-        .map_err(ProviderError::from)?;
-    terminal_sink.consume(expired);
+    terminalize_due_sessions(state, &provider, &coordinator, terminal_sink).await?;
     crate::server::with_snapback(state, move |snapback| {
         maintenance.run_gc_pass(snapback.auth_database_mut(), now_ms)
     })
     .await
+}
+
+/// Persist the maximum epoch deadline of every currently due session before
+/// process-local terminal publication. Persisting the sampled wall time alone
+/// is insufficient when a monotonic deadline fires after the wall clock moved
+/// backward.
+///
+/// @ref LLP 0059#durable-session-clock-floor — a crash after terminal
+/// publication must rebuild at or beyond the terminal generation's deadline.
+async fn terminalize_due_sessions(
+    state: &SharedSnapback,
+    provider: &Arc<AuthProvider>,
+    coordinator: &Arc<AuthCoordinator>,
+    terminal_sink: &AuthExpiryTerminalSink,
+) -> ProviderResult<()> {
+    let sampled_epoch = provider.now_ms();
+    let sampled_monotonic = provider.monotonic_now();
+    let Some(frontier) = coordinator
+        .due_expiry_frontier(sampled_epoch, sampled_monotonic)
+        .map_err(ProviderError::from)?
+    else {
+        return Ok(());
+    };
+    let durable_frontier = crate::server::with_snapback(state, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .advance_auth_session_clock_floor(frontier.max(sampled_epoch))
+    })
+    .await
+    .map_err(ProviderError::from)?;
+    provider.seed_session_clock_floor(durable_frontier);
+    let expired = coordinator
+        .expire_due(provider.now_ms(), provider.monotonic_now())
+        .map_err(ProviderError::from)?;
+    terminal_sink.consume(expired);
+    Ok(())
 }
 
 /// ReadyV1 only: honor the startup pass's next delay, then run forever. A full
@@ -388,6 +417,7 @@ pub(crate) fn spawn_auth_gc_worker(
 /// one second; each wake samples both clocks and permanently terminalizes due
 /// generations before later GC may delete their durable rows.
 pub(crate) async fn spawn_auth_expiry_worker(
+    state: SharedSnapback,
     coordinator: Arc<AuthCoordinator>,
     provider: Arc<AuthProvider>,
     terminal_sink: AuthExpiryTerminalSink,
@@ -399,8 +429,9 @@ pub(crate) async fn spawn_auth_expiry_worker(
             let monotonic_now = provider.monotonic_now();
             let delay = coordinator.expiry_scan_delay(monotonic_now)?;
             tokio::time::sleep(delay).await;
-            let expired = coordinator.expire_due(provider.now_ms(), provider.monotonic_now())?;
-            terminal_sink.consume(expired);
+            terminalize_due_sessions(&state, &provider, &coordinator, &terminal_sink)
+                .await
+                .map_err(ProviderError::into_snapback_error)?;
         }
     });
     running.await.map_err(|_| {
@@ -533,6 +564,37 @@ mod tests {
         fn monotonic_now(&self) -> Instant {
             self.base_monotonic
                 + Duration::from_millis(self.epoch_ms().saturating_sub(self.base_epoch_ms))
+        }
+    }
+
+    struct RuntimeDualClock {
+        epoch_ms: AtomicU64,
+        monotonic_ms: AtomicU64,
+        base_monotonic: Instant,
+    }
+
+    impl RuntimeDualClock {
+        fn new(epoch_ms: u64) -> Self {
+            Self {
+                epoch_ms: AtomicU64::new(epoch_ms),
+                monotonic_ms: AtomicU64::new(0),
+                base_monotonic: Instant::now(),
+            }
+        }
+
+        fn set(&self, epoch_ms: u64, monotonic_ms: u64) {
+            self.epoch_ms.store(epoch_ms, Ordering::Release);
+            self.monotonic_ms.store(monotonic_ms, Ordering::Release);
+        }
+    }
+
+    impl AuthClock for RuntimeDualClock {
+        fn epoch_ms(&self) -> u64 {
+            self.epoch_ms.load(Ordering::Acquire)
+        }
+
+        fn monotonic_now(&self) -> Instant {
+            self.base_monotonic + Duration::from_millis(self.monotonic_ms.load(Ordering::Acquire))
         }
     }
 
@@ -965,6 +1027,16 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(pass.sessions_deleted, 1);
+        assert_eq!(
+            state
+                .lock()
+                .await
+                .auth_database_mut()
+                .auth_session_clock_floor()
+                .unwrap(),
+            1_101,
+            "forward wall-clock expiry persists its terminal frontier before deletion",
+        );
         let terminalized = terminalized.lock().unwrap();
         assert_eq!(terminalized.len(), 1);
         assert_eq!(terminalized[0].session_id, session_id);
@@ -1006,8 +1078,9 @@ mod tests {
         )
         .unwrap();
         let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let state = Arc::new(Mutex::new(snapback));
         let mut worker =
-            spawn_auth_expiry_worker(coordinator, provider, AuthExpiryTerminalSink::noop())
+            spawn_auth_expiry_worker(state, coordinator, provider, AuthExpiryTerminalSink::noop())
                 .await
                 .expect("worker running handshake");
 
@@ -1079,7 +1152,9 @@ mod tests {
         );
     }
 
-    fn ready_runtime_with_clock(clock: Arc<RuntimeManualClock>) -> (AuthRuntime, Arc<AuthProvider>) {
+    fn ready_runtime_with_clock<C: AuthClock + 'static>(
+        clock: Arc<C>,
+    ) -> (AuthRuntime, Arc<AuthProvider>) {
         let provider = Arc::new(
             AuthProvider::new_with_dependencies(
                 AuthProviderProfile::Test,
@@ -1165,7 +1240,8 @@ mod tests {
 
         // Process 1 reaches epoch 250, where the sliding deadline is terminal.
         // Building the coordinator advances and persists the durable floor.
-        let (runtime1, provider1) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+        let (runtime1, provider1) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
         let coordinator1 = runtime1.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             coordinator1
@@ -1177,7 +1253,10 @@ mod tests {
             "the running process already treats the session as terminal at epoch 250"
         );
         assert_eq!(
-            snapback.auth_database_mut().auth_session_clock_floor().unwrap(),
+            snapback
+                .auth_database_mut()
+                .auth_session_clock_floor()
+                .unwrap(),
             250,
             "the running process persisted its advancing clock floor"
         );
@@ -1193,7 +1272,8 @@ mod tests {
                 .sessions_deleted
                 == 0
         );
-        let (runtime2, provider2) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
+        let (runtime2, provider2) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
         let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             provider2.now_ms(),
@@ -1211,6 +1291,62 @@ mod tests {
         );
     }
 
+    /// A monotonic deadline can become authoritative while the host wall clock
+    /// is behind it. The expiry cut must persist the deadline epoch before the
+    /// terminal callback, so a crash at that callback cannot revive the row.
+    #[tokio::test]
+    async fn monotonic_expiry_commits_terminal_frontier_before_publication() {
+        let mut snapback = activated_memory_snapback();
+        let bearer = insert_lifetime_session(&mut snapback, 200, 300);
+        let clock = Arc::new(RuntimeDualClock::new(100));
+        let (runtime, provider) = ready_runtime_with_clock(clock.clone());
+        let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
+        let state = Arc::new(Mutex::new(snapback));
+        clock.set(50, 101);
+
+        let terminalized = Arc::new(StdMutex::new(Vec::new()));
+        let observed = Arc::clone(&terminalized);
+        terminalize_due_sessions(
+            &state,
+            &provider,
+            &coordinator,
+            &AuthExpiryTerminalSink::new(move |expired| {
+                observed.lock().unwrap().extend(expired);
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(terminalized.lock().unwrap().len(), 1);
+        let mut snapback = Arc::try_unwrap(state)
+            .ok()
+            .expect("the test retains a single state owner")
+            .into_inner();
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .auth_session_clock_floor()
+                .unwrap(),
+            200,
+            "the durable frontier advances to the monotonic deadline, not the lower wall sample"
+        );
+
+        let (restart, restart_provider) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(50)));
+        let rebuilt = restart.build_coordinator(&mut snapback).unwrap();
+        assert_eq!(
+            rebuilt
+                .resolve_required_bearer(
+                    &bearer,
+                    restart_provider.now_ms(),
+                    restart_provider.monotonic_now(),
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+    }
+
     /// Ordinary forward time across restart still expires a slid session and
     /// keeps a still-live one. ENG-24982.
     #[tokio::test]
@@ -1223,9 +1359,14 @@ mod tests {
         runtime1.build_coordinator(&mut snapback).unwrap();
 
         // Restart with the wall clock genuinely advanced to 260.
-        let (runtime2, provider2) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(260)));
+        let (runtime2, provider2) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(260)));
         let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
-        assert_eq!(provider2.now_ms(), 260, "forward time is honored past the floor");
+        assert_eq!(
+            provider2.now_ms(),
+            260,
+            "forward time is honored past the floor"
+        );
         assert_eq!(
             coordinator2
                 .resolve_required_bearer(&slid, provider2.now_ms(), provider2.monotonic_now())
@@ -1257,9 +1398,14 @@ mod tests {
         let (runtime1, _) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
         runtime1.build_coordinator(&mut snapback).unwrap();
 
-        let (runtime2, provider2) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
+        let (runtime2, provider2) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
         let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
-        assert_eq!(provider2.now_ms(), 250, "effective epoch is the durable floor");
+        assert_eq!(
+            provider2.now_ms(),
+            250,
+            "effective epoch is the durable floor"
+        );
         assert!(
             matches!(
                 coordinator2

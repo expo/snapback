@@ -99,11 +99,11 @@
       "then": {
         "properties": {
           "sessionId": {
-            "minLength": 1,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "type": "string"
           },
           "userId": {
-            "minLength": 1,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "type": "string"
           }
         }
@@ -301,6 +301,38 @@
       ],
       "type": "object"
     },
+    "DeploymentIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "authMode": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "bundleHash": {
+          "type": "string"
+        },
+        "inputsHash": {
+          "type": "string"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
     "OnlineAvailability": {
       "additionalProperties": false,
       "properties": {
@@ -436,6 +468,17 @@
     "clientProtocols": {
       "$ref": "#/$defs/ClientProtocols"
     },
+    "deploymentIdentity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeploymentIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Server-proven artifact identity. Sessions mode requires a non-null\nvalue; legacy dev databases may not yet have one."
+    },
     "desiredMode": {
       "$ref": "#/$defs/AuthMode"
     },
@@ -492,6 +535,7 @@
     "transports",
     "authority",
     "authorityDescriptor",
+    "deploymentIdentity",
     "authorizedLease"
   ],
   "title": "AuthSessionResponse",

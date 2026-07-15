@@ -111,6 +111,7 @@ const hintStorage = {
     bearer: null,
     pendingBearer: null,
     refreshAfterMs: null,
+    transitionIntent: null,
   };
   assert.deepEqual(validateAuthCustody(valid, APP), valid);
   assert.throws(
@@ -424,7 +425,7 @@ for (const bytes of hintBytes.values()) {
     value: 'first',
   });
   assert.deepEqual(await second, { rotated: false });
-  assert.equal(staleCallbackRan, false);
+  assert.equal(staleCallbackRan, true, 'network rotation runs outside custody ownership; the final CAS rejects the loser');
   assert.equal((await peer.waitForNewerRevision(peerCapture))?.custodyRevision, capture.custodyRevision + 1);
   await peer.close();
 }
@@ -659,4 +660,34 @@ for (const bytes of hintBytes.values()) {
 }
 
 await coordinator.close();
+
+{
+  const inner = createMemoryAuthCustodyStorage();
+  let owned = false;
+  const observingStorage = {
+    ...inner,
+    withOwnership: (appId, operation) => inner.withOwnership(appId, async (owner) => {
+      owned = true;
+      try { return await operation(owner); }
+      finally { owned = false; }
+    }),
+  };
+  const phase8 = new AuthCoordinator({
+    appId: `${APP}/phase8`,
+    storage: observingStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const capture = await phase8.establishAnonymous(anonymous());
+  phase8.registerParticipant({
+    name: 'phase8-observer',
+    resume: async () => assert.equal(owned, false),
+  });
+  await phase8.transition(capture, {
+    authority: session(),
+    bearer: 'phase8-successor',
+    refreshAfterMs: 50_000,
+  });
+  await phase8.close();
+}
 console.log('auth coordinator conformance: ok');

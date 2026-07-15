@@ -18,7 +18,7 @@ use crate::auth::handshake::{
     AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    FunctionAttribution, HandlerAuthProjection, InvocationGate, InvocationSource,
+    FunctionAttribution, InvocationGate, InvocationSource,
     PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
@@ -5494,6 +5494,12 @@ async fn prepare_registered_route_authority(
     .map_err(ApiError::from)?;
     Ok(Some(match fenced_publication {
         Some(publication) => authority.with_fenced_publication(publication),
+        None if source == InvocationSource::BootstrapHandshake => authority
+                .with_authorization_stream_incarnation(
+                    installed_auth_coordinator(runtime)?
+                        .authorization_stream_incarnation()
+                        .map_err(ApiError::from)?,
+                ),
         None => authority,
     }))
 }
@@ -5590,15 +5596,13 @@ fn acquire_registered_route_admission(
         return Ok(None);
     }
     let controller = runtime.auth_admission_controller();
-    let snapshot = controller.diagnostic_snapshot();
-    // The handshake is the diagnostic exception: it remains available while
-    // the current epoch is closing or a committed mode is pending, and merely
-    // reports the durable/controller snapshot without manufacturing a root.
-    if spec.path == "/auth/session" && !snapshot.accepting {
-        return Ok(None);
-    }
-    controller
-        .admit_for_mode(runtime.auth_mode_state().active)
+    let active_mode = runtime.auth_mode_state().active;
+    let admission = if spec.path == "/auth/session" {
+        controller.admit_diagnostic_for_mode(active_mode)
+    } else {
+        controller.admit_for_mode(active_mode)
+    };
+    admission
         .map(Some)
         .map_err(ApiError::from)
 }
@@ -7304,7 +7308,7 @@ async fn auth_agent_revoke_self(
 /// response authority and never includes bearer or provider internals.
 async fn auth_session(
     State(runtime): State<AppState>,
-    authority: Option<Extension<PreparedAuthority>>,
+    Extension(authority): Extension<PreparedAuthority>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -7315,67 +7319,17 @@ async fn auth_session(
     }
     let offers = AuthClientProtocolOffers::from_http_headers(&headers);
     let state = runtime.auth_mode_state();
-    let (resolved_authority, projection, captured_incarnation) = match authority {
-        Some(Extension(authority)) => (
-            authority.resolved().clone(),
-            authority.projection().clone(),
-            authority
-                .authorization_stream_incarnation()
-                .map(str::to_owned),
-        ),
-        None => {
-            // A closed admission epoch is the handshake's diagnostic-only
-            // path. Resolve a presented bearer against the still-active
-            // durable mode, but do not manufacture managed invocation
-            // authority while ordinary app admission is suspended.
-            let resolved = match state.active {
-                AuthMode::Dev => {
-                    if headers.contains_key(header::AUTHORIZATION) {
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_AUTH_REQUIRED",
-                            "auth",
-                            "session credentials are unavailable while auth mode is dev",
-                        )
-                        .into());
-                    }
-                    ResolvedAppAuthority::Anonymous
-                }
-                AuthMode::Sessions => {
-                    if headers.contains_key(header::AUTHORIZATION) {
-                        let bearer = auth_bearer(&headers).unwrap_or_default().to_owned();
-                        let provider = installed_auth_provider(&runtime)?;
-                        installed_auth_coordinator(&runtime)?
-                            .resolve_required_bearer(
-                                &bearer,
-                                provider.now_ms(),
-                                provider.monotonic_now(),
-                            )
-                            .map_err(ApiError::from)?
-                            .into_parts()
-                            .0
-                    } else {
-                        ResolvedAppAuthority::Anonymous
-                    }
-                }
-            };
-            (
-                resolved.clone(),
-                HandlerAuthProjection::from_authority(&resolved),
-                None,
-            )
-        }
-    };
+    let resolved_authority = authority.resolved().clone();
+    let projection = authority.projection().clone();
     let provider_ready = runtime.auth_catalog_ready
         && runtime
             .auth_provider
             .as_ref()
             .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
-    let authorization_stream_incarnation = match captured_incarnation {
-        Some(incarnation) => incarnation,
-        None => installed_auth_coordinator(&runtime)?
-            .authorization_stream_incarnation()
-            .map_err(ApiError::from)?,
-    };
+    let authorization_stream_incarnation = authority
+        .authorization_stream_incarnation()
+        .ok_or_else(|| stale_prepared_authority(&authority))?
+        .to_owned();
     let authority_descriptor =
         descriptor_for_resolved_authority(&resolved_authority, &authorization_stream_incarnation)?;
     let response = AuthSessionResponse::from_facts(
@@ -7400,6 +7354,7 @@ async fn auth_session(
                 is_authenticated: projection.is_authenticated(),
             },
             authority_descriptor,
+            deployment_identity: state.active_deployment.clone(),
             authorized_lease_config: runtime.authorized_lease_config,
         },
         offers,
@@ -16013,7 +15968,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn handshake_holds_one_root_through_body_and_pending_is_snapshot_only() {
+    async fn handshake_holds_one_root_through_body_including_stable_pending_epochs() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
         let controller = state.auth_admission_controller();
         let response = app(state)
@@ -16059,10 +16014,13 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(response.extensions().get::<PreparedAuthority>().is_none());
-        assert!(response.extensions().get::<AdmissionLease>().is_none());
-        assert_eq!(pending_controller.snapshot().in_flight, 0);
-        assert_eq!(response_json(response).await["modeState"], "pendingRestart");
+        assert!(response.extensions().get::<PreparedAuthority>().is_some());
+        assert!(response.extensions().get::<PreparedAuthority>().unwrap().admission_lease().is_diagnostic());
+        assert!(response.extensions().get::<AdmissionLease>().is_some());
+        assert!(response.extensions().get::<AdmissionLease>().unwrap().is_diagnostic());
+        assert_eq!(pending_controller.snapshot().in_flight, 1);
+        let pending_body = response_json(response).await;
+        assert_eq!(pending_body["modeState"], "pendingRestart", "{pending_body:?}");
         assert_eq!(pending_controller.snapshot().in_flight, 0);
     }
 

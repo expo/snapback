@@ -43,7 +43,8 @@ pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declarat
 const META_AUTH_SESSION_CLOCK_FLOOR_MS: &str = "auth_session_clock_floor_ms";
 const MAX_SAFE_TIMESTAMP_MS: u64 = 9_007_199_254_740_991;
 #[cfg(test)]
-const AUTH_ACTIVATION_STEPS: usize = CURRENT_CATALOG.tables.len() + CURRENT_CATALOG.indexes.len() + 1;
+const AUTH_ACTIVATION_STEPS: usize =
+    CURRENT_CATALOG.tables.len() + CURRENT_CATALOG.indexes.len() + 1;
 
 #[cfg(test)]
 thread_local! {
@@ -1108,6 +1109,29 @@ impl LocalDatabase {
             return Ok(AuthRestoreResult::AlreadyApplied);
         }
 
+        // A restored database may contain timestamps ahead of the current
+        // host clock. Derive the destructive cut from durable authority, not
+        // the raw sample, and advance the shared frontier in this transaction
+        // before any session terminal state is written.
+        // @ref LLP 0059#durable-session-clock-floor — restore can never write
+        // a revocation earlier than the restored session's creation epoch.
+        let latest_created_at: Option<i64> =
+            tx.query_row("SELECT MAX(created_at_ms) FROM _auth_sessions", [], |row| {
+                row.get(0)
+            })?;
+        let latest_created_at = latest_created_at
+            .map(|value| {
+                u64::try_from(value).map_err(|_| {
+                    corrupt("auth catalog contains a negative session creation timestamp")
+                })
+            })
+            .transpose()?
+            .unwrap_or(0);
+        let restore_now_ms = read_session_clock_floor_on(&tx)?
+            .max(now_ms)
+            .max(latest_created_at);
+        advance_session_clock_floor_on(&tx, restore_now_ms)?;
+
         let exhausted_generations: i64 = tx.query_row(
             "SELECT COUNT(*) FROM _auth_sessions
                  WHERE revoked_at_ms IS NULL AND generation >= 9007199254740991",
@@ -1123,7 +1147,7 @@ impl LocalDatabase {
             "UPDATE _auth_sessions
                  SET revoked_at_ms = ?1, generation = generation + 1
                  WHERE revoked_at_ms IS NULL",
-            params![now_ms as i64],
+            params![restore_now_ms as i64],
         )?;
         restore_transaction_step_completed(0)?;
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
@@ -1224,8 +1248,9 @@ impl LocalDatabase {
         // Normalize the completed image's format-version bytes to rollback
         // mode directly through the pinned descriptor; all committed WAL
         // pages are already folded into the image by the online backup.
-        normalize_backup_image_format(image)
-            .map_err(|_| backup_invalid("backup database image could not be made self-contained"))?;
+        normalize_backup_image_format(image).map_err(|_| {
+            backup_invalid("backup database image could not be made self-contained")
+        })?;
         image
             .sync_all()
             .map_err(|_| backup_invalid("could not sync the backup database image"))?;
@@ -2146,6 +2171,45 @@ mod tests {
     }
 
     #[test]
+    fn declared_restore_uses_restored_session_frontier_when_host_clock_is_lower() {
+        let mut db = catalog_database();
+        db.with_auth_transaction(|tx| {
+            tx.execute("INSERT INTO _auth_users(id, created_at_ms) VALUES('user-restore-clock', 900)", [])?;
+            tx.execute(
+                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
+                 VALUES('identity-restore-clock', 'user-restore-clock', 'email-code', 'restore-clock@example.com', 900)",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_sessions(
+                   id, user_id, identity_id, authority_instance_id, token_hash,
+                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                   absolute_expires_at_ms, revoked_at_ms
+                 ) VALUES(
+                   'session-restore-clock', 'user-restore-clock', 'identity-restore-clock',
+                   'authority-restore-clock', ?1, 1, 900, 900, 1000, 1100, NULL
+                 )",
+                params![vec![7_u8; 32]],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+
+        db.apply_auth_restore_declaration("0197f862-f196-7bb2-b3f0-2a67185dfd18", 100)
+            .unwrap();
+        let revoked_at: i64 = db
+            .conn
+            .query_row(
+                "SELECT revoked_at_ms FROM _auth_sessions WHERE id = 'session-restore-clock'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(revoked_at, 900);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 900);
+    }
+
+    #[test]
     fn catalog_activation_reconciles_absent_predecessor_and_lost_commit_ack() {
         let mut db = LocalDatabase::memory().expect("memory database");
         let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -2270,7 +2334,8 @@ mod tests {
             .execute("DROP TABLE ordinary", [])
             .expect("drop ordinary table");
 
-        db.activate_auth_catalog_v1().expect("activate exact catalog");
+        db.activate_auth_catalog_v1()
+            .expect("activate exact catalog");
         assert_eq!(
             db.inspect_auth_catalog().expect("ready catalog"),
             AuthCatalogState::ReadyV2

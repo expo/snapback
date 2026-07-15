@@ -15,15 +15,15 @@ use super::provider::{
     SessionRevocation,
 };
 use super::session_projection::{
-    AuthorizationStreamIncarnation, BoundConnectionSessionIdentity, ExpiredSession,
-    FencedPublication, MutationTicket, PendingMutationKind, ProjectedConnectionTokenResolution,
-    ProjectedSessionAuthority, ProjectedTokenResolution, RevocationReason, SessionProjection,
-    TokenDigest,
+    AUTH_LOCK_RANK_TOPOLOGY, AuthorizationStreamIncarnation, BoundConnectionSessionIdentity,
+    ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
+    ProjectedConnectionTokenResolution, ProjectedSessionAuthority, ProjectedTokenResolution,
+    RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest, ranked_mutex_lock,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
 use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub(crate) struct AuthCoordinator {
@@ -1029,6 +1029,20 @@ impl AuthCoordinator {
         topology.projection.expire_due(epoch_now_ms, monotonic_now)
     }
 
+    pub(crate) fn due_expiry_frontier(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<u64>> {
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        topology
+            .projection
+            .due_expiry_frontier(epoch_now_ms, monotonic_now)
+    }
+
     pub(crate) fn expiry_scan_delay(&self, monotonic_now: Instant) -> SnapbackResult<Duration> {
         let topology = self.lock_topology()?;
         Ok(topology.projection.expiry_scan_delay(monotonic_now))
@@ -1059,8 +1073,9 @@ impl AuthCoordinator {
         Ok(())
     }
 
-    fn lock_topology(&self) -> SnapbackResult<MutexGuard<'_, CoordinatorTopology>> {
-        self.topology.lock().map_err(|_| projection_unavailable())
+    fn lock_topology(&self) -> SnapbackResult<RankedMutexGuard<'_, CoordinatorTopology>> {
+        ranked_mutex_lock(&self.topology, AUTH_LOCK_RANK_TOPOLOGY)
+            .map_err(|_| projection_unavailable())
     }
 
     #[cfg(test)]

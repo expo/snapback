@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::num::NonZeroU64;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -25,6 +26,76 @@ pub(crate) const AUTHORIZATION_STREAM_META_KEY: &str = "auth_stream_incarnation_
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
+
+std::thread_local! {
+    static HELD_AUTH_LOCK_RANKS: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub(crate) const AUTH_LOCK_RANK_TOPOLOGY: u8 = 10;
+const AUTH_LOCK_RANK_STREAM: u8 = 20;
+const AUTH_LOCK_RANK_SESSION: u8 = 30;
+
+struct LockRankGuard(u8);
+
+impl LockRankGuard {
+    fn enter(rank: u8) -> Self {
+        HELD_AUTH_LOCK_RANKS.with(|held| {
+            let mut held = held.borrow_mut();
+            if cfg!(debug_assertions) {
+                assert!(
+                    held.last().is_none_or(|current| *current <= rank),
+                    "auth lock-rank inversion: attempted rank {rank} while holding {:?}",
+                    held.last(),
+                );
+            }
+            held.push(rank);
+        });
+        Self(rank)
+    }
+}
+
+impl Drop for LockRankGuard {
+    fn drop(&mut self) {
+        HELD_AUTH_LOCK_RANKS.with(|held| {
+            let popped = held.borrow_mut().pop();
+            debug_assert_eq!(
+                popped,
+                Some(self.0),
+                "auth lock-rank guards dropped out of order"
+            );
+        });
+    }
+}
+
+pub(crate) struct RankedMutexGuard<'a, T> {
+    guard: MutexGuard<'a, T>,
+    _rank: LockRankGuard,
+}
+
+impl<T> Deref for RankedMutexGuard<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.guard
+    }
+}
+
+impl<T> DerefMut for RankedMutexGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.guard
+    }
+}
+
+pub(crate) fn ranked_mutex_lock<'a, T>(
+    mutex: &'a Mutex<T>,
+    rank: u8,
+) -> Result<RankedMutexGuard<'a, T>, std::sync::PoisonError<MutexGuard<'a, T>>> {
+    let rank_guard = LockRankGuard::enter(rank);
+    let guard = mutex.lock()?;
+    Ok(RankedMutexGuard {
+        guard,
+        _rank: rank_guard,
+    })
+}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct AuthorizationStreamIncarnation(String);
@@ -423,9 +494,8 @@ impl SessionFence {
         }
     }
 
-    fn lock(&self) -> SnapbackResult<MutexGuard<'_, SessionFenceState>> {
-        self.state
-            .lock()
+    fn lock(&self) -> SnapbackResult<RankedMutexGuard<'_, SessionFenceState>> {
+        ranked_mutex_lock(&self.state, AUTH_LOCK_RANK_SESSION)
             .map_err(|_| projection_unavailable("a session fence is poisoned"))
     }
 
@@ -463,9 +533,8 @@ impl StreamFence {
         }
     }
 
-    fn lock(&self) -> SnapbackResult<MutexGuard<'_, StreamFenceState>> {
-        self.state
-            .lock()
+    fn lock(&self) -> SnapbackResult<RankedMutexGuard<'_, StreamFenceState>> {
+        ranked_mutex_lock(&self.state, AUTH_LOCK_RANK_STREAM)
             .map_err(|_| projection_unavailable("the authorization-stream fence is poisoned"))
     }
 
@@ -902,6 +971,27 @@ impl SessionProjection {
             });
         }
         Ok(expired)
+    }
+
+    /// Return the durable epoch frontier that must be committed before any
+    /// currently due generation may become terminal in process memory. A
+    /// monotonic deadline can fire while the wall clock moved backward, so
+    /// the frontier is the durable epoch deadline rather than merely the
+    /// sampled epoch.
+    pub(crate) fn due_expiry_frontier(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<u64>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        Ok(self
+            .deadline_index
+            .iter()
+            .filter(|key| {
+                epoch_now_ms >= key.epoch_deadline_ms || monotonic_now >= key.monotonic_deadline
+            })
+            .map(|key| key.epoch_deadline_ms)
+            .max())
     }
 
     /// Expiry scheduling never sleeps more than one second, so a forward wall
@@ -2727,6 +2817,20 @@ mod tests {
                 )
                 .unwrap_err(),
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+    }
+
+    #[test]
+    fn debug_lock_rank_guard_rejects_intentional_inversion() {
+        let topology = Mutex::new(());
+        let session = Mutex::new(());
+        let result = std::panic::catch_unwind(|| {
+            let _session = ranked_mutex_lock(&session, AUTH_LOCK_RANK_SESSION).unwrap();
+            let _topology = ranked_mutex_lock(&topology, AUTH_LOCK_RANK_TOPOLOGY).unwrap();
+        });
+        assert!(
+            result.is_err(),
+            "a session-to-topology inversion must fail in test builds"
         );
     }
 }

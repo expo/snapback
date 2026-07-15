@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::auth::lease::{AuthorizedLeaseConfig, AuthorizedLeaseFacts};
 pub use crate::auth::mode::{
     AppDataAvailability as AppDataAvailabilityWire, AuthModeStatus as AuthModeStateWire,
-    AuthProgramReadiness,
+    AuthProgramReadiness, DeploymentIdentity,
 };
 use crate::manifest::{AuthMode, AuthorityDescriptor};
 
@@ -141,7 +141,7 @@ fn decimal_protocol_offer(
 #[schemars(extend(
     "required" = ["userId", "sessionId", "isAuthenticated"],
     "if" = {"properties": {"isAuthenticated": {"const": true}}},
-    "then" = {"properties": {"userId": {"type": "string", "minLength": 1}, "sessionId": {"type": "string", "minLength": 1}}},
+    "then" = {"properties": {"userId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "sessionId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}}},
     "else" = {"properties": {"userId": {"type": "null"}, "sessionId": {"type": "null"}}}
 ))]
 pub struct AuthSessionAuthority {
@@ -292,6 +292,7 @@ pub struct AuthSessionAvailability {
         "transports",
         "authority",
         "authorityDescriptor",
+        "deploymentIdentity",
         "authorizedLease"
     ]
 ))]
@@ -324,6 +325,9 @@ pub struct AuthSessionResponse {
     pub authority: AuthSessionAuthority,
     /// Consistency only: possession never authorizes an invocation.
     pub authority_descriptor: AuthSessionAuthorityDescriptor,
+    /// Server-proven artifact identity. Sessions mode requires a non-null
+    /// value; legacy dev databases may not yet have one.
+    pub deployment_identity: Option<DeploymentIdentity>,
     /// Exact lease capability facts appear only when this binary's full
     /// issuance/store/service implementation is ready. A client offer alone
     /// can never manufacture support. Always present: null means "not
@@ -346,6 +350,7 @@ pub struct AuthSessionFacts {
     pub provider_ready: bool,
     pub authority: AuthSessionAuthority,
     pub authority_descriptor: AuthorityDescriptor,
+    pub deployment_identity: Option<DeploymentIdentity>,
     pub authorized_lease_config: AuthorizedLeaseConfig,
 }
 
@@ -377,6 +382,7 @@ impl AuthSessionResponse {
             transports: vec!["bearer".to_owned()],
             authority: facts.authority,
             authority_descriptor: facts.authority_descriptor.into(),
+            deployment_identity: facts.deployment_identity,
             authorized_lease: facts
                 .readiness
                 .authorized_lease
@@ -532,6 +538,14 @@ mod tests {
                 authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
                 session_generation: 0,
             },
+            deployment_identity: Some(DeploymentIdentity {
+                schema_version: mode.artifact_version().to_owned(),
+                auth_mode: mode,
+                app_id: "handshake-test".to_owned(),
+                schema_hash: "sha256:schema".to_owned(),
+                bundle_hash: "sha256:bundle".to_owned(),
+                inputs_hash: "sha256:inputs".to_owned(),
+            }),
             authorized_lease_config: AuthorizedLeaseConfig::default(),
         }
     }

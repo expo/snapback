@@ -825,6 +825,7 @@ pub struct PreparedAuthority {
     /// cut. Dev-only/local preparations may omit this; every projection- or
     /// connection-resolved sessions-mode request installs it.
     publication: Option<FencedPublication>,
+    authorization_stream_incarnation: Option<String>,
 }
 
 /// Bearer-free authority retained by a durable live subscription. It carries
@@ -906,7 +907,14 @@ impl PreparedAuthority {
     }
 
     pub(crate) fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
+        self.authorization_stream_incarnation =
+            Some(publication.authorization_stream_incarnation().to_owned());
         self.publication = Some(publication);
+        self
+    }
+
+    pub(crate) fn with_authorization_stream_incarnation(mut self, incarnation: String) -> Self {
+        self.authorization_stream_incarnation = Some(incarnation);
         self
     }
 
@@ -919,6 +927,9 @@ impl PreparedAuthority {
         monotonic_now: std::time::Instant,
         publish: impl FnOnce() -> SnapbackResult<T>,
     ) -> SnapbackResult<Option<T>> {
+        if self.admission.is_diagnostic() {
+            return publish().map(Some);
+        }
         match &self.publication {
             Some(publication) => publication.try_publish(epoch_now_ms, monotonic_now, publish),
             None => publish().map(Some),
@@ -926,9 +937,7 @@ impl PreparedAuthority {
     }
 
     pub(crate) fn authorization_stream_incarnation(&self) -> Option<&str> {
-        self.publication
-            .as_ref()
-            .map(|publication| publication.authorization_stream_incarnation())
+        self.authorization_stream_incarnation.as_deref()
     }
 
     pub(crate) fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
@@ -1197,6 +1206,7 @@ impl InvocationGate {
             audit,
             availability: OperationAvailability::Available,
             publication: None,
+            authorization_stream_incarnation: None,
         })
     }
 

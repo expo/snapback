@@ -4,7 +4,7 @@
 //   durable, serialized state machine per canonical app id; app participants
 //   never own independent current-auth state.
 
-export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION = 1;
+export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION = 2;
 export const AUTH_CUSTODY_DATABASE_NAME = 'snapback-auth-custody';
 export const AUTH_CUSTODY_DATABASE_VERSION = 1;
 export const AUTH_CUSTODY_LEASE_MS = 5_000;
@@ -220,6 +220,37 @@ function validateRefreshTime(value, field = 'refreshAfterMs') {
   }
 }
 
+function validateTransitionIntent(value) {
+  if (value === null) return null;
+  assertExactKeys(value, [
+    'formatVersion',
+    'transitionId',
+    'expectedEpoch',
+    'expectedAuthorityKey',
+    'nextEpoch',
+    'nextAuthorityKey',
+    'reason',
+    'disposition',
+    'previousAuthority',
+    'nextAuthority',
+  ], 'custody.transitionIntent');
+  if (value.formatVersion !== 1 || !AUTHORITY_KEY.test(value.transitionId ?? '')) {
+    throw corrupt('custody transition intent version or identifier is invalid');
+  }
+  assertSafeInteger(value.expectedEpoch, 'transitionIntent.expectedEpoch');
+  assertSafeInteger(value.nextEpoch, 'transitionIntent.nextEpoch', { positive: true });
+  if (value.nextEpoch !== value.expectedEpoch + 1) throw corrupt('custody transition epochs are not consecutive');
+  if (!AUTHORITY_KEY.test(value.expectedAuthorityKey ?? '') || !AUTHORITY_KEY.test(value.nextAuthorityKey ?? '')) {
+    throw corrupt('custody transition authority keys are invalid');
+  }
+  if (typeof value.reason !== 'string' || value.reason.length === 0 || !['delete', 'preserve'].includes(value.disposition)) {
+    throw corrupt('custody transition policy is invalid');
+  }
+  const previousAuthority = normalizeClientAuthority(value.previousAuthority);
+  const nextAuthority = normalizeClientAuthority(value.nextAuthority);
+  return clone({ ...value, previousAuthority, nextAuthority });
+}
+
 export function validateAuthCustody(record, expectedAppId = null) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) {
     throw corrupt('durable custody is not an object');
@@ -235,6 +266,7 @@ export function validateAuthCustody(record, expectedAppId = null) {
     'bearer',
     'pendingBearer',
     'refreshAfterMs',
+    'transitionIntent',
   ], 'custody');
   if (record.formatVersion !== SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION) {
     throw corrupt('durable custody format version is unsupported', {
@@ -250,6 +282,7 @@ export function validateAuthCustody(record, expectedAppId = null) {
   assertSafeInteger(record.revision, 'revision', { positive: true });
   if (!PHASES.has(record.phase)) throw corrupt('durable custody phase is invalid', { field: 'phase' });
   validateRefreshTime(record.refreshAfterMs);
+  const transitionIntent = validateTransitionIntent(record.transitionIntent);
   const authority = record.authority === null ? null : normalizeClientAuthority(record.authority);
   const pendingAuthority = record.pendingAuthority === null
     ? null
@@ -277,6 +310,12 @@ export function validateAuthCustody(record, expectedAppId = null) {
     if (authority !== null || record.bearer !== null || pendingAuthority === null) {
       throw corrupt('clearing custody has inconsistent current or pending fields');
     }
+    if (
+      transitionIntent === null
+      || transitionIntent.nextEpoch !== record.authorityEpoch
+      || canonicalAuthorityKey(appId, transitionIntent.nextAuthority)
+        !== canonicalAuthorityKey(appId, pendingAuthority)
+    ) throw corrupt('clearing custody lacks its exact durable transition intent');
     if (pendingAuthority.kind === 'anonymous' && (record.pendingBearer !== null || record.refreshAfterMs !== null)) {
       throw corrupt('anonymous clearing successor cannot contain bearer custody or a refresh time');
     }
@@ -295,6 +334,7 @@ export function validateAuthCustody(record, expectedAppId = null) {
     bearer: record.bearer,
     pendingBearer: record.pendingBearer,
     refreshAfterMs: record.refreshAfterMs,
+    transitionIntent,
   });
 }
 
@@ -439,6 +479,12 @@ function participantMethod(participant, method, context) {
   return fn.call(participant, context);
 }
 
+function barrierCompletion() {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
 /**
  * One context's view of the shared custody state and its ordered local barrier.
  * Storage is injected so tests, browsers, and native shells use the same state
@@ -547,7 +593,7 @@ export class AuthCoordinator {
         'fresh custody may be established only from an anonymous server handshake',
       );
     }
-    return this.#storage.withOwnership(this.#appId, async (owner) => {
+    const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
       let record = await owner.read();
       if (record === null) {
         record = await owner.replace(null, {
@@ -561,6 +607,7 @@ export class AuthCoordinator {
           bearer: null,
           pendingBearer: null,
           refreshAfterMs: null,
+          transitionIntent: null,
         });
         this.#publish(record);
       } else {
@@ -570,13 +617,15 @@ export class AuthCoordinator {
       this.#adoptSettled(record);
       return captureFor(this.#appId, record);
     });
+    return this.#resumeAfterOwnership(owned);
   }
 
   /** Mandatory lifecycle/publication gate; reloads durable custody under ownership. */
   async synchronize() {
     this.#assertOperationAllowed();
     if (this.#synchronizing) return this.#synchronizing;
-    const work = this.#storage.withOwnership(this.#appId, async (owner) => {
+    const work = (async () => {
+      const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
       const record = await owner.read();
       if (record === null) {
         this.#publicationPaused = true;
@@ -593,10 +642,12 @@ export class AuthCoordinator {
         || this.#record.authorityEpoch !== validated.authorityEpoch
         || this.#publicationPaused
       ) {
-        await this.#adoptPeerSettled(validated);
+        return { adoptPeerAfterOwnership: true, record: validated };
       }
       return captureFor(this.#appId, validated);
-    });
+      });
+      return this.#resumeAfterOwnership(owned);
+    })();
     const tracked = work.finally(() => {
       if (this.#synchronizing === tracked) this.#synchronizing = null;
     });
@@ -771,41 +822,40 @@ export class AuthCoordinator {
   async withCredentialRotation(capture, rotate) {
     this.#assertOperationAllowed();
     if (typeof rotate !== 'function') throw new TypeError('withCredentialRotation requires a callback');
-    return this.#storage.withOwnership(this.#appId, async (owner) => {
+    const prepared = await this.#storage.withOwnership(this.#appId, async (owner) => {
       const record = await owner.read();
       if (!captureMatches(this.#appId, record, capture, { revision: true })) {
-        return { rotated: false };
+        return null;
       }
       const current = validateAuthCustody(record, this.#appId);
       if (current.authority.kind !== 'session') {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'anonymous custody cannot refresh a bearer');
       }
-      const candidate = await rotate(Object.freeze({
+      return Object.freeze({
         bearer: current.bearer,
         authority: clone(current.authority),
         refreshAfterMs: current.refreshAfterMs,
-      }));
-      if (!candidate || typeof candidate.bearer !== 'string' || candidate.bearer.length === 0) {
-        throw coordinatorError('SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID', 'refresh returned no successor bearer');
-      }
-      validateRefreshTime(candidate.refreshAfterMs, 'refreshAfterMs');
-      if (candidate.refreshAfterMs === null) {
-        throw coordinatorError('SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID', 'refresh returned no refresh schedule');
-      }
-      const next = await owner.replace(current.revision, {
-        ...current,
-        revision: nextRevision(current.revision),
-        bearer: candidate.bearer,
-        refreshAfterMs: candidate.refreshAfterMs,
       });
-      this.#adoptSettled(next);
-      this.#publish(next);
-      return {
-        rotated: true,
-        capture: captureFor(this.#appId, next),
-        value: candidate.value,
-      };
     });
+    if (prepared === null) return { rotated: false };
+
+    // The refresh request may involve arbitrary network I/O. Durable custody
+    // is deliberately not owned while it runs; the exact predecessor capture
+    // is compared again in compareAndRotateBearer before publication.
+    // @ref LLP 0059#cross-context-ownership — no network request runs under
+    // the Web Lock/lease mutex.
+    const candidate = await rotate(prepared);
+    if (!candidate || typeof candidate.bearer !== 'string' || candidate.bearer.length === 0) {
+      throw coordinatorError('SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID', 'refresh returned no successor bearer');
+    }
+    validateRefreshTime(candidate.refreshAfterMs, 'refreshAfterMs');
+    if (candidate.refreshAfterMs === null) {
+      throw coordinatorError('SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID', 'refresh returned no refresh schedule');
+    }
+    const committed = await this.compareAndRotateBearer(capture, candidate);
+    return committed.rotated
+      ? { ...committed, value: candidate.value }
+      : { rotated: false };
   }
 
   async waitForNewerRevision(capture, {
@@ -869,7 +919,7 @@ export class AuthCoordinator {
   async transition(expected, successor, reason = 'authority_change') {
     this.#assertOperationAllowed();
     const normalized = normalizeSuccessor(successor);
-    return this.#storage.withOwnership(this.#appId, async (owner) => {
+    const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
       let current = await owner.read();
       if (current === null) {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'no durable predecessor custody exists');
@@ -890,6 +940,19 @@ export class AuthCoordinator {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'authority changed before transition');
       }
       const nextEpoch = nextAuthorityEpoch(current.authorityEpoch);
+      const expectedAuthorityKey = canonicalAuthorityKey(this.#appId, current.authority);
+      const transitionIntent = {
+        formatVersion: 1,
+        transitionId: `sha256:${sha256Hex(`snapback.auth-transition.v1\n${this.#appId}\n${current.revision}\n${nextEpoch}\n${successorKey}`)}`,
+        expectedEpoch: current.authorityEpoch,
+        expectedAuthorityKey,
+        nextEpoch,
+        nextAuthorityKey: successorKey,
+        reason,
+        disposition: 'delete',
+        previousAuthority: clone(current.authority),
+        nextAuthority: clone(normalized.authority),
+      };
       const clearing = await owner.replace(current.revision, {
         formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
         appId: this.#appId,
@@ -901,10 +964,11 @@ export class AuthCoordinator {
         bearer: null,
         pendingBearer: normalized.bearer,
         refreshAfterMs: normalized.refreshAfterMs,
+        transitionIntent,
       });
       return this.#finishClearingOwned(owner, clearing, {
         expectedEpoch: current.authorityEpoch,
-        expectedAuthorityKey: canonicalAuthorityKey(this.#appId, current.authority),
+        expectedAuthorityKey,
         nextEpoch,
         nextAuthorityKey: successorKey,
         reason,
@@ -913,6 +977,7 @@ export class AuthCoordinator {
         nextAuthority: clone(normalized.authority),
       });
     });
+    return this.#resumeAfterOwnership(owned);
   }
 
   registerParticipant(participant, { before = null } = {}) {
@@ -950,6 +1015,8 @@ export class AuthCoordinator {
       }
     }
     return async () => {
+      const completion = this.#activeBarrier?.completion?.promise ?? null;
+      if (completion) await completion;
       entry.removed = true;
       await entry.active;
       this.#participants = this.#participants.filter((candidate) => candidate !== entry);
@@ -967,16 +1034,17 @@ export class AuthCoordinator {
   }
 
   async #recoverOwned(owner, clearing, reason) {
+    const intent = validateTransitionIntent(clearing.transitionIntent);
     return this.#finishClearingOwned(owner, clearing, {
-      expectedEpoch: clearing.authorityEpoch - 1,
-      expectedAuthorityKey: null,
-      nextEpoch: clearing.authorityEpoch,
-      nextAuthorityKey: canonicalAuthorityKey(this.#appId, clearing.pendingAuthority),
-      reason,
-      disposition: 'delete',
+      expectedEpoch: intent.expectedEpoch,
+      expectedAuthorityKey: intent.expectedAuthorityKey,
+      nextEpoch: intent.nextEpoch,
+      nextAuthorityKey: intent.nextAuthorityKey,
+      reason: intent.reason ?? reason,
+      disposition: intent.disposition,
       recovery: true,
-      previousAuthority: null,
-      nextAuthority: clone(clearing.pendingAuthority),
+      previousAuthority: clone(intent.previousAuthority),
+      nextAuthority: clone(intent.nextAuthority),
     });
   }
 
@@ -996,9 +1064,11 @@ export class AuthCoordinator {
     });
     this.#record = validated;
     this.#publicationPaused = true;
+    const completion = barrierCompletion();
     this.#activeBarrier = {
       phase: 'clearing',
       context,
+      completion,
       // @ref LLP 0059#transition-barrier — barrier phase completion is tracked
       // per registration; a participant that registers after commitDurable has
       // completed globally catches up through these phases (with this exact
@@ -1022,9 +1092,36 @@ export class AuthCoordinator {
         pendingAuthority: null,
         bearer: validated.pendingBearer,
         pendingBearer: null,
+        transitionIntent: validated.transitionIntent,
       });
       this.#adoptSettled(settled, { expose: false });
       this.#publish(settled);
+      // Return from withOwnership before participant resume. Resume may open
+      // sockets and perform the bootstrap handshake; keeping the Web Lock or
+      // lease mutex across it can deadlock every other context.
+      // @ref LLP 0059#transition-barrier — durable settle ends phase 7;
+      // phase 8 is local exposure work outside cross-context ownership.
+      return { resumeAfterOwnership: true, settled, barrier };
+    } catch (error) {
+      this.#publicationPaused = true;
+      this.#activeBarrier?.completion?.resolve();
+      this.#activeBarrier = null;
+      throw coordinatorError(
+        'SNAPBACK_AUTH_TRANSITION_FAILED',
+        'authority transition barrier did not settle',
+        { phase: this.#activeBarrier?.phase ?? 'unknown', causeCode: error?.code ?? null },
+      );
+    }
+  }
+
+  async #resumeAfterOwnership(result) {
+    if (result?.adoptPeerAfterOwnership) {
+      await this.#adoptPeerSettled(result.record);
+      return captureFor(this.#appId, result.record);
+    }
+    if (!result?.resumeAfterOwnership) return result;
+    const { settled, barrier } = result;
+    try {
       await this.#runAwaitedPhase('resume', Object.freeze({
         ...barrier,
         capture: captureFor(this.#appId, settled),
@@ -1036,10 +1133,11 @@ export class AuthCoordinator {
       this.#publicationPaused = true;
       throw coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
-        'authority transition barrier did not settle',
-        { phase: this.#activeBarrier?.phase ?? 'unknown', causeCode: error?.code ?? null },
+        'authority transition resume did not complete',
+        { phase: this.#activeBarrier?.phase ?? 'resume', causeCode: error?.code ?? null },
       );
     } finally {
+      this.#activeBarrier?.completion?.resolve();
       this.#activeBarrier = null;
     }
   }
@@ -1104,7 +1202,12 @@ export class AuthCoordinator {
       return;
     }
     this.#publicationPaused = true;
-    const context = Object.freeze({
+    const durableIntent = record.transitionIntent;
+    const context = Object.freeze(durableIntent ? {
+      appId: this.#appId,
+      ...clone(durableIntent),
+      recovery: true,
+    } : {
       appId: this.#appId,
       expectedEpoch: previous?.authorityEpoch ?? Math.max(0, record.authorityEpoch - 1),
       expectedAuthorityKey: previous?.phase === 'settled'
@@ -1121,11 +1224,8 @@ export class AuthCoordinator {
     this.#activeBarrier = {
       phase: 'peer_transition',
       context,
-      // Peer adoption never runs commitDurable (the transition owner cleared
-      // durable state once, globally); a late registrant only needs the local
-      // paused/blank phases before it may resume.
       catchUp: {
-        phases: ['quiesce', 'blank', 'clearMemory'],
+        phases: ['quiesce', 'blank', 'clearMemory', 'commitDurable'],
         context,
       },
     };
@@ -1133,6 +1233,7 @@ export class AuthCoordinator {
       await this.#runAwaitedPhase('quiesce', context);
       this.#runSyncPhase('blank', context);
       this.#runSyncPhase('clearMemory', context);
+      await this.#runAwaitedPhase('commitDurable', context);
       this.#adoptSettled(record, { expose: false });
       await this.#runAwaitedPhase('resume', Object.freeze({
         ...context,

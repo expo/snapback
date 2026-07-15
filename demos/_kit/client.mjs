@@ -419,6 +419,16 @@ const liveTerminalAuthError = (frame) => {
   return error;
 };
 
+const liveTerminalAuthCloseError = () => {
+  const code = 'SNAPBACK_AUTH_STREAM_RESET';
+  const message = 'the authenticated live transport ended without a terminal frame';
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = { code, message, details: { closeCode: 4401, closeReason: 'auth_error' } };
+  error.terminalAuth = true;
+  return error;
+};
+
 const safeNextCounter = (value, code, label) => {
   if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
     const error = new Error(`${code}: ${label} is exhausted`);
@@ -556,7 +566,24 @@ const projectAuthorizedLeaseFacts = (value) => {
   };
 };
 
-const projectAuthSessionResponse = (value, requestOffer = null) => {
+const projectDeploymentIdentity = (value) => {
+  if (!exactRecord(value, [
+    'schemaVersion',
+    'authMode',
+    'appId',
+    'schemaHash',
+    'bundleHash',
+    'inputsHash',
+  ])) return null;
+  if (
+    !['dev', 'sessions'].includes(value.authMode)
+    || !['schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash']
+      .every((key) => typeof value[key] === 'string' && value[key].length > 0)
+  ) return null;
+  return { ...value };
+};
+
+const projectAuthSessionResponse = (value, requestOffer = null, expectedAppId = null) => {
   if (!exactRecord(value, [
     'protocolVersion',
     'serverStartupNonce',
@@ -573,6 +600,7 @@ const projectAuthSessionResponse = (value, requestOffer = null) => {
     'transports',
     'authority',
     'authorityDescriptor',
+    'deploymentIdentity',
     'authorizedLease',
   ])) return null;
 
@@ -580,6 +608,9 @@ const projectAuthSessionResponse = (value, requestOffer = null) => {
   const availability = value.availability;
   const provider = value.provider;
   const authority = value.authority;
+  const deploymentIdentity = value.deploymentIdentity === null
+    ? null
+    : projectDeploymentIdentity(value.deploymentIdentity);
   const authorizedLease = value.authorizedLease === null
     ? null
     : projectAuthorizedLeaseFacts(value.authorizedLease);
@@ -618,14 +649,16 @@ const projectAuthSessionResponse = (value, requestOffer = null) => {
     || value.transports[0] !== 'bearer'
     || !exactRecord(authority, ['userId', 'sessionId', 'isAuthenticated'])
     || !authorityDescriptorIsValid(value.authorityDescriptor)
+    || (value.deploymentIdentity !== null && deploymentIdentity === null)
+    || (value.activeMode === 'sessions' && deploymentIdentity === null)
+    || (deploymentIdentity !== null && deploymentIdentity.authMode !== value.activeMode)
+    || (deploymentIdentity !== null && expectedAppId !== null && deploymentIdentity.appId !== expectedAppId)
     || (value.authorizedLease !== null && authorizedLease === null)
     || typeof authority.isAuthenticated !== 'boolean'
     || (authority.isAuthenticated
       ? (
-          typeof authority.userId !== 'string'
-          || authority.userId.length === 0
-          || typeof authority.sessionId !== 'string'
-          || authority.sessionId.length === 0
+          !UUID_V7.test(authority.userId ?? '')
+          || !UUID_V7.test(authority.sessionId ?? '')
         )
       : authority.userId !== null || authority.sessionId !== null)
   ) return null;
@@ -666,6 +699,7 @@ const projectAuthSessionResponse = (value, requestOffer = null) => {
       isAuthenticated: authority.isAuthenticated,
     },
     authorityDescriptor: { ...value.authorityDescriptor },
+    deploymentIdentity,
     authorizedLease,
   };
 };
@@ -824,7 +858,7 @@ export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,
-    authClientProtocol = 1,
+    authClientProtocol = null,
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
@@ -836,6 +870,10 @@ export class SnapbackClient {
     if (authCoordinator && bearerToken !== null) {
       throw new TypeError('bearerToken cannot bypass AuthCoordinator custody; use authExchange()');
     }
+    if (authClientProtocol === 1 && !authCoordinator) {
+      throw new TypeError('authClientProtocol v1 requires AuthCoordinator custody');
+    }
+    if (authCoordinator && authClientProtocol === null) authClientProtocol = 1;
     this.bearerToken = bearerToken;
     this.authCoordinator = authCoordinator;
     this.clientStoreId = clientStoreId;
@@ -912,7 +950,14 @@ export class SnapbackClient {
         if (
           this.__authSessionCapture?.authorityEpoch === capture.authorityEpoch
           && this.__authSessionCapture?.authorityKey === capture.authorityKey
-        ) return Promise.resolve(this.__authSessionLastSuccessful);
+        ) {
+          return this.authCoordinator.compareAndCommit(capture, () => (
+            this.__authSessionLastSuccessful
+          )).then((committed) => {
+            if (!committed.committed) throw staleAuthorityError();
+            return committed.value;
+          });
+        }
       } catch {
         // A blank/clearing coordinator must synchronize before cache use.
       }
@@ -1032,7 +1077,11 @@ export class SnapbackClient {
   }
 
   #validateAuthSession(session, requestBearer = null, requestOffer = null) {
-    const projected = projectAuthSessionResponse(session, requestOffer);
+    const projected = projectAuthSessionResponse(
+      session,
+      requestOffer,
+      this.authCoordinator?.appId ?? null,
+    );
     if (projected && !valueContainsSecret(projected, requestBearer)) return projected;
     const diagnostic = {
       code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
@@ -2232,7 +2281,18 @@ export class SnapbackClient {
       // @ref LLP 0032#confirmed-defect-register — S5.D7: latch unconditionally on
       //   close (not just when waiters are pending) so a later nextUpdate() rejects
       //   immediately instead of hanging until its timeout.
-      ws.addEventListener('close', () => fail(new Error(`Snapback live stream closed: ${url}`)), { once: true });
+      ws.addEventListener('close', (event) => {
+        if (event?.code === 4401 && event?.reason === 'auth_error') {
+          const error = liveTerminalAuthCloseError();
+          fail(error);
+          this.clearAuthSession();
+          if (authorityCapture && this.authCoordinator?.isCurrent?.(authorityCapture)) {
+            void this.authCoordinator.compareAndClear(authorityCapture, error.code).catch(() => {});
+          }
+          return;
+        }
+        fail(new Error(`Snapback live stream closed: ${url}`));
+      }, { once: true });
       return ws;
       });
     wsPromise.catch((error) => fail(error));
@@ -3813,8 +3873,12 @@ class LiveStreamManager {
       markAuthorityCapture(frame, this.authorityCapture);
       this.#dispatch(frame);
     });
-    const onLoss = () => {
+    const onLoss = (event) => {
       clearTimeout(connectTimer);
+      if (event?.code === 4401 && event?.reason === 'auth_error') {
+        this.#closeForAuthClose(ws);
+        return;
+      }
       this.#loseSocket(ws, new Error(`Snapback live stream lost: ${url}`));
     };
     ws.addEventListener('close', onLoss, { once: true });
@@ -3876,6 +3940,22 @@ class LiveStreamManager {
       && this.client.authCoordinator?.isCurrent?.(capture)
     ) {
       void this.client.authCoordinator.compareAndClear(capture, frame.code).catch(() => {});
+    }
+  }
+
+  #closeForAuthClose(ws) {
+    if (this.ws !== ws) return;
+    const error = liveTerminalAuthCloseError();
+    const capture = this.authorityCapture;
+    this.client.clearAuthSession();
+    this.close(error, {
+      error,
+      terminal: true,
+      code: error.code,
+      reason: 'auth_error',
+    });
+    if (capture && this.client.authCoordinator?.isCurrent?.(capture)) {
+      void this.client.authCoordinator.compareAndClear(capture, error.code).catch(() => {});
     }
   }
 

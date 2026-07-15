@@ -399,11 +399,26 @@ fn runtime_auth_program_readiness(
     authorization_invalidation: bool,
     authorized_lease: bool,
 ) -> crate::auth::mode::AuthProgramReadiness {
+    let routes = server::route_registry();
+    let connection_binding = ["/connection/open", "/live/{connection_id}/stream"]
+        .iter()
+        .all(|required| routes.iter().any(|route| route.path == *required));
+    let coordinator_module = include_str!("../packages/snapback-contract/auth-coordinator.mjs");
+    let auth_coordinator = [
+        "export class AuthCoordinator",
+        "async compareAndCommit(",
+        "async transition(",
+        "registerParticipant(",
+    ]
+    .iter()
+    .all(|marker| coordinator_module.contains(marker));
+    let two_phase_revocation = routes.iter().any(|route| route.path == "/auth/logout")
+        && routes.iter().any(|route| route.path == "/auth/session");
     crate::auth::mode::AuthProgramReadiness::new(
         secret_read_process_prerequisites,
-        true,
-        true,
-        true,
+        connection_binding,
+        two_phase_revocation,
+        auth_coordinator,
         authorization_invalidation,
         true,
         authorized_lease,
@@ -1781,6 +1796,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // @ref LLP 0059#startup-rebuild-and-deadline-derivation — a sessions
     //   listener cannot exist without a supervised terminal worker.
     let mut auth_expiry_worker = crate::auth::runtime::spawn_auth_expiry_worker(
+        state.clone(),
         auth_coordinator.clone(),
         auth_runtime.provider(),
         auth_terminal_sink.clone(),
