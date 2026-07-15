@@ -10,6 +10,7 @@ const MASTER = 'master-setup-credential-SENTINEL';
 const DERIVED = 'sbcc_setup-derived-SENTINEL';
 const CONFIG_SECRET = 'setup-config-value-SENTINEL';
 const UNKNOWN_ISSUED = 'sbcc_setup-unknown-non-2xx-successor-SENTINEL';
+const UNKNOWN_FETCH_REJECTION = 'sbcc_setup-unknown-fetch-rejection-successor-SENTINEL';
 const SHORT_SECRETS = ['Q', 'QZ', 'QZX'];
 const html = fs.readFileSync(new URL('../../src/admin/setup.html', import.meta.url), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -63,6 +64,23 @@ async function fetch(path, options = {}) {
           throw new Error(`reader exposed ${DERIVED}`);
         },
       };
+    }
+    if (mode === 'master-fetch-rejection') {
+      const cause = new Error(`cause exposed ${UNKNOWN_FETCH_REJECTION}`);
+      cause.code = `CAUSE_${UNKNOWN_FETCH_REJECTION}`;
+      const error = new Error(
+        `fetch rejected with ${master} and ${UNKNOWN_FETCH_REJECTION}`,
+        { cause },
+      );
+      error.name = `Issuer${UNKNOWN_FETCH_REJECTION}`;
+      error.code = `ISSUER_${UNKNOWN_FETCH_REJECTION}`;
+      error.diagnostic = {
+        code: `DIAGNOSTIC_${UNKNOWN_FETCH_REJECTION}`,
+        message: UNKNOWN_FETCH_REJECTION,
+        details: { successorCredential: UNKNOWN_FETCH_REJECTION },
+      };
+      error[`credential_${UNKNOWN_FETCH_REJECTION}`] = UNKNOWN_FETCH_REJECTION;
+      throw error;
     }
     if (mode === 'master-non2xx-unknown') {
       return response(503, {
@@ -236,6 +254,18 @@ assert.equal(
 );
 assertSecretAbsent(visibleText(), DERIVED, 'reader successor DOM');
 assertSecretAbsent(visibleText(), MASTER, 'reader master DOM');
+assert.equal(storage.has('snapback_console_credential_v1'), false);
+
+mode = 'master-fetch-rejection';
+tokenInput.value = MASTER;
+tokenSave.listeners.click();
+await flush();
+assert.equal(
+  elements.get('authmsg').textContent,
+  'Credential issuer returned an invalid response.',
+);
+assertSecretAbsent(visibleText(), UNKNOWN_FETCH_REJECTION, 'fetch rejection successor DOM');
+assertSecretAbsent(visibleText(), MASTER, 'fetch rejection master DOM');
 assert.equal(storage.has('snapback_console_credential_v1'), false);
 
 for (const collision of [

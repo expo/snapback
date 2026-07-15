@@ -11,6 +11,7 @@ const MASTER = 'master-admin-credential-SENTINEL';
 const DERIVED = 'sbcc_derived-console-SENTINEL';
 const SECRET_READ = 'sbrl_memory-only-secret-read-SENTINEL';
 const UNKNOWN_ISSUED = 'sbcc_unknown-non-2xx-successor-SENTINEL';
+const UNKNOWN_FETCH_REJECTION = 'sbcc_unknown-fetch-rejection-successor-SENTINEL';
 const storage = new Map([['snapback_admin_token', MASTER]]);
 const storageWrites = [];
 globalThis.localStorage = {
@@ -151,18 +152,55 @@ assert.equal(storage.has('snapback_console_credential_v1'), false);
 // exception, non-JSON response, structured diagnostic, or even HTTP-200 body.
 // The shared client owns the last boundary before those values reach the UI.
 fetchOverride = async () => {
-  const error = new Error(`transport retained ${MASTER}`);
-  error.code = `MASTER_${MASTER}`;
+  const cause = new Error(`cause retained ${UNKNOWN_FETCH_REJECTION}`);
+  cause.code = `CAUSE_${UNKNOWN_FETCH_REJECTION}`;
+  const error = new Error(
+    `transport retained ${MASTER} and ${UNKNOWN_FETCH_REJECTION}`,
+    { cause },
+  );
+  error.name = `Issuer${UNKNOWN_FETCH_REJECTION}`;
+  error.code = `MASTER_${MASTER}_${UNKNOWN_FETCH_REJECTION}`;
   error.diagnostic = {
-    code: 'SNAPBACK_TRANSPORT_FAILED',
-    message: `master=${MASTER}`,
-    adminToken: MASTER,
+    code: `SNAPBACK_TRANSPORT_${UNKNOWN_FETCH_REJECTION}`,
+    message: `master=${MASTER}; successor=${UNKNOWN_FETCH_REJECTION}`,
+    details: { adminToken: MASTER, successorCredential: UNKNOWN_FETCH_REJECTION },
   };
+  error[`credential_${UNKNOWN_FETCH_REJECTION}`] = UNKNOWN_FETCH_REJECTION;
   throw error;
 };
 const masterFailure = await captureFailure(() => client.setToken(MASTER));
 assertCredentialAbsent(masterFailure, MASTER, 'master transport failure');
-assert.match(masterFailure.message, /\[REDACTED\]/);
+assertCredentialAbsent(masterFailure, UNKNOWN_FETCH_REJECTION, 'unknown rejected successor');
+assert.equal(
+  masterFailure.message,
+  'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: credential issuer returned an invalid response',
+);
+assert.deepEqual(masterFailure.diagnostic, {
+  code: 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+  message: 'credential issuer returned an invalid response',
+});
+assert.equal(Object.hasOwn(masterFailure, 'cause'), false);
+assert.equal(Object.hasOwn(masterFailure, 'receipt'), false);
+assert.equal(
+  JSON.stringify(Object.keys(masterFailure)).includes(UNKNOWN_FETCH_REJECTION),
+  false,
+  'issuer rejection property names are discarded',
+);
+
+// Ordinary non-issuer fetch rejection keeps the existing request-secret
+// sanitizer rather than being collapsed to the credential issuer error.
+fetchOverride = async () => {
+  const error = new Error(`ordinary transport retained ${DERIVED}`);
+  error.code = `ORDINARY_${DERIVED}`;
+  throw error;
+};
+const ordinaryTransportFailure = await captureFailure(() => reloaded.configStatus());
+assertCredentialAbsent(ordinaryTransportFailure, DERIVED, 'ordinary transport failure');
+assert.notEqual(
+  ordinaryTransportFailure.code,
+  'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+);
+assert.match(ordinaryTransportFailure.message, /\[REDACTED\]/);
 
 fetchOverride = async () => ({
   ok: false,

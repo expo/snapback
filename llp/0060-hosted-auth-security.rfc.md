@@ -5,7 +5,11 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final blind-review closure: response-controlled
+**Revised:** 2026-07-15 (FINAL4 blind-review closure: credential-issuer fetch
+rejections now discard the original exception completely and reconstruct the
+surface's fixed local error on the kit, shared admin, and embedded setup paths;
+near-miss allowlist tuples and receipt/cause non-exposure are pinned; status
+remains Draft). 2026-07-15 (final blind-review closure: response-controlled
 credential-issuer failures now collapse to fixed local projections, with only
 three exact route/status/code tuples retaining typed recovery and every other
 failure remaining opaque; `HostedAdmission` gains the required positive
@@ -664,9 +668,12 @@ already knows; a **newly issued** credential in any response-controlled failure
 is unknown until a valid success projection is accepted, so a diagnostic that
 embeds response bytes can exfiltrate a successor no redaction set contains. The
 rule: on the issuing paths — exchange, refresh, console mint, and challenge
-request — a parse failure, body-read failure, shape failure, or unrecognized
-non-2xx response produces a **fixed, opaque error carrying no response bytes
-and no reader-error payload**. A closed allowlist preserves only deliberate
+request — a fetch rejection, parse failure, body-read failure, shape failure,
+or unrecognized non-2xx response produces a **fixed, opaque error carrying no
+original exception fields, cause, response bytes, or reader-error payload**.
+The issuer-mode flag is consulted at the fetch-rejection boundary before the
+ordinary transport sanitizer; non-issuer requests retain that sanitizer. A
+closed allowlist preserves only deliberate
 typed recovery by matching the exact `(method, route, HTTP status, diagnostic
 code)` tuple and reconstructing a fixed local error from constants:
 
@@ -1008,6 +1015,14 @@ material.
   alarm while predecessor custody still exists, before compare-clear.
   Challenge-request success is the exact `{challengeId, expiresAt}` projection,
   never passthrough JSON.
+- Hostile `fetch` rejections on kit exchange/request-code/refresh, shared admin
+  console mint, and embedded setup console mint carry unknown successor bytes
+  through exception name, message, code, diagnostic, property name, and cause;
+  every issuer surface discards that exception and exposes only its fixed local
+  credential-response error. The equivalent ordinary non-issuer admin
+  rejection still uses request-secret sanitization. An allowlisted code on the
+  wrong route or status remains opaque, and neither typed nor opaque issuer
+  errors acquire a response receipt or original cause.
 - Console-mint poison cases cover a longer master embedded after `sbcc_` and a
   one-byte master colliding with the fixed prefix; neither candidate reaches
   storage. A known-2xx logout whose body reader rejects with credential-bearing
@@ -1129,6 +1144,12 @@ does not ratify, and this document remains Draft pending author ratification.
 
 ## Changelog
 
+- **2026-07-15 (FINAL4 blind-review closure):** made the issuer-mode flag win
+  at the initial fetch-rejection boundary on the kit, shared admin client, and
+  embedded setup page so the original exception, diagnostic, property names,
+  and cause are discarded rather than sanitized; added hostile unknown-
+  successor rejection fixtures, ordinary non-issuer preservation, allowlist
+  near-miss negatives, and explicit receipt/cause absence assertions.
 - **2026-07-15 (final blind-review closure):** made arbitrary non-2xx and
   body-reader failures opaque on every credential-issuing client path, with
   unknown-successor poison tests; restored the three deliberate exchange and

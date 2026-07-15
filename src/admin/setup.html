@@ -295,6 +295,7 @@
         throw sanitizeError(error, secrets);
       });
     }, function (error) {
+      if (preserveCredentialResponse) throw credentialResponseError();
       throw sanitizeError(error, secrets);
     });
   }

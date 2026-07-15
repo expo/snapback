@@ -442,3 +442,32 @@ EVIDENCE:
 - Hosted serving disabled: `validate_auth_deployment` unconditionally refuses `hosted` (`deployment.rs:305-310`), asserted for all 32 capability masks (`:375`); CLI validates before database-path creation (`src/cli.rs:1480-1487`); embedded router returns 503 `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` with the exact ten-blocker list (`src/server.rs:17575-17619`).
 - D5 defaults honest: absent `hostedAuth` deserializes to the exact local tuple (`src/manifest.rs:2987`, `deployment.rs:128-155`); `*Capable` helpers shipped (`deployment.rs:160,173`); no-auth `unavailable` tuple test (`deployment.rs:380-391`).
 - Setup CSP hash: recomputed SHA-256 of the committed inline script equals updated `SETUP_SCRIPT_SHA256` (`src/server.rs:4607`); router test hashes the actually served bytes (`server.rs:17661-17674`).
+
+## FINAL4 targeted blind review — 2026-07-15 (`b0448e1`)
+
+### Provenance
+
+- Reviewer family: Anthropic Claude Fable
+- Provider/runtime: Claude Code 2.1.210, model `claude-fable-5`, max reasoning effort, safe mode, read-only plan permission
+- Method: independent targeted blind review; no access to `llp/reviews/`
+- Session: `72006000-0000-4000-9000-000000000160`
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Source artifact: `/private/tmp/eng25001-final4-fable-0060.md`, sha256 `e0d4bd6e2cb7e0f824856e1a739c08c120d356e0ca2a668c3b405b2ce63af449`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT: READY
+
+MATERIAL: None found in the reviewed closure.
+
+MINOR:
+1. Mismatch opacity is structurally guaranteed by the exact-string map key (`demos/_kit/client.mjs:850`) and indirectly evidenced (exchange 400 `SNAPBACK_AUTH_CHALLENGE_INVALID` and arbitrary 503 unknown-successor poisons stay opaque), but no fixture exercises a strict near-miss tuple (an allowlisted code with wrong status or route), and the typed-error assertions deep-equal `diagnostic` without explicitly asserting absence of a `receipt` property. Evidence gap only; the code cannot attach one.
+2. The end-to-end refresh-409 proof waits out the real 2,000 ms `AUTH_CUSTODY_SUPERSEDED_WAIT_MS`, and `waitForNewerRevision` falls back to `Date.now()` where `performance.now` is absent. Cosmetic.
+
+EVIDENCE:
+- Tuple reconstruction: `demos/_kit/client.mjs:832-857` — a closed map keyed `method path status code` covers exactly exchange 401 `CODE_INVALID`, exchange 403 `CODE_LOCKED`, and refresh 409 `REFRESH_SUPERSEDED`; method/path are call-site literals, and the thrown error is built from local constants plus tuple-known status only. Every other issuing failure reaches `opaqueCredentialResponseError()` (`client.mjs:1650-1699`): body-read failure, 2xx parse failure, and unknown non-2xx are all opaque; `receipt` attaches only on the non-opaque branch; headers never cross.
+- Recovery: the reconstructed code is in `SUPERSEDED_AUTH_CODES` (`client.mjs:382`), so `authRefresh` (`client.mjs:1831-1839`) still runs the bounded monotonic successor wait (`packages/snapback-contract/auth-coordinator.mjs:975-1011`, 2 s deadline) and then `/auth/family-alarm` with the suspect predecessor bearer before `compareAndClear`. The eaef0ea test (`demos/_kit/tests/auth-coordinator-client.mjs`) proves unknown-successor and property-name poison bytes are absent, the alarm witnessed predecessor custody (`familyAlarmCustodyWitnesses`), alarm ordered after refresh, and custody cleared to anonymous afterward.
+- Admission bounds: `src/auth/deployment.rs:235-244` puts schemars max `9007199254740991` on all five integers that can exceed one; the runtime conjunction (`deployment.rs:258-278`) repeats every bound; `version` and `handlerProtocolVersion` are pinned to exactly 1 in both schema and runtime. The committed `schemas/auth.hosted-admission.schema.json` matches and is drift-gated (`src/schema_export.rs:99`, dk7 tests). Per-field ceiling+1 negatives exist at runtime (`deployment.rs:441-458`) and against the committed schema (`tests/artifact_schemas_v0.rs:1097-1110`); the representative admission validates.
+- Opacity elsewhere and disabled serving: the shared admin client (`packages/snapback-admin-client/index.mjs:99-131`) and embedded setup page (`src/admin/setup.html:266-296`) throw fixed opaque errors on every console-mint failure; challenge success is the exact `{challengeId, expiresAt}` projection (`client.mjs:806-814`). Hosted deployment is refused unconditionally before target state opens (`src/cli.rs:1483`), repeated for embedded app-data routes (`src/server.rs:5007`), asserted across all 32 capability masks, and `HostedAdmission` remains a schema authority with no serving consumer.

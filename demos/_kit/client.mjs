@@ -1642,6 +1642,7 @@ export class SnapbackClient {
         signal,
       });
     } catch (error) {
+      if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets);
     }
     try {

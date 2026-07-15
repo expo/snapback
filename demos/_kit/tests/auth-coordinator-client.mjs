@@ -22,6 +22,7 @@ const CHALLENGE_ID = 'sbc_CLIENT_CHALLENGE_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const LOGIN_CODE = '123456';
 const READ_FAILURE_SECRET = 'logout_BODY_READER_SECRET_MUST_NOT_ESCAPE';
 const UNKNOWN_ISSUED = 'sbs_UNKNOWN_NON_2XX_ISSUED_SECRET_MUST_NOT_ESCAPE';
+const UNKNOWN_FETCH_REJECTION = 'sbs_UNKNOWN_FETCH_REJECTION_SECRET_MUST_NOT_ESCAPE';
 const CLIENT_SECRETS = [
   BEARER_A,
   BEARER_B,
@@ -31,6 +32,7 @@ const CLIENT_SECRETS = [
   LOGIN_CODE,
   READ_FAILURE_SECRET,
   UNKNOWN_ISSUED,
+  UNKNOWN_FETCH_REJECTION,
 ];
 
 const anonymous = {
@@ -153,6 +155,20 @@ const poisonedIssuerFailure = () => diagnosticResponse('UPSTREAM_ISSUER_FAILURE'
     [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
   },
 });
+const poisonedIssuerRejection = () => {
+  const cause = new Error(`cause ${UNKNOWN_FETCH_REJECTION}`);
+  cause.code = `CAUSE_${UNKNOWN_FETCH_REJECTION}`;
+  const error = new Error(`fetch rejected after issuing ${UNKNOWN_FETCH_REJECTION}`, { cause });
+  error.name = `Issuer${UNKNOWN_FETCH_REJECTION}`;
+  error.code = `ISSUER_${UNKNOWN_FETCH_REJECTION}`;
+  error.diagnostic = {
+    code: `DIAGNOSTIC_${UNKNOWN_FETCH_REJECTION}`,
+    message: UNKNOWN_FETCH_REJECTION,
+    details: { successorCredential: UNKNOWN_FETCH_REJECTION },
+  };
+  error[`credential_${UNKNOWN_FETCH_REJECTION}`] = UNKNOWN_FETCH_REJECTION;
+  throw error;
+};
 
 const authorization = (init) => init?.headers?.authorization ?? null;
 const pathOf = (url) => new URL(url).pathname;
@@ -220,13 +236,24 @@ globalThis.fetch = async (url, init = {}) => {
     return response(handshake(bearer ? bearerAuthority.get(bearer) : anonymous));
   }
   if (path === '/auth/request-code') {
+    if (issuingFailure === 'request-code-fetch') return poisonedIssuerRejection();
     if (issuingFailure === 'request-code-read') return poisonedReadResponse(BEARER_A);
     if (issuingFailure === 'request-code-non2xx') return poisonedIssuerFailure();
+    if (issuingFailure === 'request-code-near-miss') {
+      return response({
+        diagnostic: {
+          code: 'SNAPBACK_AUTH_CODE_INVALID',
+          message: UNKNOWN_FETCH_REJECTION,
+        },
+        receipt: { credential: UNKNOWN_FETCH_REJECTION },
+      }, 401);
+    }
     const challenge = { challengeId: CHALLENGE_ID, expiresAt: 10_000 };
     if (issuingFailure === 'request-code-extra') challenge.leakedBearer = BEARER_A;
     return response(challenge);
   }
   if (path === '/auth/exchange') {
+    if (issuingFailure === 'exchange-fetch') return poisonedIssuerRejection();
     if (issuingFailure === 'exchange-read') return poisonedReadResponse(BEARER_A);
     if (issuingFailure === 'exchange-non2xx') return poisonedIssuerFailure();
     if (exchangeErrorReflection) {
@@ -240,14 +267,21 @@ globalThis.fetch = async (url, init = {}) => {
     }
     if (exchangeTypedFailure) {
       const [code, status] = exchangeTypedFailure;
-      return diagnosticResponse(code, status, {
-        message: `hostile issuer text ${UNKNOWN_ISSUED} ${body.code}`,
-        details: {
-          successorCredential: UNKNOWN_ISSUED,
-          attemptedCode: Number(body.code),
-          [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
+      return response({
+        diagnostic: {
+          code,
+          message: `hostile issuer text ${UNKNOWN_ISSUED} ${body.code}`,
+          details: {
+            successorCredential: UNKNOWN_ISSUED,
+            attemptedCode: Number(body.code),
+            [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
+          },
         },
-      });
+        receipt: {
+          successorCredential: UNKNOWN_ISSUED,
+          [`receipt_${UNKNOWN_ISSUED}`]: UNKNOWN_ISSUED,
+        },
+      }, status);
     }
     const issued = credential(BEARER_A, sessionA, 10_000);
     if (credentialPoison === 'root') issued.leakedBearer = BEARER_A;
@@ -259,16 +293,21 @@ globalThis.fetch = async (url, init = {}) => {
     return response(issued);
   }
   if (path === '/auth/refresh') {
+    if (issuingFailure === 'refresh-fetch') return poisonedIssuerRejection();
     if (issuingFailure === 'refresh-read') return poisonedReadResponse(BEARER_C);
     if (issuingFailure === 'refresh-non2xx') return poisonedIssuerFailure();
     if (issuingFailure === 'refresh-superseded') {
-      return diagnosticResponse('SNAPBACK_AUTH_REFRESH_SUPERSEDED', 409, {
-        message: `hostile refresh text ${UNKNOWN_ISSUED} ${bearer}`,
-        details: {
-          successorCredential: UNKNOWN_ISSUED,
-          [`credential_${UNKNOWN_ISSUED}`]: bearer,
+      return response({
+        diagnostic: {
+          code: 'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
+          message: `hostile refresh text ${UNKNOWN_ISSUED} ${bearer}`,
+          details: {
+            successorCredential: UNKNOWN_ISSUED,
+            [`credential_${UNKNOWN_ISSUED}`]: bearer,
+          },
         },
-      });
+        receipt: { successorCredential: UNKNOWN_ISSUED },
+      }, 409);
     }
     const issued = credential(BEARER_C, sessionA, 30_000);
     if (refreshPoison === 'predecessor') issued.session.provider = bearer;
@@ -346,7 +385,12 @@ try {
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/query/list']);
 
   // Issuing paths never surface unknown response bytes or reader exceptions.
-  for (issuingFailure of ['request-code-read', 'request-code-extra', 'request-code-non2xx']) {
+  for (issuingFailure of [
+    'request-code-fetch',
+    'request-code-read',
+    'request-code-extra',
+    'request-code-non2xx',
+  ]) {
     let issueError;
     await assert.rejects(db.authRequestCode('person@example.com'), (error) => {
       issueError = error;
@@ -362,8 +406,18 @@ try {
     );
     assert.equal(JSON.stringify(issueError).includes(BEARER_A), false);
     assert.equal(JSON.stringify(issueError).includes(UNKNOWN_ISSUED), false);
+    assert.equal(JSON.stringify({
+      name: issueError.name,
+      message: issueError.message,
+      code: issueError.code,
+      diagnostic: issueError.diagnostic,
+      cause: issueError.cause,
+      keys: Object.keys(issueError),
+    }).includes(UNKNOWN_FETCH_REJECTION), false);
+    assert.equal(Object.hasOwn(issueError, 'cause'), false);
+    assert.equal(Object.hasOwn(issueError, 'receipt'), false);
   }
-  for (issuingFailure of ['exchange-read', 'exchange-non2xx']) {
+  for (issuingFailure of ['exchange-fetch', 'exchange-read', 'exchange-non2xx']) {
     let exchangeReadError;
     await assert.rejects(
       db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
@@ -374,7 +428,29 @@ try {
     );
     assert.equal(JSON.stringify(exchangeReadError).includes(BEARER_A), false);
     assert.equal(JSON.stringify(exchangeReadError).includes(UNKNOWN_ISSUED), false);
+    assert.equal(JSON.stringify({
+      name: exchangeReadError.name,
+      message: exchangeReadError.message,
+      code: exchangeReadError.code,
+      diagnostic: exchangeReadError.diagnostic,
+      cause: exchangeReadError.cause,
+      keys: Object.keys(exchangeReadError),
+    }).includes(UNKNOWN_FETCH_REJECTION), false);
+    assert.equal(Object.hasOwn(exchangeReadError, 'cause'), false);
+    assert.equal(Object.hasOwn(exchangeReadError, 'receipt'), false);
   }
+  issuingFailure = null;
+
+  // An allowlisted code on the wrong route remains opaque and cannot smuggle
+  // response-controlled receipt bytes through the issuer boundary.
+  issuingFailure = 'request-code-near-miss';
+  let wrongRouteError;
+  await assert.rejects(db.authRequestCode('person@example.com'), (error) => {
+    wrongRouteError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  });
+  assert.equal(Object.hasOwn(wrongRouteError, 'receipt'), false);
+  assert.equal(JSON.stringify(wrongRouteError).includes(UNKNOWN_FETCH_REJECTION), false);
   issuingFailure = null;
 
   // A 200 response remains untrusted: root/nested extensions and allowed
@@ -454,8 +530,23 @@ try {
     });
     assert.equal(bytes.includes(LOGIN_CODE), false);
     assert.equal(bytes.includes(UNKNOWN_ISSUED), false);
+    assert.equal(Object.hasOwn(typedError, 'receipt'), false);
     assert.equal(storage.snapshot(APP).bearer, null);
   }
+  exchangeTypedFailure = null;
+
+  // Exact allowlisted code on the wrong status is not a typed recovery tuple.
+  exchangeTypedFailure = ['SNAPBACK_AUTH_CODE_INVALID', 403];
+  let wrongStatusError;
+  await assert.rejects(
+    db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
+    (error) => {
+      wrongStatusError = error;
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+    },
+  );
+  assert.equal(Object.hasOwn(wrongStatusError, 'receipt'), false);
+  assert.equal(JSON.stringify(wrongStatusError).includes(UNKNOWN_ISSUED), false);
   exchangeTypedFailure = null;
 
   // Exchange installs token custody and runs transport resume before exposing
@@ -599,7 +690,7 @@ try {
   }
   refreshPoison = null;
 
-  for (issuingFailure of ['refresh-read', 'refresh-non2xx']) {
+  for (issuingFailure of ['refresh-fetch', 'refresh-read', 'refresh-non2xx']) {
     let refreshReadError;
     await assert.rejects(db.authRefresh(), (error) => {
       refreshReadError = error;
@@ -607,6 +698,16 @@ try {
     });
     assert.equal(JSON.stringify(refreshReadError).includes(BEARER_C), false);
     assert.equal(JSON.stringify(refreshReadError).includes(UNKNOWN_ISSUED), false);
+    assert.equal(JSON.stringify({
+      name: refreshReadError.name,
+      message: refreshReadError.message,
+      code: refreshReadError.code,
+      diagnostic: refreshReadError.diagnostic,
+      cause: refreshReadError.cause,
+      keys: Object.keys(refreshReadError),
+    }).includes(UNKNOWN_FETCH_REJECTION), false);
+    assert.equal(Object.hasOwn(refreshReadError, 'cause'), false);
+    assert.equal(Object.hasOwn(refreshReadError, 'receipt'), false);
     assert.equal(storage.snapshot(APP).bearer, BEARER_B);
   }
   issuingFailure = null;
@@ -633,6 +734,8 @@ try {
     diagnostic: supersededRefreshError.diagnostic,
   }).includes(UNKNOWN_ISSUED), false);
   assert.equal(JSON.stringify(supersededRefreshError.diagnostic).includes(BEARER_B), false);
+  assert.equal(Object.hasOwn(supersededRefreshError, 'receipt'), false);
+  assert.equal(Object.hasOwn(supersededRefreshError, 'cause'), false);
   assert.equal(familyAlarmCustodyWitnesses.at(-1), BEARER_B);
   assert.equal(storage.snapshot(APP).bearer, null);
   assert.equal(coordinator.settledView().authority.kind, 'anonymous');

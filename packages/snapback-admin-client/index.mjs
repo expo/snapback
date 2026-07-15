@@ -96,7 +96,7 @@ export class AdminClient {
       });
       text = await res.text();
     } catch (error) {
-      if (res && preserveCredentialResponse) {
+      if (preserveCredentialResponse) {
         throw opaqueCredentialResponseError();
       }
       throw sanitizeAdminError(error, requestSecrets);

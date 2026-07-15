@@ -919,3 +919,33 @@ EVIDENCE
 - The retained direct-bearer constructor is visibly headless/local at `demos/_kit/client.mjs:872-901,1020-1028`; because hosted admission cannot currently succeed, no alternate hosted direct-bearer path was found.
 - `bun admin-ui/tests/admin-client-credentials.mjs && bun admin-ui/tests/setup-credential-errors.mjs && bun demos/_kit/tests/auth-coordinator-client.mjs` passed, demonstrating the regression is absent from the committed matrix rather than caught by a red test.
 - `git rev-parse HEAD` returned `bd7d1da6d458439081a60c6fe06fe700edc678cf`; scoped tracked status was clean.
+
+## FINAL4 targeted blind review — 2026-07-15 (`b0448e1`)
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: runtime metadata was not included in the received review artifact
+- Method: independent targeted blind review received through the parent ENG-25001 orchestration
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Source artifact: `/private/tmp/eng25001-final4-codex-0060.md`, sha256 `c55ab8531f0d9d9d766695e39dcfd756d515106be30f7f29fd79e6ebb7e13a20`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT: NOT READY
+
+MATERIAL
+
+Credential-issuer fetch rejections bypass the opaque-error boundary. The kit sanitizes and rethrows the original exception before consulting `opaqueSuccessFailure` (`demos/_kit/client.mjs:1637-1645`); the admin client does likewise when no response exists (`packages/snapback-admin-client/index.mjs:91-103`); setup repeats this behavior (`src/admin/setup.html:271-299`). A probe throwing an unknown issued-credential sentinel from `fetch` returned the attacker-controlled code/message and leaked the sentinel in both kit and admin paths. Resolution: every issuer-path fetch rejection must reconstruct the fixed local credential-response error without retaining any original fields, with equivalent kit/admin/setup regression coverage.
+
+MINOR
+
+None.
+
+EVIDENCE
+
+The three-tuple allowlist is closed and reconstructs only local constants (`demos/_kit/client.mjs:828-856`). Refresh 409 still enters superseded handling, bounded successor wait, family alarm, then compare-and-clear (`demos/_kit/client.mjs:1831-1838`). `node demos/_kit/tests/auth-coordinator-client.mjs` passed, including typed exchange and refresh recovery assertions (`demos/_kit/tests/auth-coordinator-client.mjs:432-459,614-641`). Admin and setup credential suites also passed, but omit fetch-rejection coverage.
+
+Hosted admission remains conjunctive, including sender-constrained V2 and excluded direct-bearer seam (`src/auth/deployment.rs:254-278`), while all current hosted requests are unconditionally refused absent authenticated attestation/health (`src/auth/deployment.rs:308-320`; `src/server.rs:5003-5012`). Targeted capability/admission and schema tests passed; the embedded hosted-refusal test was blocked by sandbox denial of loopback bind.
