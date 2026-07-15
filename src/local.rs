@@ -3057,9 +3057,10 @@ impl LocalSnapback {
             (seed_outcome.as_str(), state, diagnostics)
         } else {
             let seeded = prepared.artifacts.seed.is_some();
-            let committed = self.db.stage_auth_mode_classified(
+            let committed = self.db.stage_auth_mode_with_functions_classified(
                 prepared.deployment,
                 prepared.artifacts.schema,
+                &prepared.artifacts.functions,
                 prepared.artifacts.seed,
             );
             let state = match committed {

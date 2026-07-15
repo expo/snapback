@@ -450,17 +450,55 @@ impl LocalDatabase {
     /// Stage a complete transition. The caller has already closed invocation
     /// admission and preflighted the function half; storage revalidates the
     /// durable state and schema half under an IMMEDIATE transaction.
-    pub fn stage_auth_mode(
+    #[cfg(test)]
+    pub(crate) fn stage_auth_mode(
         &mut self,
         requested_deployment: DeploymentIdentity,
         schema_manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> SnapbackResult<AuthModeStateRecord> {
-        self.stage_auth_mode_classified(requested_deployment, schema_manifest, seed)
+        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
             .into_result()
     }
 
+    pub(crate) fn stage_auth_mode_with_functions(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        functions: &FunctionManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        require_complete_deployment_pair(&requested_deployment, &schema_manifest, functions)?;
+        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+            .into_result()
+    }
+
+    #[cfg(test)]
     pub(crate) fn stage_auth_mode_classified(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> DurableModeCommit<AuthModeStateRecord> {
+        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+    }
+
+    pub(crate) fn stage_auth_mode_with_functions_classified(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        functions: &FunctionManifest,
+        seed: Option<SeedData>,
+    ) -> DurableModeCommit<AuthModeStateRecord> {
+        if let Err(error) =
+            require_complete_deployment_pair(&requested_deployment, &schema_manifest, functions)
+        {
+            return DurableModeCommit::RolledBack(error);
+        }
+        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+    }
+
+    fn stage_auth_mode_inner(
         &mut self,
         requested_deployment: DeploymentIdentity,
         schema_manifest: SchemaManifest,
@@ -739,7 +777,36 @@ impl LocalDatabase {
         Ok(next)
     }
 
-    pub fn consume_dev_downgrade(
+    #[cfg(test)]
+    pub(crate) fn consume_dev_downgrade(
+        &mut self,
+        allow_auth_downgrade: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<AuthModeDowngradeResult> {
+        self.consume_dev_downgrade_inner(allow_auth_downgrade, now_ms)
+    }
+
+    pub(crate) fn consume_dev_downgrade_with_functions(
+        &mut self,
+        allow_auth_downgrade: bool,
+        now_ms: u64,
+        functions: &FunctionManifest,
+    ) -> SnapbackResult<AuthModeDowngradeResult> {
+        let current = self.auth_mode_snapshot()?;
+        require_pending_direction(&current, AuthMode::Sessions, AuthMode::Dev)?;
+        let staged = current
+            .staged
+            .as_ref()
+            .ok_or_else(|| mode_corrupt("downgrade consume lacks a staged manifest"))?;
+        require_complete_deployment_pair(
+            &staged.requested_deployment,
+            &staged.schema_manifest,
+            functions,
+        )?;
+        self.consume_dev_downgrade_inner(allow_auth_downgrade, now_ms)
+    }
+
+    fn consume_dev_downgrade_inner(
         &mut self,
         allow_auth_downgrade: bool,
         now_ms: u64,
@@ -1222,6 +1289,22 @@ impl LocalDatabase {
         }
         self.schema = manifest;
         Ok(())
+    }
+}
+
+fn require_complete_deployment_pair(
+    deployment: &DeploymentIdentity,
+    schema: &SchemaManifest,
+    functions: &FunctionManifest,
+) -> SnapbackResult<()> {
+    functions.validate_artifact()?;
+    let paired = DeploymentIdentity::from_manifests(deployment.auth_mode, schema, functions)?;
+    if &paired == deployment {
+        Ok(())
+    } else {
+        Err(mode_corrupt(
+            "schema/function artifacts differ from their deployment identity",
+        ))
     }
 }
 
@@ -2092,9 +2175,47 @@ mod tests {
             .unwrap();
 
         let (dev_identity, dev_manifest) = dev_pair(None);
+        let dev_functions = function_half(&dev_identity);
+        let mut mismatched_functions = dev_functions.clone();
+        mismatched_functions.bundle_hash = Some("sha256:not-the-staged-functions".to_owned());
+        let mismatch = database
+            .stage_auth_mode_with_functions(
+                dev_identity.clone(),
+                dev_manifest.clone(),
+                &mismatched_functions,
+                None,
+            )
+            .unwrap_err();
+        assert_eq!(mismatch.diagnostic.code, "SNAPBACK_AUTH_MODE_STATE_CORRUPT");
+        assert_eq!(
+            database.auth_mode_snapshot().unwrap().state.active,
+            AuthMode::Sessions
+        );
         database
-            .stage_auth_mode(dev_identity, dev_manifest.clone(), None)
+            .stage_auth_mode_with_functions(
+                dev_identity,
+                dev_manifest.clone(),
+                &dev_functions,
+                None,
+            )
             .unwrap();
+        let consume_mismatch = database
+            .consume_dev_downgrade_with_functions(true, 10, &mismatched_functions)
+            .unwrap_err();
+        assert_eq!(
+            consume_mismatch.diagnostic.code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+        );
+        let before_downgrade: (i64, Option<i64>) = database
+            .with_auth_read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(before_downgrade, (1, None));
         let error = database.consume_dev_downgrade(false, 10).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_DOWNGRADE");
         assert_eq!(
@@ -2102,7 +2223,9 @@ mod tests {
             AuthModeStatus::Quarantined
         );
 
-        let result = database.consume_dev_downgrade(true, 10).unwrap();
+        let result = database
+            .consume_dev_downgrade_with_functions(true, 10, &dev_functions)
+            .unwrap();
         assert_eq!(result.sessions_revoked, 1);
         assert_eq!(result.state.active, AuthMode::Dev);
         let (generation, revoked): (i64, Option<i64>) = database

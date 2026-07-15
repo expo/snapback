@@ -192,11 +192,14 @@ async fn compose_auth_mode_startup(
                     );
                     return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
                 }
-                snapback.auth_database_mut().stage_auth_mode(
-                    deployment,
-                    carrier.schema.clone(),
-                    carrier.seed.clone(),
-                )?;
+                snapback
+                    .auth_database_mut()
+                    .stage_auth_mode_with_functions(
+                        deployment,
+                        carrier.schema.clone(),
+                        &carrier.functions,
+                        carrier.seed.clone(),
+                    )?;
                 snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
             }
         }
@@ -278,7 +281,11 @@ async fn compose_auth_mode_startup(
             let state = match startup_blocking(|| {
                 snapback
                     .auth_database_mut()
-                    .consume_dev_downgrade(args.allow_auth_downgrade, now_ms)
+                    .consume_dev_downgrade_with_functions(
+                        args.allow_auth_downgrade,
+                        now_ms,
+                        &carrier.functions,
+                    )
             }) {
                 Ok(result) => result.state,
                 Err(error) => {
