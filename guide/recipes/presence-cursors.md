@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: HEAD
+reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
 ---
 
 # Recipe: presence cursors
