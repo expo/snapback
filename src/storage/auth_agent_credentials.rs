@@ -22,6 +22,7 @@ pub const SCOPED_TOKEN_DEFAULT_TTL_MS: u64 = 60 * 60 * 1_000;
 pub const SCOPED_TOKEN_MAX_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
 pub const SCOPED_TOKEN_LIVE_CAP: u64 = 10;
 const LAST_USED_COALESCE_MS: u64 = 5 * 60 * 1_000;
+const SECRET_COLLISION_RETRY_LIMIT: usize = 3;
 
 #[derive(Debug)]
 pub struct IssuedAgentCredential {
@@ -90,13 +91,13 @@ impl LocalDatabase {
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentCredential> {
         self.observe_agent_authorization_clock(now_ms)?;
-        let secret = AgentCredential::generate(random).map_err(|_| secret_generation_failed())?;
         let credential_id = new_id();
         let identity_id = new_id();
-        let hash = secret.token_hash();
-        self.with_auth_transaction(|tx| {
+        let secret = self.with_auth_transaction(|tx| {
             require_agent_active_on(tx, user_id)?;
             require_agent_clock_on(tx, now_ms)?;
+            let secret = generate_unique_agent_credential_on(tx, random)?;
+            let hash = secret.token_hash();
             tx.execute(
                 "INSERT INTO _auth_agent_credentials(
                    id, user_id, secret_hash, generation, created_at_ms,
@@ -111,7 +112,7 @@ impl LocalDatabase {
                  ) VALUES(?1, ?2, 'agent-credential', ?3, ?4)",
                 params![identity_id, user_id, credential_id, now_ms as i64],
             )?;
-            Ok(())
+            Ok(secret)
         })?;
         Ok(IssuedAgentCredential {
             credential_id,
@@ -151,10 +152,7 @@ impl LocalDatabase {
         random: &dyn RandomSource,
     ) -> SnapbackResult<RotatedAgentCredential> {
         self.observe_agent_authorization_clock(now_ms)?;
-        let successor =
-            AgentCredential::generate(random).map_err(|_| secret_generation_failed())?;
         let predecessor_hash = credential.token_hash();
-        let successor_hash = successor.token_hash();
         self.with_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             sweep_credential_family_on(tx, now_ms)?;
@@ -174,6 +172,8 @@ impl LocalDatabase {
                 .checked_add(1)
                 .filter(|generation| *generation <= i64::MAX as u64)
                 .ok_or_else(agent_credential_state_corrupt)?;
+            let successor = generate_unique_agent_credential_on(tx, random)?;
+            let successor_hash = successor.token_hash();
             tx.execute(
                 "INSERT INTO _auth_agent_credentials(
                    id, user_id, secret_hash, generation, created_at_ms,
@@ -486,46 +486,83 @@ fn credential_row_by_hash(
     tx: &Transaction<'_>,
     hash: &[u8],
 ) -> SnapbackResult<Option<CredentialRow>> {
-    tx.query_row(
+    let mut statement = tx.prepare(
         "SELECT id, user_id, generation, created_at_ms, rotated_at_ms,
                 last_used_at_ms, revoked_at_ms
          FROM _auth_agent_credentials WHERE secret_hash = ?1
-         ORDER BY revoked_at_ms IS NULL DESC, id LIMIT 1",
-        params![hash],
-        |row| {
-            Ok(CredentialRow {
-                id: row.get(0)?,
-                user_id: row.get(1)?,
-                generation: row.get::<_, i64>(2)? as u64,
-                created_at_ms: row.get::<_, i64>(3)? as u64,
-                rotated_at_ms: row.get::<_, i64>(4)? as u64,
-                last_used_at_ms: row.get::<_, i64>(5)? as u64,
-                revoked_at_ms: row.get::<_, Option<i64>>(6)?.map(|value| value as u64),
-            })
-        },
-    )
-    .optional()
-    .map_err(Into::into)
+         ORDER BY revoked_at_ms IS NULL DESC, id LIMIT 2",
+    )?;
+    let rows = statement.query_map(params![hash], |row| {
+        Ok(CredentialRow {
+            id: row.get(0)?,
+            user_id: row.get(1)?,
+            generation: row.get::<_, i64>(2)? as u64,
+            created_at_ms: row.get::<_, i64>(3)? as u64,
+            rotated_at_ms: row.get::<_, i64>(4)? as u64,
+            last_used_at_ms: row.get::<_, i64>(5)? as u64,
+            revoked_at_ms: row.get::<_, Option<i64>>(6)?.map(|value| value as u64),
+        })
+    })?;
+    one_credential_row(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
 pub(super) fn live_credential_by_hash(
     tx: &Transaction<'_>,
     hash: &[u8],
 ) -> SnapbackResult<Option<ResolvedAgentCredential>> {
-    tx.query_row(
+    let mut statement = tx.prepare(
         "SELECT id, user_id, generation FROM _auth_agent_credentials
-         WHERE secret_hash = ?1 AND revoked_at_ms IS NULL",
-        params![hash],
-        |row| {
-            Ok(ResolvedAgentCredential {
-                credential_id: row.get(0)?,
-                user_id: row.get(1)?,
-                generation: row.get::<_, i64>(2)? as u64,
-            })
-        },
-    )
-    .optional()
-    .map_err(Into::into)
+         WHERE secret_hash = ?1 AND revoked_at_ms IS NULL
+         ORDER BY id LIMIT 2",
+    )?;
+    let rows = statement.query_map(params![hash], |row| {
+        Ok(ResolvedAgentCredential {
+            credential_id: row.get(0)?,
+            user_id: row.get(1)?,
+            generation: row.get::<_, i64>(2)? as u64,
+        })
+    })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    match rows.len() {
+        0 => Ok(None),
+        1 => Ok(rows.into_iter().next()),
+        _ => Err(agent_credential_state_corrupt()),
+    }
+}
+
+fn one_credential_row(rows: Vec<CredentialRow>) -> SnapbackResult<Option<CredentialRow>> {
+    match rows.len() {
+        0 => Ok(None),
+        1 => Ok(rows.into_iter().next()),
+        _ => Err(agent_credential_state_corrupt()),
+    }
+}
+
+/// The auth transaction is an immediate, serialized writer lane. Checking all
+/// retained family rows and inserting/updating before its commit therefore
+/// provides the uniqueness invariant without changing the deployed catalog
+/// shape.
+fn generate_unique_agent_credential_on(
+    tx: &Transaction<'_>,
+    random: &dyn RandomSource,
+) -> SnapbackResult<AgentCredential> {
+    for _ in 0..SECRET_COLLISION_RETRY_LIMIT {
+        let secret =
+            AgentCredential::generate(random).map_err(|_| secret_generation_failed())?;
+        let hash = secret.token_hash();
+        let collision = tx
+            .query_row(
+                "SELECT 1 FROM _auth_agent_credentials WHERE secret_hash = ?1 LIMIT 1",
+                params![hash.as_bytes()],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if !collision {
+            return Ok(secret);
+        }
+    }
+    Err(secret_generation_failed())
 }
 
 pub(super) fn coalesce_credential_use(
@@ -724,6 +761,8 @@ mod tests {
 
     struct CounterRandom(AtomicU8);
 
+    struct FixedRandom(u8);
+
     impl CounterRandom {
         fn new() -> Self {
             Self(AtomicU8::new(1))
@@ -736,6 +775,27 @@ mod tests {
             destination.fill(byte);
             Ok(())
         }
+    }
+
+    impl RandomSource for FixedRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0);
+            Ok(())
+        }
+    }
+
+    fn create_agent(db: &mut LocalDatabase, user_id: &str) {
+        db.create_agent_principal(
+            user_id,
+            0,
+            &AgentRegistration {
+                display_name: None,
+                operator_contact: None,
+                registration_provenance: "test".to_owned(),
+                owner_user_id: None,
+            },
+        )
+        .expect("agent principal");
     }
 
     fn ready() -> LocalDatabase {
@@ -832,6 +892,90 @@ mod tests {
             start + 24 * AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS,
         )
         .expect("destroy-only alarm is idempotent while attributable");
+    }
+
+    #[test]
+    fn repeated_rng_output_cannot_alias_issue_or_rotation() {
+        let random = FixedRandom(7);
+        let mut db = ready();
+        let issued = db
+            .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .unwrap();
+        create_agent(&mut db, "agent-b");
+
+        let issue_error = db
+            .issue_initial_agent_credential("agent-b", 1_001, &random)
+            .unwrap_err();
+        assert_eq!(
+            issue_error.diagnostic.code,
+            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        );
+        let agent_b_credentials: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _auth_agent_credentials WHERE user_id = 'agent-b'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(agent_b_credentials, 0);
+
+        let rotation_at = 1_000 + AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS;
+        let rotate_error = db
+            .rotate_agent_credential(&issued.secret, rotation_at, &random)
+            .unwrap_err();
+        assert_eq!(
+            rotate_error.diagnostic.code,
+            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        );
+        let resolved = db
+            .resolve_agent_credential(&issued.secret, rotation_at)
+            .expect("failed collision retries leave the predecessor live");
+        assert_eq!(resolved.generation, 1);
+    }
+
+    #[test]
+    fn duplicate_retained_hash_fails_closed_without_attribution() {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        let issued = db
+            .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .unwrap();
+        create_agent(&mut db, "agent-b");
+        let hash = issued.secret.token_hash();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_agent_credentials(
+                   id, user_id, secret_hash, generation, created_at_ms,
+                   rotated_at_ms, last_used_at_ms, revoked_at_ms
+                 ) VALUES('credential-b', 'agent-b', ?1, 1, 1000, 1000, 1000, NULL)",
+                params![hash.as_bytes()],
+            )
+            .unwrap();
+
+        let resolve_error = db
+            .resolve_agent_credential(&issued.secret, 1_001)
+            .unwrap_err();
+        assert_eq!(
+            resolve_error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT"
+        );
+        let revoke_error = db
+            .revoke_agent_credential_family(&issued.secret, 1_001)
+            .unwrap_err();
+        assert_eq!(
+            revoke_error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT"
+        );
+        let revoked: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _auth_agent_credentials WHERE revoked_at_ms IS NOT NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(revoked, 0);
     }
 
     #[test]
