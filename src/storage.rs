@@ -2400,6 +2400,9 @@ impl LocalDatabase {
         let mut changes = Vec::new();
         for (write, write_gate, write_writer) in carried_writes {
             check_live()?;
+            if write_gate == MembershipWriteGate::Sanctioned {
+                revalidate_sanctioned_membership_write(&schema, &tx, &write)?;
+            }
             // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
             //   the writer-class seam. A raw `ctx.db` membership-table write, and
             //   a resource delete that would orphan memberships, are refused here
@@ -5557,12 +5560,13 @@ fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
 // ============================================================================
 
 /// The resolved authority a membership write runs under, mapped from
-/// `ResolvedAppAuthority`. The classes are disjoint: only `User` carries an
-/// effective principal, so `System`/`AdminBypass`/`Anonymous` match **no**
-/// transition class at all — not even `"none"` (§Writes: "an authority with no
-/// effective principal matches _no_ class"). `Seed`/`Import`/`Admin` are the
-/// privileged non-invocation writers: they carry their own authority and so
-/// bypass the transition matrix, but every table invariant still applies.
+/// `ResolvedAppAuthority`. The invocation classes carry an effective principal;
+/// autonomous service principals additionally retain the grant that authorized
+/// them. `System`/`AdminBypass`/`Anonymous` match **no** transition class at all
+/// — not even `"none"` (§Writes: "an authority with no effective principal
+/// matches _no_ class"). `Seed`/`Import`/`Admin` are the privileged
+/// non-invocation writers: they carry their own authority and so bypass the
+/// transition matrix, but every table invariant still applies.
 ///
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 ///   writer-class matrix; userless authorities are refused.
@@ -5572,6 +5576,10 @@ pub enum MembershipWriter {
     Delegated {
         actor_principal: String,
         effective_principal: String,
+        grant_id: String,
+    },
+    Autonomous {
+        actor_principal: String,
         grant_id: String,
     },
     System,
@@ -5606,8 +5614,9 @@ impl MembershipWriter {
                 grant_id,
                 ..
             } => effective_user_id.as_ref().map_or_else(
-                || Self::User {
-                    effective_principal: actor_user_id.clone(),
+                || Self::Autonomous {
+                    actor_principal: actor_user_id.clone(),
+                    grant_id: grant_id.clone(),
                 },
                 |effective_user_id| Self::Delegated {
                     actor_principal: actor_user_id.clone(),
@@ -5631,6 +5640,9 @@ impl MembershipWriter {
                 effective_principal,
                 ..
             } => Some(effective_principal),
+            Self::Autonomous {
+                actor_principal, ..
+            } => Some(actor_principal),
             _ => None,
         }
     }
@@ -5656,6 +5668,15 @@ impl MembershipWriter {
                 effective: effective_principal.clone(),
                 grant: Some(grant_id.clone()),
                 writer_class: "delegated".to_owned(),
+            },
+            Self::Autonomous {
+                actor_principal,
+                grant_id,
+            } => MembershipWriteProvenance {
+                actor: actor_principal.clone(),
+                effective: actor_principal.clone(),
+                grant: Some(grant_id.clone()),
+                writer_class: "autonomous".to_owned(),
             },
             Self::System => MembershipWriteProvenance::tagged("system"),
             Self::Seed => MembershipWriteProvenance::tagged("seed"),
@@ -7015,6 +7036,46 @@ enum MembershipGuardOp {
     Insert,
     Patch,
     Delete,
+}
+
+/// Recheck invariants whose captured pre-state can be changed by an earlier raw
+/// write in this same transaction. Captured dependencies close concurrent
+/// races, but validation happens before buffered writes are applied; without
+/// this application-point check, a mixed mutation could delete a resource and
+/// then spend a previously authorized membership-insert plan against it.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — every
+///   writer preserves referential integrity at the central commit seam.
+fn revalidate_sanctioned_membership_write(
+    schema: &SchemaManifest,
+    tx: &Transaction<'_>,
+    write: &BufferedWrite,
+) -> SnapbackResult<()> {
+    let BufferedWrite::Insert { table, values, .. } = write else {
+        return Ok(());
+    };
+    let Some(table_manifest) = schema.table(table) else {
+        return Ok(());
+    };
+    let Some(membership) = &table_manifest.membership else {
+        return Ok(());
+    };
+    let (Some(resource_field), Some(resource_table)) =
+        (&membership.resource, &membership.resource_table)
+    else {
+        return Ok(());
+    };
+    let resource = extract_axis(values, resource_field, "resource")?;
+    if read_resource_version(tx, resource_table, &resource)?.is_none() {
+        return Err(membership_refusal(
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+            format!(
+                "membership insert names resource {resource:?}, which no longer exists in \
+                 {resource_table}"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 impl MembershipGuardOp {
@@ -9647,6 +9708,136 @@ mod membership_write_tests {
         db.activate_auth_catalog_v1().expect("auth catalog");
         db.apply_schema(membership_schema()).expect("apply schema");
         db
+    }
+
+    #[test]
+    fn autonomous_service_principal_writer_preserves_its_grant() {
+        let authority = crate::auth::invocation::ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-a".to_owned(),
+            credential_id: "credential-a".to_owned(),
+            credential_generation: 7,
+            grant_id: "grant-autonomous".to_owned(),
+            token_id: "token-a".to_owned(),
+            effective_user_id: None,
+            scopes: Vec::new(),
+            token_expires_at_ms: 10_000,
+        };
+        let writer = MembershipWriter::from_resolved(&authority);
+        assert_eq!(writer.effective_principal(), Some("agent-a"));
+        let provenance = writer.provenance().expect("service provenance");
+        assert_eq!(provenance.actor, "agent-a");
+        assert_eq!(provenance.effective, "agent-a");
+        assert_eq!(provenance.grant.as_deref(), Some("grant-autonomous"));
+        assert_eq!(provenance.writer_class, "autonomous");
+
+        let mut db = ready_db();
+        let (event_id, _) = create_event(&mut db, "alice");
+        let plan = db
+            .plan_membership_insert(
+                &writer,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("agent-a")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("guest")),
+                ]),
+            )
+            .expect("autonomous open-join plan");
+        let commit = db
+            .commit_membership_plan(&writer, plan)
+            .expect("autonomous open-join commit");
+        let membership_id = commit_id_for_table(&commit, "event_members");
+        assert_eq!(
+            db.membership_creation_provenance("event_members", &membership_id)
+                .expect("creation provenance"),
+            Some(MembershipCreationProvenance {
+                actor: "agent-a".to_owned(),
+                effective: "agent-a".to_owned(),
+                grant: Some("grant-autonomous".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn mixed_resource_delete_cannot_spend_a_stale_membership_insert_plan() {
+        let mut schema = membership_schema();
+        let membership = schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "event_members")
+            .and_then(|table| table.membership.as_mut())
+            .expect("event membership declaration");
+        membership.last_holder = None;
+        membership.bootstrap_role = None;
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_auth_catalog_v1().expect("auth catalog");
+        db.apply_schema(schema).expect("apply unprotected schema");
+        let event_id = "event-empty";
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "events".to_owned(),
+                id: event_id.to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("empty event"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("create empty resource");
+
+        let writer = user("alice");
+        let plan = db
+            .plan_membership_insert(
+                &writer,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("alice")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("guest")),
+                ]),
+            )
+            .expect("plan open join while resource exists");
+        let error = db
+            .commit_buffered_writes_idempotent_guarded(
+                &HandlerInput::default(),
+                BufferedCommitPayload {
+                    writes: vec![BufferedWrite::Delete {
+                        table: "events".to_owned(),
+                        id: event_id.to_owned(),
+                    }],
+                    membership_plans: vec![AuthorizedMembershipPlan::user_transition(
+                        writer, plan,
+                    )],
+                    read_dependencies: Vec::new(),
+                    result: Value::Null,
+                    ctx_ledger: CtxAnswerLedger {
+                        version: CTX_ANSWER_LEDGER_VERSION,
+                        ids: Vec::new(),
+                        now: 1,
+                        auth_fingerprint: None,
+                    },
+                },
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("mixed delete must not orphan the sanctioned membership insert");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        );
+        assert!(
+            db.get("events", event_id)
+                .expect("resource read")
+                .is_some()
+        );
+        assert_eq!(
+            db.scan_table("event_members", 10, 0)
+                .expect("membership scan")
+                .total,
+            0
+        );
     }
 
     fn user(principal: &str) -> MembershipWriter {
