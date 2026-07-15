@@ -962,10 +962,9 @@ struct ConnectionRegistryState {
     unknown_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     session_open_attempts:
         std::collections::HashMap<BoundSessionKey, std::collections::VecDeque<Instant>>,
-    agent_route_attempts: std::collections::HashMap<
-        AgentRouteThrottleKey,
-        std::collections::VecDeque<Instant>,
-    >,
+    service_open_attempts: std::collections::HashMap<[u8; 32], std::collections::VecDeque<Instant>>,
+    agent_route_attempts:
+        std::collections::HashMap<AgentRouteThrottleKey, std::collections::VecDeque<Instant>>,
     pressure_mint_only: bool,
 }
 
@@ -1025,6 +1024,20 @@ enum BoundGrantAuthority {
         deadline_ms: u64,
         publication: FencedPublication,
     },
+    /// A finite-only G5 carrier. The connection can be minted and resumed,
+    /// but every connection act refuses before an effect fence is produced;
+    /// G6 replaces that refusal with live validation and the carrier-axis
+    /// invalidation machinery.
+    ///
+    /// @ref LLP 0055#plane-boundary — scoped tokens address connection open,
+    /// while grant-backed live registration remains unavailable until item 6.
+    ServicePrincipal {
+        authorization_stream_incarnation: String,
+        authority: ResolvedAppAuthority,
+        token_id: String,
+        deadline_ms: u64,
+        publication: FencedPublication,
+    },
 }
 
 impl std::fmt::Debug for BoundGrantAuthority {
@@ -1060,6 +1073,20 @@ impl std::fmt::Debug for BoundGrantAuthority {
                 .field("generation", generation)
                 .field("deadline_ms", deadline_ms)
                 .finish(),
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                token_id,
+                deadline_ms,
+                ..
+            } => formatter
+                .debug_struct("BoundGrantAuthority::ServicePrincipal")
+                .field(
+                    "authorization_stream_incarnation",
+                    authorization_stream_incarnation,
+                )
+                .field("token_id", token_id)
+                .field("deadline_ms", deadline_ms)
+                .finish_non_exhaustive(),
         }
     }
 }
@@ -1067,7 +1094,9 @@ impl std::fmt::Debug for BoundGrantAuthority {
 impl BoundGrantAuthority {
     fn publication(&self) -> &FencedPublication {
         match self {
-            Self::Anonymous { publication, .. } | Self::Session { publication, .. } => publication,
+            Self::Anonymous { publication, .. }
+            | Self::Session { publication, .. }
+            | Self::ServicePrincipal { publication, .. } => publication,
         }
     }
 
@@ -1091,6 +1120,9 @@ impl BoundGrantAuthority {
                 session_id.clone(),
                 *generation,
             ),
+            Self::ServicePrincipal { .. } => {
+                unreachable!("G5 service-principal connections cannot own live effects")
+            }
         }
     }
 
@@ -1110,6 +1142,10 @@ impl BoundGrantAuthority {
                 session_id: session_id.clone(),
                 generation: *generation,
             }),
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                ..
+            } => GrantReverseKey::Anonymous(authorization_stream_incarnation.clone()),
         }
     }
 
@@ -1149,6 +1185,24 @@ impl BoundGrantAuthority {
                     && left_provider == right_provider
                     && left_generation == right_generation
             }
+            (
+                Self::ServicePrincipal {
+                    authorization_stream_incarnation: left_incarnation,
+                    authority: left_authority,
+                    token_id: left_token,
+                    ..
+                },
+                Self::ServicePrincipal {
+                    authorization_stream_incarnation: right_incarnation,
+                    authority: right_authority,
+                    token_id: right_token,
+                    ..
+                },
+            ) => {
+                left_incarnation == right_incarnation
+                    && left_authority == right_authority
+                    && left_token == right_token
+            }
             _ => false,
         }
     }
@@ -1164,6 +1218,11 @@ impl BoundGrantAuthority {
                 "SNAPBACK_AUTH_SESSION_EXPIRED",
                 "auth",
                 "the connection session is no longer current",
+            ),
+            Self::ServicePrincipal { .. } => SnapbackError::error(
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "auth",
+                "the connection scoped token is no longer current",
             ),
         }
     }
@@ -1195,6 +1254,16 @@ impl BoundGrantAuthority {
                 authorization_stream_incarnation: authorization_stream_incarnation.clone(),
                 session_id: Some(session_id.clone()),
                 generation: Some(*generation),
+            },
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                ..
+            } => BoundConnectionTerminalCapture {
+                connection_id,
+                grant_id,
+                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+                session_id: None,
+                generation: None,
             },
         }
     }
@@ -1273,7 +1342,8 @@ struct PreparedConnectionAct {
 impl PreparedConnectionOpenAuthority {
     fn authenticated_use_key(&self) -> Option<(String, u64)> {
         match &self.bound {
-            BoundGrantAuthority::Anonymous { .. } => None,
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => None,
             BoundGrantAuthority::Session {
                 session_id,
                 generation,
@@ -1290,7 +1360,8 @@ impl PreparedConnectionAct {
 
     fn authenticated_use_key(&self) -> Option<(String, u64)> {
         match &self.bound {
-            BoundGrantAuthority::Anonymous { .. } => None,
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => None,
             BoundGrantAuthority::Session {
                 session_id,
                 generation,
@@ -1688,6 +1759,19 @@ impl ConnectionRegistryState {
         )
     }
 
+    fn consume_service_open(&mut self, token_hash: [u8; 32], now: Instant) -> Result<(), u64> {
+        self.service_open_attempts.retain(|_, bucket| {
+            Self::prune_bucket(bucket, CONNECTION_OPEN_WINDOW, now);
+            !bucket.is_empty()
+        });
+        Self::consume_bucket(
+            self.service_open_attempts.entry(token_hash).or_default(),
+            CONNECTION_OPEN_SESSION_LIMIT,
+            CONNECTION_OPEN_WINDOW,
+            now,
+        )
+    }
+
     fn consume_agent_route(
         &mut self,
         path: &'static str,
@@ -1746,6 +1830,9 @@ impl ConnectionRegistryState {
                 assert!(matches!(
                     self.grants.get(connection_id).map(|record| &record.authority),
                     Some(BoundGrantAuthority::Anonymous {
+                        authorization_stream_incarnation,
+                        ..
+                    }) | Some(BoundGrantAuthority::ServicePrincipal {
                         authorization_stream_incarnation,
                         ..
                     }) if authorization_stream_incarnation == incarnation
@@ -2132,6 +2219,16 @@ impl ConnectionRegistry {
             .map_err(ApiError::auth_throttled)
     }
 
+    fn consume_service_open(
+        &self,
+        token_hash: [u8; 32],
+        monotonic_now: Instant,
+    ) -> Result<(), ApiError> {
+        self.lock()
+            .consume_service_open(token_hash, monotonic_now)
+            .map_err(ApiError::auth_throttled)
+    }
+
     fn consume_agent_route(
         &self,
         path: &'static str,
@@ -2441,7 +2538,7 @@ impl ConnectionRegistry {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<ResolvedRoomConnectionAuthority> {
-        let (grant_id, managed_authority, bound, effect_fence) = {
+        let (grant_id, managed_authority, bound) = {
             let state = self.lock();
             let Some(record) = state.grants.get(connection_id) else {
                 return Ok(ResolvedRoomConnectionAuthority::Absent);
@@ -2450,9 +2547,17 @@ impl ConnectionRegistry {
                 record.grant_id.clone(),
                 record.managed_authority,
                 record.authority.clone(),
-                record.authority.effect_fence(&record.grant_id),
             )
         };
+        if matches!(bound, BoundGrantAuthority::ServicePrincipal { .. }) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "grant-backed live and ephemeral operations are unavailable until the agent live fence is ready",
+            )
+            .with_details(json!({ "capability": "grantBackedLive" })));
+        }
+        let effect_fence = bound.effect_fence(&grant_id);
         if expected_effect_fence.is_some_and(|expected| expected != &effect_fence) {
             return Ok(ResolvedRoomConnectionAuthority::Replaced);
         }
@@ -2464,6 +2569,9 @@ impl ConnectionRegistry {
         }
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::ServicePrincipal { .. } => {
+                unreachable!("service-principal room authority refused above")
+            }
             BoundGrantAuthority::Session {
                 authorization_stream_incarnation,
                 session_id,
@@ -2560,6 +2668,16 @@ impl ConnectionRegistry {
         };
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::ServicePrincipal { .. } => {
+                return Err(ApiError::from(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "grant-backed live and connection operations are unavailable until the agent live fence is ready",
+                    )
+                    .with_details(json!({ "capability": "grantBackedLive" })),
+                ))
+            }
             BoundGrantAuthority::Session {
                 authorization_stream_incarnation,
                 session_id,
@@ -4176,7 +4294,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             )
             .with_session_overlay(SessionModeOverlay {
                 path_policy: None,
-                credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+                credential_resolution: Some(CredentialResolution::OptionalSessionOrScopedToken),
                 invocation_authority: Some(InvocationAuthority::ResolvedCaller),
                 legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
                 effect_policy: None,
@@ -6030,11 +6148,10 @@ async fn enforce_registered_route_policy(
                 // already-selected shape error; every other credential result
                 // stays private on this rejected request.
                 if let Some(presented) = connection_open_bearer.as_ref() {
-                    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-                    if let Err(accounting_error) = prepare_connection_open_authority(
+                    let (_, monotonic_now) = auth_runtime_now(&runtime);
+                    if let Err(accounting_error) = account_connection_open_attempt(
                         &runtime,
                         presented.as_presented(),
-                        epoch_now_ms,
                         monotonic_now,
                     ) && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
                     {
@@ -6094,13 +6211,10 @@ async fn enforce_registered_route_policy(
         .and_then(|_| session_online_protocol_refusal(spec, &runtime, request.headers()));
     let prepared_connection_open = if let Some(presented) = connection_open_bearer.as_ref() {
         if connection_open_protocol_error.is_some() {
-            let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            if let Err(accounting_error) = prepare_connection_open_authority(
-                &runtime,
-                presented.as_presented(),
-                epoch_now_ms,
-                monotonic_now,
-            ) && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
+            let (_, monotonic_now) = auth_runtime_now(&runtime);
+            if let Err(accounting_error) =
+                account_connection_open_attempt(&runtime, presented.as_presented(), monotonic_now)
+                && accounting_error.0.diagnostic.code == "SNAPBACK_AUTH_THROTTLED"
             {
                 return finish_registered_response(
                     effective,
@@ -6112,12 +6226,14 @@ async fn enforce_registered_route_policy(
             None
         } else {
             let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            match prepare_connection_open_authority(
+            match prepare_connection_open_authority_with_scoped_token(
                 &runtime,
                 presented.as_presented(),
                 epoch_now_ms,
                 monotonic_now,
-            ) {
+            )
+            .await
+            {
                 Ok(prepared) => Some(prepared),
                 Err(error) => {
                     return finish_registered_response(
@@ -7298,6 +7414,95 @@ fn installed_auth_coordinator(runtime: &AppState) -> Result<Arc<AuthCoordinator>
     })
 }
 
+/// Charge a rejected connection-open request to the same bounded source bucket
+/// as a well-formed attempt without resolving durable service authority. In
+/// particular, malformed JSON or a missing protocol offer must not update an
+/// agent credential/grant's last-used facts merely because its token was valid.
+fn account_connection_open_attempt(
+    runtime: &AppState,
+    presented: PresentedSessionBearer<'_>,
+    monotonic_now: Instant,
+) -> Result<(), ApiError> {
+    if let PresentedSessionBearer::Candidate(raw) = presented
+        && classify_credential(raw) == Some(CredentialClass::ScopedToken)
+        && let Ok(token) = ScopedToken::parse(raw)
+    {
+        return runtime
+            .connections
+            .consume_service_open(*token.token_hash().as_bytes(), monotonic_now);
+    }
+    let (epoch_now_ms, _) = auth_runtime_now(runtime);
+    prepare_connection_open_authority(runtime, presented, epoch_now_ms, monotonic_now).map(drop)
+}
+
+async fn prepare_connection_open_authority_with_scoped_token(
+    runtime: &AppState,
+    presented: PresentedSessionBearer<'_>,
+    epoch_now_ms: u64,
+    monotonic_now: Instant,
+) -> Result<PreparedConnectionOpenAuthority, ApiError> {
+    if let PresentedSessionBearer::Candidate(raw) = presented
+        && classify_credential(raw).is_some_and(|class| {
+            !matches!(
+                class,
+                CredentialClass::Session | CredentialClass::ScopedToken
+            )
+        })
+    {
+        dispatch_credential_class(raw, CredentialClass::Session)
+            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+        unreachable!("wrong-class dispatch always refuses");
+    }
+    if let PresentedSessionBearer::Candidate(raw) = presented
+        && classify_credential(raw) == Some(CredentialClass::ScopedToken)
+    {
+        if runtime.auth_mode_state().active != AuthMode::Sessions {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "scoped agent tokens are unavailable while auth mode is dev",
+            )));
+        }
+        dispatch_credential_class(raw, CredentialClass::ScopedToken)
+            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+        let token = ScopedToken::parse(raw).map_err(|_| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "auth",
+                "scoped agent token is invalid",
+            ))
+        })?;
+        runtime
+            .connections
+            .consume_service_open(*token.token_hash().as_bytes(), monotonic_now)?;
+        let now_ms = installed_auth_provider(runtime)?.now_ms();
+        let resolved = with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .resolve_scoped_token(&token, now_ms)
+        })
+        .await?;
+        let token_id = resolved.token_id.clone();
+        let deadline_ms = resolved.expires_at_ms;
+        let authority = ResolvedAppAuthority::from_scoped_token(resolved);
+        let prepared = installed_auth_coordinator(runtime)?
+            .prepare_anonymous_connection()
+            .map_err(ApiError::from)?;
+        return Ok(PreparedConnectionOpenAuthority {
+            resolved: authority.clone(),
+            managed_authority: true,
+            bound: BoundGrantAuthority::ServicePrincipal {
+                authorization_stream_incarnation: prepared.authorization_stream_incarnation,
+                authority,
+                token_id,
+                deadline_ms,
+                publication: prepared.publication,
+            },
+        });
+    }
+    prepare_connection_open_authority(runtime, presented, epoch_now_ms, monotonic_now)
+}
+
 fn prepare_connection_open_authority(
     runtime: &AppState,
     presented: PresentedSessionBearer<'_>,
@@ -7575,6 +7780,7 @@ fn auth_bearer(headers: &HeaderMap) -> Option<&str> {
 /// Preserve absence versus malformed/duplicate Authorization syntax so
 /// connection-open can account both in the coarse prebudget without ever
 /// hashing malformed bytes or consulting the projection.
+#[derive(Clone, Copy)]
 enum PresentedSessionBearer<'a> {
     Absent,
     Malformed,
@@ -17688,6 +17894,57 @@ mod tests {
         })
         .await
         .unwrap();
+
+        let connection_router = super::app(state.clone());
+        let opened = connection_router
+            .clone()
+            .oneshot(connection_open_request(Some(&token), json!({})))
+            .await
+            .unwrap();
+        assert_eq!(opened.status(), StatusCode::OK);
+        assert_eq!(
+            opened.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-store, private"
+        );
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"].as_str().unwrap();
+        let connection_token = opened["connectionToken"].as_str().unwrap();
+        state.connections.lock().assert_grant_indexes_consistent();
+
+        let wrong_open = connection_router
+            .clone()
+            .oneshot(connection_open_request(Some(&agent_credential), json!({})))
+            .await
+            .unwrap();
+        assert_eq!(wrong_open.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_open).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+
+        let live = connection_router
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/live/{connection_id}/stream"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(live.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let live = response_json(live).await;
+        assert_eq!(
+            live["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            live["diagnostic"]["details"]["capability"],
+            "grantBackedLive"
+        );
+
         let router = super::router_from_registrations(
             vec![
                 super::RegisteredRoute::new(
@@ -20031,7 +20288,10 @@ mod tests {
         let (opened, act) = prepare_session_connection_act(&state, bearer, "leased-expiry");
         let deadline_ms = match &act.bound {
             BoundGrantAuthority::Session { deadline_ms, .. } => *deadline_ms,
-            BoundGrantAuthority::Anonymous { .. } => panic!("expected session-bound act"),
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => {
+                panic!("expected session-bound act")
+            }
         };
         let response = leased_outbox_http_response(&state, act, b"expiry-preserved");
 
@@ -20067,7 +20327,10 @@ mod tests {
                 session_id.clone(),
                 *generation,
             ),
-            BoundGrantAuthority::Anonymous { .. } => panic!("expected session-bound act"),
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => {
+                panic!("expected session-bound act")
+            }
         };
         let response = leased_outbox_http_response(&state, act, b"revoke-preserved");
 
@@ -22532,6 +22795,7 @@ globalThis.__snapbackHandlers = {
     ) -> PreparedConnectionOpenAuthority {
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+            BoundGrantAuthority::ServicePrincipal { authority, .. } => authority.clone(),
             BoundGrantAuthority::Session {
                 session_id,
                 user_id,
