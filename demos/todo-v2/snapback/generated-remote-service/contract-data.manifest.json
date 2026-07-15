@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:05bd359f595b3ca2",
+  "bundleHash": "sha256:4f198053e80863a0",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -22,7 +22,7 @@
       "ephemeral": true,
       "keyMode": "Connection",
       "maxDeltaRateHz": 30,
-      "maxTtlMs": 60000,
+      "maxTtlMs": 30000,
       "name": "todoPresence",
       "publishBudget": {
         "burst": 40,
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "1cce4f0ae0be80dd22c9c354fb2b1e1e74f69aac8a4075d463f957647916fcab",
+  "inputsHash": "9cfa2034a14bb320cd3f15c306420d3910ff8a7e0f16c5b7584879b85ad87cf6",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {
@@ -388,7 +388,7 @@
       "livePush": true,
       "localRunnable": true,
       "maxDeltaRateHz": 30,
-      "maxTtlMs": 60000,
+      "maxTtlMs": 30000,
       "mode": "live",
       "name": "todoPresence",
       "result": {
@@ -405,6 +405,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:2658f052fabdb75c",
+  "schemaHash": "sha256:c9698afd81a8e71c",
   "schemaVersion": "snapback.v0"
 }

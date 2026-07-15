@@ -4,11 +4,11 @@
   "capabilityId": "snapback.data.todo-v2",
   "capabilityManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/capability.manifest.json",
-    "sha256": "sha256:3d69db01aa73a154515306291a173bbb0c9d621f4e9bf7221b4203ce95935efa"
+    "sha256": "sha256:e1d7910b0950a3e0d56326c8963456eab2b3f2c50b35079921493183a1e993de"
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:ef5e732e781a18c014686e4958f615dde3245288e95f5c111dc533f185c2d279"
+    "sha256": "sha256:c82acfdfa9ea6ad5a2c9f2e576d6148a921735995cbbf10262ca5f3c6654a326"
   },
   "manifestVersion": 1,
   "operations": [
@@ -31,7 +31,7 @@
       },
       "requestSchema": {
         "path": "schemas/mutation.input.schema.json",
-        "sha256": "sha256:d1aefc9ef3e3b0a20e78b10d711074459d2474f76b0f7f22fe4f8780e929922b"
+        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
@@ -57,7 +57,7 @@
       },
       "requestSchema": {
         "path": "schemas/mutation.input.schema.json",
-        "sha256": "sha256:d1aefc9ef3e3b0a20e78b10d711074459d2474f76b0f7f22fe4f8780e929922b"
+        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
@@ -83,7 +83,7 @@
       },
       "requestSchema": {
         "path": "schemas/mutation.input.schema.json",
-        "sha256": "sha256:d1aefc9ef3e3b0a20e78b10d711074459d2474f76b0f7f22fe4f8780e929922b"
+        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
@@ -93,18 +93,18 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:0b0691837194a27d728b3e5a15a113bf898ec76c9c24351cbc13d5c3f98d28eb"
+    "sha256": "sha256:3b7b6e0cec596c5163ac6439ca56d65a5dcc57ff7e7854b1cded9b528ba65cf4"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
   "wireSchemas": {
     "connectionGrant": {
       "path": "schemas/connection.grant.schema.json",
-      "sha256": "sha256:98fe4ffa4fdbd37e770d683155d59b37a53d9326046a855f53a5ff6e614e986e"
+      "sha256": "sha256:acdcafcd678255013586a61a1c597c31f467a87a8fea0031b725ee6ea7217110"
     },
     "connectionOpenInput": {
       "path": "schemas/connection.open.input.schema.json",
-      "sha256": "sha256:a11802e1a453af29537b627f9c79e71f075035306e6f234e7d230c0ddc737546"
+      "sha256": "sha256:f7f714d7746e034379d993d480ef3a52f750799fc9ce89dd96d7102597c58e22"
     },
     "errorResponse": {
       "path": "schemas/error.response.schema.json",
@@ -112,7 +112,7 @@
     },
     "liveEnvelope": {
       "path": "schemas/live.envelope.schema.json",
-      "sha256": "sha256:0782e81b9c64e10e6b2e720dd46087b2c6bf16a031ed603aab50b24dc338c0e6"
+      "sha256": "sha256:eb86bcff525a6936ae0c0941e5e3ddcf0c2297ca669d267536670293da557b89"
     },
     "liveResumeInput": {
       "path": "schemas/live.resume.input.schema.json",
@@ -120,15 +120,15 @@
     },
     "liveResumeOutput": {
       "path": "schemas/live.resume.output.schema.json",
-      "sha256": "sha256:940006fae6048b1548cf54cd0815f99fb784c87268204fa270f86fb31d853900"
+      "sha256": "sha256:eca1023db7df5d65d190db6f1ad8769b5434e9219b4ef8b4ac9906e6b39c7d9b"
     },
     "liveSubscribeInput": {
       "path": "schemas/live.subscribe.input.schema.json",
-      "sha256": "sha256:507d85a654feb4928acf1bc364d8815982ff37a01f2896dde7299be666dfd424"
+      "sha256": "sha256:419bfad36da88e4c0c17970418d9673f9125cec5a064052eafc1928a4981a80e"
     },
     "liveSubscribeOutput": {
       "path": "schemas/live.subscribe.output.schema.json",
-      "sha256": "sha256:9d535a1589c1cf8f6a3e55a752e770abd1f8edd1a98425f8f04bc94ec2f9537a"
+      "sha256": "sha256:566293f7282477f86d9ecb4aae8324570f3a3e3492de52225d2bc409277773b4"
     },
     "liveUnsubscribeInput": {
       "path": "schemas/live.unsubscribe.input.schema.json",
@@ -136,11 +136,11 @@
     },
     "liveUnsubscribeOutput": {
       "path": "schemas/live.unsubscribe.output.schema.json",
-      "sha256": "sha256:5ddd23f65621f4c2221e090854c480f16a5ae4adb3685670e8cce28dcb93c649"
+      "sha256": "sha256:222df3851ce38fe19ef34bf707f8b7b26e5c59406e1534670c156e02de986cd4"
     },
     "mutationInput": {
       "path": "schemas/mutation.input.schema.json",
-      "sha256": "sha256:d1aefc9ef3e3b0a20e78b10d711074459d2474f76b0f7f22fe4f8780e929922b"
+      "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
     },
     "mutationOutput": {
       "path": "schemas/mutation.output.schema.json",

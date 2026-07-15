@@ -1,7 +1,7 @@
 {
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:05bd359f595b3ca2",
+  "bundleHash": "sha256:4f198053e80863a0",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -163,6 +163,9 @@
     },
     {
       "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
       "bundleEntrypoint": "listTodos",
       "exportedName": "listTodos",
       "id": "todo-v2:listTodos",
@@ -213,6 +216,9 @@
     },
     {
       "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
       "bundleEntrypoint": "listTodosOnce",
       "exportedName": "listTodosOnce",
       "id": "todo-v2:listTodosOnce",
@@ -366,7 +372,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "1cce4f0ae0be80dd22c9c354fb2b1e1e74f69aac8a4075d463f957647916fcab",
+  "inputsHash": "9cfa2034a14bb320cd3f15c306420d3910ff8a7e0f16c5b7584879b85ad87cf6",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

@@ -7,7 +7,7 @@ export const ephemeral = Object.freeze({
     "deliveryMode": "latest",
     "id": "todo-v2:ephemeral:todoPresence",
     "keyMode": "Connection",
-    "maxTtlMs": 60000,
+    "maxTtlMs": 30000,
     "maxValueBytes": 512,
     "name": "todoPresence",
     "routingFields": [
@@ -52,7 +52,7 @@ export const api = Object.freeze({
       "deliveryMode": "latest",
       "id": "todo-v2:ephemeral:todoPresence",
       "keyMode": "Connection",
-      "maxTtlMs": 60000,
+      "maxTtlMs": 30000,
       "maxValueBytes": 512,
       "name": "todoPresence",
       "routingFields": [
