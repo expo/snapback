@@ -1164,3 +1164,337 @@ The loop then resumed with the ratified standard in the reviewers' briefs, and
 findings dropped sharply and became precise. `/llp-super-refine` authorizes only
 the Draft→Review transition, and only on convergence; no reviewer accepts on the
 author's behalf.
+
+## Round 14 — 2026-07-14
+
+**Revision under review:** `llp/0056-scoped-roles-and-memberships.rfc.md`, sha256 `994f0cd51de2c03d7d7be541dfd21b92aa419936b28f31bf77c33d90f8f91a2a` (committed at repo HEAD `b11a6fa`)
+**Runtime detail:** workflow run wf_f4bfeeab-1c8, agent a1c4f6d9adfa7d44f, model claude-fable-5, reasoning effort max (explicit per-agent override); fresh context — no access to the orchestrating session, to archived reviews, or to the concurrent GPT-family round
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+All verifications are complete. I have what I need to write the review.
+
+# Review: LLP 0056 — Scoped roles and memberships (RFC, Status: Review)
+
+Reviewer: independent blind review (LLP 0005 loop). I read the full document including its revision history, the governing documents (LLP 0004, 0008, 0011, 0013, 0024, 0039, 0053, 0055), and verified the load-bearing claims against the shipped code.
+
+## 1. Overall assessment
+
+This is a very strong RFC — the strongest kind of "middle answer": roles as ordinary app data in a system-recognized shape, with the one thing an external library genuinely cannot deliver (revocation correctness through the sync layer) as the justification for building it in. The declared transition matrix is the right resolution of the write-surface problem the revision history documents, and the three captured aggregates (holder set, resource existence, roster emptiness) are correctly unified on machinery that actually exists and behaves as claimed — I verified the matcher and commit-time validation paths directly. The LLP 0053 mapping is exact, and its companion amendment is not a promise but a landed fact (LLP 0053 §Agent-auth protected-query inputs, ENG-24906). M1 has landed (commit b11a6fa) and matches the document's Implementation status paragraph closely, including the conservative M1 boundaries it names.
+
+Nearly every decisive claim I checked against code verified. The document's costs are owned honestly (coarse blast radius, online-only role gating, server-decides optimistic parity, expiry-does-not-bound-a-protected-role). What keeps it from "ready" is one specification gap at the heart of the new write contract: the transition grammar's omitted-`from`/`to` semantics are unpinned, and the two candidate readings differ in security posture. That is cheap to fix and squarely at this document's ratified altitude (design intent, not protocol mechanics).
+
+Verified-true claims worth recording (all checked this review):
+- `QueryPlan` is single-table; `ValueExpr` has no relationship/EXISTS form and exactly one auth variable (`AuthUserId`) — src/manifest.rs:2006-2014, 2136-2181.
+- HostPlan `Get` is a point read by id; `Guard` carries an app-supplied code; the generic write forms are exactly `Insert`/`Patch`/`Delete`/`DeleteWhere`/`InsertEach` — src/manifest.rs:2062-2112.
+- `CapturedReadKind::Permission` is ignored by both the matcher (src/live_matcher.rs:190) and commit-time captured-read validation (src/storage.rs:4851) — the pinned choice to ride ordinary Row/Query/MissingRow kinds is therefore load-bearing and correct.
+- The matcher gives captured dependencies precedence and can return "disjoint" without the static summary (src/live_matcher.rs:158-221) — the empty-result capture is exactly as load-bearing as the document claims.
+- Handler failure drops captured reads (src/runtime.rs:252-256 `?`-propagation before `invocation.reads` is consumed) — the denial-witness asymmetry the document pins is real.
+- Cron entries must be `Action` kind and must not be `authenticated` (src/cron.rs:953-987, `SNAPBACK_CRON_ACTION_KIND_MISMATCH`, `SNAPBACK_CRON_AUTH_REQUIREMENT_INVALID`); nested `ctx.runMutation` inherits authority (LLP 0039:287).
+- The codegen taxonomy line exists verbatim: "uniqueness/quota/membership guards over non-id keys" classified outgrown-IR (packages/snapback-codegen/define.mjs:530).
+- `--as-role` is 0024-specified (0024:318) and unbuilt in src/ — as claimed.
+- LLP 0055's side of every cross-reference (authorityCreating requires `provenance: "full"`, eligible-holder deactivation refusal, plane boundary) is present in 0055.
+- M1: `MembershipManifest` (manifest.rs:421-656), `FieldType::Principal` (667-684), `IndexManifest.unique` (686-700), reserved `self`/`none` and `:` separator (storage.rs:2976-3029), the `incidental` floor (storage.rs:3373-3384), and the fail-closed activation scan (storage.rs:3579+) all match the document.
+
+## 2. Strengths
+
+- **The transition matrix (§Writes) is a genuinely good design.** Declaration-level policy, closed by default, with disjoint totally-ordered caller classes and the userless-authority refusal makes the writer matrix's `adminBypass` row true by construction rather than assertion. The document's own account of how it got here (require-lists could not spell leave/accept/decline) is the right kind of design honesty.
+- **The three-aggregate linearization story (§Writes) is coherent and mechanically grounded.** `lastHolder`'s holder-set range capture, the insert's resource-row capture, and the delete's roster-emptiness capture all ride the one commit-validation mechanism that exists (storage.rs:4739-4855), and the document explicitly refuses the snapshot-read version that holds only under serial execution. The `[base]` concurrency fixtures test exactly the schedules that defeat the naive version.
+- **The eligible-holder refinement (§Writes) closed a real two-step stranding hole**, and the validation row (lines 1055-1063) encodes the adversarial schedule that defeated the row-counting draft — reviews rarely leave fixtures this sharp behind.
+- **The LLP 0053 mapping (§Invalidation) is exact, and its obligations are executed, not gestured at.** The dated amendment landed (0053 §Agent-auth protected-query inputs, lines 503-555) and says precisely what this RFC's companion-obligation section says it must. The `incidental` floor closes a real suppression hole and is already enforced in M1 (storage.rs:3373-3384).
+- **Costs are owned**: the coarse v1 blast radius with per-declaration measurement (§Invalidation "The v1 cost, owned"), online-only role-gated reads (§Non-Goals), server-decides optimistic parity (§Optimistic/offline parity), and — plainly stated — `expiry` does not bound a `lastHolder`-protected role (§Writes). This is the corpus posture at its best.
+- **The denial payload oracle analysis (§Rule helpers)** — invariant `{ kind: "role" }`, the existence-oracle reasoning for rejecting `callerState`, no application-returning read on the visibility-bypassing primitive, and the honest carve-out that timing indistinguishability is best-effort — is careful, correct security thinking.
+- **Cliff-naming in §Non-Goals** (cross-declaration authority unspellable in v1, with the future `by: ["appRoles:admin"]` spelling and the `:` reservation already paid for) means an adopting app meets the limitation in the document, not at authoring time.
+- **M1 (§What exists / Implementation status) matches reality**, including its two conservatively-enforced boundaries (row-counting holder check, direct `resourceTable` binding), which are named rather than hidden.
+
+## 3. Concerns
+
+**1. MATERIAL — The transition grammar's omitted-`from`/`to` semantics are unpinned, and the fail-open reading is available.**
+Evidence: §Writes defines the matrix as "(`op` × caller class × self/other × `from`→`to`)" and describes `from`/`to` only as "the old role (from the captured target row) and the new role (from the argument)". Every example transition spells `to` explicitly on `insert`/`setRole`, but nothing in the document states whether `to` is *required* there, what an omitted `from` means on `setRole`/`remove` (any current role?), whether `patch` may carry `from` to scope which rows are patchable, or whether meaningless combinations (`to` on `remove`, `from` on `insert`) are manifest errors. M1 models all four as optional (`MembershipTransition`, src/manifest.rs:550-556) and shape-validates only role/field membership (storage.rs:3387-3466) — no per-op admissibility or requiredness diagnostics exist, and the `[base]` validation rows never test omission. Under an "omission = any" M2 reading, `{ op: "insert", by: ["none"], target: "self" }` (an author who forgot `to`) becomes "anyone may self-seat at any declared role, including `host`" — a security-policy authoring trap in the exact shape this document elsewhere refuses ("a blessed idiom is not enforcement"; the document pins `fields` omission fail-closed for `insert`/`patch` but is silent on `from`/`to`, an asymmetry that invites the permissive reading). This is design intent, not deferred protocol mechanics: it changes what a declared policy *means*.
+Resolution criterion: the document pins per-op admissible and required transition fields and the omission semantics, fail-closed (e.g. `to` required on `insert`/`setRole`; `from` optional-meaning-any stated explicitly, or required; `to` on `remove` and `from`/`to` on `patch` either given meaning or made manifest errors), plus one `[base]` validation row covering the omitted-`to` insert.
+
+**2. MINOR — The mandatory resource-row capture on every insert creates a false-conflict cost the document does not own.**
+Evidence: §Writes pins "the host reads the referenced resource row in the same transaction and captures it as a snapshot-bound dependency". The only shipped presence-checking capture kinds are `Row` (version-checked: any update invalidates, storage.rs:4747-4772) and `MissingRow` (absence-checked). A `Row`-kind capture means every membership insert conflicts with any concurrent *update* to the resource row — not just its deletion. Join-heavy moments are exactly when hosts also edit the resource (lobby settings, event details), so open-join storms will take spurious commit-time conflicts proportional to edit rate, and I found no automatic mutation-retry machinery (retries in src/local.rs are explicit/manual). Correctness is unaffected — this is liveness/throughput — but a document this diligent about owning costs (blast radius, expiry/lastHolder) should own this one too, especially since the capture is mandated, not app-chosen. Notably, `MissingRow` validation already demonstrates a current-state (non-version) check (storage.rs:4774-4797), so an existence-only "row present" dependency — invalidating on delete, not on update — is a cheap, precise future refinement that preserves the insert-vs-teardown linearization.
+Resolution criterion: a sentence in §Writes owning the update-vs-insert false-conflict cost (and the client retry expectation under LLP 0004), and either pinning that the resource capture is semantically existence-only (finer kind permitted when it exists) or naming the existence-scoped dependency as follow-on.
+
+**3. MINOR — The global-roles first-holder story is missing: `scope: "app"` has no bootstrap path through the matrix, and the document never says so.**
+Evidence: §Global roles and §Writes together imply it — the app singleton "has no creation event to anchor establishment on" (stated for `lastHolder`), so the creation witness can never mint for an app-scoped declaration, and any `by: ["none"]` self-seat transition would let *every* authenticated principal become `admin`, not just the first. The only viable seating paths for the first global admin are the privileged non-invocation writers (seed / admin edits / `--as-membership`), but no sentence states this, and `bootstrapRole` on a `scope: "app"` declaration — dead policy by construction — is not named a manifest diagnostic, though the document's own posture is "Declaring a transition whose `by` class cannot be reached is a manifest diagnostic" (§Writes).
+Resolution criterion: §Global roles states the first-holder seating path explicitly (privileged writers; no witness exists for the singleton), and `bootstrapRole` on `scope: "app"` is pinned as a manifest diagnostic (or given a meaning).
+
+**4. MINOR — The provenance fill rule and the import-preservation rule read as contradictory.**
+Evidence: §Agents (lines 938-947): "Fill rules per writer class: … the tags `seed`, `import`, or `hostOps:<verb>` for the privileged non-invocation writers" is immediately followed by "**Import preserves** exported provenance values". Which rows get the `import` tag and which keep exported values is left to inference (presumably: preserve when the export carries values, tag when creating rows without provenance data), and whether imported rows produce `provenance: "full"` transition-log entries is unstated. Provenance is load-bearing for LLP 0055's `authorityCreating` audit story, so the ambiguity is worth a sentence.
+Resolution criterion: one clarifying sentence distinguishing import-of-exported-provenance (preserve) from import-created rows (tag), and pinning whether import writes transition-log rows.
+
+**5. MINOR — Holder eligibility is defined solely via LLP 0055 `deactivated_at`, so any future human-principal ending state silently reopens the stranding gap.**
+Evidence: §Writes: "a holder whose principal is not permanently deactivated (LLP 0055 `deactivated_at`)". LLP 0055 owns *agent* lifecycle; the auth specs (0057-0060) are growing the human-account surface, and a later human account-closure state would not join this predicate — recreating, for humans, exactly the two-step schedule the eligible-holder refinement closed for agents. The roster-hygiene open question gestures nearby but is about sweeping rows, not about the eligibility predicate's extensibility.
+Resolution criterion: eligibility is defined extensibly ("any corpus-defined permanently-ended principal state joins the ineligibility predicate; today that is exactly LLP 0055 `deactivated_at`"), or the open question explicitly names future human account closure as joining it.
+
+**6. EDITORIAL — Internal bookkeeping inconsistencies in the header and §Status.**
+Evidence: the header (line 8) says "refined through ten dual-family review rounds"; §Status says "thirteen dual-family review rounds … all twenty-two reviews" (thirteen rounds with both families each round would be twenty-six), and "the current revision incorporates the round-12 findings" alongside thirteen claimed rounds. Also `Revised: 2026-07-13` while the body records 2026-07-14 events (M1 via ENG-24907; the 0053 amendment via ENG-24906). For a document whose subject is precision about counts and witnesses, the metadata should agree with itself.
+Resolution criterion: one consistent round/review count in header and §Status, and a `Revised` date no older than the newest dated statement in the body.
+
+**7. EDITORIAL — "What exists, what this adds" is stale post-M1.**
+Evidence: §What exists says "As shipped today: … `TableManifest` carries no membership metadata and `IndexManifest` no uniqueness flag", which commit b11a6fa (2026-07-14) made false; the correction arrives only via the Implementation-status paragraph below. Two clauses of the baseline should be re-dated ("as shipped before this RFC's implementation began") or moved to the landed column. Similarly, "confusable near-duplicates are linted" (§Declaring) understates the implementation, which refuses them as a typed error (`SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES`) — the safe direction, but this corpus uses "lint" vs. "typed error" deliberately.
+Resolution criterion: baseline clauses re-dated and "linted" aligned with the enforced severity.
+
+## 4. Suggestions
+
+- **Pin the per-op transition grammar as a table** (op × {by, target, from, to, fields} × required/optional/forbidden). It resolves Concern 1 in the document's own idiom and gives M2 a checklist instead of a judgment call.
+- **Name an existence-only captured-read kind** (the symmetric twin of `MissingRow`'s current-state check) as the intended future representation of the insert's resource dependency and possibly the delete's emptiness read — Concern 2's cost then has a designed exit.
+- **Add a policy-reachability lint over the matrix.** The matrix is finite, so "which roles are reachable at all" is decidable: a role with no inbound transition, no `bootstrapRole`, and no privileged-writer intent is dead vocabulary, and `bootstrapRole` on `scope: "app"` is one instance of the same class. The document already commits to the narrower `by`-class-unreachable diagnostic; generalizing it is cheap and matches the corpus's authoring-failure posture (`SNAPBACK_CRON_ACTION_KIND_MISMATCH` precedent, which §Writes itself cites).
+- **Restrict `lastHolder.protect` and `bootstrapRole` to non-pending roles.** A protected or bootstrap-seated *pending* role is almost certainly an authoring error (the creation witness would seat the creator as invited-but-not-a-member; `memberOf` would exclude the one guaranteed holder). M1 currently validates only vocabulary membership.
+- **State the retry guidance for the two conflict shapes.** The `lastHolder` race loser and the insert-vs-resource-edit loser both surface as commit-time refusals, but one is terminal-after-retry (the re-run hits the real `lastHolder` refusal) and the other is purely transient. A sentence telling kit authors "retry conflicts; the policy refusal is what survives retry" turns the pinned linearization into client behavior.
+
+## 5. Open questions
+
+- What do omitted `from`/`to` mean, per op? (Concern 1 — should be answered in-document, not left to M2.)
+- Should a blessed *product* path exist for seating the first app-global admin (the self-hosted "first signup becomes owner" pattern), or is privileged seeding the permanent answer? Worth adding to §Open Questions alongside multi-role.
+- Does LLP 0004's client contract give membership joins acceptable liveness on hot resources without an existence-only capture kind, and should that kind land with M2 rather than later?
+- When the auth specs grow human account closure, does that state join `lastHolder` eligibility automatically (Concern 5), and who owns asserting it from the other side, as LLP 0055 does for agents?
+- Under `provenance: "full"`, do privileged non-invocation writes (seed/import/hostOps) append transition-log rows, or only invocation-gated and sweep writes? (The log's value as the `authorityCreating` audit substrate argues for "all writers".)
+
+## 6. Readiness verdict
+
+The proposal is a good idea, the plan is sound, the costs are owned, and the code-facing claims are accurate — this is one of the most verification-friendly RFCs in the corpus, and everything decisive I checked held up. But the central new contract — the declared transition matrix — has one unpinned dimension (omitted-`from`/`to` semantics, Concern 1) whose permissive reading is a self-seat escalation trap, and by this document's own "closed by default, a blessed idiom is not enforcement" standard that gap is a MATERIAL decision-quality concern, not polish. It is a one-paragraph fix plus one validation row. Concerns 2-5 are non-blocking; 6-7 are hygiene.
+
+READINESS VERDICT: NOT READY
+
+### Orchestrator disposition (round 14, outside the verbatim body)
+
+Spot-checks: the review's verified-claims list was accepted as stated (its
+code citations match the round-14 codex verification set where they overlap);
+the header/§Status count inconsistency and the stale baseline clauses were
+confirmed by inspection.
+
+Disposition: concern 1 (MATERIAL) addressed by the normative per-op grammar
+table in §Writes with fail-closed omission semantics and the omitted-`to`
+load-time refusal validation row; concern 2 by owning the insert
+resource-capture false-conflict cost, pinning existence-only semantics with
+the `MissingRow`-twin refinement named, and adding the one-sentence retry
+guidance; concern 3 by the §Global roles first-holder paragraph and the
+`bootstrapRole`-on-app manifest error; concern 4 by the provenance
+fill/preserve composition rule and the every-writer-appends log pin;
+concern 5 by the extensible ineligibility predicate (any corpus-defined
+permanently-ended principal state, symmetric assertion owed by the defining
+document); concerns 6-7 by the header/§Status/baseline/confusable-wording
+corrections.
+
+## Round 15 — 2026-07-14
+
+**Revision under review:** `llp/0056-scoped-roles-and-memberships.rfc.md`, sha256 `5c26d24204232f9f4dea979c78cb17a86d017f91f6077fab30e6a23eb6c4c8e7` (round-14 working-tree revision; repo HEAD `b11a6fa`)
+**Runtime detail:** fresh Claude Code workflow subagent (run wf_b0c4085b-769), model claude-fable-5, reasoning effort max (explicit per-agent override); fresh context, blind to all archived reviews and to the concurrent GPT-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+All verification is complete. I now have a full picture of the document against the code and corpus. Here is my review.
+
+---
+
+# LLP 0056 Review — Scoped Roles and Memberships (round 15, fresh/blind)
+
+**Reviewer:** Claude (Fable 5), independent LLP 0005 review loop pass. Blind to all prior reviews; verified against the working tree at `b11a6fa` (which is itself the M1 commit, `feat(auth): implement the LLP 0056 membership schema surface`).
+
+## 1. Overall assessment
+
+This is a strong RFC, and an unusually honest one. The core call — roles are app data in a system-recognized shape, built into Snapback specifically because revocation correctness requires owning the sync layer — is the right answer to LLP 0011's open question (verified at `llp/0011-auth-and-permissions.rfc.md:397`), and the document earns it rather than asserting it. The write surface (declaration-level transition matrix, closed by default, host-derived caller classes) is the best part of the design: it visibly emerged from three failed alternatives that the document keeps on the record, and the per-op grammar table closes the omission-semantics holes those failures exposed.
+
+I verified the load-bearing claims against the code, and they check out with unusual fidelity — including the document's claims *against itself* (the M1 gaps it confesses are real, in exactly the places it says). The `CapturedReadKind::Permission` trap is verified dead in both consumers (`src/live_matcher.rs:190`, `src/storage.rs:4859`); the captured-Query short-circuit that makes the empty-result capture load-bearing is real (`src/live_matcher.rs:193-220`); the shipped activation scan really does run pre-DDL/pre-seed in the staged path (`src/storage/auth_mode.rs:506` precedes DDL at 507-515 and seed at 518+), really does skip an absent membership table (`src/storage.rs:3588-3591`), and really does silently skip referential integrity and the `lastHolder` check when `resourceTable` is unresolvable (`src/storage.rs:3697-3700`) — all three exactly as the round-14 M1-completion obligations state. The LLP 0053 amendment the RFC names as landed exists and classifies precisely the two inputs claimed (`llp/0053-authorization-invalidation.rfc.md:503-557`). LLP 0055's `authorityCreating`-requires-`provenance: "full"` and the eligible-holder deactivation refusal are mutually referenced and consistent (`llp/0055:206-221, 1288`).
+
+One genuine definitional gap remains in a load-bearing invariant (the "principal catalog" existence leg of `lastHolder` eligibility), plus a handful of minor accuracy and completeness items. The MATERIAL concern is cheap to fix — a definitional paragraph — but it sits under the document's flagship invariant and under [base] acceptance fixtures, so it should be fixed before Accepted.
+
+## 2. Strengths
+
+1. **The transition matrix is the right shape, and its derivation is preserved** (§Writes). Caller-supplied `require` lists could not express leave/accept/decline; the declared matrix with disjoint, totally ordered caller classes (`self` > declared role > `none`) can, and the "authority with no effective principal matches no class" rule is what makes the `adminBypass` and open-join rows true rather than asserted. The per-op grammar table (§Writes) turns omission semantics from an inference into a specification.
+2. **Race-consciousness is systematic, not incidental** (§Writes). All three aggregates — holder set, resource existence, roster emptiness — are pinned as captured snapshot-bound dependencies validated at commit, riding machinery I verified exists (query-dependency capture and commit-time read-set validation, `src/live_matcher.rs:223-229`, LLP 0004 §Write Semantics). The two-legged lifecycle capture that linearizes deactivate-A ∥ remove-B in both commit orders is a genuinely subtle fix, stated with its adversarial schedule.
+3. **Shipped-vs-obliged discipline** (§What exists / Implementation status). The document names M1's four completion obligations and I verified each against code: the wire shape does model every transition field optional and check only vocabulary (`src/manifest.rs:544-557`, `src/storage.rs:3397-3474`); the scan ordering, absent-table skip, and `resourceTable` optionality are all as confessed. Most RFCs overclaim; this one's error bars are calibrated.
+4. **The invalidation mapping is exact** (§Invalidation). Membership declaration = `permissionBacking`, every committed write = event 1, the `incidental` floor closing the role-column suppression hole, and the coarse v1 blast radius owned with per-declaration measurement required. The empty-result capture requirement is justified by a verified shipped fact (the matcher's captured-Query disjointness proof) rather than by hand-waving.
+5. **Oracle discipline** (§Rule helpers, Validation Requirements). The invariant `{ kind: "role" }` denial payload, the refusal to ship an application-returning membership read, and the explicit demotion of timing indistinguishability to best-effort are the right calls, each with its reasoning attached.
+6. **The witness pair** (§Writes, §Global roles). Creation witness → bootstrap, deletion witness → teardown resolves the `lastHolder`/deletion deadlock symmetrically; bootstrap bound to creation rather than emptiness kills the revival hazard with an argument that is now self-contained (no borrowed id-reuse invariant). The app-singleton's *lack* of a creation event is then honestly traced to the first-global-admin consequence rather than papered over.
+7. **Cross-document composition is real, not aspirational.** The 0053 amendment is landed and says what the companion obligation claims; 0055's marker and this RFC's `provenance: "full"` reference each other correctly; the 0039 pins (roles `[]`, `adminBypass` anonymous projection, `runMutation` authority inheritance) all verify (`llp/0039:266-270, 287, 1411-1412, 1745`).
+
+## 3. Concerns
+
+**Concern 1 — MATERIAL. The eligibility predicate's existence leg references an undefined "principal catalog," and the [base] fixtures that depend on it run in a mode where no such catalog exists.**
+Evidence: §Writes pins the eligible holder as one "whose principal **exists in the principal catalog** and is not permanently ended," and requires protected-role seating to "read the seated principal's lifecycle row in the same transaction." The term "principal catalog" appears nowhere else in the corpus (grep over `llp/*.md`: only 0056:495). The "ended" leg is defined extensibly with today's referent (LLP 0055 `deactivated_at`); the existence leg has no stated referent. For agent principals, LLP 0055's protected records serve; for human principals, `_auth_users` exists only under sessions mode (`llp/0039:593-595`), and under **dev impersonation** principals are client-asserted strings with no store at all. Yet the Validation Requirements mark the eligibility fixtures `[base]` — "runs under dev impersonation or finite sessions" — including "seating a **nonexistent** principal id into the protected role is refused." Under dev impersonation, either *every* id is nonexistent (protected-role seating, i.e. every invite-to-host in the default authoring loop, always refuses) or every id exists by fiat (the fixture is unwritable). M2 cannot implement the existence leg for human principals without inventing the answer, and the dev-loop ergonomics of the flagship invariant hinge on it.
+Resolution criterion: a definitional paragraph pinning the catalog as the union of corpus-defined principal stores (`_auth_users` for humans under sessions; LLP 0055 agent records; extensible the same way the "ended" leg is), with the dev-impersonation answer stated explicitly (e.g., existence is satisfied by dev fiat, or dev seeding is required), and the [base] fixture row updated to match.
+
+**Concern 2 — MINOR. The capability-gate paragraph describes a mitigation that does not exist yet, in present tense, while the fail-open window is live.**
+Evidence: §Implementation status says "The M1 acceptance fixtures exercise the validator through an explicit dev-profile-only override that production profiles do not carry." No gate and no override exist anywhere in the code (no membership capability diagnostic; `tests/membership_schema_v0.rs` contains no override; the sessions-mode staged deployment path at `src/storage/auth_mode.rs:470-515` accepts a `.membership()` manifest today with schema validation only). So a production-profile activation is *not* refused today — an app could declare `lastHolder` now and have ordinary writes strand the resource, the exact hazard the paragraph itself names. The document does disclose this (the gate is one of the four round-14 M1-completion obligations "due before M2"), so the design and scheduling are honest; the defect is that one load-bearing sentence asserts current fact that is false, in the paragraph a safety-focused reader is most likely to read alone.
+Resolution criterion: retense the fixtures sentence to an obligation ("will exercise…"), and add one plain sentence that nothing refuses production activation today, making the gate first among the M1-completion items.
+
+**Concern 3 — MINOR. Pending roles as caller classes are underspecified, and the two definitions in the document pull in opposite directions.**
+Evidence: the class-assignment rule (§Writes) defines class 2 as "a declared role — the caller's own role over the target row's resource" and `"none"` as a principal "who holds no membership for that resource"; §Rule helpers separately states "an invited-but-not-accepted principal is not a member." For a caller holding a *pending* role, these support two readings: their class is their pending role (they hold a row), or `"none"` (they are "not a member"). The shipped M1 validation accepts pending roles in `by` (`src/storage.rs:3400` checks `by` against the full vocabulary, roles ∪ pendingRoles), which implies the first reading, but the document never says so — and the per-op grammar table says only "declared roles." Whether an invited principal matches an app's `by: ["none"]` transitions is an authorization-semantics question, in the one rule the document claims is total and disjoint.
+Resolution criterion: one sentence pinning class assignment for pending-role holders (e.g., "a pending role is a caller class like any declared role; a holder of any row — pending or not — is never class `none`"), plus whether `by` may name pending roles.
+
+**Concern 4 — MINOR. The expiry field-type manifest error is pinned but unenforced, and it is missing from the M1-completion list.**
+Evidence: §Writes pins `expiry.field` as "an optional epoch-milliseconds timestamp column … declaring any other column type is a manifest error," and the Implementation-status paragraph claims M1 landed "the … `expiry` … declaration validation." The shipped validation checks only field-exists, non-axis, and `onExpiry == "remove"` (`src/storage.rs:3328-3365`) — no type check, no optionality check. Unlike the four named round-14 obligations, this gap is undisclosed; a reader of the Implementation-status paragraph would believe the type refusal exists.
+Resolution criterion: add it to the named M1-completion obligations (or land the check), so the shipped/obliged ledger is complete.
+
+**Concern 5 — MINOR. The rename-without-pinned-id diagnostic is called "load-bearing now, not later," but it is unbuilt and on no obligation list.**
+Evidence: §Declaring states "a table rename without a pinned id is a manifest diagnostic" and argues that, until the M5 binding registry exists, "continuity rests on explicitly pinned `id:`s — which is why the rename-without-pinned-id diagnostic is load-bearing now, not later." No such diagnostic exists in the code (grep over `src/` for membership rename: none; the M1 commit message lists id *collisions* only). Detection is implementable now (the previous active manifest is durably stored at activation), but nothing schedules it.
+Resolution criterion: either add it to the M1-completion list or mark it with the milestone that owns it.
+
+**Concern 6 — MINOR. HostPlan cannot delete a membership-backed resource in v1, and the document never says so.**
+Evidence: §Writes refuses a resource-row delete while memberships remain, and teardown requires `clearForResource()` — a membership write. The writer matrix refuses every generic HostPlan write form against membership tables, so a HostPlan `Delete`/`DeleteWhere` on the *resource* table (all forms verified present, `src/manifest.rs:2062-2112`) hits the emptiness refusal with no way to clear the roster. Consequence: membership-backed resources are Ibex-mutation-only to delete in v1. The document names the analogous cliff for cross-declaration authority "so an adopting app meets this cliff in the document rather than at authoring time" (§Non-Goals) — this cliff deserves the same sentence.
+Resolution criterion: one sentence in §Non-Goals or §Writes naming the consequence.
+
+**Concern 7 — EDITORIAL. The `fields`-coverage rule should exempt host-filled columns.**
+Evidence: §Writes: "that same matched transition's `fields` covers **every** written non-axis, non-role column." Under `provenance: "creation"`/`"full"`, inserts host-fill `grantedBy*` columns (§Agents), which are written non-axis, non-role columns no transition names. The intended rule is clearly "every **caller-written** column."
+Resolution criterion: insert "caller-written."
+
+**Concern 8 — EDITORIAL. The Related header is incomplete.**
+Evidence: the text and companion obligations lean on LLP 0012 (diagnostics registrations), LLP 0019 (F8 audit substrate, twice), and LLP 0057–0060 (the growing human account-closure state in the eligibility predicate); the mutation-IR constraints trace to LLP 0051 D2 (`src/manifest.rs:2052-2060`). None appears in **Related**.
+Resolution criterion: add them.
+
+**Concern 9 — EDITORIAL. "Enforced conservatively" misdescribes the M1 `lastHolder` scan.**
+Evidence: Implementation status says the two M1 boundaries are "enforced conservatively rather than guessed," but row-counting is *laxer* than the pinned eligible-holder predicate (it admits states the real check refuses); it is only vacuously equivalent today because no deactivation state exists yet. The sequencing claim ("lands with the LLP 0055 principal machinery") is the actual load-bearing statement and is fine.
+Resolution criterion: reword ("under-enforced pending LLP 0055" or similar).
+
+## 4. Suggestions
+
+- Fix Concern 1 with an extensible definition mirroring the "permanently ended" leg — it is the same move the document already made once, and it will absorb LLP 0057–0060's human account store the same way.
+- Emit a **per-declaration transition diagram** (states = roles + "absent", edges = declared transitions labeled with `by`/`target`) from codegen or doctor. The matrix is the most author-facing surface in the RFC; dead policy and missing self-transitions (the leave/decline class of bug) are visible at a glance in a diagram and invisible in a list. Cheap, and it operationalizes the load-time reachability refusals.
+- For the first-app-admin open question: the app singleton *does* have one creation-shaped event — the activation that first introduces the declaration. A one-shot, activation-anchored seat capability (spendable by a deployment-config-designated principal or the first authenticated principal, at the app's choice) would preserve the witness symmetry (creation → bootstrap) without emptiness-bound authority, which the document rightly rejects. Worth naming as a candidate answer.
+- Route the sweep's expired-but-protected skip diagnostic through LLP 0028's cron run records, not only doctor — a cron-driven condition that only a doctor invocation can observe will be missed by exactly the unattended deployments that hit it.
+- Consider whether the generated `insert` should auto-retry once on commit-conflict before surfacing, given the owned insert-vs-resource-edit false-conflict cost; "retry commit-conflict refusals" as kit guidance pushes a host-known-safe retry onto every app author.
+
+## 5. Open questions
+
+Beyond the document's own list (which is good):
+
+1. What store constitutes the principal catalog per auth mode, and what does the existence leg mean under dev impersonation? (Concern 1 — the one that must be answered.)
+2. May `by` name a pending role, and what class is a pending-role holder? (Concern 3.)
+3. Must the LLP 0013 room-binding milestone be explicitly sequenced after the M5 binding registry, given the "no durable consumer before the registry" rule — or is a room binding not "durable" in the registry's sense?
+4. Does the expiry sweep's skip diagnostic have a durable, unattended-visible surface (cron records? admin console), or only doctor?
+5. When the existence-scoped captured-read kind (the `MissingRow` twin) lands with the semi-join follow-on, do the three captured aggregates all migrate to it, or only the insert's resource read? The `lastHolder` holder-set range and roster-emptiness reads have the same existence-only semantics and the same false-conflict cost.
+
+## 6. Readiness verdict
+
+The design is sound, the failure history is preserved, and nearly every decisive claim — including the document's confessions about its own implementation gaps — verifies against the code. But one MATERIAL concern remains: the `lastHolder` eligibility predicate's existence leg rests on an undefined term ("principal catalog") with no referent in the mode where its own [base] acceptance fixtures run, which leaves the flagship invariant unimplementable-as-written for human principals and its dev-loop behavior unanswerable. That is a definitional-paragraph fix, and with it (plus the tense correction in the capability-gate paragraph) I would expect the next pass to be ready.
+
+READINESS VERDICT: NOT READY
+### Orchestrator disposition (round 15, outside the verbatim body)
+
+Spot-checks confirmed the review's code citations (auth-mode staged path schema-
+validation-only; expiry validation lacks type/optionality; G1 eligibility).
+
+Disposition: Concern 1 (MATERIAL — "principal catalog" existence leg) → eligibility
+redefined to not-permanently-ended (matching 0055/G1), the invented term removed,
+dev-impersonation existence-by-fiat stated, and the [base] fixture claim about
+refusing a nonexistent principal narrowed to permanently-ended (a never-existed id
+is roster hygiene); Concern 2 (capability-gate present tense) → retensed, fail-open-
+today stated plainly, gate made first M1-completion obligation; Concern 3 (pending-
+role class) → pinned (a pending holder is class 2, never `none`; `by` may name
+pending roles); Concern 4 (expiry field-type) → added to M1-completion list; Concern
+5 (rename diagnostic) → added to M1-completion list; Concern 6 (HostPlan resource-
+delete cliff) → named; Concerns 7-9 (fields caller-written, Related header,
+"conservatively" wording) → all applied. Suggestions (transition diagram from doctor,
+activation-anchored first-admin seat, cron-record skip diagnostic) recorded for the
+implementer and the open first-admin question.
+
+## Round 16 — 2026-07-14
+
+**Revision under review:** `llp/0056-scoped-roles-and-memberships.rfc.md`, sha256 `93cfb016f02651996c977ae3714dbe773f3c2c9b1ebccf8e48f8a3bd9e8f5258` (round-15 revision; repo HEAD `b11a6fa`)
+**Runtime detail:** fresh Claude Code workflow subagent (run wf_f6f8d027-9c9), model claude-fable-5, reasoning effort max (explicit per-agent override); fresh context, blind to all archived reviews and to the concurrent GPT-family round; orchestrated by /llp-super-refine
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+All verification is complete. I now have a full picture of the document against the code and corpus. Here is my review.
+
+---
+
+# LLP 0056 Review — Scoped Roles and Memberships (round 15, fresh/blind)
+
+**Reviewer:** Claude (Fable 5), independent LLP 0005 review loop pass. Blind to all prior reviews; verified against the working tree at `b11a6fa` (which is itself the M1 commit, `feat(auth): implement the LLP 0056 membership schema surface`).
+
+## 1. Overall assessment
+
+This is a strong RFC, and an unusually honest one. The core call — roles are app data in a system-recognized shape, built into Snapback specifically because revocation correctness requires owning the sync layer — is the right answer to LLP 0011's open question (verified at `llp/0011-auth-and-permissions.rfc.md:397`), and the document earns it rather than asserting it. The write surface (declaration-level transition matrix, closed by default, host-derived caller classes) is the best part of the design: it visibly emerged from three failed alternatives that the document keeps on the record, and the per-op grammar table closes the omission-semantics holes those failures exposed.
+
+I verified the load-bearing claims against the code, and they check out with unusual fidelity — including the document's claims *against itself* (the M1 gaps it confesses are real, in exactly the places it says). The `CapturedReadKind::Permission` trap is verified dead in both consumers (`src/live_matcher.rs:190`, `src/storage.rs:4859`); the captured-Query short-circuit that makes the empty-result capture load-bearing is real (`src/live_matcher.rs:193-220`); the shipped activation scan really does run pre-DDL/pre-seed in the staged path (`src/storage/auth_mode.rs:506` precedes DDL at 507-515 and seed at 518+), really does skip an absent membership table (`src/storage.rs:3588-3591`), and really does silently skip referential integrity and the `lastHolder` check when `resourceTable` is unresolvable (`src/storage.rs:3697-3700`) — all three exactly as the round-14 M1-completion obligations state. The LLP 0053 amendment the RFC names as landed exists and classifies precisely the two inputs claimed (`llp/0053-authorization-invalidation.rfc.md:503-557`). LLP 0055's `authorityCreating`-requires-`provenance: "full"` and the eligible-holder deactivation refusal are mutually referenced and consistent (`llp/0055:206-221, 1288`).
+
+One genuine definitional gap remains in a load-bearing invariant (the "principal catalog" existence leg of `lastHolder` eligibility), plus a handful of minor accuracy and completeness items. The MATERIAL concern is cheap to fix — a definitional paragraph — but it sits under the document's flagship invariant and under [base] acceptance fixtures, so it should be fixed before Accepted.
+
+## 2. Strengths
+
+1. **The transition matrix is the right shape, and its derivation is preserved** (§Writes). Caller-supplied `require` lists could not express leave/accept/decline; the declared matrix with disjoint, totally ordered caller classes (`self` > declared role > `none`) can, and the "authority with no effective principal matches no class" rule is what makes the `adminBypass` and open-join rows true rather than asserted. The per-op grammar table (§Writes) turns omission semantics from an inference into a specification.
+2. **Race-consciousness is systematic, not incidental** (§Writes). All three aggregates — holder set, resource existence, roster emptiness — are pinned as captured snapshot-bound dependencies validated at commit, riding machinery I verified exists (query-dependency capture and commit-time read-set validation, `src/live_matcher.rs:223-229`, LLP 0004 §Write Semantics). The two-legged lifecycle capture that linearizes deactivate-A ∥ remove-B in both commit orders is a genuinely subtle fix, stated with its adversarial schedule.
+3. **Shipped-vs-obliged discipline** (§What exists / Implementation status). The document names M1's four completion obligations and I verified each against code: the wire shape does model every transition field optional and check only vocabulary (`src/manifest.rs:544-557`, `src/storage.rs:3397-3474`); the scan ordering, absent-table skip, and `resourceTable` optionality are all as confessed. Most RFCs overclaim; this one's error bars are calibrated.
+4. **The invalidation mapping is exact** (§Invalidation). Membership declaration = `permissionBacking`, every committed write = event 1, the `incidental` floor closing the role-column suppression hole, and the coarse v1 blast radius owned with per-declaration measurement required. The empty-result capture requirement is justified by a verified shipped fact (the matcher's captured-Query disjointness proof) rather than by hand-waving.
+5. **Oracle discipline** (§Rule helpers, Validation Requirements). The invariant `{ kind: "role" }` denial payload, the refusal to ship an application-returning membership read, and the explicit demotion of timing indistinguishability to best-effort are the right calls, each with its reasoning attached.
+6. **The witness pair** (§Writes, §Global roles). Creation witness → bootstrap, deletion witness → teardown resolves the `lastHolder`/deletion deadlock symmetrically; bootstrap bound to creation rather than emptiness kills the revival hazard with an argument that is now self-contained (no borrowed id-reuse invariant). The app-singleton's *lack* of a creation event is then honestly traced to the first-global-admin consequence rather than papered over.
+7. **Cross-document composition is real, not aspirational.** The 0053 amendment is landed and says what the companion obligation claims; 0055's marker and this RFC's `provenance: "full"` reference each other correctly; the 0039 pins (roles `[]`, `adminBypass` anonymous projection, `runMutation` authority inheritance) all verify (`llp/0039:266-270, 287, 1411-1412, 1745`).
+
+## 3. Concerns
+
+**Concern 1 — MATERIAL. The eligibility predicate's existence leg references an undefined "principal catalog," and the [base] fixtures that depend on it run in a mode where no such catalog exists.**
+Evidence: §Writes pins the eligible holder as one "whose principal **exists in the principal catalog** and is not permanently ended," and requires protected-role seating to "read the seated principal's lifecycle row in the same transaction." The term "principal catalog" appears nowhere else in the corpus (grep over `llp/*.md`: only 0056:495). The "ended" leg is defined extensibly with today's referent (LLP 0055 `deactivated_at`); the existence leg has no stated referent. For agent principals, LLP 0055's protected records serve; for human principals, `_auth_users` exists only under sessions mode (`llp/0039:593-595`), and under **dev impersonation** principals are client-asserted strings with no store at all. Yet the Validation Requirements mark the eligibility fixtures `[base]` — "runs under dev impersonation or finite sessions" — including "seating a **nonexistent** principal id into the protected role is refused." Under dev impersonation, either *every* id is nonexistent (protected-role seating, i.e. every invite-to-host in the default authoring loop, always refuses) or every id exists by fiat (the fixture is unwritable). M2 cannot implement the existence leg for human principals without inventing the answer, and the dev-loop ergonomics of the flagship invariant hinge on it.
+Resolution criterion: a definitional paragraph pinning the catalog as the union of corpus-defined principal stores (`_auth_users` for humans under sessions; LLP 0055 agent records; extensible the same way the "ended" leg is), with the dev-impersonation answer stated explicitly (e.g., existence is satisfied by dev fiat, or dev seeding is required), and the [base] fixture row updated to match.
+
+**Concern 2 — MINOR. The capability-gate paragraph describes a mitigation that does not exist yet, in present tense, while the fail-open window is live.**
+Evidence: §Implementation status says "The M1 acceptance fixtures exercise the validator through an explicit dev-profile-only override that production profiles do not carry." No gate and no override exist anywhere in the code (no membership capability diagnostic; `tests/membership_schema_v0.rs` contains no override; the sessions-mode staged deployment path at `src/storage/auth_mode.rs:470-515` accepts a `.membership()` manifest today with schema validation only). So a production-profile activation is *not* refused today — an app could declare `lastHolder` now and have ordinary writes strand the resource, the exact hazard the paragraph itself names. The document does disclose this (the gate is one of the four round-14 M1-completion obligations "due before M2"), so the design and scheduling are honest; the defect is that one load-bearing sentence asserts current fact that is false, in the paragraph a safety-focused reader is most likely to read alone.
+Resolution criterion: retense the fixtures sentence to an obligation ("will exercise…"), and add one plain sentence that nothing refuses production activation today, making the gate first among the M1-completion items.
+
+**Concern 3 — MINOR. Pending roles as caller classes are underspecified, and the two definitions in the document pull in opposite directions.**
+Evidence: the class-assignment rule (§Writes) defines class 2 as "a declared role — the caller's own role over the target row's resource" and `"none"` as a principal "who holds no membership for that resource"; §Rule helpers separately states "an invited-but-not-accepted principal is not a member." For a caller holding a *pending* role, these support two readings: their class is their pending role (they hold a row), or `"none"` (they are "not a member"). The shipped M1 validation accepts pending roles in `by` (`src/storage.rs:3400` checks `by` against the full vocabulary, roles ∪ pendingRoles), which implies the first reading, but the document never says so — and the per-op grammar table says only "declared roles." Whether an invited principal matches an app's `by: ["none"]` transitions is an authorization-semantics question, in the one rule the document claims is total and disjoint.
+Resolution criterion: one sentence pinning class assignment for pending-role holders (e.g., "a pending role is a caller class like any declared role; a holder of any row — pending or not — is never class `none`"), plus whether `by` may name pending roles.
+
+**Concern 4 — MINOR. The expiry field-type manifest error is pinned but unenforced, and it is missing from the M1-completion list.**
+Evidence: §Writes pins `expiry.field` as "an optional epoch-milliseconds timestamp column … declaring any other column type is a manifest error," and the Implementation-status paragraph claims M1 landed "the … `expiry` … declaration validation." The shipped validation checks only field-exists, non-axis, and `onExpiry == "remove"` (`src/storage.rs:3328-3365`) — no type check, no optionality check. Unlike the four named round-14 obligations, this gap is undisclosed; a reader of the Implementation-status paragraph would believe the type refusal exists.
+Resolution criterion: add it to the named M1-completion obligations (or land the check), so the shipped/obliged ledger is complete.
+
+**Concern 5 — MINOR. The rename-without-pinned-id diagnostic is called "load-bearing now, not later," but it is unbuilt and on no obligation list.**
+Evidence: §Declaring states "a table rename without a pinned id is a manifest diagnostic" and argues that, until the M5 binding registry exists, "continuity rests on explicitly pinned `id:`s — which is why the rename-without-pinned-id diagnostic is load-bearing now, not later." No such diagnostic exists in the code (grep over `src/` for membership rename: none; the M1 commit message lists id *collisions* only). Detection is implementable now (the previous active manifest is durably stored at activation), but nothing schedules it.
+Resolution criterion: either add it to the M1-completion list or mark it with the milestone that owns it.
+
+**Concern 6 — MINOR. HostPlan cannot delete a membership-backed resource in v1, and the document never says so.**
+Evidence: §Writes refuses a resource-row delete while memberships remain, and teardown requires `clearForResource()` — a membership write. The writer matrix refuses every generic HostPlan write form against membership tables, so a HostPlan `Delete`/`DeleteWhere` on the *resource* table (all forms verified present, `src/manifest.rs:2062-2112`) hits the emptiness refusal with no way to clear the roster. Consequence: membership-backed resources are Ibex-mutation-only to delete in v1. The document names the analogous cliff for cross-declaration authority "so an adopting app meets this cliff in the document rather than at authoring time" (§Non-Goals) — this cliff deserves the same sentence.
+Resolution criterion: one sentence in §Non-Goals or §Writes naming the consequence.
+
+**Concern 7 — EDITORIAL. The `fields`-coverage rule should exempt host-filled columns.**
+Evidence: §Writes: "that same matched transition's `fields` covers **every** written non-axis, non-role column." Under `provenance: "creation"`/`"full"`, inserts host-fill `grantedBy*` columns (§Agents), which are written non-axis, non-role columns no transition names. The intended rule is clearly "every **caller-written** column."
+Resolution criterion: insert "caller-written."
+
+**Concern 8 — EDITORIAL. The Related header is incomplete.**
+Evidence: the text and companion obligations lean on LLP 0012 (diagnostics registrations), LLP 0019 (F8 audit substrate, twice), and LLP 0057–0060 (the growing human account-closure state in the eligibility predicate); the mutation-IR constraints trace to LLP 0051 D2 (`src/manifest.rs:2052-2060`). None appears in **Related**.
+Resolution criterion: add them.
+
+**Concern 9 — EDITORIAL. "Enforced conservatively" misdescribes the M1 `lastHolder` scan.**
+Evidence: Implementation status says the two M1 boundaries are "enforced conservatively rather than guessed," but row-counting is *laxer* than the pinned eligible-holder predicate (it admits states the real check refuses); it is only vacuously equivalent today because no deactivation state exists yet. The sequencing claim ("lands with the LLP 0055 principal machinery") is the actual load-bearing statement and is fine.
+Resolution criterion: reword ("under-enforced pending LLP 0055" or similar).
+
+## 4. Suggestions
+
+- Fix Concern 1 with an extensible definition mirroring the "permanently ended" leg — it is the same move the document already made once, and it will absorb LLP 0057–0060's human account store the same way.
+- Emit a **per-declaration transition diagram** (states = roles + "absent", edges = declared transitions labeled with `by`/`target`) from codegen or doctor. The matrix is the most author-facing surface in the RFC; dead policy and missing self-transitions (the leave/decline class of bug) are visible at a glance in a diagram and invisible in a list. Cheap, and it operationalizes the load-time reachability refusals.
+- For the first-app-admin open question: the app singleton *does* have one creation-shaped event — the activation that first introduces the declaration. A one-shot, activation-anchored seat capability (spendable by a deployment-config-designated principal or the first authenticated principal, at the app's choice) would preserve the witness symmetry (creation → bootstrap) without emptiness-bound authority, which the document rightly rejects. Worth naming as a candidate answer.
+- Route the sweep's expired-but-protected skip diagnostic through LLP 0028's cron run records, not only doctor — a cron-driven condition that only a doctor invocation can observe will be missed by exactly the unattended deployments that hit it.
+- Consider whether the generated `insert` should auto-retry once on commit-conflict before surfacing, given the owned insert-vs-resource-edit false-conflict cost; "retry commit-conflict refusals" as kit guidance pushes a host-known-safe retry onto every app author.
+
+## 5. Open questions
+
+Beyond the document's own list (which is good):
+
+1. What store constitutes the principal catalog per auth mode, and what does the existence leg mean under dev impersonation? (Concern 1 — the one that must be answered.)
+2. May `by` name a pending role, and what class is a pending-role holder? (Concern 3.)
+3. Must the LLP 0013 room-binding milestone be explicitly sequenced after the M5 binding registry, given the "no durable consumer before the registry" rule — or is a room binding not "durable" in the registry's sense?
+4. Does the expiry sweep's skip diagnostic have a durable, unattended-visible surface (cron records? admin console), or only doctor?
+5. When the existence-scoped captured-read kind (the `MissingRow` twin) lands with the semi-join follow-on, do the three captured aggregates all migrate to it, or only the insert's resource read? The `lastHolder` holder-set range and roster-emptiness reads have the same existence-only semantics and the same false-conflict cost.
+
+## 6. Readiness verdict
+
+The design is sound, the failure history is preserved, and nearly every decisive claim — including the document's confessions about its own implementation gaps — verifies against the code. But one MATERIAL concern remains: the `lastHolder` eligibility predicate's existence leg rests on an undefined term ("principal catalog") with no referent in the mode where its own [base] acceptance fixtures run, which leaves the flagship invariant unimplementable-as-written for human principals and its dev-loop behavior unanswerable. That is a definitional-paragraph fix, and with it (plus the tense correction in the capability-gate paragraph) I would expect the next pass to be ready.
+
+READINESS VERDICT: NOT READY
+### Orchestrator disposition (round 16, outside the verbatim body)
+
+C1 (MATERIAL — eligibility diverges from LLP 0055 at HEAD, each citing the other,
+the drift this session's concurrent 0055 edit created) → reconciled: LLP 0055
+owns the durable-recoverability predicate, 0056 consumes it, the joint G1 defect
+obligation names the shipped mismatch. Remaining C-items (shared with the GPT
+family: TableManifest closure, the missing reverse index, the validator phase
+order, the stale deactivation claim, the Id<table> prerequisite) are addressed in
+the round-16 body edits above.

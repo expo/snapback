@@ -5,7 +5,26 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0057-auth-provider-protocol.codex.md` and applied its editorial corrections — composed credential-response example, address-exposure wording, future-import incarnation rule, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
+**Revised:** 2026-07-14 (round-2 dual-family revision, /llp-super-refine: pinned
+the reusable **bulk session-revocation transaction** LLP 0058's downgrade and
+declared restore both consume; reconciled **commit-ambiguity** to LLP 0059's
+exact-successor reconciliation (this document no longer states the contradictory
+discard-and-unavailable rule for mint/rotation) and pointed the **composed lock
+graph** at LLP 0059's ordering as authoritative; pinned **bearer-digest
+uniqueness across current and tombstone rows** with a retryable-collision
+outcome, and named the shipped issuance gap as a defect obligation; made
+**malformed family-alarm input semantically non-actionable** regardless of dummy
+digest equality; derived **declared-restore time from the durable clock floor**
+and stated the LLP 0059 floor overlay on every durable `now`; reconciled the
+**`auth.mintSession` wire shape** with LLP 0024 (nested flat payload; top-level
+descriptor is the composed-response envelope); tightened **backup "publishes
+nothing"** to proven pre-rename failure only and made restore hash/inspect
+through the **retained descriptor**; hardened **rescue** (rowid/`sqlite_sequence`
+preserve-or-refuse, commit-ambiguity reconciliation, LLP 0058 four-key mode
+compatibility, and reserved-source name reachability) as defect obligations;
+pinned the **`generation` domain** and the JS-safe **timestamp schema bound**;
+and softened the **no-ready-file impersonation stdin** path to a named
+obligation. Full triage in §Review triage.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0057-auth-provider-protocol.codex.md` and applied its editorial corrections — composed credential-response example, address-exposure wording, future-import incarnation rule, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
 **Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0058, LLP 0059, LLP 0060
 
 ## Summary
@@ -55,7 +74,8 @@ This document owns:
 - email canonicalization, request throttling, challenge creation, exchange,
   first-login provisioning, and capture delivery;
 - session minting, the 20-session cap, bearer rotation, tombstones, tiered
-  supersession, logout, and the refresh-family alarm;
+  supersession, logout, the refresh-family alarm, and the reusable
+  **bulk session-revocation transaction** (§Bulk session revocation);
 - item-3 HTTP and host-operation DTOs, routes, diagnostics, and schemas;
 - the v1 `ImpersonationCapability` wire carrier used by all impersonation
   effects, including item 2's already-registered host-operation branch;
@@ -82,6 +102,23 @@ their ownership into this Spec:
 monotonic clock for in-process waits and Unix epoch milliseconds for durable and
 wire timestamps. Durable/wire timestamps must be integers in
 `0..=9_007_199_254_740_991`, following `LLP 0007#timestamps`.
+
+**Every durable auth write's `now` is the LLP 0059 durable clock floor**, not a
+raw wall-clock sample. `LLP 0059#durable-session-clock-floor` seeds a
+non-decreasing floor from a persisted value at startup and derives every
+wall-clock lifetime decision at `max(sample, floor)`; this document's tables
+carry `CHECK` bounds (e.g. `created_at_ms <= revoked_at_ms`) that a backward
+wall move would otherwise violate, so `now` here means the floored epoch
+throughout — session lifetimes, tombstone `superseded_at_ms`, challenge
+timestamps, key `retired_at_ms`, bulk revocation, and declared restore alike.
+An implementation that reaches restore or provider work **before** the
+coordinator seeds the floor MUST seed it from the catalog's own maxima first;
+passing a raw `SystemTime::now()` into restore is the named clock-floor defect
+obligation (§Review triage).
+
+`generation` is an integer in `1..=9_007_199_254_740_991` (the JS-safe range,
+since it is wire-visible in `authorityDescriptor`). Reaching the maximum on a
+revocation-class increment is catalog corruption, failed closed, never a wrap.
 
 | Name | V1 value |
 |---|---:|
@@ -135,6 +172,21 @@ impersonation bearer gets at most three complete random candidates when a
 uniqueness collision is observable. Each rejected candidate is zeroized; a
 third collision is `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`. The implementation
 never tweaks, truncates, or deterministically derives a colliding candidate.
+
+**A session bearer's `token_hash` is unique across current *and* tombstoned
+credentials, and issuance must check both.** Resolution consults
+`_auth_sessions` before `_auth_session_tokens`, so a digest duplicated across
+the two tables would let an old bearer authenticate as the new session — the
+uniqueness invariant is not the per-table `UNIQUE` index alone, it is the
+cross-table absence rotation already enforces (it checks
+`EXISTS(... _auth_sessions ...) OR EXISTS(... _auth_session_tokens ...)` before
+committing a successor). Session issuance MUST perform the same cross-table
+check inside its transaction, retry up to the three-candidate bound, zeroize
+each rejected candidate, and surface a **retryable-collision** outcome the
+coordinator loop retries (never the raw internal-collision diagnostic to the
+client). Shipped issuance inserts into `_auth_sessions` without the
+tombstone check and the coordinator retries only `PredecessorChanged`; closing
+both is the named token-uniqueness defect obligation (§Review triage).
 
 Six-digit codes are sampled without modulo bias: interpret four random bytes as
 a big-endian `u32`, reject values at or above
@@ -666,8 +718,15 @@ calls the family alarm before clearing. The alarm is:
 - `Public` plus operation-specific `FamilyAlarmBearer` resolution, which grants
   no caller or invocation authority;
 - lookup only in `_auth_session_tokens`; a current or unknown bearer is a no-op;
-- one `IMMEDIATE` transaction for every input, using a dummy digest for malformed
-  input and the same fixed lookup-plus-conditional-update statement shape; that
+- one `IMMEDIATE` transaction for every input. **Malformed input is
+  semantically non-actionable regardless of digest equality**: the transaction
+  carries a "parsed a well-formed bearer" predicate that is false for malformed
+  input, and the conditional update revokes only when that predicate is true
+  *and* the presented digest names a live tombstone. A dummy digest computed for
+  malformed input therefore cannot revoke an unrelated family even if it
+  collides with a retained tombstone — the collision is inert because the
+  parsed-ok predicate gates the write, not merely the timing pad. Every input
+  uses the same fixed lookup-plus-conditional-update statement shape; that
   statement revokes only the attributable tombstone's session and increments
   generation only when still live; and
 - always HTTP `202`, `{ "accepted": true }`, and `Cache-Control: no-store` for
@@ -681,6 +740,23 @@ return a user/session id, or revoke a family not attributable to the presented
 tombstone. It is safe to retry after an unknown response. If the client is
 offline or permanently loses the alarm request, the stolen-successor residual
 survives until expiry or another revocation event; v1 makes no stronger claim.
+
+### Bulk session revocation
+
+This document owns one reusable bulk-revocation transaction, because LLP 0058's
+sessions-to-dev downgrade and this document's own declared restore both consume
+it and an implementer conforming to 0057 alone must produce identical durable
+outcomes. It requires a `ReadyV1` catalog and, in one `IMMEDIATE` transaction,
+for **every session not already revoked**: sets `revoked_at_ms = floored now`
+(the LLP 0059 clock floor, below) and increments `generation` exactly once. It
+**deletes nothing** — no session row, identity, tombstone, or user — so
+projection (LLP 0059) and the "revoked sessions do not resurrect" guarantee
+hold, and it never resurrects a session a later restore or downgrade re-touches.
+A `generation` already at its domain maximum (below) makes the transaction fail
+closed as catalog corruption rather than wrap. It writes no restore marker and
+sends no family alarm; callers that also need a marker (declared restore) or an
+incarnation bump (LLP 0059) compose those into the same transaction. The
+downgrade caller in LLP 0058 and the restore branch below are its two consumers.
 
 ### Sliding use
 
@@ -749,7 +825,15 @@ file or descriptor never supplies a capability to another process. With no
 ready file, the bearer is printed exactly once to the controlling terminal; it
 is never printed in JSON logs or stdout envelopes. A later attaching CLI accepts
 that value only from an interactive/stdin secret input, never an argv flag or
-environment variable that exposes it through process inspection.
+environment variable that exposes it through process inspection. **The stdin
+secret intake is a named obligation, not yet shipped**: today `TargetArgs`
+carries only `--url`/`--ready-file`/`--token`, and a URL target resolves to no
+impersonation capability, so the no-ready-file path currently has no way to
+supply `sbic_`. Until the no-echo terminal/stdin intake lands — scoped to
+registered impersonation operations only, never argv/environment, with redaction
+tests — the supported no-ready-file answer is to require a ready file; the
+stdin path is the pinned design, and its absence is the named impersonation
+defect obligation (§Review triage).
 
 HTTP carries it only in `x-snapback-impersonation-capability`. Middleware first
 proves the operation's ordinary `AdminWrite` credential, then constant-time
@@ -846,6 +930,22 @@ generation, and `authorityInstanceId`. The top-level `authorityDescriptor` is
 item 7's since-landed versioned descriptor and is required in the composed
 credential response and its committed schema; item 3 did not expose it, so an
 item-3 credential response never became an accidental descriptor.
+
+**Reconciliation with LLP 0024's `auth.mintSession` row.** LLP 0024 pins the
+host-operation result as a *flat* credential payload — `tokenType`, `token`,
+`refreshAfter`, and the public `session`, with "no identity subject, digest,
+generation, or authority-instance id." That describes the **nested session
+object**, which this document keeps flat and descriptor-free exactly as 0024
+requires, and there is no contradiction: the `authorityDescriptor` is a
+**sibling top-level member of the composed HTTP credential response** (item 7),
+not a field of the nested session, and the host-operation envelope carries the
+same composed response. The authority-instance id 0024 excludes is excluded
+from the *session* object in both documents; it lives only in the top-level
+descriptor. This precedence is stated so a fixture built from 0024's row and one
+built from this DTO agree: the flat session is canonical, the top-level
+descriptor is the response envelope, and where the two documents' wording could
+diverge, 0024's exclusion governs the session object and this document governs
+the envelope.
 
 ### Host-operation DTOs
 
@@ -986,6 +1086,43 @@ auth-reserved, an absent valid nonreserved target identifier, and an absent
 catalog marker. It refuses catalog-owned tables. It also refuses a target that
 already exists physically or in the stored manifest.
 
+**Source-name reachability.** Catalog reservation recognizes any name whose
+case-folded spelling equals `_auth` or begins `_auth_`, which includes quoted
+names with spaces or non-ASCII suffixes — but rescue's copy verb requires the
+strict ASCII application-identifier grammar, so a source like `"_auth_old
+table"` can trigger collision handling yet be impossible to name to the only
+recovery verb. Rescue therefore accepts **any exact, bounded, NUL-free physical
+SQLite source name** (identified by its exact stored name, not re-parsed through
+the app-identifier grammar) while keeping the strict grammar on the *target*;
+a source that cannot be exactly copied still refuses with
+`SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED`, but it is never merely unnameable.
+Aligning the shipped recovery router with this is a named rescue defect
+obligation (§Review triage).
+
+**Row identity and sequence history are preserved or the source is refused.**
+The multiset proof covers named-column values and multiplicities, which is not
+observable table identity: a sparse implicit `rowid` set (`1, 99`) can renumber
+to `1, 2`, and an `AUTOINCREMENT` table whose `sqlite_sequence` high-water
+exceeds its current maximum loses that history, letting a retired id reuse.
+Rescue MUST either copy through `WITHOUT ROWID`/explicit-`rowid` preservation
+and carry the `sqlite_sequence` high-water for an `AUTOINCREMENT` source, or
+**refuse** every source shape for which implicit `rowid` or `sqlite_sequence`
+is observable — never silently renumber. (The auth-reserved sources this verb
+actually rescues are legacy app tables, so refusal is an acceptable v1 answer;
+the point is that lossy renumbering is not.)
+
+**Compatibility with LLP 0058's four-key mode state.** Rescue rewrites the
+legacy `schema_manifest`, but LLP 0058 makes `schema_manifest_capability_aware`
+and `auth_mode_state_v1` part of a cross-validated four-key state that the next
+open refuses on any mismatch. Rescue MUST therefore either atomically update
+**every** authoritative manifest/identity key in the same transaction, or
+explicitly refuse a managed (sessions-era, staged, or quarantined) database with
+a stable offline-repair diagnostic — it may not leave the legacy and
+capability-aware manifests divergent for the next open to reject. Specifying
+rescue eligibility across every settled/pending/quarantined/dev/sessions state,
+and the atomic multi-key update or the refusal, is a named rescue defect
+obligation.
+
 Inside one `IMMEDIATE` transaction it:
 
 1. Rechecks marker/source/target and scans the complete schema, not only objects
@@ -1030,7 +1167,15 @@ Inside one `IMMEDIATE` transaction it:
 Every error or injected failure rolls back target creation, manifest rewrite,
 and source drop. The source table, rows, indexes, and stored manifest remain
 logically equivalent to their pre-operation state; this does not falsely claim
-that rollback leaves SQLite database/WAL bytes untouched. The destructive
+that rollback leaves SQLite database/WAL bytes untouched. **The commit itself is
+reconciled, not left unclassified**: the rescue transaction's `commit()` follows
+the same commit-ambiguity rule as every other durable write (§Concurrency) — a
+commit whose success is unknown reopens and reconciles the exact source/target/
+index/manifest state, reporting failure only for an exact-predecessor state,
+success only for an exact-successor state, and a terminal recovery posture
+otherwise. An unclassified commit error reported after the target, manifest
+rewrite, and source drop became durable is the named rescue-commit defect
+obligation. The destructive
 `--drop-orphaned-auth-tables` command remains separate and backup-first; rescue
 never silently delegates to it.
 
@@ -1083,8 +1228,16 @@ The backup algorithm is:
    owner-only child inode through the pinned descriptors; rename the exact
    pinned staging inode to the requested output; then immediately after the
    rename revalidate the published directory inode and child inodes again, and
-   `fsync` the parent. A swap that wins either the pre- or post-rename window
-   fails the operation closed and publishes nothing.
+   `fsync` the parent. The three outcomes are distinct and named, because
+   "publishes nothing" is only true before the rename: a pre-rename failure
+   (including a swap that wins the pre-rename check) is **Unpublished** — no
+   output exists and the temp is cleaned up; a clean rename plus passing
+   post-check is **Published**; and a failure *after* the rename was attempted
+   (post-rename revalidation, parent `fsync`, or an ambiguous rename result) is
+   **CommitAmbiguous** — a complete unit may survive at the output path, cleanup
+   is suppressed (step 7), and the operator validates or removes it. The
+   operation returns which of the three occurred; only Unpublished may be
+   described as publishing nothing.
 7. Release locks only after publication or cleanup of the unpublished temp.
    Cleanup unlinks only the exact descriptor-created child and staging inodes;
    a substituted directory or child is left untouched. Once the rename has been
@@ -1106,10 +1259,15 @@ offline under a persistent sibling target-instance reservation shared by every
 supported file-backed startup. Startup creates only a missing outer parent
 before taking that reservation, then keeps both it and the exact opened target
 directory inode through the inside-instance lock and database-open handoff.
-Restore validates both hashes and the closed format, stages the database,
-keyring sibling, and an owner-only closed `restore-declaration.json` in a
-sibling temporary directory, fsyncs them, and publishes the complete directory
-by one same-filesystem rename. Immediately before and after that rename it
+Restore validates both hashes and the closed format **through the same retained
+descriptor it will publish** — the staged database is hashed, catalog-inspected,
+and retained-key-checked through a descriptor-bound SQLite connection, never
+reopened by pathname for inspection and then re-identified only at publication,
+which under this document's path-swap threat model would let a benign database be
+substituted for inspection and the original restored before the final identity
+check. It stages the database, keyring sibling, and an owner-only closed
+`restore-declaration.json` in a sibling temporary directory, fsyncs them, and
+publishes the complete directory by one same-filesystem rename. Immediately before and after that rename it
 revalidates the exact staging-directory inode, complete member set, and every
 strict owner-only child inode through pinned descriptors. Failure cleanup
 unlinks only identities created by this restore; a substituted child or
@@ -1127,8 +1285,12 @@ file. Before bind, one auth transaction compares
 `_snapback_meta['auth_restore_declaration_id']`:
 
 - if it already equals this id, the declaration is an idempotent no-op;
-- otherwise it revokes every restored session that is not already revoked,
-  setting `revoked_at_ms = now` and incrementing generation once;
+- otherwise it runs the **bulk session-revocation transaction** (§Bulk session
+  revocation) over the restored rows — `revoked_at_ms = floored now`, one
+  generation increment each — which is why restore time is derived from the
+  durable clock floor and relevant catalog maxima, not a raw wall sample: a
+  future-dated or clock-rolled-back backup would otherwise set `revoked_at_ms`
+  below `created_at_ms` and fail the DDL `CHECK`;
 - deletes every verification challenge; and
 - writes this declaration id as the final statement.
 
@@ -1163,6 +1325,20 @@ Ordinary provider calls take the maintenance gate shared; backup, restore,
 catalog activation, rescue, and reset take it exclusive. No code takes an
 earlier lock while holding a later one.
 
+**Where this lock order meets LLP 0059's projection barrier, 0059 is
+authoritative.** LLP 0059 requires every database/provider guard to be released
+before projection `Begin` and prohibits a projection lock from overlapping a
+provider/catalog lock. This document's maintenance/address/keyring/writer chain
+sits entirely *below* that boundary: the provider completes its transaction and
+releases these guards, and only then does projection run. The composed lock
+graph — maintenance, address, keyring, database writer, then (disjoint)
+topology, stream, and projection guards — is owned by LLP 0059's ordering; this
+document contributes the provider-side sub-order and defers to 0059 for how it
+composes with projection. An implementation that holds a maintenance or address
+guard across projection `Begin` violates 0059, not this document, and
+publishing the single composed graph with race/deadlock coverage is a named
+cross-document obligation.
+
 | Operation | Linearization point |
 |---|---|
 | request-code | challenge transaction commit; response only after mailbox publish |
@@ -1176,11 +1352,27 @@ earlier lock while holding a later one.
 | key rotation | fsynced rename + parent fsync |
 | backup | SQLite online snapshot and retained keyring bytes under quiescence |
 
-Commit ambiguity is handled conservatively: after a storage error where commit
-success is unknown, the server discards plaintext successor/code response state,
-reopens/reloads the database, and reports an unavailable outcome. It never
-retries a mint or rotation with the same plaintext credential based on an
-assumed rollback.
+Commit ambiguity is handled by **exact-durable reconciliation, matching LLP
+0059** (`LLP 0059#rollback-and-ambiguous-commit`), not by unconditional
+discard. After a storage error where commit success is unknown, the server
+rereads the exact durable rows in a fresh transaction and resolves against what
+it finds:
+
+- exact planned-predecessor state ⇒ the mint/rotation did **not** commit; roll
+  back in-memory, destroy the plaintext successor/code, and report unavailable;
+- exact intended-successor state ⇒ the write **did** commit; the operation is
+  finalized, and the plaintext credential already computed for that exact
+  successor may be returned (it is the committed one, never a retry);
+- any other valid state ⇒ reconcile against it without reverting; and
+- contradictory, unreadable, or still-ambiguous state ⇒ terminal recovery
+  posture (`SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` / rebuild), never a guess.
+
+The invariant a reader should carry away: the server **never re-executes** a
+mint or rotation with a fresh plaintext credential on an assumed rollback; it
+either confirms the exact durable outcome and returns that one, or fails
+unavailable. (An earlier revision of this section stated unconditional
+discard-and-unavailable; that contradicted LLP 0059 and the implementation,
+which reconcile the exact successor, and is corrected here.)
 
 ## Security and redaction
 
@@ -1334,7 +1526,30 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
 - Declared restore revokes sessions and purges challenges; repeat of the same
   durable declaration id is idempotent even after new sessions exist; ordinary
   restart preserves both. Item 5's acceptance extends the non-idempotent branch
-  of the same transaction with incarnation regeneration.
+  of the same transaction with incarnation regeneration. A **future-dated or
+  clock-rolled-back backup** restores without violating the
+  `created_at_ms <= revoked_at_ms` check, because restore time is the durable
+  floor; and the bulk-revocation transaction is asserted independently (every
+  not-already-revoked session revoked with one generation increment, nothing
+  deleted), including its consumption by the LLP 0058 downgrade path.
+- **Token-digest uniqueness** is proven across current and tombstone tables at
+  issuance and rotation: a candidate colliding with a live tombstone is
+  retried and, on the third collision, surfaces the retryable outcome (never
+  the raw internal-collision diagnostic) — asserted through the production HTTP
+  and host-operation paths, not only a test-only helper.
+- **Malformed family-alarm input** with a dummy digest deliberately collided
+  against a retained tombstone revokes **nothing** (the parsed-ok predicate
+  gates the write), while a well-formed attributable tombstone still revokes.
+- **Commit-ambiguity reconciliation** (mint, rotation, rescue): fault injection
+  at the commit boundary yields exact-predecessor rollback, exact-successor
+  finalize (returning the committed credential, never a re-execution), or a
+  terminal recovery posture — never a fresh re-mint on assumed rollback.
+- **Rescue identity**: a sparse-`rowid` and a deleted-high-water `AUTOINCREMENT`
+  source are each either preserved exactly or refused (never renumbered);
+  a managed sessions-era/staged/quarantined database is either atomically
+  four-key-consistent after rescue or refused with the offline-repair
+  diagnostic; a reserved source name outside the app-identifier grammar is
+  still nameable to the recovery verb.
 - Planted code/token/carrier and caller-controlled selector sentinels cover the
   credential-bearing request, result, debug, diagnostic, and keyring seams;
   existing config/receipt tests continue to own their separate redaction
@@ -1389,7 +1604,42 @@ reconciliation performs neither on the author's behalf.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
 document on 2026-07-14; its verbatim report and provenance are archived in
-`reviews/0057-auth-provider-protocol.codex.md` (verdict: READY WITH
-REVISIONS). Small editorial corrections from that review are applied above;
-its material findings await author triage. The review advises — it does not
-ratify.
+`reviews/0057-auth-provider-protocol.codex.md` (round 1, verdict: READY WITH
+REVISIONS). A second dual-family round (fresh Codex ultra + fresh Fable Max,
+blind, via /llp-super-refine) reviewed the committed revision at `b11a6fa` the
+same day; both artifacts are archived with provenance in
+`reviews/0057-auth-provider-protocol.{codex,fable}.md`.
+
+### Review triage
+
+The round-2 revision is the author-side triage of both rounds. Dispositions:
+
+**Resolved in the specification text** (a spec incoherence or overclaim, now
+fixed): the unspecified bulk-revocation transaction consumed by LLP 0058
+(§Bulk session revocation); the commit-ambiguity contradiction with LLP 0059
+(§Concurrency — this document no longer states unconditional discard); the
+composed lock-graph precedence deferring to LLP 0059 (§Concurrency); the
+`auth.mintSession` wire reconciliation with LLP 0024 (§Public provider DTOs);
+the family-alarm malformed-input non-actionability (§Logout…); the declared-
+restore clock-floor derivation and the LLP 0059 floor overlay on every durable
+`now` (§Normative vocabulary, §Restore); the `generation` domain and the
+JS-safe timestamp schema bound; the backup Unpublished/Published/CommitAmbiguous
+naming (§Consistent backup); and restore descriptor-bound inspection (§Restore).
+
+**Named defect obligations** (the specification pins the correct behavior; the
+shipped code does not yet meet it, and closing the gap is required before this
+Spec advances past Draft): cross-table token-digest uniqueness at issuance and
+the coordinator's retryable-collision propagation; the no-ready-file
+impersonation stdin/no-echo intake; rescue's rowid/`sqlite_sequence`
+preserve-or-refuse, commit-ambiguity reconciliation, LLP 0058 four-key mode
+compatibility, and reserved-source-name reachability. Each has an acceptance
+row above; none is a design change, so they do not reopen the protocol.
+
+Orchestrator verification of the decisive claims (issuance skips the tombstone
+check; resolution is current-before-tombstone; restore passes raw
+`SystemTime::now()`; `TargetArgs` has no stdin carrier; 0024's row versus the
+descriptor requirement) is recorded outside the verbatim reviews in the ledger.
+
+Implementation completion still does not make this Spec Accepted, and this
+revision performs neither ratification nor a status transition on the author's
+behalf; LLP 0039 remains frozen. The reviews advise — they do not ratify.

@@ -5,7 +5,22 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0059-session-projection-and-client-barrier.codex.md` and applied its editorial correction to the public credential-classification prose; material findings remain for author triage). 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
+**Revised:** 2026-07-14 (round-2 dual-family revision, /llp-super-refine:
+reconciled the LLP 0057/0059 commit-ambiguity contradiction from the 0057 side
+(exact-durable-successor reconciliation is now the single owning rule); restated
+the **lock-rank assertions as a named defect obligation** (shipped locks are raw
+mutexes — no landed rank facility) and removed the landed-evidence overclaim;
+flagged the **localStorage segmented-namespace protocol as a genuine conflict
+with governing LLP 0008's ratified Web-Lock one-key design**, requiring
+reconciliation not a unilateral override; scoped the grant-mint "indistinguishable"
+sentence so it no longer contradicts LLP 0057's `AUTH_REQUIRED` vs
+`SESSION_EXPIRED`; cross-referenced the durable-restore clock-floor fix and named
+the durable-frontier-before-terminal-event obligation; and recorded the remaining
+GPT-family spec-vs-code findings (protocol-1 coordinator prerequisite, durable
+transition intent, phase-8 ownership release, close-code terminal latch,
+handshake app-identity/UUIDv7, final-fence handshake capture, readiness probes)
+as named defect obligations. Full triage in §Open decisions and status.)
+2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0059-session-projection-and-client-barrier.codex.md` and applied its editorial correction to the public credential-classification prose; material findings remain for author triage). 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
 **Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
 
 ## Summary
@@ -591,10 +606,17 @@ old socket cannot unregister or close its replacement. Terminal purge may
 remove still-uncommitted outbox/room work, but it cannot retract a buffer already
 accepted by a writer handoff before `Begin`; that buffer is honestly in flight.
 
-The server supplies lock-rank assertions in test/dev builds. The L9
-concurrency suite must show that a stalled revocation transaction for session A
-does not delay an unrelated finite request or publication for session B beyond
-normal scheduler noise.
+The server **is obligated to** supply lock-rank assertions in test/dev builds:
+this is a **named defect obligation, not a landed fact**. The shipped locks are
+raw mutexes with no rank facility or inversion assertion
+(`src/auth/session_projection.rs`, `src/auth/coordinator.rs`, `src/server.rs`),
+so §Implementation handoff must not claim rank-aware guards landed; a rank-aware
+dev/test guard with intentional inversion-failure tests is the obligation. The
+L9 concurrency suite must show that a stalled revocation transaction for session
+A does not delay an unrelated finite request or publication for session B beyond
+normal scheduler noise — and that stalled-revocation-independence fixture is
+itself an acceptance obligation, since it is not currently discoverable in the
+suite.
 
 ## Connection-bound authority
 
@@ -1512,12 +1534,27 @@ mutation under the current capture; it never retags or sends the predecessor
 record. Item 5's `queuedReplay:false` forbids every automatic send.
 
 Transactional IndexedDB/SQLite adapters publish their current namespace pointer
-with the same expected-epoch CAS as collection changes. A non-transactional
-localStorage adapter MUST NOT emulate CAS with read-then-`setItem` or keep a
-mutable localStorage current pointer. It instead uses immutable
+with the same expected-epoch CAS as collection changes.
+
+**The localStorage adapter's protocol must be reconciled with governing LLP
+0008, which currently ratifies the opposite design — this is a genuine
+cross-document conflict, flagged not papered over.** This section pins that a
+non-transactional localStorage adapter MUST NOT emulate CAS with
+read-then-`setItem` or keep a mutable current pointer, and MUST use immutable
 generation-segmented namespaces keyed by `(appIdHash, authorityEpoch,
-authorityKey)`. Every writer selects only its captured namespace; the sole
-current pointer is the settled transactional custody record. A late old writer
+authorityKey)`. But LLP 0008 §Serialization ratifies a one-key load/modify/save
+protocol under a Web Lock, and the shipped adapter implements *that*
+(`client-store.mjs`, `storage.setItem(key, JSON.stringify(state))` under a Web
+Lock). One protocol must win across this Spec, LLP 0008, and the implementation:
+either LLP 0059 adopts the ratified Web-Lock one-key design (and this
+segmented-namespace text is withdrawn), **or** a dated LLP 0008 amendment adopts
+the segmented-namespace design with its stale-writer/GC proof and the adapter is
+rewritten. Until that reconciliation lands, this is a **named cross-document
+defect obligation**, and the segmented-namespace acceptance below is contingent
+on it — this Draft does not unilaterally override the governing RFC. The
+remainder of this paragraph describes the segmented design *if* it is the one
+chosen: every writer selects only its captured namespace; the sole current
+pointer is the settled transactional custody record. A late old writer
 can therefore add bytes only to an unreachable old namespace. Transition makes
 the predecessor unreachable by settling the next custody epoch, and later GC
 may delete its keys. A reader derives the namespace from current custody and
@@ -1787,8 +1824,15 @@ wall-clock sleeps are not proof of ordering.
 2. A current bearer mints a grant. A superseded bearer within grace does not
    mint one, while an ordinary finite request with that same bearer is honored
    under LLP 0057. Outside grace it produces credential-superseded recovery;
-   missing successor custody calls the family alarm before clear. Revoked,
-   expired, malformed, and random bearers have indistinguishable public posture.
+   missing successor custody calls the family alarm before clear. The
+   grant-mint refusal for revoked, expired, malformed, and random bearers is
+   uniform **at the grant-mint surface** (none mints a grant), but this does
+   **not** flatten LLP 0057's deliberate credential-resolution distinctions:
+   an unknown/malformed bearer resolves `SNAPBACK_AUTH_REQUIRED` while a
+   validly-shaped expired/revoked one resolves `SNAPBACK_AUTH_SESSION_EXPIRED`
+   on the ordinary authenticated surface (§Diagnostics and safe exposure, LLP
+   0057). The "indistinguishable" claim is scoped to grant minting, not to the
+   whole public posture, so it no longer contradicts the diagnostics section.
 3. Exercise the 16,384-entry cap, unused/used LRU, idle expiry, source throttle,
    and reverse index under concurrent opens/invalidation. Eviction cannot
    reassign a token or leave an indexed ghost. With a fake monotonic clock,
@@ -1939,8 +1983,10 @@ invariant across an externally enableable commit:
    historical item-5 client-store format 3, and mandatory kit/Contract
    participants; composed production now uses LLP 0043's format 5, which
    preserves these barriers and migrates formats 1 through 4 fail closed;
-5. revised the closed handshake DTO, installed real readiness probes, and ran the
-   full interleaving and activation matrix; and
+5. revised the closed handshake DTO and ran the full interleaving and activation
+   matrix (the "real readiness probes" claim is corrected: production readiness
+   currently passes literal facts, and rank-aware guards plus module/wiring/
+   worker probes are named defect obligations, not landed evidence); and
 6. ran `./ref-check --verbose` and added non-mechanical `@ref LLP 0059#...`
    annotations at each non-obvious ticket, lock-order, fence, custody, and
    epoch-CAS implementation boundary.
@@ -1970,9 +2016,51 @@ This document remains **Draft** pending explicit author ratification and review
 scaled to its security stakes. Implementation evidence does not make LLP 0039
 or LLP 0053 unfrozen and does not accept this Spec on the author's behalf.
 
-The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
-document on 2026-07-14; its verbatim report and provenance are archived in
-`reviews/0059-session-projection-and-client-barrier.codex.md` (verdict: NOT
-READY — nine material client/handshake fidelity and barrier findings). A small
-editorial correction from that review is applied above; its material findings
-await author triage. The review advises — it does not ratify.
+The ENG-24996 review gate obtained a cross-family GPT (Codex) review on
+2026-07-14 (round 1, verdict: NOT READY). A second dual-family round (fresh Codex
+ultra + fresh Fable Max, blind, via /llp-super-refine) reviewed the committed
+revision at `b11a6fa`; both artifacts are archived with provenance in
+`reviews/0059-session-projection-and-client-barrier.{codex,fable}.md`.
+
+### Review triage
+
+**Resolved in text (round 2):** the LLP 0057 vs LLP 0059 commit-ambiguity
+contradiction (GPT #2) — reconciled **from the LLP 0057 side**, which now defers
+to this document's exact-durable-successor reconciliation (0057 §Concurrency no
+longer states the contradictory discard-and-unavailable rule); the lock-rank
+overclaim (both families) — restated as a named defect obligation, since the
+shipped locks are raw mutexes and §Implementation handoff must not claim
+rank-aware guards landed; the localStorage protocol conflict with governing LLP
+0008 (GPT #10) — flagged as a genuine cross-document conflict requiring either
+0059 adopting LLP 0008's ratified Web-Lock one-key design or a dated 0008
+amendment for the segmented-namespace design, not a unilateral override; the
+grant-mint "indistinguishable" acceptance sentence (both) — scoped to grant
+minting so it no longer flattens LLP 0057's `AUTH_REQUIRED` vs `SESSION_EXPIRED`
+distinction; and the durable-time terminal irreversibility (GPT #1) — cross-
+referenced to the LLP 0057 declared-restore clock-floor fix, with "durably
+advance a shared frontier to the authoritative deadline before publishing a
+time-derived terminal event" named as an obligation.
+
+**Named defect obligations (spec pins the behavior; shipped code has the gap —
+code fixes with acceptance obligations, not design changes):** auth-client
+protocol 1 must not be advertised without the canonical coordinator and
+mandatory participants (a no-coordinator client fails closed) (#3); durable
+transition intent must carry predecessor+successor authority so crash/cross-
+context recovery reproduces every transition-table row, or the conservative
+delete-all data-loss policy is explicitly ratified (#4); an explicit phase-8
+ownership release so no network request holds the cross-context mutex and all
+contexts stay blank until successor-fenced readiness (#5); both live APIs must
+terminal-latch `4401/auth_error` on a close-code-only event and suppress
+reconnect (#6); a server-proven canonical app/deployment identity validated
+before custody transition, and canonical UUIDv7 enforcement at the wire boundary
+(#7); one prepared authority+incarnation carried through the response's final
+body-publication fence, with client cache reads passing a durable
+compare-and-commit (#8); and readiness facts derived from executable
+module/wiring/worker probes rather than literal `true`, or static build facts
+distinguished from runtime readiness with the landed-evidence claim removed (#9).
+The rank-aware dev/test guards, the stalled-revocation-independence fixture, and
+the segmented-namespace acceptance are the associated test obligations.
+
+This document remains **Draft** pending author triage completion and explicit
+ratification; the reviews advise, they do not ratify, and neither LLP 0039 nor
+LLP 0053 is unfrozen.

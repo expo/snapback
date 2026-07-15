@@ -1,0 +1,102 @@
+**Reviewer family:** Claude (Fable)
+**Provider / runtime:** fresh Claude Code workflow subagent — model claude-fable-5, reasoning effort max (explicit per-agent override); orchestrated by /llp-super-refine
+**Date:** 2026-07-14
+**Redacted:** no — repo-local review; no secrets in the reviewed material; reviewer instructed not to read credential files or llp/reviews/
+**Method:** sub-agent
+
+# LLP 0057 reviews — Claude family
+
+## Round 1 — 2026-07-14
+
+**Revision under review:** `llp/0057-auth-provider-protocol.spec.md`, sha256 `c87b3e3836a3086581c36f7da93296625450313a29af84959ee16a0a4bd96d8b` (committed at repo HEAD `b11a6fa`)
+**Runtime detail:** workflow run wf_f4bfeeab-1c8, agent acefdab81ff1cc183, model claude-fable-5, reasoning effort max (explicit per-agent override); fresh context — no access to the orchestrating session, to archived reviews, or to the concurrent GPT-family round
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+# LLP 0057 Review — Auth catalog and provider protocol (fresh, blind, cross-model)
+
+Reviewer: Claude (Fable 5), independent LLP 0005 review loop. Blind constraints honored: nothing under `llp/reviews/` was read; no secret material was accessed.
+
+## 1. Overall assessment
+
+This is an unusually strong protocol spec. It takes exactly the obligations LLP 0039 deferred (`LLP 0039#protocol-obligations-deferred-to-implementation`, items 4, 6, 7 plus the item-3 core) and discharges them at executable-protocol rigor: exact encodings, exact DDL, exact state tables, exact lock order, exact crash residuals, and a fixture-backed acceptance matrix. I verified a wide sample of its load-bearing claims against the implementation and found essentially no spec-vs-code drift: every constant in the table matches (`src/auth/provider.rs:49-64`, `src/auth/keyring.rs:22-25`, `src/auth/mailbox.rs:22`, `src/auth/lifecycle.rs:22`, `src/storage/auth.rs:22`, `src/server.rs:6094`), the DDL matches (`src/storage/auth.rs:141-307`), the unbiased six-digit sampling matches (`src/auth/crypto.rs:127-151`), the 56-byte bearer/CRC-32-ISO-HDLC spelling matches with the `cbf43926` check value pinned in a test (`src/auth/crypto.rs:386-425,618`), the half-open throttle windows match (`src/auth/provider.rs:1816-1828`), the ENG-24981 backup inode-pinning revision matches a genuinely careful implementation (`src/auth/backup.rs:117-168,1039-1101`; `src/storage/auth.rs:686+` for the descriptor-bound, memory-journaled online backup with header normalization), the rescue multiset proof matches and is even stronger than the prose (adds `typeof()` and `COLLATE BINARY`, `src/storage/auth_rescue.rs:650-692`), the reservation predicate is shared across Rust and codegen (`src/storage.rs:5580-5583`, `packages/snapback-codegen/index.mjs:55`), the strict keyring file posture (exact `0600`, one hard link, fail-closed ACL/unsupported) is real (`src/secure_file.rs:54-121`), and the impersonation carrier, sibling-file discovery with startup-nonce verification, and CORS-allowlist exclusion are all as stated (`src/admin_impersonation.rs:25,133-216`; `src/server.rs:8627` omits `x-snapback-impersonation-capability`).
+
+Is it a good idea? Yes. The four security boundaries in the Summary are the right ones, the credential non-substitution matrix is the document's best safety idea, and the honesty about residuals (stolen-successor until expiry, undeclared-restore resurrection, commit-before-response challenge orphan) is exactly what a security spec should do. My concerns are about completeness of the cross-spec ledger and the document's own acknowledged process state, not about the protocol's correctness.
+
+## 2. Strengths
+
+- **Boundary discipline with the frozen parent.** "Where 0039 pins an outcome, 0039 wins" (§Summary) is stated and then actually honored: the impersonation choice is one of 0039's two explicitly allowed alternatives (0039 lines 860-866: "a per-boot secret printed to the terminal"), the tiered supersession matrix reproduces 0039's design pins, and the LLP 0045 delegation is mirrored word-for-word from 0045's side (0045 lines 76-80). The ownership handshake is bidirectionally consistent.
+- **Encodings pinned to the byte with cross-language fixtures** (§Binary and textual encodings, §Acceptance/Keyring and crypto). LP framing, digest domain string, canonical-base64url rejection-not-normalization, and the CRC check value are all fixture-pinned in Rust and independently in JS (`packages/snapback-codegen/auth-crypto-vectors.test.mjs`), including the Greek final-sigma canonicalization vector (`src/auth/crypto.rs:507-510`).
+- **The throttle/GC retention coupling** (§Request-code transaction, §Garbage collection): retaining consumed/superseded challenges until `expires_at_ms` so that consuming a code cannot erase throttle history, with the half-open window boundary exactly matching the GC-deletable instant, is a genuinely elegant closure of a subtle bypass.
+- **Non-enumeration and timing posture** (§Length-prefixed code digest, §Challenge states and exchange, §Logout, ordinary supersession, and family alarm): identical accepted-request responses for known/unknown addresses, dummy-HMAC equalization (`src/auth/provider.rs:752-793`), and the family alarm's fixed-shape, fixed-minimum-latency, always-202 response are all specified and implemented.
+- **Crash-residual honesty at every seam** (§Request-code step 8, §Rotation, §Atomic publication and rotation, §Consistent backup step 7): each linearization point names its ambiguity behavior, and the commit-ambiguous rename handling (revalidate, accept only complete-prior or complete-candidate bytes) is the correct conservative shape; the backup Drop guard's `publication_attempted` latch (`src/auth/backup.rs:1079-1101`) implements the "never strip children after rename attempt" rule exactly.
+- **The credential non-substitution matrix** (§Credential non-substitution) crossing seven carrier classes against three authority axes is the strongest single safety artifact here; it operationalizes 0039's "admin token is not a sufficient gate" pin.
+- **Rescue's refusal-first posture** (§Transactional algorithm): the wide unsupported-schema refusal set, byte-preserving token rewriter, bidirectional multiset proof, and manifest hash-clearing (forcing explicit reprovision) prefer failing closed over cleverness.
+
+## 3. Concerns
+
+**C1. MATERIAL (coherence/completeness): the bulk session-revocation transaction is consumed by LLP 0058 as "LLP 0057's revoke-all transaction" but is nowhere specified in this document.**
+Evidence: LLP 0058 line 777 ("revokes every durable session through LLP 0057's revoke-all transaction", sessions-to-dev downgrade step 2) and its implementation call site `src/storage/auth_mode.rs:759` → `revoke_all_sessions_in` (`src/storage/auth.rs:864-883`, doc comment: "matches declared-restore generation semantics without creating a restore marker or deleting identity rows"). LLP 0057's §Scope and ownership enumerates the owned session surface ("session minting, the 20-session cap, bearer rotation, tombstones, tiered supersession, logout, and the refresh-family alarm") without bulk revocation, and the seam-inventory paragraph ("item 4 now calls the read-only collision check at stage time and catalog/keyring activation at consume time...") omits this consumed seam entirely; `grep` confirms the document contains no "revoke-all"/downgrade text. Meanwhile §Implementation hand-off forbids varying "state outcomes" without revising this Draft — a contract that cannot bind for a state outcome the document never states. An implementer conforming to 0057 alone could implement the downgrade sweep by deletion or without generation increments, breaking 0058's "revoked sessions do not resurrect" and 0059's projection assumptions.
+Resolution criterion: 0057 names and pins the reusable bulk-revocation transaction (semantics: requires `ReadyV1`; sets `revoked_at_ms = now` and increments generation once for every not-already-revoked session; deletes nothing; generation-exhaustion behavior stated), adds it to the owned-scope list and the item-4 seam inventory, and adds one acceptance line for it.
+
+**C2. MATERIAL (process/decision-quality): by its own record, the document carries untriaged material review findings.**
+Evidence: the Revised header ("material findings remain for author triage") and §Status ("its material findings await author triage. The review advises — it does not ratify."). This is grounded solely in the target document's own text, per the blind constraint. A Spec of this security weight cannot be called review-complete while it self-reports an open material-finding queue; the LLP 0005 loop requires author disposition, not merely archival.
+Resolution criterion: each archived material finding receives a recorded author disposition (accepted-and-applied, or declined with rationale) reflected in the document's revision history, after which this concern dissolves regardless of the dispositions chosen.
+
+**C3. MINOR (coherence with LLP 0059): the durable session clock floor silently rewrites this document's `now` semantics.**
+Evidence: §Normative vocabulary pins "Unix epoch milliseconds for durable and wire timestamps" and §Sliding use pins `record_authenticated_use(..., now)` setting `last_used_at_ms = now`; the DDL CHECKs (`created_at_ms <= last_used_at_ms <= expires_at_ms`) make backward wall-clock movement a hard constraint failure. The implementation actually derives every wall-clock lifetime decision at `max(sample, floor)` under LLP 0059#durable-session-clock-floor (`src/storage/auth.rs:29,479-517`; LLP 0059 line 321). 0057 never acknowledges this overlay, so 0057-alone conformance either fails unavailability-shaped on clock regression or diverges from the sibling Spec's mandated behavior — and 0057's literal "sets `last_used_at_ms = now`" is not what the landed system does.
+Resolution criterion: one sentence in §Normative vocabulary or §Sliding use stating that every wall-clock `now` used in durable auth writes is subject to the LLP 0059 durable clock floor, with a cross-reference.
+
+**C4. MINOR (unpinned domain): session `generation` has no specified integer domain or exhaustion behavior.**
+Evidence: the DDL pins only `CHECK(generation >= 1)` (§Catalog version 1); timestamps get an explicit `0..=9_007_199_254_740_991` domain but generation does not, even though `sessionGeneration` is wire-visible in the composed `authorityDescriptor` (§Public provider DTOs) and consumed by JS. The implementation chose a behavior the spec doesn't state: `revoke_all_sessions_in` fails closed as catalog corruption when any live generation reaches `9_007_199_254_740_991` (`src/storage/auth.rs:866-876`).
+Resolution criterion: pin the generation domain (e.g., `1..=9_007_199_254_740_991`) and the exhaustion outcome in the constants or DDL section so the implemented refusal is spec-backed.
+
+**C5. MINOR (rationale gap): the family alarm is destructively effective inside the supersession grace window.**
+Evidence: §Credential resolution matrix row "Tombstone, age <= 10s, session live" → `/auth/family-alarm`: "revoke family", while refresh in the same cell deliberately avoids destruction (`REFRESH_SUPERSEDED`, protecting the sleeping/woken tab). A client-coordinator bug or over-eager fallback that calls the alarm inside grace destroys a healthy session that the refresh path was carefully designed to protect. This asymmetry is almost certainly intended (the alarm is only reached after custody reload and one retry fail, and deferring it would open a thief window), but the document explains the refresh-side grace at length and never explains why the alarm ignores it.
+Resolution criterion: one sentence of rationale in §Logout, ordinary supersession, and family alarm stating why grace does not apply to the alarm (destroy-only, post-reconciliation-failure invocation contract), so a future editor does not "fix" the asymmetry.
+
+**C6. EDITORIAL: the "dev" homonym (deployment profile vs auth mode) invites misreading.**
+Evidence: "The capture provider is available in `dev`, `test`, and `demo`, never `prod`" (§Request-code transaction — profiles) vs "Provider routes in active dev mode return the typed HTTP-404 `SNAPBACK_AUTH_MODE_DEV`" (§Registry rows — auth mode). Both statements are correct and code-consistent, but the same token names two orthogonal axes within a few hundred lines, and the registry table's availability notes mix them ("Mailbox access and session minting are available in dev/test/demo").
+Resolution criterion: a one-line vocabulary note (profile axis: dev/test/demo/prod; mode axis: dev/sessions per LLP 0058) near §Normative vocabulary, or consistent qualification ("dev profile" / "dev mode") throughout.
+
+**C7. EDITORIAL: the family-alarm jitter is modulo-biased, unlike every other sampling rule in the document.**
+Evidence: §Family alarm pins "0–5 ms of CSPRNG jitter"; the implementation samples `byte % 6` (`src/auth/provider.rs:4141`), a 43/42-per-256 bias. The spec pins rejection sampling for the six-digit code but is silent on jitter uniformity, so the code is technically conformant, and the bias is security-immaterial for a timing pad. Still, a document this exact should either say "uniformity not required" or require the same rejection discipline.
+Resolution criterion: one clause in §Family alarm stating whether jitter uniformity is required.
+
+## 4. Suggestions
+
+- **Bind the backup unit's two halves to each other durably.** `backup.json` binds database and keyring at backup time, but a mixed restore assembled by hand (database from backup A, keyring from backup B, both individually valid) fails only lazily, per-challenge, as `PROVIDER_UNAVAILABLE` when a `key_id` is missing. Storing a keyring fingerprint (e.g., hash of the sorted key-id set) in `_snapback_meta` and revalidating at `ReadyV1` startup would make a mismatched pair fail closed at bind with a distinct diagnostic — cheap, and it also strengthens the §Keyring protocol "missing keyring" posture into a "wrong keyring" posture. This slots naturally under the existing open question about undeclared-restore detection.
+- **Enumerate `_snapback_meta` auth-key fate in `app.reset`.** §Catalog write and lifecycle rules pins the reset delete list (which matches `reset_auth_catalog_in` exactly) and says the marker/keyring survive, but is silent on `auth_restore_declaration_id` (whose survival the restore idempotency contract quietly depends on) and the 0059 clock floor. One sentence closes it.
+- **State the throttle-ordering rationale.** Steps 2–4 of §Request-code transaction do CSPRNG + HMAC + possibly a durable key rotation before the transactional throttle count. This is fine on a local target (0039 pins the throttle-honesty trade), and the count must be transactional to be race-free — but the document explains the rotation/admission separation without saying why no advisory pre-count precedes the crypto work. One clause prevents a future "optimization" from being proposed as a fix.
+- **Consider a hash-chained auth event log as a named future item.** 0039 keeps audit trails a non-goal; given how much of this document is about attributable destruction (family alarm, restore declarations, downgrade revocation), a tamper-evident operator-plane event chain would materially help post-incident reconstruction and is the natural home for the "monotonic anchor" open question. A sentence in §Open questions would preserve the idea without scope creep.
+
+## 5. Open questions
+
+1. What recorded form will the author's triage of the archived review's material findings take, and does any of them alter a pinned constant, encoding, or state outcome (which would require fixture revision per §Implementation hand-off)?
+2. Should the bulk-revocation transaction (C1) be owned here or explicitly ceded to LLP 0058 with 0057 providing only the storage primitive? Ownership must land on exactly one document.
+3. Is the generation domain (C4) intended to be JS-safe-integer bounded, and is fail-closed-as-corrupt the intended exhaustion outcome versus refusing only the triggering operation?
+4. Does the clock-floor overlay (C3) apply to *every* durable auth timestamp this document writes (challenge `requested_at_ms`, tombstone `superseded_at_ms`, key `retired_at_ms`), or only session-lifetime decisions? 0059's text is session-scoped; 0057's tables all carry the same CHECK bounds.
+5. When the LLP 0045 delivery adapter eventually takes the ephemeral payload handle (§Capture mailbox), what acceptance artifact proves the "plaintext never enters a durable intent" boundary end-to-end across both documents?
+
+## 6. Readiness verdict
+
+The protocol design is sound, the implementation-verification story is exemplary, and nothing I checked in code contradicts the document. But two MATERIAL items remain: the revoke-all seam consumed by LLP 0058 is unspecified in the document that both 0058 and the code attribute it to (C1), and the document's own header and Status record untriaged material findings from the prior review gate (C2). Both are cheap to resolve — one pinned paragraph plus an acceptance line, and a recorded triage pass — after which I would expect this Spec to be ready for author ratification. C3–C7 are non-blocking polish.
+
+READINESS VERDICT: NOT READY
+
+### Orchestrator disposition (round 1, outside the verbatim body)
+
+Spot-checks confirmed: no material spec-vs-code drift in the sampled constants,
+DDL, and crypto vectors, as the review states. C1 (revoke-all transaction
+consumed by LLP 0058 but unspecified) verified against 0058 and
+`src/storage/auth.rs`.
+
+Disposition: C1 → new §Bulk session revocation, added to owned scope and the
+declared-restore branch, with an acceptance row; C2 (untriaged findings) →
+the round-2 §Review triage records a disposition for every material finding of
+both families; C3 (clock-floor overlay) → §Normative vocabulary now states the
+LLP 0059 floor governs every durable `now`; C4 (generation domain) → pinned
+`1..=9_007_199_254_740_991` with fail-closed exhaustion; C5–C7 (family-alarm
+grace rationale, dev homonym, jitter uniformity) → non-blocking, folded into
+the round-2 wording where cheap.
