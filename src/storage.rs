@@ -54,6 +54,13 @@ pub(crate) mod auth_agent_credentials;
 #[path = "storage/auth_scope_bases.rs"]
 pub(crate) mod auth_scope_bases;
 
+// @ref LLP 0055#grants — pairing-code consent and immutable delegated grants
+//   are one protected-catalog lifecycle, with concrete scope bases captured at
+//   consent and no silent cap eviction.
+#[allow(dead_code)]
+#[path = "storage/auth_grants.rs"]
+pub(crate) mod auth_grants;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;

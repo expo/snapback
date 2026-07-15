@@ -1,0 +1,1058 @@
+//! Pairing-code consent and immutable delegated grants.
+//!
+//! @ref LLP 0055#grants — users mint single-use pairing codes; agents present
+//!   closed scope requests; delegated tiers expand to exact function bases;
+//!   approval atomically consumes the request and creates one immutable grant.
+
+use super::LocalDatabase;
+use super::auth_agent_credentials::{
+    coalesce_credential_use, live_credential_by_hash, require_agent_active_on,
+    require_agent_clock_on,
+};
+use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+use rusqlite::{OptionalExtension, Transaction, params};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
+
+pub const PAIRING_CODE_TTL_MS: u64 = 10 * 60 * 1_000;
+pub const PAIRING_CODE_LIVE_CAP_PER_USER: u64 = 10;
+pub const PAIRING_REQUEST_LIVE_CAP_PER_AGENT: u64 = 10;
+pub const GRANT_LIVE_CAP_PER_ACTOR: u64 = 50;
+pub const DELEGATED_GRANT_LIVE_CAP_PER_USER: u64 = 50;
+pub const DELEGATED_GRANT_DEFAULT_TTL_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
+pub const DELEGATED_GRANT_MAX_TTL_MS: u64 = 90 * 24 * 60 * 60 * 1_000;
+pub const GRANT_SCOPE_ENTRY_CAP: usize = 128;
+pub const GRANT_SCOPE_BYTES_CAP: usize = 16 * 1_024;
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ScopedFunctionKind {
+    Query,
+    Mutation,
+    LiveQuery,
+    Action,
+}
+
+impl ScopedFunctionKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Query => "query",
+            Self::Mutation => "mutation",
+            Self::LiveQuery => "liveQuery",
+            Self::Action => "action",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "query" => Some(Self::Query),
+            "mutation" => Some(Self::Mutation),
+            "liveQuery" => Some(Self::LiveQuery),
+            "action" => Some(Self::Action),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum GrantTier {
+    Query,
+    Mutation,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged, deny_unknown_fields)]
+pub(crate) enum GrantScopeRequest {
+    Exact {
+        #[serde(rename = "fn")]
+        function_id: String,
+        kind: ScopedFunctionKind,
+    },
+    Tier {
+        tier: GrantTier,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct ExactGrantScope {
+    #[serde(rename = "fn")]
+    pub function_id: String,
+    pub kind: ScopedFunctionKind,
+    pub basis: u64,
+    pub authority_creating: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct MintedPairingCode {
+    pub request_id: String,
+    pub expires_at_ms: u64,
+    pub secret: PairingCode,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PendingGrantRequest {
+    pub request_id: String,
+    pub effective_user_id: String,
+    pub agent_user_id: String,
+    pub agent_display_name: Option<String>,
+    pub registration_provenance: String,
+    pub scopes: Vec<ExactGrantScope>,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PairingPresentation {
+    Created(PendingGrantRequest),
+    Existing(PendingGrantRequest),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ApprovedGrant {
+    pub grant_id: String,
+    pub request_id: String,
+    pub actor_user_id: String,
+    pub effective_user_id: String,
+    pub scopes: Vec<ExactGrantScope>,
+    pub expires_at_ms: u64,
+    pub consent_digest: [u8; 32],
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum GrantApproval {
+    Created(ApprovedGrant),
+    Existing(ApprovedGrant),
+}
+
+impl LocalDatabase {
+    /// Mint a short-lived, single-use consent secret for a human principal.
+    /// The plaintext exists only in the returned wrapper.
+    pub(crate) fn mint_pairing_code(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<MintedPairingCode> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let expires_at_ms = now_ms
+            .checked_add(PAIRING_CODE_TTL_MS)
+            .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
+            .ok_or_else(grant_state_corrupt)?;
+        let secret = PairingCode::generate(random).map_err(|_| provider_unavailable())?;
+        let hash = secret.token_hash();
+        let request_id = super::new_id();
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            require_human_user_on(tx, user_id)?;
+            sweep_pairing_requests_on(tx, now_ms)?;
+            let live = count_on(
+                tx,
+                "SELECT COUNT(*) FROM _auth_pairing_requests
+                 WHERE minted_by_user_id = ?1 AND consumed_at_ms IS NULL
+                   AND expires_at_ms > ?2",
+                params![user_id, now_ms as i64],
+            )?;
+            if live >= PAIRING_CODE_LIVE_CAP_PER_USER {
+                return Err(pairing_code_cap());
+            }
+            tx.execute(
+                "INSERT INTO _auth_pairing_requests(
+                   id, code_hash, minted_by_user_id, agent_user_id,
+                   requested_scopes, state, attempts, created_at_ms,
+                   expires_at_ms, consumed_at_ms, grant_id
+                 ) VALUES(?1, ?2, ?3, NULL, NULL, 'pending', 0, ?4, ?5, NULL, NULL)",
+                params![
+                    request_id,
+                    hash.as_bytes(),
+                    user_id,
+                    now_ms as i64,
+                    expires_at_ms as i64,
+                ],
+            )?;
+            Ok(())
+        })?;
+        Ok(MintedPairingCode {
+            request_id,
+            expires_at_ms,
+            secret,
+        })
+    }
+
+    /// Consume a pairing code and bind its request to this exact live agent.
+    /// Re-presenting the same code by the same agent with the same canonical
+    /// scopes is idempotent; every other reuse is the same non-enumerating
+    /// invalid outcome.
+    pub(crate) fn present_pairing_code(
+        &mut self,
+        credential: &AgentCredential,
+        pairing_code: &PairingCode,
+        requested_scopes: &[GrantScopeRequest],
+        now_ms: u64,
+    ) -> SnapbackResult<PairingPresentation> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let credential_hash = credential.token_hash();
+        let code_hash = pairing_code.token_hash();
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let credential = live_credential_by_hash(tx, credential_hash.as_bytes())?
+                .ok_or_else(agent_credential_invalid)?;
+            require_agent_active_on(tx, &credential.user_id)?;
+            coalesce_credential_use(tx, &credential.credential_id, now_ms)?;
+            sweep_pairing_requests_on(tx, now_ms)?;
+            let row = tx
+                .query_row(
+                    "SELECT id, minted_by_user_id, agent_user_id, requested_scopes,
+                            state, created_at_ms, expires_at_ms, consumed_at_ms
+                     FROM _auth_pairing_requests WHERE code_hash = ?1",
+                    params![code_hash.as_bytes()],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, Option<String>>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                            row.get::<_, String>(4)?,
+                            row.get::<_, i64>(5)? as u64,
+                            row.get::<_, i64>(6)? as u64,
+                            row.get::<_, Option<i64>>(7)?.map(|value| value as u64),
+                        ))
+                    },
+                )
+                .optional()?
+                .ok_or_else(grant_invalid)?;
+            let (
+                request_id,
+                effective_user_id,
+                bound_agent,
+                stored_scopes,
+                state,
+                created_at_ms,
+                expires_at_ms,
+                consumed_at_ms,
+            ) = row;
+            if expires_at_ms <= now_ms || state != "pending" {
+                return Err(grant_invalid());
+            }
+            let scopes = resolve_delegated_scopes_on(tx, requested_scopes)?;
+            let scopes_json = canonical_scopes_json(&scopes)?;
+            let request = pending_request_on(
+                tx,
+                &request_id,
+                &effective_user_id,
+                &credential.user_id,
+                &scopes,
+                created_at_ms,
+                expires_at_ms,
+            )?;
+            if let (Some(bound_agent), Some(stored_scopes), Some(_)) =
+                (bound_agent.as_ref(), stored_scopes.as_ref(), consumed_at_ms)
+            {
+                if bound_agent == &credential.user_id && stored_scopes == &scopes_json {
+                    return Ok(PairingPresentation::Existing(request));
+                }
+                return Err(grant_invalid());
+            }
+            if bound_agent.is_some() || stored_scopes.is_some() || consumed_at_ms.is_some() {
+                return Err(grant_state_corrupt());
+            }
+            let pending = count_on(
+                tx,
+                "SELECT COUNT(*) FROM _auth_pairing_requests
+                 WHERE agent_user_id = ?1 AND state = 'pending'
+                   AND expires_at_ms > ?2",
+                params![credential.user_id, now_ms as i64],
+            )?;
+            if pending >= PAIRING_REQUEST_LIVE_CAP_PER_AGENT {
+                return Err(pairing_request_cap());
+            }
+            let changed = tx.execute(
+                "UPDATE _auth_pairing_requests
+                 SET agent_user_id = ?1, requested_scopes = ?2,
+                     consumed_at_ms = ?3, attempts = attempts + 1
+                 WHERE id = ?4 AND agent_user_id IS NULL
+                   AND requested_scopes IS NULL AND consumed_at_ms IS NULL
+                   AND state = 'pending' AND expires_at_ms > ?3",
+                params![credential.user_id, scopes_json, now_ms as i64, request_id,],
+            )?;
+            if changed != 1 {
+                return Err(grant_invalid());
+            }
+            Ok(PairingPresentation::Created(request))
+        })
+    }
+
+    /// Approve exactly one pending request. Retrying an already-approved
+    /// request owned by the same user returns the immutable grant; a concurrent
+    /// approval can never create a second row.
+    pub(crate) fn approve_grant_request(
+        &mut self,
+        effective_user_id: &str,
+        session_id: &str,
+        request_id: &str,
+        requested_ttl_ms: Option<u64>,
+        step_up_proven: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<GrantApproval> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let ttl = requested_ttl_ms.unwrap_or(DELEGATED_GRANT_DEFAULT_TTL_MS);
+        if ttl == 0 || ttl > DELEGATED_GRANT_MAX_TTL_MS {
+            return Err(grant_expiry_invalid());
+        }
+        let grant_expires_at_ms = now_ms
+            .checked_add(ttl)
+            .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
+            .ok_or_else(grant_expiry_invalid)?;
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            require_human_user_on(tx, effective_user_id)?;
+            let request = approval_request_on(tx, request_id, effective_user_id, now_ms)?;
+            if request.state == "approved" {
+                let grant_id = request.grant_id.ok_or_else(grant_state_corrupt)?;
+                return Ok(GrantApproval::Existing(load_approved_grant_on(
+                    tx, &grant_id, request_id,
+                )?));
+            }
+            if request.state != "pending" || request.grant_id.is_some() {
+                return Err(grant_invalid());
+            }
+            let actor_user_id = request.agent_user_id.ok_or_else(grant_invalid)?;
+            require_agent_active_on(tx, &actor_user_id)?;
+            let scopes_json = request.requested_scopes.ok_or_else(grant_invalid)?;
+            let scopes = parse_scopes_json(&scopes_json)?;
+            if scopes.iter().any(|scope| scope.authority_creating) && !step_up_proven {
+                return Err(step_up_required());
+            }
+            require_scope_bases_current_on(tx, &scopes)?;
+            enforce_grant_caps_on(tx, &actor_user_id, effective_user_id, now_ms)?;
+
+            let agent = agent_consent_identity_on(tx, &actor_user_id)?;
+            let expires_at_ms = grant_expires_at_ms;
+            let consent_digest = consent_digest(
+                &actor_user_id,
+                agent.0.as_deref(),
+                &agent.1,
+                &scopes,
+                expires_at_ms,
+            )?;
+            let grant_id = super::new_id();
+            tx.execute(
+                "INSERT INTO _auth_grants(
+                   id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                   expires_at_ms, revoked_at_ms, created_by, request_id,
+                   consent_digest, last_used_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?8, ?9, ?5)",
+                params![
+                    grant_id,
+                    actor_user_id,
+                    effective_user_id,
+                    scopes_json,
+                    now_ms as i64,
+                    expires_at_ms as i64,
+                    format!("session:{session_id}"),
+                    request_id,
+                    consent_digest.as_slice(),
+                ],
+            )?;
+            let changed = tx.execute(
+                "UPDATE _auth_pairing_requests SET state = 'approved', grant_id = ?1
+                 WHERE id = ?2 AND minted_by_user_id = ?3
+                   AND state = 'pending' AND grant_id IS NULL",
+                params![grant_id, request_id, effective_user_id],
+            )?;
+            if changed != 1 {
+                return Err(grant_invalid());
+            }
+            Ok(GrantApproval::Created(ApprovedGrant {
+                grant_id,
+                request_id: request_id.to_owned(),
+                actor_user_id,
+                effective_user_id: effective_user_id.to_owned(),
+                scopes,
+                expires_at_ms,
+                consent_digest,
+            }))
+        })
+    }
+
+    pub(crate) fn deny_grant_request(
+        &mut self,
+        effective_user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let state = tx
+                .query_row(
+                    "SELECT state FROM _auth_pairing_requests
+                     WHERE id = ?1 AND minted_by_user_id = ?2",
+                    params![request_id, effective_user_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+                .ok_or_else(grant_invalid)?;
+            if state == "denied" {
+                return Ok(());
+            }
+            if state != "pending" {
+                return Err(grant_invalid());
+            }
+            tx.execute(
+                "UPDATE _auth_pairing_requests SET state = 'denied'
+                 WHERE id = ?1 AND minted_by_user_id = ?2 AND state = 'pending'",
+                params![request_id, effective_user_id],
+            )?;
+            Ok(())
+        })
+    }
+}
+
+struct ApprovalRequestRow {
+    agent_user_id: Option<String>,
+    requested_scopes: Option<String>,
+    state: String,
+    expires_at_ms: u64,
+    grant_id: Option<String>,
+}
+
+fn approval_request_on(
+    tx: &Transaction<'_>,
+    request_id: &str,
+    effective_user_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<ApprovalRequestRow> {
+    let row = tx
+        .query_row(
+            "SELECT agent_user_id, requested_scopes, state, expires_at_ms, grant_id
+             FROM _auth_pairing_requests
+             WHERE id = ?1 AND minted_by_user_id = ?2",
+            params![request_id, effective_user_id],
+            |row| {
+                Ok(ApprovalRequestRow {
+                    agent_user_id: row.get(0)?,
+                    requested_scopes: row.get(1)?,
+                    state: row.get(2)?,
+                    expires_at_ms: row.get::<_, i64>(3)? as u64,
+                    grant_id: row.get(4)?,
+                })
+            },
+        )
+        .optional()?
+        .ok_or_else(grant_invalid)?;
+    if row.state == "pending" && row.expires_at_ms <= now_ms {
+        return Err(grant_invalid());
+    }
+    Ok(row)
+}
+
+fn resolve_delegated_scopes_on(
+    tx: &Transaction<'_>,
+    requested: &[GrantScopeRequest],
+) -> SnapbackResult<Vec<ExactGrantScope>> {
+    if requested.is_empty() || requested.len() > GRANT_SCOPE_ENTRY_CAP {
+        return Err(grant_scope_invalid());
+    }
+    let mut scopes = BTreeSet::new();
+    for request in requested {
+        match request {
+            GrantScopeRequest::Exact { function_id, kind } => {
+                let scope =
+                    exact_scope_on(tx, function_id, *kind)?.ok_or_else(grant_scope_invalid)?;
+                scopes.insert(scope);
+            }
+            GrantScopeRequest::Tier { tier } => {
+                let kinds: &[&str] = match tier {
+                    GrantTier::Query => &["query", "liveQuery"],
+                    GrantTier::Mutation => &["mutation"],
+                };
+                for kind in kinds {
+                    let mut statement = tx.prepare(
+                        "SELECT function_id, kind, generation
+                         FROM _auth_scope_bases
+                         WHERE present = 1 AND authority_creating = 0 AND kind = ?1
+                         ORDER BY function_id",
+                    )?;
+                    let rows = statement.query_map(params![kind], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                        ))
+                    })?;
+                    for row in rows {
+                        let (function_id, stored_kind, basis) = row?;
+                        if basis < 0 {
+                            return Err(grant_state_corrupt());
+                        }
+                        scopes.insert(ExactGrantScope {
+                            function_id,
+                            kind: ScopedFunctionKind::parse(&stored_kind)
+                                .ok_or_else(grant_state_corrupt)?,
+                            basis: basis as u64,
+                            authority_creating: false,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    if scopes.is_empty() || scopes.len() > GRANT_SCOPE_ENTRY_CAP {
+        return Err(grant_scope_invalid());
+    }
+    Ok(scopes.into_iter().collect())
+}
+
+fn exact_scope_on(
+    tx: &Transaction<'_>,
+    function_id: &str,
+    kind: ScopedFunctionKind,
+) -> SnapbackResult<Option<ExactGrantScope>> {
+    if function_id.is_empty() {
+        return Ok(None);
+    }
+    tx.query_row(
+        "SELECT generation, authority_creating FROM _auth_scope_bases
+         WHERE function_id = ?1 AND kind = ?2 AND present = 1",
+        params![function_id, kind.as_str()],
+        |row| {
+            let basis = row.get::<_, i64>(0)?;
+            let authority_creating = row.get::<_, i64>(1)?;
+            Ok((basis, authority_creating))
+        },
+    )
+    .optional()?
+    .map(|(basis, authority_creating)| {
+        if basis < 0 || !matches!(authority_creating, 0 | 1) {
+            return Err(grant_state_corrupt());
+        }
+        Ok(ExactGrantScope {
+            function_id: function_id.to_owned(),
+            kind,
+            basis: basis as u64,
+            authority_creating: authority_creating == 1,
+        })
+    })
+    .transpose()
+}
+
+fn require_scope_bases_current_on(
+    tx: &Transaction<'_>,
+    scopes: &[ExactGrantScope],
+) -> SnapbackResult<()> {
+    for scope in scopes {
+        let current = exact_scope_on(tx, &scope.function_id, scope.kind)?;
+        if current.as_ref() != Some(scope) {
+            return Err(grant_scope_stale());
+        }
+    }
+    Ok(())
+}
+
+fn canonical_scopes_json(scopes: &[ExactGrantScope]) -> SnapbackResult<String> {
+    let encoded = serde_json::to_string(scopes).map_err(|_| grant_state_corrupt())?;
+    if encoded.len() > GRANT_SCOPE_BYTES_CAP {
+        return Err(grant_scope_invalid());
+    }
+    Ok(encoded)
+}
+
+fn parse_scopes_json(encoded: &str) -> SnapbackResult<Vec<ExactGrantScope>> {
+    let scopes: Vec<ExactGrantScope> =
+        serde_json::from_str(encoded).map_err(|_| grant_state_corrupt())?;
+    if scopes.is_empty()
+        || scopes.len() > GRANT_SCOPE_ENTRY_CAP
+        || canonical_scopes_json(&scopes)? != encoded
+    {
+        return Err(grant_state_corrupt());
+    }
+    Ok(scopes)
+}
+
+fn pending_request_on(
+    tx: &Transaction<'_>,
+    request_id: &str,
+    effective_user_id: &str,
+    agent_user_id: &str,
+    scopes: &[ExactGrantScope],
+    created_at_ms: u64,
+    expires_at_ms: u64,
+) -> SnapbackResult<PendingGrantRequest> {
+    let (display_name, provenance) = agent_consent_identity_on(tx, agent_user_id)?;
+    Ok(PendingGrantRequest {
+        request_id: request_id.to_owned(),
+        effective_user_id: effective_user_id.to_owned(),
+        agent_user_id: agent_user_id.to_owned(),
+        agent_display_name: display_name,
+        registration_provenance: provenance,
+        scopes: scopes.to_vec(),
+        created_at_ms,
+        expires_at_ms,
+    })
+}
+
+fn agent_consent_identity_on(
+    tx: &Transaction<'_>,
+    agent_user_id: &str,
+) -> SnapbackResult<(Option<String>, String)> {
+    tx.query_row(
+        "SELECT display_name, registration_provenance FROM _auth_users
+         WHERE id = ?1 AND kind = 'agent' AND deactivated_at_ms IS NULL",
+        params![agent_user_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )
+    .optional()?
+    .ok_or_else(grant_invalid)
+}
+
+fn consent_digest(
+    agent_user_id: &str,
+    display_name: Option<&str>,
+    provenance: &str,
+    scopes: &[ExactGrantScope],
+    expires_at_ms: u64,
+) -> SnapbackResult<[u8; 32]> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Consent<'a> {
+        agent_user_id: &'a str,
+        display_name: Option<&'a str>,
+        registration_provenance: &'a str,
+        scopes: &'a [ExactGrantScope],
+        expires_at_ms: u64,
+    }
+    let encoded = serde_json::to_vec(&Consent {
+        agent_user_id,
+        display_name,
+        registration_provenance: provenance,
+        scopes,
+        expires_at_ms,
+    })
+    .map_err(|_| grant_state_corrupt())?;
+    Ok(Sha256::digest(encoded).into())
+}
+
+fn enforce_grant_caps_on(
+    tx: &Transaction<'_>,
+    actor_user_id: &str,
+    effective_user_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let actor = count_on(
+        tx,
+        "SELECT COUNT(*) FROM _auth_grants
+         WHERE actor_user_id = ?1 AND revoked_at_ms IS NULL
+           AND (expires_at_ms IS NULL OR expires_at_ms > ?2)",
+        params![actor_user_id, now_ms as i64],
+    )?;
+    let effective = count_on(
+        tx,
+        "SELECT COUNT(*) FROM _auth_grants
+         WHERE effective_user_id = ?1 AND revoked_at_ms IS NULL
+           AND expires_at_ms > ?2",
+        params![effective_user_id, now_ms as i64],
+    )?;
+    if actor >= GRANT_LIVE_CAP_PER_ACTOR || effective >= DELEGATED_GRANT_LIVE_CAP_PER_USER {
+        Err(grant_cap())
+    } else {
+        Ok(())
+    }
+}
+
+fn load_approved_grant_on(
+    tx: &Transaction<'_>,
+    grant_id: &str,
+    request_id: &str,
+) -> SnapbackResult<ApprovedGrant> {
+    tx.query_row(
+        "SELECT actor_user_id, effective_user_id, scopes, expires_at_ms,
+                consent_digest
+         FROM _auth_grants WHERE id = ?1 AND request_id = ?2",
+        params![grant_id, request_id],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)? as u64,
+                row.get::<_, Vec<u8>>(4)?,
+            ))
+        },
+    )
+    .optional()?
+    .ok_or_else(grant_state_corrupt)
+    .and_then(
+        |(actor_user_id, effective_user_id, scopes, expires_at_ms, digest)| {
+            let consent_digest: [u8; 32] = digest.try_into().map_err(|_| grant_state_corrupt())?;
+            Ok(ApprovedGrant {
+                grant_id: grant_id.to_owned(),
+                request_id: request_id.to_owned(),
+                actor_user_id,
+                effective_user_id,
+                scopes: parse_scopes_json(&scopes)?,
+                expires_at_ms,
+                consent_digest,
+            })
+        },
+    )
+}
+
+fn sweep_pairing_requests_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
+    tx.execute(
+        "DELETE FROM _auth_pairing_requests
+         WHERE expires_at_ms <= ?1 AND grant_id IS NULL",
+        params![now_ms as i64],
+    )?;
+    Ok(())
+}
+
+fn require_human_user_on(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<()> {
+    let exists = tx
+        .query_row(
+            "SELECT 1 FROM _auth_users WHERE id = ?1 AND kind = 'human'",
+            params![user_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if exists { Ok(()) } else { Err(grant_invalid()) }
+}
+
+fn count_on<P: rusqlite::Params>(
+    tx: &Transaction<'_>,
+    sql: &str,
+    params: P,
+) -> SnapbackResult<u64> {
+    let count: i64 = tx.query_row(sql, params, |row| row.get(0))?;
+    if count < 0 {
+        Err(grant_state_corrupt())
+    } else {
+        Ok(count as u64)
+    }
+}
+
+fn grant_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_INVALID",
+        "auth",
+        "agent grant is invalid",
+    )
+}
+
+fn agent_credential_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID",
+        "auth",
+        "agent credential is invalid",
+    )
+}
+
+fn grant_scope_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_SCOPE_INVALID",
+        "auth",
+        "requested grant scopes are invalid",
+    )
+}
+
+fn grant_scope_stale() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_SCOPE_STALE",
+        "auth",
+        "requested grant scopes changed before consent",
+    )
+}
+
+fn grant_cap() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_CAP",
+        "auth",
+        "live grant capacity is exhausted",
+    )
+}
+
+fn pairing_code_cap() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PAIRING_CODE_CAP",
+        "auth",
+        "live pairing-code capacity is exhausted",
+    )
+}
+
+fn pairing_request_cap() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PAIRING_REQUEST_CAP",
+        "auth",
+        "pending pairing-request capacity is exhausted",
+    )
+}
+
+fn grant_expiry_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID",
+        "auth",
+        "delegated grant expiry must be between one millisecond and 90 days",
+    )
+}
+
+fn step_up_required() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
+        "auth",
+        "authority-creating consent requires fresh step-up authentication",
+    )
+}
+
+fn grant_state_corrupt() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_STATE_CORRUPT",
+        "auth",
+        "stored grant state is corrupt",
+    )
+}
+
+fn provider_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "auth",
+        "agent secret generation is unavailable",
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::crypto::CryptoError;
+    use crate::storage::auth_agents::AgentRegistration;
+    use std::sync::atomic::{AtomicU8, Ordering};
+
+    struct CounterRandom(AtomicU8);
+
+    impl CounterRandom {
+        fn new() -> Self {
+            Self(AtomicU8::new(1))
+        }
+    }
+
+    impl RandomSource for CounterRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0.fetch_add(1, Ordering::SeqCst));
+            Ok(())
+        }
+    }
+
+    fn ready(random: &dyn RandomSource) -> (LocalDatabase, AgentCredential) {
+        let mut db = LocalDatabase::memory().unwrap();
+        db.activate_auth_catalog_v1().unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('user-a', 0, 'human', 'User A', NULL, NULL, NULL, NULL)",
+                [],
+            )
+            .unwrap();
+        db.create_agent_principal(
+            "agent-a",
+            0,
+            &AgentRegistration {
+                display_name: Some("Agent A".to_owned()),
+                operator_contact: None,
+                registration_provenance: r#"{"source":"test"}"#.to_owned(),
+                owner_user_id: Some("user-a".to_owned()),
+            },
+        )
+        .unwrap();
+        let credential = db
+            .issue_initial_agent_credential("agent-a", 1_000, random)
+            .unwrap()
+            .secret;
+        (db, credential)
+    }
+
+    fn scope_basis(db: &LocalDatabase, function_id: &str, kind: &str, authority_creating: bool) {
+        db.conn
+            .execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES(?1, ?2, 0, 1, ?3)",
+                params![function_id, kind, i64::from(authority_creating)],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn pairing_expands_tiers_requires_step_up_and_approves_exactly_once() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        scope_basis(&db, "fn:read", "query", false);
+        scope_basis(&db, "fn:live", "liveQuery", false);
+        scope_basis(&db, "fn:ordinary-write", "mutation", false);
+        scope_basis(&db, "fn:seat-role", "mutation", true);
+
+        let pairing = db.mint_pairing_code("user-a", 1_100, &random).unwrap();
+        let presented = db
+            .present_pairing_code(
+                &credential,
+                &pairing.secret,
+                &[
+                    GrantScopeRequest::Tier {
+                        tier: GrantTier::Query,
+                    },
+                    GrantScopeRequest::Exact {
+                        function_id: "fn:seat-role".to_owned(),
+                        kind: ScopedFunctionKind::Mutation,
+                    },
+                ],
+                1_101,
+            )
+            .unwrap();
+        let PairingPresentation::Created(request) = presented else {
+            panic!("first presentation must create");
+        };
+        assert_eq!(request.request_id, pairing.request_id);
+        assert_eq!(
+            request
+                .scopes
+                .iter()
+                .map(|scope| scope.function_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["fn:live", "fn:read", "fn:seat-role"]
+        );
+        assert!(
+            !request
+                .scopes
+                .iter()
+                .any(|scope| scope.function_id == "fn:ordinary-write")
+        );
+
+        let repeated = db
+            .present_pairing_code(
+                &credential,
+                &pairing.secret,
+                &[
+                    GrantScopeRequest::Tier {
+                        tier: GrantTier::Query,
+                    },
+                    GrantScopeRequest::Exact {
+                        function_id: "fn:seat-role".to_owned(),
+                        kind: ScopedFunctionKind::Mutation,
+                    },
+                ],
+                1_102,
+            )
+            .unwrap();
+        assert!(matches!(repeated, PairingPresentation::Existing(_)));
+
+        let error = db
+            .approve_grant_request(
+                "user-a",
+                "session-a",
+                &pairing.request_id,
+                None,
+                false,
+                1_103,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+
+        let created = db
+            .approve_grant_request(
+                "user-a",
+                "session-a",
+                &pairing.request_id,
+                None,
+                true,
+                1_104,
+            )
+            .unwrap();
+        let GrantApproval::Created(grant) = created else {
+            panic!("first approval must create");
+        };
+        let repeated = db
+            .approve_grant_request(
+                "user-a",
+                "session-a",
+                &pairing.request_id,
+                Some(1),
+                true,
+                1_105,
+            )
+            .unwrap();
+        let GrantApproval::Existing(repeated) = repeated else {
+            panic!("approval retry must return existing");
+        };
+        assert_eq!(repeated.grant_id, grant.grant_id);
+        let count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _auth_grants", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn basis_change_between_pairing_and_consent_is_terminally_stale() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        scope_basis(&db, "fn:read", "query", false);
+        let pairing = db.mint_pairing_code("user-a", 2_000, &random).unwrap();
+        db.present_pairing_code(
+            &credential,
+            &pairing.secret,
+            &[GrantScopeRequest::Exact {
+                function_id: "fn:read".to_owned(),
+                kind: ScopedFunctionKind::Query,
+            }],
+            2_001,
+        )
+        .unwrap();
+        db.conn
+            .execute(
+                "UPDATE _auth_scope_bases
+                 SET generation = generation + 1, present = 0
+                 WHERE function_id = 'fn:read'",
+                [],
+            )
+            .unwrap();
+        let error = db
+            .approve_grant_request(
+                "user-a",
+                "session-a",
+                &pairing.request_id,
+                None,
+                false,
+                2_002,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_STALE");
+        let count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _auth_grants", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn invalid_pairing_code_does_not_reveal_scope_validity() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        let unknown = PairingCode::generate(&random).unwrap();
+        let error = db
+            .present_pairing_code(
+                &credential,
+                &unknown,
+                &[GrantScopeRequest::Exact {
+                    function_id: "fn:not-real".to_owned(),
+                    kind: ScopedFunctionKind::Action,
+                }],
+                3_000,
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+    }
+}

@@ -423,7 +423,7 @@ impl LocalDatabase {
         })
     }
 
-    fn observe_agent_authorization_clock(&mut self, now_ms: u64) -> SnapbackResult<()> {
+    pub(super) fn observe_agent_authorization_clock(&mut self, now_ms: u64) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| advance_agent_clock_on(tx, now_ms))
     }
 }
@@ -450,7 +450,7 @@ fn advance_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<(
     write_meta_u64(tx, AUTH_CLOCK_META_KEY, now_ms)
 }
 
-fn require_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
+pub(super) fn require_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
     let high_water = strict_meta_u64(tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
     if now_ms < high_water || now_ms > MAX_AUTHORIZATION_EPOCH {
         return Err(auth_clock_rollback());
@@ -458,7 +458,7 @@ fn require_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<(
     Ok(())
 }
 
-fn require_agent_active_on(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<()> {
+pub(super) fn require_agent_active_on(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<()> {
     let active = tx
         .query_row(
             "SELECT 1 FROM _auth_users
@@ -505,7 +505,7 @@ fn credential_row_by_hash(
     .map_err(Into::into)
 }
 
-fn live_credential_by_hash(
+pub(super) fn live_credential_by_hash(
     tx: &Transaction<'_>,
     hash: &[u8],
 ) -> SnapbackResult<Option<ResolvedAgentCredential>> {
@@ -525,7 +525,7 @@ fn live_credential_by_hash(
     .map_err(Into::into)
 }
 
-fn coalesce_credential_use(
+pub(super) fn coalesce_credential_use(
     tx: &Transaction<'_>,
     credential_id: &str,
     now_ms: u64,
