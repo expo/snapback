@@ -761,6 +761,56 @@ pub async fn run_from_env() -> anyhow::Result<()> {
 /// database, so keyring validation and SQLite backup share one quiesced unit.
 // @ref LLP 0057#consistent-backup — the CLI refuses live ownership and publishes SQLite plus exact keyring bytes atomically.
 async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::Result<()> {
+    let result = auth_backup_inner(database_path, output_directory).await;
+    match result {
+        Ok(outcome) => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": true,
+                    "operation": "auth.backup",
+                    "output": output_directory,
+                    "publicationState": outcome.publication_state,
+                }))?
+            );
+            Ok(())
+        }
+        Err(error) => {
+            let diagnostic = error
+                .downcast_ref::<crate::diagnostic::SnapbackError>()
+                .map(|error| error.diagnostic.clone())
+                .unwrap_or_else(|| {
+                    crate::diagnostic::Diagnostic::error(
+                        "SNAPBACK_AUTH_BACKUP_INVALID",
+                        "auth-backup",
+                        error.to_string(),
+                    )
+                    .with_details(json!({ "publicationState": "Unpublished" }))
+                });
+            let publication_state = diagnostic
+                .details
+                .get("publicationState")
+                .cloned()
+                .unwrap_or_else(|| json!("Unpublished"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "operation": "auth.backup",
+                    "output": output_directory,
+                    "publicationState": publication_state,
+                    "diagnostics": [diagnostic],
+                }))?
+            );
+            Err(error)
+        }
+    }
+}
+
+async fn auth_backup_inner(
+    database_path: &Path,
+    output_directory: &Path,
+) -> anyhow::Result<crate::auth::backup::AuthBackupOutcome> {
     let database_path = resolve_database_path(database_path)?;
     anyhow::ensure!(
         database_path.is_file(),
@@ -789,16 +839,8 @@ async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::R
         output_directory,
         created_at_ms,
         &crate::auth::crypto::OsRandom,
-    )?;
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&json!({
-            "ok": true,
-            "operation": "auth.backup",
-            "output": output_directory,
-        }))?
-    );
-    Ok(())
+    )
+    .map_err(anyhow::Error::new)
 }
 
 /// Restore always targets a database inside a wholly absent instance

@@ -602,6 +602,42 @@ fn auth_session_schema_rejects_the_eng_24991_negative_classes() {
     let mut version_99 = base.clone();
     version_99["protocolVersion"] = json!(99);
     assert_rejects("auth.session.output.schema.json", &version_99);
+
+    let mut generation_too_large = base.clone();
+    generation_too_large["authorityDescriptor"]["sessionGeneration"] =
+        json!(9_007_199_254_740_992_u64);
+    assert_rejects("auth.session.output.schema.json", &generation_too_large);
+}
+
+#[test]
+fn auth_credential_schema_requires_a_positive_js_safe_session_generation() {
+    let credential = json!({
+        "tokenType": "Bearer",
+        "token": "sbs_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.190a55ad",
+        "refreshAfter": 7,
+        "authorityDescriptor": {
+            "descriptorVersion": 1,
+            "authorityInstanceId": "019b0000-0000-7000-8000-000000000003",
+            "sessionGeneration": 1
+        },
+        "session": {
+            "id": "019b0000-0000-7000-8000-000000000001",
+            "userId": "019b0000-0000-7000-8000-000000000002",
+            "provider": "email-code",
+            "createdAt": 1,
+            "expiresAt": 2,
+            "absoluteExpiresAt": 3
+        }
+    });
+    assert_validates("auth.credential.output.schema.json", &credential);
+
+    let mut zero = credential.clone();
+    zero["authorityDescriptor"]["sessionGeneration"] = json!(0);
+    assert_rejects("auth.credential.output.schema.json", &zero);
+
+    let mut too_large = credential;
+    too_large["authorityDescriptor"]["sessionGeneration"] = json!(9_007_199_254_740_992_u64);
+    assert_rejects("auth.credential.output.schema.json", &too_large);
 }
 
 /// Every committed schema file has a corresponding generated artifact and vice

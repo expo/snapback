@@ -7,8 +7,8 @@
 //!
 //! @ref LLP 0057#activation-ordering — ordinary startup never creates a
 //! catalog or replaces a missing keyring for an already-marked catalog.
-//! @ref LLP 0057#garbage-collection — ReadyV1 runs bounded startup and
-//! 30-second maintenance passes; an uninitialized catalog stays dormant.
+//! @ref LLP 0057#garbage-collection — every recognized catalog runs bounded
+//! startup and 30-second maintenance passes; an uninitialized catalog stays dormant.
 //! @ref LLP 0057#concurrency-locks-and-linearization — exclusive auth
 //! maintenance is acquired before the outer app-instance/database lock.
 //! @ref LLP 0057#security-and-redaction — readiness exposes one closed public
@@ -380,8 +380,8 @@ async fn terminalize_due_sessions(
     Ok(())
 }
 
-/// ReadyV1 only: honor the startup pass's next delay, then run forever. A full
-/// bounded batch retries immediately. Keyring unavailability is a successful
+/// Recognized catalogs only: honor the startup pass's next delay, then run
+/// forever. A full bounded batch retries immediately. Keyring unavailability is a successful
 /// pass outcome, so it cannot discard the durable batch's retry signal; only a
 /// true maintenance error waits for the next normal interval.
 pub(crate) fn spawn_auth_gc_worker(

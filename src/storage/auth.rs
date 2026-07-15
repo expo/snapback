@@ -913,7 +913,8 @@ impl LocalDatabase {
     }
 
     /// Run a read through the protected lane. No raw connection accessor is
-    /// exposed; callers must cross an exact-ReadyV1 check for every operation.
+    /// exposed; callers must cross an exact recognized-catalog check for every
+    /// operation.
     pub(crate) fn with_auth_read<T>(
         &self,
         operation: impl FnOnce(&Connection) -> SnapbackResult<T>,
@@ -1132,23 +1133,7 @@ impl LocalDatabase {
             .max(latest_created_at);
         advance_session_clock_floor_on(&tx, restore_now_ms)?;
 
-        let exhausted_generations: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM _auth_sessions
-                 WHERE revoked_at_ms IS NULL AND generation >= 9007199254740991",
-            [],
-            |row| row.get(0),
-        )?;
-        if exhausted_generations != 0 {
-            return Err(corrupt(
-                "auth catalog contains an unrevoked session with an exhausted generation",
-            ));
-        }
-        let sessions_revoked = tx.execute(
-            "UPDATE _auth_sessions
-                 SET revoked_at_ms = ?1, generation = generation + 1
-                 WHERE revoked_at_ms IS NULL",
-            params![restore_now_ms as i64],
-        )?;
+        let sessions_revoked = revoke_all_sessions_in(&tx, restore_now_ms)?;
         restore_transaction_step_completed(0)?;
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
         if inspect_auth_catalog_on(&tx)? == AuthCatalogState::ReadyV2 {
@@ -1384,8 +1369,8 @@ fn normalize_backup_image_format(_image: &File) -> std::io::Result<()> {
     ))
 }
 
-/// Install catalog v1 inside a caller-owned transaction. The caller has
-/// already established usable keyring state; this seam lets LLP 0058 commit
+/// Install the current catalog inside a caller-owned transaction. The caller
+/// has already established usable keyring state; this seam lets LLP 0058 commit
 /// catalog activation together with manifest relocation and mode settlement.
 pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     match inspect_auth_catalog_on(tx)? {

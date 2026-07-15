@@ -1063,6 +1063,61 @@ mod tests {
     }
 
     #[test]
+    fn rescue_refuses_a_manifest_named_source_when_managed_mode_state_exists() {
+        let mut database = LocalDatabase::memory().unwrap();
+        source_fixture(&mut database, "_auth_legacy");
+        let manifest = legacy_manifest();
+        let serialized = serde_json::to_string(&manifest).unwrap();
+        database
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![META_SCHEMA_MANIFEST, serialized],
+            )
+            .unwrap();
+        database
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, '{}')
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![META_AUTH_MODE_STATE],
+            )
+            .unwrap();
+
+        let error = database
+            .rescue_auth_collision("_auth_legacy", "legacy_auth")
+            .unwrap_err();
+
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED"
+        );
+        assert_eq!(
+            database
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = '_auth_legacy'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            database
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'legacy_auth'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
     fn rescues_rows_indexes_and_literal_text_without_touching_values() {
         let mut database = LocalDatabase::memory().unwrap();
         source_fixture(&mut database, "_AuTh_Legacy");

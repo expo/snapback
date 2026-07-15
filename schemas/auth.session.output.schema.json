@@ -125,7 +125,9 @@
           "type": "integer"
         },
         "sessionGeneration": {
+          "description": "Zero is the anonymous/no-session sentinel; authenticated session\ndescriptors are positive and every value stays JavaScript-safe.",
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }

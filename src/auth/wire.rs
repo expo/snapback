@@ -130,6 +130,24 @@ pub enum AuthTokenType {
     Bearer,
 }
 
+/// Credential issuance always describes a live session, so unlike the shared
+/// handshake descriptor (where zero is the anonymous sentinel) its generation
+/// is strictly positive.
+#[derive(JsonSchema)]
+#[schemars(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)]
+struct CredentialAuthorityDescriptorSchema {
+    #[schemars(range(min = 1, max = 1))]
+    descriptor_version: u32,
+    #[schemars(pattern(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
+    authority_instance_id: String,
+    #[schemars(range(
+        min = 1,
+        max = crate::manifest::AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION
+    ))]
+    session_generation: u64,
+}
+
 /// A freshly issued session credential. The token is intentionally private:
 /// callers may return the complete response, but cannot pluck the bearer into
 /// an arbitrary serializable structure.
@@ -144,6 +162,7 @@ pub struct CredentialResponse {
     #[schemars(range(max = crate::manifest::PORTABLE_TIMESTAMP_MAX_MS))]
     pub refresh_after: u64,
     pub session: SessionResponse,
+    #[schemars(with = "CredentialAuthorityDescriptorSchema")]
     pub authority_descriptor: AuthorityDescriptor,
 }
 

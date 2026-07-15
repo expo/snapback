@@ -5,7 +5,12 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-25001 implementation reconciliation: production
+**Revised:** 2026-07-15 (ENG-25001 final review reconciliation: establishes
+this document as the v1 base protocol under LLP 0055's v2 precedence, makes
+legacy-v1 recognition versus fresh-v2 creation explicit throughout, exposes a
+stable three-state backup publication result on every exit, and narrows
+collision-route evidence to the deterministic seams actually exercised);
+2026-07-15 (ENG-25001 implementation reconciliation: production
 issuance and rotation now enforce cross-table digest uniqueness with three
 bounded candidates; malformed family alarms are parse-gated; backup/restore,
 clock-floor, keyring durability, rescue identity/ambiguity, explicit stdin
@@ -33,7 +38,7 @@ compatibility, and reserved-source name reachability) as defect obligations;
 pinned the **`generation` domain** and the JS-safe **timestamp schema bound**;
 and softened the **no-ready-file impersonation stdin** path to a named
 obligation. Full triage in §Review triage.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0057-auth-provider-protocol.codex.md` and applied its editorial corrections — composed credential-response example, address-exposure wording, future-import incarnation rule, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0058, LLP 0059, LLP 0060
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0059, LLP 0060
 
 ## Summary
 
@@ -65,9 +70,12 @@ The protocol has four security boundaries:
 4. A physical backup succeeds only when its SQLite snapshot and exact keyring
    bytes were captured under one quiescence boundary.
 
-This is a local-target v1 Spec. Provider delivery in `prod`, hosted/distributed
-throttling and invalidation, cookies, OAuth, and the client-page XSS posture stay
-outside this item exactly as LLP 0039 states.
+This is the local target's **v1 base protocol**, not the catalog version a fresh
+current binary creates. LLP 0055 extends this base with agent principals and
+owns catalog v2: current binaries recognize an exact legacy v1 catalog without
+migrating it, but create v2 for every fresh activation. Provider delivery in
+`prod`, hosted/distributed throttling and invalidation, cookies, OAuth, and the
+client-page XSS posture stay outside this item exactly as LLP 0039 states.
 
 ENG-24596 implements this item-3 contract and its acceptance vectors. That is
 an implementation/evidence statement, not an author ratification or a status
@@ -104,6 +112,32 @@ their ownership into this Spec:
   descriptor;
 - LLP 0053 owns authorization invalidation and retained/offline admission.
 
+### Version composition and precedence
+
+This Spec is normative for the session/provider machinery common to catalog
+versions 1 and 2 and for exact recognition of the frozen v1 shape. **LLP 0055
+has precedence wherever its v2 extension changes catalog shape or lifecycle.**
+In particular, LLP 0055 owns the current marker, the agent columns and six agent
+tables, reset/restore effects for those authority classes, and the rule that a
+fresh catalog is v2. LLP 0058 remains authoritative for staged auth-mode state,
+and LLP 0059 remains authoritative for the durable clock, projection, and
+composed lock protocol.
+
+The closed version policy is:
+
+- marker `1` plus the exact DDL in §Catalog version 1 is recognized as
+  `ReadyV1`; session and email-code surfaces remain usable, while LLP 0055 agent
+  surfaces are unavailable;
+- an uninitialized catalog is activated directly as exact v2 under LLP 0055 and
+  must become `ReadyV2`; no current path creates a fresh v1 catalog; and
+- there is no implicit v1→v2 migration. A legacy v1 catalog stays v1 until a
+  separately specified first-class migration lands, and an unknown higher
+  marker fails closed.
+
+An implementer following this Spec in the current repository MUST compose LLP
+0055 and create v2. The v1 DDL below exists for exact legacy recognition and as
+the shared protocol base; it is not a fresh-creation recipe.
+
 ## Normative vocabulary and constants
 
 `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative. All durations use a
@@ -130,9 +164,10 @@ raw `SystemTime::now()` sample.
 since it is wire-visible in `authorityDescriptor`). Reaching the maximum on a
 revocation-class increment is catalog corruption, failed closed, never a wrap.
 
-| Name | V1 value |
+| Name | Base/current value |
 |---|---:|
-| `AUTH_CATALOG_VERSION` | `1` |
+| `AUTH_CATALOG_VERSION_V1` (legacy-recognition marker) | `1` |
+| `AUTH_CATALOG_VERSION` (fresh/current, LLP 0055) | `2` |
 | `AUTH_KEYRING_FORMAT_VERSION` | `1` |
 | Request body limit | 4 KiB |
 | Canonical address limit | 320 UTF-8 bytes |
@@ -156,10 +191,12 @@ revocation-class increment is catalog corruption, failed closed, never a wrap.
 | Auth GC batch | 512 rows per table per pass |
 | Impersonation bearer lifetime | one server process |
 
-Constants are not configuration entries. Changing a cryptographic encoding,
-digest domain, catalog shape, or keyring shape is a version change. Operational
-constant changes require an acceptance update and an explicit compatibility
-decision; they do not silently reinterpret durable rows.
+Except for the catalog marker explicitly superseded by LLP 0055, these are the
+shared v1-base/current constants. Constants are not configuration entries.
+Changing a cryptographic encoding, digest domain, catalog shape, or keyring
+shape is a version change. Operational constant changes require an acceptance
+update and an explicit compatibility decision; they do not silently
+reinterpret durable rows.
 
 ## Binary and textual encodings
 
@@ -275,26 +312,30 @@ adoption flag exists.
 
 ### Catalog states
 
-The marker is `_snapback_meta.key = 'auth_catalog_version'`; its value for this
-Spec is the exact ASCII string `1`. Catalog inspection reads both the marker and
-`sqlite_schema` without mutation and returns exactly one state:
+The marker is `_snapback_meta.key = 'auth_catalog_version'`. This base Spec
+defines exact ASCII value `1`; the current composed binary additionally
+recognizes LLP 0055's exact value `2`. Catalog inspection reads both the marker
+and `sqlite_schema` without mutation and returns exactly one state:
 
 | Marker / physical state | Result |
 |---|---|
-| No marker, no auth-reserved physical table and no exact-v1 name conflict | `Uninitialized` |
+| No marker, no auth-reserved physical table and no exact current-catalog name conflict | `Uninitialized` |
 | No marker, any auth-reserved physical table | `SNAPBACK_AUTH_TABLE_COLLISION` |
-| No marker, exact-v1 index name owned by another table | `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` |
-| Marker other than exact `1` | `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` |
+| No marker, exact current-catalog index name owned by another table | `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` |
+| Marker not recognized by the composed binary | `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` |
 | Marker `1`, exact v1 schema | `ReadyV1` |
 | Marker `1`, missing/changed catalog object or extra auth-reserved table/object attached to a catalog table | `SNAPBACK_AUTH_CATALOG_CORRUPT` |
+| Marker `2`, exact LLP 0055 schema | `ReadyV2` |
+| Marker `2`, missing/changed v2 object | `SNAPBACK_AUTH_CATALOG_CORRUPT` |
 
 An unmarked catalog is never adopted, even if its SQL happens to equal v1.
 Exact-v1 recognition compares tables, columns, declared types, nullability,
 primary keys, checks, foreign keys, named indexes, uniqueness, indexed columns,
 and partial-index predicates. It ignores only SQLite's generated `sqlite_autoindex`
-names. Unknown auth-reserved objects make the marked catalog corrupt rather than
-future-compatible when they are tables or attach to catalog tables; a future
-migration changes the marker first-class. An unrelated legacy reserved-name
+names. LLP 0055 owns equivalent exact recognition for v2. Unknown auth-reserved
+objects make a marked catalog corrupt rather than future-compatible when they
+are tables or attach to catalog tables; a future migration changes the marker
+first-class. An unrelated legacy reserved-name
 index/trigger/view attached only to an ordinary app table is not silently
 adopted, but it also cannot wedge catalog creation unless its name is one of
 v1's exact globally named indexes. Stored-manifest validation still rejects any
@@ -303,12 +344,18 @@ such declared object under the absolute reservation.
 Stage-time inspection is read-only: it MUST NOT create `_snapback_meta`, mint or
 read the keyring, start a transaction that writes a WAL frame, or alter the
 database file. Item 4 invokes it before accepting a desired `sessions` mode.
+Both `ReadyV1` and `ReadyV2` are recognized session-capable states; only
+`ReadyV2` admits LLP 0055 agent surfaces.
 
 ## Catalog version 1
 
-Catalog creation uses the following logical SQLite DDL. Implementations may
-format SQL differently, but catalog recognition and behavior must be equivalent
-to this exact shape.
+This DDL is frozen for recognition of legacy marker `1` and defines the base
+tables v2 extends. A fresh current activation MUST NOT install it; §Activation
+ordering installs LLP 0055's v2 shape instead.
+
+Legacy catalog v1 uses the following logical SQLite DDL. Implementations may
+format SQL differently, but v1 recognition and shared-table behavior must be
+equivalent to this exact shape. Fresh creation uses LLP 0055's v2 descriptor.
 
 ```sql
 CREATE TABLE "_auth_users" (
@@ -409,20 +456,25 @@ CREATE INDEX "_auth_verification_codes_expiry"
   ON "_auth_verification_codes"(expires_at_ms, challenge_id);
 ```
 
-Catalog creation and insertion of the marker are one `IMMEDIATE` transaction.
-The marker is inserted last. A rollback leaves no catalog object and no marker.
+For either catalog version, creation and insertion of the marker are one
+`IMMEDIATE` transaction and the marker is inserted last. A rollback leaves no
+catalog object and no marker. The current creation descriptor is LLP 0055's v2
+shape, not the v1 DDL above.
 
 ### Activation ordering
 
 First activation has this order:
 
-1. Run read-only catalog inspection; stop on any result except `Uninitialized`
-   or `ReadyV1`.
+1. Run read-only catalog inspection; stop on any result except `Uninitialized`,
+   exact `ReadyV1`, or exact `ReadyV2`.
 2. If `Uninitialized`, load an existing keyring or atomically mint the initial
    keyring. A corrupt existing keyring is never overwritten.
 3. Re-run catalog inspection inside the serialized activation boundary.
-4. Create every catalog object and the marker in one transaction.
-5. Re-inspect and require `ReadyV1` before reporting success.
+4. If it is still `Uninitialized`, create every **v2** catalog object defined by
+   LLP 0055 and marker `2` in one transaction. Never create marker `1` here and
+   never silently migrate an observed `ReadyV1` catalog.
+5. Re-inspect and require `ReadyV2` for a fresh activation. An existing
+   `ReadyV1` or `ReadyV2` remains in that exact recognized state.
 
 A crash after keyring publication but before catalog commit leaves a harmless,
 valid pre-created keyring that the retry adopts. DDL never precedes a usable
@@ -437,12 +489,15 @@ call app mutation helpers, advance `_snapback_version`, append
 rows through sync/export snapshots. Tests compare the journal row count and app
 commit version before and after every auth operation.
 
-`app.reset` deletes, in this order, verification codes, token tombstones,
+The v1 base reset deletes, in this order, verification codes, token tombstones,
 sessions, identities, and users inside the same transaction as the app reset.
-It preserves the catalog DDL, marker, and keyring. The capture mailbox is cleared
-only after that transaction commits. A rejected reset preserves both durable
-auth rows and mailbox entries. A crash after commit but before the in-memory
-clear is safe because process loss clears the mailbox.
+For `ReadyV2`, LLP 0055 takes precedence and the same transaction first removes
+agent tokens, pairing requests, grants, invitations, credentials, and other
+v2-owned authority state before the shared rows. Reset preserves the catalog
+DDL, marker, and keyring. The capture mailbox is cleared only after that
+transaction commits. A rejected reset preserves both durable auth rows and
+mailbox entries. A crash after commit but before the in-memory clear is safe
+because process loss clears the mailbox.
 
 Logical export/import tooling is not built by this item. Its pinned future
 contract is:
@@ -758,7 +813,7 @@ survives until expiry or another revocation event; v1 makes no stronger claim.
 This document owns one reusable bulk-revocation transaction, because LLP 0058's
 sessions-to-dev downgrade and this document's own declared restore both consume
 it and an implementer conforming to 0057 alone must produce identical durable
-outcomes. It requires a `ReadyV1` catalog and, in one `IMMEDIATE` transaction,
+outcomes. It requires a recognized `ReadyV1` or `ReadyV2` catalog and, in one `IMMEDIATE` transaction,
 for **every session not already revoked**: sets `revoked_at_ms = floored now`
 (the LLP 0059 clock floor, below) and increments `generation` exactly once. It
 **deletes nothing** — no session row, identity, tombstone, or user — so
@@ -928,6 +983,12 @@ receipts or runtime-state snapshots.
 { "accepted": true }
 ```
 
+Credential responses always describe a live session, so their
+`authorityDescriptor.sessionGeneration` schema is
+`1..=9_007_199_254_740_991`. LLP 0058's bootstrap handshake reuses the
+descriptor vocabulary but permits `0` only as the anonymous/no-session
+sentinel; its schema still carries the same JavaScript-safe maximum.
+
 `/auth/refresh`, `/auth/logout`, and `/auth/family-alarm` take the bearer only
 from `Authorization: Bearer ...`; no body/query token alias exists. Logout
 success is HTTP 204 with no body. `refreshAfter` is `created/rotated now + 7
@@ -1023,11 +1084,12 @@ separate exception.
 | `SNAPBACK_AUTH_THROTTLED` | 429 | address/global/capture capacity budget |
 | `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` | 503 | RNG, keyring, or delivery provider unavailable |
 | `SNAPBACK_AUTH_TABLE_COLLISION` | stage/startup/host-op | unmarked auth-reserved physical table |
-| `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` | stage/startup | exact v1 global object name is already foreign-owned |
-| `SNAPBACK_AUTH_CATALOG_CORRUPT` | startup | marked catalog differs from v1 |
+| `SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` | stage/startup | exact current-catalog global object name is already foreign-owned |
+| `SNAPBACK_AUTH_CATALOG_CORRUPT` | startup | marked catalog differs from its recognized version |
 | `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` | startup | unknown marker |
 | `SNAPBACK_AUTH_RESCUE_INVALID` | host-op/CLI | invalid names/state or absent source |
 | `SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED` | host-op/CLI | source cannot be copied exactly by v1 rescue |
+| `SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` | host-op/CLI | manifest-named collision is governed by LLP 0058 mode keys and requires offline repair |
 | `SNAPBACK_AUTH_BACKUP_INVALID` | CLI | inconsistent/unverifiable backup input/output |
 
 The status mapper lists every request-path code explicitly; unknown codes remain
@@ -1183,15 +1245,15 @@ Every error or injected failure rolls back target creation, manifest rewrite,
 and source drop. The source table, rows, indexes, and stored manifest remain
 logically equivalent to their pre-operation state; this does not falsely claim
 that rollback leaves SQLite database/WAL bytes untouched. **The commit itself is
-reconciled, not left unclassified**: the rescue transaction's `commit()` follows
-the same commit-ambiguity rule as every other durable write (§Concurrency) — a
-commit whose success is unknown reopens and reconciles the exact source/target/
-index/manifest state, reporting failure only for an exact-predecessor state,
-success only for an exact-successor state, and a terminal recovery posture
-otherwise. Production reconciliation reopens the database after a commit error
-and accepts success only when source absence, target presence, row and index
-counts, any rewritten manifest mapping, and the collision-cleared result all
-match the exact expected successor. The destructive
+successor-checked, not blindly retried**: after `commit()` reports an error,
+production uses the same live SQLite connection to test the exact expected
+successor — source absent, target present, expected row and explicit-index
+counts, any rewritten manifest mapping, and the expected collision-cleared
+result. An exact successor returns the already-computed success; every other
+state preserves the original commit error. SQLite's atomic transaction boundary
+rules out a partially committed table/manifest transition, but this v1 path
+does not reopen the database, classify an exact predecessor separately, or emit
+a distinct third recovery result. The destructive
 `--drop-orphaned-auth-tables` command remains separate and backup-first; rescue
 never silently delegates to it.
 
@@ -1205,8 +1267,10 @@ operator-plane work and accepts only a nonexistent output path on the same
 filesystem as its temporary sibling. It may run in process through trusted CLI
 control or against a stopped instance; an out-of-process invocation that cannot
 acquire the instance lock refuses rather than copying a live directory.
-The command requires a file-backed `ReadyV1` catalog; in-memory and
-uninitialized instances return `SNAPBACK_AUTH_BACKUP_INVALID`.
+The command requires a file-backed exact `ReadyV1` or `ReadyV2` catalog;
+in-memory and uninitialized instances return
+`SNAPBACK_AUTH_BACKUP_INVALID`. The manifest records the image's actual marker
+(`1` or `2`), never merely the binary's current creation constant.
 
 The backup algorithm is:
 
@@ -1229,10 +1293,10 @@ The backup algorithm is:
    necessary nor permitted. The completed image's format-version header is
    normalized to rollback mode directly through the pinned descriptor and then
    re-opened read-only through that same descriptor to prove it is a standalone
-   `ReadyV1` catalog. A staging path that a local principal has replaced or
-   symlinked between creation and the copy fails an identity revalidation
-   before any source page is copied, so no catalog byte can reach a substituted
-   inode.
+   exact catalog matching the manifest version. A staging path that a local
+   principal has replaced or symlinked between creation and the copy fails an
+   identity revalidation before any source page is copied, so no catalog byte
+   can reach a substituted inode.
 5. Write the captured keyring bytes to `auth-keyring.json` mode `0600` and the
    closed `backup.json` (format version `1`, creation time, catalog version,
    database SHA-256, keyring SHA-256, source database basename; no key ids or
@@ -1260,6 +1324,14 @@ The backup algorithm is:
    attempted the still-open directory descriptor is never used to strip
    children, so a post-rename refusal is commit-ambiguous rather than
    destructive.
+
+The CLI emits a closed JSON envelope on **every** backup exit. Its top-level
+`publicationState` is exactly `Unpublished`, `Published`, or
+`CommitAmbiguous`; failures repeat the same stable value in the diagnostic
+details. `Published` is emitted only on success after the parent fsync.
+Pre-rename validation and staging failures emit `Unpublished`. Any rename
+error, post-rename validation failure, or parent-fsync failure emits
+`CommitAmbiguous`, even when the process can currently see a complete output.
 
 The output directory is mode `0700`; database, keyring, and manifest are `0600`.
 A full instance backup may additionally include LLP 0036 config, but the auth
@@ -1301,14 +1373,21 @@ file. Before bind, one auth transaction compares
 `_snapback_meta['auth_restore_declaration_id']`:
 
 - if it already equals this id, the declaration is an idempotent no-op;
-- otherwise it runs the **bulk session-revocation transaction** (§Bulk session
-  revocation) over the restored rows — `revoked_at_ms = floored now`, one
+- otherwise it calls the shared **bulk session-revocation helper** (§Bulk
+  session revocation) inside the restore transaction —
+  `revoked_at_ms = floored now`, one
   generation increment each — which is why restore time is derived from the
   durable clock floor and relevant catalog maxima, not a raw wall sample: a
   future-dated or clock-rolled-back backup would otherwise set `revoked_at_ms`
   below `created_at_ms` and fail the DDL `CHECK`;
 - deletes every verification challenge; and
 - writes this declaration id as the final statement.
+
+For a restored `ReadyV2` catalog, LLP 0055 has lifecycle precedence: the same
+non-idempotent transaction also terminates every restored agent credential,
+grant, and scoped token and purges invitations and pairing requests before the
+declaration id is written. A v1 declaration applies only the shared
+session/challenge effects because those v2 authority tables do not exist.
 
 The non-idempotent branch also records success in operator diagnostics without
 a secret or source path. Item 5 adds authorization-stream incarnation
@@ -1420,12 +1499,16 @@ authority.
   and stored-manifest reopen, and a runtime table-resolution negative proves
   the central storage boundary. This item does not claim a separate wrapper
   test for every future sync/live/export/admin-edit projection.
-- `Uninitialized`, unmarked table collision, exact-v1 global-name collision,
-  exact v1, unknown marker, corrupt marked catalog, and extra catalog-object
-  states each produce the pinned result.
+- `Uninitialized`, unmarked table collision, current-catalog global-name
+  collision, exact legacy v1, exact current v2, unknown marker, corrupt marked
+  catalog, and extra catalog-object states each produce the pinned result.
+  A legacy-v1 fixture reopens as `ReadyV1` with agent surfaces unavailable; a
+  fresh fixture activates directly to `ReadyV2`; no test or production path
+  creates a fresh v1 catalog.
 - Stage inspection is byte/WAL-frame read-only. Activation crash injection
   before/after keyring publication, each DDL group, marker insert, commit, and
-  post-check yields only retryable pre-catalog or exact `ReadyV1`.
+  post-check yields only retryable pre-catalog or exact `ReadyV2` for a fresh
+  database, while a pre-existing exact `ReadyV1` remains unchanged.
 - Every auth write, reset, GC, and rescue assertion proves no app journal row,
   commit-version advance, receipt, or live wake unless the operation also
   changes ordinary app data as part of reset/rescue manifest handling.
@@ -1539,6 +1622,12 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
   keyring, hashes match, and no half-published output directory is accepted.
   A raw directory lacking the closed backup manifest is rejected as a restore
   source; byte-copy race behavior is deliberately not represented as backup.
+  Exact v1 and v2 fixtures retain their actual marker in the manifest.
+  Publication tests assert `Published` for the clean path, `Unpublished` for a
+  proven pre-rename failure, and `CommitAmbiguous` for a rename that takes
+  effect but reports failure, post-rename validation failure, and parent-fsync
+  failure; every error diagnostic carries the same machine-readable state and
+  no ambiguous path destructively cleans the surviving unit.
 - Declared restore revokes sessions and purges challenges; repeat of the same
   durable declaration id is idempotent even after new sessions exist; ordinary
   restart preserves both. Item 5's acceptance extends the non-idempotent branch
@@ -1548,24 +1637,34 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
   floor; and the bulk-revocation transaction is asserted independently (every
   not-already-revoked session revoked with one generation increment, nothing
   deleted), including its consumption by the LLP 0058 downgrade path.
+  A v2 fixture additionally proves LLP 0055's credential/token/grant
+  termination and invitation/pairing-request purge in the same idempotent
+  declaration transaction.
 - **Token-digest uniqueness** is proven across current and tombstone tables at
   issuance and rotation: a candidate colliding with a live tombstone is
   retried and, on the third collision, surfaces the retryable outcome (never
-  the raw internal-collision diagnostic) — asserted through the production HTTP
-  and host-operation paths, not only a test-only helper.
+  the raw internal-collision diagnostic). Deterministic collision injection
+  currently proves the storage/provider transaction and coordinator result
+  seams; ordinary HTTP and host-operation tests prove their shared route loops,
+  but this Spec does not claim deterministic first-/third-collision injection
+  through both public projections.
 - **Malformed family-alarm input** with a dummy digest deliberately collided
   against a retained tombstone revokes **nothing** (the parsed-ok predicate
   gates the write), while a well-formed attributable tombstone still revokes.
-- **Commit-ambiguity reconciliation** (mint, rotation, rescue): fault injection
-  at the commit boundary yields exact-predecessor rollback, exact-successor
-  finalize (returning the committed credential, never a re-execution), or a
-  terminal recovery posture — never a fresh re-mint on assumed rollback.
+- **Commit-ambiguity reconciliation** for mint and rotation is fault-injected at
+  the commit boundary and proves exact-predecessor rollback, exact-successor
+  finalize (returning the committed credential, never a re-execution), and
+  fail-closed divergence — never a fresh re-mint on assumed rollback. Rescue
+  failure injection currently covers every pre-commit algorithm step; its
+  post-error exact-successor checker is unit-visible in the implementation, but
+  this acceptance set does not claim an injected rescue commit-boundary error.
 - **Rescue identity**: a sparse-`rowid` and a deleted-high-water `AUTOINCREMENT`
   source are each either preserved exactly or refused (never renumbered);
-  a managed sessions-era/staged/quarantined database is either atomically
-  four-key-consistent after rescue or refused with the offline-repair
-  diagnostic; a reserved source name outside the app-identifier grammar is
-  still nameable to the recovery verb.
+  a manifest-named collision with any LLP 0058 managed-state key is refused by
+  the `SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` branch without mutation;
+  this acceptance set does not claim a composed fixture for every
+  sessions-era/staged/quarantined state. A reserved source name outside the
+  app-identifier grammar is still nameable to the recovery verb.
 - Planted code/token/carrier and caller-controlled selector sentinels cover the
   credential-bearing request, result, debug, diagnostic, and keyring seams;
   existing config/receipt tests continue to own their separate redaction
@@ -1607,12 +1706,16 @@ explicit later-version questions and are not implementation latitude here:
 
 ## Status
 
-**Draft.** ENG-24596/item 3 is implemented: the protected catalog and keyring,
-email-code provider, capture mailbox, session-family state machine, operator
-impersonation carrier, collision rescue, and quiesced database-plus-keyring
-backup/declared restore are exercised by executable vectors, state-model traces,
-and failure injection. Those artifacts are the implementation acceptance
-authority; prose alone would not have been sufficient.
+**Draft.** ENG-24596/item 3's v1 base is implemented and retained as exact
+legacy recognition: the protected catalog and keyring, email-code provider,
+capture mailbox, session-family state machine, operator impersonation carrier,
+collision rescue, and quiesced database-plus-keyring backup/declared restore
+are exercised by executable vectors, state-model traces, and failure
+injection. The current composed implementation follows LLP 0055 precedence:
+fresh catalogs are v2, exact legacy v1 remains usable without silent migration,
+and v2 reset/restore includes its additional authority classes. Those artifacts
+are the implementation acceptance authority; prose alone would not have been
+sufficient.
 
 Implementation completion does not make this Spec Accepted. It still needs an
 LLP review scaled to its security stakes and explicit author ratification; this
@@ -1634,13 +1737,16 @@ The round-2 revision is the author-side triage of both rounds. Dispositions:
 fixed): the unspecified bulk-revocation transaction consumed by LLP 0058
 (§Bulk session revocation); the commit-ambiguity contradiction with LLP 0059
 (§Concurrency — this document no longer states unconditional discard); the
+v1-base/v2-extension conflict with LLP 0055 (§Version composition and
+precedence — fresh creation is v2 and legacy v1 is recognition-only); the
 composed lock-graph precedence deferring to LLP 0059 (§Concurrency); the
 `auth.mintSession` wire reconciliation with LLP 0024 (§Public provider DTOs);
 the family-alarm malformed-input non-actionability (§Logout…); the declared-
 restore clock-floor derivation and the LLP 0059 floor overlay on every durable
 `now` (§Normative vocabulary, §Restore); the `generation` domain and the
 JS-safe timestamp schema bound; the backup Unpublished/Published/CommitAmbiguous
-naming (§Consistent backup); and restore descriptor-bound inspection (§Restore).
+naming and machine-readable exit projection (§Consistent backup); and restore
+descriptor-bound inspection (§Restore).
 
 **Named defect obligations** were closed in the ENG-25001 implementation lane:
 cross-table token-digest uniqueness at issuance and coordinator-visible bounded

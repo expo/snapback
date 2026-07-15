@@ -162,6 +162,9 @@ pub struct AuthSessionAuthorityDescriptor {
         r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     ))]
     pub authority_instance_id: String,
+    /// Zero is the anonymous/no-session sentinel; authenticated session
+    /// descriptors are positive and every value stays JavaScript-safe.
+    #[schemars(range(max = crate::manifest::AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION))]
     pub session_generation: u64,
 }
 

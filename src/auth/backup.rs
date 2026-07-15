@@ -15,6 +15,7 @@ use crate::instance_lock::{FileIdentity, TargetInstanceReservation};
 use crate::storage::LocalDatabase;
 use crate::storage::auth::{AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1, AuthCatalogState};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
@@ -30,6 +31,26 @@ const BACKUP_FORMAT_VERSION: u32 = 1;
 const BACKUP_MANIFEST_MAXIMUM_BYTES: usize = 64 * 1024;
 const TEMP_CANDIDATE_ATTEMPTS: usize = 3;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+
+/// Stable operator-visible classification of the backup publication cut.
+///
+/// `Published` is returned only after rename, post-publication identity checks,
+/// and parent-directory fsync all succeed. Once rename is attempted, any
+/// failure is `CommitAmbiguous` because a complete artifact may be visible.
+/// @ref LLP 0057#consistent-backup — every backup exit publishes one of the
+/// three closed publication states.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) enum BackupPublicationState {
+    Unpublished,
+    Published,
+    CommitAmbiguous,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct AuthBackupOutcome {
+    pub(crate) manifest: AuthBackupManifest,
+    pub(crate) publication_state: BackupPublicationState,
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -79,7 +100,19 @@ pub(crate) fn create_backup(
     output_directory: &Path,
     created_at_ms: u64,
     random: &dyn RandomSource,
-) -> SnapbackResult<AuthBackupManifest> {
+) -> SnapbackResult<AuthBackupOutcome> {
+    create_backup_inner(database, keyring, output_directory, created_at_ms, random).map_err(
+        |error| backup_error_with_publication_state(error, BackupPublicationState::Unpublished),
+    )
+}
+
+fn create_backup_inner(
+    database: &LocalDatabase,
+    keyring: &AuthKeyringStore,
+    output_directory: &Path,
+    created_at_ms: u64,
+    random: &dyn RandomSource,
+) -> SnapbackResult<AuthBackupOutcome> {
     if created_at_ms > MAX_SAFE_INTEGER {
         return Err(backup_invalid(
             "backup creation time is outside the portable timestamp range",
@@ -167,8 +200,11 @@ pub(crate) fn create_backup(
     ])?;
     temporary.sync()?;
     backup_step_completed(4)?;
-    temporary.publish(output_directory)?;
-    Ok(manifest)
+    let publication_state = temporary.publish(output_directory)?;
+    Ok(AuthBackupOutcome {
+        manifest,
+        publication_state,
+    })
 }
 
 /// Validate a backup and publish a new instance directory containing the
@@ -1056,7 +1092,7 @@ impl TemporaryDirectory {
             .map_err(|_| backup_invalid("artifact directory could not be synced"))
     }
 
-    fn publish(&mut self, destination: &Path) -> SnapbackResult<()> {
+    fn publish(&mut self, destination: &Path) -> SnapbackResult<BackupPublicationState> {
         self.parent.revalidate()?;
         let destination_name = destination
             .file_name()
@@ -1079,23 +1115,33 @@ impl TemporaryDirectory {
             &self.name,
             &destination_name,
         )
-        .map_err(|_| backup_invalid("artifact directory could not be published"))?;
+        .map_err(|_| {
+            backup_commit_ambiguous("artifact directory publication result is ambiguous")
+        })?;
+        backup_rename_result_checkpoint().map_err(|_| {
+            backup_commit_ambiguous("artifact directory publication result is ambiguous")
+        })?;
         // From this point onward the destination may be the complete renamed
         // unit. Any post-rename refusal is commit-ambiguous and must never
         // strip its children through the still-open directory descriptor.
         after_backup_staging_rename();
+        backup_post_rename_validation_checkpoint()
+            .map_err(|_| backup_commit_ambiguous("published backup validation did not complete"))?;
         // Immediately after publication: the published name must still be the
         // pinned staging inode with the exact pinned children.
         self.parent
             .ensure_entry_identity(&destination_name, self.identity)
-            .map_err(|_| backup_invalid("published backup directory identity changed"))?;
+            .map_err(|_| backup_commit_ambiguous("published backup directory identity changed"))?;
         validate_pinned_staged_children(&self.directory, &self.children)
-            .map_err(|_| backup_invalid("published backup members changed"))?;
+            .map_err(|_| backup_commit_ambiguous("published backup members changed"))?;
         self.published = true;
-        self.parent
-            .file
-            .sync_all()
-            .map_err(|_| backup_invalid("artifact directory publication could not be synced"))
+        backup_parent_sync_checkpoint().map_err(|_| {
+            backup_commit_ambiguous("artifact directory publication could not be synced")
+        })?;
+        self.parent.file.sync_all().map_err(|_| {
+            backup_commit_ambiguous("artifact directory publication could not be synced")
+        })?;
+        Ok(BackupPublicationState::Published)
     }
 }
 
@@ -1393,6 +1439,28 @@ fn backup_invalid(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_BACKUP_INVALID", "auth-backup", message)
 }
 
+fn backup_commit_ambiguous(message: &str) -> SnapbackError {
+    backup_error_with_publication_state(
+        backup_invalid(message),
+        BackupPublicationState::CommitAmbiguous,
+    )
+}
+
+fn backup_error_with_publication_state(
+    mut error: SnapbackError,
+    state: BackupPublicationState,
+) -> SnapbackError {
+    let mut details = match std::mem::take(&mut error.diagnostic.details) {
+        Value::Object(details) => details,
+        _ => Map::new(),
+    };
+    details
+        .entry("publicationState".to_owned())
+        .or_insert_with(|| json!(state));
+    error.diagnostic.details = Value::Object(details);
+    error
+}
+
 #[cfg(test)]
 thread_local! {
     static FAIL_BACKUP_AFTER_STEP: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
@@ -1406,6 +1474,9 @@ thread_local! {
     static AFTER_BACKUP_DATABASE_IMAGE_CREATED: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
     static BEFORE_BACKUP_STAGING_RENAME: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
     static AFTER_BACKUP_STAGING_RENAME: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static FAIL_BACKUP_RENAME_RESULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FAIL_BACKUP_POST_RENAME_VALIDATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FAIL_BACKUP_PARENT_SYNC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 fn backup_keyring_captured() {
@@ -1442,6 +1513,36 @@ fn after_backup_staging_rename() {
             operation();
         }
     });
+}
+
+fn backup_rename_result_checkpoint() -> std::io::Result<()> {
+    #[cfg(test)]
+    if FAIL_BACKUP_RENAME_RESULT.replace(false) {
+        return Err(std::io::Error::other(
+            "injected ambiguous backup rename result",
+        ));
+    }
+    Ok(())
+}
+
+fn backup_post_rename_validation_checkpoint() -> std::io::Result<()> {
+    #[cfg(test)]
+    if FAIL_BACKUP_POST_RENAME_VALIDATION.replace(false) {
+        return Err(std::io::Error::other(
+            "injected backup post-rename validation failure",
+        ));
+    }
+    Ok(())
+}
+
+fn backup_parent_sync_checkpoint() -> std::io::Result<()> {
+    #[cfg(test)]
+    if FAIL_BACKUP_PARENT_SYNC.replace(false) {
+        return Err(std::io::Error::other(
+            "injected backup parent fsync failure",
+        ));
+    }
+    Ok(())
 }
 
 fn restore_source_database_hashed() {
@@ -1596,12 +1697,28 @@ mod tests {
     }
 
     #[test]
+    fn backup_publication_state_wire_spellings_are_stable() {
+        assert_eq!(
+            serde_json::to_value(BackupPublicationState::Unpublished).unwrap(),
+            json!("Unpublished")
+        );
+        assert_eq!(
+            serde_json::to_value(BackupPublicationState::Published).unwrap(),
+            json!("Published")
+        );
+        assert_eq!(
+            serde_json::to_value(BackupPublicationState::CommitAmbiguous).unwrap(),
+            json!("CommitAmbiguous")
+        );
+    }
+
+    #[test]
     fn backup_and_restore_publish_exact_owner_only_consistent_units() {
         use std::os::unix::fs::PermissionsExt as _;
 
         let fixture = Fixture::new();
         let backup_directory = fixture.parent().join("backup");
-        let manifest = create_backup(
+        let outcome = create_backup(
             &fixture.database,
             &fixture.keyring,
             &backup_directory,
@@ -1609,7 +1726,8 @@ mod tests {
             &fixture.random,
         )
         .unwrap();
-        assert_eq!(manifest.created_at_ms, 123);
+        assert_eq!(outcome.publication_state, BackupPublicationState::Published);
+        assert_eq!(outcome.manifest.created_at_ms, 123);
         require_exact_members(
             &backup_directory,
             &[
@@ -1701,6 +1819,10 @@ mod tests {
             )
             .unwrap_err();
             assert_eq!(error.diagnostic.code, "TEST_AUTH_BACKUP_FAILURE");
+            assert_eq!(
+                error.diagnostic.details["publicationState"],
+                json!(BackupPublicationState::Unpublished)
+            );
             assert!(!output.exists());
             assert_no_temporary(fixture.parent(), ".snapback-auth-backup-");
         }
@@ -1923,7 +2045,7 @@ mod tests {
     fn post_rename_validation_failure_preserves_the_complete_published_unit() {
         let fixture = Fixture::new();
         let backup = fixture.parent().join("backup-for-post-rename-failure");
-        let manifest = create_backup(
+        let outcome = create_backup(
             &fixture.database,
             &fixture.keyring,
             &backup,
@@ -1931,6 +2053,7 @@ mod tests {
             &fixture.random,
         )
         .unwrap();
+        let manifest = outcome.manifest;
         let target = fixture
             .parent()
             .join("restore-post-rename-failure")
@@ -2183,6 +2306,10 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert_eq!(
+            error.diagnostic.details["publicationState"],
+            json!(BackupPublicationState::Unpublished)
+        );
         assert!(!output.exists(), "no replacement directory is published");
         let replacement = only_temporary(fixture.parent(), ".snapback-auth-backup-");
         assert_eq!(
@@ -2196,6 +2323,83 @@ mod tests {
             0,
             "secret-bearing staged files are removed only through the pinned descriptor"
         );
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn backup_reports_commit_ambiguous_when_rename_takes_effect_but_reports_failure() {
+        let fixture = Fixture::new();
+        let output = fixture.parent().join("backup-ambiguous-rename");
+        FAIL_BACKUP_RENAME_RESULT.with(|slot| slot.set(true));
+
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            123,
+            &fixture.random,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.diagnostic.details["publicationState"],
+            json!(BackupPublicationState::CommitAmbiguous)
+        );
+        require_exact_members(
+            &output,
+            &[
+                BACKUP_DATABASE_FILE,
+                BACKUP_KEYRING_FILE,
+                BACKUP_MANIFEST_FILE,
+            ],
+        )
+        .unwrap();
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn backup_reports_commit_ambiguous_on_post_rename_validation_failure() {
+        let fixture = Fixture::new();
+        let output = fixture.parent().join("backup-post-check-failure");
+        FAIL_BACKUP_POST_RENAME_VALIDATION.with(|slot| slot.set(true));
+
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            123,
+            &fixture.random,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.diagnostic.details["publicationState"],
+            json!(BackupPublicationState::CommitAmbiguous)
+        );
+        assert!(output.join(BACKUP_MANIFEST_FILE).is_file());
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn backup_reports_commit_ambiguous_on_parent_fsync_failure() {
+        let fixture = Fixture::new();
+        let output = fixture.parent().join("backup-parent-fsync-failure");
+        FAIL_BACKUP_PARENT_SYNC.with(|slot| slot.set(true));
+
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            123,
+            &fixture.random,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.diagnostic.details["publicationState"],
+            json!(BackupPublicationState::CommitAmbiguous)
+        );
+        assert!(output.join(BACKUP_MANIFEST_FILE).is_file());
     }
 
     /// ENG-24981: swap the published output immediately after the rename. The
@@ -2227,6 +2431,10 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert_eq!(
+            error.diagnostic.details["publicationState"],
+            json!(BackupPublicationState::CommitAmbiguous)
+        );
         assert_eq!(
             std::fs::read(output.join("foreign-output-sentinel")).unwrap(),
             b"survive",
@@ -2303,7 +2511,7 @@ mod tests {
     fn restore_rejects_hash_drift_unknown_fields_extra_files_and_existing_target() {
         let fixture = Fixture::new();
         let backup_directory = fixture.parent().join("backup");
-        let manifest = create_backup(
+        let outcome = create_backup(
             &fixture.database,
             &fixture.keyring,
             &backup_directory,
@@ -2311,6 +2519,7 @@ mod tests {
             &fixture.random,
         )
         .unwrap();
+        let manifest = outcome.manifest;
         let target = fixture.parent().join("restored").join("app.sqlite3");
 
         std::fs::write(backup_directory.join("extra"), b"x").unwrap();
