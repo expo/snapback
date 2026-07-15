@@ -1,11 +1,15 @@
 # LLP 0059: Session projection and client authority barrier protocol
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL6 composed-client evidence closure: names the
+**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+ratified this Spec after ENG-25001 closed the review findings, the corrected
+FINAL7 Codex review returned READY, and the FINAL5 Fable review returned READY;
+Status advanced to Accepted without advancing frozen LLP 0039 or LLP 0053);
+2026-07-15 (FINAL6 composed-client evidence closure: names the
 production `SnapbackClient.authSession()` fixture and completes its owner/peer
 matrix for paused success, post-staging custody mismatch, and final locked
 `owner.read` failure; wrapped-owner read/phase witnesses prove earlier reads and
@@ -127,15 +131,16 @@ The item has six load-bearing claims:
   `client-store.mjs` implement transactional custody/barrier participation; and
   the coordinator, IndexedDB custody, store-authority, Contract, and kit suites
   exercise the transition and delayed-completion races.
-- **[inferred — implementation mechanism pending author ratification]** Exact
+- **[inferred — implementation mechanism ratified 2026-07-15]** Exact
   ticket encodings, leaf-fence layout, leased outbox drain, custody record,
   fallback lease timings, and diagnostic allocation below were proposed
   implementation choices and are now implemented. They preserve 0039's required
-  outcomes, but implementation evidence alone does not ratify this Draft.
+  outcomes and are accepted by the explicit author ratification; implementation
+  evidence alone was not the ratifying act.
 
 The first observation is the pre-item baseline; the second records the landed
-implementation. Neither thaws LLP 0039/0053 or accepts this document on the
-author's behalf.
+implementation. Neither thaws LLP 0039/0053; the explicit author decision
+recorded in Status accepts this document.
 
 ## Scope and ownership
 
@@ -2243,9 +2248,10 @@ stream handshake, browser custody/coordinator, Contract/store participation,
 and delayed-predecessor race suites. Item 8 is no longer a future decision here;
 LLP 0053 and LLP 0043 own its implemented dispositions and signed-lease path.
 
-This document remains **Draft** pending explicit author ratification and review
-scaled to its security stakes. Implementation evidence does not make LLP 0039
-or LLP 0053 unfrozen and does not accept this Spec on the author's behalf.
+This document is **Accepted**. ENG-25001 closed the material review findings,
+the corrected FINAL7 Codex review and FINAL5 Fable review returned READY, and
+Charlie Cheever explicitly ratified the resulting Spec on 2026-07-15.
+Acceptance does not unfreeze LLP 0039 or LLP 0053.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review on
 2026-07-14 (round 1, verdict: NOT READY). A second dual-family round (fresh Codex
@@ -2284,6 +2290,5 @@ locks carry dev/test rank assertions; the L9 fixture proves unrelated
 publication during a stalled affected commit; and this Spec adopts LLP 0008's
 per-storage-key Web-Lock one-key localStorage protocol.
 
-This document remains **Draft** pending author triage completion and explicit
-ratification; the reviews advise, they do not ratify, and neither LLP 0039 nor
-LLP 0053 is unfrozen.
+The reviews advised and the author ratified after their material findings were
+closed. This document is Accepted; neither LLP 0039 nor LLP 0053 is unfrozen.

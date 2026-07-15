@@ -1,11 +1,14 @@
 # LLP 0060: Hosted auth deployment and client-page security
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL5 review archive and minor closure: archived the
+**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+ratified this RFC after ENG-25001 closed the review findings and the FINAL5
+Codex and Fable reviews both returned READY; Status advanced to Accepted while
+the current local target remains explicitly not hosted-auth ready); 2026-07-15 (FINAL5 review archive and minor closure: archived the
 exact targeted review artifacts and added an embedded-setup ordinary
 non-issuer fetch-rejection control that proves request-secret sanitization
 remains distinct from issuer opacity; status remains Draft). 2026-07-15
@@ -1070,7 +1073,7 @@ material.
 
 ## Status
 
-**Draft.** ENG-24607 assigns ownership and implements only the current local
+**Accepted.** ENG-24607 assigns ownership and implements only the current local
 enforcement/claim-honesty boundary: the plaintext fence, target-owned capability
 descriptor, must-understand hosted-composition refusal, Snapback-owned CSP
 baseline, and credential non-exposure sentinel. It does not make the local
@@ -1088,9 +1091,10 @@ are non-authenticating privacy-sensitive correlation handles; D6 uses a
 versioned binding legacy handlers do not expose; and a signing-only broker makes
 no active-XSS claim. Static capability helpers are now named `*Capable`, no-auth
 targets can say `unavailable`, and current hosted admission always refuses in
-the absence of attestation and live health. These are proposed protocol choices
-pending fresh independent review and explicit author ratification; this session
-does not change Status on the author's behalf.
+the absence of attestation and live health. These are accepted protocol choices
+after independent review and explicit author ratification. Acceptance does not
+claim that a conforming hosted target currently exists; the admission and proof
+obligations above remain mandatory before hosted activation.
 
 The local browser evidence is a rerunnable acceptance, not a claim about
 unpreserved historical console output. Build the production admin UI and the
@@ -1106,8 +1110,9 @@ makes no version-specific historical-run claim.
 
 That evidence validates the implemented local boundary only. It is not evidence
 for public-edge TLS/source derivation, shared throttle state, replica
-convergence, or sender-constrained custody, and it does not ratify this RFC on
-the author's behalf.
+convergence, or sender-constrained custody. The later author ratification
+accepts the contract without treating this local evidence as proof of those
+future hosted facts.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
 document on 2026-07-14; its verbatim report and provenance are archived in
@@ -1128,7 +1133,7 @@ current contract, so the former lease constants and rename are not current
 obligations. The remaining protocol-grade items are implementation of the D6
 marker schemas under LLP 0051 D4's now-explicit inventory and the
 machine-readable attestation/health authorities; this RFC does not design the
-control plane and its altitude is not yet author-ratified.
+control plane, whose design remains outside this ratified RFC.
 
 Two further dual-family rounds (fresh Codex and fresh Fable, blind, via
 /llp-super-refine) reviewed the committed revision at `b11a6fa`;
@@ -1144,8 +1149,10 @@ renaming and protocol inventory) or was recorded as a named defect obligation
 with acceptance rows (the now-closed detached-loopback bypass; the issuing-path 2xx
 snippet and request-code passthrough; the descriptor's missing not-applicable
 values; the structural browser/headless custody split). Dispositions live in
-the review ledger alongside the verbatim reviews. The review advises — it
-does not ratify, and this document remains Draft pending author ratification.
+the review ledger alongside the verbatim reviews. The FINAL5 Codex and Fable
+reviews both returned READY; those reviews advised, and Charlie Cheever then
+ratified this RFC on 2026-07-15. The document is Accepted while the current
+local target remains explicitly not hosted-auth ready.
 
 ## Changelog
 

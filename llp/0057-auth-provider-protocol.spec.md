@@ -1,11 +1,14 @@
 # LLP 0057: Auth catalog and provider protocol
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL3 closure: declared restore validates every
+**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+ratified this Spec after ENG-25001 closed the review findings and the FINAL4
+Codex and Fable reviews both returned READY; Status advanced to Accepted
+without advancing frozen LLP 0039); 2026-07-15 (FINAL3 closure: declared restore validates every
 non-null v1/v2 catalog timestamp's SQLite integer storage class and portable
 range before deriving the frontier, with mixed-corruption, nullable-field, and
 ReadyV1 evidence; clarifies the maximum generation boundary; status remains
@@ -88,9 +91,9 @@ migrating it, but create v2 for every fresh activation. Provider delivery in
 `prod`, hosted/distributed throttling and invalidation, cookies, OAuth, and the
 client-page XSS posture stay outside this item exactly as LLP 0039 states.
 
-ENG-24596 implements this item-3 contract and its acceptance vectors. That is
-an implementation/evidence statement, not an author ratification or a status
-transition: the document remains Draft and LLP 0039 remains frozen.
+ENG-24596 implements this item-3 contract and its acceptance vectors. Charlie
+Cheever explicitly ratified this Spec on 2026-07-15 after the scaled review
+loop closed, so the document is Accepted; LLP 0039 remains frozen.
 
 ## Scope and ownership
 
@@ -1748,7 +1751,7 @@ explicit later-version questions and are not implementation latitude here:
 
 ## Status
 
-**Draft.** ENG-24596/item 3's v1 base is implemented and retained as exact
+**Accepted.** ENG-24596/item 3's v1 base is implemented and retained as exact
 legacy recognition: the protected catalog and keyring, email-code provider,
 capture mailbox, session-family state machine, operator impersonation carrier,
 collision rescue, and quiesced database-plus-keyring backup/declared restore
@@ -1759,9 +1762,11 @@ and v2 reset/restore includes its additional authority classes. Those artifacts
 are the implementation acceptance authority; prose alone would not have been
 sufficient.
 
-Implementation completion does not make this Spec Accepted. It still needs an
-LLP review scaled to its security stakes and explicit author ratification; this
-reconciliation performs neither on the author's behalf.
+Implementation completion alone did not make this Spec Accepted. ENG-25001
+closed the material review findings, the blind FINAL4 Codex and Fable reviews
+both returned READY, and Charlie Cheever explicitly ratified the resulting
+Spec on 2026-07-15. That author decision advances this document only; it does
+not advance frozen LLP 0039.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
 document on 2026-07-14; its verbatim report and provenance are archived in
@@ -1795,7 +1800,8 @@ cross-table token-digest uniqueness at issuance and coordinator-visible bounded
 retry; explicit no-ready-file impersonation stdin intake; and rescue's
 rowid-preserve/`AUTOINCREMENT`-refuse policy, commit reconciliation, managed
 four-key refusal, and exact reserved physical-source reachability. These are
-implementation reconciliations, not a status transition or ratification.
+implementation reconciliations and did not themselves transition Status; the
+explicit author ratification recorded above did.
 
 **Historical review observations, superseded by ENG-25001:** the review ledger
 recorded that issuance then skipped the tombstone check, restore then passed a
@@ -1805,9 +1811,9 @@ implementation described above. Resolution's current-before-tombstone order
 and LLP 0024's row-versus-descriptor question remain design evidence rather
 than open implementation defects.
 
-Implementation completion still does not make this Spec Accepted, and this
-revision performs neither ratification nor a status transition on the author's
-behalf; LLP 0039 remains frozen. The reviews advise — they do not ratify.
+Implementation completion still did not make this Spec Accepted on its own;
+the explicit author ratification recorded above did. LLP 0039 remains frozen.
+The reviews advised; the author ratified.
 
 **FINAL3 disposition (2026-07-15):** the blind GPT review's material finding is
 closed by per-cell integer/range validation before frontier aggregation plus
@@ -1816,4 +1822,5 @@ also covered. The concurrent Fable review was READY; its two wording minors are
 resolved by the exact maximum-increment rule and the documented conservative
 future-deadline availability residual. The verbatim artifacts and provenance
 remain in this document's Codex/Fable review ledgers. This disposition does not
-ratify or advance the Draft.
+ratify or advance the Draft at that review stage; the later explicit author
+decision recorded above advances this Spec to Accepted.

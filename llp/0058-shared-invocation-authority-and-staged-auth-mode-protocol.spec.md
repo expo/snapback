@@ -1,11 +1,14 @@
 # LLP 0058: Shared invocation authority and staged auth-mode protocol
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL3 closure: reconciles sessions-to-dev with LLP
+**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+ratified this Spec after ENG-25001 closed the review findings and the FINAL4
+Codex and Fable reviews both returned READY; Status advanced to Accepted
+without advancing frozen LLP 0039); 2026-07-15 (FINAL3 closure: reconciles sessions-to-dev with LLP
 0055's transactional five-class agent-authority purge, ReadyV1 compatibility,
 crash outcomes, and rollback evidence; pins session-generation safe-integer
 boundary evidence; status remains Draft); 2026-07-15 (final cross-family review follow-up: reconciled the
@@ -1854,7 +1857,7 @@ a fallback when the pinned v1 mechanism refuses.
 
 ## Status
 
-**Draft.** ENG-24597/item 4 is implemented. Executable pair matrices,
+**Accepted.** ENG-24597/item 4 is implemented. Executable pair matrices,
 crash injection, route/operation parity, cross-transport authority negatives,
 the pinned unmodified-predecessor harness/receipt, and the corrupt database/WAL
 byte regression are its **committed, rerunnable** implementation evidence. LLP
@@ -1862,10 +1865,12 @@ byte regression are its **committed, rerunnable** implementation evidence. LLP
 subsequently closed the activation fence for an explicitly staged local sessions
 deployment.
 
-Implementation completion does not make this foundational, security-sensitive
-Spec Accepted. It still needs an LLP review scaled to its stakes and explicit
-author ratification; this reconciliation performs neither on the author's
-behalf.
+Implementation completion alone did not make this foundational,
+security-sensitive Spec Accepted. ENG-25001 closed the material review
+findings, the blind FINAL4 Codex and Fable reviews both returned READY, and
+Charlie Cheever explicitly ratified the resulting Spec on 2026-07-15. That
+author decision advances this document only; it does not advance frozen LLP
+0039.
 
 The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
 document on 2026-07-14 (round 1, verdict: NOT READY). A second dual-family round
@@ -1910,7 +1915,8 @@ identity security claim is the authenticated trusted-producer premise above.
 The evidence-hygiene finding is closed by the committed harness and regression:
 the receipt records the pinned outcomes, while each run performs the direct byte
 comparisons. The split-document suggestion is left to the author. Closing these
-findings does not ratify or advance this Draft.
+findings did not itself ratify or advance the Spec; the explicit author
+ratification recorded above did.
 
 **FINAL3 disposition (2026-07-15):** the blind GPT review's material finding is
 closed by making the five-class agent-authority purge normative in downgrade,
@@ -1921,5 +1927,5 @@ rollback. Fable's READY review minors are closed by gating that purge to
 schema observation remains outside this Spec. The verbatim artifacts and
 provenance remain in this document's Codex/Fable review ledgers.
 
-The review advises — it does not ratify; this document remains Draft pending
-author triage completion and explicit ratification.
+The reviews advised and the author ratified after their material findings were
+closed. This document is Accepted; LLP 0039 remains frozen.
