@@ -511,21 +511,27 @@ pub(super) fn live_credential_by_hash(
     hash: &[u8],
 ) -> SnapbackResult<Option<ResolvedAgentCredential>> {
     let mut statement = tx.prepare(
-        "SELECT id, user_id, generation FROM _auth_agent_credentials
-         WHERE secret_hash = ?1 AND revoked_at_ms IS NULL
+        "SELECT id, user_id, generation, revoked_at_ms FROM _auth_agent_credentials
+         WHERE secret_hash = ?1
          ORDER BY id LIMIT 2",
     )?;
     let rows = statement.query_map(params![hash], |row| {
-        Ok(ResolvedAgentCredential {
-            credential_id: row.get(0)?,
-            user_id: row.get(1)?,
-            generation: row.get::<_, i64>(2)? as u64,
-        })
+        Ok((
+            ResolvedAgentCredential {
+                credential_id: row.get(0)?,
+                user_id: row.get(1)?,
+                generation: row.get::<_, i64>(2)? as u64,
+            },
+            row.get::<_, Option<i64>>(3)?,
+        ))
     })?;
     let rows = rows.collect::<Result<Vec<_>, _>>()?;
     match rows.len() {
         0 => Ok(None),
-        1 => Ok(rows.into_iter().next()),
+        1 => {
+            let (resolved, revoked_at_ms) = rows.into_iter().next().expect("one row");
+            Ok(revoked_at_ms.is_none().then_some(resolved))
+        }
         _ => Err(agent_credential_state_corrupt()),
     }
 }
@@ -935,11 +941,14 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_retained_hash_fails_closed_without_attribution() {
+    fn revoked_agent_hash_cannot_alias_a_different_live_agent() {
         let random = CounterRandom::new();
         let mut db = ready();
         let issued = db
             .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .unwrap();
+        let rotation_at = 1_000 + AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS;
+        db.rotate_agent_credential(&issued.secret, rotation_at, &random)
             .unwrap();
         create_agent(&mut db, "agent-b");
         let hash = issued.secret.token_hash();
@@ -948,34 +957,35 @@ mod tests {
                 "INSERT INTO _auth_agent_credentials(
                    id, user_id, secret_hash, generation, created_at_ms,
                    rotated_at_ms, last_used_at_ms, revoked_at_ms
-                 ) VALUES('credential-b', 'agent-b', ?1, 1, 1000, 1000, 1000, NULL)",
-                params![hash.as_bytes()],
+                 ) VALUES('credential-b', 'agent-b', ?1, 1, ?2, ?2, ?2, NULL)",
+                params![hash.as_bytes(), rotation_at as i64],
             )
             .unwrap();
 
         let resolve_error = db
-            .resolve_agent_credential(&issued.secret, 1_001)
+            .resolve_agent_credential(&issued.secret, rotation_at + 1)
             .unwrap_err();
         assert_eq!(
             resolve_error.diagnostic.code,
             "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT"
         );
         let revoke_error = db
-            .revoke_agent_credential_family(&issued.secret, 1_001)
+            .revoke_agent_credential_family(&issued.secret, rotation_at + 1)
             .unwrap_err();
         assert_eq!(
             revoke_error.diagnostic.code,
             "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT"
         );
-        let revoked: i64 = db
+        let agent_b_live: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM _auth_agent_credentials WHERE revoked_at_ms IS NOT NULL",
+                "SELECT COUNT(*) FROM _auth_agent_credentials
+                 WHERE user_id = 'agent-b' AND revoked_at_ms IS NULL",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(revoked, 0);
+        assert_eq!(agent_b_live, 1);
     }
 
     #[test]
