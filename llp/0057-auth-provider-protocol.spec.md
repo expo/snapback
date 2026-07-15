@@ -11,7 +11,9 @@ bounded candidates; malformed family alarms are parse-gated; backup/restore,
 clock-floor, keyring durability, rescue identity/ambiguity, explicit stdin
 impersonation intake, and portable numeric schemas implement the pinned
 fail-closed obligations; status intentionally remains Draft); 2026-07-14
-(round-2 dual-family revision, /llp-super-refine: pinned
+(round-2 dual-family revision, /llp-super-refine; historical intermediate
+review state whose named implementation gaps were closed by the preceding
+ENG-25001 revision: pinned
 the reusable **bulk session-revocation transaction** LLP 0058's downgrade and
 declared restore both consume; reconciled **commit-ambiguity** to LLP 0059's
 exact-successor reconciliation (this document no longer states the contradictory
@@ -118,9 +120,11 @@ wall move would otherwise violate, so `now` here means the floored epoch
 throughout — session lifetimes, tombstone `superseded_at_ms`, challenge
 timestamps, key `retired_at_ms`, bulk revocation, and declared restore alike.
 An implementation that reaches restore or provider work **before** the
-coordinator seeds the floor MUST seed it from the catalog's own maxima first;
-passing a raw `SystemTime::now()` into restore is the named clock-floor defect
-obligation (§Review triage).
+coordinator seeds the floor MUST seed it from the catalog's own maxima first.
+The production startup path seeds the durable floor immediately after catalog
+inspection, before declared restore, provider-mode composition, auth GC, or
+keyring lifecycle work; declared restore receives `provider.now_ms()`, never a
+raw `SystemTime::now()` sample.
 
 `generation` is an integer in `1..=9_007_199_254_740_991` (the JS-safe range,
 since it is wire-visible in `authorityDescriptor`). Reaching the maximum on a
@@ -190,9 +194,11 @@ committing a successor). Session issuance MUST perform the same cross-table
 check inside its transaction, retry up to the three-candidate bound, zeroize
 each rejected candidate, and surface a **retryable-collision** outcome the
 coordinator loop retries (never the raw internal-collision diagnostic to the
-client). Shipped issuance inserts into `_auth_sessions` without the
-tombstone check and the coordinator retries only `PredecessorChanged`; closing
-both is the named token-uniqueness defect obligation (§Review triage).
+client). Production issuance and rotation both perform the two-table check in
+their transaction. A candidate collision is propagated as an explicit internal
+outcome, exactly removes that candidate's authority premark, and is retried by
+the coordinator within the common three-candidate bound; exhausting the bound
+is `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`.
 
 Six-digit codes are sampled without modulo bias: interpret four random bytes as
 a big-endian `u32`, reject values at or above
@@ -830,16 +836,13 @@ failure removes the unpublished sibling. Discovery verifies the descriptor's
 file or descriptor never supplies a capability to another process. With no
 ready file, the bearer is printed exactly once to the controlling terminal; it
 is never printed in JSON logs or stdout envelopes. A later attaching CLI accepts
-that value only from an interactive/stdin secret input, never an argv flag or
-environment variable that exposes it through process inspection. **The stdin
-secret intake is a named obligation, not yet shipped**: today `TargetArgs`
-carries only `--url`/`--ready-file`/`--token`, and a URL target resolves to no
-impersonation capability, so the no-ready-file path currently has no way to
-supply `sbic_`. Until the no-echo terminal/stdin intake lands — scoped to
-registered impersonation operations only, never argv/environment, with redaction
-tests — the supported no-ready-file answer is to require a ready file; the
-stdin path is the pinned design, and its absence is the named impersonation
-defect obligation (§Review triage).
+that value only through the explicit `--impersonation-capability-stdin` input,
+which requires a URL target and conflicts with `--ready-file`; it never accepts
+the bearer from argv or an environment variable. The CLI reads that bounded
+stdin only for a registered operation that requires impersonation, rejects more
+than 512 bytes or a noncanonical bearer, and holds accepted decoded input and
+the parsed secret in zeroizing carriers. A URL target without this flag resolves
+no impersonation capability and never selects a local sidecar.
 
 HTTP carries it only in `x-snapback-impersonation-capability`. Middleware first
 proves the operation's ordinary `AdminWrite` credential, then constant-time
@@ -1093,17 +1096,14 @@ catalog marker. It refuses catalog-owned tables. It also refuses a target that
 already exists physically or in the stored manifest.
 
 **Source-name reachability.** Catalog reservation recognizes any name whose
-case-folded spelling equals `_auth` or begins `_auth_`, which includes quoted
-names with spaces or non-ASCII suffixes — but rescue's copy verb requires the
-strict ASCII application-identifier grammar, so a source like `"_auth_old
-table"` can trigger collision handling yet be impossible to name to the only
-recovery verb. Rescue therefore accepts **any exact, bounded, NUL-free physical
-SQLite source name** (identified by its exact stored name, not re-parsed through
-the app-identifier grammar) while keeping the strict grammar on the *target*;
-a source that cannot be exactly copied still refuses with
-`SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED`, but it is never merely unnameable.
-Aligning the shipped recovery router with this is a named rescue defect
-obligation (§Review triage).
+case-folded spelling equals `_auth` or begins `_auth_`, including quoted names
+with spaces or non-ASCII suffixes. Rescue therefore accepts **any exact,
+bounded, NUL-free physical SQLite source name** (identified by its exact,
+case-sensitive stored name, not re-parsed through the application-identifier
+grammar) while keeping the strict grammar on the *target*. The production
+router implements this split. A source that cannot be exactly copied still
+refuses with `SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED`, but it is never merely
+unnameable.
 
 **Row identity and sequence history are preserved or the source is refused.**
 The multiset proof covers named-column values and multiplicities, which is not
@@ -1115,7 +1115,13 @@ and carry the `sqlite_sequence` high-water for an `AUTOINCREMENT` source, or
 **refuse** every source shape for which implicit `rowid` or `sqlite_sequence`
 is observable — never silently renumber. (The auth-reserved sources this verb
 actually rescues are legacy app tables, so refusal is an acceptable v1 answer;
-the point is that lossy renumbering is not.)
+the point is that lossy renumbering is not.) Production rescue preserves
+`WITHOUT ROWID` tables and true `INTEGER PRIMARY KEY` identity; for an
+observable hidden rowid it copies through an unshadowed SQLite rowid alias and
+proves equality. A table that shadows every alias has no observable hidden
+rowid through this interface. An `AUTOINCREMENT` source is refused with
+`SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED`; v1 does not attempt to migrate its
+`sqlite_sequence` high-water.
 
 **Compatibility with LLP 0058's four-key mode state.** Rescue rewrites the
 legacy `schema_manifest`, but LLP 0058 makes `schema_manifest_capability_aware`
@@ -1124,10 +1130,13 @@ open refuses on any mismatch. Rescue MUST therefore either atomically update
 **every** authoritative manifest/identity key in the same transaction, or
 explicitly refuse a managed (sessions-era, staged, or quarantined) database with
 a stable offline-repair diagnostic — it may not leave the legacy and
-capability-aware manifests divergent for the next open to reject. Specifying
-rescue eligibility across every settled/pending/quarantined/dev/sessions state,
-and the atomic multi-key update or the refusal, is a named rescue defect
-obligation.
+capability-aware manifests divergent for the next open to reject. Production
+rescue may move an orphan physical collision that is not named by the stored
+manifest without changing mode keys. If the manifest names the source and any
+managed key (`schema_manifest_capability_aware`, its staged form, or
+`auth_mode_state_v1`) is present, rescue refuses with the stable
+`SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` offline-repair diagnostic;
+only legacy-manifest state is rewritten.
 
 Inside one `IMMEDIATE` transaction it:
 
@@ -1179,9 +1188,10 @@ the same commit-ambiguity rule as every other durable write (§Concurrency) — 
 commit whose success is unknown reopens and reconciles the exact source/target/
 index/manifest state, reporting failure only for an exact-predecessor state,
 success only for an exact-successor state, and a terminal recovery posture
-otherwise. An unclassified commit error reported after the target, manifest
-rewrite, and source drop became durable is the named rescue-commit defect
-obligation. The destructive
+otherwise. Production reconciliation reopens the database after a commit error
+and accepts success only when source absence, target presence, row and index
+counts, any rewritten manifest mapping, and the collision-cleared result all
+match the exact expected successor. The destructive
 `--drop-orphaned-auth-tables` command remains separate and backup-first; rescue
 never silently delegates to it.
 
@@ -1639,10 +1649,13 @@ rowid-preserve/`AUTOINCREMENT`-refuse policy, commit reconciliation, managed
 four-key refusal, and exact reserved physical-source reachability. These are
 implementation reconciliations, not a status transition or ratification.
 
-Orchestrator verification of the decisive claims (issuance skips the tombstone
-check; resolution is current-before-tombstone; restore passes raw
-`SystemTime::now()`; `TargetArgs` has no stdin carrier; 0024's row versus the
-descriptor requirement) is recorded outside the verbatim reviews in the ledger.
+**Historical review observations, superseded by ENG-25001:** the review ledger
+recorded that issuance then skipped the tombstone check, restore then passed a
+raw `SystemTime::now()`, and `TargetArgs` then had no stdin carrier. Those facts
+are retained only as review provenance; the current behavior is the normative
+implementation described above. Resolution's current-before-tombstone order
+and LLP 0024's row-versus-descriptor question remain design evidence rather
+than open implementation defects.
 
 Implementation completion still does not make this Spec Accepted, and this
 revision performs neither ratification nor a status transition on the author's

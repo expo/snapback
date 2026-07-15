@@ -24,10 +24,11 @@ per-invocation domains; removed D2's strict-transport prose escape hatch (HSTS
 is a required component of `externalTls = enforced`); clarified the five static
 enums attest `*Capable`, with D6 compatibility and C2 operator-origin isolation
 as mandatory fail-closed **admission** inputs alongside deployment attestation
-and live health; **bounded the D4 serving-lease state machine** (normative max
-lifetime, skew, durable epoch, no-renewal-after-fence, admission, rollback),
-reproduced LLP 0053's exact durability matrix, and flagged `multiReplicaConvergent`
-as a companion rename; completed the acceptance surface. Round-3 triage in
+and live health; in a historical intermediate design, bounded a D4
+serving-lease state machine and flagged `multiReplicaConvergent` as a companion
+rename (both superseded by ENG-25001's serialized-authority v1 choice);
+reproduced LLP 0053's exact durability matrix and completed the acceptance
+surface. Round-3 triage in
 §Status.) 2026-07-14 (round-2 dual-family revision, /llp-super-refine: D5
 splits **target support profile / deployment-bound attestation / live health**
 and renames the four-fact conjunction *deployment readiness* — `--auth-deployment
@@ -37,7 +38,8 @@ open question; new **D6** owns the coordinator-to-handler mixed-version boundary
 LLP 0058 delegates here (marker, preflight-before-effects, rollout/rollback
 interleavings); D4 defines the **two conforming invalidation topologies**
 (single serialized authority; replicated projections with pre-commit fencing and
-expiring serving leases) with a conformance-grade completion bound; D3 pins the
+expiring serving leases) with a conformance-grade completion bound (historical
+D4 design, superseded by ENG-25001's serialized-authority-only v1); D3 pins the
 **simultaneous bucket set** with atomic acquisition and unattributed-failure
 charging; D2 requires refusal (never redirect) for credential-bearing plaintext,
 strict transport as part of `externalTls`, and confidential mutually
@@ -585,8 +587,13 @@ performs an uncoordinated handshake when no coordinator is composed — a
 can nonetheless reach. The pinned rule: **a browser client that observes
 sessions mode uses coordinator custody**; the direct-bearer seam is for
 non-browser composition, and hosted-browser capability claims never cover a
-page that opts out of custody through it. Making the browser/headless split
-structural (rather than a usage convention) is a named obligation.
+page that opts out of custody through it. Structural exclusion or disablement
+of the direct-bearer seam in the browser artifact is therefore an explicit
+positive prerequisite for hosted-browser admission and any hosted-browser
+capability claim; a usage convention is insufficient. Headless server and test
+harness composition may retain the seam outside that claim. The current local
+browser bearer-v1 artifact does not meet this prerequisite and makes no
+hosted-browser claim.
 
 That architecture prevents stale-tab overwrites, late-A-clears-B races, and
 accidental token exposure through ordinary client return values. It does **not**
@@ -999,7 +1006,8 @@ The ENG-24996 review gate obtained a cross-family GPT (Codex) review of this
 document on 2026-07-14; its verbatim report and provenance are archived in
 `reviews/0060-hosted-auth-security.codex.md` (round 1, verdict: NOT READY —
 nine material implemented-boundary and hosted/future-contract findings). A
-**round 3 (the latest) corrected the D6-vs-frozen-0039 contradiction** (the
+**Historical round-3 review state, superseded by ENG-25001:** that revision
+corrected the D6-vs-frozen-0039 contradiction (the
 `_snapback_meta`-before-preflight carve-out is withdrawn; preflight precedes all
 DDL, split into startup and per-invocation domains), removed D2's strict-
 transport prose escape hatch, clarified that the five static enums attest
@@ -1007,10 +1015,13 @@ transport prose escape hatch, clarified that the five static enums attest
 bounded the D4 serving-lease state machine and reproduced LLP 0053's exact
 durability matrix (projections are continuity-scoped, not disk-durable), flagged
 `multiReplicaConvergent` as a companion rename, and completed the acceptance
-surface. Remaining protocol-grade items (the marker schema owner/wire form, the
-lease constants, the machine-readable attestation/health authorities) are named
-implementation-altitude obligations, since this RFC does not design the control
-plane and its altitude is not yet author-ratified.
+surface. ENG-25001 subsequently chose one serialized per-application authority
+for v1: there is no serving lease and no `multiReplicaConvergent` rename in the
+current contract, so the former lease constants and rename are not current
+obligations. The remaining protocol-grade items are the marker schema
+owner/wire form and the machine-readable attestation/health authorities; this
+RFC does not design the control plane and its altitude is not yet
+author-ratified.
 
 Two further dual-family rounds (fresh Codex and fresh Fable, blind, via
 /llp-super-refine) reviewed the committed revision at `b11a6fa`;
@@ -1018,10 +1029,11 @@ all artifacts are archived with provenance in
 `reviews/0060-hosted-auth-security.{codex,fable}.md`. **The round-2 revision
 was the author-side triage of the first two rounds**: every material finding is
 either resolved in the text (D1 unforgeable posture, D2 refusal/strict-
-transport/edge-to-origin, D3 bucket algorithm, D4 conforming topologies, D5
+transport/edge-to-origin, D3 bucket algorithm, D4 conforming topologies
+(historical; superseded by ENG-25001's serialized-authority-only v1), D5
 naming/layers/compat request, new D6 mixed-version boundary, C1 custody
 matrix and issuing-path rule, C2 operator-origin requirement, C3 claim
-renaming and protocol inventory) or recorded as a named defect obligation
+renaming and protocol inventory) or was recorded as a named defect obligation
 with acceptance rows (the now-closed detached-loopback bypass; the issuing-path 2xx
 snippet and request-code passthrough; the descriptor's missing not-applicable
 values; the structural browser/headless custody split). Dispositions live in
