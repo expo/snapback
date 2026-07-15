@@ -91,6 +91,7 @@
   "properties": {
     "admissionEpoch": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
@@ -107,6 +108,7 @@
     },
     "expiresAtMs": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
@@ -125,16 +127,19 @@
     },
     "invalidationEpoch": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
     "issuedAtMs": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
     "limiterEpoch": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },

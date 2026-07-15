@@ -404,3 +404,41 @@ EVIDENCE:
 - LLP 0060 ENG-25001 claims verified in code: `deployment_capable()`/`hosted_auth_capable()` and 32-mask always-refuse-hosted test (`src/auth/deployment.rs:138-157, 212-223, 229-263`); `no_auth_target()` all-`unavailable` tuple and exact local default tuple (`:106-133, 265-277`) matching D5; closed blocker names incl. attestation/health/handler/operatorSurface (`:191-208`); CLI hosted validation after bind-name resolve, before database-path creation (`src/cli.rs:1479-1492`); issuing-path opaque failures in kit (`demos/_kit/client.mjs:808-816, 1589-1691`, exact `{challengeId, expiresAt}` projection), shared admin client (`packages/snapback-admin-client/index.mjs:100, 130, 229`), embedded setup; poison tests with freshly-issued credentials the client could not know (`demos/_kit/tests/auth-coordinator-client.mjs:185-330`; `admin-ui/tests/admin-client-credentials.mjs:207-291`; `admin-ui/tests/setup-credential-errors.mjs`); exact shipped admin headers `x-snapback-admin-token`/`x-snapback-console-credential`/`x-snapback-secret-read-lease` (`src/admin.rs`, `src/server.rs`, `src/admin_secret_read.rs`, `src/admin/setup.html`); D1/ENG-25000 posture (`src/admin.rs:379-528` `ListenerTransportPosture::Unknown`, `src/server.rs:8296-8331` `app(state).bind(listener)`/`BoundSnapbackApp`, `0.0.0.0` regressions `src/server.rs:17315-17554`).
 - 0057/0058 follow-up claims verified: `Cache-Control: no-store, private` (`src/server.rs:4601, 15951`); auth-session wire schema pins UUIDv7 + `descriptorVersion: 1` (`src/auth/wire.rs:142, 380`); generic `AuthorityDescriptor` honestly broader `u32` (`src/manifest.rs:2423-2434`); commit-witness types present (`src/storage/auth.rs`, `src/storage/auth_mode.rs`).
 - Both LLP 0059 and 0060 remain Draft with explicit no-self-ratification language (0060:1029-1031; 0059:2129-2131, 2170-2172); no status transition proposed here. Constraint compliance: `llp/reviews/**` never read/listed (all git commands used `':(exclude)llp/reviews'` pathspecs or explicit file lists); no secrets accessed; no repository mutation; review conducted blind from the working tree at `3ac047322d055fad03e8308fdc0905d758eb9f61` (clean status) and commit diffs c095370→3ac0473.
+
+## FINAL3 blind review — 2026-07-15 (`bd7d1da`)
+
+### Provenance
+
+- Reviewer family: Anthropic Claude Fable
+- Provider/runtime: Claude Code 2.1.210, model `claude-fable-5`, max reasoning effort, read-only plan permission
+- Method: independent blind final review; no access to `llp/reviews/`
+- Session: `70006000-0000-4000-9000-000000000160`
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Source artifact: `/private/tmp/eng25001-final3-fable-0060.md`, sha256 `c4fa7818014629c6174fff8e70e3a89e15957fd3e46c42b99446b0a3fb39ce48`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT: READY
+
+MATERIAL:
+- None.
+
+MINOR:
+- The kit's refresh superseded-recovery branch is now dead for HTTP-borne codes: `demos/_kit/client.mjs:1790-1797` recovers only on `SUPERSEDED_AUTH_CODES` (`client.mjs:382-385`), but every non-2xx `/auth/refresh` response is first collapsed to opaque `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID` (`client.mjs:1642`), and nothing else throws those codes (none in `packages/snapback-contract/auth-coordinator.mjs`). Peer-tab rotation is still handled via `outcome.rotated === false` (`client.mjs:1783-1786`), and LLP 0060 mandates the opacity causing this, so it is not a 0060 mismatch — but server-signaled supersession no longer returns `{superseded:true}` or runs the family-alarm/compare-clear residual; worth author awareness re LLP 0059 interplay.
+- Front-matter wording ("collapse to the same local opaque error") slightly overstates uniformity: kit read/non-2xx/parse/shape yield one identical error, but admin/setup shape failures yield a different fixed local error (`SNAPBACK_RESPONSE_INVALID`, `packages/snapback-admin-client/index.mjs:51-53,270-274`; fixed message, `src/admin/setup.html:260-262`). Normative C1 requires only "a fixed, opaque error", which all surfaces satisfy.
+
+EVIDENCE:
+- HEAD verified at `bd7d1da6d458439081a60c6fe06fe700edc678cf`, tree clean; read `llp/0060-hosted-auth-security.rfc.md` in full (1163 lines).
+- Kit opacity: `demos/_kit/client.mjs:1609-1614` (body-read), `1641-1642` (non-2xx), `1657-1658` (parse) throw fixed `opaqueCredentialResponseError` (`816-826`, no response bytes/status); shape via `#validateCredentialResponse` (`1268-1280`); challenge success is exactly `{challengeId, expiresAt}` (`806-814`, `1685-1692`); exchange/refresh exclude request proofs, predecessor, and fresh successor from every string/numeric/property-name position (`754-797`, `1714-1720`, `1747-1753`).
+- Kit poison tests: `demos/_kit/tests/auth-coordinator-client.mjs:149-155` (non-2xx body with fresh `UNKNOWN_ISSUED` in message, value, and property name), `324-352` (request-code/exchange read+extra+non-2xx; exact fixed diagnostic; serialized error free of both sentinels), `520-550` (refresh predecessor/successor poison, read, non-2xx; custody unchanged), `560-624` (logout exact-204/reflected/read-failure barrier).
+- Shared admin mint: `packages/snapback-admin-client/index.mjs:99-101` (read failure on any status — FINAL3 changed `res?.ok` to `res`), `117` (non-2xx, FINAL3), `131` (parse) → fixed error (`230-240`); exact two-field projection plus master-anywhere rejection (`276-303`); tests `admin-ui/tests/admin-client-credentials.mjs:212-251` (2xx reader `UNKNOWN_SUCCESSOR`; non-2xx `UNKNOWN_ISSUED` with exact fixed message/diagnostic; persisted custody unchanged).
+- Embedded setup: `src/admin/setup.html:266-270,280-294` (non-2xx/parse/read → fixed `credentialResponseError`), `104-119` (shape plus master exclusion incl. numeric `expiresAtMs`); tests run the real inline program in a VM: `admin-ui/tests/setup-credential-errors.mjs:180-239` (exact fixed DOM message; `UNKNOWN_ISSUED`/master absent; no storage write), plus collision/numeric-master/config cases.
+- Executed on this commit: `node demos/_kit/tests/auth-coordinator-client.mjs`, `node admin-ui/tests/admin-client-credentials.mjs`, `node admin-ui/tests/setup-credential-errors.mjs` — all pass; all wired into runners (`scripts/verify-local-proof:129`, `admin-ui/package.json` test script, `scripts/check-package-test-inventory.mjs:79,85`).
+- HostedAdmission: closed `deny_unknown_fields` struct with `operatorSurface`, `browserDirectBearerSeam`, five-fact `hostedAuth`, version pinned 1, sha256-hex, epochs ≥1, ≤5-minute lifetime (`src/auth/deployment.rs:213-277`); conjunction test with seam-available/operator-enabled/handler-v2/bearer-v1/lifetime negatives plus missing-field and unknown-field serde rejections (`deployment.rs:394-429`).
+- Schema governance: registered in `artifact_schemas()` (`src/schema_export.rs:98-101`); committed `schemas/auth.hosted-admission.schema.json` closed (`additionalProperties:false`, all 14 fields required, closed enums incl. `excluded`); byte drift gate `tests/artifact_schemas_v0.rs:221-230`, round-trip `:1023-1026`, seam-specific schema test `:1073-1096` (Rust tests verified by inspection; cargo not run — build writes disallowed in this read-only session).
+- Seam fact in conjunction/acceptance: D5 snapshot (`llp/0060:515-527`), three mandatory admission gates incl. C1 seam (`:486-501`), acceptance bullets (`:939-945`); refusal blockers include `browserDirectBearerSeam` (`deployment.rs:279-297`).
+- Hosted serving disabled: `validate_auth_deployment` unconditionally refuses `hosted` (`deployment.rs:305-310`), asserted for all 32 capability masks (`:375`); CLI validates before database-path creation (`src/cli.rs:1480-1487`); embedded router returns 503 `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` with the exact ten-blocker list (`src/server.rs:17575-17619`).
+- D5 defaults honest: absent `hostedAuth` deserializes to the exact local tuple (`src/manifest.rs:2987`, `deployment.rs:128-155`); `*Capable` helpers shipped (`deployment.rs:160,173`); no-auth `unavailable` tuple test (`deployment.rs:380-391`).
+- Setup CSP hash: recomputed SHA-256 of the committed inline script equals updated `SETUP_SCRIPT_SHA256` (`src/server.rs:4607`); router test hashes the actually served bytes (`server.rs:17661-17674`).

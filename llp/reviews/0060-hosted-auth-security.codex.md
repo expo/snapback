@@ -886,3 +886,36 @@ EVIDENCE
 - Static implementation claims are accurate: `src/auth/deployment.rs:112-157` implements `no_auth_target()`, `deployment_capable()`, and `hosted_auth_capable()`; `src/auth/deployment.rs:210-220` refuses every current hosted request without admission authority; `cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json:20-26` reports all no-auth axes as `unavailable`.
 - Commit `3ac047322d055fad03e8308fdc0905d758eb9f61` changes only `packages/snapback-contract/auth-coordinator.mjs` and its test. `auth-coordinator.mjs:1218-1277` now compares every delayed ownership result against current authority even after `activeBarrier` is gone. `auth-coordinator.test.mjs:602-660` covers completion during successor resume, and `:662-703` covers completion after the barrier clears.
 - Focused command `node packages/snapback-contract/auth-coordinator.test.mjs && node demos/_kit/tests/auth-coordinator-client.mjs && node admin-ui/tests/admin-client-credentials.mjs && node admin-ui/tests/setup-credential-errors.mjs` passed all four suites.
+
+## FINAL3 blind review — 2026-07-15 (`bd7d1da`)
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: runtime metadata was not included in the received review artifact
+- Method: independent blind final review received through the parent ENG-25001 orchestration
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Source artifact: `/private/tmp/eng25001-final3-codex-0060.md`, sha256 `c0e2f27b5e83baca1f5718e89ce9f41b45660359cc4608ef1a0a82b8ac1ca6ee`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT: NOT READY
+
+MATERIAL
+- Credential-response opacity breaks deliberate typed recovery. `authRefresh()` converts the specified HTTP 409 `SNAPBACK_AUTH_REFRESH_SUPERSEDED` into `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID` before its supersession handler can wait/reload, invoke the family alarm, or compare-and-clear. This contradicts LLP 0039/0057/0059’s frozen recovery protocol and can strand a healthy rotated family. Resolution criterion: reconstruct a fixed local error for a closed route/status/code allowlist—at minimum refresh 409—while discarding all response-controlled message/details/header bytes; reconcile other deliberate exceptions such as `CODE_INVALID`/`CODE_LOCKED`; and add an end-to-end 409 test proving successor wait/reload or alarm-before-clear without credential leakage. Arbitrary issuer failures must remain opaque.
+
+MINOR
+- None
+
+EVIDENCE
+- `demos/_kit/client.mjs:1641-1655` replaces every opaque-path non-2xx response before diagnostics are classified; `:1747-1753` enables that behavior for refresh; `:1790-1797` can recover only if the now-unreachable typed supersession code survives.
+- `llp/0059-session-projection-and-client-barrier.spec.md:1551-1566` requires bounded wait/reload and alarm-before-clear for refresh supersession. `llp/0039-auth-vertical-slice.rfc.md:1338-1350` and `llp/0057-auth-provider-protocol.spec.md:748-756,1079-1094` specify the exact 409 recovery outcome and other deliberate typed exceptions.
+- `src/server.rs:7935-7944,13989` emits and maps refresh supersession to HTTP 409; test `auth_refresh_and_logout_routes_enforce_exact_carriers_and_statuses` at `src/server.rs:18685-18750` asserts that public status/code.
+- Executable `bun -e` refresh-supersession probe produced `{"code":"SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID","paths":["/auth/session","/auth/exchange","/auth/session","/auth/refresh"]}`—no `/auth/family-alarm`. Existing `demos/_kit/tests/auth-coordinator-client.mjs:540-550` tests only generic opaque refresh failures and misses typed 409 recovery.
+- Unknown/invalid local credentials share `SNAPBACK_AUTH_REQUIRED`: `src/auth/coordinator.rs:784-850`; matrix test `session_auth_credentials_precede_refresh_and_logout_body_errors`, `src/server.rs:19520-19599`. Deliberate terminal/superseded states remain typed. Shared response controls apply `no-store, private` at `src/server.rs:4544-4604`; family-alarm opacity and minimum delay are tested at `:20887-20964`.
+- Hosted serving remains fail-closed. `src/auth/deployment.rs:216-269` defines the closed admission facts including direct-bearer exclusion; `:343-429` covers static and admission negatives. `schemas/auth.hosted-admission.schema.json:87-173` requires the seam fact and rejects unknown fields. Hosted is refused unconditionally at `src/auth/deployment.rs:299-311`, before target creation at `src/cli.rs:1471-1491`, and again for embedded app-data serving at `src/server.rs:4994-5013`; tests are `hosted_auth_request_refuses_before_database_creation` and `hosted_auth_configuration_is_fail_closed_in_embedded_composition`.
+- The retained direct-bearer constructor is visibly headless/local at `demos/_kit/client.mjs:872-901,1020-1028`; because hosted admission cannot currently succeed, no alternate hosted direct-bearer path was found.
+- `bun admin-ui/tests/admin-client-credentials.mjs && bun admin-ui/tests/setup-credential-errors.mjs && bun demos/_kit/tests/auth-coordinator-client.mjs` passed, demonstrating the regression is absent from the committed matrix rather than caught by a red test.
+- `git rev-parse HEAD` returned `bd7d1da6d458439081a60c6fe06fe700edc678cf`; scoped tracked status was clean.

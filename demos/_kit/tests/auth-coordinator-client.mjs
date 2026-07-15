@@ -193,6 +193,7 @@ let queryMode = 'success';
 let credentialPoison = null;
 let issuingFailure = null;
 let exchangeErrorReflection = false;
+let exchangeTypedFailure = null;
 let refreshPoison = null;
 let logoutMode = 'empty';
 let logoutReadFailureHook = null;
@@ -202,6 +203,7 @@ let delayedQueryStartedResolve = null;
 let delayedQueryStarted = null;
 let delayedQueryResponse = null;
 let staleLogoutPeer = null;
+const familyAlarmCustodyWitnesses = [];
 
 const prepareDelayedQuery = () => {
   delayedQueryStarted = new Promise((resolve) => { delayedQueryStartedResolve = resolve; });
@@ -236,6 +238,17 @@ globalThis.fetch = async (url, init = {}) => {
         },
       });
     }
+    if (exchangeTypedFailure) {
+      const [code, status] = exchangeTypedFailure;
+      return diagnosticResponse(code, status, {
+        message: `hostile issuer text ${UNKNOWN_ISSUED} ${body.code}`,
+        details: {
+          successorCredential: UNKNOWN_ISSUED,
+          attemptedCode: Number(body.code),
+          [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
+        },
+      });
+    }
     const issued = credential(BEARER_A, sessionA, 10_000);
     if (credentialPoison === 'root') issued.leakedBearer = BEARER_A;
     if (credentialPoison === 'nested') issued.session.leakedBearer = BEARER_A;
@@ -248,6 +261,15 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === '/auth/refresh') {
     if (issuingFailure === 'refresh-read') return poisonedReadResponse(BEARER_C);
     if (issuingFailure === 'refresh-non2xx') return poisonedIssuerFailure();
+    if (issuingFailure === 'refresh-superseded') {
+      return diagnosticResponse('SNAPBACK_AUTH_REFRESH_SUPERSEDED', 409, {
+        message: `hostile refresh text ${UNKNOWN_ISSUED} ${bearer}`,
+        details: {
+          successorCredential: UNKNOWN_ISSUED,
+          [`credential_${UNKNOWN_ISSUED}`]: bearer,
+        },
+      });
+    }
     const issued = credential(BEARER_C, sessionA, 30_000);
     if (refreshPoison === 'predecessor') issued.session.provider = bearer;
     if (refreshPoison === 'successor') issued.session.provider = issued.token;
@@ -277,7 +299,10 @@ globalThis.fetch = async (url, init = {}) => {
     }
     return emptyResponse(204);
   }
-  if (path === '/auth/family-alarm') return response({ accepted: true });
+  if (path === '/auth/family-alarm') {
+    familyAlarmCustodyWitnesses.push(storage.snapshot(APP).bearer);
+    return response({ accepted: true });
+  }
   if (path === '/_snapback/api/schema/load') {
     return diagnosticResponse('SNAPBACK_TEST_ADMIN_ECHO', 500, {
       message: `server echoed ${ADMIN_SECRET}`,
@@ -403,6 +428,35 @@ try {
     message: 'auth provider returned an invalid credential response',
   });
   exchangeErrorReflection = false;
+
+  // LLP 0057 deliberately exposes only these two exchange outcomes. Exact
+  // route/status/code tuples reconstruct fixed local guidance while hostile
+  // response-controlled text, details, property names, and fresh credentials
+  // remain opaque.
+  for (const [code, status, message] of [
+    ['SNAPBACK_AUTH_CODE_INVALID', 401, 'the login code is invalid; request a new challenge'],
+    ['SNAPBACK_AUTH_CODE_LOCKED', 403, 'the login challenge is locked; request a new challenge'],
+  ]) {
+    exchangeTypedFailure = [code, status];
+    let typedError;
+    await assert.rejects(
+      db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
+      (error) => {
+        typedError = error;
+        return error?.diagnostic?.code === code && error?.status === status;
+      },
+    );
+    assert.deepEqual(typedError.diagnostic, { code, message });
+    const bytes = JSON.stringify({
+      message: typedError.message,
+      diagnostic: typedError.diagnostic,
+      status: typedError.status,
+    });
+    assert.equal(bytes.includes(LOGIN_CODE), false);
+    assert.equal(bytes.includes(UNKNOWN_ISSUED), false);
+    assert.equal(storage.snapshot(APP).bearer, null);
+  }
+  exchangeTypedFailure = null;
 
   // Exchange installs token custody and runs transport resume before exposing
   // the session projection. The token never appears in the returned object.
@@ -556,6 +610,38 @@ try {
     assert.equal(storage.snapshot(APP).bearer, BEARER_B);
   }
   issuingFailure = null;
+
+  // The exact refresh 409 is reconstructed locally so the LLP 0059 recovery
+  // branch remains reachable. Let the production bounded wait expire; family
+  // alarm must observe predecessor custody before compare-clear, and no
+  // response-controlled diagnostic bytes may escape.
+  calls = [];
+  issuingFailure = 'refresh-superseded';
+  let supersededRefreshError;
+  await assert.rejects(db.authRefresh(), (error) => {
+    supersededRefreshError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_AUTH_REFRESH_SUPERSEDED'
+      && error?.status === 409;
+  });
+  issuingFailure = null;
+  assert.deepEqual(supersededRefreshError.diagnostic, {
+    code: 'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
+    message: 'the session refresh was superseded',
+  });
+  assert.equal(JSON.stringify({
+    message: supersededRefreshError.message,
+    diagnostic: supersededRefreshError.diagnostic,
+  }).includes(UNKNOWN_ISSUED), false);
+  assert.equal(JSON.stringify(supersededRefreshError.diagnostic).includes(BEARER_B), false);
+  assert.equal(familyAlarmCustodyWitnesses.at(-1), BEARER_B);
+  assert.equal(storage.snapshot(APP).bearer, null);
+  assert.equal(coordinator.settledView().authority.kind, 'anonymous');
+  const refreshCall = calls.findIndex(({ path }) => path === '/auth/refresh');
+  const alarmCall = calls.findIndex(({ path }) => path === '/auth/family-alarm');
+  assert(refreshCall >= 0 && alarmCall > refreshCall);
+
+  // Restore session custody for the ordinary successful-rotation proof.
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
 
   // Refresh is serialized under custody ownership and only exposes the
   // non-secret projection after the exact revision replacement.

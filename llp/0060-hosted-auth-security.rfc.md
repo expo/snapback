@@ -5,9 +5,10 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final blind-review closure: all response-controlled
-credential-issuer failures, including non-2xx diagnostics, now collapse to the
-same local opaque error; `HostedAdmission` gains the required positive
+**Revised:** 2026-07-15 (final blind-review closure: response-controlled
+credential-issuer failures now collapse to fixed local projections, with only
+three exact route/status/code tuples retaining typed recovery and every other
+failure remaining opaque; `HostedAdmission` gains the required positive
 direct-bearer-browser-seam exclusion fact and generated schema; status remains
 Draft). 2026-07-15 (post-review hygiene: linked D6 to the actual LLP 0051
 D4 schema-governance section, registered the future handler-incompatibility
@@ -519,7 +520,10 @@ a maximum five-minute lifetime; exact limiter and invalidation epochs; D6
 protocol version and handler incarnation; `operatorSurface: "disabled"`; and
 `browserDirectBearerSeam: "excluded"`, with that attested fact included in the
 `supportSha256` binding to the exact support/browser artifact; and
-the five attested positive facts. The Rust-owned closed structure and its
+the five attested positive facts. Every integer field is at most
+`9_007_199_254_740_991` (`Number.MAX_SAFE_INTEGER`), enforced by both the
+generated schema and the runtime conjunction so JavaScript control planes
+cannot round an epoch or timestamp into another admitted value. The Rust-owned closed structure and its
 generated `auth.hosted-admission.schema.json` make absence, unknown values, and
 unknown fields fail closed. The target verifies it through a
 provider-authenticated binding, rejects rollback of any epoch, and pins one
@@ -659,19 +663,33 @@ deliver.** Request-scoped redaction can only replace secrets the client
 already knows; a **newly issued** credential in any response-controlled failure
 is unknown until a valid success projection is accepted, so a diagnostic that
 embeds response bytes can exfiltrate a successor no redaction set contains. The
-rule: on the
-issuing paths — exchange, refresh, console mint, and challenge request — a
-non-2xx response, parse failure, body-read failure, or shape failure produces a
-**fixed, opaque error carrying no response bytes and no reader-error
-payload**; and every issuing success is an exact, closed projection
+rule: on the issuing paths — exchange, refresh, console mint, and challenge
+request — a parse failure, body-read failure, shape failure, or unrecognized
+non-2xx response produces a **fixed, opaque error carrying no response bytes
+and no reader-error payload**. A closed allowlist preserves only deliberate
+typed recovery by matching the exact `(method, route, HTTP status, diagnostic
+code)` tuple and reconstructing a fixed local error from constants:
+
+| Method and route | Status | Code | Fixed local guidance |
+| --- | ---: | --- | --- |
+| `POST /auth/exchange` | 401 | `SNAPBACK_AUTH_CODE_INVALID` | request a new challenge |
+| `POST /auth/exchange` | 403 | `SNAPBACK_AUTH_CODE_LOCKED` | request a new challenge |
+| `POST /auth/refresh` | 409 | `SNAPBACK_AUTH_REFRESH_SUPERSEDED` | run the LLP 0059 successor-wait/family-alarm recovery |
+
+Even for those tuples, response message, details, headers, receipt, and all
+other response-controlled bytes are discarded; only the locally defined code,
+message, and tuple-known status survive. Any route/status/code mismatch remains
+opaque. This preserves LLP 0057's non-enumerating exchange outcomes and LLP
+0059's refresh-race recovery without creating a general diagnostic-passthrough
+seam. Every issuing success is an exact, closed projection
 (challenge request returns exactly `{challengeId, expiresAt}`, never
 passthrough JSON). ENG-25001 closes the remaining client gaps: the kit, shared
 admin client, and embedded setup page replace every response-controlled failure
-on issuing paths with fixed errors, and `authRequestCode()` returns only the exact closed
-projection. Poison tests cover reader failures and unknown/nested/property-name/
-numeric positions; the implementation also maps malformed-text 2xx responses
-to the same opaque error, but this sentence does not claim a distinct malformed-
-text fixture on every client surface.
+on issuing paths with fixed local projections, and `authRequestCode()` returns
+only the exact closed projection. Poison tests cover reader failures and
+unknown/nested/property-name/numeric positions; the implementation also maps
+malformed-text 2xx responses to an opaque error, but this sentence does not
+claim a distinct malformed-text fixture on every client surface.
 
 The short-lived `AdminSecretRead` browser lease is memory-only, named-table,
 row/byte bounded, and not refreshable by itself. Active XSS can still steal or
@@ -944,6 +962,10 @@ material.
   direct-bearer seam is available or unproven is refused hosted
   admission; and losing a required live-health fact **withdraws serving** (HTTP
   refusal and existing socket/drain) rather than only logging.
+- Every admission integer rejects values above
+  `Number.MAX_SAFE_INTEGER` in both the generated schema and the runtime
+  conjunction; the representative admission still validates and each epoch or
+  timestamp field has an above-ceiling negative fixture.
 - The `externalTls = enforced` attestation requires predelivered first-contact
   protection: a clean client profile cannot reach either HTTP or WebSocket
   plaintext before learning a dynamic HSTS policy.
@@ -975,13 +997,17 @@ material.
   refresh predecessor and successor, and logout body reflection. Exact empty
   204 alone returns `null`; malformed 2xx logout clears only current captured
   custody and then returns a generic credential-free error.
-- Issuing-path opaque-failure cases: malformed 2xx and non-2xx failures on
-  exchange, refresh, console mint, and challenge request produce a fixed error
-  with **no response bytes and no
-  reader-error payload** — proven with a poisoned body containing a
-  freshly-issued credential the client could not know — and challenge-request
-  success is the exact `{challengeId, expiresAt}` projection, never
-  passthrough JSON.
+- Issuing-path failure cases: malformed 2xx and arbitrary non-2xx failures on
+  exchange, refresh, console mint, and challenge request produce fixed opaque
+  errors with **no response bytes and no reader-error payload** — proven with a
+  poisoned body containing a freshly-issued credential the client could not
+  know. Exact exchange 401 `CODE_INVALID`, exchange 403 `CODE_LOCKED`, and
+  refresh 409 `REFRESH_SUPERSEDED` instead reconstruct their fixed local typed
+  errors while poisoned response text/details/property names remain absent; an
+  end-to-end refresh 409 proves bounded successor reconciliation or family
+  alarm while predecessor custody still exists, before compare-clear.
+  Challenge-request success is the exact `{challengeId, expiresAt}` projection,
+  never passthrough JSON.
 - Console-mint poison cases cover a longer master embedded after `sbcc_` and a
   one-byte master colliding with the fixed prefix; neither candidate reaches
   storage. A known-2xx logout whose body reader rejects with credential-bearing
@@ -1103,11 +1129,14 @@ does not ratify, and this document remains Draft pending author ratification.
 
 ## Changelog
 
-- **2026-07-15 (final blind-review closure):** made non-2xx and body-reader
-  failures opaque on every credential-issuing client path, with unknown
-  successor poison tests; added the closed `HostedAdmission` Rust/schema
-  authority and made exact browser direct-bearer seam exclusion part of the
-  hosted admission conjunction while current hosted admission remains disabled.
+- **2026-07-15 (final blind-review closure):** made arbitrary non-2xx and
+  body-reader failures opaque on every credential-issuing client path, with
+  unknown-successor poison tests; restored the three deliberate exchange and
+  refresh recovery outcomes through a closed route/status/code-to-local-error
+  allowlist and an end-to-end refresh-409 alarm-before-clear proof; added the
+  closed `HostedAdmission` Rust/schema authority with JavaScript-safe numeric
+  bounds and made exact browser direct-bearer seam exclusion part of the hosted
+  admission conjunction while current hosted admission remains disabled.
 - **2026-07-15 (ENG-25001):** closed the latest hosted-auth review findings by
   choosing the serialized-authority first topology, removing the bearer-v1
   hosted compatibility posture, pinning predelivered first-contact TLS,

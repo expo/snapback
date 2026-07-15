@@ -212,6 +212,8 @@ impl HostedAuthCapabilities {
 
 pub const HOSTED_ADMISSION_VERSION: u64 = 1;
 pub const HOSTED_ADMISSION_MAX_LIFETIME_MS: u64 = 5 * 60 * 1_000;
+/// Largest integer every JavaScript implementation can represent exactly.
+pub const HOSTED_ADMISSION_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 /// Closed, deployment-bound facts required before a future hosted target can
 /// claim readiness. This is a schema authority only: no current target owns
@@ -230,13 +232,15 @@ pub struct HostedAdmission {
     pub configuration_sha256: String,
     #[schemars(pattern(r"^[0-9a-f]{64}$"))]
     pub support_sha256: String,
-    #[schemars(range(min = 1))]
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
     pub admission_epoch: u64,
+    #[schemars(range(max = 9007199254740991_i64))]
     pub issued_at_ms: u64,
+    #[schemars(range(max = 9007199254740991_i64))]
     pub expires_at_ms: u64,
-    #[schemars(range(min = 1))]
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
     pub limiter_epoch: u64,
-    #[schemars(range(min = 1))]
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
     pub invalidation_epoch: u64,
     #[schemars(range(min = 1, max = 1))]
     pub handler_protocol_version: u64,
@@ -257,10 +261,15 @@ impl HostedAdmission {
             && is_sha256_hex(&self.configuration_sha256)
             && is_sha256_hex(&self.support_sha256)
             && self.admission_epoch > 0
+            && self.admission_epoch <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
+            && self.issued_at_ms <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
+            && self.expires_at_ms <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
             && self.issued_at_ms <= self.expires_at_ms
             && self.expires_at_ms - self.issued_at_ms <= HOSTED_ADMISSION_MAX_LIFETIME_MS
             && self.limiter_epoch > 0
+            && self.limiter_epoch <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
             && self.invalidation_epoch > 0
+            && self.invalidation_epoch <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
             && self.handler_protocol_version == 1
             && !self.handler_incarnation.is_empty()
             && self.operator_surface == HostedOperatorSurface::Disabled
@@ -426,6 +435,26 @@ mod tests {
         let mut json = serde_json::to_value(&admission).unwrap();
         json["operatorOverride"] = serde_json::json!(true);
         assert!(serde_json::from_value::<HostedAdmission>(json).is_err());
+    }
+
+    #[test]
+    fn hosted_admission_rejects_every_non_js_safe_numeric_fact() {
+        let admission = positive_hosted_admission();
+        for field in [
+            "admissionEpoch",
+            "issuedAtMs",
+            "expiresAtMs",
+            "limiterEpoch",
+            "invalidationEpoch",
+        ] {
+            let mut json = serde_json::to_value(&admission).unwrap();
+            json[field] = serde_json::json!(HOSTED_ADMISSION_MAX_SAFE_INTEGER + 1);
+            let unsafe_admission: HostedAdmission = serde_json::from_value(json).unwrap();
+            assert!(
+                !unsafe_admission.closed_admission_facts_hold(),
+                "{field} above JavaScript's safe-integer ceiling was admitted"
+            );
+        }
     }
 
     #[test]

@@ -25,8 +25,8 @@ use std::path::PathBuf;
 
 use snapback::auth::deployment::{
     AuthenticationThrottle, BrowserCredentialPosture, BrowserDirectBearerSeam, EffectiveSource,
-    ExternalTls, HostedAdmission, HostedAuthCapabilities, HostedOperatorSurface,
-    SessionInvalidation,
+    ExternalTls, HOSTED_ADMISSION_MAX_SAFE_INTEGER, HostedAdmission, HostedAuthCapabilities,
+    HostedOperatorSurface, SessionInvalidation,
 };
 use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
@@ -1092,6 +1092,22 @@ fn hosted_admission_schema_requires_the_browser_seam_exclusion_fact() {
     unknown["operatorOverride"] = json!(true);
     assert_rejects("auth.hosted-admission.schema.json", &unknown);
     assert!(serde_json::from_value::<HostedAdmission>(unknown).is_err());
+}
+
+#[test]
+fn hosted_admission_schema_rejects_non_js_safe_numeric_facts() {
+    let admission = serde_json::to_value(representative_hosted_admission()).unwrap();
+    for field in [
+        "admissionEpoch",
+        "issuedAtMs",
+        "expiresAtMs",
+        "limiterEpoch",
+        "invalidationEpoch",
+    ] {
+        let mut unsafe_admission = admission.clone();
+        unsafe_admission[field] = json!(HOSTED_ADMISSION_MAX_SAFE_INTEGER + 1);
+        assert_rejects("auth.hosted-admission.schema.json", &unsafe_admission);
+    }
 }
 
 #[test]

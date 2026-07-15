@@ -825,6 +825,37 @@ const opaqueCredentialResponseError = () => {
   return error;
 };
 
+// @ref LLP 0060#c1-the-v1-custody-claim — issuer diagnostics are
+// response-controlled. Only an exact method/route/status/code tuple may
+// select a fixed local recovery error; no response message, details, headers,
+// receipt, or other bytes cross this boundary.
+const LOCAL_ISSUER_FAILURES = new Map([
+  ['POST /auth/exchange 401 SNAPBACK_AUTH_CODE_INVALID', {
+    code: 'SNAPBACK_AUTH_CODE_INVALID',
+    message: 'the login code is invalid; request a new challenge',
+  }],
+  ['POST /auth/exchange 403 SNAPBACK_AUTH_CODE_LOCKED', {
+    code: 'SNAPBACK_AUTH_CODE_LOCKED',
+    message: 'the login challenge is locked; request a new challenge',
+  }],
+  ['POST /auth/refresh 409 SNAPBACK_AUTH_REFRESH_SUPERSEDED', {
+    code: 'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
+    message: 'the session refresh was superseded',
+  }],
+]);
+
+const localIssuerFailure = (method, path, status, value) => {
+  const responseCode = value?.diagnostic?.code;
+  if (typeof responseCode !== 'string') return null;
+  const local = LOCAL_ISSUER_FAILURES.get(`${method} ${path} ${status} ${responseCode}`);
+  if (!local) return null;
+  const error = new Error(`${local.code}: ${local.message}`);
+  error.code = local.code;
+  error.diagnostic = { code: local.code, message: local.message };
+  error.status = status;
+  return error;
+};
+
 const clientAuthorityFromHandshake = (session) => {
   const base = {
     authMode: session.activeMode,
@@ -1646,7 +1677,10 @@ export class SnapbackClient {
       }
     }
     if (!res.ok) {
-      if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
+      if (opaqueSuccessFailure) {
+        throw localIssuerFailure(method, path, res.status, json)
+          ?? opaqueCredentialResponseError();
+      }
       const rawDiagnostic = json && json.diagnostic
         ? json.diagnostic
         : parseError
