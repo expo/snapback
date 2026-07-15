@@ -2059,6 +2059,7 @@ mod tests {
                         syncable: false,
                         permission_backing: false,
                         permission_fields: None,
+                        membership: None,
                     }],
                     ..SchemaManifest::default()
                 },
@@ -2077,6 +2078,7 @@ mod tests {
                         syncable: false,
                         permission_backing: false,
                         permission_fields: None,
+                        membership: None,
                     }],
                     ..SchemaManifest::default()
                 },
@@ -2094,10 +2096,12 @@ mod tests {
                         indexes: vec![IndexManifest {
                             name: "_auth_lookup".to_owned(),
                             fields: vec!["value".to_owned()],
+                            unique: false,
                         }],
                         syncable: false,
                         permission_backing: false,
                         permission_fields: None,
+                        membership: None,
                     }],
                     ..SchemaManifest::default()
                 },

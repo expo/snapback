@@ -2,11 +2,11 @@ use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
 use crate::manifest::{
     CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
-    CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MutationOutput,
-    MutationPlan, MutationStep, OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX,
-    QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
-    ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr, auth_fingerprint,
-    effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MembershipScope,
+    MembershipTarget, MutationOutput, MutationPlan, MutationStep, OrderDirection,
+    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
+    QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
+    auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
@@ -2971,6 +2971,785 @@ impl WithDetail for SnapbackError {
     }
 }
 
+/// The reserved caller-class identifiers that a role literal must never
+/// shadow: they name caller *classes* in the transition matrix, not roles.
+/// @ref LLP 0056#declaring-a-membership-table — `"self"`/`"none"` are reserved.
+const MEMBERSHIP_RESERVED_ROLE_NAMES: [&str; 2] = ["self", "none"];
+
+fn membership_error(
+    code: &str,
+    table: &str,
+    declaration: &str,
+    message: impl Into<String>,
+) -> SnapbackError {
+    SnapbackError::error(code, "schema", message.into())
+        .with_detail("table", table.to_owned())
+        .with_detail("declaration", declaration.to_owned())
+}
+
+/// Validate one role literal against the closed-vocabulary rules: non-empty, no
+/// reserved caller-class name, no reserved `:` separator, no control
+/// characters. Comparison is by **exact decoded value** — no case folding, no
+/// Unicode normalization — so two writers can never disagree about whether a
+/// role is declared.
+///
+/// @ref LLP 0056#declaring-a-membership-table — reserved names, the `:`
+///   separator, control-character rejection, exact-decoded comparison.
+fn validate_membership_role_literal(
+    table: &str,
+    declaration: &str,
+    role: &str,
+    axis: &str,
+) -> SnapbackResult<()> {
+    if role.is_empty() {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ROLE_EMPTY",
+            table,
+            declaration,
+            format!("{axis} contains an empty role literal"),
+        ));
+    }
+    if MEMBERSHIP_RESERVED_ROLE_NAMES.contains(&role) {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_RESERVED_ROLE",
+            table,
+            declaration,
+            format!(
+                "role {role:?} is a reserved caller class in the transition matrix, not a role"
+            ),
+        )
+        .with_detail("role", role.to_owned()));
+    }
+    if role.contains(':') {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ROLE_RESERVED_SEPARATOR",
+            table,
+            declaration,
+            format!(
+                "role {role:?} contains the reserved ':' separator (reserved for a future \
+                 cross-declaration spelling such as \"appRoles:admin\")"
+            ),
+        )
+        .with_detail("role", role.to_owned()));
+    }
+    if role.chars().any(char::is_control) {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER",
+            table,
+            declaration,
+            format!("role {role:?} contains a control character"),
+        )
+        .with_detail("role", role.to_owned()));
+    }
+    Ok(())
+}
+
+/// Fail-closed structural validation of one `.membership()` declaration. This
+/// is the M1 declaration surface for LLP 0056: it enforces the closed, non-null,
+/// exact-decoded vocabulary, the immutable-axis field shape, the reserved-name
+/// traps, the `roles`/`pendingRoles` disjointness, the stable-id uniqueness, and
+/// reserves the generated unique index's physical name. It does **not** execute
+/// the transition matrix (M2), wire invalidation (M5), or fill provenance (M5).
+fn validate_membership_declaration(
+    table: &TableManifest,
+    field_names: &BTreeSet<String>,
+    physical_index_names: &mut BTreeMap<String, String>,
+    declaration_ids: &mut BTreeMap<String, String>,
+) -> SnapbackResult<()> {
+    let Some(membership) = &table.membership else {
+        return Ok(());
+    };
+    let declaration = membership.effective_id(&table.name).to_owned();
+
+    // The derivation owns the table: a hand-written permissionBacking is a
+    // conflicting second authorization declaration over the same rows.
+    // @ref LLP 0056#declaring-a-membership-table — declaring `.membership()`
+    //   alongside `permissionBacking` is a typed manifest error.
+    if table.permission_backing || table.permission_fields.is_some() {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_PERMISSION_BACKING_CONFLICT",
+            &table.name,
+            &declaration,
+            "a membership table must not also declare permissionBacking/permissionFields; the \
+             derivation owns the table",
+        ));
+    }
+
+    // --- Stable declaration id: shape + manifest-global uniqueness. ---
+    if let Some(pinned) = &membership.id
+        && !is_identifier(pinned)
+    {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ID_INVALID",
+            &table.name,
+            &declaration,
+            format!("pinned declaration id {pinned:?} is not a valid identifier"),
+        ));
+    }
+    if let Some(previous) = declaration_ids.insert(declaration.clone(), table.name.clone()) {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ID_COLLISION",
+            &table.name,
+            &declaration,
+            format!(
+                "membership declaration id {declaration:?} is already used by table {previous:?}; \
+                 ids are unique across the manifest"
+            ),
+        )
+        .with_detail("otherTable", previous));
+    }
+
+    // --- Axes: existence, non-optional, correct nominal type, distinctness. ---
+    let principal_field =
+        require_membership_axis_field(table, &declaration, &membership.principal, "principal")?;
+    if principal_field.field_type != FieldType::Principal {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_TYPE",
+            &table.name,
+            &declaration,
+            format!(
+                "principal axis {:?} must be declared v.principal(); found {}",
+                membership.principal,
+                field_type_name(&principal_field.field_type)
+            ),
+        ));
+    }
+
+    let role_field = require_membership_axis_field(table, &declaration, &membership.role, "role")?;
+    if role_field.field_type != FieldType::String {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ROLE_TYPE",
+            &table.name,
+            &declaration,
+            format!(
+                "role axis {:?} must be a string; found {}",
+                membership.role,
+                field_type_name(&role_field.field_type)
+            ),
+        ));
+    }
+
+    let mut axis_fields = vec![membership.principal.as_str(), membership.role.as_str()];
+    match membership.scope {
+        MembershipScope::Resource => {
+            let resource = membership.resource.as_deref().ok_or_else(|| {
+                membership_error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED",
+                    &table.name,
+                    &declaration,
+                    "a resource-scoped membership must declare a non-null resource field",
+                )
+            })?;
+            let resource_field =
+                require_membership_axis_field(table, &declaration, resource, "resource")?;
+            if !matches!(
+                resource_field.field_type,
+                FieldType::String | FieldType::Principal
+            ) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "resource axis {resource:?} must be an id/string reference; found {}",
+                        field_type_name(&resource_field.field_type)
+                    ),
+                ));
+            }
+            axis_fields.push(resource);
+        }
+        MembershipScope::App => {
+            if membership.resource.is_some() {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE",
+                    &table.name,
+                    &declaration,
+                    "an app-scoped membership (scope: \"app\") must not declare a resource field; \
+                     its resource is a system-constant singleton",
+                ));
+            }
+            if membership.resource_table.is_some() {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE_TABLE",
+                    &table.name,
+                    &declaration,
+                    "an app-scoped membership has no resource table",
+                ));
+            }
+        }
+    }
+    {
+        let mut seen = BTreeSet::new();
+        for axis in &axis_fields {
+            if !seen.insert(*axis) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_AXIS_COLLISION",
+                    &table.name,
+                    &declaration,
+                    format!("field {axis:?} is used for more than one membership axis"),
+                ));
+            }
+        }
+    }
+
+    // --- Role vocabulary: non-empty, valid literals, roles/pending disjoint,
+    //     union is closed; confusable near-duplicates refused. ---
+    if membership.roles.is_empty() {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY",
+            &table.name,
+            &declaration,
+            "roles must declare at least one role",
+        ));
+    }
+    let mut roles = BTreeSet::new();
+    for role in &membership.roles {
+        validate_membership_role_literal(&table.name, &declaration, role, "roles")?;
+        if !roles.insert(role.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE",
+                &table.name,
+                &declaration,
+                format!("roles repeats {role:?}"),
+            ));
+        }
+    }
+    let mut pending = BTreeSet::new();
+    for role in membership.pending_roles.iter().flatten() {
+        validate_membership_role_literal(&table.name, &declaration, role, "pendingRoles")?;
+        if roles.contains(role.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_ROLE_PENDING_OVERLAP",
+                &table.name,
+                &declaration,
+                format!("{role:?} appears in both roles and pendingRoles; they must be disjoint"),
+            )
+            .with_detail("role", role.clone()));
+        }
+        if !pending.insert(role.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE",
+                &table.name,
+                &declaration,
+                format!("pendingRoles repeats {role:?}"),
+            ));
+        }
+    }
+    // The closed write vocabulary is `roles ∪ pendingRoles`.
+    let vocabulary: BTreeSet<&str> = roles
+        .iter()
+        .copied()
+        .chain(pending.iter().copied())
+        .collect();
+    // Confusable near-duplicates: two roles that differ only by ASCII case
+    // would let a `"Host"` write and a `"host"` write disagree about the same
+    // authority. M1 refuses the declaration (fail-closed); broader Unicode
+    // confusable folding is a follow-on.
+    // @ref LLP 0056#declaring-a-membership-table — confusable near-duplicates.
+    let mut folded: BTreeMap<String, &str> = BTreeMap::new();
+    for role in &vocabulary {
+        let key = role.to_ascii_lowercase();
+        if let Some(previous) = folded.insert(key, role)
+            && previous != *role
+        {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES",
+                &table.name,
+                &declaration,
+                format!(
+                    "roles {previous:?} and {role:?} are confusable (differ only by case); role \
+                     comparison is exact-decoded, so both cannot be declared"
+                ),
+            ));
+        }
+    }
+
+    // --- bootstrapRole ∈ roles. ---
+    if let Some(bootstrap) = &membership.bootstrap_role
+        && !roles.contains(bootstrap.as_str())
+    {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN",
+            &table.name,
+            &declaration,
+            format!("bootstrapRole {bootstrap:?} is not one of the declared (non-pending) roles"),
+        )
+        .with_detail("role", bootstrap.clone()));
+    }
+
+    // --- lastHolder: resource-scope only; protect ∈ roles; bootstrapRole == protect. ---
+    if let Some(last_holder) = &membership.last_holder {
+        if membership.scope == MembershipScope::App {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_LAST_HOLDER_APP_SCOPE",
+                &table.name,
+                &declaration,
+                "lastHolder is not available on scope: \"app\" declarations (the singleton has no \
+                 creation event to anchor establishment on)",
+            ));
+        }
+        if !roles.contains(last_holder.protect.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_LAST_HOLDER_ROLE_UNKNOWN",
+                &table.name,
+                &declaration,
+                format!(
+                    "lastHolder.protect {:?} is not one of the declared (non-pending) roles",
+                    last_holder.protect
+                ),
+            )
+            .with_detail("role", last_holder.protect.clone()));
+        }
+        // Establishment leg: the protected role must be the one the creation
+        // witness seats, or the guarantee has no non-vacuous first leg.
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   `bootstrapRole == protect` or it is a manifest error.
+        if membership.bootstrap_role.as_deref() != Some(last_holder.protect.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_LAST_HOLDER_BOOTSTRAP_MISMATCH",
+                &table.name,
+                &declaration,
+                format!(
+                    "lastHolder.protect {:?} requires bootstrapRole to seat the same role (found {:?})",
+                    last_holder.protect, membership.bootstrap_role
+                ),
+            ));
+        }
+    }
+
+    // --- expiry: field is a declared non-axis column; remove-only in v1. ---
+    if let Some(expiry) = &membership.expiry {
+        if !field_names.contains(&expiry.field) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN",
+                &table.name,
+                &declaration,
+                format!("expiry.field {:?} is not a declared column", expiry.field),
+            ));
+        }
+        if axis_fields.contains(&expiry.field.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS",
+                &table.name,
+                &declaration,
+                format!(
+                    "expiry.field {:?} may not be a membership axis",
+                    expiry.field
+                ),
+            ));
+        }
+        // Remove is the only v1 effect: with no declared role ordering the host
+        // cannot prove a downgrade is non-escalating.
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   remove-only; `downgradeTo:` is a manifest error.
+        if expiry.on_expiry != "remove" {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED",
+                &table.name,
+                &declaration,
+                format!(
+                    "expiry.onExpiry {:?} is unsupported; v1 supports only \"remove\" (no declared \
+                     role ordering means no provable non-escalation)",
+                    expiry.on_expiry
+                ),
+            ));
+        }
+    }
+
+    // --- incidental: declared columns, and the hard authorization floor. ---
+    for column in membership.incidental.iter().flatten() {
+        if !field_names.contains(column) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_INCIDENTAL_UNKNOWN",
+                &table.name,
+                &declaration,
+                format!("incidental names undeclared column {column:?}"),
+            ));
+        }
+        // The floor: the principal/resource/role axes can never be attested
+        // incidental. (Generated provenance columns join the floor in M5, when
+        // they exist as columns.)
+        // @ref LLP 0056#invalidation-the-llp-0053-mapping — the incidental floor.
+        if axis_fields.contains(&column.as_str()) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_INCIDENTAL_FLOOR",
+                &table.name,
+                &declaration,
+                format!(
+                    "column {column:?} is a membership authorization axis and can never be \
+                     attested incidental"
+                ),
+            )
+            .with_detail("column", column.clone()));
+        }
+    }
+
+    // --- Transition shape: no unknown role hides in by/from/to, no undeclared
+    //     column hides in a patch's fields. Runtime evaluation is M2. ---
+    for transition in &membership.transitions {
+        for by in &transition.by {
+            let reserved = MEMBERSHIP_RESERVED_ROLE_NAMES.contains(&by.as_str());
+            if !reserved && !vocabulary.contains(by.as_str()) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "transition {:?} names caller class {by:?}, which is neither a declared \
+                         role nor a reserved class (self/none)",
+                        transition.op.as_str()
+                    ),
+                ));
+            }
+        }
+        for role in transition
+            .from
+            .iter()
+            .flatten()
+            .chain(transition.to.iter().flatten())
+        {
+            if !vocabulary.contains(role.as_str()) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_ROLE",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "transition {:?} references role {role:?}, which is not in the closed \
+                         vocabulary",
+                        transition.op.as_str()
+                    ),
+                )
+                .with_detail("role", role.clone()));
+            }
+        }
+        for column in transition.fields.iter().flatten() {
+            if !field_names.contains(column) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "transition {:?} patches undeclared column {column:?}",
+                        transition.op.as_str()
+                    ),
+                ));
+            }
+            if axis_fields.contains(&column.as_str()) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_TRANSITION_AXIS_FIELD",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "transition {:?} may not patch membership axis {column:?} (axes are \
+                         immutable after insert)",
+                        transition.op.as_str()
+                    ),
+                ));
+            }
+        }
+        // `by` on an effect-bearing transition targeting `other` cannot be the
+        // reserved `self`. Deeper reachability diagnostics are M2.
+        if matches!(transition.target, MembershipTarget::Other)
+            && transition.by.iter().any(|by| by == "self")
+        {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_TRANSITION_SELF_ON_OTHER",
+                &table.name,
+                &declaration,
+                format!(
+                    "transition {:?} uses caller class \"self\" with target \"other\", which is \
+                     contradictory",
+                    transition.op.as_str()
+                ),
+            ));
+        }
+    }
+
+    // --- Reserve the generated unique index's physical name so a user index
+    //     cannot silently collide with it. ---
+    if let Some((index_name, _)) = membership_unique_index(table) {
+        let physical = format!("{}_{}", table.name, index_name);
+        let owner = format!("{}.{} (generated membership index)", table.name, index_name);
+        if let Some(previous) = physical_index_names.insert(physical.clone(), owner) {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_INDEX_NAME_COLLISION",
+                &table.name,
+                &declaration,
+                format!(
+                    "the generated membership index collides with the physical index name \
+                     {physical} already used by {previous}"
+                ),
+            )
+            .with_detail("physicalName", physical));
+        }
+    }
+
+    Ok(())
+}
+
+/// Require a membership axis field: declared, and **non-optional** — a nullable
+/// key axis silently defeats the unique index (SQLite/Postgres admit multiple
+/// NULL-bearing rows), so it is refused at the declaration.
+/// @ref LLP 0056#declaring-a-membership-table — key columns are required and
+///   non-null; a nullable axis defeats uniqueness.
+fn require_membership_axis_field<'a>(
+    table: &'a TableManifest,
+    declaration: &str,
+    field: &str,
+    axis: &str,
+) -> SnapbackResult<&'a FieldManifest> {
+    let manifest = table.field(field).ok_or_else(|| {
+        membership_error(
+            "SNAPBACK_MEMBERSHIP_AXIS_FIELD_UNKNOWN",
+            &table.name,
+            declaration,
+            format!("{axis} axis references undeclared field {field:?}"),
+        )
+    })?;
+    if manifest.optional {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_OPTIONAL_KEY_AXIS",
+            &table.name,
+            declaration,
+            format!(
+                "{axis} axis {field:?} is optional; membership key axes must be non-null or the \
+                 uniqueness invariant is silently defeated"
+            ),
+        )
+        .with_detail("field", field.to_owned())
+        .with_detail("axis", axis.to_owned()));
+    }
+    Ok(manifest)
+}
+
+fn sqlite_object_exists(tx: &Transaction<'_>, kind: &str, name: &str) -> SnapbackResult<bool> {
+    Ok(tx
+        .query_row(
+            "SELECT 1 FROM sqlite_master WHERE type = ?1 AND name = ?2",
+            params![kind, name],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some())
+}
+
+fn nonnull_activation_axis(
+    value: Option<String>,
+    table: &str,
+    declaration: &str,
+    axis: &str,
+) -> SnapbackResult<String> {
+    match value {
+        Some(value) if !value.is_empty() => Ok(value),
+        _ => Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_ACTIVATION_NULL_AXIS",
+            table,
+            declaration,
+            format!(
+                "an existing row has a null/empty {axis} axis; a null key axis silently defeats \
+                 the membership uniqueness invariant"
+            ),
+        )
+        .with_detail("axis", axis.to_owned())),
+    }
+}
+
+/// Fail-closed scan of **existing data** when a `.membership()` declaration is
+/// activated over a table that already holds rows (the brownfield-adopt path).
+/// Refuses activation on: a null/empty key axis, a role outside the closed
+/// (exact-decoded) vocabulary — which is also the vocabulary-shrink-with-extant
+/// -rows refusal and the `"Host"`-vs-`"host"` refusal — a duplicate
+/// `(principal, resource)` pair, a membership referencing a non-existent
+/// resource, and (where `lastHolder` is declared) any live resource lacking a
+/// holder of the protected role.
+///
+/// The uniqueness/nullability legs are additionally backstopped by the
+/// generated unique index and the non-null columns, but this scan produces a
+/// **typed** diagnostic naming the declaration rather than a raw SQLite error.
+///
+/// Forward dependencies (documented, not guessed): the *eligible*-holder
+/// refinement of `lastHolder` (excluding LLP 0055-deactivated principals) awaits
+/// the LLP 0055 principal machinery; referential integrity and the live-resource
+/// enumeration require the declaration's `resourceTable` binding, which codegen
+/// fills from `v.id(...)` under the LLP 0004 follow-on.
+///
+/// @ref LLP 0056#declaring-a-membership-table — activation over existing data
+///   is fail-closed across vocabulary, uniqueness, nullability, and referential
+///   integrity.
+fn validate_membership_activation(
+    tx: &Transaction<'_>,
+    manifest: &SchemaManifest,
+) -> SnapbackResult<()> {
+    for table in &manifest.tables {
+        let Some(membership) = &table.membership else {
+            continue;
+        };
+        let declaration = membership.effective_id(&table.name).to_owned();
+        if !sqlite_object_exists(tx, "table", &table.name)? {
+            // Fresh apply: nothing exists to be nonconforming.
+            continue;
+        }
+        let physical = physical_columns(tx, &table.name)?;
+        if !physical.contains_key(&membership.principal) || !physical.contains_key(&membership.role)
+        {
+            // A key column is being added in this same apply, so there are no
+            // pre-existing values in it to validate.
+            continue;
+        }
+        let resource_column = match membership.scope {
+            MembershipScope::Resource => {
+                let resource = membership
+                    .resource
+                    .as_deref()
+                    .expect("resource axis validated by validate_membership_declaration");
+                if !physical.contains_key(resource) {
+                    continue;
+                }
+                Some(resource)
+            }
+            MembershipScope::App => None,
+        };
+        let vocabulary: BTreeSet<&str> = membership.vocabulary().collect();
+
+        let mut select_columns = vec![membership.principal.clone(), membership.role.clone()];
+        if let Some(resource) = resource_column {
+            select_columns.push(resource.to_owned());
+        }
+        let quoted = select_columns
+            .iter()
+            .map(|column| quote_ident(column))
+            .collect::<SnapbackResult<Vec<_>>>()?
+            .join(", ");
+        let sql = format!("SELECT {quoted} FROM {}", quote_ident(&table.name)?);
+
+        let mut seen_pairs: BTreeSet<(String, Option<String>)> = BTreeSet::new();
+        let mut referenced_resources: BTreeSet<String> = BTreeSet::new();
+        let mut protected_resources: BTreeSet<String> = BTreeSet::new();
+        {
+            let mut statement = tx.prepare(&sql)?;
+            let mut rows = statement.query([])?;
+            while let Some(row) = rows.next()? {
+                let principal = nonnull_activation_axis(
+                    row.get::<_, Option<String>>(0)?,
+                    &table.name,
+                    &declaration,
+                    "principal",
+                )?;
+                let role = nonnull_activation_axis(
+                    row.get::<_, Option<String>>(1)?,
+                    &table.name,
+                    &declaration,
+                    "role",
+                )?;
+                let resource = if resource_column.is_some() {
+                    Some(nonnull_activation_axis(
+                        row.get::<_, Option<String>>(2)?,
+                        &table.name,
+                        &declaration,
+                        "resource",
+                    )?)
+                } else {
+                    None
+                };
+
+                // Exact-decoded vocabulary: a `"Host"` row against a `"host"`
+                // vocabulary fails here, and so does a vocabulary shrink that
+                // stranded rows carrying a removed role.
+                if !vocabulary.contains(role.as_str()) {
+                    return Err(membership_error(
+                        "SNAPBACK_MEMBERSHIP_ACTIVATION_UNKNOWN_ROLE",
+                        &table.name,
+                        &declaration,
+                        format!(
+                            "an existing row carries role {role:?}, which is not in the closed \
+                             vocabulary (comparison is exact-decoded)"
+                        ),
+                    )
+                    .with_detail("role", role));
+                }
+
+                if !seen_pairs.insert((principal.clone(), resource.clone())) {
+                    return Err(membership_error(
+                        "SNAPBACK_MEMBERSHIP_ACTIVATION_DUPLICATE",
+                        &table.name,
+                        &declaration,
+                        "existing rows duplicate a (principal, resource) pair; the membership \
+                         uniqueness invariant would be violated",
+                    )
+                    .with_detail("principal", principal));
+                }
+
+                if let Some(resource) = resource {
+                    if membership
+                        .last_holder
+                        .as_ref()
+                        .is_some_and(|last_holder| last_holder.protect == role)
+                    {
+                        protected_resources.insert(resource.clone());
+                    }
+                    referenced_resources.insert(resource);
+                }
+            }
+        }
+
+        // Referential integrity and the live-resource enumeration both require
+        // the resource-table binding.
+        if let Some(resource_table) = membership.resource_table.as_deref()
+            && resource_column.is_some()
+            && sqlite_object_exists(tx, "table", resource_table)?
+        {
+            for resource in &referenced_resources {
+                if !sqlite_object_exists_row(tx, resource_table, resource)? {
+                    return Err(membership_error(
+                        "SNAPBACK_MEMBERSHIP_ACTIVATION_DANGLING_RESOURCE",
+                        &table.name,
+                        &declaration,
+                        format!(
+                            "a membership references resource {resource:?}, which does not exist \
+                             in {resource_table}"
+                        ),
+                    )
+                    .with_detail("resource", resource.clone()));
+                }
+            }
+            if let Some(last_holder) = &membership.last_holder {
+                let mut statement =
+                    tx.prepare(&format!("SELECT _id FROM {}", quote_ident(resource_table)?))?;
+                let mut rows = statement.query([])?;
+                while let Some(row) = rows.next()? {
+                    let resource: String = row.get(0)?;
+                    if !protected_resources.contains(&resource) {
+                        return Err(membership_error(
+                            "SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE",
+                            &table.name,
+                            &declaration,
+                            format!(
+                                "live resource {resource:?} has no holder of the protected role \
+                                 {:?}",
+                                last_holder.protect
+                            ),
+                        )
+                        .with_detail("resource", resource)
+                        .with_detail("role", last_holder.protect.clone()));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn sqlite_object_exists_row(tx: &Transaction<'_>, table: &str, id: &str) -> SnapbackResult<bool> {
+    Ok(tx
+        .query_row(
+            &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(table)?),
+            params![id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some())
+}
+
 fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     validate_collection_definitions(&manifest.ephemeral_collections).map_err(|error| {
         SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
@@ -2983,6 +3762,11 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     // Validate joined names globally; otherwise the second index would
     // silently never be created (`create_index` would find the first one).
     let mut physical_index_names: BTreeMap<String, String> = BTreeMap::new();
+    // Stable membership declaration ids are unique across the whole manifest —
+    // a collision is a load error, because helpers, audit rows, room bindings,
+    // and future LLP 0055 resource-scope grants reference the id durably.
+    // @ref LLP 0056#declaring-a-membership-table — ids are unique across the manifest.
+    let mut membership_declaration_ids: BTreeMap<String, String> = BTreeMap::new();
     for table in &manifest.tables {
         validate_user_identifier("table", &table.name)?;
         if !tables.insert(table.name.clone()) {
@@ -3094,6 +3878,13 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 ensure_field(table, field)?;
             }
         }
+
+        validate_membership_declaration(
+            table,
+            &fields,
+            &mut physical_index_names,
+            &mut membership_declaration_ids,
+        )?;
     }
 
     validate_collection_permission_backing(
@@ -3265,6 +4056,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Integer => "Integer",
         FieldType::Real => "Real",
         FieldType::Json => "Json",
+        FieldType::Principal => "Principal",
     }
 }
 
@@ -3494,6 +4286,29 @@ fn safe_rebuild_column_type(column: &PhysicalColumn) -> SnapbackResult<&'static 
     Ok(canonical)
 }
 
+/// The reserved logical name of the generated membership uniqueness index.
+/// `validate_schema` reserves its physical name, so a user index cannot collide
+/// with it.
+pub(crate) const MEMBERSHIP_UNIQUE_INDEX_NAME: &str = "_membership_pk";
+
+/// The generated true-unique index for a membership table: `(principal,
+/// resource)` for a resource-scoped declaration, or `(principal)` for
+/// `scope: "app"` (whose resource is a system-constant singleton, so a
+/// principal holds at most one global role per declaration). `None` for a
+/// non-membership table. The non-null key axes — enforced at the declaration —
+/// are what keep this index total.
+///
+/// @ref LLP 0056#declaring-a-membership-table — one row per `(principal,
+///   resource)`, delivered by a generated true-unique composite index.
+pub(crate) fn membership_unique_index(table: &TableManifest) -> Option<(String, Vec<String>)> {
+    let membership = table.membership.as_ref()?;
+    let mut fields = vec![membership.principal.clone()];
+    if let Some(resource) = &membership.resource {
+        fields.push(resource.clone());
+    }
+    Some((MEMBERSHIP_UNIQUE_INDEX_NAME.to_owned(), fields))
+}
+
 /// Create or rebuild a declared index so the physical index always matches
 /// the manifest.
 ///
@@ -3514,6 +4329,7 @@ fn create_index(
     table: &TableManifest,
     name: &str,
     fields: &[String],
+    unique: bool,
 ) -> SnapbackResult<()> {
     let mut columns = fields
         .iter()
@@ -3522,19 +4338,34 @@ fn create_index(
             quote_ident(field)
         })
         .collect::<SnapbackResult<Vec<_>>>()?;
-    columns.push(quote_ident("_id")?);
+    // A non-unique index appends `_id` so it is a covering, tie-broken key. A
+    // **unique** index must not: `_id` is per-row unique, so including it would
+    // make the whole key trivially unique and silently defeat the declared
+    // uniqueness invariant (LLP 0056 relies on true `(principal, resource)`
+    // uniqueness). The declared columns must be non-null for it to be total —
+    // enforced at the declaration by `validate_membership_declaration`.
+    // @ref LLP 0056#declaring-a-membership-table — true-unique, total index.
+    if !unique {
+        columns.push(quote_ident("_id")?);
+    }
 
     let physical_name = format!("{}_{}", table.name, name);
     if let Some(existing) = physical_index(tx, &physical_name)? {
-        let desired: Vec<String> = fields.iter().cloned().chain(["_id".to_owned()]).collect();
-        if existing.table == table.name && existing.columns == desired {
+        let desired: Vec<String> = if unique {
+            fields.to_vec()
+        } else {
+            fields.iter().cloned().chain(["_id".to_owned()]).collect()
+        };
+        if existing.table == table.name && existing.columns == desired && existing.unique == unique
+        {
             return Ok(());
         }
         tx.execute(&format!("DROP INDEX {}", quote_ident(&physical_name)?), [])?;
     }
     tx.execute(
         &format!(
-            "CREATE INDEX {} ON {} ({})",
+            "CREATE {}INDEX {} ON {} ({})",
+            if unique { "UNIQUE " } else { "" },
             quote_ident(&physical_name)?,
             quote_ident(&table.name)?,
             columns.join(", ")
@@ -3550,19 +4381,27 @@ fn create_index(
 struct PhysicalIndex {
     table: String,
     columns: Vec<String>,
+    unique: bool,
 }
 
 fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<PhysicalIndex>> {
-    let table = tx
+    let row = tx
         .query_row(
-            "SELECT tbl_name FROM sqlite_master WHERE type = 'index' AND name = ?1",
+            "SELECT tbl_name, sql FROM sqlite_master WHERE type = 'index' AND name = ?1",
             params![name],
-            |row| row.get::<_, String>(0),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
         )
         .optional()?;
-    let Some(table) = table else {
+    let Some((table, sql)) = row else {
         return Ok(None);
     };
+    // Our declared indexes always carry `sql`; a NULL sql (an auto-index from a
+    // UNIQUE table constraint) never matches a manifest declaration, so
+    // treating it as non-unique forces the caller to rebuild — the same
+    // conservative posture the column comparison already takes.
+    let unique = sql
+        .as_deref()
+        .is_some_and(|sql| sql.to_ascii_uppercase().contains("CREATE UNIQUE INDEX"));
     let mut statement = tx.prepare(&format!("PRAGMA index_info({})", quote_ident(name)?))?;
     let mut rows = statement.query([])?;
     let mut columns = Vec::new();
@@ -3572,7 +4411,11 @@ fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<Phy
         // a declared column, so the caller rebuilds the index.
         columns.push(row.get::<_, Option<String>>(2)?.unwrap_or_default());
     }
-    Ok(Some(PhysicalIndex { table, columns }))
+    Ok(Some(PhysicalIndex {
+        table,
+        columns,
+        unique,
+    }))
 }
 
 /// Existing physical column facts from `PRAGMA table_info`, used both for type
@@ -3820,7 +4663,7 @@ fn validate_query_filter_value(
             field.optional
         } else {
             match field.field_type {
-                FieldType::String => value.is_string(),
+                FieldType::String | FieldType::Principal => value.is_string(),
                 FieldType::Boolean => value.is_boolean(),
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
@@ -4332,9 +5175,37 @@ fn insert_document(
         "INSERT INTO {} ({quoted_columns}) VALUES ({placeholders})",
         quote_ident(&table.name)?
     ))?;
-    statement.execute(params_from_iter(values.iter()))?;
+    statement
+        .execute(params_from_iter(values.iter()))
+        .map_err(map_unique_constraint_error)?;
 
     Ok(Value::Object(document))
+}
+
+/// Reclassify a SQLite UNIQUE-constraint failure into a stable, typed
+/// conflict. This is error *typing*, not write authorization: it does not
+/// change who may write, only how the exactly-one-wins outcome of a true-unique
+/// index surfaces. LLP 0056's generated `(principal, resource)` index is the
+/// only user-facing unique index today, so a second insert of an existing pair
+/// yields exactly one row and this one typed conflict.
+///
+/// @ref LLP 0056#declaring-a-membership-table — exactly-one-wins on concurrent
+///   same-pair inserts is delivered by the unique index at serialized commit.
+fn map_unique_constraint_error(error: rusqlite::Error) -> SnapbackError {
+    if let rusqlite::Error::SqliteFailure(failure, message) = &error
+        && failure.code == rusqlite::ErrorCode::ConstraintViolation
+    {
+        let text = message.clone().unwrap_or_default();
+        if text.contains("UNIQUE") {
+            return SnapbackError::error(
+                "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
+                "storage",
+                "write violates a unique index (one row per declared key)",
+            )
+            .with_detail("error", text);
+        }
+    }
+    SnapbackError::from(error)
 }
 
 fn patch_document(
@@ -4378,7 +5249,9 @@ fn patch_document(
         quote_ident(&table.name)?,
         assignments.join(", ")
     ))?;
-    statement.execute(params_from_iter(values.iter()))?;
+    statement
+        .execute(params_from_iter(values.iter()))
+        .map_err(map_unique_constraint_error)?;
     Ok(true)
 }
 
@@ -4566,7 +5439,9 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
             .map(SqlValue::Real)
             .ok_or_else(|| type_error("real", value)),
         None => Err(type_error("portable scalar", value)),
-        Some(FieldType::String) => value
+        // A principal is nominal typing over the string space: it stores and
+        // coerces exactly like a String (LLP 0056 §Declaring a membership table).
+        Some(FieldType::String) | Some(FieldType::Principal) => value
             .as_str()
             .map(|value| SqlValue::Text(value.to_owned()))
             .ok_or_else(|| type_error("string", value)),
@@ -4679,7 +5554,7 @@ fn is_system_field(field: &str) -> bool {
 
 fn sqlite_type(field_type: &FieldType) -> &'static str {
     match field_type {
-        FieldType::String | FieldType::Json => "TEXT",
+        FieldType::String | FieldType::Json | FieldType::Principal => "TEXT",
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
     }
@@ -5122,6 +5997,7 @@ mod guarded_commit_tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                membership: None,
             }],
             ..SchemaManifest::default()
         }
@@ -5368,6 +6244,7 @@ mod guarded_commit_tests {
             syncable: true,
             permission_backing: true,
             permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
+            membership: None,
         };
         let projection = crate::ephemeral::RoomPermissionProjection {
             table: "memberships".to_owned(),

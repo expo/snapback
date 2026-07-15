@@ -10350,6 +10350,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         }];
         functions.bundle_hash = Some(format!(
             "{}{}",
@@ -10799,6 +10800,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         });
         let function = functions
             .functions
@@ -11319,6 +11321,7 @@ globalThis.__snapbackHandlers = {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         }];
         if include_extra {
             tables.push(TableManifest {
@@ -11332,6 +11335,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                membership: None,
             });
         }
         SchemaManifest {
@@ -11450,6 +11454,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: Some(vec!["gameId".to_owned()]),
+                    membership: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -11579,10 +11584,12 @@ globalThis.__snapbackHandlers = {
                     indexes: vec![IndexManifest {
                         name: "by_value".to_owned(),
                         fields: vec!["value".to_owned()],
+                        unique: false,
                     }],
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    membership: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -12203,10 +12210,12 @@ globalThis.__snapbackHandlers = {
                     indexes: vec![IndexManifest {
                         name: "by_value".to_owned(),
                         fields: vec!["value".to_owned()],
+                        unique: false,
                     }],
                     syncable: true,
                     permission_backing: true,
                     permission_fields: None,
+                    membership: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -12280,10 +12289,12 @@ globalThis.__snapbackHandlers = {
                     indexes: vec![IndexManifest {
                         name: "by_value".to_owned(),
                         fields: vec!["value".to_owned()],
+                        unique: false,
                     }],
                     syncable: true,
                     permission_backing: true,
                     permission_fields: None,
+                    membership: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -12503,10 +12514,12 @@ globalThis.__snapbackHandlers = {
             indexes: vec![IndexManifest {
                 name: "by_owner".to_owned(),
                 fields: vec!["owner".to_owned()],
+                unique: false,
             }],
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         };
 
         let mut snapback = LocalSnapback::memory().expect("memory snapback");

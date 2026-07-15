@@ -503,10 +503,14 @@ impl LocalDatabase {
                 }
 
                 // DDL precedes seed, and both precede mode metadata in this transaction.
+                super::validate_membership_activation(tx, &schema_manifest)?;
                 for table in &schema_manifest.tables {
                     create_or_update_table(tx, table)?;
                     for index in &table.indexes {
-                        create_index(tx, table, index.name.as_str(), &index.fields)?;
+                        create_index(tx, table, index.name.as_str(), &index.fields, index.unique)?;
+                    }
+                    if let Some((name, fields)) = super::membership_unique_index(table) {
+                        create_index(tx, table, &name, &fields, true)?;
                     }
                 }
                 transaction_step_completed(0)?;
@@ -1102,6 +1106,14 @@ impl LocalDatabase {
         if let Some(identity) = &current.state.active_deployment {
             identity.validate_schema_half(&manifest)?;
         }
+        // Fail-closed activation over existing data: a `.membership()`
+        // declaration adopted over a table that already holds rows must find
+        // them conforming (vocabulary, uniqueness, nullability, referential
+        // integrity, lastHolder) or activation is refused with a typed
+        // diagnostic — before the generated unique index DDL would fail with a
+        // raw SQLite error.
+        // @ref LLP 0056#declaring-a-membership-table — activation is fail-closed.
+        super::validate_membership_activation(&tx, &manifest)?;
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest);
         apply_schema_ddl(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
@@ -1370,7 +1382,15 @@ fn apply_schema_ddl(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapback
     for table in &manifest.tables {
         create_or_update_table(tx, table)?;
         for index in &table.indexes {
-            create_index(tx, table, index.name.as_str(), &index.fields)?;
+            create_index(tx, table, index.name.as_str(), &index.fields, index.unique)?;
+        }
+        // The generated true-unique membership index. Host-derived from the
+        // declaration rather than hand-declared, so seed/import/admin writers
+        // and reopened stored manifests all get the same total uniqueness
+        // guarantee without the app author spelling an index.
+        // @ref LLP 0056#declaring-a-membership-table — the generated index.
+        if let Some((name, fields)) = super::membership_unique_index(table) {
+            create_index(tx, table, &name, &fields, true)?;
         }
     }
     Ok(())
@@ -1496,6 +1516,7 @@ mod tests {
             syncable: false,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         }
     }
 

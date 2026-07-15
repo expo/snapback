@@ -940,10 +940,12 @@ fn concurrency_schema() -> SchemaManifest {
             indexes: vec![IndexManifest {
                 name: "by_user".to_owned(),
                 fields: vec!["userId".to_owned()],
+                unique: false,
             }],
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         }],
         ..SchemaManifest::default()
     }

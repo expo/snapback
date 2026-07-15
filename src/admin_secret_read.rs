@@ -1162,6 +1162,7 @@ mod tests {
                     syncable: false,
                     permission_backing: false,
                     permission_fields: None,
+                    membership: None,
                 }],
                 ..SchemaManifest::default()
             })

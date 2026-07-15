@@ -1505,14 +1505,23 @@
       "type": "object"
     },
     "FieldType": {
-      "enum": [
-        "String",
-        "Boolean",
-        "Integer",
-        "Real",
-        "Json"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "String",
+            "Boolean",
+            "Integer",
+            "Real",
+            "Json"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "Principal",
+          "description": "`v.principal()` — nominal typing over the auth-principal id string space\n(the same space as `ctx.auth.userId`, including LLP 0055 agent\nprincipals). It stores and compares exactly like [`FieldType::String`];\nthe distinct variant lets the schema surface *name* an axis as a\nprincipal reference. It is validated by **shape**, never by a\nforeign-key existence check, because memberships may outlive a\nprincipal's deactivation and LLP 0055 recovery preserves the id.\n\n@ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal\n  typing over the principal-id string space, not an existence check.",
+          "type": "string"
+        }
+      ]
     },
     "FilterExpr": {
       "properties": {
@@ -1906,6 +1915,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "unique": {
+          "description": "A **true, total** unique index: SQLite/Postgres reject a second row\nwhose declared columns duplicate an existing one. Load-bearing for\nLLP 0056 memberships, whose `(principal, resource)` uniqueness invariant\nthe whole primitive rests on. Non-null key axes are what keep it total —\na NULL-bearing column would admit multiple duplicate-looking rows.\n\n@ref LLP 0056#declaring-a-membership-table — the generated membership\n  index is true-unique; today's `IndexManifest` had no uniqueness flag.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1994,6 +2007,251 @@
         "id",
         "connectionId",
         "function"
+      ],
+      "type": "object"
+    },
+    "MembershipExpiry": {
+      "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —\n  remove-only in v1; the sweep itself is M2/M4 host work.",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "onExpiry": {
+          "description": "The declared expiry effect. v1 accepts exactly `\"remove\"`; any other\nspelling (e.g. `\"downgradeTo:guest\"`) is refused by `validate_schema`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "onExpiry"
+      ],
+      "type": "object"
+    },
+    "MembershipLastHolder": {
+      "description": "`lastHolder: { protect: <role> }` — the protected role's *eligible* holder\nset may never be left empty for any live resource. M1 records and validates\nthe declaration shape (see `validate_schema`); the transition-time and\nconcurrency enforcement is M2 write-path work.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the\n  protected role never empties; establishment requires `bootstrapRole == R`.",
+      "properties": {
+        "protect": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protect"
+      ],
+      "type": "object"
+    },
+    "MembershipManifest": {
+      "description": "The `.membership()` metadata carried by a [`TableManifest`]. See\n`crate::storage`'s `validate_schema` for the declaration-shape enforcement\nand `validate_membership_activation` for the fail-closed scan over existing\ndata.\n\nM1 owns: the declaration shape, `v.principal()`, the generated true-unique\n`(principal, resource)` index, the stable id, and the activation scan. The\nwrite contract (transition execution, generated methods, raw-write\nrefusal), the rule helpers, invalidation wiring, and provenance columns are\nM2–M5 and deliberately **not** implemented here.\n\n@ref LLP 0056#declaring-a-membership-table — the recognized membership\n  shape and its closed, non-null, exact-decoded vocabulary.",
+      "properties": {
+        "bootstrapRole": {
+          "description": "The role the creation witness seats. Required to equal `lastHolder`'s\nprotected role when `lastHolder` is declared.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expiry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipExpiry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Stable declaration id. Absent means it defaults from the table name\n(see [`MembershipManifest::effective_id`]); pin it with `id:` to keep a\ndurable reference stable across a table rename.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "incidental": {
+          "description": "Attested non-authorization columns. Subject to a hard floor: the\nprincipal/resource/role axes and generated provenance columns can never\nbe attested incidental.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "lastHolder": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipLastHolder"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pendingRoles": {
+          "description": "Pending roles — in the write vocabulary but excluded from `memberOf`.\nDisjoint from `roles`; their union is the closed write vocabulary.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "principal": {
+          "description": "Name of the non-null principal-axis field (`v.principal()`).",
+          "type": "string"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resource": {
+          "description": "Name of the non-null resource-axis field. Absent iff `scope: \"app\"`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resourceTable": {
+          "description": "The resource table the `resource` axis references (`v.id(\"events\")`).\nPresent for `scope: \"resource\"`; absent for `scope: \"app\"`. Used by the\nactivation scan's referential-integrity check. Codegen fills this from\n`v.id(...)` once the LLP 0004 authoring spelling lands; until then a\ndeclaration may set it directly.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "description": "Name of the non-null role field.",
+          "type": "string"
+        },
+        "roles": {
+          "description": "The closed, non-pending role vocabulary.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scope": {
+          "$ref": "#/$defs/MembershipScope",
+          "default": "resource"
+        },
+        "transitions": {
+          "description": "The closed transition matrix. Shape-validated in M1; executed in M2.",
+          "items": {
+            "$ref": "#/$defs/MembershipTransition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "principal",
+        "role",
+        "roles"
+      ],
+      "type": "object"
+    },
+    "MembershipOp": {
+      "description": "The op a transition governs. Modeled and shape-validated in M1; the host\nevaluation of the matrix (caller-class derivation, target binding, witness\ncapture) is M2.",
+      "enum": [
+        "insert",
+        "setRole",
+        "remove",
+        "patch"
+      ],
+      "type": "string"
+    },
+    "MembershipProvenance": {
+      "description": "The two host-filled attribution levels. `authorityCreating` (LLP 0055)\nrequires `full`. M1 models the level on the declaration and enforces the\n`incidental` floor over the (future) generated provenance columns; the\nhost-filled columns and the append-only transition log are M5 work.\n\n@ref LLP 0056#agents — creation attribution vs. the append-only transition\n  log; `full` is `authorityCreating`'s precondition.",
+      "enum": [
+        "creation",
+        "full"
+      ],
+      "type": "string"
+    },
+    "MembershipScope": {
+      "description": "The scope a membership declaration binds its `resource` axis to.\n\n@ref LLP 0056#global-roles — a `resource`-scoped declaration references one\n  resource table; `app` scope is the degenerate global-role case whose\n  resource is a system-constant singleton (never a null column).",
+      "oneOf": [
+        {
+          "const": "resource",
+          "description": "The declared `resource` column references exactly one resource table.",
+          "type": "string"
+        },
+        {
+          "const": "app",
+          "description": "The whole app is the resource (classic global RBAC as the degenerate\ncase). There is no `resource` column; uniqueness is one row per\nprincipal per declaration.",
+          "type": "string"
+        }
+      ]
+    },
+    "MembershipTarget": {
+      "description": "Whether a transition acts on the caller's own row or another principal's.",
+      "oneOf": [
+        {
+          "enum": [
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "self",
+          "description": "The effective principal **is** the target row's principal (\"self\").",
+          "type": "string"
+        }
+      ]
+    },
+    "MembershipTransition": {
+      "description": "One row of the closed, declaration-level transition matrix (`op` × caller\nclass × self/other × `from`→`to`, or `patch` × `fields`). M1 parses and\n**shape-validates** every entry — chiefly that no unknown role hides in\n`by`/`from`/`to` and no undeclared column hides in `fields`, so the closed\nvocabulary holds. The runtime evaluation of the matrix is M2.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the\n  policy is declared, closed by default, enforced by the host in M2.",
+      "properties": {
+        "by": {
+          "description": "Caller classes: a declared role, or the reserved classes `\"self\"` /\n`\"none\"`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fields": {
+          "description": "Non-axis, non-role columns a `patch` transition may write.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "op": {
+          "$ref": "#/$defs/MembershipOp"
+        },
+        "target": {
+          "$ref": "#/$defs/MembershipTarget"
+        },
+        "to": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "by",
+        "target"
       ],
       "type": "object"
     },
@@ -2761,6 +3019,17 @@
             "$ref": "#/$defs/IndexManifest"
           },
           "type": "array"
+        },
+        "membership": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipManifest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "At most one `.membership()` declaration per table. Its presence turns\nthe table into a system-recognized role-per-resource membership table:\na closed role vocabulary, immutable `(principal, resource)` axes, a\ngenerated true-unique index, and (M2+) a host-enforced write contract.\nDeclaring it alongside a hand-written `permissionBacking`/\n`permissionFields` is a typed manifest error — the derivation owns the\ntable.\n\n@ref LLP 0056#declaring-a-membership-table — the membership declaration\n  is the recognized shape; the derivation, not the app, owns the table."
         },
         "name": {
           "type": "string"

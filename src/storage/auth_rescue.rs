@@ -833,10 +833,12 @@ mod tests {
                 indexes: vec![IndexManifest {
                     name: "explicit".to_owned(),
                     fields: vec!["id".to_owned()],
+                    unique: false,
                 }],
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
+                membership: None,
             }],
             ..SchemaManifest::default()
         }

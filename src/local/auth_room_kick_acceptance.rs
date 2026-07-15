@@ -984,10 +984,12 @@ fn game_schema() -> SchemaManifest {
                 indexes: vec![IndexManifest {
                     name: "by_game_user".to_owned(),
                     fields: vec!["gameId".to_owned(), "userId".to_owned()],
+                    unique: false,
                 }],
                 syncable: true,
                 permission_backing: true,
                 permission_fields: Some(vec!["gameId".to_owned(), "userId".to_owned()]),
+                membership: None,
             },
             TableManifest {
                 name: "moves".to_owned(),
@@ -1011,10 +1013,12 @@ fn game_schema() -> SchemaManifest {
                 indexes: vec![IndexManifest {
                     name: "by_game".to_owned(),
                     fields: vec!["gameId".to_owned()],
+                    unique: false,
                 }],
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                membership: None,
             },
         ],
         ephemeral_collections: vec![

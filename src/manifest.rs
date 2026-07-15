@@ -418,11 +418,240 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub permission_fields: Option<Vec<String>>,
+    /// At most one `.membership()` declaration per table. Its presence turns
+    /// the table into a system-recognized role-per-resource membership table:
+    /// a closed role vocabulary, immutable `(principal, resource)` axes, a
+    /// generated true-unique index, and (M2+) a host-enforced write contract.
+    /// Declaring it alongside a hand-written `permissionBacking`/
+    /// `permissionFields` is a typed manifest error — the derivation owns the
+    /// table.
+    ///
+    /// @ref LLP 0056#declaring-a-membership-table — the membership declaration
+    ///   is the recognized shape; the derivation, not the app, owns the table.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub membership: Option<MembershipManifest>,
 }
 
 impl TableManifest {
     pub fn field(&self, name: &str) -> Option<&FieldManifest> {
         self.fields.iter().find(|field| field.name == name)
+    }
+}
+
+/// The scope a membership declaration binds its `resource` axis to.
+///
+/// @ref LLP 0056#global-roles — a `resource`-scoped declaration references one
+///   resource table; `app` scope is the degenerate global-role case whose
+///   resource is a system-constant singleton (never a null column).
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum MembershipScope {
+    /// The declared `resource` column references exactly one resource table.
+    #[default]
+    Resource,
+    /// The whole app is the resource (classic global RBAC as the degenerate
+    /// case). There is no `resource` column; uniqueness is one row per
+    /// principal per declaration.
+    App,
+}
+
+/// `lastHolder: { protect: <role> }` — the protected role's *eligible* holder
+/// set may never be left empty for any live resource. M1 records and validates
+/// the declaration shape (see `validate_schema`); the transition-time and
+/// concurrency enforcement is M2 write-path work.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
+///   protected role never empties; establishment requires `bootstrapRole == R`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MembershipLastHolder {
+    pub protect: String,
+}
+
+/// `expiry: { field, onExpiry }` — a time-bounded membership materialized by
+/// the host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no
+/// declared role ordering the host cannot prove any downgrade is
+/// non-escalating, so a `downgradeTo:` effect is a manifest error.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+///   remove-only in v1; the sweep itself is M2/M4 host work.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MembershipExpiry {
+    pub field: String,
+    /// The declared expiry effect. v1 accepts exactly `"remove"`; any other
+    /// spelling (e.g. `"downgradeTo:guest"`) is refused by `validate_schema`.
+    #[serde(rename = "onExpiry", alias = "on_expiry")]
+    pub on_expiry: String,
+}
+
+/// The two host-filled attribution levels. `authorityCreating` (LLP 0055)
+/// requires `full`. M1 models the level on the declaration and enforces the
+/// `incidental` floor over the (future) generated provenance columns; the
+/// host-filled columns and the append-only transition log are M5 work.
+///
+/// @ref LLP 0056#agents — creation attribution vs. the append-only transition
+///   log; `full` is `authorityCreating`'s precondition.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum MembershipProvenance {
+    Creation,
+    Full,
+}
+
+/// The op a transition governs. Modeled and shape-validated in M1; the host
+/// evaluation of the matrix (caller-class derivation, target binding, witness
+/// capture) is M2.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MembershipOp {
+    Insert,
+    SetRole,
+    Remove,
+    Patch,
+}
+
+impl MembershipOp {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Insert => "insert",
+            Self::SetRole => "setRole",
+            Self::Remove => "remove",
+            Self::Patch => "patch",
+        }
+    }
+}
+
+/// Whether a transition acts on the caller's own row or another principal's.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum MembershipTarget {
+    /// The effective principal **is** the target row's principal ("self").
+    #[serde(rename = "self")]
+    Own,
+    Other,
+}
+
+/// One row of the closed, declaration-level transition matrix (`op` × caller
+/// class × self/other × `from`→`to`, or `patch` × `fields`). M1 parses and
+/// **shape-validates** every entry — chiefly that no unknown role hides in
+/// `by`/`from`/`to` and no undeclared column hides in `fields`, so the closed
+/// vocabulary holds. The runtime evaluation of the matrix is M2.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
+///   policy is declared, closed by default, enforced by the host in M2.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MembershipTransition {
+    pub op: MembershipOp,
+    /// Caller classes: a declared role, or the reserved classes `"self"` /
+    /// `"none"`.
+    pub by: Vec<String>,
+    pub target: MembershipTarget,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to: Option<Vec<String>>,
+    /// Non-axis, non-role columns a `patch` transition may write.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fields: Option<Vec<String>>,
+}
+
+/// The `.membership()` metadata carried by a [`TableManifest`]. See
+/// `crate::storage`'s `validate_schema` for the declaration-shape enforcement
+/// and `validate_membership_activation` for the fail-closed scan over existing
+/// data.
+///
+/// M1 owns: the declaration shape, `v.principal()`, the generated true-unique
+/// `(principal, resource)` index, the stable id, and the activation scan. The
+/// write contract (transition execution, generated methods, raw-write
+/// refusal), the rule helpers, invalidation wiring, and provenance columns are
+/// M2–M5 and deliberately **not** implemented here.
+///
+/// @ref LLP 0056#declaring-a-membership-table — the recognized membership
+///   shape and its closed, non-null, exact-decoded vocabulary.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MembershipManifest {
+    /// Stable declaration id. Absent means it defaults from the table name
+    /// (see [`MembershipManifest::effective_id`]); pin it with `id:` to keep a
+    /// durable reference stable across a table rename.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Name of the non-null principal-axis field (`v.principal()`).
+    pub principal: String,
+    /// Name of the non-null resource-axis field. Absent iff `scope: "app"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    /// Name of the non-null role field.
+    pub role: String,
+    /// The closed, non-pending role vocabulary.
+    pub roles: Vec<String>,
+    /// Pending roles — in the write vocabulary but excluded from `memberOf`.
+    /// Disjoint from `roles`; their union is the closed write vocabulary.
+    #[serde(
+        default,
+        rename = "pendingRoles",
+        alias = "pending_roles",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub pending_roles: Option<Vec<String>>,
+    /// The role the creation witness seats. Required to equal `lastHolder`'s
+    /// protected role when `lastHolder` is declared.
+    #[serde(
+        default,
+        rename = "bootstrapRole",
+        alias = "bootstrap_role",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bootstrap_role: Option<String>,
+    #[serde(
+        default,
+        rename = "lastHolder",
+        alias = "last_holder",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub last_holder: Option<MembershipLastHolder>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expiry: Option<MembershipExpiry>,
+    /// Attested non-authorization columns. Subject to a hard floor: the
+    /// principal/resource/role axes and generated provenance columns can never
+    /// be attested incidental.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub incidental: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<MembershipProvenance>,
+    /// The closed transition matrix. Shape-validated in M1; executed in M2.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transitions: Vec<MembershipTransition>,
+    #[serde(default)]
+    pub scope: MembershipScope,
+    /// The resource table the `resource` axis references (`v.id("events")`).
+    /// Present for `scope: "resource"`; absent for `scope: "app"`. Used by the
+    /// activation scan's referential-integrity check. Codegen fills this from
+    /// `v.id(...)` once the LLP 0004 authoring spelling lands; until then a
+    /// declaration may set it directly.
+    #[serde(
+        default,
+        rename = "resourceTable",
+        alias = "resource_table",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub resource_table: Option<String>,
+}
+
+impl MembershipManifest {
+    /// The effective stable declaration id: the pinned `id:` if present, else
+    /// the table name. Used by helpers, audit, room bindings, and (future)
+    /// durable references.
+    pub fn effective_id<'a>(&'a self, table_name: &'a str) -> &'a str {
+        self.id.as_deref().unwrap_or(table_name)
+    }
+
+    /// The closed write vocabulary: `roles ∪ pendingRoles`.
+    pub fn vocabulary(&self) -> impl Iterator<Item = &str> {
+        self.roles
+            .iter()
+            .map(String::as_str)
+            .chain(self.pending_roles.iter().flatten().map(String::as_str))
     }
 }
 
@@ -441,12 +670,33 @@ pub enum FieldType {
     Integer,
     Real,
     Json,
+    /// `v.principal()` — nominal typing over the auth-principal id string space
+    /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
+    /// principals). It stores and compares exactly like [`FieldType::String`];
+    /// the distinct variant lets the schema surface *name* an axis as a
+    /// principal reference. It is validated by **shape**, never by a
+    /// foreign-key existence check, because memberships may outlive a
+    /// principal's deactivation and LLP 0055 recovery preserves the id.
+    ///
+    /// @ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal
+    ///   typing over the principal-id string space, not an existence check.
+    Principal,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct IndexManifest {
     pub name: String,
     pub fields: Vec<String>,
+    /// A **true, total** unique index: SQLite/Postgres reject a second row
+    /// whose declared columns duplicate an existing one. Load-bearing for
+    /// LLP 0056 memberships, whose `(principal, resource)` uniqueness invariant
+    /// the whole primitive rests on. Non-null key axes are what keep it total —
+    /// a NULL-bearing column would admit multiple duplicate-looking rows.
+    ///
+    /// @ref LLP 0056#declaring-a-membership-table — the generated membership
+    ///   index is true-unique; today's `IndexManifest` had no uniqueness flag.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub unique: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

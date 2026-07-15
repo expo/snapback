@@ -584,6 +584,26 @@ New surface this RFC adds:
 - the **`ctx.permissions` membership read** host operation (below);
 - the **HostPlan membership step** — follow-on, not v1.
 
+**Implementation status.** *M1 landed 2026-07-14 via ENG-24907* — the **schema
+surface**: the `.membership()` metadata on `TableManifest` (declaration model,
+stable id with manifest-global uniqueness, closed exact-decoded vocabulary with
+the reserved-name / `:` / control-character / confusable / disjointness traps,
+the `lastHolder`/`expiry`/`incidental`-floor/transition-shape declaration
+validation), `v.principal()` as a `FieldType`, an `unique` flag on
+`IndexManifest` driving the generated true-unique `(principal, resource)` index,
+and the **fail-closed activation scan** over existing data (vocabulary,
+nullability, uniqueness, referential integrity, and the `lastHolder` holder
+presence). M1 deliberately does **not** land: the transition-matrix execution,
+generated write methods, and raw-write refusal (M2); the rule helpers and
+`ctx.permissions` read (M3); the matcher/predicate-IR and invalidation wiring
+(M4/M5); and the provenance columns/log (M5). Two M1 boundaries rest on later
+milestones and are enforced conservatively rather than guessed: the `lastHolder`
+activation check counts holder *rows* (the *eligible*-holder refinement that
+excludes LLP 0055-deactivated principals lands with the LLP 0055 principal
+machinery), and referential integrity keys on a `resourceTable` binding the
+declaration records directly until codegen fills it from `v.id(...)` under the
+LLP 0004 authoring follow-on.
+
 **Delivery lanes, honestly.** A helper-gated query rides the **conservative
 re-query/`live_replace` lane** — which exists today and is exactly the lane
 0053's witnessed obligations protect. "Analyzable by construction" buys, in v1:

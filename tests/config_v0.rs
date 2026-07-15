@@ -33,6 +33,7 @@ fn probe_schema() -> SchemaManifest {
             syncable: false,
             permission_backing: false,
             permission_fields: None,
+            membership: None,
         }],
         ..Default::default()
     }

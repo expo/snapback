@@ -8008,6 +8008,7 @@ mod tests {
                 syncable: true,
                 permission_backing: true,
                 permission_fields: Some(vec!["boardId".to_owned(), "userId".to_owned()]),
+                membership: None,
             }],
             ..SchemaManifest::default()
         };

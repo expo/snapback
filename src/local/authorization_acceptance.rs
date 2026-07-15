@@ -181,6 +181,7 @@ fn table(
         permission_backing,
         permission_fields: permission_fields
             .map(|fields| fields.into_iter().map(str::to_owned).collect()),
+        membership: None,
     }
 }
 

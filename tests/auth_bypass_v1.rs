@@ -353,6 +353,7 @@ fn seeded_snapback() -> LocalSnapback {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                membership: None,
             }],
             ..SchemaManifest::default()
         })
