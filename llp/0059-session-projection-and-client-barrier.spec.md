@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL4 bootstrap-gate closure: makes anonymous
+**Revised:** 2026-07-15 (FINAL5 composed-client evidence closure: names the
+production `SnapbackClient.authSession()` fixture and completes its owner/peer
+matrix for paused success, post-staging custody mismatch, and final ownership-
+read failure; every failure discards staged/in-flight work, remains blank, and
+exposes only the later clean synchronization cache). 2026-07-15 (FINAL4 bootstrap-gate closure: makes anonymous
 establishment creation-only, uses a durable-null synchronization result as the
 sole kit bootstrap witness, refuses paused exact captures before handshake or
 cache work, and proves real owner/peer success plus mismatch/read-failure cache
@@ -2076,14 +2080,18 @@ wall-clock sleeps are not proof of ordering.
     mismatched/unconfirmed work never runs, later queued work is discarded, and
     the local gate remains blank. The real kit transport handshake cache uses
     this staging path rather than publishing from resume.
-11. Hold real kit owner and peer resume before final confirmation, then invoke
-    a concurrent ordinary `authSession`. It recognizes the paused exact capture,
+11. In `demos/_kit/tests/auth-coordinator-client.mjs`, compose the production
+    `SnapbackClient` and `AuthCoordinator` over controllable custody/fetch seams.
+    Hold owner and peer resume before final confirmation, then invoke a
+    concurrent ordinary `authSession`: it recognizes the paused exact capture,
     performs no bootstrap/handshake/cache publication, and cannot enable a
     `compareAndCommit` callback. On success, only the staged transport handshake
-    becomes cached after final confirmation. Advance custody after staging in
-    the owner cut and fail final ownership acquisition in the peer cut: both
-    remain blank, discard the staged cache, and a later clean synchronization
-    fetches only the actual durable successor.
+    becomes cached after final confirmation. After the real transport stages
+    its handshake, independently advance custody and fail the final ownership
+    read in **both owner and peer modes**. Each in-flight ordinary session
+    returns stale, capture remains clearing, staged cache work is discarded,
+    and only a later clean `synchronize()` may fetch/cache the durable successor;
+    the following ordinary `authSession` performs no additional handshake.
 
 The landed coordinator suites now prove ordered participant phases,
 clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
@@ -2122,6 +2130,12 @@ FINAL4 adds real-kit concurrent `authSession` cuts for owner and peer success,
 owner mismatch, and peer final-read failure, plus direct creation-only
 bootstrap regressions; these prove a paused exact result is never confused with
 genuinely absent custody.
+FINAL5 completes the same production-client matrix in
+`demos/_kit/tests/auth-coordinator-client.mjs` with peer mismatch and owner
+final-read failure. Together the six composed cuts cover owner/peer paused
+success, owner/peer post-staging mismatch, and owner/peer failed final ownership
+reads, with explicit stale in-flight results, blank capture, repeated clean
+handshake after discard, and cache-only return after clean synchronization.
 
 ### Client store and Contract boundaries
 

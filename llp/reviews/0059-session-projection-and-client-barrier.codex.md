@@ -790,3 +790,38 @@ EVIDENCE
 Read-only owner-resume probe held `resume`, observed initial `compareAndCommit → {committed:false}`, called `establishAnonymous`, then observed pre-final `compareAndCommit → {committed:true,value:"EXPOSED_BEFORE_FINAL"}` and successful `capture()`.
 
 Executed successfully: `auth-coordinator.test.mjs`, `auth-custody-indexeddb.test.mjs`, `auth-coordinator-client.mjs`, and `auth-handshake.mjs` (16/16). Existing staging tests cover intended ordering/failure behavior ([auth-coordinator.test.mjs:412](...), [auth-coordinator.test.mjs:963](...), [auth-coordinator.test.mjs:1043](...)) but not this re-entry path.
+
+## FINAL5 composed-client evidence review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: external Codex review artifact; exact CLI version was not emitted with this artifact
+- Model: unavailable (artifact did not emit a model identifier)
+- Method: read-only blind targeted static review
+- Session: unavailable (ephemeral reviewer did not emit a session identifier)
+- Reviewed commit: `b78998c0ebce04f94ea422227d57f4ab584cecd4`
+- Human authorization: ENG-25001 FINAL5 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final5-codex-0059.md`
+
+### Verbatim review
+
+VERDICT
+NOT READY
+
+MATERIAL
+
+- The spec claims deterministic real-kit owner/peer success, mismatch, and final-read-failure coverage (llp/0059-session-projection-and-client-barrier.spec.md:2079,2121), but the named tests do not exercise concurrent `SnapbackClient.authSession()`. Coordinator tests cover only coordinator-level rejection/staging (packages/snapback-contract/auth-coordinator.test.mjs:347,456,515,995), schema parity tests ordinary handshakes (demos/_kit/tests/auth-session-schema-parity.mjs:65), and the Contract test uses a no-op `authSession` double (packages/snapback-contract/auth-coordinator-contract.test.mjs:155). Impact: the new null-versus-paused kit branch and cache/in-flight shortcuts remain unproven. Required resolution: add deterministic real-client owner and peer cuts proving zero ordinary handshake/cache publication while paused, staged success after final confirmation, stale/mismatch discard, final-read-failure discard, and later clean synchronization.
+
+MINOR
+None.
+
+EVIDENCE
+
+- HEAD `b78998c0ebce04f94ea422227d57f4ab584cecd4`; tracked status clean.
+- Creation-only CAS and paused-barrier refusal: packages/snapback-contract/auth-coordinator.mjs:648-700.
+- Null-only bootstrap and paused-capture rejection: demos/_kit/client.mjs:1213-1248; resume cache staging: demos/_kit/client.mjs:1292-1315.
+- Ordinary commit refusal and final locked staged flush: packages/snapback-contract/auth-coordinator.mjs:872-916,1428-1518.
+- LLP 0058/Contract composition remains fail-closed: llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1399-1419; packages/snapback-contract/index.mjs:2393-2406.
+- Static inspection only; no tests or builds run.

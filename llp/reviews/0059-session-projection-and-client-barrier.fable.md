@@ -294,3 +294,36 @@ MINOR
 
 EVIDENCE
 Deterministic owner and peer cuts at HEAD: ordering `['resume-enter','resume-exit','staged-publication']` with refused `must-not-run` `compareAndCommit` and `isCurrent` false during flush (`auth-coordinator.test.mjs:424-509`); resume-race discard, `stagedPublications === 0` (`:528-620`); injected final-read failure in both modes with later clean adoption (`:963-1042`); staged callback failure/reentrancy — `['first']`, `clearMemory` twice, CLEARING (`:1045-1078`); same-authority write during resume aborts closed (`:1136-1176`). Staged-client cuts: kit cache published only at final confirmation (`auth-coordinator-client.mjs:472-478`); raw and managed close-only terminal latch, exact `compareAndClear`, no replacement socket (`client-errors.mjs:473-530`).
+
+## FINAL5 composed-client evidence review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: external Fable review artifact; exact CLI version was not emitted with this artifact
+- Model: unavailable (artifact did not emit a model identifier)
+- Method: read-only blind targeted implementation review
+- Session: unavailable (ephemeral reviewer did not emit a session identifier)
+- Reviewed commit: `b78998c0ebce04f94ea422227d57f4ab584cecd4`
+- Human authorization: ENG-25001 FINAL5 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final5-fable-0059.md`
+
+### Verbatim review
+
+VERDICT
+READY
+
+MATERIAL
+None found.
+
+MINOR
+- The kit bootstrap catch retries only `SNAPBACK_CLIENT_AUTHORITY_STALE` (demos/_kit/client.mjs:1231); a bootstrap raced by a mid-barrier peer adoption throws `SNAPBACK_CLIENT_AUTHORITY_CLEARING` (auth-coordinator.mjs:653, 692) and propagates without the spec's optional single retry against the adopted successor. Fail-closed; liveness only.
+- `establishAnonymous` broadcasts the created record (auth-coordinator.mjs:690) before its defensive local re-check and adoption; wakeups are stateless, so this is harmless ordering.
+
+EVIDENCE
+- Bootstrap witness: the kit treats only `synchronize() === null` as fresh custody (client.mjs:1221), double-confirmed under ownership (auth-coordinator.mjs:736-739, 1309-1332). A paused non-null exact capture skips bootstrap, fails `isCurrent` (619), and goes stale after one retry with no handshake or cache write (client.mjs:1242-1247).
+- Creation-only: `establishAnonymous` refuses any local record/active barrier and any existing durable record without changing the paused gate (auth-coordinator.mjs:651-696); its sole production caller is the kit bootstrap branch.
+- Pause holds through final confirmation: `capture()` throws (609); `compareAndCommit` refuses at entry, after reload, and before its callback (875, 878, 892); rotation and idempotent transition keep `expose:!paused` (944, 1064). The resume handshake publishes only through `stagePublication` (client.mjs:1314), flushed inside the final locked confirmation (auth-coordinator.mjs:1350-1355, 1593-1598); failure discards staging and reblanks (1357-1360, 1599-1602). Requests re-fence before returning (client.mjs:1557-1564).
+- No reentry/deadlock: synchronize's resume guard precedes its memoized promise (706-731); staged callbacks are non-reentrant via `#inCommit` (1501).
+- Deterministic committed tests, wired into runners (snapback-contract/package.json:21; scripts/verify-local-proof:129): owner/peer concurrent-authSession success cuts, owner post-staging mismatch, peer final-ownership failure (demos/_kit/tests/auth-coordinator-client.mjs:897-1160); creation-only and in-resume bootstrap refusals (auth-coordinator.test.mjs:347-368, 463-467, 518-522).
