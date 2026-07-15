@@ -1446,6 +1446,19 @@ pub struct FunctionDefinition {
         skip_serializing_if = "is_false"
     )]
     pub authority_independent: bool,
+    /// This entry point may reach a durable permission-backing write. The
+    /// marker is part of delegated consent: changing it terminally invalidates
+    /// scopes minted against the prior function basis.
+    ///
+    /// @ref LLP 0055#grants — authority-creating functions require explicit,
+    ///   displayed consent and never join a delegated tier expansion.
+    #[serde(
+        default,
+        rename = "authorityCreating",
+        alias = "authority_creating",
+        skip_serializing_if = "is_false"
+    )]
+    pub authority_creating: bool,
     /// Results may be durably retained only when the item-8 admission profile
     /// validates this declaration and the complete read summary.
     ///
@@ -1503,6 +1516,7 @@ impl FunctionDefinition {
             required_capabilities: Vec::new(),
             auth_requirement: None,
             authority_independent: false,
+            authority_creating: false,
             retainable: false,
             authorization_dependence: Vec::new(),
             syncability_class: Some(syncability_class.to_owned()),
@@ -1681,6 +1695,8 @@ pub struct PublicFunctionDefinition {
     pub auth_requirement: Option<AuthRequirement>,
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
+    #[serde(rename = "authorityCreating", skip_serializing_if = "is_false")]
+    pub authority_creating: bool,
     #[serde(skip_serializing_if = "is_false")]
     pub retainable: bool,
     #[serde(
@@ -1829,6 +1845,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            authority_creating,
             retainable,
             authorization_dependence,
             syncability_class,
@@ -1847,6 +1864,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            authority_creating,
             retainable,
             authorization_dependence,
             syncability_class,

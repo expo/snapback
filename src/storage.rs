@@ -47,6 +47,13 @@ pub(crate) mod auth_agents;
 #[path = "storage/auth_agent_credentials.rs"]
 pub(crate) mod auth_agent_credentials;
 
+// @ref LLP 0055#grants — immutable exact-function scopes bind a durable basis
+//   generation; removal and authority-significant manifest changes leave
+//   tombstones so old consent cannot revive after re-add or restart.
+#[allow(dead_code)]
+#[path = "storage/auth_scope_bases.rs"]
+pub(crate) mod auth_scope_bases;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;
