@@ -292,7 +292,10 @@ impl LocalDatabase {
             let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
                 .ok_or_else(agent_credential_invalid)?;
             require_agent_active_on(tx, &resolved.user_id)?;
-            require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
+            let grant_expires_at_ms =
+                require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
+            let expires_at_ms = grant_expires_at_ms
+                .map_or(expires_at_ms, |grant_expiry| expires_at_ms.min(grant_expiry));
             let mut live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
             let mut evicted_token_ids = Vec::new();
             while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
@@ -547,18 +550,20 @@ fn require_live_grant_for_actor(
     grant_id: &str,
     actor_user_id: &str,
     now_ms: u64,
-) -> SnapbackResult<()> {
-    let valid = tx
+) -> SnapbackResult<Option<u64>> {
+    let expires_at_ms = tx
         .query_row(
-            "SELECT 1 FROM _auth_grants
+            "SELECT expires_at_ms FROM _auth_grants
              WHERE id = ?1 AND actor_user_id = ?2 AND revoked_at_ms IS NULL
                AND (expires_at_ms IS NULL OR expires_at_ms > ?3)",
             params![grant_id, actor_user_id, now_ms as i64],
-            |_| Ok(()),
+            |row| {
+                row.get::<_, Option<i64>>(0)
+                    .map(|expiry| expiry.map(|value| value as u64))
+            },
         )
-        .optional()?
-        .is_some();
-    if valid { Ok(()) } else { Err(grant_invalid()) }
+        .optional()?;
+    expires_at_ms.ok_or_else(grant_invalid)
 }
 
 fn live_token_ids_for_grant(
@@ -763,6 +768,24 @@ mod tests {
             .expect("grant");
     }
 
+    fn seed_expiring_grant(db: &LocalDatabase, id: &str, now_ms: u64, expires_at_ms: u64) {
+        db.conn
+            .execute(
+                "INSERT INTO _auth_grants(
+               id, actor_user_id, effective_user_id, scopes, created_at_ms,
+               expires_at_ms, revoked_at_ms, created_by, request_id,
+               consent_digest, last_used_at_ms
+             ) VALUES(?1, 'agent-a', 'user-a', ?2, ?3, ?4, NULL, 'test', NULL, NULL, ?3)",
+                params![
+                    id,
+                    r#"[{"fn":"query-a","kind":"query"}]"#,
+                    now_ms as i64,
+                    expires_at_ms as i64,
+                ],
+            )
+            .expect("expiring grant");
+    }
+
     #[test]
     fn thief_rotates_n_but_original_secret_still_destroys_the_family() {
         let random = CounterRandom::new();
@@ -917,6 +940,39 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_AUTH_CLOCK_ROLLBACK"
+        );
+    }
+
+    #[test]
+    fn token_receipt_and_durable_expiry_are_clamped_to_the_grant() {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('user-a', 0, 'human', NULL, NULL, NULL, NULL, NULL)",
+                [],
+            )
+            .unwrap();
+        let credential = db
+            .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .unwrap()
+            .secret;
+        seed_expiring_grant(&db, "grant-short", 1_000, 1_010);
+        let issued = db
+            .mint_scoped_token(&credential, "grant-short", Some(1_000), 1_001, &random)
+            .unwrap();
+        assert_eq!(issued.expires_at_ms, 1_010);
+        db.resolve_scoped_token(&issued.secret, 1_009)
+            .expect("token remains live strictly before the grant expiry");
+        assert_eq!(
+            db.resolve_scoped_token(&issued.secret, 1_010)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
         );
     }
 }
