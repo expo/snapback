@@ -357,6 +357,31 @@ function buildContractProfile(
   };
 }
 
+function assertNativeBuildConstants(bundle, { profile, apiOrigin }) {
+  const targetSource = bundle.nativeModules['/snapback-target.ts']?.source ?? '';
+  const nativeSource = bundle.nativeModules['/native.ts']?.source ?? '';
+  assert.notEqual(targetSource, '', 'the native build must emit /snapback-target.ts');
+  assert.notEqual(nativeSource, '', 'the native build must emit /native.ts');
+  assert.doesNotMatch(
+    targetSource,
+    /\b__SNAPBACK_TARGET_PROFILE__\b/,
+    'the native target module must not retain the unresolved target-profile define',
+  );
+  assert.ok(
+    targetSource.includes(JSON.stringify(profile)),
+    `the native target module must compile the ${profile} target profile`,
+  );
+  assert.doesNotMatch(
+    nativeSource,
+    /\b__SNAPBACK_API_ORIGIN__\b/,
+    'the native entry must not retain the unresolved API-origin define',
+  );
+  assert.ok(
+    nativeSource.includes(JSON.stringify(apiOrigin)),
+    `the native entry must compile the ${apiOrigin} API origin`,
+  );
+}
+
 try {
   const install = spawnSync(
     'bun',
@@ -374,11 +399,10 @@ try {
     /the Cloudflare proof target does not support session credential custody/,
     'the production Cloudflare bundle must retain the explicit pre-auth client factory',
   );
-  assert.match(
-    cloudflareBundle.nativeModules['/snapback-target.ts']?.source ?? '',
-    /return "cloudflare-do-sqlite-v8";/,
-    'the production module must compile the Cloudflare target-profile define',
-  );
+  assertNativeBuildConstants(cloudflareBundle, {
+    profile: 'cloudflare-do-sqlite-v8',
+    apiOrigin: 'same-origin',
+  });
   assert.match(
     cloudflareBundle.nativeModules['/native.ts']?.source ?? '',
     /snapbackNativeBaseUrl/,
@@ -390,11 +414,10 @@ try {
     'the production Cloudflare native entry must pass the deployment origin sentinel to the resolver',
   );
   const localBundle = buildContractProfile('local-dev-sqlite-ibex');
-  assert.match(
-    localBundle.nativeModules['/snapback-target.ts']?.source ?? '',
-    /return "local-dev-sqlite-ibex";/,
-    'the local production module must compile the auth-capable target-profile define',
-  );
+  assertNativeBuildConstants(localBundle, {
+    profile: 'local-dev-sqlite-ibex',
+    apiOrigin: 'http://127.0.0.1:4420',
+  });
   assert.match(
     localBundle.nativeModules['/native.ts']?.source ?? '',
     /snapbackNativeBaseUrl/,
@@ -409,11 +432,10 @@ try {
     'local-dev-sqlite-ibex',
     'same-origin',
   );
-  assert.match(
-    localSameOriginBundle.nativeModules['/snapback-target.ts']?.source ?? '',
-    /return "local-dev-sqlite-ibex";/,
-    'the local same-origin production module must remain on the local target profile',
-  );
+  assertNativeBuildConstants(localSameOriginBundle, {
+    profile: 'local-dev-sqlite-ibex',
+    apiOrigin: 'same-origin',
+  });
   assert.match(
     localSameOriginBundle.nativeModules['/native.ts']?.source ?? '',
     /"same-origin"/,
