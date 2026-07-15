@@ -1266,6 +1266,39 @@ impl ObligationRegistry {
             .collect()
     }
 
+    /// True when some pending obligation is capable of quarantining or
+    /// deleting the exact lease-target query instance. Query-scoped
+    /// obligations (`Subscription`/`ClientQuery`) match on the complete
+    /// namespace; a `Connection` root reaches a query only through its
+    /// registered query-sized children, which are checked directly so a
+    /// root cannot be bypassed even if a child entry were discharged out of
+    /// band. Obligations for an unrelated user, client store, query key, or
+    /// query instance never fence this target.
+    ///
+    /// @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+    /// issuance proof item 4 blocks only obligations capable of
+    /// quarantining/deleting this query, not the global pending set
+    /// (ENG-24989).
+    pub fn blocks_lease_target(&self, target: &QueryNamespace) -> bool {
+        self.obligations.keys().any(|scope| match scope {
+            ScopeId::Subscription { namespace, .. } | ScopeId::ClientQuery { namespace } => {
+                namespace == target
+            }
+            ScopeId::Connection { .. } => {
+                self.connection_children
+                    .get(scope)
+                    .is_some_and(|children| {
+                        children.iter().any(|child| {
+                            matches!(
+                                child,
+                                ScopeId::Subscription { namespace, .. } if namespace == target
+                            )
+                        })
+                    })
+            }
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn active_subscription_scopes_for_test(&self) -> Vec<ScopeId> {
         self.active_subscription_scopes.iter().cloned().collect()
@@ -2149,6 +2182,77 @@ mod tests {
         registry
             .register_live_scope(scope(instance), format!("owner-{instance}"))
             .unwrap();
+    }
+
+    /// ENG-24989: lease issuance consults only obligations capable of
+    /// quarantining/deleting the exact target query instance (LLP 0053
+    /// issuance proof item 4), never the global pending set.
+    #[test]
+    fn lease_target_blocking_matches_only_scopes_that_can_reach_the_exact_query() {
+        let mut registry = registry();
+        assert!(!registry.blocks_lease_target(&namespace(1)));
+
+        register_scope(&mut registry, 1);
+        registry
+            .raise(
+                scope(1),
+                1,
+                "cause-1",
+                InvalidationDisposition::Quarantine,
+                witness(1),
+                None,
+            )
+            .unwrap();
+        assert!(registry.blocks_lease_target(&namespace(1)));
+        // Any differing namespace axis is out of the obligation's reach.
+        assert!(!registry.blocks_lease_target(&namespace(2)));
+        let mut other_store = namespace(1);
+        other_store.client_store_id = "store-B".to_owned();
+        assert!(!registry.blocks_lease_target(&other_store));
+        let mut other_query = namespace(1);
+        other_query.query_key = "other:{}".to_owned();
+        assert!(!registry.blocks_lease_target(&other_query));
+
+        // A client-query tombstone obligation blocks exactly its instance.
+        registry
+            .raise(
+                ScopeId::ClientQuery {
+                    namespace: namespace(3),
+                },
+                2,
+                "cause-2",
+                InvalidationDisposition::Quarantine,
+                witness(1),
+                None,
+            )
+            .unwrap();
+        assert!(registry.blocks_lease_target(&namespace(3)));
+
+        // A connection root reaches a target only through its registered
+        // query-sized children.
+        let connection = ScopeId::Connection {
+            issuer_id: issuer(),
+            connection_generation: 5,
+        };
+        registry
+            .raise(
+                connection.clone(),
+                3,
+                "cause-3",
+                InvalidationDisposition::Quarantine,
+                witness(1),
+                None,
+            )
+            .unwrap();
+        assert!(!registry.blocks_lease_target(&namespace(4)));
+        register_scope(&mut registry, 4);
+        registry
+            .register_connection_child(&connection, scope(4))
+            .unwrap();
+        assert!(registry.blocks_lease_target(&namespace(4)));
+        // The now three-scope pending set still cannot fence an untouched
+        // namespace.
+        assert!(!registry.blocks_lease_target(&namespace(9)));
     }
 
     #[test]

@@ -3389,13 +3389,16 @@ impl LocalSnapback {
 
     /// Execute the only full revalidation path permitted to mint an
     /// AuthorizedLease. Query result, data head, authorization pair,
-    /// activation, issuer, and empty-obligation state are captured while the
-    /// app instance is one coherent read. Signing happens only after this
-    /// method releases the app lock; final reservation rechecks every fact.
+    /// activation, issuer, and target-scoped obligation state are captured
+    /// while the app instance is one coherent read. Signing happens only after
+    /// this method releases the app lock; final reservation rechecks every
+    /// fact.
     ///
     /// @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
-    /// opaque/undeclared queries cannot retain, and a pending invalidation can
-    /// never ride a lease-bearing snapshot.
+    /// opaque/undeclared queries cannot retain, and a pending invalidation
+    /// capable of quarantining/deleting this exact query can never ride a
+    /// lease-bearing snapshot; unrelated users' obligations do not fence it
+    /// (ENG-24989).
     pub(crate) fn capture_authorized_lease_query(
         &self,
         name: &str,
@@ -3452,11 +3455,16 @@ impl LocalSnapback {
                 "authorization invalidation state is unavailable",
             )
         })?;
-        if !invalidation.obligations.pending_all().is_empty() {
+        let lease_target = QueryNamespace {
+            client_store_id: request.client_store_id.clone(),
+            query_key: request.query_key.clone(),
+            query_instance_id: request.query_instance_id,
+        };
+        if invalidation.obligations.blocks_lease_target(&lease_target) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_PENDING",
                 "auth",
-                "an authorization/query/connection obligation is pending",
+                "an authorization/query/connection obligation is pending for this query",
             ));
         }
         let deployment = self
@@ -3533,7 +3541,9 @@ impl LocalSnapback {
 
     /// Reacquire the app lane after keyring signing and consume the one-shot
     /// reservation only if the capture still exactly names the current head,
-    /// auth pair, activation, issuer, and empty obligation set.
+    /// auth pair, activation, issuer, and target-scoped empty obligation set.
+    /// Rechecking here means an obligation for this exact query that races
+    /// the capture/signing window still wins over the lease.
     pub(crate) fn reserve_captured_authorized_lease(
         &mut self,
         capture: AuthorizedLeaseCapture,
@@ -3545,10 +3555,18 @@ impl LocalSnapback {
             .issue
             .require_issued_lease(lease, issued_at_server_ms)?;
         capture.admission.validate("authorized lease reservation")?;
+        // @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
+        // the reservation proof blocks only obligations capable of
+        // quarantining/deleting this exact query instance (ENG-24989).
+        let lease_target = QueryNamespace {
+            client_store_id: capture.issue.client_store_id.clone(),
+            query_key: capture.issue.query_key.clone(),
+            query_instance_id: capture.issue.query_instance_id,
+        };
         let no_pending_obligation = self
             .auth_invalidation
             .as_ref()
-            .is_some_and(|state| state.obligations.pending_all().is_empty());
+            .is_some_and(|state| !state.obligations.blocks_lease_target(&lease_target));
         let current_issuer_id = self
             .auth_invalidation
             .as_ref()
@@ -12448,6 +12466,351 @@ globalThis.__snapbackHandlers = {
             .with_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
             .expect("read retry registry");
         assert_eq!(after, before);
+    }
+
+    /// Base instant for the durable lease-test session rows; far enough in the
+    /// future that real `now_millis()` samples stay below the session expiry.
+    const LEASE_SESSION_BASE_MS: u64 = 1_900_000_000_000;
+    const LEASE_SESSION_NOT_AFTER_MS: u64 = LEASE_SESSION_BASE_MS + 86_400_000;
+    const LEASE_AUTHORITY_INSTANCE: &str = "01890f3c-9d5b-7000-8000-000000000004";
+
+    /// A settled sessions-mode snapback with one durable session and one
+    /// declared userId-only retainable query, the full environment
+    /// `capture_authorized_lease_query`/`reserve_captured_authorized_lease`
+    /// demand.
+    fn retainable_sessions_snapback() -> LocalSnapback {
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "lease-app".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, 'a'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, 'c'),
+        };
+        let items = TableManifest {
+            name: "items".to_owned(),
+            fields: vec![FieldManifest {
+                name: "owner".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: vec![IndexManifest {
+                name: "by_owner".to_owned(),
+                fields: vec!["owner".to_owned()],
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+        };
+
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some(deployment.schema_hash.clone()),
+                tables: vec![items.clone()],
+                ..SchemaManifest::default()
+            })
+            .expect("apply lease schema");
+        let mut retained = FunctionDefinition::new(
+            "listOwned",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "owner".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                }],
+                order: Vec::new(),
+                limit: None,
+                indexed_by: Some("by_owner".to_owned()),
+            })),
+        );
+        retained.retainable = true;
+        retained.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        retained.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("items".to_owned()),
+            tables: vec!["items".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            bundle_hash: Some(deployment.bundle_hash.clone()),
+            functions: vec![retained],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
+            "unexpected function diagnostics: {diagnostics:?}"
+        );
+
+        let sessions_manifest = SchemaManifest {
+            schema_version: "snapback.v1".to_owned(),
+            app_id: "lease-app".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+            }),
+            schema_hash: Some(deployment.schema_hash.clone()),
+            inputs_hash: Some(deployment.inputs_hash.clone()),
+            tables: vec![items],
+            ..SchemaManifest::default()
+        };
+        let db = snapback.auth_database_mut();
+        db.stage_auth_mode(deployment, sessions_manifest, None)
+            .expect("stage sessions mode");
+        db.consume_sessions_auth_mode(&AuthProgramReadiness::new(
+            true, true, true, true, true, true, true,
+        ))
+        .expect("consume sessions mode");
+        db.activate_auth_catalog_v1().expect("activate auth catalog");
+        db.with_auth_transaction(|tx| {
+            use rusqlite::params;
+            tx.execute(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params!["user_1", LEASE_SESSION_BASE_MS as i64 - 1],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_identities(
+                   id, user_id, provider, subject, verified_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5)",
+                params![
+                    "identity_1",
+                    "user_1",
+                    "email-code",
+                    "lease@example.test",
+                    LEASE_SESSION_BASE_MS as i64 - 1,
+                ],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_sessions(
+                   id, user_id, identity_id, authority_instance_id, token_hash,
+                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                   absolute_expires_at_ms, revoked_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
+                params![
+                    "session_1",
+                    "user_1",
+                    "identity_1",
+                    LEASE_AUTHORITY_INSTANCE,
+                    vec![0x71_u8; 32],
+                    LEASE_SESSION_BASE_MS as i64 - 1,
+                    LEASE_SESSION_NOT_AFTER_MS as i64,
+                    (LEASE_SESSION_BASE_MS + 2 * 86_400_000) as i64,
+                ],
+            )?;
+            Ok(())
+        })
+        .expect("insert lease session rows");
+        snapback
+    }
+
+    fn lease_session_authority() -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Session {
+                user_id: "user_1".to_owned(),
+                session_id: "session_1".to_owned(),
+                provider: "email-code".to_owned(),
+                generation: 1,
+                authority_instance_id: LEASE_AUTHORITY_INSTANCE.to_owned(),
+                session_not_after_ms: LEASE_SESSION_NOT_AFTER_MS,
+                provider_not_after_ms: None,
+            },
+        )
+        .expect("prepare lease session authority")
+    }
+
+    fn lease_target_namespace() -> QueryNamespace {
+        QueryNamespace {
+            client_store_id: "store_lease".to_owned(),
+            query_key: "listOwned:{}".to_owned(),
+            query_instance_id: 41,
+        }
+    }
+
+    fn lease_request(request_id: &str) -> crate::auth::lease::AuthorizedLeaseRequestIdentity {
+        let target = lease_target_namespace();
+        crate::auth::lease::AuthorizedLeaseRequestIdentity {
+            lease_request_id: request_id.to_owned(),
+            client_store_id: target.client_store_id,
+            query_key: target.query_key,
+            query_instance_id: target.query_instance_id,
+        }
+    }
+
+    fn raise_client_query_obligation(snapback: &mut LocalSnapback, namespace: QueryNamespace) {
+        let state = snapback
+            .auth_invalidation
+            .as_mut()
+            .expect("installed invalidation state");
+        let witness = state.witness(0);
+        let cause = state.reserve_cause_sequence().expect("cause sequence");
+        state
+            .obligations
+            .raise(
+                ScopeId::ClientQuery { namespace },
+                cause,
+                format!("test:{cause}"),
+                InvalidationDisposition::Quarantine,
+                witness,
+                None,
+            )
+            .expect("raise test obligation");
+    }
+
+    fn discharge_client_query_obligation(snapback: &mut LocalSnapback, namespace: QueryNamespace) {
+        let state = snapback
+            .auth_invalidation
+            .as_mut()
+            .expect("installed invalidation state");
+        let witness = state.witness(0);
+        let scope = ScopeId::ClientQuery { namespace };
+        let ticket = state
+            .obligations
+            .issue_resolution(&scope, ResolutionKind::Snapshot, witness)
+            .expect("issue test resolution");
+        assert!(matches!(
+            state
+                .obligations
+                .acknowledge(&ticket.ack_token, true)
+                .expect("acknowledge test resolution"),
+            crate::auth::invalidation::AcknowledgeOutcome::Discharged
+        ));
+    }
+
+    fn sign_captured_lease(
+        capture: &super::AuthorizedLeaseCapture,
+        issued_at_server_ms: u64,
+    ) -> crate::auth::lease::AuthorizedLease {
+        crate::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
+            "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
+            [0x31; 32],
+        )
+        .issue(
+            capture.issue.clone(),
+            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            issued_at_server_ms,
+            &capture.target_profile_id,
+            &capture.app_id,
+        )
+        .expect("sign captured lease")
+    }
+
+    /// ENG-24989: one user's unresolved obligation must not deny lease
+    /// issuance for every other user and query; only an obligation capable of
+    /// quarantining/deleting the exact lease target blocks (LLP 0053 issuance
+    /// proof item 4).
+    #[test]
+    fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_ones() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        // User A withholds ACKs for a different client store, and for the
+        // same canonical key at a different query instance.
+        let mut other_store = lease_target_namespace();
+        other_store.client_store_id = "store_other_user".to_owned();
+        raise_client_query_obligation(&mut snapback, other_store);
+        let mut other_instance = lease_target_namespace();
+        other_instance.query_instance_id += 1;
+        raise_client_query_obligation(&mut snapback, other_instance);
+
+        // User B's lease for an untouched target still issues end to end.
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_unrelated_1"),
+            )
+            .expect("unrelated obligations must not block capture");
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("unrelated obligations must not block reservation");
+
+        // An obligation for the exact target namespace still fails capture
+        // closed.
+        raise_client_query_obligation(&mut snapback, lease_target_namespace());
+        let error = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_matching_1"),
+            )
+            .map(|_| ())
+            .expect_err("a matching obligation must block capture");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_INVALIDATION_PENDING");
+    }
+
+    /// ENG-24989: the reservation-time recheck stays in place, so a matching
+    /// obligation racing the capture/signing window still wins — while an
+    /// unrelated obligation raised in that window does not.
+    #[test]
+    fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_race_matching"),
+            )
+            .expect("clean capture");
+        raise_client_query_obligation(&mut snapback, lease_target_namespace());
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        let error = snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect_err("a racing matching obligation must fail the reservation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+
+        // Once that exact obligation is applied and ACKed, a fresh capture
+        // succeeds even when an unrelated obligation races the same window.
+        discharge_client_query_obligation(&mut snapback, lease_target_namespace());
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_race_unrelated"),
+            )
+            .expect("discharged target allows a fresh capture");
+        let mut unrelated = lease_target_namespace();
+        unrelated.client_store_id = "store_other_user".to_owned();
+        raise_client_query_obligation(&mut snapback, unrelated);
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("a racing unrelated obligation must not fail the reservation");
     }
 
     #[test]
