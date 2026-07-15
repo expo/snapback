@@ -38,6 +38,7 @@ export default defineContractModule('./data.ts', {
   serviceColor: pure({ params: ['service'], result: 'string', depends: 'args' }),
   serviceTint: pure({ params: ['service', 'scheme'], result: 'string', depends: 'args' }),
   etaModeLabel: pure({ params: ['mode'], result: 'string', depends: 'args' }),
+  effectiveEtaMode: pure({ params: ['station', 'mode', 'location'], result: 'string', depends: 'args' }),
   walkBikeLine: pure({ params: ['station', 'mode', 'location', 'routeEstimate'], result: 'string', depends: 'args' }),
   routeEstimateRefreshDeadline: pure({ params: ['nowMs'], result: 'number', depends: 'args' }),
   directionsLabel: pure({ params: ['station', 'mode', 'location'], result: 'string', depends: 'args' }),
@@ -56,6 +57,10 @@ export default defineContractModule('./data.ts', {
   fractionPercent: pure({ params: ['fraction'], result: 'string', depends: 'args' }),
 
   requestGeolocationRefresh: capability({ params: {}, effects: ['device.location.request'] }),
+  openDirectionsLink: capability({
+    params: { stationId: 'string', app: 'string', mode: 'string' },
+    effects: ['device.url.open'],
+  }),
   openClipperLink: capability({ params: {}, effects: ['device.url.open'] }),
   loadRouteEstimate: capability({
     params: {

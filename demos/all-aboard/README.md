@@ -29,7 +29,8 @@ expanding into the selected card where the browser supports it — and
 tapping the selected card opens the trip detail, which leads with the
 minutes until that train reaches your station. The header distance line is a directions affordance (tap =
 preferred maps app, long-press = Apple Maps / Google Maps / copy-address
-sheet; ETA mode auto-picks biking beyond an 18-minute walk). The sticky
+sheet; the URL-open intent uses Exact's native shell bridge and the browser's
+window.open fallback; ETA mode auto-picks biking beyond an 18-minute walk). The sticky
 footer carries the live-status dot (green live / gray not, with the honest
 DEMO DATA / SCHEDULE / STALE label when not live), the "Switch to
 Southbound/Northbound" direction control (gray, so it never reads as the

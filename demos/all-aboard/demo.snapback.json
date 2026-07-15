@@ -79,7 +79,8 @@
       "exact": {
         "gestures": true,
         "geolocation": true,
-        "image": true
+        "image": true,
+        "urlOpen": true
       },
       "interactionModel": "Contract pager/key declarations compile to Exact's shared recognizer, arena, witness, and command path on web and the main-owned native Motion path on macOS/iOS (Exact LLP 0336 P1/P2); visible press affordances remain the agent/test path"
     },
@@ -149,7 +150,7 @@
       "train rows select on tap and sooner trains stay visible in compact form when a later train is selected (ENG-23795)",
       "the sticky footer carries the status dot (green live / gray not, honest non-live label), the location indicator, the Switch-to direction control, and system-style refresh/settings icons (ENG-23795)",
       "the footer gear opens the settings sheet (no bottom tabs, ENG-23719)",
-      "directions: tap on the distance line opens the preferred maps app; long-press opens the bottom sheet with Apple/Google/copy-address actions; the maps-app preference cycles in Settings and persists (ENG-23795)",
+      "directions: tap on the distance line opens the preferred maps app on web and native through one Contract capability; long-press opens the bottom sheet with Apple/Google/copy-address actions; the maps-app preference cycles in Settings and persists (ENG-23795, ENG-24997)",
       "the stations list carries the end-of-line hint — ellipsis + terminal stop + arrival time (ENG-23795)",
       "the Settings ETA mode toggles walk/bike estimates app-wide (E4, ENG-22450; auto default resolves to bike beyond an 18-minute walk, ENG-23795)"
     ],
@@ -166,7 +167,7 @@
     ]
   },
   "capabilityGaps": [
-    "native_maps_open_and_clipboard_capabilities",
+    "native_clipboard_capability",
     "action_egress_per_host_allowlist",
     "exact_gtfs_trip_matching",
     "notifications",
@@ -182,12 +183,12 @@
     "stationArt": "header scenes are the ENG-23684 hand-drawn originals (3 per station, 640x1136 SVG), inlined by scripts/gen-station-art.mjs into station-art.gen.mjs (~0.9MB source) and rotated by epoch day (ENG-23719) — zero runtime egress, deterministic, no attribution needed; the older poster-stylized Wikimedia photo module (station-photos.gen.mjs, ~1.5MB, credit line required) remains for the React control arm; flowing assets through the asset-storage subsystem instead of inlining is the follow-up",
     "egress": "opt-in via SNAPBACK_OUTBOUND_ACTIONS; product fetches are action-scoped and secret-backed, but the runtime grant is still coarse network:fetch rather than per-host allowlisted",
     "gestures": "Exact LLP 0336 P1/P2 closed the pager gap with Contract pager declarations, shared command witnesses, web recognition, and native Motion; richer directional-flick vocabulary remains Exact ENG-24184 and is not required by this app",
-    "mapsApps": "the directions affordance declares press= and longpress= (a real Contract event delivered on web and native) and opens the actions sheet. The persisted maps-app choice is ordinary realm-lifetime Contract application state with best-effort localStorage mirroring, not host state. Web glue owns URL opening and clipboard side effects; native URL-opening/clipboard host capabilities remain the gap (ENG-23795).",
+    "mapsApps": "the directions affordance declares press= and longpress= (real Contract events delivered on web and native). Press and the sheet's Apple/Google rows invoke a named device.url.open capability: Exact native hosts use desktop.shell.openExternal and browsers retain window.open. The persisted maps-app choice is ordinary realm-lifetime Contract application state with best-effort localStorage mirroring, not host state. Copy-address remains browser clipboard glue (ENG-23795, ENG-24997).",
     "webChrome": "the Exact plugin's shell 'auto' mode preserves the surface's own index.html (ENG-22445), which carries the page chrome; main.ts installWebChrome keeps an idempotent copy of the same rules so the surface also survives generated-shell hosts (height chain, dark backdrop, touch-action rules)"
   },
   "notClaiming": [
     "exact static GTFS schedule parity or GTFS-RT trip-to-schedule identity matching",
-    "native maps-app deep-linking or clipboard (web glue opens URLs and copies; native hosts get the sheet without those side effects)",
+    "native clipboard for the copy-address row (URL opening is cross-platform through Exact's desktop.shell.openExternal bridge)",
     "notifications / leave-now",
     "offline/local-first live positions",
     "multi-agency, fares, or trip planning",
