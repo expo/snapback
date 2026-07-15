@@ -70,7 +70,36 @@ class DeferredBroadcastHub {
       }
     }
   }
+
+  deliverPhases(phases) {
+    const byPhase = new Map(this.queued.map((entry) => [entry.message.phase, entry]));
+    for (const phase of phases) {
+      const entry = byPhase.get(phase);
+      assert.ok(entry, `missing queued ${phase} broadcast`);
+      for (const peer of this.channels.get(entry.name) ?? []) {
+        if (peer !== entry.from) peer.onmessage?.({ data: structuredClone(entry.message) });
+      }
+    }
+  }
 }
+
+const uniquePermutations = (values) => {
+  const permutations = new Map();
+  const visit = (remaining, prefix = []) => {
+    if (remaining.length === 0) {
+      permutations.set(prefix.join(','), prefix);
+      return;
+    }
+    for (let index = 0; index < remaining.length; index += 1) {
+      visit(
+        [...remaining.slice(0, index), ...remaining.slice(index + 1)],
+        [...prefix, remaining[index]],
+      );
+    }
+  };
+  visit(values);
+  return [...permutations.values()];
+};
 
 // Boundary mock that records every write so the test can prove a value was
 // never exposed, not merely that it is gone by the time we look.
@@ -340,6 +369,63 @@ const buildFixture = async ({ broadcastChannelFactory, firstIncarnation }) => {
   await surface.dispose();
   await coordinator.close();
   await writer.close();
+}
+
+// @ref LLP 0059#coordinator-and-two-context-races — exhaust the meaningful
+// clearing/settled wakeup schedules: either message may be dropped, delayed,
+// reversed, or duplicated in every unique two-of-each ordering. Broadcast is
+// never authority; the lifecycle gate converges from the settled durable row.
+{
+  const deliveryPlans = [
+    [],
+    ['clearing'],
+    ['settled'],
+    ['clearing', 'settled'],
+    ['settled', 'clearing'],
+    ...uniquePermutations(['clearing', 'clearing', 'settled', 'settled']),
+  ];
+  for (const [index, plan] of deliveryPlans.entries()) {
+    const state = { custody: {} };
+    const hub = new DeferredBroadcastHub();
+    const appId = `${APP}/broadcast-matrix/${index}`;
+    const writer = new AuthCoordinator({
+      appId,
+      storage: createMemoryAuthCustodyStorage({ state }),
+      broadcastChannelFactory: hub.factory,
+      hintStorage: null,
+    });
+    const captureA = await writer.establishAnonymous(anonymous(INC_A));
+    const receiver = new AuthCoordinator({
+      appId,
+      storage: createMemoryAuthCustodyStorage({ state }),
+      broadcastChannelFactory: hub.factory,
+      hintStorage: null,
+    });
+    await receiver.synchronize();
+    hub.queued = [];
+
+    const captureB = await writer.transition(
+      captureA,
+      anonymous(INC_B),
+      `broadcast_matrix_${index}`,
+    );
+    assert.deepEqual(
+      [...new Set(hub.queued.map((entry) => entry.message.phase))].sort(),
+      ['clearing', 'settled'],
+      'one transition emits both secret-free wakeup phases',
+    );
+    hub.deliverPhases(plan);
+    const adopted = await receiver.synchronize();
+    assert.equal(adopted.authorityEpoch, captureB.authorityEpoch, plan.join(' -> ') || 'drop all');
+    assert.equal(
+      receiver.settledView().authority.authorizationStreamIncarnation,
+      INC_B,
+      plan.join(' -> ') || 'drop all',
+    );
+    assert.equal(receiver.isCurrent(captureA), false, plan.join(' -> ') || 'drop all');
+    await receiver.close();
+    await writer.close();
+  }
 }
 
 console.log('auth-coordinator-missed-wakeup.test.mjs: all assertions passed');

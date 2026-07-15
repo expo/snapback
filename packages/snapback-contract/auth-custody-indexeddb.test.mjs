@@ -54,6 +54,24 @@ const expectCode = async (code, operation) => {
   await assert.rejects(operation, (error) => error?.code === code);
 };
 
+const readIndexedDbRecord = (indexedDB, databaseName, storeName, key) => new Promise((resolve, reject) => {
+  const open = indexedDB.open(databaseName, 1);
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const database = open.result;
+    const transaction = database.transaction(storeName, 'readonly');
+    const request = transaction.objectStore(storeName).get(key);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const value = structuredClone(request.result ?? null);
+      transaction.oncomplete = () => {
+        database.close();
+        resolve(value);
+      };
+    };
+  };
+});
+
 class DeterministicLockManager {
   #tails = new Map();
 
@@ -216,6 +234,197 @@ class DeterministicLockManager {
   // The taken-over holder fails closed on completion rather than resolving.
   await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => staleTask);
   await Promise.all([stale.close(), successor.close()]);
+}
+
+// Two consecutive fallback takeovers allocate exact predecessor + 1 fencing
+// tokens. Neither of the two paused former holders can return successfully or
+// expire the final holder's lease when it resumes.
+{
+  const indexedDB = new IDBFactory();
+  const databaseName = 'snapback-auth-custody-two-takeover-test';
+  let wallMs = 75_000;
+  let monotonicMs = 0;
+  const options = {
+    indexedDB,
+    lockManager: null,
+    cryptoObject: webcrypto,
+    databaseName,
+    wallNow: () => wallMs,
+    monotonicNow: () => monotonicMs,
+  };
+  const holders = [
+    createIndexedDbAuthCustodyStorage(options),
+    createIndexedDbAuthCustodyStorage(options),
+    createIndexedDbAuthCustodyStorage(options),
+  ];
+  const entered = [deferred(), deferred(), deferred()];
+  const release = [deferred(), deferred(), deferred()];
+  const tasks = [];
+  const startHolder = (index) => holders[index].withOwnership(APP, async (owner) => {
+    entered[index].resolve();
+    await release[index].promise;
+    if (index === 2) return owner.replace(null, settledAnonymous());
+    return null;
+  });
+
+  tasks[0] = startHolder(0);
+  await entered[0].promise;
+  assert.equal(
+    (await readIndexedDbRecord(indexedDB, databaseName, 'leases', APP)).fencingToken,
+    1,
+  );
+  wallMs += AUTH_CUSTODY_LEASE_MS + 1;
+  monotonicMs += AUTH_CUSTODY_LEASE_MS + 1;
+  tasks[1] = startHolder(1);
+  await entered[1].promise;
+  assert.equal(
+    (await readIndexedDbRecord(indexedDB, databaseName, 'leases', APP)).fencingToken,
+    2,
+  );
+  wallMs += AUTH_CUSTODY_LEASE_MS + 1;
+  monotonicMs += AUTH_CUSTODY_LEASE_MS + 1;
+  tasks[2] = startHolder(2);
+  await entered[2].promise;
+  assert.equal(
+    (await readIndexedDbRecord(indexedDB, databaseName, 'leases', APP)).fencingToken,
+    3,
+    'the second takeover increments the exact first-takeover token',
+  );
+
+  release[0].resolve();
+  release[1].resolve();
+  await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => tasks[0]);
+  await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => tasks[1]);
+  release[2].resolve();
+  assert.deepEqual(await tasks[2], settledAnonymous());
+  assert.equal(
+    (await readIndexedDbRecord(indexedDB, databaseName, 'leases', APP)).fencingToken,
+    3,
+    'stale release cannot replace the final holder lease',
+  );
+  await Promise.all(holders.map((holder) => holder.close()));
+}
+
+// @ref LLP 0059#coordinator-and-two-context-races — model a Web-Lock owner
+// context dying at every durable/participant cut. The rejected lock callback
+// releases ownership; a fresh context reloads either settled A or clearing B,
+// reruns the complete local barrier, and exposes only settled B.
+for (const failurePoint of [
+  'before-clearing',
+  'quiesce',
+  'blank',
+  'clearMemory',
+  'commitDurable',
+  'before-settled-publication',
+  'resume',
+]) {
+  const appId = `${APP}/owner-kill/${failurePoint}`;
+  const indexedDB = new IDBFactory();
+  const locks = new DeterministicLockManager();
+  const options = {
+    indexedDB,
+    lockManager: locks,
+    cryptoObject: webcrypto,
+    databaseName: `snapback-auth-custody-owner-kill-${failurePoint}`,
+  };
+  const ownerBase = createIndexedDbAuthCustodyStorage(options);
+  let failureArmed = false;
+  const ownerStorage = {
+    withOwnership: (ownedAppId, operation) => ownerBase.withOwnership(ownedAppId, (owner) => operation({
+      ...owner,
+      replace: async (expectedRevision, next) => {
+        if (
+          failureArmed
+          && (
+            (failurePoint === 'before-clearing' && next.phase === 'clearing')
+            || (failurePoint === 'before-settled-publication' && next.phase === 'settled')
+          )
+        ) {
+          throw new Error(`simulated owner death at ${failurePoint}`);
+        }
+        return owner.replace(expectedRevision, next);
+      },
+    })),
+  };
+  const ownerCoordinator = new AuthCoordinator({
+    appId,
+    storage: ownerStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const captureA = await ownerCoordinator.establishAnonymous(anonymousAuthority(INCARNATION));
+  let participantFailed = false;
+  const failParticipant = (phase) => {
+    if (!participantFailed && failurePoint === phase) {
+      participantFailed = true;
+      throw new Error(`simulated owner death during ${phase}`);
+    }
+  };
+  ownerCoordinator.registerParticipant({
+    name: `owner-dies-${failurePoint}`,
+    async quiesce() { failParticipant('quiesce'); },
+    blank() { failParticipant('blank'); },
+    clearMemory() { failParticipant('clearMemory'); },
+    async commitDurable() { failParticipant('commitDurable'); },
+    async resume() { failParticipant('resume'); },
+  });
+  failureArmed = true;
+  const interruptedTransition = () => ownerCoordinator.transition(
+    captureA,
+    { authority: anonymousAuthority(INCARNATION_B), bearer: null, refreshAfterMs: null },
+    `owner_kill_${failurePoint}`,
+  );
+  if (failurePoint === 'before-clearing') {
+    await assert.rejects(interruptedTransition, /simulated owner death at before-clearing/);
+  } else {
+    await expectCode('SNAPBACK_AUTH_TRANSITION_FAILED', interruptedTransition);
+  }
+  await ownerCoordinator.close();
+  await ownerBase.close();
+
+  const recoveryStorage = createIndexedDbAuthCustodyStorage(options);
+  const recovery = new AuthCoordinator({
+    appId,
+    storage: recoveryStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const recoveryPhases = [];
+  recovery.registerParticipant({
+    name: `recovery-${failurePoint}`,
+    async quiesce() { recoveryPhases.push('quiesce'); },
+    blank() { recoveryPhases.push('blank'); },
+    clearMemory() { recoveryPhases.push('clearMemory'); },
+    async commitDurable() { recoveryPhases.push('commitDurable'); },
+    async resume() { recoveryPhases.push('resume'); },
+  });
+  assert.throws(
+    () => recovery.capture(),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+    `${failurePoint}: a fresh context begins blank`,
+  );
+  let captureB = await recovery.synchronize();
+  if (failurePoint === 'before-clearing') {
+    captureB = await recovery.transition(
+      captureB,
+      { authority: anonymousAuthority(INCARNATION_B), bearer: null, refreshAfterMs: null },
+      `recovery_${failurePoint}`,
+    );
+  }
+  assert.equal(captureB.authorityEpoch, captureA.authorityEpoch + 1, failurePoint);
+  assert.equal(
+    recovery.settledView().authority.authorizationStreamIncarnation,
+    INCARNATION_B,
+    failurePoint,
+  );
+  for (const phase of ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume']) {
+    assert.equal(recoveryPhases.includes(phase), true, `${failurePoint}: recovery ran ${phase}`);
+  }
+  const durable = await recoveryStorage.withOwnership(appId, (owner) => owner.read());
+  assert.equal(durable.phase, 'settled', failurePoint);
+  assert.equal(durable.authority.authorizationStreamIncarnation, INCARNATION_B, failurePoint);
+  await recovery.close();
+  await recoveryStorage.close();
 }
 
 // ENG-24985: without Web Locks, the fallback lease can expire after

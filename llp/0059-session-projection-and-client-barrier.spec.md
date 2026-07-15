@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-25001 defect resolution: durable terminal
+**Revised:** 2026-07-15 (blind-review readiness closure: landed two consecutive
+fallback takeovers, every named Web-Lock-owner loss cut, the finite
+duplicate/reordered/dropped broadcast matrix, the delayed stale-authority
+one-key localStorage writer, and coordinator/expiry-worker construction
+failure before socket bind; production now consumes the `SnapbackApp`
+construction receipt before acquiring the listener). 2026-07-15 (ENG-25001 defect resolution: durable terminal
 frontiers and monotonic restore; coordinator-only protocol 1; custody format 2
 transition intent with embedded-authority validation; ownership release before
 resume/network; terminal `auth_error` frame or `4401/auth_error` close latch;
@@ -1971,14 +1976,17 @@ wall-clock sleeps are not proof of ordering.
    resume, B reloads and blanks before its first callback, render publication,
    reconnect, or app operation.
 
-The landed coordinator suite proves ordered participant phases, clearing-state
-recovery, delayed/missed wakeups, and stale-owner rejection. The implementation
-allocates the fallback lease token as exact predecessor plus one, but an
-explicit two-takeover increment assertion remains part of item 4's acceptance.
-The stronger matrix above remains normative: it does not yet claim exhaustive
-per-phase owner-process kills or every duplicate/reordered broadcast
-permutation as landed merely because the underlying durable reload behavior is
-covered.
+The landed coordinator suites now prove ordered participant phases,
+clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
+consecutive fallback takeovers whose fencing tokens advance exact predecessor
+plus one. The Web-Lock harness kills its owner before the clearing write, in
+each of `quiesce`, `blank`, `clearMemory`, `commitDurable`, and `resume`, and
+before settled publication; every successor begins blank, reloads durable
+custody, reruns its complete local barrier, and exposes only settled successor
+authority. The broadcast harness delays delivery until durable settlement and
+exercises drop-all, either single phase, both phase orders, and every unique
+permutation of duplicate clearing/settled messages. These are readiness-gating
+tests, not claims inferred from the underlying reload mechanism.
 
 ### Client store and Contract boundaries
 
@@ -2048,8 +2056,9 @@ invariant across an externally enableable commit:
 5. revised the closed handshake DTO, derived activation facts from opaque typed
    plans issued by the actual connection, two-phase runtime, and canonical
    coordinator construction edges, consumed those same plans to construct the
-   app, rebuild the coordinator, and spawn the worker before bind, and ran the
-   interleaving and activation matrix; and
+   app, rebuild the coordinator, and spawn the worker before acquiring a socket,
+   and ran the interleaving and activation matrix; coordinator and worker
+   construction-failure tests prove the selected port remains unbound; and
 6. ran `./ref-check --verbose` and added non-mechanical `@ref LLP 0059#...`
    annotations at each non-obvious ticket, lock-order, fence, custody, and
    epoch-CAS implementation boundary.

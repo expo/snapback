@@ -1079,6 +1079,61 @@ assert.deepEqual(
   ['fromTabA', 'fromTabB', 'takeoverTab'],
 );
 
+// @ref LLP 0059#format-3-and-authority-tags — an old asynchronous writer may
+// retain only its captured authority/queue tuple. If a successor settles while
+// that work is paused, the eventual one-key Web-Lock holder must reload the
+// successor bytes and reject before replacing the sole localStorage record.
+{
+  const authorityKeyA = `sha256:${'a'.repeat(64)}`;
+  const authorityKeyB = `sha256:${'b'.repeat(64)}`;
+  const key = 'stale-authority-writer';
+  const bytes = new Map();
+  const storage = {
+    getItem(name) { return bytes.get(name) ?? null; },
+    setItem(name, value) { bytes.set(name, value); },
+  };
+  const locks = createTestLockManager();
+  const staleTab = createLocalStorageSnapbackClientStore({ storage, key, lockManager: locks });
+  const successorTab = createLocalStorageSnapbackClientStore({ storage, key, lockManager: locks });
+  const authorityA = { authorityEpoch: 0, authorityKey: authorityKeyA };
+  await staleTab.bindAuthority({ ...authorityA, authMode: 'dev' });
+  const staleQueue = await staleTab.captureMutationQueue(authorityA);
+
+  let releaseStale;
+  let staleStarted = false;
+  const staleGate = new Promise((resolve) => { releaseStale = resolve; });
+  const staleWriter = (async () => {
+    staleStarted = true;
+    await staleGate;
+    return staleTab.enqueueMutation({
+      function: 'mustNotLandUnderSuccessor',
+      ...authorityA,
+      ...staleQueue,
+    });
+  })();
+  await Promise.resolve();
+  assert.equal(staleStarted, true);
+
+  await successorTab.transitionAuthority({
+    expectedEpoch: 0,
+    nextEpoch: 1,
+    nextAuthorityKey: authorityKeyB,
+  });
+  const successorBytes = bytes.get(key);
+  releaseStale();
+  await assert.rejects(
+    staleWriter,
+    { code: 'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE' },
+    'the delayed predecessor writer reloads and rejects under the Web Lock',
+  );
+  assert.equal(bytes.get(key), successorBytes, 'stale rejection leaves the one stored key unchanged');
+  assert.deepEqual(await successorTab.authorityScope(), {
+    authorityEpoch: 1,
+    authorityKey: authorityKeyB,
+  });
+  assert.deepEqual(await successorTab.pendingMutations(), []);
+}
+
 // A durable enqueue failure must roll back the already-rendered optimistic
 // row and fail before contacting the server. Otherwise every later server-row
 // write would re-apply a mutation that was neither sent nor safely queued.

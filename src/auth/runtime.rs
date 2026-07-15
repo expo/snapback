@@ -54,6 +54,8 @@ pub enum AuthProviderHealth {
 /// bound here; it is not a freely minted readiness flag.
 pub(crate) struct TwoPhaseRevocationConstructionReceipt {
     provider: Arc<AuthProvider>,
+    #[cfg(test)]
+    fail_before_ready: bool,
 }
 
 /// A construction plan bound to one inspected runtime/provider. Production
@@ -61,6 +63,8 @@ pub(crate) struct TwoPhaseRevocationConstructionReceipt {
 pub(crate) struct AuthCoordinatorConstructionReceipt {
     provider: Arc<AuthProvider>,
     _canonical_client_module: &'static [u8],
+    #[cfg(test)]
+    fail_before_build: bool,
 }
 
 pub(crate) struct AuthCoordinatorInstalledReceipt {
@@ -74,7 +78,17 @@ impl TwoPhaseRevocationConstructionReceipt {
         coordinator: Arc<AuthCoordinator>,
         terminal_sink: AuthExpiryTerminalSink,
     ) -> SnapbackResult<AuthExpiryWorker> {
+        #[cfg(test)]
+        if self.fail_before_ready {
+            return spawn_failed_auth_expiry_worker_for_test().await;
+        }
         spawn_auth_expiry_worker(state, coordinator, self.provider, terminal_sink).await
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fail_before_ready_for_test(mut self) -> Self {
+        self.fail_before_ready = true;
+        self
     }
 }
 
@@ -84,6 +98,14 @@ impl AuthCoordinatorConstructionReceipt {
         runtime: &AuthRuntime,
         snapback: &mut LocalSnapback,
     ) -> SnapbackResult<(Arc<AuthCoordinator>, AuthCoordinatorInstalledReceipt)> {
+        #[cfg(test)]
+        if self.fail_before_build {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "injected auth coordinator construction failure",
+            ));
+        }
         if !Arc::ptr_eq(&self.provider, &runtime.provider) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -95,6 +117,12 @@ impl AuthCoordinatorConstructionReceipt {
             runtime.build_coordinator(snapback)?,
             AuthCoordinatorInstalledReceipt { _private: () },
         ))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fail_before_build_for_test(mut self) -> Self {
+        self.fail_before_build = true;
+        self
     }
 }
 
@@ -225,6 +253,8 @@ impl AuthRuntime {
     ) -> TwoPhaseRevocationConstructionReceipt {
         TwoPhaseRevocationConstructionReceipt {
             provider: self.provider(),
+            #[cfg(test)]
+            fail_before_ready: false,
         }
     }
 
@@ -239,6 +269,8 @@ impl AuthRuntime {
             _canonical_client_module: include_bytes!(
                 "../../packages/snapback-contract/auth-coordinator.mjs"
             ),
+            #[cfg(test)]
+            fail_before_build: false,
         }
     }
 
@@ -520,6 +552,13 @@ pub(crate) async fn spawn_auth_expiry_worker(
                 .map_err(ProviderError::into_snapback_error)?;
         }
     });
+    finish_auth_expiry_worker_start(handle, running).await
+}
+
+async fn finish_auth_expiry_worker_start(
+    handle: JoinHandle<SnapbackResult<()>>,
+    running: oneshot::Receiver<()>,
+) -> SnapbackResult<AuthExpiryWorker> {
     running.await.map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -528,6 +567,20 @@ pub(crate) async fn spawn_auth_expiry_worker(
         )
     })?;
     Ok(AuthExpiryWorker { handle })
+}
+
+#[cfg(test)]
+async fn spawn_failed_auth_expiry_worker_for_test() -> SnapbackResult<AuthExpiryWorker> {
+    let (ready, running) = oneshot::channel::<()>();
+    let handle = tokio::spawn(async move {
+        drop(ready);
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "injected expiry worker construction failure",
+        ))
+    });
+    finish_auth_expiry_worker_start(handle, running).await
 }
 
 fn provider_unavailable_diagnostic() -> Diagnostic {

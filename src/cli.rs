@@ -430,6 +430,13 @@ fn runtime_auth_program_readiness(
     )
 }
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AuthConstructionFailure {
+    Coordinator,
+    ExpiryWorker,
+}
+
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(about = "Run the Snapback local development server")]
 pub struct Args {
@@ -480,6 +487,11 @@ pub struct Args {
     /// loopback plus a reverse proxy is not an attestation.
     #[arg(long, value_enum, default_value = "local")]
     pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+
+    /// Unit-test-only injection at the two fallible construction receipts.
+    #[cfg(test)]
+    #[arg(skip)]
+    auth_construction_failure: Option<AuthConstructionFailure>,
 }
 
 impl Default for Args {
@@ -496,6 +508,8 @@ impl Default for Args {
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            #[cfg(test)]
+            auth_construction_failure: None,
         }
     }
 }
@@ -1743,6 +1757,20 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let two_phase_revocation_receipt =
         auth_runtime.two_phase_revocation_construction_receipt();
     let auth_coordinator_receipt = auth_runtime.auth_coordinator_construction_receipt();
+    #[cfg(test)]
+    let auth_coordinator_receipt = match args.auth_construction_failure {
+        Some(AuthConstructionFailure::Coordinator) => {
+            auth_coordinator_receipt.fail_before_build_for_test()
+        }
+        _ => auth_coordinator_receipt,
+    };
+    #[cfg(test)]
+    let two_phase_revocation_receipt = match args.auth_construction_failure {
+        Some(AuthConstructionFailure::ExpiryWorker) => {
+            two_phase_revocation_receipt.fail_before_ready_for_test()
+        }
+        _ => two_phase_revocation_receipt,
+    };
     let auth_construction_receipts = AuthProgramConstructionReceipts {
         connection_binding: Some(&connection_binding_receipt),
         two_phase_revocation: Some(&two_phase_revocation_receipt),
@@ -1861,6 +1889,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         Some(registry) => app_state.with_impersonation_capabilities(registry),
         None => app_state,
     };
+    // Consume the connection-binding construction receipt before acquiring a
+    // socket. `SnapbackApp::bind` later installs listener-owned transport
+    // posture into this already-complete application.
+    // @ref LLP 0059#handshake-and-activation — construction failure precedes socket acquisition.
+    let app = connection_binding_receipt.build(app_state.clone());
     let auth_terminal_sink = app_state.auth_terminal_lifecycle.expiry_sink();
     // The expiry authority is process-critical in sessions mode. Construct it,
     // wait for its running handshake, and only then bind any listener.
@@ -1894,7 +1927,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     debug_assert_eq!(loopback, local_addr.ip().is_loopback());
     let published_server_context = Arc::make_mut(&mut app_state.server);
     published_server_context.record_bound_address(local_addr);
-    let app = connection_binding_receipt.build(app_state.clone());
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
     }
@@ -3579,13 +3611,14 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, AuthCommand, AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand, ManagedPath, ReadyFileTarget,
-        ResolvedHttpTarget, TargetArgs, bind_first_available, bind_listener, managed_startup_paths,
-        mint_secret_read_via_http, parse_run_args, path_with_filename_suffix,
-        prepare_database_path, prepare_database_path_for_startup, reject_misdirected_serve_flags,
-        resolve_http_target, runtime_auth_program_readiness, validate_path_disjointness,
-        validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
+        Args, AuthCommand, AuthConstructionFailure, AuthCoordinatorReadinessReceipt,
+        AuthProgramConstructionReceipts, BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand,
+        ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, bind_first_available,
+        bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
+        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
+        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
+        validate_path_disjointness, validated_secret_read_root_path, write_ready_file_atomic,
+        write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
     use clap::Parser;
@@ -4093,6 +4126,33 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn coordinator_and_worker_construction_fail_before_socket_bind() {
+        for failure in [
+            AuthConstructionFailure::Coordinator,
+            AuthConstructionFailure::ExpiryWorker,
+        ] {
+            let reservation = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+            let port = reservation.local_addr().unwrap().port();
+
+            let error = super::run(Args {
+                port: Some(port),
+                memory: true,
+                auth_construction_failure: Some(failure),
+                ..Args::default()
+            })
+            .await
+            .expect_err("the injected construction edge must abort startup");
+            assert!(
+                format!("{error:#}").contains("SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"),
+                "unexpected {failure:?} failure: {error:#}",
+            );
+            // Keeping this sentinel listener alive makes an accidental bind
+            // attempt fail with EADDRINUSE instead of the construction code.
+            drop(reservation);
+        }
+    }
+
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn sessions_consume_offloads_sqlite_from_async_workers() {
@@ -4401,6 +4461,7 @@ mod tests {
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            auth_construction_failure: None,
         })
         .await
         .expect_err("restored rows must not reach a listener without declaration authority");
@@ -4420,6 +4481,7 @@ mod tests {
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            auth_construction_failure: None,
         }));
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         while !ready.exists() {
