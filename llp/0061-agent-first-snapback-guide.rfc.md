@@ -5,7 +5,13 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-15 (r4 — the served guide: resolved open question 3 as
+**Revised:** 2026-07-15 (r5 — implementation program filed: ENG-25100
+(umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
+ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
+issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
+surface), ENG-25112 (Phase 3 console tab), and ENG-25113 (the Exact-side
+seam item, resolving §Relationship's one-directional caveat and open
+question 2's coordination half).) 2026-07-15 (r4 — the served guide: resolved open question 3 as
 **embedded-in-binary, always served** — every Snapback server build embeds
 the corpus and serves it read-only at `/_snapback/guide` (index, pages, and
 a flattened single-file projection `flat.md` generated from the manifest),
