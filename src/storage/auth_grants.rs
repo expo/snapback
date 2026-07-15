@@ -25,6 +25,8 @@ pub const DELEGATED_GRANT_DEFAULT_TTL_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const DELEGATED_GRANT_MAX_TTL_MS: u64 = 90 * 24 * 60 * 60 * 1_000;
 pub const GRANT_SCOPE_ENTRY_CAP: usize = 128;
 pub const GRANT_SCOPE_BYTES_CAP: usize = 16 * 1_024;
+const NON_OWNER_AGENT_WARNING: &str =
+    "You do not own this agent. Its owner or operator may re-credential it, which terminates this grant.";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -100,6 +102,8 @@ pub(crate) struct PendingGrantRequest {
     pub agent_user_id: String,
     pub agent_display_name: Option<String>,
     pub registration_provenance: String,
+    pub grantor_is_agent_owner: bool,
+    pub owner_assumption_warning: Option<String>,
     pub scopes: Vec<ExactGrantScope>,
     pub created_at_ms: u64,
     pub expires_at_ms: u64,
@@ -330,11 +334,15 @@ impl LocalDatabase {
             enforce_grant_caps_on(tx, &actor_user_id, effective_user_id, now_ms)?;
 
             let agent = agent_consent_identity_on(tx, &actor_user_id)?;
+            let (grantor_is_agent_owner, owner_assumption_warning) =
+                owner_assumption(&agent.2, effective_user_id);
             let expires_at_ms = grant_expires_at_ms;
             let consent_digest = consent_digest(
                 &actor_user_id,
                 agent.0.as_deref(),
                 &agent.1,
+                grantor_is_agent_owner,
+                owner_assumption_warning.as_deref(),
                 &scopes,
                 expires_at_ms,
             )?;
@@ -582,13 +590,18 @@ fn pending_request_on(
     created_at_ms: u64,
     expires_at_ms: u64,
 ) -> SnapbackResult<PendingGrantRequest> {
-    let (display_name, provenance) = agent_consent_identity_on(tx, agent_user_id)?;
+    let (display_name, provenance, owner_user_id) =
+        agent_consent_identity_on(tx, agent_user_id)?;
+    let (grantor_is_agent_owner, owner_assumption_warning) =
+        owner_assumption(&owner_user_id, effective_user_id);
     Ok(PendingGrantRequest {
         request_id: request_id.to_owned(),
         effective_user_id: effective_user_id.to_owned(),
         agent_user_id: agent_user_id.to_owned(),
         agent_display_name: display_name,
         registration_provenance: provenance,
+        grantor_is_agent_owner,
+        owner_assumption_warning,
         scopes: scopes.to_vec(),
         created_at_ms,
         expires_at_ms,
@@ -598,21 +611,38 @@ fn pending_request_on(
 fn agent_consent_identity_on(
     tx: &Transaction<'_>,
     agent_user_id: &str,
-) -> SnapbackResult<(Option<String>, String)> {
+) -> SnapbackResult<(Option<String>, String, Option<String>)> {
     tx.query_row(
-        "SELECT display_name, registration_provenance FROM _auth_users
+        "SELECT display_name, registration_provenance, owner_user_id FROM _auth_users
          WHERE id = ?1 AND kind = 'agent' AND deactivated_at_ms IS NULL",
         params![agent_user_id],
-        |row| Ok((row.get(0)?, row.get(1)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )
     .optional()?
     .ok_or_else(grant_invalid)
+}
+
+/// Consent must disclose that a grantor who does not own the agent cannot
+/// prevent its owner/operator from replacing the credential and ending the
+/// delegation.
+///
+/// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant
+///   — ownership and re-credentialing have authorization consequences.
+fn owner_assumption(
+    owner_user_id: &Option<String>,
+    effective_user_id: &str,
+) -> (bool, Option<String>) {
+    let grantor_is_agent_owner = owner_user_id.as_deref() == Some(effective_user_id);
+    let warning = (!grantor_is_agent_owner).then(|| NON_OWNER_AGENT_WARNING.to_owned());
+    (grantor_is_agent_owner, warning)
 }
 
 fn consent_digest(
     agent_user_id: &str,
     display_name: Option<&str>,
     provenance: &str,
+    grantor_is_agent_owner: bool,
+    owner_assumption_warning: Option<&str>,
     scopes: &[ExactGrantScope],
     expires_at_ms: u64,
 ) -> SnapbackResult<[u8; 32]> {
@@ -622,6 +652,8 @@ fn consent_digest(
         agent_user_id: &'a str,
         display_name: Option<&'a str>,
         registration_provenance: &'a str,
+        grantor_is_agent_owner: bool,
+        owner_assumption_warning: Option<&'a str>,
         scopes: &'a [ExactGrantScope],
         expires_at_ms: u64,
     }
@@ -629,6 +661,8 @@ fn consent_digest(
         agent_user_id,
         display_name,
         registration_provenance: provenance,
+        grantor_is_agent_owner,
+        owner_assumption_warning,
         scopes,
         expires_at_ms,
     })
@@ -916,6 +950,8 @@ mod tests {
             panic!("first presentation must create");
         };
         assert_eq!(request.request_id, pairing.request_id);
+        assert!(request.grantor_is_agent_owner);
+        assert_eq!(request.owner_assumption_warning, None);
         assert_eq!(
             request
                 .scopes
@@ -993,6 +1029,79 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM _auth_grants", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn non_owner_consent_discloses_and_binds_the_owner_assumption() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        db.conn
+            .execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('user-b', 0, 'human', 'User B', NULL, NULL, NULL, NULL)",
+                [],
+            )
+            .unwrap();
+        scope_basis(&db, "fn:read", "query", false);
+
+        let pairing = db.mint_pairing_code("user-b", 1_100, &random).unwrap();
+        let PairingPresentation::Created(request) = db
+            .present_pairing_code(
+                &credential,
+                &pairing.secret,
+                &[GrantScopeRequest::Exact {
+                    function_id: "fn:read".to_owned(),
+                    kind: ScopedFunctionKind::Query,
+                }],
+                1_101,
+            )
+            .unwrap()
+        else {
+            panic!("first presentation must create");
+        };
+        assert!(!request.grantor_is_agent_owner);
+        assert_eq!(
+            request.owner_assumption_warning.as_deref(),
+            Some(NON_OWNER_AGENT_WARNING)
+        );
+
+        let GrantApproval::Created(grant) = db
+            .approve_grant_request(
+                "user-b",
+                "session-b",
+                &pairing.request_id,
+                None,
+                false,
+                1_102,
+            )
+            .unwrap()
+        else {
+            panic!("first approval must create");
+        };
+        let disclosed_digest = consent_digest(
+            "agent-a",
+            Some("Agent A"),
+            r#"{"source":"test"}"#,
+            false,
+            Some(NON_OWNER_AGENT_WARNING),
+            &grant.scopes,
+            grant.expires_at_ms,
+        )
+        .unwrap();
+        let owner_digest = consent_digest(
+            "agent-a",
+            Some("Agent A"),
+            r#"{"source":"test"}"#,
+            true,
+            None,
+            &grant.scopes,
+            grant.expires_at_ms,
+        )
+        .unwrap();
+        assert_eq!(grant.consent_digest, disclosed_digest);
+        assert_ne!(grant.consent_digest, owner_digest);
     }
 
     #[test]
