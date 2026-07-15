@@ -818,7 +818,8 @@ impl LocalDatabase {
 
     /// Same-mode deployment update with an exact complete pair identity. This
     /// is the integration seam that atomically advances `activeDeployment`.
-    pub fn apply_same_mode_schema(
+    #[cfg(test)]
+    pub(crate) fn apply_same_mode_schema(
         &mut self,
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
@@ -829,7 +830,44 @@ impl LocalDatabase {
     /// Pre-bind same-mode deployment, with an optional seed accepted only for
     /// a truly fresh target. DDL, seed, active manifest, and deployment
     /// identity share one SQLite cut.
-    pub fn apply_same_mode_deployment(
+    #[cfg(test)]
+    pub(crate) fn apply_same_mode_deployment(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<()> {
+        self.apply_same_mode_deployment_inner(deployment, manifest, seed)
+    }
+
+    /// Cold-start same-mode dev deployment. The complete function half is
+    /// required even though dev mode has no persistent grant bases. Sessions
+    /// updates use the admission-closed network activation path instead.
+    pub(crate) fn apply_same_mode_dev_deployment_with_functions(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        functions: &FunctionManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<()> {
+        if deployment.auth_mode != AuthMode::Dev {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "sessions same-mode deployment requires the admission-closed activation path",
+            ));
+        }
+        functions.validate_artifact()?;
+        let paired = DeploymentIdentity::from_manifests(AuthMode::Dev, &manifest, functions)?;
+        if paired != deployment {
+            return Err(mode_corrupt(
+                "same-mode dev artifacts differ from their deployment identity",
+            ));
+        }
+        self.apply_same_mode_deployment_inner(deployment, manifest, seed)
+    }
+
+    fn apply_same_mode_deployment_inner(
         &mut self,
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
@@ -1605,6 +1643,16 @@ mod tests {
         )
     }
 
+    fn function_half(identity: &DeploymentIdentity) -> FunctionManifest {
+        FunctionManifest {
+            schema_version: identity.schema_version.clone(),
+            app_id: identity.app_id.clone(),
+            bundle_hash: Some(identity.bundle_hash.clone()),
+            inputs_hash: Some(identity.inputs_hash.clone()),
+            ..FunctionManifest::default()
+        }
+    }
+
     fn ready() -> AuthProgramReadiness {
         AuthProgramReadiness {
             route_registry_enforced: true,
@@ -2116,6 +2164,55 @@ mod tests {
         assert_eq!(
             values.get(META_LEGACY_SCHEMA_MANIFEST),
             values.get(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
+        );
+    }
+
+    #[test]
+    fn production_same_mode_seam_requires_complete_dev_pair_and_refuses_sessions() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (dev_identity, dev_manifest) = dev_pair(Some("items"));
+        let dev_functions = function_half(&dev_identity);
+        database
+            .apply_same_mode_dev_deployment_with_functions(
+                dev_identity.clone(),
+                dev_manifest.clone(),
+                &dev_functions,
+                None,
+            )
+            .unwrap();
+
+        let mut mismatched_functions = dev_functions;
+        mismatched_functions.bundle_hash = Some("sha256:other-functions".to_owned());
+        let mismatch = database
+            .apply_same_mode_dev_deployment_with_functions(
+                dev_identity.clone(),
+                dev_manifest,
+                &mismatched_functions,
+                None,
+            )
+            .unwrap_err();
+        assert_eq!(mismatch.diagnostic.code, "SNAPBACK_AUTH_MODE_STATE_CORRUPT");
+
+        let (sessions_identity, sessions_manifest) = sessions_pair(None);
+        let sessions_error = database
+            .apply_same_mode_dev_deployment_with_functions(
+                sessions_identity,
+                sessions_manifest,
+                &function_half(&dev_identity),
+                None,
+            )
+            .unwrap_err();
+        assert_eq!(
+            sessions_error.diagnostic.code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            database
+                .auth_mode_snapshot()
+                .unwrap()
+                .state
+                .active_deployment,
+            Some(dev_identity)
         );
     }
 

@@ -178,11 +178,14 @@ async fn compose_auth_mode_startup(
                 if requested_mode == AuthMode::Dev {
                     let publication_generation =
                         snapback.reserve_function_publication_generation()?;
-                    snapback.auth_database_mut().apply_same_mode_deployment(
-                        deployment,
-                        carrier.schema.clone(),
-                        carrier.seed.clone(),
-                    )?;
+                    snapback
+                        .auth_database_mut()
+                        .apply_same_mode_dev_deployment_with_functions(
+                            deployment,
+                            carrier.schema.clone(),
+                            &carrier.functions,
+                            carrier.seed.clone(),
+                        )?;
                     snapback.publish_preflighted_functions(
                         carrier.functions.clone(),
                         publication_generation,
