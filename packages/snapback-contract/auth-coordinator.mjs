@@ -730,7 +730,20 @@ export class AuthCoordinator {
         || this.#record.authorityEpoch !== validated.authorityEpoch
         || this.#publicationPaused
       ) {
-        return { adoptPeerAfterOwnership: true, record: validated };
+        const localAtRead = this.#record === null
+          ? null
+          : Object.freeze({
+            phase: this.#record.phase,
+            revision: this.#record.revision,
+            authorityEpoch: this.#record.authorityEpoch,
+            authorityKey: canonicalAuthorityKey(this.#appId, this.#record.authority),
+          });
+        return {
+          adoptPeerAfterOwnership: true,
+          record: validated,
+          localAtRead,
+          publicationPausedAtRead: this.#publicationPaused,
+        };
       }
       return captureFor(this.#appId, validated);
       });
@@ -1204,14 +1217,14 @@ export class AuthCoordinator {
 
   async #resumeAfterOwnership(result) {
     if (result?.adoptPeerAfterOwnership) {
+      const durable = result.record;
+      const exact = durable.phase === 'settled'
+        && this.#record?.phase === 'settled'
+        && durable.revision === this.#record.revision
+        && durable.authorityEpoch === this.#record.authorityEpoch
+        && canonicalAuthorityKey(this.#appId, durable.authority)
+          === canonicalAuthorityKey(this.#appId, this.#record.authority);
       if (this.#activeBarrier !== null) {
-        const durable = result.record;
-        const exact = durable.phase === 'settled'
-          && this.#record?.phase === 'settled'
-          && durable.revision === this.#record.revision
-          && durable.authorityEpoch === this.#record.authorityEpoch
-          && canonicalAuthorityKey(this.#appId, durable.authority)
-            === canonicalAuthorityKey(this.#appId, this.#record.authority);
         if (!exact) {
           throw coordinatorError(
             'SNAPBACK_CLIENT_AUTHORITY_STALE',
@@ -1223,27 +1236,44 @@ export class AuthCoordinator {
         // not replace the active barrier or replay participant resume.
         return captureFor(this.#appId, durable);
       }
+      if (exact && !this.#publicationPaused) {
+        // Another completed synchronization or transition already installed
+        // this exact record while the ownership result was in delivery.
+        return captureFor(this.#appId, durable);
+      }
+      const localUnchanged = result.localAtRead === null
+        ? this.#record === null
+        : this.#record?.phase === result.localAtRead.phase
+          && this.#record.revision === result.localAtRead.revision
+          && this.#record.authorityEpoch === result.localAtRead.authorityEpoch
+          && canonicalAuthorityKey(this.#appId, this.#record.authority)
+            === result.localAtRead.authorityKey;
+      if (!localUnchanged || this.#publicationPaused !== result.publicationPausedAtRead) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'local authority changed before an in-flight custody reload could adopt',
+        );
+      }
       await this.#adoptPeerSettled(result.record);
       return captureFor(this.#appId, result.record);
     }
     if (!result?.resumeAfterOwnership) {
-      if (this.#activeBarrier !== null) {
-        const exact = result !== null
-          && this.#record?.phase === 'settled'
+      const exact = result === null
+        ? this.#record === null
+        : this.#record?.phase === 'settled'
           && result.custodyRevision === this.#record.revision
           && result.authorityEpoch === this.#record.authorityEpoch
           && result.authorityKey === canonicalAuthorityKey(this.#appId, this.#record.authority);
-        if (!exact) {
-          throw coordinatorError(
-            'SNAPBACK_CLIENT_AUTHORITY_STALE',
-            'authority changed before an in-flight custody reload returned',
-          );
-        }
-        // The read may have begun before the barrier and completed after its
-        // durable settle. Only the exact active successor can return; an
-        // already-read predecessor capture is stale even though its storage
-        // ownership ended before the transition began.
+      if (!exact) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'authority changed before an in-flight custody reload returned',
+        );
       }
+      // The read may have begun before a barrier and complete during or after
+      // its successor resume. Only the exact current local record can return;
+      // an already-read predecessor capture is stale even once the barrier is
+      // no longer active.
       return result;
     }
     const { settled, barrier } = result;
