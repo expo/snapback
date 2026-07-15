@@ -34,6 +34,20 @@ keeps its own LLP corpus under [`llp/`](./llp/).
 - Run `./ref-check --verbose` to validate references and metadata. CI runs the
   same check on pushes and pull requests.
 
+## The Snapback Guide
+
+- **Before building an app on Snapback, load
+  [`guide/index.md`](./guide/index.md); before using a feature area, load its
+  guide page.** The guide is the intent-indexed map of the authoring surface
+  — schema/functions, live queries, ephemeral state, auth, the client arms,
+  acceptance testing — with CI-verified code. Its
+  [capability index](./guide/capabilities.md) lists everything Snapback has,
+  including explicit GAP rows for what the guide doesn't cover yet.
+- Guide checks run in the local proof; the docs-only fast path is
+  `node scripts/check-guide.mjs`. Conventions (frontmatter, snippet classes,
+  freshness) are in [`guide/conventions.md`](./guide/conventions.md); the
+  governing design is LLP 0061.
+
 ## Demo application diaries
 
 - When building or substantially changing a demo application with Snapback,
@@ -52,6 +66,10 @@ keeps its own LLP corpus under [`llp/`](./llp/).
   where Snapback, Exact, or Contract reduced friction, added friction, or
   changed the shape of the work.
 - Land the diary update with the demo change that produced the observations.
+- When a diary entry records friction the guide should have prevented —
+  knowledge you needed and couldn't find in `guide/` — file it as a guide gap
+  (Linear, Exact project, Snapback label, `guide-gap` in the title) so a page
+  or capability-index row absorbs it (LLP 0061 §5).
 
 ## Agent skills
 

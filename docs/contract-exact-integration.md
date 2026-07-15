@@ -1,4 +1,16 @@
-# Contract/Exact Integration Notes
+# Contract/Exact Integration
+
+> **Partially absorbed into the Snapback Guide (LLP 0061).** The adapter
+> authoring path — generated bindings, surface boot, optimistic overlays,
+> offline classes — is now taught authoritatively at
+> [`guide/clients/contract-adapter.md`](../guide/clients/contract-adapter.md)
+> (and the React arm at [`guide/clients/react.md`](../guide/clients/react.md));
+> prefer `demos/todo-v2` over `demos/todo` for authoring examples. The
+> operational sections below (admin static/native build, admin browser dev
+> loop, conformance discovery, launch shapes, diagnostics) remain
+> authoritative until their guide pages land — tracked as the
+> `operating.admin-console` GAP row in
+> [`guide/capabilities.md`](../guide/capabilities.md). Notes
 
 **Status:** Implementation notes for [LLP 0021](../llp/0021-contract-exact-integration-hardening.plan.md): Phase 0 inventory, Phase 1 generated binding plus Exact descriptor project-check coverage, the Phase 2 provider conformance discovery plus Todo v2 fixture pass, the Phase 3 build preset and package-export Exact resolver, and the first Phase 4 surface-migration footholds. This file inventories current prototype glue and the repeatable build/launch recipe so future work can replace it with product code.
 

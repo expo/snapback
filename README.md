@@ -234,6 +234,11 @@ deterministic fixtures and bring-up.
 
 ## Demos
 
+**Building an app on Snapback starts at [`guide/`](./guide/)** — the
+agent-first authoring guide (intent-indexed pages, a capability index with
+explicit gaps, CI-verified snippets; LLP 0061). The demos below are the full
+working applications the guide distills.
+
 Runnable reference apps live under [`demos/`](./demos), with shared
 codegen/client/bridge in [`demos/_kit/`](./demos/_kit). The first is the todo
 list ([`demos/todo/`](./demos/todo)): one source-authored Snapback backend

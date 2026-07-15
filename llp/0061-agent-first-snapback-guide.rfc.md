@@ -1,11 +1,20 @@
 # RFC 0061: The Snapback Guide — Agent-First Documentation for Building on Snapback
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-15 (r2 — reconciled round-1 fable + codex reviews: replaced
+**Revised:** 2026-07-15 (r3 — status Draft → Review by author adjudication:
+Charlie ordered implementation after the single authorized super-refine round
+ended with split verdicts (fable READY / codex NOT READY, both concerns
+reconciled in r2), ending the loop; same revision decides the corpus location
+as **`guide/` at the repository root** rather than `docs/guide/` — this repo's
+first-class corpora already live at the root (`llp/`, `diaries/`, `demos/`),
+the guide is a product surface rather than repo documentation, and `docs/`
+remains the internal-engineering shelf; the shape stays 0365-compatible via
+the conventions/schema/manifest, which never depended on the path. Phase 1
+implementation lands with this revision.) 2026-07-15 (r2 — reconciled round-1 fable + codex reviews: replaced
 date-based freshness with a reviewed-commit baseline; replaced the informal
 Phase 1 exit with a pinned cold-agent retrieval eval (diaries stay a
 complementary source); scoped the guide's Phase 1 audience honestly to
@@ -41,7 +50,8 @@ adapts; `~/projects/exact/llp/0365-agent-first-exact-guide.rfc.md`)
 ## Summary
 
 Create **the Snapback Guide**: a curated tree of markdown documents under
-`docs/guide/` that teaches an agent (primarily) and a human (secondarily) how
+`guide/` at the repository root that teaches an agent (primarily) and a human
+(secondarily) how
 to build an application **on** Snapback — schema and functions, queries and
 mutations, live queries, ephemeral realtime, sync and offline behavior, auth,
 secrets, the Contract/Exact adapter, the headless surface, acceptance testing,
@@ -244,17 +254,20 @@ package dependency. Deferred to Phase 3 either way.
 
 ## Design
 
-### 1. The corpus: `docs/guide/`
+### 1. The corpus: `guide/`
 
-Same location convention as the Exact guide. `docs/` currently holds one
-file, so there is no drowning problem; the subtree still gets its own
-conventions and checks because guide pages are product documentation with
-obligations the rest of the repo doesn't carry.
+At the repository root, beside `llp/`, `diaries/`, and `demos/` — the
+location this repo gives its first-class corpora (decided in r3). The guide
+is a product surface, not repo documentation, and `docs/` remains the
+internal-engineering shelf; the shape stays 0365-compatible through the
+conventions, schema, and manifest, which never depended on the path. The
+subtree gets its own conventions and checks because guide pages are product
+documentation with obligations the rest of the repo doesn't carry.
 
 Proposed initial shape (illustrative; the outline is Phase 1 work):
 
 ```text
-docs/guide/
+guide/
 |-- index.md                       # the map: what Snapback is to an app author
 |-- capabilities.md                # AUTHORED capability index incl. GAP rows (§2)
 |-- conventions.md                 # page/frontmatter/link/snippet rules (from 0365)
@@ -331,7 +344,7 @@ Page conventions are 0365 §1's, with these Snapback deltas:
 
 ### 2. The capability index (registry-lite, with witnesses)
 
-One **authored** file, `docs/guide/capabilities.md`: a table of every
+One **authored** file, `guide/capabilities.md`: a table of every
 author-facing capability — id, one-liner, intent aliases, `targets` +
 `maturity`, owning authorities (LLP + code), a **required code witness for
 every shipped row** (a route in the declared registry, a host-op id, a
@@ -363,7 +376,7 @@ Registered in the local proof (`scripts/verify-local-proof`), not as a bare
 loose script, and kept honest by the same headless-first posture as
 LLP 0010/0012:
 
-- **`guide-snippets`** — verifies every fenced snippet under `docs/guide/`
+- **`guide-snippets`** — verifies every fenced snippet under `guide/`
   under its declared class:
   - **Transclusion is the default.** Runnable snippets are marked regions
     transcluded at check time from demo and fixture code that CI already
@@ -418,7 +431,7 @@ packaged CLI (LLP 0041) is the natural future carrier for both an installed
 guide bundle and a `snapback guide` command, and is named in §Open questions
 rather than promised here.
 
-**The guide manifest** — `docs/guide/guide-manifest.generated.json`,
+**The guide manifest** — `guide/guide-manifest.generated.json`,
 generated in Phase 1: nav tree, per-page frontmatter, content hashes,
 capability-index join (including GAP state), per-snippet
 verified/skipped status, and the Snapback build identity the snippets were
@@ -429,12 +442,12 @@ projections share one shape and one version stamp.
 Discovery wiring, in order of leverage:
 
 1. **`AGENTS.md` pointer** (and the CLAUDE.md mirror): "Before building an
-   app on Snapback, load `docs/guide/index.md`; before using a feature area,
+   app on Snapback, load `guide/index.md`; before using a feature area,
    load its guide page." Sits next to the existing diary instruction, which
    gains the loop-closing line: *when a diary entry records friction the
    guide should have prevented, file it as a guide gap* (§5).
 2. **`README.md`** — the Demos section gains a "building on Snapback starts
-   at `docs/guide/`" row.
+   at `guide/`" row.
 3. **`demos/_kit` README** — created in Phase 1 (the kit has none today)
    with a pointer, since every demo author lands there.
 4. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
@@ -442,7 +455,7 @@ Discovery wiring, in order of leverage:
    resources. Version alignment is a design obligation on that increment,
    not an assumption: the corpus must be embedded in or served by the
    server/control plane (a server not running from a checkout has no
-   `docs/guide/` to read), responses must carry both the server build
+   `guide/` to read), responses must carry both the server build
    identity and the guide content hash from the manifest, and consumers
    must surface mismatches rather than silently combining versions. Scoped
    as an increment of the LLP 0042 surface; its content-provenance design
@@ -504,7 +517,7 @@ upgrade if convention visibly leaks.
 ## Plan
 
 **Phase 1 — corpus + index + manifest + checks (the value phase).**
-Create `docs/guide/` with `index.md` (including the audience statement),
+Create `guide/` with `index.md` (including the audience statement),
 `conventions.md` + `frontmatter.schema.json` (adapted from 0365; compatible
 core + Snapback extensions), and `capabilities.md` seeded by the
 shipped-surface sweep with witnesses, owners, and the two day-one joins.

@@ -1,0 +1,667 @@
+{
+  "schemaVersion": "snapback-guide.v1",
+  "generatedBy": "scripts/generate-guide-manifest.mjs",
+  "buildIdentity": {
+    "commit": "b7e3735d6649f3baab6ed1957e6a9a16206e91a8"
+  },
+  "nav": {
+    ".": [
+      {
+        "id": "meta.index",
+        "order": 1,
+        "title": "The Snapback Guide"
+      },
+      {
+        "id": "meta.capabilities",
+        "order": 2,
+        "title": "Capability index"
+      },
+      {
+        "id": "meta.conventions",
+        "order": 90,
+        "title": "Guide conventions"
+      },
+      {
+        "id": "meta.retrieval-eval",
+        "order": 91,
+        "title": "Retrieval eval protocol"
+      }
+    ],
+    "auth": [
+      {
+        "id": "auth.sessions-and-principals",
+        "order": 1,
+        "title": "Sessions and principals"
+      },
+      {
+        "id": "auth.targets",
+        "order": 3,
+        "title": "Targets — what each one claims"
+      }
+    ],
+    "clients": [
+      {
+        "id": "clients.contract-adapter",
+        "order": 1,
+        "title": "The Contract adapter"
+      },
+      {
+        "id": "clients.react",
+        "order": 2,
+        "title": "The React arm"
+      }
+    ],
+    "getting-started": [
+      {
+        "id": "getting-started.your-first-backend",
+        "order": 1,
+        "title": "Your first backend"
+      },
+      {
+        "id": "getting-started.the-authoring-loop",
+        "order": 2,
+        "title": "The authoring loop"
+      }
+    ],
+    "realtime": [
+      {
+        "id": "realtime.live-queries",
+        "order": 1,
+        "title": "Live queries"
+      }
+    ],
+    "recipes": [
+      {
+        "id": "recipes.presence-cursors",
+        "order": 1,
+        "title": "Recipe: presence cursors"
+      },
+      {
+        "id": "recipes.hidden-hands",
+        "order": 2,
+        "title": "Recipe: hidden hands"
+      }
+    ],
+    "testing": [
+      {
+        "id": "testing.acceptance",
+        "order": 1,
+        "title": "Acceptance testing"
+      }
+    ]
+  },
+  "pages": {
+    "auth.sessions-and-principals": {
+      "path": "guide/auth/sessions-and-principals.md",
+      "title": "Sessions and principals",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "auth.sessions",
+        "auth.scoped-queries"
+      ],
+      "authorities": [
+        "llp/0039-auth-vertical-slice.rfc.md",
+        "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/auth/mode.rs",
+        "demos/card-game/tests/acceptance/authority-scope.mjs"
+      ],
+      "examples": [
+        "demos/card-game"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "a47f5939e55b65536ec2647d2cb065df0f4208fe5acaa3b13dabb8f70c7a8072",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        }
+      ]
+    },
+    "auth.targets": {
+      "path": "guide/auth/targets.md",
+      "title": "Targets — what each one claims",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "auth.target-honesty"
+      ],
+      "authorities": [
+        "llp/0060-hosted-auth-security.rfc.md",
+        "llp/0002-canonical-local-target.decision.md",
+        "llp/0014-cloudflare-strategy.rfc.md",
+        "README.md"
+      ],
+      "examples": [],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "ccc920af562ad9ad3c2c37f955dbff472b6c80af07d8c6366d55fddfb736cb49",
+      "snippets": []
+    },
+    "meta.capabilities": {
+      "path": "guide/capabilities.md",
+      "title": "Capability index",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0061-agent-first-snapback-guide.rfc.md",
+        "src/server.rs",
+        "src/admin.rs"
+      ],
+      "examples": [],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "60fbe63f743b099efd66cdfcece25a887baa4b1f19b92b3b9943fc3bfa40613b",
+      "snippets": []
+    },
+    "clients.contract-adapter": {
+      "path": "guide/clients/contract-adapter.md",
+      "title": "The Contract adapter",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.contract",
+        "clients.optimistic-overlays"
+      ],
+      "authorities": [
+        "llp/0005-contract-exact-react-integration.explainer.md",
+        "llp/0034-contract-source-seam-provider-side.rfc.md",
+        "llp/0052-contract-update-economy-and-host-state.rfc.md",
+        "packages/snapback-contract/index.mjs"
+      ],
+      "examples": [
+        "demos/todo-v2/surfaces/contract",
+        "demos/all-aboard/surfaces/contract"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "74a41e0aaded925508d181d9df3429e8d0bb0eb2657d6125f4ec2a2e8589aba9",
+      "snippets": [
+        {
+          "lang": "contract",
+          "class": "transcluded",
+          "source": "demos/todo-v2/surfaces/contract/todo.contract"
+        },
+        {
+          "lang": "contract",
+          "class": "transcluded",
+          "source": "demos/todo-v2/surfaces/contract/todo.contract"
+        },
+        {
+          "lang": "contract",
+          "class": "transcluded",
+          "source": "demos/todo-v2/surfaces/contract/todo.contract"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/todo-v2/snapback/generated/contract/runtime-links.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/todo-v2/surfaces/contract/main.ts"
+        }
+      ]
+    },
+    "clients.react": {
+      "path": "guide/clients/react.md",
+      "title": "The React arm",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.react"
+      ],
+      "authorities": [
+        "llp/0005-contract-exact-react-integration.explainer.md",
+        "demos/_kit/client.mjs"
+      ],
+      "examples": [
+        "demos/all-aboard/surfaces/react/src/main.tsx",
+        "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "19e8b239073759715b51c1ac2b763370eef44f11c2bfc8c7641b8803fefeadb0",
+      "snippets": [
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/all-aboard/surfaces/react/src/main.tsx"
+        }
+      ]
+    },
+    "meta.conventions": {
+      "path": "guide/conventions.md",
+      "title": "Guide conventions",
+      "order": 90,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0061-agent-first-snapback-guide.rfc.md"
+      ],
+      "examples": [],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "24dc399486327f0213fe3e71861d71e6d70080ea70ab23b528c165f8b7740d95",
+      "snippets": []
+    },
+    "getting-started.the-authoring-loop": {
+      "path": "guide/getting-started/the-authoring-loop.md",
+      "title": "The authoring loop",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.codegen",
+        "testing.acceptance",
+        "operating.inspect"
+      ],
+      "authorities": [
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "packages/snapback-codegen/index.mjs",
+        "scripts/verify-local-proof"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/headless.mjs",
+        "demos/todo/surfaces/headless/run.mjs"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "00412c59535cd11309ba00910043a14c0a8a42b1ff644028687a38262346204d",
+      "snippets": []
+    },
+    "getting-started.your-first-backend": {
+      "path": "guide/getting-started/your-first-backend.md",
+      "title": "Your first backend",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.schema",
+        "backend.functions",
+        "backend.seed",
+        "backend.provisioning",
+        "backend.codegen"
+      ],
+      "authorities": [
+        "llp/0004-application-data-api.rfc.md",
+        "llp/0037-schema-source-of-truth.decision.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs"
+      ],
+      "examples": [
+        "demos/todo/snapback",
+        "demos/todo-v2/snapback"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "a6932de853eec4d9ba2de9a32499081c01dd9e328bc0935e9b84fb0dad953aea",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/handlers.mjs"
+        },
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/seed.json"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/surfaces/headless/run.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
+        }
+      ]
+    },
+    "meta.index": {
+      "path": "guide/index.md",
+      "title": "The Snapback Guide",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0061-agent-first-snapback-guide.rfc.md",
+        "llp/0000-snapback.explainer.md"
+      ],
+      "examples": [
+        "demos/todo",
+        "demos/todo-v2",
+        "demos/cursors-web",
+        "demos/card-game"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "e5027c21c784cec0a00e4c59add0a81296790fef30e85cc47e130098f9ccc873",
+      "snippets": []
+    },
+    "realtime.live-queries": {
+      "path": "guide/realtime/live-queries.md",
+      "title": "Live queries",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "realtime.live-queries",
+        "realtime.durable-push"
+      ],
+      "authorities": [
+        "llp/0008-local-first-sync-and-realtime.rfc.md",
+        "llp/0004-application-data-api.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "demos/_kit/client.mjs"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/headless.mjs",
+        "demos/_kit/tests/live-delta-e2e.mjs",
+        "demos/all-aboard/surfaces/react/src/main.tsx"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "df43f6446f02a98136edaa2ff6c3c9e72123afbbf2d5cf7c0648d26d8194d9af",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/tests/live-delta-e2e.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
+        }
+      ]
+    },
+    "recipes.hidden-hands": {
+      "path": "guide/recipes/hidden-hands.md",
+      "title": "Recipe: hidden hands",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "auth.scoped-queries",
+        "auth.invalidation-barrier",
+        "auth.authorized-leases"
+      ],
+      "authorities": [
+        "llp/0053-authorization-invalidation.rfc.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "demos/card-game/tests/acceptance/authority-scope.mjs"
+      ],
+      "examples": [
+        "demos/card-game"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "e7556b6cce503667633abfae2b2bbebcfa21b62082ef7d269bd04e651f0edb98",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        }
+      ]
+    },
+    "recipes.presence-cursors": {
+      "path": "guide/recipes/presence-cursors.md",
+      "title": "Recipe: presence cursors",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "realtime.ephemeral"
+      ],
+      "authorities": [
+        "llp/0013-ephemeral-realtime-state.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "demos/_kit/client.mjs"
+      ],
+      "examples": [
+        "demos/cursors-web",
+        "demos/todo-v2/snapback/schema.mjs"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "803864130287ecf8042978861ef948a679f0c3f92270bef90ff799f88ee631f9",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo-v2/snapback/schema.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
+        }
+      ]
+    },
+    "meta.retrieval-eval": {
+      "path": "guide/retrieval-eval.md",
+      "title": "Retrieval eval protocol",
+      "order": 91,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0061-agent-first-snapback-guide.rfc.md"
+      ],
+      "examples": [],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "9f8e25ddb1efea387599f63d60e7e2c67d0397bc935ac99d19b7d8bb83fda0bd",
+      "snippets": []
+    },
+    "testing.acceptance": {
+      "path": "guide/testing/acceptance.md",
+      "title": "Acceptance testing",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "testing.acceptance",
+        "operating.server-lifecycle"
+      ],
+      "authorities": [
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0012-headless-integration-contract.spec.md",
+        "demos/_kit/harness.mjs",
+        "demos/_kit/server-process.mjs"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/headless.mjs",
+        "demos/card-game/tests/acceptance/authority-scope.mjs"
+      ],
+      "reviewed": "2026-07-15",
+      "reviewedCommit": "HEAD",
+      "sha256": "b069b0e56dfe971bc9a7b4f4efaab270118ab7c427853f73d4c269023451d499",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/harness.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
+        }
+      ]
+    }
+  },
+  "capabilities": {
+    "covered": [
+      "auth.authorized-leases",
+      "auth.invalidation-barrier",
+      "auth.scoped-queries",
+      "auth.sessions",
+      "auth.target-honesty",
+      "backend.codegen",
+      "backend.functions",
+      "backend.provisioning",
+      "backend.schema",
+      "backend.seed",
+      "clients.contract",
+      "clients.optimistic-overlays",
+      "clients.react",
+      "operating.inspect",
+      "operating.server-lifecycle",
+      "realtime.durable-push",
+      "realtime.ephemeral",
+      "realtime.live-queries",
+      "testing.acceptance"
+    ],
+    "gaps": [
+      "auth.agent-principals",
+      "auth.scoped-roles",
+      "backend.actions",
+      "backend.cron",
+      "backend.query-semantics",
+      "clients.headless",
+      "deploy.cloudflare",
+      "operating.admin-console",
+      "operating.diagnostics",
+      "operating.host-ops",
+      "operating.secrets-config",
+      "sync.offline"
+    ]
+  },
+  "surfaces": {
+    "routes": 65,
+    "hostOps": 13
+  }
+}
