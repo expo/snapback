@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "60fe118b45313621e48a1fba38fb6ce07158749a"
+    "commit": "85dcf6e9b73ce436a3cd743cd235cdcaa3bb8960"
   },
   "nav": {
     ".": [
@@ -181,8 +181,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "9b0ddfe6e0418b9f77d9681ab9a7209287adef0ac90d6472e922a15136db1b56",
+      "reviewedCommit": "85dcf6e9b73ce436a3cd743cd235cdcaa3bb8960",
+      "sha256": "3b3d942e2e8feec2e265318a80d9c28178bdcdaae4655c0199ebc3e25a28472c",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -290,8 +290,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "12614bcfd26bc41e84d33d706919980a10de08d6f72601d460cd2ae8ac4be2ee",
+      "reviewedCommit": "85dcf6e9b73ce436a3cd743cd235cdcaa3bb8960",
+      "sha256": "531bebc2c77f212c736e45c53d7bd5bbd84f984638d569a19412ec91b5a69d3c",
       "snippets": []
     },
     "getting-started.the-authoring-loop": {
