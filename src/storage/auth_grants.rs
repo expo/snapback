@@ -13,7 +13,8 @@ use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
 use crate::auth::provider::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::FunctionKind;
-use rusqlite::{OptionalExtension, Transaction, params};
+use crate::storage::auth::AuthTransactionAttempt;
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -413,15 +414,19 @@ impl LocalDatabase {
             .checked_add(ttl)
             .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(grant_expiry_invalid)?;
-        let outcome = self.with_auth_transaction(|tx| {
+        let grant_id_candidate = super::new_id();
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             require_human_user_on(tx, effective_user_id)?;
             let request = approval_request_on(tx, request_id, effective_user_id, now_ms)?;
             if request.state == "approved" {
                 let grant_id = request.grant_id.ok_or_else(grant_state_corrupt)?;
-                return Ok(Ok(GrantApproval::Existing(load_approved_grant_on(
+                let outcome = Ok(GrantApproval::Existing(load_approved_grant_on(
                     tx, &grant_id, request_id,
-                )?)));
+                )?));
+                body_outcome = Some(outcome.clone());
+                return Ok(outcome);
             }
             if request.state != "pending" || request.grant_id.is_some() {
                 return Err(grant_invalid());
@@ -435,9 +440,11 @@ impl LocalDatabase {
             // share this transaction; no boolean trust seam survives.
             if scopes.iter().any(|scope| scope.authority_creating) {
                 let Some(proof) = step_up_proof else {
+                    body_outcome = Some(Err(()));
                     return Ok(Err(()));
                 };
                 if proof.consume_on(tx, now_ms)? != StepUpConsumption::Verified {
+                    body_outcome = Some(Err(()));
                     return Ok(Err(()));
                 }
             }
@@ -457,7 +464,7 @@ impl LocalDatabase {
                 &scopes,
                 expires_at_ms,
             )?;
-            let grant_id = super::new_id();
+            let grant_id = grant_id_candidate.clone();
             tx.execute(
                 "INSERT INTO _auth_grants(
                    id, actor_user_id, effective_user_id, scopes, created_at_ms,
@@ -485,7 +492,7 @@ impl LocalDatabase {
             if changed != 1 {
                 return Err(grant_invalid());
             }
-            Ok(Ok(GrantApproval::Created(ApprovedGrant {
+            let outcome = Ok(GrantApproval::Created(ApprovedGrant {
                 grant_id,
                 request_id: request_id.to_owned(),
                 actor_user_id,
@@ -493,9 +500,57 @@ impl LocalDatabase {
                 scopes,
                 expires_at_ms,
                 consent_digest,
-            })))
-        })?;
-        outcome.map_err(|()| step_up_required_error())
+            }));
+            body_outcome = Some(outcome.clone());
+            Ok(outcome)
+        });
+        let (attempt, inject_reconciliation_failure) =
+            inject_grant_commit_uncertainty(attempt, request_id);
+        match attempt {
+            AuthTransactionAttempt::Committed(outcome) => {
+                outcome.map_err(|()| step_up_required_error())
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_commit_error) => match body_outcome {
+                Some(Ok(GrantApproval::Existing(grant))) => {
+                    // The existing branch performs no write, so a lost COMMIT
+                    // acknowledgement cannot change its durable outcome.
+                    Ok(GrantApproval::Existing(grant))
+                }
+                Some(Ok(GrantApproval::Created(expected))) => {
+                    if inject_reconciliation_failure {
+                        Err(grant_commit_uncertain())
+                    } else {
+                        self.with_auth_read(|connection| {
+                            reconcile_created_grant_approval(
+                                connection,
+                                effective_user_id,
+                                request_id,
+                                &expected,
+                                step_up_proof,
+                            )
+                        })
+                        .map(GrantApproval::Created)
+                        .map_err(|_| grant_commit_uncertain())
+                    }
+                }
+                Some(Err(())) => {
+                    let reconciled = self.with_auth_read(|connection| {
+                        reconcile_rejected_grant_approval(
+                            connection,
+                            effective_user_id,
+                            request_id,
+                            step_up_proof,
+                        )
+                    });
+                    match reconciled {
+                        Ok(()) => Err(step_up_required_error()),
+                        Err(_) => Err(grant_commit_uncertain()),
+                    }
+                }
+                None => Err(grant_commit_uncertain()),
+            },
+        }
     }
 
     pub(crate) fn deny_grant_request(
@@ -1073,7 +1128,7 @@ fn enforce_grant_caps_on(
 }
 
 fn load_approved_grant_on(
-    tx: &Transaction<'_>,
+    tx: &Connection,
     grant_id: &str,
     request_id: &str,
 ) -> SnapbackResult<ApprovedGrant> {
@@ -1197,6 +1252,122 @@ fn pairing_request_cap() -> SnapbackError {
         "SNAPBACK_AUTH_PAIRING_REQUEST_CAP",
         "auth",
         "pending pairing-request capacity is exhausted",
+    )
+}
+
+fn reconcile_created_grant_approval(
+    connection: &rusqlite::Connection,
+    effective_user_id: &str,
+    request_id: &str,
+    expected: &ApprovedGrant,
+    proof: Option<&StepUpProof>,
+) -> SnapbackResult<ApprovedGrant> {
+    let request = connection
+        .query_row(
+            "SELECT state, grant_id FROM _auth_pairing_requests
+             WHERE id = ?1 AND minted_by_user_id = ?2",
+            params![request_id, effective_user_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+        )
+        .optional()?;
+    if request.as_ref()
+        != Some(&("approved".to_owned(), Some(expected.grant_id.clone())))
+    {
+        return Err(grant_commit_uncertain());
+    }
+    if let Some(proof) = proof {
+        if !proof.reconcile_consumed_on(connection)? {
+            return Err(grant_commit_uncertain());
+        }
+    }
+    let durable = load_approved_grant_on(connection, &expected.grant_id, request_id)?;
+    if &durable != expected || durable.effective_user_id != effective_user_id {
+        return Err(grant_commit_uncertain());
+    }
+    Ok(durable)
+}
+
+fn reconcile_rejected_grant_approval(
+    connection: &rusqlite::Connection,
+    effective_user_id: &str,
+    request_id: &str,
+    proof: Option<&StepUpProof>,
+) -> SnapbackResult<()> {
+    let request = connection
+        .query_row(
+            "SELECT state, grant_id FROM _auth_pairing_requests
+             WHERE id = ?1 AND minted_by_user_id = ?2",
+            params![request_id, effective_user_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+        )
+        .optional()?;
+    if request != Some(("pending".to_owned(), None)) {
+        return Err(grant_commit_uncertain());
+    }
+    if let Some(proof) = proof {
+        if !proof.reconcile_unconsumed_on(connection)? {
+            return Err(grant_commit_uncertain());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+static INJECT_GRANT_COMMIT_UNCERTAIN: std::sync::Mutex<Option<(String, bool)>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+pub(crate) fn inject_next_grant_commit_uncertain(request_id: &str) {
+    *INJECT_GRANT_COMMIT_UNCERTAIN
+        .lock()
+        .expect("grant commit uncertainty injector lock") = Some((request_id.to_owned(), false));
+}
+
+#[cfg(test)]
+pub(crate) fn inject_next_grant_reconciliation_failure(request_id: &str) {
+    *INJECT_GRANT_COMMIT_UNCERTAIN
+        .lock()
+        .expect("grant commit uncertainty injector lock") = Some((request_id.to_owned(), true));
+}
+
+fn inject_grant_commit_uncertainty<T>(
+    attempt: AuthTransactionAttempt<T>,
+    _request_id: &str,
+) -> (AuthTransactionAttempt<T>, bool) {
+    #[cfg(test)]
+    if let Some(inject_reconciliation_failure) = {
+        let mut target = INJECT_GRANT_COMMIT_UNCERTAIN
+            .lock()
+            .expect("grant commit uncertainty injector lock");
+        if target
+            .as_ref()
+            .is_some_and(|(request_id, _)| request_id == _request_id)
+        {
+            target.take().map(|(_, fail_reconciliation)| fail_reconciliation)
+        } else {
+            None
+        }
+    } {
+        let uncertain = match attempt {
+            AuthTransactionAttempt::Committed(_) => AuthTransactionAttempt::CommitUncertain(
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN",
+                    "auth",
+                    "delegated grant commit acknowledgement was unavailable",
+                ),
+            ),
+            other => other,
+        };
+        return (uncertain, inject_reconciliation_failure);
+    }
+    (attempt, false)
+}
+
+fn grant_commit_uncertain() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN",
+        "auth",
+        "delegated grant outcome could not be reconciled",
     )
 }
 

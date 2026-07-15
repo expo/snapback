@@ -6832,7 +6832,7 @@ async fn auth_step_up_request(
         let _effect = effect_authority
             .effect_guard("step-up challenge transaction")
             .map_err(ProviderError::from)?;
-        admission.request_step_up(snapback.auth_database_mut(), &binding, now_ms)
+        admission.request_step_up(snapback.auth_database_mut(), &binding)
     })
     .await
     .map_err(map_provider_error)?;
@@ -6928,7 +6928,6 @@ async fn auth_grant_request_approve(
     let (user_id, session_id) = require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let request: GrantApprovalRequest = parse_auth_json(&headers, body)?;
-    let now_ms = provider.now_ms();
     let requested_ttl_ms = request.requested_ttl_ms;
     let proof_admission = match request.step_up {
         Some(step_up) => {
@@ -6952,8 +6951,12 @@ async fn auth_grant_request_approve(
         None => None,
     };
     let effect_authority = authority.clone();
+    let effect_provider = provider.clone();
     let approval = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("grant approval transaction")?;
+        // Freshness and grant TTL linearize here, after proof coordination and
+        // its asynchronous address-stripe wait.
+        let now_ms = effect_provider.now_ms();
         snapback.auth_database_mut().approve_grant_request(
             &user_id,
             &session_id,
@@ -13697,6 +13700,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_INVALIDATION_PENDING"
         | "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE"
         | "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED"
+        | "SNAPBACK_AUTH_GRANT_PENDING"
         | "SNAPBACK_AUTH_GRANT_SCOPE_STALE"
         | "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED"
         | "SNAPBACK_AUTH_RETRY_NOT_PENDING"
@@ -13835,6 +13839,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
+        | "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN"
         | "SNAPBACK_AUTH_GRANT_STATE_CORRUPT"
         | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
@@ -19020,6 +19025,10 @@ mod tests {
             "stepUp": {"challengeId": challenge_id, "code": code}
         }))
         .unwrap();
+        // Simulate a lost SQLite COMMIT acknowledgement after the first
+        // concurrent transaction actually commits. Exact request/grant/proof
+        // reconciliation must still publish one successful immutable grant.
+        crate::storage::auth_grants::inject_next_grant_commit_uncertain(&bound_request);
         let first = router.clone().oneshot(session_auth_http_request(
             &format!("/auth/grant-requests/{bound_request}/approve"),
             approval_body.clone(),
@@ -19035,6 +19044,7 @@ mod tests {
         assert_eq!(second.unwrap().status(), StatusCode::OK);
 
         let replay_for_other = router
+            .clone()
             .oneshot(session_auth_http_request(
                 &format!("/auth/grant-requests/{other_request}/approve"),
                 serde_json::to_vec(&json!({
@@ -19046,6 +19056,65 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(replay_for_other.status(), StatusCode::UNAUTHORIZED);
+
+        let second_challenge_response = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({
+                    "operation": "grantApproval",
+                    "requestId": other_request,
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(second_challenge_response.status(), StatusCode::OK);
+        let second_challenge = response_json(second_challenge_response).await;
+        let second_challenge_id = second_challenge["challengeId"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let second_mailbox = serde_json::to_value(
+            provider
+                .mailbox_entry(&second_challenge_id)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        let second_code = second_mailbox["code"].as_str().unwrap().to_owned();
+        crate::storage::auth_grants::inject_next_grant_reconciliation_failure(&other_request);
+        let unavailable = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {
+                        "challengeId": second_challenge_id,
+                        "code": second_code,
+                    }
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(unavailable).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN"
+        );
+        let reconciled_retry = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(reconciled_retry.status(), StatusCode::OK);
 
         with_snapback(&state.snapback, move |snapback| {
             snapback.auth_database_mut().with_auth_read(|connection| {
@@ -21713,6 +21782,7 @@ mod tests {
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
+        "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN",
         "SNAPBACK_AUTH_GRANT_STATE_CORRUPT",
         "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT",
         "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",

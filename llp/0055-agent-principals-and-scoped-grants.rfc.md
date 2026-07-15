@@ -1807,7 +1807,10 @@ user and session authority. Approval re-reads the stored scopes and, iff any is
 `authorityCreating`, verifies and consumes that proof in the same SQLite
 transaction that creates the immutable grant. Ordinary consent still requires
 no step-up. Login challenges, other targets, and other sessions cannot be
-substituted; concurrent replay creates at most one grant.
+substituted; concurrent replay creates at most one grant. The effect boundary
+resamples time after proof coordination, and an ambiguous commit is published
+only after exact request/grant/challenge reconciliation; otherwise the route
+fails unavailable.
 
 This checkpoint intentionally does **not** claim the owner invitation,
 owner-credential, owner-deactivation, or revoke-all routes. The closed operation

@@ -260,6 +260,71 @@ impl fmt::Debug for StepUpProof {
 }
 
 impl StepUpProof {
+    pub(crate) fn reconcile_consumed_on(
+        &self,
+        connection: &Connection,
+    ) -> SnapbackResult<bool> {
+        let Some(expected_key_id) = self.key_id.as_ref() else {
+            return Ok(false);
+        };
+        connection
+            .query_row(
+                "SELECT canonical_address, key_id,
+                        consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                params![self.challenge_id.as_str()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, bool>(2)?,
+                        row.get::<_, bool>(3)?,
+                    ))
+                },
+            )
+            .optional()
+            .map(|row| {
+                row.is_some_and(|(address, key_id, consumed, superseded)| {
+                    address == self.address.as_str()
+                        && key_id == expected_key_id.as_str()
+                        && consumed
+                        && !superseded
+                })
+            })
+            .map_err(SnapbackError::from)
+    }
+
+    pub(crate) fn reconcile_unconsumed_on(
+        &self,
+        connection: &Connection,
+    ) -> SnapbackResult<bool> {
+        let Some(expected_key_id) = self.key_id.as_ref() else {
+            return Ok(true);
+        };
+        connection
+            .query_row(
+                "SELECT canonical_address, key_id, consumed_at_ms IS NULL
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                params![self.challenge_id.as_str()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, bool>(2)?,
+                    ))
+                },
+            )
+            .optional()
+            .map(|row| {
+                row.is_some_and(|(address, key_id, unconsumed)| {
+                    address == self.address.as_str()
+                        && key_id == expected_key_id.as_str()
+                        && unconsumed
+                })
+            })
+            .map_err(SnapbackError::from)
+    }
+
     /// Verify and consume the proof inside the protected operation's writer
     /// transaction. A successful proof can therefore commit at most one
     /// authority-creating effect; rollback leaves both proof and effect
@@ -2110,8 +2175,11 @@ impl AddressAdmission {
         &self,
         database: &mut LocalDatabase,
         binding: &StepUpBinding,
-        now_ms: u64,
     ) -> ProviderResult<RequestCodeResponse> {
+        // Sample after every asynchronous admission/stripe wait, immediately
+        // before the durable effect, so the five-minute window cannot be
+        // lengthened by request-queue delay.
+        let now_ms = self.provider().now_ms();
         validate_now(now_ms)?;
         if !self.provider().profile.permits_capture() {
             return Err(step_up_delivery_unavailable());

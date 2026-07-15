@@ -1971,7 +1971,11 @@ frozen provider protocol or pretending that production delivery exists:
   `consumed_at_ms` CAS, and authority-creating grant creation share one SQLite
   transaction. A rollback consumes neither proof nor effect; concurrent use can
   create at most one grant. There is no boolean "step-up proven" trust seam and
-  no second durable bearer registry.
+  no second durable bearer registry. Time is sampled after the asynchronous
+  admission waits, immediately before the durable effect. If SQLite loses the
+  commit acknowledgement, the server reconciles the exact request, candidate
+  grant, and challenge successor state; any mismatch fails unavailable with
+  `SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN` instead of guessing success.
 - `authorityCreating` grant approval requires this proof; ordinary grant
   approval does not. The closed operation vocabulary can grow when the owner
   invitation, credential, and deactivation routes land, but those routes are
