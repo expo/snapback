@@ -99,7 +99,8 @@ pub(crate) struct MintedPairingCode {
     pub secret: PairingCode,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct PendingGrantRequest {
     pub request_id: String,
     pub effective_user_id: String,
@@ -147,6 +148,23 @@ pub(crate) struct ApprovedGrant {
 pub(crate) enum GrantApproval {
     Created(ApprovedGrant),
     Existing(ApprovedGrant),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UserGrant {
+    pub grant_id: String,
+    pub actor_user_id: String,
+    pub scopes: Vec<ExactGrantScope>,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub revoked_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct GrantRevocation {
+    pub grant_id: String,
+    pub token_ids: Vec<String>,
 }
 
 impl LocalDatabase {
@@ -483,6 +501,142 @@ impl LocalDatabase {
                 params![request_id, effective_user_id],
             )?;
             Ok(())
+        })
+    }
+
+    pub(crate) fn pending_grant_requests(
+        &mut self,
+        effective_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<PendingGrantRequest>> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            require_human_user_on(tx, effective_user_id)?;
+            sweep_pairing_requests_on(tx, now_ms)?;
+            let mut statement = tx.prepare(
+                "SELECT id, agent_user_id, requested_scopes, created_at_ms, expires_at_ms
+                 FROM _auth_pairing_requests
+                 WHERE minted_by_user_id = ?1 AND state = 'pending'
+                   AND agent_user_id IS NOT NULL AND requested_scopes IS NOT NULL
+                   AND consumed_at_ms IS NOT NULL AND expires_at_ms > ?2
+                 ORDER BY created_at_ms, id",
+            )?;
+            let rows = statement.query_map(params![effective_user_id, now_ms as i64], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            })?;
+            let rows = rows.collect::<Result<Vec<_>, _>>()?;
+            rows.into_iter()
+                .map(|(request_id, agent_user_id, scopes, created_at_ms, expires_at_ms)| {
+                    pending_request_on(
+                        tx,
+                        &request_id,
+                        effective_user_id,
+                        &agent_user_id,
+                        &parse_scopes_json(&scopes)?,
+                        u64::try_from(created_at_ms).map_err(|_| grant_state_corrupt())?,
+                        u64::try_from(expires_at_ms).map_err(|_| grant_state_corrupt())?,
+                    )
+                })
+                .collect()
+        })
+    }
+
+    pub(crate) fn grants_for_user(
+        &mut self,
+        effective_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<UserGrant>> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        self.with_auth_read(|conn| {
+            let mut statement = conn.prepare(
+                "SELECT id, actor_user_id, scopes, created_at_ms, expires_at_ms, revoked_at_ms
+                 FROM _auth_grants WHERE effective_user_id = ?1
+                 ORDER BY created_at_ms, id",
+            )?;
+            let rows = statement.query_map(params![effective_user_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<i64>>(5)?,
+                ))
+            })?;
+            rows.map(|row| {
+                let (grant_id, actor_user_id, scopes, created_at_ms, expires_at_ms, revoked_at_ms) =
+                    row?;
+                Ok(UserGrant {
+                    grant_id,
+                    actor_user_id,
+                    scopes: parse_scopes_json(&scopes)?,
+                    created_at_ms: u64::try_from(created_at_ms)
+                        .map_err(|_| grant_state_corrupt())?,
+                    expires_at_ms: u64::try_from(expires_at_ms)
+                        .map_err(|_| grant_state_corrupt())?,
+                    revoked_at_ms: revoked_at_ms
+                        .map(u64::try_from)
+                        .transpose()
+                        .map_err(|_| grant_state_corrupt())?,
+                })
+            })
+            .collect()
+        })
+    }
+
+    pub(crate) fn revoke_grant_for_user(
+        &mut self,
+        effective_user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<GrantRevocation> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let revoked_at_ms = tx
+                .query_row(
+                    "SELECT revoked_at_ms FROM _auth_grants
+                     WHERE id = ?1 AND effective_user_id = ?2",
+                    params![grant_id, effective_user_id],
+                    |row| row.get::<_, Option<i64>>(0),
+                )
+                .optional()?
+                .ok_or_else(grant_invalid)?;
+            if revoked_at_ms.is_some() {
+                return Ok(GrantRevocation {
+                    grant_id: grant_id.to_owned(),
+                    token_ids: Vec::new(),
+                });
+            }
+            let mut statement = tx.prepare(
+                "SELECT id FROM _auth_grant_tokens
+                 WHERE grant_id = ?1 AND revoked_at_ms IS NULL ORDER BY id",
+            )?;
+            let token_ids = statement
+                .query_map(params![grant_id], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            drop(statement);
+            tx.execute(
+                "UPDATE _auth_grants SET revoked_at_ms = ?1
+                 WHERE id = ?2 AND effective_user_id = ?3 AND revoked_at_ms IS NULL",
+                params![now_ms as i64, grant_id, effective_user_id],
+            )?;
+            tx.execute(
+                "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                 WHERE grant_id = ?2 AND revoked_at_ms IS NULL",
+                params![now_ms as i64, grant_id],
+            )?;
+            Ok(GrantRevocation {
+                grant_id: grant_id.to_owned(),
+                token_ids,
+            })
         })
     }
 }
@@ -1555,6 +1709,9 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(pending.diagnostic.code, "SNAPBACK_AUTH_GRANT_PENDING");
+        let pending_requests = db.pending_grant_requests("user-a", 7_002).unwrap();
+        assert_eq!(pending_requests.len(), 1);
+        assert_eq!(pending_requests[0].request_id, pairing.request_id);
         db.approve_grant_request(
             "user-a",
             "session-a",
@@ -1602,5 +1759,25 @@ mod tests {
             .unwrap();
         assert_eq!(resolved.grant_id, replacement.grant_id);
         assert_eq!(replacement.scopes, resolved.scopes);
+        assert!(db.pending_grant_requests("user-a", 7_005).unwrap().is_empty());
+        let grants = db.grants_for_user("user-a", 7_005).unwrap();
+        assert_eq!(grants.len(), 1);
+        assert_eq!(grants[0].grant_id, replacement.grant_id);
+
+        let revoked = db
+            .revoke_grant_for_user("user-a", &replacement.grant_id, 7_006)
+            .unwrap();
+        assert_eq!(revoked.token_ids, vec![replacement.token_id]);
+        assert_eq!(
+            db.resolve_scoped_token(&replacement.secret, 7_006)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+        );
+        let repeated = db
+            .revoke_grant_for_user("user-a", &replacement.grant_id, 7_006)
+            .unwrap();
+        assert!(repeated.token_ids.is_empty());
     }
 }
