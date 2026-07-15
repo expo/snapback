@@ -137,6 +137,51 @@ const rawResponse = (body, status = 204) => ({
   status,
   text: async () => String(body),
 });
+
+// Wrap the transactional owner rather than rejecting withOwnership itself, so
+// a failure can target the production #confirmDurableExact owner.read after
+// resume has completed and staged the transport cache publication.
+const finalOwnerReadFailureSeam = (baseStorage, code) => {
+  let readCount = 0;
+  let delegatedReadCount = 0;
+  let armed = null;
+  let failure = null;
+  return {
+    storage: {
+      ...baseStorage,
+      async withOwnership(appId, operation) {
+        return baseStorage.withOwnership(appId, (owner) => operation({
+          ...owner,
+          async read() {
+            readCount += 1;
+            if (armed !== null) {
+              failure = {
+                phase: armed.phase,
+                armedAtReadCount: armed.readCount,
+                failureReadCount: readCount,
+                delegatedReadCount,
+              };
+              armed = null;
+              throw Object.assign(new Error(`${code}: injected final owner.read failure`), {
+                code,
+              });
+            }
+            const value = await owner.read();
+            delegatedReadCount += 1;
+            return value;
+          },
+        }));
+      },
+    },
+    arm(phase) {
+      if (armed !== null || failure !== null) throw new Error('final owner.read failure seam reused');
+      armed = { phase, readCount };
+    },
+    witness() {
+      return failure === null ? null : { ...failure };
+    },
+  };
+};
 const poisonedReadResponse = (secret) => ({
   ok: true,
   status: 200,
@@ -1076,25 +1121,16 @@ for (const mode of ['owner', 'peer']) {
   }
 }
 
-// The corresponding peer-adoption cut fails the final ownership acquisition
-// after the real transport staged its handshake. Failure cleanup must discard
-// that cache, remain blank, and force a fresh handshake on clean recovery.
+// The corresponding peer-adoption cut fails the final owner.read after the
+// real transport staged its handshake. Failure cleanup must discard that cache,
+// remain blank, and force a fresh handshake on clean recovery.
 {
   const state = { custody: {} };
   const baseStorage = createMemoryAuthCustodyStorage({ state });
-  let failNextOwnership = false;
-  const subjectStorage = {
-    ...baseStorage,
-    async withOwnership(appId, operation) {
-      if (failNextOwnership) {
-        failNextOwnership = false;
-        throw Object.assign(new Error('FINAL4 peer final confirmation failed'), {
-          code: 'TEST_FINAL4_PEER_CONFIRM_FAILED',
-        });
-      }
-      return baseStorage.withOwnership(appId, operation);
-    },
-  };
+  const finalRead = finalOwnerReadFailureSeam(
+    baseStorage,
+    'TEST_FINAL6_PEER_FINAL_READ_FAILED',
+  );
   const writer = new AuthCoordinator({
     appId: APP,
     storage: createMemoryAuthCustodyStorage({ state }),
@@ -1103,7 +1139,7 @@ for (const mode of ['owner', 'peer']) {
   });
   const subject = new AuthCoordinator({
     appId: APP,
-    storage: subjectStorage,
+    storage: finalRead.storage,
     broadcastChannelFactory: null,
     hintStorage: null,
   });
@@ -1112,8 +1148,9 @@ for (const mode of ['owner', 'peer']) {
   let client;
   let concurrentAuthError = null;
   let compareCallbackCalls = 0;
+  let handshakeCalls = 0;
   const unregisterFailure = subject.registerParticipant({
-    name: 'final4-peer-real-kit-final-read-failure',
+    name: 'final6-peer-real-kit-final-read-failure',
     async resume(context) {
       try {
         await client.authSession({ force: true });
@@ -1124,11 +1161,15 @@ for (const mode of ['owner', 'peer']) {
         await subject.compareAndCommit(context.capture, () => { compareCallbackCalls += 1; }),
         { committed: false },
       );
-      failNextOwnership = true;
+      assert.equal(
+        handshakeCalls,
+        1,
+        'peer transport completed stagePublication before the final read was armed',
+      );
+      finalRead.arm('peer-resume-after-transport-stage');
     },
   });
   client = new SnapbackClient('http://stub', { authCoordinator: subject });
-  let handshakeCalls = 0;
   globalThis.fetch = async (url, init = {}) => {
     assert.equal(pathOf(url), '/auth/session');
     assert.equal(authorization(init), `Bearer ${BEARER_A}`);
@@ -1140,10 +1181,23 @@ for (const mode of ['owner', 'peer']) {
       authority: sessionA,
       bearer: BEARER_A,
       refreshAfterMs: 20_000,
-    }, 'final4_peer_real_kit_stage');
+    }, 'final6_peer_real_kit_stage');
     await assert.rejects(
       subject.synchronize(),
-      (error) => error?.code === 'TEST_FINAL4_PEER_CONFIRM_FAILED',
+      (error) => error?.code === 'TEST_FINAL6_PEER_FINAL_READ_FAILED',
+    );
+    const finalReadWitness = finalRead.witness();
+    assert.equal(finalReadWitness?.phase, 'peer-resume-after-transport-stage');
+    assert(finalReadWitness.armedAtReadCount > 0, 'peer initial/preconfirm reads completed');
+    assert.equal(
+      finalReadWitness.failureReadCount,
+      finalReadWitness.armedAtReadCount + 1,
+      'peer failure was the next production owner.read after staging',
+    );
+    assert.equal(
+      finalReadWitness.delegatedReadCount,
+      finalReadWitness.armedAtReadCount,
+      'peer final owner.read threw before delegating to durable storage',
     );
     assert.equal(concurrentAuthError?.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
     assert.equal(compareCallbackCalls, 0);
@@ -1260,29 +1314,20 @@ for (const mode of ['owner', 'peer']) {
   }
 }
 
-// FINAL5 symmetric owner final-read failure: the production transport stages
-// A, then the final ownership acquisition fails. No staged or ordinary work is
+// FINAL6 symmetric owner final-read failure: the production transport stages
+// A, then the final owner.read fails. No staged or ordinary work is
 // exposed; the owner remains closed until a clean synchronization repeats the
 // handshake and publishes that newly confirmed result.
 {
   const state = { custody: {} };
   const baseStorage = createMemoryAuthCustodyStorage({ state });
-  let failNextOwnership = false;
-  const subjectStorage = {
-    ...baseStorage,
-    async withOwnership(appId, operation) {
-      if (failNextOwnership) {
-        failNextOwnership = false;
-        throw Object.assign(new Error('FINAL5 owner final confirmation failed'), {
-          code: 'TEST_FINAL5_OWNER_CONFIRM_FAILED',
-        });
-      }
-      return baseStorage.withOwnership(appId, operation);
-    },
-  };
+  const finalRead = finalOwnerReadFailureSeam(
+    baseStorage,
+    'TEST_FINAL6_OWNER_FINAL_READ_FAILED',
+  );
   const subject = new AuthCoordinator({
     appId: APP,
-    storage: subjectStorage,
+    storage: finalRead.storage,
     broadcastChannelFactory: null,
     hintStorage: null,
   });
@@ -1290,8 +1335,9 @@ for (const mode of ['owner', 'peer']) {
   let client;
   let concurrentAuthError = null;
   let compareCallbackCalls = 0;
+  let handshakeCalls = 0;
   const unregisterFailure = subject.registerParticipant({
-    name: 'final5-owner-real-kit-final-read-failure',
+    name: 'final6-owner-real-kit-final-read-failure',
     async resume(context) {
       try {
         await client.authSession({ force: true });
@@ -1302,11 +1348,15 @@ for (const mode of ['owner', 'peer']) {
         await subject.compareAndCommit(context.capture, () => { compareCallbackCalls += 1; }),
         { committed: false },
       );
-      failNextOwnership = true;
+      assert.equal(
+        handshakeCalls,
+        1,
+        'owner transport completed stagePublication before the final read was armed',
+      );
+      finalRead.arm('owner-resume-after-transport-stage');
     },
   });
   client = new SnapbackClient('http://stub', { authCoordinator: subject });
-  let handshakeCalls = 0;
   globalThis.fetch = async (url, init = {}) => {
     assert.equal(pathOf(url), '/auth/session');
     assert.equal(authorization(init), `Bearer ${BEARER_A}`);
@@ -1320,7 +1370,7 @@ for (const mode of ['owner', 'peer']) {
         authority: sessionA,
         bearer: BEARER_A,
         refreshAfterMs: 20_000,
-      }, 'final5_owner_real_kit_stage'),
+      }, 'final6_owner_real_kit_stage'),
       (error) => {
         transitionError = error;
         return error?.code === 'SNAPBACK_AUTH_TRANSITION_FAILED';
@@ -1328,7 +1378,20 @@ for (const mode of ['owner', 'peer']) {
     );
     assert.equal(
       transitionError?.diagnostic?.details?.causeCode,
-      'TEST_FINAL5_OWNER_CONFIRM_FAILED',
+      'TEST_FINAL6_OWNER_FINAL_READ_FAILED',
+    );
+    const finalReadWitness = finalRead.witness();
+    assert.equal(finalReadWitness?.phase, 'owner-resume-after-transport-stage');
+    assert(finalReadWitness.armedAtReadCount > 0, 'owner initial/preconfirm reads completed');
+    assert.equal(
+      finalReadWitness.failureReadCount,
+      finalReadWitness.armedAtReadCount + 1,
+      'owner failure was the next production owner.read after staging',
+    );
+    assert.equal(
+      finalReadWitness.delegatedReadCount,
+      finalReadWitness.armedAtReadCount,
+      'owner final owner.read threw before delegating to durable storage',
     );
     assert.equal(concurrentAuthError?.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
     assert.equal(compareCallbackCalls, 0);

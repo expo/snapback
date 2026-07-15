@@ -5,11 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL5 composed-client evidence closure: names the
+**Revised:** 2026-07-15 (FINAL6 composed-client evidence closure: names the
 production `SnapbackClient.authSession()` fixture and completes its owner/peer
-matrix for paused success, post-staging custody mismatch, and final ownership-
-read failure; every failure discards staged/in-flight work, remains blank, and
-exposes only the later clean synchronization cache). 2026-07-15 (FINAL4 bootstrap-gate closure: makes anonymous
+matrix for paused success, post-staging custody mismatch, and final locked
+`owner.read` failure; wrapped-owner read/phase witnesses prove earlier reads and
+transport staging completed before the exact final read throws, every failure
+discards staged/in-flight work and remains blank, and only the later clean
+synchronization cache becomes visible). 2026-07-15 (FINAL4 bootstrap-gate closure: makes anonymous
 establishment creation-only, uses a durable-null synchronization result as the
 sole kit bootstrap witness, refuses paused exact captures before handshake or
 cache work, and proves real owner/peer success plus mismatch/read-failure cache
@@ -2087,11 +2089,15 @@ wall-clock sleeps are not proof of ordering.
     performs no bootstrap/handshake/cache publication, and cannot enable a
     `compareAndCommit` callback. On success, only the staged transport handshake
     becomes cached after final confirmation. After the real transport stages
-    its handshake, independently advance custody and fail the final ownership
-    read in **both owner and peer modes**. Each in-flight ordinary session
-    returns stale, capture remains clearing, staged cache work is discarded,
-    and only a later clean `synchronize()` may fetch/cache the durable successor;
-    the following ordinary `authSession` performs no additional handshake.
+    its handshake, independently advance custody and fail the final locked
+    `owner.read` in **both owner and peer modes**. The read-failure storage seam
+    wraps the owner passed to the production ownership callback; its read-count
+    and resume-phase witnesses prove initial/preconfirmation reads completed,
+    the transport participant returned after staging, and the very next read in
+    `#confirmDurableExact` threw. Each in-flight ordinary session returns stale,
+    capture remains clearing, staged cache work is discarded, and only a later
+    clean `synchronize()` may fetch/cache the durable successor; the following
+    ordinary `authSession` performs no additional handshake.
 
 The landed coordinator suites now prove ordered participant phases,
 clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
@@ -2130,12 +2136,16 @@ FINAL4 adds real-kit concurrent `authSession` cuts for owner and peer success,
 owner mismatch, and peer final-read failure, plus direct creation-only
 bootstrap regressions; these prove a paused exact result is never confused with
 genuinely absent custody.
-FINAL5 completes the same production-client matrix in
+FINAL6 completes the same production-client matrix in
 `demos/_kit/tests/auth-coordinator-client.mjs` with peer mismatch and owner
-final-read failure. Together the six composed cuts cover owner/peer paused
-success, owner/peer post-staging mismatch, and owner/peer failed final ownership
-reads, with explicit stale in-flight results, blank capture, repeated clean
-handshake after discard, and cache-only return after clean synchronization.
+final-read failure. Both final-read cuts wrap the acquired owner and arm only
+after the reverse-ordered production transport participant has staged its
+handshake cache; read-count/phase witnesses pin the injected exception to the
+next production final `owner.read`, not ownership acquisition. Together the six
+composed cuts cover owner/peer paused success, owner/peer post-staging mismatch,
+and owner/peer failed final ownership reads, with explicit stale in-flight
+results, blank capture, repeated clean handshake after discard, and cache-only
+return after clean synchronization.
 
 ### Client store and Contract boundaries
 

@@ -825,3 +825,34 @@ EVIDENCE
 - Ordinary commit refusal and final locked staged flush: packages/snapback-contract/auth-coordinator.mjs:872-916,1428-1518.
 - LLP 0058/Contract composition remains fail-closed: llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1399-1419; packages/snapback-contract/index.mjs:2393-2406.
 - Static inspection only; no tests or builds run.
+
+## FINAL6 final-read evidence-seam review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: external Codex review artifact; exact CLI version was not emitted with this artifact
+- Model: unavailable (artifact did not emit a model identifier)
+- Method: read-only blind targeted static review
+- Session: unavailable (ephemeral reviewer did not emit a session identifier)
+- Reviewed commit: `c77e238ee4009d649a284a346aecd5bd28d83683`
+- Human authorization: ENG-25001 FINAL6 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final6-codex-0059.md`
+
+### Verbatim review
+
+VERDICT
+NOT READY
+
+MATERIAL
+- Claim: both “final ownership-read failure” cuts throw from `withOwnership` before its callback, so neither reaches the final `owner.read()` (`auth-coordinator-client.mjs:1088-1095,1273-1280`; production read at `auth-coordinator.mjs:1428-1436`). Impact: the required owner/peer final-read matrix is absent, and LLP 0059 overstates its evidence (`0059…spec.md:2090-2094,2133-2138`). Required resolution: inject failure from the wrapped owner’s final `read()` after ownership acquisition, for both owner and peer, while preserving stale/blank, discard, clean-sync refetch, and cache-only assertions.
+
+MINOR
+- The closure is labeled FINAL5, not FINAL6 (`0059…spec.md:8-12,2133-2138`). Align the closure name.
+
+EVIDENCE
+- Production classes are directly imported (`auth-coordinator-client.mjs:5-9`).
+- Deterministic owner/peer success cuts exist (`auth-coordinator-client.mjs:897-978`); mismatch cuts exist (`:989-1070,1176-1253`).
+- Production staging, locked flush, and failure discard are present (`client.mjs:1292-1315`; `auth-coordinator.mjs:1350-1360,1460-1517,1593-1603`).
+- HEAD `c77e238ee4009d649a284a346aecd5bd28d83683`; static read-only inspection only, no tests/builds.
