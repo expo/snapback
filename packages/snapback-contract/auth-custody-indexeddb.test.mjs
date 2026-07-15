@@ -6,6 +6,7 @@ import { webcrypto } from 'node:crypto';
 import { IDBFactory } from 'fake-indexeddb';
 
 import {
+  AuthCoordinator,
   AUTH_CUSTODY_LEASE_MS,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
 } from './auth-coordinator.mjs';
@@ -13,6 +14,13 @@ import { createIndexedDbAuthCustodyStorage } from './auth-custody-indexeddb.mjs'
 
 const APP = 'snapback.test/indexeddb-custody';
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
+const INCARNATION_B = '018f0d90-7b12-7a22-8c33-445566778899';
+
+const anonymousAuthority = (incarnation) => ({
+  kind: 'anonymous',
+  authMode: 'sessions',
+  authorizationStreamIncarnation: incarnation,
+});
 
 const settledAnonymous = () => ({
   formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
@@ -102,7 +110,10 @@ class DeterministicLockManager {
 
 // @ref LLP 0059#cross-context-ownership — an expired fallback holder is
 // fenced in the same transaction as custody CAS, and its later best-effort
-// release cannot expire or overwrite the successor holder's lease.
+// release cannot expire or overwrite the successor holder's lease. Its
+// withOwnership operation itself fails closed on completion (ENG-24985): a
+// paused holder that was taken over rejects with lock loss instead of
+// resolving, so its caller never acts on work performed under a lost lease.
 {
   const indexedDB = new IDBFactory();
   let wallMs = 10_000;
@@ -147,7 +158,7 @@ class DeterministicLockManager {
   await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => staleOwner.read());
 
   releaseStale.resolve();
-  await staleTask;
+  await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => staleTask);
   assert.deepEqual(await successorOwner.replace(null, settledAnonymous()), settledAnonymous());
   releaseSuccessor.resolve();
   await successorTask;
@@ -201,8 +212,116 @@ class DeterministicLockManager {
   assert.deepEqual(await successorTask, settledAnonymous());
   clearTimeout(advance);
   releaseStale.resolve();
-  await staleTask;
+  // The taken-over holder fails closed on completion rather than resolving.
+  await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => staleTask);
   await Promise.all([stale.close(), successor.close()]);
+}
+
+// ENG-24985: without Web Locks, the fallback lease can expire after
+// owner.read() and before the synchronous compareAndCommit publication. A
+// paused former holder A that resumes after a successor durably settled B must
+// be fenced across publication: its commit/publication callback (where the
+// Contract boundary write and app/store observer effects run) must never
+// execute, and the stale operation must reject with lock loss rather than
+// resolving committed. The previous `if (lost)` timer-flag check did not
+// reread the lease and let the stale task resolve.
+{
+  const indexedDB = new IDBFactory();
+  let wallMs = 100_000;
+  let monotonicMs = 0;
+  const options = {
+    indexedDB,
+    lockManager: null,
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-auth-custody-commit-fence-test',
+    wallNow: () => wallMs,
+    monotonicNow: () => monotonicMs,
+  };
+
+  // Pause the stale coordinator's compareAndCommit after its fenced read but
+  // before publication, without touching the fenced publish path itself, so
+  // the same injection point exercises fixed and unfixed code alike.
+  const base = createIndexedDbAuthCustodyStorage(options);
+  let armed = false;
+  let paused = false;
+  const readEntered = deferred();
+  const readGate = deferred();
+  const staleStorage = {
+    withOwnership: (appId, operation) => base.withOwnership(appId, (owner) => operation({
+      ...owner,
+      read: async () => {
+        const record = await owner.read();
+        if (armed && !paused) {
+          paused = true;
+          readEntered.resolve();
+          await readGate.promise;
+        }
+        return record;
+      },
+    })),
+  };
+  const successorStorage = createIndexedDbAuthCustodyStorage(options);
+
+  const staleCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage: staleStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const successorCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage: successorStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+
+  const captureA = await staleCoordinator.establishAnonymous(anonymousAuthority(INCARNATION));
+  await successorCoordinator.synchronize();
+  const successorCaptureA = successorCoordinator.capture();
+
+  let aPublicationRan = false;
+  armed = true;
+  const staleCommit = staleCoordinator.compareAndCommit(captureA, () => {
+    // This is exactly where index.mjs runs the Contract boundary write and
+    // app/store observer effects. It must not execute after a takeover.
+    aPublicationRan = true;
+    return 'A-publication';
+  });
+  await readEntered.promise;
+
+  // A holds a fresh lease and has read settled-A, paused before publication.
+  // Expire that lease and let the successor durably settle A -> B.
+  wallMs += AUTH_CUSTODY_LEASE_MS + 1;
+  monotonicMs += AUTH_CUSTODY_LEASE_MS + 1;
+  const captureB = await successorCoordinator.transition(
+    successorCaptureA,
+    { authority: anonymousAuthority(INCARNATION_B), bearer: null, refreshAfterMs: null },
+    'takeover_settles_b',
+  );
+  assert.equal(captureB.authorityEpoch, captureA.authorityEpoch + 1);
+
+  // Resume A. Its stale publication is fenced by a post-read lease revalidation.
+  readGate.resolve();
+  await expectCode('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', () => staleCommit);
+  assert.equal(
+    aPublicationRan,
+    false,
+    'no A boundary/store/publication callback may run after a successor takeover',
+  );
+
+  // Durable custody is the successor's B, untouched by the fenced holder.
+  const observer = createIndexedDbAuthCustodyStorage(options);
+  const durable = await observer.withOwnership(APP, (owner) => owner.read());
+  assert.equal(durable.authorityEpoch, captureB.authorityEpoch);
+  assert.equal(durable.authority.authorizationStreamIncarnation, INCARNATION_B);
+
+  await Promise.all([
+    staleCoordinator.close(),
+    successorCoordinator.close(),
+    base.close(),
+    successorStorage.close(),
+    observer.close(),
+  ]);
 }
 
 console.log('auth-custody-indexeddb.test.mjs: all assertions passed');

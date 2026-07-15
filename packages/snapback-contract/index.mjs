@@ -1308,20 +1308,22 @@ export async function createSnapbackContractSurface({
         },
         onConnectionChange: (connection, detail) => {
           const callbackCapture = captureForTransportValue(client, capture, detail);
-          void compareContractCommit(coordinator, callbackCapture, () => {
-            // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each
-            // live observer's last cell with the new connection value.
-            for (const record of [...liveCellObservers]) {
-              if (record.confirmed && record.lastCell) {
-                record.emit({ ...record.lastCell, connection });
-              }
-            }
-          }).then((outcome) => {
+          // @ref LLP 0059#cross-context-ownership — the commit runs the durable
+          // currency check only; observer re-emission (app-facing effect) runs
+          // after it resolves current, never inside compareAndCommit.
+          void compareContractCommit(coordinator, callbackCapture, () => (
+            [...liveCellObservers].filter((record) => record.confirmed && record.lastCell)
+          )).then((outcome) => {
             if (!outcome.committed) {
               void confirmDurableAuthority();
               return;
             }
             if (!coordinator || coordinator.isCurrent(callbackCapture)) {
+              // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each
+              // live observer's last cell with the new connection value.
+              for (const record of outcome.value) {
+                if (record.lastCell) record.emit({ ...record.lastCell, connection });
+              }
               onConnectionChange?.(connection, detail);
             }
           }).catch(() => {});
@@ -3451,17 +3453,20 @@ async function createMultiLiveContractSurface({
         },
         onConnectionChange: (connection, detail) => {
           const callbackCapture = captureForTransportValue(client, capture, detail);
-          void compareContractCommit(coordinator, callbackCapture, () => {
-            reemitCells(name, connection);
-          }).then((outcome) => {
-            if (!outcome.committed) {
-              void confirmDurableAuthority();
-              return;
-            }
-            if (!coordinator || coordinator.isCurrent(callbackCapture)) {
-              onConnectionChange?.(connection, { ...detail, queryName: name });
-            }
-          }).catch(() => {});
+          // @ref LLP 0059#cross-context-ownership — observer re-emission is an
+          // app-facing effect and runs after the durable currency check, not
+          // inside compareAndCommit.
+          void compareContractCommit(coordinator, callbackCapture, () => undefined)
+            .then((outcome) => {
+              if (!outcome.committed) {
+                void confirmDurableAuthority();
+                return;
+              }
+              if (!coordinator || coordinator.isCurrent(callbackCapture)) {
+                reemitCells(name, connection);
+                onConnectionChange?.(connection, { ...detail, queryName: name });
+              }
+            }).catch(() => {});
         },
         onSubscriptionEvent: onSubscriptionEvent
           ? (event) => {

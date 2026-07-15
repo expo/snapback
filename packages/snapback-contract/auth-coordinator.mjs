@@ -702,24 +702,37 @@ export class AuthCoordinator {
       if (!captureMatches(this.#appId, record, capture)) return { committed: false };
       const validated = validateAuthCustody(record, this.#appId);
       this.#adoptSettled(validated);
-      this.#inCommit = true;
-      try {
-        const value = commit(Object.freeze({
-          ...captureFor(this.#appId, validated),
-          authority: clone(validated.authority),
-          bearer: validated.bearer,
-          refreshAfterMs: validated.refreshAfterMs,
-        }));
-        if (value && typeof value.then === 'function') {
-          throw coordinatorError(
-            'SNAPBACK_CLIENT_AUTH_COMMIT_ASYNC',
-            'compareAndCommit callback must be synchronous and non-reentrant',
-          );
+      const view = Object.freeze({
+        ...captureFor(this.#appId, validated),
+        authority: clone(validated.authority),
+        bearer: validated.bearer,
+        refreshAfterMs: validated.refreshAfterMs,
+      });
+      const runCommit = () => {
+        this.#inCommit = true;
+        try {
+          const value = commit(view);
+          if (value && typeof value.then === 'function') {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTH_COMMIT_ASYNC',
+              'compareAndCommit callback must be synchronous and non-reentrant',
+            );
+          }
+          return value;
+        } finally {
+          this.#inCommit = false;
         }
-        return { committed: true, value };
-      } finally {
-        this.#inCommit = false;
-      }
+      };
+      // @ref LLP 0059#cross-context-ownership — without Web Locks the lease
+      // can be lost between the fenced read and this synchronous commit. A
+      // fenced storage owner revalidates the lease row transactionally around
+      // the publication commit, so a paused former holder rejects with lock
+      // loss instead of publishing under a successor. Owners whose ownership
+      // spans the whole operation (Web Locks, serialized memory) run direct.
+      const value = typeof owner.fencePublication === 'function'
+        ? await owner.fencePublication(runCommit)
+        : runCommit();
+      return { committed: true, value };
     });
   }
 

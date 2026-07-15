@@ -1324,7 +1324,14 @@ Acquisition increments `fencingToken`, selects a fresh CSPRNG holder nonce, and
 sets a five-second expiry in one IndexedDB/native transaction. The holder
 renews every one second. Every custody write validates holder, fencing token,
 and unexpired lease in the same transaction as the write. A paused former
-holder can never overwrite a newer holder. After lease loss it aborts and
+holder can never overwrite a newer holder. A synchronous publication commit
+that performs no custody write — `compareAndCommit`, which exposes external
+Contract boundary and app/observer state under the fenced read — is fenced the
+same way: the lease row is revalidated transactionally immediately before the
+commit and rechecked on the owning operation's completion, so a former holder
+paused between its read and its commit rejects with lock loss instead of
+publishing under a successor, and app/observer effects run only after the
+commit resolves current, never inside it. After lease loss it aborts and
 reloads. A contender may replace a lease when its epoch expiry has passed or
 when it has observed the exact unchanged `(holderNonce, fencingToken, lease
 record)` for five local monotonic seconds; replacement is a CAS against those

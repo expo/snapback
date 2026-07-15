@@ -319,6 +319,43 @@ export function createIndexedDbAuthCustodyStorage({
     return next;
   };
 
+  // Transactionally reread the lease row and require the exact holder,
+  // unexpired. The renewal timer's `lost` flag is only a fast local hint — a
+  // paused former holder's timer may not have fired since a takeover.
+  const assertFallbackLeaseHeld = async (db, appId, lease) => {
+    const tx = db.transaction(['leases'], 'readonly');
+    const raw = await requestResult(tx.objectStore('leases').get(appId));
+    await transactionDone(tx);
+    const current = raw === undefined ? null : validateLease(raw);
+    if (!sameLeaseHolder(current, lease) || current.expiresAtMs <= wallNow()) {
+      throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
+    }
+  };
+
+  // @ref LLP 0059#cross-context-ownership — the lease-row fence spans the
+  // publication commit: the synchronous callback runs inside an exclusive
+  // `leases` transaction that revalidated the holder, so a takeover cannot
+  // interleave between validation and publication, and a paused former holder
+  // fails with lock loss before any stale publication executes.
+  const fencePublication = async (db, appId, lease, publish) => {
+    const tx = db.transaction(['leases'], 'readwrite');
+    const raw = await requestResult(tx.objectStore('leases').get(appId));
+    const current = raw === undefined ? null : validateLease(raw);
+    if (!sameLeaseHolder(current, lease) || current.expiresAtMs <= wallNow()) {
+      try { tx.abort(); } catch { /* already completed or aborted */ }
+      throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
+    }
+    let value;
+    try {
+      value = publish();
+    } catch (error) {
+      try { tx.abort(); } catch { /* already completed or aborted */ }
+      throw error;
+    }
+    await transactionDone(tx);
+    return value;
+  };
+
   const releaseFallbackLease = async (db, appId, lease) => {
     const tx = db.transaction(['leases'], 'readwrite');
     const store = tx.objectStore('leases');
@@ -386,10 +423,20 @@ export function createIndexedDbAuthCustodyStorage({
         assertHeld();
         return record;
       },
+      fencePublication: async (publish) => {
+        assertHeld();
+        const value = await fencePublication(db, appId, lease, publish);
+        assertHeld();
+        return value;
+      },
     };
     try {
       const result = await operation(owner);
       assertHeld();
+      // @ref LLP 0059#cross-context-ownership — a paused former holder never
+      // successfully returns after a successor takeover: completion requires
+      // the durable lease row, not just the renewal timer's local flag.
+      await assertFallbackLeaseHeld(db, appId, lease);
       return result;
     } finally {
       clearInterval(timer);
