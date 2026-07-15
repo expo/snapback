@@ -220,7 +220,21 @@ function validateRefreshTime(value, field = 'refreshAfterMs') {
   }
 }
 
-function validateTransitionIntent(value) {
+function sameClientAuthority(left, right) {
+  return left.kind === right.kind
+    && left.authMode === right.authMode
+    && left.authorizationStreamIncarnation === right.authorizationStreamIncarnation
+    && (left.kind !== 'session' || (
+      left.sessionId === right.sessionId
+      && left.userId === right.userId
+    ));
+}
+
+function transitionIdFor(appId, predecessorRevision, nextEpoch, nextAuthorityKey) {
+  return `sha256:${sha256Hex(`snapback.auth-transition.v1\n${appId}\n${predecessorRevision}\n${nextEpoch}\n${nextAuthorityKey}`)}`;
+}
+
+function validateTransitionIntent(value, appId) {
   if (value === null) return null;
   assertExactKeys(value, [
     'formatVersion',
@@ -248,6 +262,12 @@ function validateTransitionIntent(value) {
   }
   const previousAuthority = normalizeClientAuthority(value.previousAuthority);
   const nextAuthority = normalizeClientAuthority(value.nextAuthority);
+  if (
+    canonicalAuthorityKey(appId, previousAuthority) !== value.expectedAuthorityKey
+    || canonicalAuthorityKey(appId, nextAuthority) !== value.nextAuthorityKey
+  ) {
+    throw corrupt('custody transition intent authority keys do not bind their embedded authorities');
+  }
   return clone({ ...value, previousAuthority, nextAuthority });
 }
 
@@ -282,7 +302,10 @@ export function validateAuthCustody(record, expectedAppId = null) {
   assertSafeInteger(record.revision, 'revision', { positive: true });
   if (!PHASES.has(record.phase)) throw corrupt('durable custody phase is invalid', { field: 'phase' });
   validateRefreshTime(record.refreshAfterMs);
-  const transitionIntent = validateTransitionIntent(record.transitionIntent);
+  // @ref LLP 0059#durable-custody-record — a peer may execute destructive
+  // physical-store phases from this intent, so every embedded authority/key
+  // pair and the containing successor must be one closed durable statement.
+  const transitionIntent = validateTransitionIntent(record.transitionIntent, appId);
   const authority = record.authority === null ? null : normalizeClientAuthority(record.authority);
   const pendingAuthority = record.pendingAuthority === null
     ? null
@@ -301,6 +324,29 @@ export function validateAuthCustody(record, expectedAppId = null) {
     if (authority.kind === 'session' && (record.bearer === null || record.refreshAfterMs === null)) {
       throw corrupt('session settled custody requires a bearer and refresh time');
     }
+    if (transitionIntent !== null && (
+      transitionIntent.nextEpoch !== record.authorityEpoch
+      || transitionIntent.nextAuthorityKey !== canonicalAuthorityKey(appId, authority)
+      || !sameClientAuthority(transitionIntent.nextAuthority, authority)
+    )) {
+      throw corrupt('settled custody does not match its retained transition successor');
+    }
+    const maximumEpochWithExactMinimumRevision = Math.floor((Number.MAX_SAFE_INTEGER - 1) / 2);
+    const minimumSettledRevision = record.authorityEpoch <= maximumEpochWithExactMinimumRevision
+      ? (record.authorityEpoch * 2) + 1
+      : null;
+    if (
+      transitionIntent !== null
+      && record.revision === minimumSettledRevision
+      && transitionIntent.transitionId !== transitionIdFor(
+        appId,
+        record.revision - 2,
+        transitionIntent.nextEpoch,
+        transitionIntent.nextAuthorityKey,
+      )
+    ) {
+      throw corrupt('settled custody transition identifier does not match its derivable predecessor');
+    }
   } else {
     if (record.authorityEpoch < 1) {
       throw corrupt('clearing custody must advance to a positive authority epoch', {
@@ -313,9 +359,25 @@ export function validateAuthCustody(record, expectedAppId = null) {
     if (
       transitionIntent === null
       || transitionIntent.nextEpoch !== record.authorityEpoch
-      || canonicalAuthorityKey(appId, transitionIntent.nextAuthority)
-        !== canonicalAuthorityKey(appId, pendingAuthority)
+      || transitionIntent.nextAuthorityKey !== canonicalAuthorityKey(appId, pendingAuthority)
+      || !sameClientAuthority(transitionIntent.nextAuthority, pendingAuthority)
     ) throw corrupt('clearing custody lacks its exact durable transition intent');
+    const predecessorRevision = record.revision - 1;
+    if (
+      predecessorRevision < 1
+      || transitionIntent.transitionId !== transitionIdFor(
+        appId,
+        predecessorRevision,
+        transitionIntent.nextEpoch,
+        transitionIntent.nextAuthorityKey,
+      )
+    ) {
+      // The clearing revision is exactly one greater than its settled
+      // predecessor, so the transition identifier is derivable here. A
+      // retained settled intent may survive later bearer-only revisions and
+      // therefore cannot recover the original predecessor revision.
+      throw corrupt('clearing custody transition identifier does not match its durable predecessor');
+    }
     if (pendingAuthority.kind === 'anonymous' && (record.pendingBearer !== null || record.refreshAfterMs !== null)) {
       throw corrupt('anonymous clearing successor cannot contain bearer custody or a refresh time');
     }
@@ -943,7 +1005,7 @@ export class AuthCoordinator {
       const expectedAuthorityKey = canonicalAuthorityKey(this.#appId, current.authority);
       const transitionIntent = {
         formatVersion: 1,
-        transitionId: `sha256:${sha256Hex(`snapback.auth-transition.v1\n${this.#appId}\n${current.revision}\n${nextEpoch}\n${successorKey}`)}`,
+        transitionId: transitionIdFor(this.#appId, current.revision, nextEpoch, successorKey),
         expectedEpoch: current.authorityEpoch,
         expectedAuthorityKey,
         nextEpoch,
@@ -1034,7 +1096,7 @@ export class AuthCoordinator {
   }
 
   async #recoverOwned(owner, clearing, reason) {
-    const intent = validateTransitionIntent(clearing.transitionIntent);
+    const intent = validateTransitionIntent(clearing.transitionIntent, this.#appId);
     return this.#finishClearingOwned(owner, clearing, {
       expectedEpoch: intent.expectedEpoch,
       expectedAuthorityKey: intent.expectedAuthorityKey,

@@ -40,6 +40,15 @@ const successor = (authority, bearer = null, refreshAfterMs = null) => ({
   refreshAfterMs,
 });
 
+const transitionIdForTest = (predecessorRevision, nextEpoch, nextAuthorityKey) => (
+  `sha256:${createHash('sha256')
+    .update(
+      `snapback.auth-transition.v1\n${APP}\n${predecessorRevision}\n${nextEpoch}\n${nextAuthorityKey}`,
+      'utf8',
+    )
+    .digest('hex')}`
+);
+
 const errorCode = async (operation) => {
   try {
     await operation();
@@ -151,6 +160,98 @@ const hintStorage = {
     }, APP),
     { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
   );
+
+  const previousAuthority = anonymous();
+  const nextAuthority = session();
+  const expectedAuthorityKey = canonicalAuthorityKey(APP, previousAuthority);
+  const nextAuthorityKey = canonicalAuthorityKey(APP, nextAuthority);
+  const transitionIntent = {
+    formatVersion: 1,
+    transitionId: transitionIdForTest(1, 1, nextAuthorityKey),
+    expectedEpoch: 0,
+    expectedAuthorityKey,
+    nextEpoch: 1,
+    nextAuthorityKey,
+    reason: 'validation_fixture',
+    disposition: 'delete',
+    previousAuthority,
+    nextAuthority,
+  };
+  const clearing = {
+    ...valid,
+    authorityEpoch: 1,
+    revision: 2,
+    phase: 'clearing',
+    authority: null,
+    pendingAuthority: nextAuthority,
+    pendingBearer: 'fixture-bearer',
+    refreshAfterMs: 10_000,
+    transitionIntent,
+  };
+  assert.deepEqual(validateAuthCustody(clearing, APP), clearing);
+  const settled = {
+    ...clearing,
+    revision: 3,
+    phase: 'settled',
+    authority: nextAuthority,
+    pendingAuthority: null,
+    bearer: 'fixture-bearer',
+    pendingBearer: null,
+  };
+  assert.deepEqual(validateAuthCustody(settled, APP), settled);
+  assert.throws(
+    () => validateAuthCustody({
+      ...settled,
+      authorityEpoch: 2,
+      revision: 4,
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+    'the retained intent successor epoch must equal the settled record epoch',
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...clearing,
+      transitionIntent: {
+        ...transitionIntent,
+        previousAuthority: anonymous('dev'),
+      },
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+    'the predecessor authority must derive its embedded expected key',
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...clearing,
+      transitionIntent: {
+        ...transitionIntent,
+        nextAuthority: session(SESSION_B, USER_B),
+      },
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+    'the successor authority must derive its embedded next key',
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...clearing,
+      transitionIntent: {
+        ...transitionIntent,
+        transitionId: `sha256:${'0'.repeat(64)}`,
+      },
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+    'a clearing record binds the derivable transition identifier',
+  );
+  assert.throws(
+    () => validateAuthCustody({
+      ...settled,
+      transitionIntent: {
+        ...transitionIntent,
+        transitionId: `sha256:${'0'.repeat(64)}`,
+      },
+    }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+    'an unrotated settled record also binds its derivable transition identifier',
+  );
 }
 
 // Memory adapters cannot confuse a canonical app id with an object prototype
@@ -168,6 +269,57 @@ const hintStorage = {
   assert.equal(Object.getPrototypeOf(state.custody), Object.prototype);
   assert.equal(state.custody.__proto__.appId, '__proto__');
   await protoCoordinator.close();
+}
+
+// A peer rejects a structurally valid retained intent whose successor differs
+// from the containing settled authority, before any physical-store phase runs.
+{
+  const state = { custody: {} };
+  const writer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await writer.establishAnonymous(anonymous());
+  await peer.synchronize();
+  const peerCapture = peer.capture();
+  await writer.transition(
+    anonymousCapture,
+    successor(session(), 'peer-fixture-bearer', 10_000),
+    'peer_fixture',
+  );
+  const corruptSuccessor = session(SESSION_B, USER_B);
+  const corruptSuccessorKey = canonicalAuthorityKey(APP, corruptSuccessor);
+  state.custody[APP].transitionIntent = {
+    ...state.custody[APP].transitionIntent,
+    transitionId: transitionIdForTest(1, 1, corruptSuccessorKey),
+    nextAuthorityKey: corruptSuccessorKey,
+    nextAuthority: corruptSuccessor,
+  };
+  const phases = [];
+  peer.registerParticipant({
+    name: 'must-not-adopt-corrupt-intent',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+  assert.equal(
+    await errorCode(() => peer.synchronize()),
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  );
+  assert.deepEqual(peer.capture(), peerCapture, 'the peer did not adopt the corrupt successor');
+  assert.deepEqual(phases, [], 'no peer barrier phase trusted the corrupt intent');
+  await peer.close();
+  await writer.close();
 }
 
 const shared = { custody: {} };
@@ -437,6 +589,7 @@ for (const bytes of hintBytes.values()) {
       ...storage.snapshot(APP),
       authorityEpoch: Number.MAX_SAFE_INTEGER,
       revision: 100,
+      transitionIntent: null,
     },
   } };
   const exhausted = new AuthCoordinator({

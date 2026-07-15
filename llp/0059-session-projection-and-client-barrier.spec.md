@@ -7,7 +7,8 @@
 **Date:** 2026-07-13
 **Revised:** 2026-07-15 (ENG-25001 defect resolution: durable terminal
 frontiers and monotonic restore; coordinator-only protocol 1; custody format 2
-transition intent; ownership release before resume/network; close-only 4401
+transition intent with embedded-authority validation; ownership release before
+resume/network; close-only 4401
 terminal latch; deployment identity and UUIDv7 boundary; counted prepared
 handshake authority and durable cache fence; executable readiness probes;
 LLP 0008 Web-Lock one-key reconciliation; and dev/test lock-rank assertions).
@@ -158,7 +159,7 @@ duplicate keys and unknown fields.
 | Session projection format | `1` |
 | Authorization-stream record format | `1` |
 | Authorization-stream metadata key | `auth_stream_incarnation_v1` |
-| Client custody format | `1` |
+| Client custody format | `2` |
 | Contract client-store format | `3` |
 | Bootstrap auth client protocol | `1` |
 | Projection startup id | a fresh canonical UUIDv7 per process |
@@ -621,14 +622,12 @@ accepted by a writer handoff before `Begin`; that buffer is honestly in flight.
 
 The server supplies test/dev lock-rank assertions for projection topology →
 authorization stream → session leaf. An intentional inversion fails before the
-lower-ranked mutex acquisition. Connection/room independence is proven by the
-existing L9 server fixture rather than nesting those registries under projection
-guards. The
-L9 concurrency suite must show that a stalled revocation transaction for session
-A does not delay an unrelated finite request or publication for session B beyond
-normal scheduler noise — and that stalled-revocation-independence fixture is
-itself an acceptance obligation, since it is not currently discoverable in the
-suite.
+lower-ranked mutex acquisition. Connection/room independence is proven by
+`server::tests::protected_room_server_fast_paths_progress_during_affected_commit`
+rather than nesting those registries under projection guards. That named L9
+fixture holds the affected authorization commit pending while unrelated
+protected-room registration, publication, and drain complete over both HTTP and
+WebSocket within bounded time; it remains an acceptance obligation.
 
 ## Connection-bound authority
 
@@ -1225,6 +1224,16 @@ the settled successor so peer contexts can idempotently apply the same physical
 store transition before resume. No broadcast
 contains either bearer field.
 
+Validation derives both authority keys from the intent's embedded predecessor
+and successor authorities. A clearing record additionally derives the
+transition digest from its exact predecessor revision, successor epoch, and
+successor key. A retained intent on a settled record must name that containing
+record's exact successor epoch, key, and authority; when its revision history
+also proves that no bearer-only increment occurred, validation derives the
+transition digest there too. Later bearer-only rotations may advance the
+settled revision while retaining the intent, so they do not pretend the
+original predecessor revision remains derivable.
+
 A fresh store is created only after a successful anonymous bootstrap handshake,
 at `authorityEpoch: 0` and `revision: 1`. Every custody record replacement,
 including clearing, settling, and bearer rotation, increments revision by
@@ -1809,9 +1818,9 @@ wall-clock sleeps are not proof of ordering.
    identity, invalid generation/timestamp, malformed incarnation, and
    contradictory reset marker. Startup refuses before listener bind with the
    correct stable code and performs no repair.
-8. Hold session A's database commit at a failpoint. Session B completes an L9
-   finite request and fenced publication without waiting for A's transaction or
-   projection ticket.
+8. Hold the affected authorization commit at a failpoint. An unrelated L9
+   protected room registers, publishes, and drains over both HTTP and WebSocket
+   without waiting for the affected transaction or projection ticket.
 9. Authenticated finite use, current-bearer connection open, grace-window
    ordinary use, and live-socket liveness each extend the in-memory deadline and
    coalesce durable writes. Refresh-only and an unresponsive retained socket do
