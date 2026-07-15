@@ -475,6 +475,7 @@ pub enum InvocationSource {
     BootstrapHandshake,
     AuthRefresh,
     AuthLogout,
+    AgentGrantManagement,
     HttpQuery,
     HttpMutation,
     HttpAction,
@@ -518,10 +519,11 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 30] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
+        Self::AgentGrantManagement,
         Self::HttpQuery,
         Self::HttpMutation,
         Self::HttpAction,
@@ -568,6 +570,7 @@ impl InvocationSource {
             Self::BootstrapHandshake
             | Self::AuthRefresh
             | Self::AuthLogout
+            | Self::AgentGrantManagement
             | Self::StandaloneAcknowledgement
             | Self::ConnectionOpen
             | Self::ConnectionClose
@@ -1068,7 +1071,9 @@ fn source_allows_authority(
                 ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session { .. }
             ),
         },
-        InvocationSource::AuthRefresh | InvocationSource::AuthLogout => {
+        InvocationSource::AuthRefresh
+        | InvocationSource::AuthLogout
+        | InvocationSource::AgentGrantManagement => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
         }
         InvocationSource::HttpQuery
@@ -1370,7 +1375,9 @@ mod tests {
                     (AuthMode::Dev, Kind::Anonymous)
                         | (AuthMode::Sessions, Kind::Anonymous | Kind::Session)
                 ),
-                InvocationSource::AuthRefresh | InvocationSource::AuthLogout => {
+                InvocationSource::AuthRefresh
+                | InvocationSource::AuthLogout
+                | InvocationSource::AgentGrantManagement => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
                 }
                 InvocationSource::HttpQuery

@@ -9,7 +9,7 @@ use crate::auth::coordinator::{
     IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CredentialClass, SessionBearer, dispatch_credential_class,
+    AgentCredential, CredentialClass, PairingCode, SessionBearer, dispatch_credential_class,
 };
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
@@ -66,7 +66,7 @@ use axum::extract::{DefaultBodyLimit, Extension, OriginalUri, Path, Query, State
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{MethodRouter, get, post};
+use axum::routing::{MethodRouter, delete, get, post};
 use axum::{
     Json, Router,
     body::{Body, Bytes, to_bytes},
@@ -3815,6 +3815,99 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
+                "/auth/pairing-codes",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_pairing_code).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/pair",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_pair).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/auth/grant-requests",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            get(auth_grant_requests).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/grant-requests/{id}/approve",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(auth_grant_request_approve)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/grant-requests/{id}/deny",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(auth_grant_request_deny)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/auth/grants",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            get(auth_grants).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "DELETE",
+                "/auth/grants/{id}",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            delete(auth_grant_revoke).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
                 "/auth/agents/rotate",
                 RouteClass::AppData,
                 RoutePolicy::Public,
@@ -4805,6 +4898,12 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
+        "/auth/pairing-codes"
+        | "/auth/grant-requests"
+        | "/auth/grant-requests/{id}/approve"
+        | "/auth/grant-requests/{id}/deny"
+        | "/auth/grants"
+        | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
@@ -6212,11 +6311,60 @@ struct AgentCredentialRequest {
 }
 
 #[derive(Deserialize)]
+#[serde(untagged)]
+enum AgentTokenRequest {
+    Grant(AgentGrantTokenRequest),
+    Pairing(AgentPairingTokenRequest),
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct AgentTokenRequest {
+struct AgentGrantTokenRequest {
     credential: SecretInput,
     grant_id: String,
     ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentPairingTokenRequest {
+    credential: SecretInput,
+    pairing_request_id: String,
+    ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentPairRequest {
+    credential: SecretInput,
+    pairing_request_id: String,
+    pairing_code: SecretInput,
+    requested_scopes: Vec<crate::storage::auth_grants::GrantScopeRequest>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct GrantApprovalRequest {
+    requested_ttl_ms: Option<u64>,
+}
+
+struct PairingCodeSecretResponse {
+    pairing_request_id: String,
+    expires_at_ms: u64,
+    pairing_code: PairingCode,
+}
+
+impl Serialize for PairingCodeSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("PairingCodeResponse", 3)?;
+        state.serialize_field("pairingRequestId", &self.pairing_request_id)?;
+        state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("pairingCode", self.pairing_code.expose_secret())?;
+        state.end()
+    }
 }
 
 struct AgentCredentialSecretResponse {
@@ -6246,6 +6394,8 @@ struct AgentTokenSecretResponse {
     credential_id: String,
     credential_generation: u64,
     expires_at_ms: u64,
+    grant_expires_at_ms: Option<u64>,
+    scopes: serde_json::Value,
     token: crate::auth::crypto::ScopedToken,
 }
 
@@ -6254,12 +6404,14 @@ impl Serialize for AgentTokenSecretResponse {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("AgentTokenResponse", 6)?;
+        let mut state = serializer.serialize_struct("AgentTokenResponse", 8)?;
         state.serialize_field("tokenId", &self.token_id)?;
         state.serialize_field("grantId", &self.grant_id)?;
         state.serialize_field("credentialId", &self.credential_id)?;
         state.serialize_field("credentialGeneration", &self.credential_generation)?;
         state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("grantExpiresAtMs", &self.grant_expires_at_ms)?;
+        state.serialize_field("scopes", &self.scopes)?;
         state.serialize_field("token", self.token.expose_secret())?;
         state.end()
     }
@@ -6273,6 +6425,18 @@ fn parse_agent_credential(input: &SecretInput) -> Result<AgentCredential, ApiErr
             "SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID",
             "auth",
             "agent credential is invalid",
+        ))
+    })
+}
+
+fn parse_pairing_code(input: &SecretInput) -> Result<PairingCode, ApiError> {
+    dispatch_credential_class(input.as_str(), CredentialClass::PairingCode)
+        .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+    PairingCode::parse(input.as_str()).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GRANT_INVALID",
+            "auth",
+            "agent grant is invalid",
         ))
     })
 }
@@ -6294,6 +6458,198 @@ fn require_agent_routes_available(runtime: &AppState) -> Result<Arc<AuthProvider
         .into());
     }
     installed_auth_provider(runtime)
+}
+
+fn require_grant_session(
+    authority: &PreparedAuthority,
+) -> Result<(String, String), ApiError> {
+    require_provider_session_authority(authority, InvocationSource::AgentGrantManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("grant-management source requires session authority");
+    };
+    Ok((user_id.clone(), session_id.clone()))
+}
+
+async fn auth_pairing_code(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<PairingCodeSecretResponse>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let minted = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("pairing-code mint transaction")?;
+        snapback.auth_database_mut().mint_pairing_code(
+            &user_id,
+            now_ms,
+            provider.agent_random_source(),
+        )
+    })
+    .await?;
+    Ok(Json(PairingCodeSecretResponse {
+        pairing_request_id: minted.request_id,
+        expires_at_ms: minted.expires_at_ms,
+        pairing_code: minted.secret,
+    }))
+}
+
+async fn auth_agent_pair(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::storage::auth_grants::PendingGrantRequest>, ApiError> {
+    let _provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentPairRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let pairing_code = parse_pairing_code(&request.pairing_code)?;
+    let now_ms = _provider.now_ms();
+    let presentation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission.effect_guard("agent pairing transaction")?;
+        snapback.auth_database_mut().present_pairing_code(
+            &credential,
+            &request.pairing_request_id,
+            &pairing_code,
+            &request.requested_scopes,
+            now_ms,
+        )
+    })
+    .await?;
+    Ok(Json(match presentation {
+        crate::storage::auth_grants::PairingPresentation::Created(request)
+        | crate::storage::auth_grants::PairingPresentation::Existing(request) => request,
+    }))
+}
+
+async fn auth_grant_requests(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<Vec<crate::storage::auth_grants::PendingGrantRequest>>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    Ok(Json(
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .pending_grant_requests(&user_id, now_ms)
+        })
+        .await?,
+    ))
+}
+
+async fn auth_grant_request_approve(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::storage::auth_grants::ApprovedGrant>, ApiError> {
+    let (user_id, session_id) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let request: GrantApprovalRequest = parse_auth_json(&headers, body)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let approval = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("grant approval transaction")?;
+        snapback.auth_database_mut().approve_grant_request(
+            &user_id,
+            &session_id,
+            &request_id,
+            request.requested_ttl_ms,
+            false,
+            now_ms,
+        )
+    })
+    .await?;
+    Ok(Json(match approval {
+        crate::storage::auth_grants::GrantApproval::Created(grant)
+        | crate::storage::auth_grants::GrantApproval::Existing(grant) => grant,
+    }))
+}
+
+async fn auth_grant_request_deny(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("grant denial transaction")?;
+        snapback
+            .auth_database_mut()
+            .deny_grant_request(&user_id, &request_id, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+async fn auth_grants(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<Vec<crate::storage::auth_grants::UserGrant>>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    Ok(Json(
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.auth_database_mut().grants_for_user(&user_id, now_ms)
+        })
+        .await?,
+    ))
+}
+
+async fn auth_grant_revoke(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(grant_id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let provider = require_agent_routes_available(&runtime)?;
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if uri.query().is_some() || !body.is_empty() {
+        return Err(auth_request_invalid());
+    }
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let _revocation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("grant revocation transaction")?;
+        snapback
+            .auth_database_mut()
+            .revoke_grant_for_user(&user_id, &grant_id, now_ms)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 /// Rotate a long-lived agent credential. The request is body-credential-only:
@@ -6342,18 +6698,37 @@ async fn auth_agent_token(
     let provider = require_agent_routes_available(&runtime)?;
     reject_agent_route_authorization_header(&headers)?;
     let request: AgentTokenRequest = parse_auth_json(&headers, body)?;
-    let credential = parse_agent_credential(&request.credential)?;
     let now_ms = provider.now_ms();
-    let issued = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().mint_scoped_token(
-            &credential,
-            &request.grant_id,
-            request.ttl_ms,
-            now_ms,
-            provider.agent_random_source(),
-        )
-    })
-    .await?;
+    let issued = match request {
+        AgentTokenRequest::Grant(request) => {
+            let credential = parse_agent_credential(&request.credential)?;
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.auth_database_mut().mint_scoped_token(
+                    &credential,
+                    &request.grant_id,
+                    request.ttl_ms,
+                    now_ms,
+                    provider.agent_random_source(),
+                )
+            })
+            .await?
+        }
+        AgentTokenRequest::Pairing(request) => {
+            let credential = parse_agent_credential(&request.credential)?;
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback
+                    .auth_database_mut()
+                    .mint_scoped_token_for_pairing_request(
+                        &credential,
+                        &request.pairing_request_id,
+                        request.ttl_ms,
+                        now_ms,
+                        provider.agent_random_source(),
+                    )
+            })
+            .await?
+        }
+    };
     let _evicted = issued.evicted_token_ids;
     Ok(Json(AgentTokenSecretResponse {
         token_id: issued.token_id,
@@ -6361,6 +6736,8 @@ async fn auth_agent_token(
         credential_id: issued.credential_id,
         credential_generation: issued.credential_generation,
         expires_at_ms: issued.expires_at_ms,
+        grant_expires_at_ms: issued.grant_expires_at_ms,
+        scopes: issued.scopes,
         token: issued.secret,
     }))
 }
@@ -17450,6 +17827,153 @@ mod tests {
             response_json(repeated).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_SESSION_EXPIRED"
         );
+    }
+
+    #[tokio::test]
+    async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_receipts() {
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let credential = with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES('grant-user', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    rusqlite::params![now_ms as i64],
+                )?;
+                Ok(())
+            })?;
+            db.create_agent_principal(
+                "route-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Route Agent".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: "route-test".to_owned(),
+                    owner_user_id: Some("grant-user".to_owned()),
+                },
+            )?;
+            let issued = db.issue_initial_agent_credential(
+                "route-agent",
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES('route-grant', 'route-agent', 'grant-user', ?1, ?2, ?3,
+                              NULL, 'test', 'route-pairing', NULL, ?2)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_pairing_requests(
+                       id, code_hash, minted_by_user_id, agent_user_id,
+                       requested_scopes, state, attempts, created_at_ms,
+                       expires_at_ms, consumed_at_ms, grant_id
+                     ) VALUES('route-pairing', zeroblob(32), 'grant-user', 'route-agent',
+                              ?1, 'approved', 0, ?2, ?3, ?2, 'route-grant')",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
+                Ok(())
+            })?;
+            Ok::<_, SnapbackError>(issued.secret.expose_secret().to_owned())
+        })
+        .await
+        .unwrap();
+        let router = app(state);
+
+        let mut ordinary_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "grantId": "route-grant",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut ordinary_request);
+        let ordinary = router
+            .clone()
+            .oneshot(ordinary_request)
+            .await
+            .unwrap();
+        let ordinary_status = ordinary.status();
+        let ordinary = response_json(ordinary).await;
+        assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
+        assert_eq!(ordinary["grantId"], "route-grant");
+        assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
+        assert_eq!(ordinary["scopes"][0]["fn"], "fn:listItems");
+        assert!(ordinary["token"].as_str().unwrap().starts_with("sbagt_"));
+
+        let mut pairing_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "pairingRequestId": "route-pairing",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut pairing_request);
+        let pairing = router
+            .clone()
+            .oneshot(pairing_request)
+            .await
+            .unwrap();
+        let pairing_status = pairing.status();
+        let pairing = response_json(pairing).await;
+        assert_eq!(pairing_status, StatusCode::OK, "{pairing}");
+        assert_eq!(pairing["grantId"], "route-grant");
+        assert_eq!(pairing["grantExpiresAtMs"], now_ms + 60_000);
+        assert_eq!(pairing["scopes"], ordinary["scopes"]);
+
+        for invalid in [
+            json!({"credential": credential}),
+            json!({
+                "credential": credential,
+                "grantId": "route-grant",
+                "pairingRequestId": "route-pairing",
+            }),
+        ] {
+            let mut request = auth_http_request(
+                "POST",
+                "/auth/agents/token",
+                serde_json::to_vec(&invalid).unwrap(),
+                true,
+                None,
+                None,
+            );
+            offer_auth_client_protocol(&mut request);
+            let response = router
+                .clone()
+                .oneshot(request)
+                .await
+                .unwrap();
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUEST_INVALID"
+            );
+        }
     }
 
     /// @ref LLP 0058#gate-algorithm — required provider-route credentials are

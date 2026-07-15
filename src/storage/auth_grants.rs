@@ -133,7 +133,8 @@ enum PairingAttemptOutcome {
     Invalid,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ApprovedGrant {
     pub grant_id: String,
     pub request_id: String,
