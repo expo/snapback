@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0316fe44b4943437916c65c1aac856f77c41ed04"
+    "commit": "0a123a4e3ec13784f64aa4a4e787906877853acf"
   },
   "nav": {
     ".": [
@@ -181,8 +181,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "85dcf6e9b73ce436a3cd743cd235cdcaa3bb8960",
-      "sha256": "3b3d942e2e8feec2e265318a80d9c28178bdcdaae4655c0199ebc3e25a28472c",
+      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
+      "sha256": "7fa955b134507f418d1d7b5e102bfc3344e92e4faefad7d2a446463cbcc68a58",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -290,8 +290,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "85dcf6e9b73ce436a3cd743cd235cdcaa3bb8960",
-      "sha256": "531bebc2c77f212c736e45c53d7bd5bbd84f984638d569a19412ec91b5a69d3c",
+      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
+      "sha256": "1136e87a32593b047af4da86fb4ce9da592668d5129731bc5560b018892b3584",
       "snippets": []
     },
     "getting-started.the-authoring-loop": {
@@ -415,8 +415,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "0316fe44b4943437916c65c1aac856f77c41ed04",
-      "sha256": "1d1b8912b1de52b521a595b7314d07156d4105ff140c1bbeade8fc9fd8a52ea4",
+      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
+      "sha256": "821854f1eccb5c7025f98932ec542f3de9bed101817ade59c418de69c6f8762e",
       "snippets": []
     },
     "realtime.live-queries": {
@@ -579,8 +579,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "0316fe44b4943437916c65c1aac856f77c41ed04",
-      "sha256": "a2c975ffe078c67c5a81f2e6ce366d7bcfe571fcf242c52ce16c14e5179c28b3",
+      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
+      "sha256": "c66f5ea051867fc972f35a2eb5cbaeab46752c76c3c6ff97a3565bcbdc893ed7",
       "snippets": []
     },
     "testing.acceptance": {

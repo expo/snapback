@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: 0316fe44b4943437916c65c1aac856f77c41ed04
+reviewed-commit: 0a123a4e3ec13784f64aa4a4e787906877853acf
 ---
 
 # Retrieval eval protocol
