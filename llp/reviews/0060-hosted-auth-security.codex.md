@@ -852,3 +852,37 @@ None.
 - The 0057 clock-floor boundary, 0058 witness/cache/schema/readiness evidence, and 0059 provenance/deadline/Contract evidence wording are corrected. [0057](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0057-auth-provider-protocol.spec.md:155), [0058](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:796), [0059](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1959)
 
 Focused tests passed: coordinator, Contract barrier, client-store authority; `ref-check --verbose` passed with 0 errors. Worktree remained unchanged.
+
+## Final blind review — 2026-07-15 (`3ac0473`)
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: runtime metadata was not included in the received review artifact
+- Method: independent blind final review received through the parent ENG-25001 orchestration
+- Reviewed commit: `3ac047322d055fad03e8308fdc0905d758eb9f61`
+- Source artifact: `/private/tmp/eng25001-final2-codex-0060.md`, sha256 `c6093955d220c3cc9af21da6e5b693abc900f100eec4b4a47d03e87e487df1c0`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT: NOT READY
+
+MATERIAL
+- The credential-issuing paths are not fully opaque. LLP 0060’s exhaustive custody matrix forbids every credential class from errors, but C1 limits opaque handling to failures after a 2xx response. On non-2xx responses, the kit, shared admin client, and embedded setup client still expose response-controlled diagnostic text after redacting only credentials already known to the client. A newly issued credential is necessarily unknown, so it escapes. Read-only probes confirmed this for console mint and challenge request. The ENG-25001 claim that issuing-path opacity is closed is therefore false.
+- Hosted admission omits a mandatory browser-custody gate. C1 requires structural exclusion or disablement of the direct-bearer seam as a positive prerequisite for hosted-browser admission, yet D5 says there are exactly two non-enum admission gates—D6 compatibility and operator-surface isolation—and `HostedAdmission` carries neither a direct-bearer exclusion fact nor a client-artifact/protocol binding that proves it. The hosted acceptance matrix also omits this prerequisite. Consequently the supposedly closed admission object can declare readiness while the browser artifact retains a bearer downgrade seam, contradicting C1 and the no-public-bearer rule.
+
+MINOR
+- LLP 0059’s prose and acceptance inventory have not caught up with commit `3ac0473`’s second delayed-pre-barrier cut. They describe completion during successor resume while an active barrier exists, but do not explicitly record completion after the barrier has completely cleared. The implementation and executable regression do close both cuts, so LLP 0060 no longer depends on the old race; this is governing-document drift rather than a remaining implementation defect.
+
+EVIDENCE
+- `llp/0060-hosted-auth-security.rfc.md:645-661` explains why unknown newly issued credentials require opaque failures but scopes the rule to post-2xx read/parse/shape failures; `llp/0060-hosted-auth-security.rfc.md:668-673` simultaneously forbids credentials in all errors.
+- `demos/_kit/client.mjs:1641-1654`, `packages/snapback-admin-client/index.mjs:116-127`, and `src/admin/setup.html:275-280` expose non-2xx response-controlled diagnostics after only known-secret redaction.
+- Read-only probes returned `{"surface":"admin-console-mint-non2xx","code":"ISSUER_FAILED","unknownCredentialEscaped":true}` and `{"surface":"challenge-request-non2xx","code":"ISSUER_FAILED","unknownIssuedValueEscaped":true}`.
+- `llp/0060-hosted-auth-security.rfc.md:602-616` makes structural direct-bearer exclusion mandatory. `llp/0060-hosted-auth-security.rfc.md:479-493` nevertheless identifies only D6 and C2 as extra admission gates; `llp/0060-hosted-auth-security.rfc.md:507-518` defines the closed snapshot without that custody fact; `llp/0060-hosted-auth-security.rfc.md:926-937` omits it from hosted acceptance.
+- The remaining ENG-25001 design resolutions are substantively present: serialized per-app authority at `llp/0060-hosted-auth-security.rfc.md:355-395`; no bearer-v1 waiver at `:418-431`; predelivered first-contact transport at `:241-269`; centralized charge-on-denial limiting at `:294-353`; old-receiver-safe D6 binding and both preflight domains at `:520-585`; disabled first hosted operator surface at `:732-750`; and future/local claim separation at `:1009-1048`.
+- LLP ownership remains aligned: frozen LLP 0039 assigns marker schemas to LLP 0051 and hosted rollout proof to LLP 0060 at `llp/0039-auth-vertical-slice.rfc.md:1436-1444` and `:1629-1642`; LLP 0051 accepts that inventory at `llp/0051-language-neutral-data-tier.rfc.md:603-637`.
+- Static implementation claims are accurate: `src/auth/deployment.rs:112-157` implements `no_auth_target()`, `deployment_capable()`, and `hosted_auth_capable()`; `src/auth/deployment.rs:210-220` refuses every current hosted request without admission authority; `cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json:20-26` reports all no-auth axes as `unavailable`.
+- Commit `3ac047322d055fad03e8308fdc0905d758eb9f61` changes only `packages/snapback-contract/auth-coordinator.mjs` and its test. `auth-coordinator.mjs:1218-1277` now compares every delayed ownership result against current authority even after `activeBarrier` is gone. `auth-coordinator.test.mjs:602-660` covers completion during successor resume, and `:662-703` covers completion after the barrier clears.
+- Focused command `node packages/snapback-contract/auth-coordinator.test.mjs && node demos/_kit/tests/auth-coordinator-client.mjs && node admin-ui/tests/admin-client-credentials.mjs && node admin-ui/tests/setup-credential-errors.mjs` passed all four suites.

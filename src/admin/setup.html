@@ -263,6 +263,11 @@
       replaceConsoleCredential(credential);
     });
   }
+  function credentialResponseError() {
+    var error = new Error("Credential issuer returned an invalid response.");
+    error.code = "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID";
+    return error;
+  }
   function api(path, options, preserveCredentialResponse) {
     var secrets = collectRequestSecrets(options || {});
     return fetch(path, options).then(function (res) {
@@ -273,6 +278,7 @@
           try { body = JSON.parse(text); } catch (_) { parseFailed = true; }
         }
         if (!res.ok) {
+          if (preserveCredentialResponse) throw credentialResponseError();
           var diagnostic = body && body.diagnostic;
           var rawMessage = diagnostic && diagnostic.message;
           var error = new Error(redactKnownSecrets(rawMessage || ("HTTP " + res.status), secrets));
@@ -280,16 +286,12 @@
           throw error;
         }
         if (parseFailed) {
-          if (preserveCredentialResponse) {
-            throw new Error("Credential issuer returned an invalid response.");
-          }
+          if (preserveCredentialResponse) throw credentialResponseError();
           throw new Error("HTTP " + res.status + " response is not JSON.");
         }
         return preserveCredentialResponse ? body : sanitizeKnownSecrets(body, secrets);
       }, function (error) {
-        if (res.ok && preserveCredentialResponse) {
-          throw new Error("Credential issuer returned an invalid response.");
-        }
+        if (preserveCredentialResponse) throw credentialResponseError();
         throw sanitizeError(error, secrets);
       });
     }, function (error) {

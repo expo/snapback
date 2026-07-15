@@ -96,7 +96,7 @@ export class AdminClient {
       });
       text = await res.text();
     } catch (error) {
-      if (res?.ok && preserveCredentialResponse) {
+      if (res && preserveCredentialResponse) {
         throw opaqueCredentialResponseError();
       }
       throw sanitizeAdminError(error, requestSecrets);
@@ -114,6 +114,7 @@ export class AdminClient {
       }
     }
     if (!res.ok) {
+      if (preserveCredentialResponse) throw opaqueCredentialResponseError();
       const rawDiagnostic = json && json.diagnostic
         ? json.diagnostic
         : parseError

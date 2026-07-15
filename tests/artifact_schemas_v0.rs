@@ -23,7 +23,11 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
 
-use snapback::auth::deployment::HostedAuthCapabilities;
+use snapback::auth::deployment::{
+    AuthenticationThrottle, BrowserCredentialPosture, BrowserDirectBearerSeam, EffectiveSource,
+    ExternalTls, HostedAdmission, HostedAuthCapabilities, HostedOperatorSurface,
+    SessionInvalidation,
+};
 use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
     DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DATA_TIER_PROFILE_FILE,
@@ -62,6 +66,31 @@ fn retention_info() -> ClientMutationRetentionInfo {
         max_records: 10_000,
         max_bytes: 67_108_864,
         max_result_bytes: 65_536,
+    }
+}
+
+fn representative_hosted_admission() -> HostedAdmission {
+    HostedAdmission {
+        version: 1,
+        deployment_id: "deployment-1".to_owned(),
+        configuration_sha256: "a".repeat(64),
+        support_sha256: "b".repeat(64),
+        admission_epoch: 7,
+        issued_at_ms: 1_000,
+        expires_at_ms: 301_000,
+        limiter_epoch: 11,
+        invalidation_epoch: 13,
+        handler_protocol_version: 1,
+        handler_incarnation: "handler-1".to_owned(),
+        operator_surface: HostedOperatorSurface::Disabled,
+        browser_direct_bearer_seam: BrowserDirectBearerSeam::Excluded,
+        hosted_auth: HostedAuthCapabilities {
+            external_tls: ExternalTls::Enforced,
+            effective_source: EffectiveSource::Trusted,
+            authentication_throttle: AuthenticationThrottle::SharedEnforced,
+            session_invalidation: SessionInvalidation::GloballyFenced,
+            client_credential_posture: BrowserCredentialPosture::SenderConstrainedV2,
+        },
     }
 }
 
@@ -992,6 +1021,10 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         &serde_json::to_value(HostedAuthCapabilities::local_target()).unwrap(),
     );
     assert_validates(
+        "auth.hosted-admission.schema.json",
+        &serde_json::to_value(representative_hosted_admission()).unwrap(),
+    );
+    assert_validates(
         "diagnostic.schema.json",
         &serde_json::to_value(
             Diagnostic::error("SNAPBACK_TEST", "storage", "boom")
@@ -1034,6 +1067,31 @@ fn hosted_auth_capability_descriptor_is_closed() {
     unknown_value["externalTls"] = json!("proxyConfigured");
     assert_rejects("auth.hosted-capabilities.schema.json", &unknown_value);
     assert!(serde_json::from_value::<HostedAuthCapabilities>(unknown_value).is_err());
+}
+
+#[test]
+fn hosted_admission_schema_requires_the_browser_seam_exclusion_fact() {
+    let admission = serde_json::to_value(representative_hosted_admission()).unwrap();
+    assert_validates("auth.hosted-admission.schema.json", &admission);
+
+    let mut missing = admission.clone();
+    missing
+        .as_object_mut()
+        .unwrap()
+        .remove("browserDirectBearerSeam");
+    assert_rejects("auth.hosted-admission.schema.json", &missing);
+    assert!(serde_json::from_value::<HostedAdmission>(missing).is_err());
+
+    let mut available = admission.clone();
+    available["browserDirectBearerSeam"] = json!("available");
+    assert_validates("auth.hosted-admission.schema.json", &available);
+    let available: HostedAdmission = serde_json::from_value(available).unwrap();
+    assert!(!available.closed_admission_facts_hold());
+
+    let mut unknown = admission;
+    unknown["operatorOverride"] = json!(true);
+    assert_rejects("auth.hosted-admission.schema.json", &unknown);
+    assert!(serde_json::from_value::<HostedAdmission>(unknown).is_err());
 }
 
 #[test]

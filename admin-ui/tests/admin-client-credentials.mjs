@@ -10,6 +10,7 @@ import { AdminClient } from '../../packages/snapback-admin-client/index.mjs';
 const MASTER = 'master-admin-credential-SENTINEL';
 const DERIVED = 'sbcc_derived-console-SENTINEL';
 const SECRET_READ = 'sbrl_memory-only-secret-read-SENTINEL';
+const UNKNOWN_ISSUED = 'sbcc_unknown-non-2xx-successor-SENTINEL';
 const storage = new Map([['snapback_admin_token', MASTER]]);
 const storageWrites = [];
 globalThis.localStorage = {
@@ -220,6 +221,34 @@ const readerFailure = await captureFailure(() => client.setToken(MASTER));
 assert.equal(readerFailure.diagnostic.code, 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID');
 assertCredentialAbsent(readerFailure, MASTER, 'credential reader failure master');
 assertCredentialAbsent(readerFailure, UNKNOWN_SUCCESSOR, 'credential reader failure successor');
+
+const storedBeforeIssuerFailure = storage.get('snapback_console_credential_v1');
+fetchOverride = async () => response(503, {
+  diagnostic: {
+    code: 'UPSTREAM_MINT_FAILED',
+    message: `mint failed after issuing ${UNKNOWN_ISSUED}`,
+    details: {
+      successorCredential: UNKNOWN_ISSUED,
+      [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
+    },
+  },
+});
+const non2xxIssuerFailure = await captureFailure(() => client.setToken(MASTER));
+assert.equal(
+  non2xxIssuerFailure.message,
+  'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: credential issuer returned an invalid response',
+);
+assert.deepEqual(non2xxIssuerFailure.diagnostic, {
+  code: 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+  message: 'credential issuer returned an invalid response',
+});
+assertCredentialAbsent(non2xxIssuerFailure, MASTER, 'non-2xx mint master');
+assertCredentialAbsent(non2xxIssuerFailure, UNKNOWN_ISSUED, 'non-2xx mint successor');
+assert.equal(
+  storage.get('snapback_console_credential_v1'),
+  storedBeforeIssuerFailure,
+  'a non-2xx mint failure cannot replace persisted credential custody',
+);
 
 // Exact shape is not enough: the derived value itself must not retain the
 // submitted master. This includes unavoidable one-byte collisions with the

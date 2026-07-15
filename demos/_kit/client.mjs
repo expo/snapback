@@ -1609,7 +1609,7 @@ export class SnapbackClient {
     try {
       text = await res.text();
     } catch (error) {
-      if (res.ok && opaqueSuccessFailure) {
+      if (opaqueSuccessFailure) {
         throw opaqueCredentialResponseError();
       }
       // A response object with a known 2xx status may represent a logout that
@@ -1639,6 +1639,7 @@ export class SnapbackClient {
       }
     }
     if (!res.ok) {
+      if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       const rawDiagnostic = json && json.diagnostic
         ? json.diagnostic
         : parseError

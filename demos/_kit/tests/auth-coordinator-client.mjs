@@ -21,6 +21,7 @@ const ADMIN_SECRET = 'sba_CLIENT_ADMIN_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const CHALLENGE_ID = 'sbc_CLIENT_CHALLENGE_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 const LOGIN_CODE = '123456';
 const READ_FAILURE_SECRET = 'logout_BODY_READER_SECRET_MUST_NOT_ESCAPE';
+const UNKNOWN_ISSUED = 'sbs_UNKNOWN_NON_2XX_ISSUED_SECRET_MUST_NOT_ESCAPE';
 const CLIENT_SECRETS = [
   BEARER_A,
   BEARER_B,
@@ -29,6 +30,7 @@ const CLIENT_SECRETS = [
   CHALLENGE_ID,
   LOGIN_CODE,
   READ_FAILURE_SECRET,
+  UNKNOWN_ISSUED,
 ];
 
 const anonymous = {
@@ -144,6 +146,13 @@ const poisonedReadResponse = (secret) => ({
 const diagnosticResponse = (code, status = 401, { message = code, details = {} } = {}) => response({
   diagnostic: { code, message, details },
 }, status);
+const poisonedIssuerFailure = () => diagnosticResponse('UPSTREAM_ISSUER_FAILURE', 503, {
+  message: `issuer failed after creating ${UNKNOWN_ISSUED}`,
+  details: {
+    successorCredential: UNKNOWN_ISSUED,
+    [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
+  },
+});
 
 const authorization = (init) => init?.headers?.authorization ?? null;
 const pathOf = (url) => new URL(url).pathname;
@@ -210,12 +219,14 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (path === '/auth/request-code') {
     if (issuingFailure === 'request-code-read') return poisonedReadResponse(BEARER_A);
+    if (issuingFailure === 'request-code-non2xx') return poisonedIssuerFailure();
     const challenge = { challengeId: CHALLENGE_ID, expiresAt: 10_000 };
     if (issuingFailure === 'request-code-extra') challenge.leakedBearer = BEARER_A;
     return response(challenge);
   }
   if (path === '/auth/exchange') {
     if (issuingFailure === 'exchange-read') return poisonedReadResponse(BEARER_A);
+    if (issuingFailure === 'exchange-non2xx') return poisonedIssuerFailure();
     if (exchangeErrorReflection) {
       return diagnosticResponse('SNAPBACK_AUTH_CHALLENGE_INVALID', 400, {
         message: 'login code rejected',
@@ -236,6 +247,7 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (path === '/auth/refresh') {
     if (issuingFailure === 'refresh-read') return poisonedReadResponse(BEARER_C);
+    if (issuingFailure === 'refresh-non2xx') return poisonedIssuerFailure();
     const issued = credential(BEARER_C, sessionA, 30_000);
     if (refreshPoison === 'predecessor') issued.session.provider = bearer;
     if (refreshPoison === 'successor') issued.session.provider = issued.token;
@@ -309,24 +321,35 @@ try {
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/query/list']);
 
   // Issuing paths never surface unknown response bytes or reader exceptions.
-  for (issuingFailure of ['request-code-read', 'request-code-extra']) {
+  for (issuingFailure of ['request-code-read', 'request-code-extra', 'request-code-non2xx']) {
     let issueError;
     await assert.rejects(db.authRequestCode('person@example.com'), (error) => {
       issueError = error;
       return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
     });
+    assert.deepEqual(issueError.diagnostic, {
+      code: 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+      message: 'auth provider returned an invalid credential response',
+    });
+    assert.equal(
+      issueError.message,
+      'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid credential response',
+    );
     assert.equal(JSON.stringify(issueError).includes(BEARER_A), false);
+    assert.equal(JSON.stringify(issueError).includes(UNKNOWN_ISSUED), false);
   }
-  issuingFailure = 'exchange-read';
-  let exchangeReadError;
-  await assert.rejects(
-    db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
-    (error) => {
-      exchangeReadError = error;
-      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
-    },
-  );
-  assert.equal(JSON.stringify(exchangeReadError).includes(BEARER_A), false);
+  for (issuingFailure of ['exchange-read', 'exchange-non2xx']) {
+    let exchangeReadError;
+    await assert.rejects(
+      db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
+      (error) => {
+        exchangeReadError = error;
+        return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+      },
+    );
+    assert.equal(JSON.stringify(exchangeReadError).includes(BEARER_A), false);
+    assert.equal(JSON.stringify(exchangeReadError).includes(UNKNOWN_ISSUED), false);
+  }
   issuingFailure = null;
 
   // A 200 response remains untrusted: root/nested extensions and allowed
@@ -358,16 +381,16 @@ try {
   }
   credentialPoison = null;
 
-  // ENG-24986: a failed exchange whose diagnostic reflects the submitted
-  // six-digit login code as a JSON number is compared in canonical string
-  // form; the numeric position is redacted before the error reaches app code.
+  // Even an expected exchange refusal is response-controlled at a credential
+  // issuer boundary. It is replaced by the same stable local error rather
+  // than selectively redacted and forwarded.
   exchangeErrorReflection = true;
   let numericCodeError;
   await assert.rejects(
     db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
     (error) => {
       numericCodeError = error;
-      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CHALLENGE_INVALID';
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
     },
   );
   assert.equal(coordinator.capture().authorityEpoch, 0);
@@ -375,8 +398,10 @@ try {
     message: numericCodeError.message,
     diagnostic: numericCodeError.diagnostic,
   }).includes(LOGIN_CODE), false, 'numeric login-code reflection escaped');
-  assert.equal(numericCodeError.diagnostic.details.attemptedCode, '[REDACTED]');
-  assert.deepEqual(numericCodeError.diagnostic.details.attempts, ['[REDACTED]']);
+  assert.deepEqual(numericCodeError.diagnostic, {
+    code: 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+    message: 'auth provider returned an invalid credential response',
+  });
   exchangeErrorReflection = false;
 
   // Exchange installs token custody and runs transport resume before exposing
@@ -512,14 +537,16 @@ try {
   }
   refreshPoison = null;
 
-  issuingFailure = 'refresh-read';
-  let refreshReadError;
-  await assert.rejects(db.authRefresh(), (error) => {
-    refreshReadError = error;
-    return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
-  });
-  assert.equal(JSON.stringify(refreshReadError).includes(BEARER_C), false);
-  assert.equal(storage.snapshot(APP).bearer, BEARER_B);
+  for (issuingFailure of ['refresh-read', 'refresh-non2xx']) {
+    let refreshReadError;
+    await assert.rejects(db.authRefresh(), (error) => {
+      refreshReadError = error;
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+    });
+    assert.equal(JSON.stringify(refreshReadError).includes(BEARER_C), false);
+    assert.equal(JSON.stringify(refreshReadError).includes(UNKNOWN_ISSUED), false);
+    assert.equal(storage.snapshot(APP).bearer, BEARER_B);
+  }
   issuingFailure = null;
 
   // Refresh is serialized under custody ownership and only exposes the

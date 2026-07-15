@@ -18,7 +18,7 @@
 use serde_json::Value;
 
 use crate::admin::AdminInspect;
-use crate::auth::deployment::HostedAuthCapabilities;
+use crate::auth::deployment::{HostedAdmission, HostedAuthCapabilities};
 use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
 use crate::auth::wire::{
@@ -40,7 +40,7 @@ use crate::local::{
 };
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    MutationAcknowledgementResponse, MutationRequest, SchemaManifest, SNAPBACK_SCHEMA_VERSION,
 };
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
@@ -94,6 +94,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.hosted-capabilities.schema.json",
             schemars::schema_for!(HostedAuthCapabilities),
+        ),
+        finish(
+            "auth.hosted-admission.schema.json",
+            schemars::schema_for!(HostedAdmission),
         ),
         finish(
             "remote-service.profile.schema.json",

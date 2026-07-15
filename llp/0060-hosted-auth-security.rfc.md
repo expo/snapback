@@ -5,7 +5,11 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (post-review hygiene: linked D6 to the actual LLP 0051
+**Revised:** 2026-07-15 (final blind-review closure: all response-controlled
+credential-issuer failures, including non-2xx diagnostics, now collapse to the
+same local opaque error; `HostedAdmission` gains the required positive
+direct-bearer-browser-seam exclusion fact and generated schema; status remains
+Draft). 2026-07-15 (post-review hygiene: linked D6 to the actual LLP 0051
 D4 schema-governance section, registered the future handler-incompatibility
 diagnostic exposure, and replaced an unpreserved historical browser-run claim
 with rerunnable acceptance instructions; status remains Draft). 2026-07-15 (final-review reconciliation: corrected the exhaustive
@@ -92,7 +96,8 @@ This RFC makes three decisions:
    and globally fenced session invalidation. Hosted-auth capability additionally
    requires sender-constrained client posture. Actual **hosted admission** also
    requires the deployment attestation, live health, disabled operator surface,
-   and mixed-version coordinator-to-handler boundary (D6); static support can
+   direct-bearer-browser-seam exclusion, and mixed-version
+   coordinator-to-handler boundary (D6); static support can
    never silently upgrade bearer v1.
 3. Browser auth v1 remains bearer-first and honestly not XSS-resistant.
    Sender-constrained credentials are the v2 direction. They are required
@@ -479,14 +484,17 @@ diagnostics expose only the names of missing axes.
 **The static descriptor attests `*Capable`, not `*Ready`; readiness has more
 inputs than the five fields.** The five enum values describe mechanisms a target
 build *has*; serving admission consumes the deployment-bound attestation and
-live health (layers 2 and 3), plus **two mandatory gates the five fields do not
-encode**: D6's mixed-version compatibility (a compatible handler/coordinator
+live health (layers 2 and 3), plus **three mandatory gates the five fields do
+not encode**: D6's mixed-version compatibility (a compatible handler/coordinator
 pair, both preflight domains satisfied) and C2's operator-surface isolation (a
 separately trusted operator origin, or `/_snapback/*` disabled on the app
-origin). Both are **closed, fail-closed inputs to actual hosted admission** — a
+origin), and C1's structural exclusion of the browser artifact's direct-bearer
+construction seam. All three are **closed, fail-closed inputs to actual hosted
+admission** — a
 build with all five capability enums positive but stale configuration, an
-unhealthy limiter, an incompatible handler, or same-origin operator pages is
-**not ready** and admission refuses. The naming follows: the static enums mean
+unhealthy limiter, an incompatible handler, same-origin operator pages, or a
+browser artifact that still exposes direct-bearer construction is **not ready**
+and admission refuses. The naming follows: the static enums mean
 `externalTlsCapable`/…, and only the complete admission snapshot may be called
 ready. The shipped helpers are therefore `deployment_capable()` and
 `hosted_auth_capable()`; the local validator refuses every `hosted` request
@@ -509,7 +517,11 @@ The v1 `HostedAdmission` snapshot is a closed control-plane object with:
 `supportSha256`; monotone `admissionEpoch`; `issuedAtMs` and `expiresAtMs` with
 a maximum five-minute lifetime; exact limiter and invalidation epochs; D6
 protocol version and handler incarnation; `operatorSurface: "disabled"`; and
-the five attested positive facts. The target verifies it through a
+`browserDirectBearerSeam: "excluded"`, with that attested fact included in the
+`supportSha256` binding to the exact support/browser artifact; and
+the five attested positive facts. The Rust-owned closed structure and its
+generated `auth.hosted-admission.schema.json` make absence, unknown values, and
+unknown fields fail closed. The target verifies it through a
 provider-authenticated binding, rejects rollback of any epoch, and pins one
 snapshot to every request and socket. Live health names that same admission
 epoch and reports limiter reachability plus serialized-authority currency.
@@ -644,17 +656,18 @@ reader error and credential do not.
 
 **Credential-issuing endpoints get a stricter failure rule than redaction can
 deliver.** Request-scoped redaction can only replace secrets the client
-already knows; a **newly issued** credential in a malformed 2xx body is
-unknown until parsing succeeds, so a diagnostic that embeds any response bytes
-can exfiltrate the successor no redaction set contains. The rule: on the
+already knows; a **newly issued** credential in any response-controlled failure
+is unknown until a valid success projection is accepted, so a diagnostic that
+embeds response bytes can exfiltrate a successor no redaction set contains. The
+rule: on the
 issuing paths — exchange, refresh, console mint, and challenge request — a
-parse failure, body-read failure, or shape failure after a 2xx produces a
+non-2xx response, parse failure, body-read failure, or shape failure produces a
 **fixed, opaque error carrying no response bytes and no reader-error
 payload**; and every issuing success is an exact, closed projection
 (challenge request returns exactly `{challengeId, expiresAt}`, never
 passthrough JSON). ENG-25001 closes the remaining client gaps: the kit, shared
-admin client, and embedded setup page replace 2xx read/parse failures on issuing
-paths with fixed errors, and `authRequestCode()` returns only the exact closed
+admin client, and embedded setup page replace every response-controlled failure
+on issuing paths with fixed errors, and `authRequestCode()` returns only the exact closed
 projection. Poison tests cover reader failures and unknown/nested/property-name/
 numeric positions; the implementation also maps malformed-text 2xx responses
 to the same opaque error, but this sentence does not claim a distinct malformed-
@@ -924,9 +937,11 @@ material.
   drift-gated against D6's closed envelope; this RFC's rollout and integrity
   proof consumes those schemas without re-owning or hand-copying them.
 - Readiness is proven to be capability **plus** attestation **plus** health
-  **plus** the D6/operator-origin gates: a build with all five capability enums
+  **plus** the D6/operator-origin/direct-bearer-seam gates: a build with all
+  five capability enums
   positive but stale/rebound configuration, an unhealthy limiter, an
-  incompatible handler, or same-origin operator pages is refused hosted
+  incompatible handler, same-origin operator pages, or a browser artifact whose
+  direct-bearer seam is available or unproven is refused hosted
   admission; and losing a required live-health fact **withdraws serving** (HTTP
   refusal and existing socket/drain) rather than only logging.
 - The `externalTls = enforced` attestation requires predelivered first-contact
@@ -960,8 +975,9 @@ material.
   refresh predecessor and successor, and logout body reflection. Exact empty
   204 alone returns `null`; malformed 2xx logout clears only current captured
   custody and then returns a generic credential-free error.
-- Issuing-path opaque-failure cases: a malformed 2xx on exchange, refresh, console mint, and
-  challenge request produces a fixed error with **no response bytes and no
+- Issuing-path opaque-failure cases: malformed 2xx and non-2xx failures on
+  exchange, refresh, console mint, and challenge request produce a fixed error
+  with **no response bytes and no
   reader-error payload** — proven with a poisoned body containing a
   freshly-issued credential the client could not know — and challenge-request
   success is the exact `{challengeId, expiresAt}` projection, never
@@ -1087,6 +1103,11 @@ does not ratify, and this document remains Draft pending author ratification.
 
 ## Changelog
 
+- **2026-07-15 (final blind-review closure):** made non-2xx and body-reader
+  failures opaque on every credential-issuing client path, with unknown
+  successor poison tests; added the closed `HostedAdmission` Rust/schema
+  authority and made exact browser direct-bearer seam exclusion part of the
+  hosted admission conjunction while current hosted admission remains disabled.
 - **2026-07-15 (ENG-25001):** closed the latest hosted-auth review findings by
   choosing the serialized-authority first topology, removing the bearer-v1
   hosted compatibility posture, pinning predelivered first-contact TLS,

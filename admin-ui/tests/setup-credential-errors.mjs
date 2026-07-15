@@ -9,6 +9,7 @@ import vm from 'node:vm';
 const MASTER = 'master-setup-credential-SENTINEL';
 const DERIVED = 'sbcc_setup-derived-SENTINEL';
 const CONFIG_SECRET = 'setup-config-value-SENTINEL';
+const UNKNOWN_ISSUED = 'sbcc_setup-unknown-non-2xx-successor-SENTINEL';
 const SHORT_SECRETS = ['Q', 'QZ', 'QZX'];
 const html = fs.readFileSync(new URL('../../src/admin/setup.html', import.meta.url), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -62,6 +63,18 @@ async function fetch(path, options = {}) {
           throw new Error(`reader exposed ${DERIVED}`);
         },
       };
+    }
+    if (mode === 'master-non2xx-unknown') {
+      return response(503, {
+        diagnostic: {
+          code: 'UPSTREAM_MINT_FAILED',
+          message: `mint failed after issuing ${UNKNOWN_ISSUED}`,
+          details: {
+            successorCredential: UNKNOWN_ISSUED,
+            [`credential_${UNKNOWN_ISSUED}`]: 'property-name poison',
+          },
+        },
+      });
     }
     if (mode === 'master-key-poison') {
       return response(200, {
@@ -169,7 +182,10 @@ tokenInput.value = MASTER;
 tokenSave.listeners.click();
 await flush();
 assertSecretAbsent(visibleText(), MASTER, 'master failure DOM');
-assert.match(elements.get('authmsg').textContent, /\[REDACTED\]/);
+assert.equal(
+  elements.get('authmsg').textContent,
+  'Credential issuer returned an invalid response.',
+);
 assert.equal(storageContains(MASTER), false, 'master never enters setup storage');
 
 for (const shortSecret of SHORT_SECRETS) {
@@ -182,7 +198,23 @@ for (const shortSecret of SHORT_SECRETS) {
     `${shortSecret.length}-byte master failure DOM`,
   );
   assert.equal(storageContains(shortSecret), false, 'short master never enters setup storage');
+  assert.equal(
+    elements.get('authmsg').textContent,
+    'Credential issuer returned an invalid response.',
+  );
 }
+
+mode = 'master-non2xx-unknown';
+tokenInput.value = MASTER;
+tokenSave.listeners.click();
+await flush();
+assert.equal(
+  elements.get('authmsg').textContent,
+  'Credential issuer returned an invalid response.',
+);
+assertSecretAbsent(visibleText(), UNKNOWN_ISSUED, 'non-2xx mint successor DOM');
+assertSecretAbsent(visibleText(), MASTER, 'non-2xx mint master DOM');
+assert.equal(storage.has('snapback_console_credential_v1'), false);
 
 // The exact credential response also rejects a successful property name that
 // contains the submitted master token; only a fixed protocol error reaches DOM.
