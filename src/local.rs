@@ -928,7 +928,15 @@ impl PreparedAuthProvision {
 struct PreflightedArtifactPair {
     deployment: DeploymentIdentity,
     schema: SchemaManifest,
-    functions: FunctionManifest,
+    prepared_functions: PreparedFunctionGeneration,
+}
+
+/// A manifest whose executable modules have already evaluated in isolated,
+/// effectless VMs and whose exports exist. Keeping it in the preflight cache
+/// does not make it callable; publication remains a separate post-commit cut.
+#[derive(Clone, Debug)]
+struct PreparedFunctionGeneration {
+    manifest: FunctionManifest,
 }
 
 fn ensure_request_invalid(message: impl Into<String>) -> SnapbackError {
@@ -2402,6 +2410,11 @@ impl LocalSnapback {
             // namespace collisions before staging can make the app pending.
             self.db.inspect_auth_catalog()?;
         }
+        for function in &artifacts.functions.functions {
+            if let FunctionRuntime::IbexModule(module) = &function.runtime {
+                crate::runtime::prepare_ibex_module(module, &function.kind)?;
+            }
+        }
         self.remember_preflighted_pair(
             deployment.clone(),
             artifacts.schema.clone(),
@@ -2422,7 +2435,7 @@ impl LocalSnapback {
             .push_back(PreflightedArtifactPair {
                 deployment,
                 schema,
-                functions,
+                prepared_functions: PreparedFunctionGeneration { manifest: functions },
             });
         while self.preflighted_artifact_pairs.len() > 2 {
             self.preflighted_artifact_pairs.pop_front();
@@ -2555,6 +2568,23 @@ impl LocalSnapback {
         &mut self,
         manifest: FunctionManifest,
     ) -> SnapbackResult<Vec<Diagnostic>> {
+        // A raw loader has no sibling artifact with which to prove a complete
+        // deployment pair. It is therefore only the legacy v0-dev seam; a v1
+        // function half must go through complete-pair provisioning.
+        // @ref LLP 0058#the-two-admissible-tuples — v1-dev is never an
+        // admissible tuple, including when activeDeployment is still null.
+        if manifest.schema_version != crate::manifest::SNAPBACK_SCHEMA_VERSION {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "auth",
+                "raw dev function loading accepts only snapback.v0 artifacts",
+            )
+            .with_details(serde_json::json!({
+                "authMode": "dev",
+                "schemaVersion": manifest.schema_version,
+                "expectedSchemaVersion": crate::manifest::SNAPBACK_SCHEMA_VERSION,
+            })));
+        }
         let admission = self.admission.admit_dev()?;
         let state = self.db.auth_mode_snapshot()?.state;
         if state.active != state.desired
@@ -2876,7 +2906,8 @@ impl LocalSnapback {
         Ok(StartupArtifacts {
             format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
             schema: schema.unwrap_or_else(|| sibling.schema.clone()),
-            functions: functions.unwrap_or_else(|| sibling.functions.clone()),
+            functions: functions
+                .unwrap_or_else(|| sibling.prepared_functions.manifest.clone()),
             seed,
         })
     }
@@ -10379,6 +10410,43 @@ mod tests {
     }
 
     #[test]
+    fn sessions_preflight_prepares_module_source_and_export_before_staging() {
+        for (source, export, expected_code) in [
+            ("globalThis.__snapbackHandlers = {", "handler", "SNAPBACK_HANDLER_FAILED"),
+            (
+                "globalThis.__snapbackHandlers = { present() { return null; } };",
+                "missing",
+                "SNAPBACK_HANDLER_EXPORT_MISSING",
+            ),
+        ] {
+            let mut snapback = LocalSnapback::memory().unwrap();
+            let (schema, mut functions) = auth_artifact_pair(AuthMode::Sessions, 'p');
+            functions.functions = vec![FunctionDefinition::new(
+                "preparedHandler",
+                FunctionKind::Query,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: source.to_owned(),
+                    export: export.to_owned(),
+                }),
+            )];
+            let error = snapback
+                .prepare_auth_provision(
+                    EnsureAppMode::Sessions,
+                    Some(schema),
+                    Some(functions),
+                    None,
+                )
+                .unwrap_err();
+            assert_eq!(error.diagnostic.code, expected_code);
+            assert_eq!(
+                snapback.db.auth_mode_snapshot().unwrap().state.mode_state,
+                crate::auth::mode::AuthModeStatus::Settled
+            );
+            assert!(snapback.functions.functions.is_empty());
+        }
+    }
+
+    #[test]
     fn network_one_half_update_uses_only_same_boot_preflighted_sibling() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("one-half.sqlite3");
@@ -11150,6 +11218,21 @@ globalThis.__snapbackHandlers = {
             "cron gate fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    #[test]
+    fn raw_dev_function_loader_rejects_sessions_half_before_publication() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let before = snapback.functions.clone();
+        let manifest = FunctionManifest {
+            schema_version: crate::manifest::SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            ..FunctionManifest::default()
+        };
+        let error = snapback
+            .load_functions_in_settled_dev(manifest)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(snapback.functions, before);
     }
 
     #[test]

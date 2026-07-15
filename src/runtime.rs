@@ -1661,6 +1661,60 @@ fn run_ibex_handler_with_context_until(
     parse_handler_output(module, output)
 }
 
+/// Evaluate one module in a fresh, non-callable VM and prove that its named
+/// export exists before a deployment can cross its durable activation cut.
+/// No app database context is installed, so setup code cannot perform a host
+/// effect; syntax errors, top-level setup failures, and missing exports all
+/// fail preflight.
+///
+/// @ref LLP 0058#consume-ordering-dev-to-sessions — every fallible executable
+/// preparation step precedes the durable consume transaction.
+pub(crate) fn prepare_ibex_module(
+    module: &IbexModule,
+    kind: &crate::manifest::FunctionKind,
+) -> SnapbackResult<()> {
+    let mode = match kind {
+        crate::manifest::FunctionKind::Query | crate::manifest::FunctionKind::LiveQuery => {
+            IbexInvocationMode::Query
+        }
+        crate::manifest::FunctionKind::Mutation => IbexInvocationMode::Mutation,
+        crate::manifest::FunctionKind::Action => IbexInvocationMode::Action,
+    };
+    let export = serde_json::to_string(&module.export).map_err(handler_serialize_error)?;
+    let probe = format!(
+        r#"(() => {{
+          const handlers = globalThis.__snapbackHandlers;
+          if (handlers === null || typeof handlers !== 'object'
+              || typeof handlers[{export}] !== 'function') {{
+            throw new Error('SNAPBACK_HANDLER_EXPORT_MISSING');
+          }}
+          return true;
+        }})()"#,
+    );
+    let source = format!(
+        "{}\n{}\n{}\n{}\n{}",
+        ambient_restriction_source(mode, outbound_actions_enabled()),
+        allowlist_install_source(),
+        ctx_bootstrap_source(),
+        module.source,
+        probe,
+    );
+    let runtime = RuntimeGuard::create()?;
+    let output = eval(runtime.ptr(), &module.export, &source)?;
+    let rejections = inspect_unhandled_rejections(runtime.ptr())?;
+    if !rejections.is_empty() {
+        return Err(unhandled_rejection_error(module, rejections));
+    }
+    if output != "true" {
+        return Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_EXPORT_MISSING",
+            "runtime",
+            "prepared handler export did not resolve to a callable function",
+        ));
+    }
+    Ok(())
+}
+
 fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
     let remaining = deadline
         .checked_duration_since(Instant::now())

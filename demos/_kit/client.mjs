@@ -326,13 +326,6 @@ const authHandshakeRequired = (path) => !(
   || path.startsWith('/_snapback/')
 );
 
-const freshAuthHandshakeRequired = (path) => (
-  path === '/connection/open'
-  || (path.startsWith('/live/') && path.endsWith('/subscribe'))
-  || (path.startsWith('/query/') && path.endsWith('/authorized-lease'))
-  || path === '/ephemeral/subscribe'
-);
-
 // A failed forced probe must not erase the last authenticated projection:
 // offline AuthorizedLease reads still need its immutable app/authority facts.
 // Online boundaries continue to pass `force: true`, so preserving this cache
@@ -595,7 +588,7 @@ const projectAuthSessionResponse = (value, requestOffer = null) => {
     || typeof value.serverStartupNonce !== 'string'
     || value.serverStartupNonce.length === 0
     || typeof value.authorizationStreamIncarnation !== 'string'
-    || value.authorizationStreamIncarnation.length === 0
+    || !UUID_V7.test(value.authorizationStreamIncarnation)
     || !safeUnsignedInteger(value.transitionGeneration)
     || !['dev', 'sessions'].includes(value.activeMode)
     || !['dev', 'sessions'].includes(value.desiredMode)
@@ -760,6 +753,28 @@ const credentialPublicProjection = (credential) => ({
   session: { ...credential.session },
   authorityDescriptor: { ...credential.authorityDescriptor },
 });
+
+const projectChallengeResponse = (value) => {
+  if (
+    !exactRecord(value, ['challengeId', 'expiresAt'])
+    || typeof value.challengeId !== 'string'
+    || value.challengeId.length === 0
+    || !safeUnsignedInteger(value.expiresAt)
+  ) return null;
+  return { challengeId: value.challengeId, expiresAt: value.expiresAt };
+};
+
+const opaqueCredentialResponseError = () => {
+  const error = new Error(
+    'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid credential response',
+  );
+  error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  error.diagnostic = {
+    code: error.code,
+    message: 'auth provider returned an invalid credential response',
+  };
+  return error;
+};
 
 const clientAuthorityFromHandshake = (session) => {
   const base = {
@@ -1359,7 +1374,12 @@ export class SnapbackClient {
         && this.authProtocols.authClient != null
         && authHandshakeRequired(path)
       ) {
-        session = await this.authSession({ force: freshAuthHandshakeRequired(path) });
+        // Every top-level online operation establishes a new observable
+        // connection attempt. Re-probe the same URL so a replacement process
+        // can never inherit its predecessor's startup nonce/generation cache.
+        // @ref LLP 0058#kit-ordering — handshake cache is process-scoped, not
+        // an origin-scoped capability assertion.
+        session = await this.authSession({ force: true });
         const unavailable = authAvailabilityError(session);
         if (unavailable) throw unavailable;
       }
@@ -1481,7 +1501,11 @@ export class SnapbackClient {
     path,
     body,
     headers,
-    { signal = undefined, successfulResponseFacts = false } = {},
+    {
+      signal = undefined,
+      successfulResponseFacts = false,
+      opaqueSuccessFailure = false,
+    } = {},
   ) {
     const merged = {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
@@ -1503,6 +1527,9 @@ export class SnapbackClient {
     try {
       text = await res.text();
     } catch (error) {
+      if (res.ok && opaqueSuccessFailure) {
+        throw opaqueCredentialResponseError();
+      }
       // A response object with a known 2xx status may represent a logout that
       // already committed even when its body reader fails. Carry only opaque
       // facts so authLogout can run the captured-authority clear barrier.
@@ -1545,6 +1572,7 @@ export class SnapbackClient {
       throw error;
     }
     if (parseError) {
+      if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       const diag = {
         code: 'SNAPBACK_RESPONSE_NOT_JSON',
         message: `HTTP ${res.status} response is not JSON: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}`,
@@ -1569,15 +1597,17 @@ export class SnapbackClient {
   inspect() { return this.#req('GET', '/inspect'); }
 
   async authRequestCode(email) {
-    if (!this.authCoordinator) return this.#req('POST', '/auth/request-code', { email });
-    await this.authSession();
-    const capture = this.authCoordinator.capture();
-    const response = await this.#trackedFetchJson(
+    if (this.authCoordinator) await this.authSession();
+    const capture = this.authCoordinator?.capture() ?? null;
+    const response = projectChallengeResponse(await this.#trackedFetchJson(
       'POST',
       '/auth/request-code',
       { email },
       this.#authOfferHeaders(true, null),
-    );
+      { opaqueSuccessFailure: true },
+    ));
+    if (!response) throw opaqueCredentialResponseError();
+    if (!this.authCoordinator) return response;
     const committed = await this.authCoordinator.compareAndCommit(capture, () => (
       markAuthorityCapture(response, capture)
     ));
@@ -1603,6 +1633,7 @@ export class SnapbackClient {
       '/auth/exchange',
       { challengeId, code },
       this.#authOfferHeaders(true, null),
+      { opaqueSuccessFailure: true },
     ), [challengeId, code]);
     const authority = credentialAuthority(
       response,
@@ -1635,6 +1666,7 @@ export class SnapbackClient {
             '/auth/refresh',
             {},
             this.#authOfferHeaders(true, bearer),
+            { opaqueSuccessFailure: true },
           ), [bearer]);
           const observed = credentialAuthority(
             response,

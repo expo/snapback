@@ -279,9 +279,17 @@
           error.code = redactKnownSecrets(diagnostic && diagnostic.code, secrets);
           throw error;
         }
-        if (parseFailed) throw new Error("HTTP " + res.status + " response is not JSON.");
+        if (parseFailed) {
+          if (preserveCredentialResponse) {
+            throw new Error("Credential issuer returned an invalid response.");
+          }
+          throw new Error("HTTP " + res.status + " response is not JSON.");
+        }
         return preserveCredentialResponse ? body : sanitizeKnownSecrets(body, secrets);
       }, function (error) {
+        if (res.ok && preserveCredentialResponse) {
+          throw new Error("Credential issuer returned an invalid response.");
+        }
         throw sanitizeError(error, secrets);
       });
     }, function (error) {

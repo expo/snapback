@@ -200,9 +200,9 @@ async function main() {
         !Object.hasOwn(manifest, 'authProtocols') &&
         manifest.hostedAuth?.externalTls === 'unavailable' &&
         manifest.hostedAuth?.effectiveSource === 'unavailable' &&
-        manifest.hostedAuth?.authenticationThrottle === 'processLocal' &&
-        manifest.hostedAuth?.sessionInvalidation === 'singleProcess' &&
-        manifest.hostedAuth?.clientCredentialPosture === 'bearerV1XssExposed',
+        manifest.hostedAuth?.authenticationThrottle === 'unavailable' &&
+        manifest.hostedAuth?.sessionInvalidation === 'unavailable' &&
+        manifest.hostedAuth?.clientCredentialPosture === 'unavailable',
     );
     check(
       'manifest declares the earned live-data facts with named partial limits (Phase 4 honesty)',

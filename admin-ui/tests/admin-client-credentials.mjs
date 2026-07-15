@@ -208,6 +208,19 @@ const poisonedExchange = await captureFailure(() => client.setToken(MASTER));
 assert.equal(poisonedExchange.diagnostic.code, 'SNAPBACK_RESPONSE_INVALID');
 assertCredentialAbsent(poisonedExchange, MASTER, 'poisoned credential exchange');
 
+const UNKNOWN_SUCCESSOR = 'sbcc_unknown-successor-from-reader-SENTINEL';
+fetchOverride = async () => ({
+  ok: true,
+  status: 200,
+  async text() {
+    throw new Error(`reader exposed ${UNKNOWN_SUCCESSOR}`);
+  },
+});
+const readerFailure = await captureFailure(() => client.setToken(MASTER));
+assert.equal(readerFailure.diagnostic.code, 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID');
+assertCredentialAbsent(readerFailure, MASTER, 'credential reader failure master');
+assertCredentialAbsent(readerFailure, UNKNOWN_SUCCESSOR, 'credential reader failure successor');
+
 // Exact shape is not enough: the derived value itself must not retain the
 // submitted master. This includes unavoidable one-byte collisions with the
 // fixed `sbcc_` prefix. Neither candidate may reach the persisted projection.

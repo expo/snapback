@@ -34,6 +34,32 @@
       ],
       "type": "string"
     },
+    "FunctionAttribution": {
+      "description": "Server-derived, bearer-free attribution for one app-data function\nresponse. Wrappers may copy this value, but cannot synthesize attribution\nauthority when the invocation gate did not produce it.\n\n@ref LLP 0055#audit — every resolved service-principal function response\ncarries the same actor/effective/grant attribution and v1 has no agent\ndry-run surface.",
+      "properties": {
+        "actorUserId": {
+          "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "effectiveUserId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "grantId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "actorUserId",
+        "grantId",
+        "dryRun"
+      ],
+      "type": "object"
+    },
     "MutationReceiptOutcome": {
       "enum": [
         "confirmed",
@@ -199,6 +225,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "attribution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FunctionAttribution"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "diagnostic": {
       "$ref": "#/$defs/Diagnostic"
     },

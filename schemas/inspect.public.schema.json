@@ -137,6 +137,7 @@
     },
     "AuthenticationThrottle": {
       "enum": [
+        "unavailable",
         "processLocal",
         "sharedEnforced"
       ],
@@ -200,6 +201,7 @@
     "BrowserCredentialPosture": {
       "description": "The strongest browser credential claim the target can honestly advertise.\n\nA restrictive CSP does not upgrade bearer v1: app-origin script can still\nread or exercise the coordinator's IndexedDB/page-memory credential.",
       "enum": [
+        "unavailable",
         "bearerV1XssExposed",
         "senderConstrainedV2"
       ],
@@ -1882,8 +1884,9 @@
     },
     "SessionInvalidation": {
       "enum": [
+        "unavailable",
         "singleProcess",
-        "multiReplicaConvergent"
+        "globallyFenced"
       ],
       "type": "string"
     },

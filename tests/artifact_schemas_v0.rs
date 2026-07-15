@@ -1461,6 +1461,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(ErrorResponse {
             diagnostic: Diagnostic::error("SNAPBACK_TEST", "realtime", "boom"),
             receipt: None,
+            attribution: None,
         })
         .unwrap(),
     );
@@ -1479,6 +1480,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 correlation: Value::Null,
                 received_at_ms: 2,
             }),
+            attribution: None,
         })
         .unwrap(),
     );

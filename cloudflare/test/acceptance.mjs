@@ -54,9 +54,9 @@ async function main() {
         !Object.hasOwn(manifest, 'authProtocols') &&
         manifest.hostedAuth?.externalTls === 'unavailable' &&
         manifest.hostedAuth?.effectiveSource === 'unavailable' &&
-        manifest.hostedAuth?.authenticationThrottle === 'processLocal' &&
-        manifest.hostedAuth?.sessionInvalidation === 'singleProcess' &&
-        manifest.hostedAuth?.clientCredentialPosture === 'bearerV1XssExposed',
+        manifest.hostedAuth?.authenticationThrottle === 'unavailable' &&
+        manifest.hostedAuth?.sessionInvalidation === 'unavailable' &&
+        manifest.hostedAuth?.clientCredentialPosture === 'unavailable',
       JSON.stringify({
         targetProfileId: manifest.targetProfileId,
         offlineRetention: manifest.offlineRetention,

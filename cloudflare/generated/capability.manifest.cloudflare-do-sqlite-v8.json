@@ -20,9 +20,9 @@
   "hostedAuth": {
     "externalTls": "unavailable",
     "effectiveSource": "unavailable",
-    "authenticationThrottle": "processLocal",
-    "sessionInvalidation": "singleProcess",
-    "clientCredentialPosture": "bearerV1XssExposed"
+    "authenticationThrottle": "unavailable",
+    "sessionInvalidation": "unavailable",
+    "clientCredentialPosture": "unavailable"
   },
   "storageEngine": "durable-object-sqlite",
   "runtimeEngine": "v8",

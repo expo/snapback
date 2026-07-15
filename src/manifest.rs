@@ -3316,6 +3316,8 @@ impl CapabilityManifest {
             auth_mode: AuthMode::Dev,
         }];
         manifest.auth_protocols = None;
+        manifest.hosted_auth =
+            crate::auth::deployment::HostedAuthCapabilities::no_auth_target();
         manifest.storage_engine = "durable-object-sqlite".to_owned();
         manifest.runtime_engine = "v8".to_owned();
         manifest.local_server_lifecycle = false;

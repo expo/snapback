@@ -125,6 +125,13 @@ const rawResponse = (body, status = 204) => ({
   status,
   text: async () => String(body),
 });
+const poisonedReadResponse = (secret) => ({
+  ok: true,
+  status: 200,
+  async text() {
+    throw new Error(`body reader exposed ${secret}`);
+  },
+});
 
 const diagnosticResponse = (code, status = 401, { message = code, details = {} } = {}) => response({
   diagnostic: { code, message, details },
@@ -167,6 +174,7 @@ let calls = [];
 const rawUrls = [];
 let queryMode = 'success';
 let credentialPoison = null;
+let issuingFailure = null;
 let exchangeErrorReflection = false;
 let refreshPoison = null;
 let logoutMode = 'empty';
@@ -192,7 +200,14 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === '/auth/session') {
     return response(handshake(bearer ? bearerAuthority.get(bearer) : anonymous));
   }
+  if (path === '/auth/request-code') {
+    if (issuingFailure === 'request-code-read') return poisonedReadResponse(BEARER_A);
+    const challenge = { challengeId: CHALLENGE_ID, expiresAt: 10_000 };
+    if (issuingFailure === 'request-code-extra') challenge.leakedBearer = BEARER_A;
+    return response(challenge);
+  }
   if (path === '/auth/exchange') {
+    if (issuingFailure === 'exchange-read') return poisonedReadResponse(BEARER_A);
     if (exchangeErrorReflection) {
       return diagnosticResponse('SNAPBACK_AUTH_CHALLENGE_INVALID', 400, {
         message: 'login code rejected',
@@ -212,6 +227,7 @@ globalThis.fetch = async (url, init = {}) => {
     return response(issued);
   }
   if (path === '/auth/refresh') {
+    if (issuingFailure === 'refresh-read') return poisonedReadResponse(BEARER_C);
     const issued = credential(BEARER_C, sessionA, 30_000);
     if (refreshPoison === 'predecessor') issued.session.provider = bearer;
     if (refreshPoison === 'successor') issued.session.provider = issued.token;
@@ -284,6 +300,27 @@ try {
   assert.equal(coordinator.capture().authorityEpoch, 0);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/session', '/query/list']);
 
+  // Issuing paths never surface unknown response bytes or reader exceptions.
+  for (issuingFailure of ['request-code-read', 'request-code-extra']) {
+    let issueError;
+    await assert.rejects(db.authRequestCode('person@example.com'), (error) => {
+      issueError = error;
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+    });
+    assert.equal(JSON.stringify(issueError).includes(BEARER_A), false);
+  }
+  issuingFailure = 'exchange-read';
+  let exchangeReadError;
+  await assert.rejects(
+    db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE }),
+    (error) => {
+      exchangeReadError = error;
+      return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+    },
+  );
+  assert.equal(JSON.stringify(exchangeReadError).includes(BEARER_A), false);
+  issuingFailure = null;
+
   // A 200 response remains untrusted: root/nested extensions and allowed
   // public fields reflecting the successor, challenge id, or login code are
   // rejected before token custody advances. Numeric fields are included so a
@@ -349,8 +386,9 @@ try {
   calls = [];
   const authenticated = await db.query('list', { userId: 'forged' });
   assert.deepEqual(authenticated.rows, [{ bearer: BEARER_A }]);
-  assert.equal(calls[0].bearer, BEARER_A);
-  assert.equal(Object.hasOwn(calls[0].body, 'auth'), false);
+  const authenticatedQueryCall = calls.find(({ path }) => path === '/query/list');
+  assert.equal(authenticatedQueryCall.bearer, BEARER_A);
+  assert.equal(Object.hasOwn(authenticatedQueryCall.body, 'auth'), false);
 
   // A hostile/misconfigured receiver cannot make a request credential escape
   // through the client error object. Diagnostic codes remain actionable.
@@ -465,6 +503,16 @@ try {
     }).includes(BEARER_C), false);
   }
   refreshPoison = null;
+
+  issuingFailure = 'refresh-read';
+  let refreshReadError;
+  await assert.rejects(db.authRefresh(), (error) => {
+    refreshReadError = error;
+    return error?.diagnostic?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  });
+  assert.equal(JSON.stringify(refreshReadError).includes(BEARER_C), false);
+  assert.equal(storage.snapshot(APP).bearer, BEARER_B);
+  issuingFailure = null;
 
   // Refresh is serialized under custody ownership and only exposes the
   // non-secret projection after the exact revision replacement.

@@ -4604,7 +4604,7 @@ fn apply_registered_response_controls(
     response
 }
 
-const SETUP_SCRIPT_SHA256: &str = "uieJfK6aH9tRwrIMSDrDfYBDMngsIU5cnQiEdkJh1dQ=";
+const SETUP_SCRIPT_SHA256: &str = "u1Sek3P+3TIyUpvpb+7TgEM7h9B3+2FFfOgjaAdaIH0=";
 
 /// Construct the one restrictive policy shared by Snapback-owned documents,
 /// admitting only same-origin external scripts and explicitly hashed inline
@@ -5102,7 +5102,7 @@ fn session_online_protocol_refusal(
             .with_details(json!({ "capability": "onlineRequestResponse" })),
         );
     }
-    if AuthClientProtocolOffers::from_headers(headers).auth_client != Some(AUTH_PROTOCOL_V1) {
+    if AuthClientProtocolOffers::from_http_headers(headers).auth_client != Some(AUTH_PROTOCOL_V1) {
         return Some(
             SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -5180,7 +5180,9 @@ async fn session_live_protocol_refusal(
             .with_details(json!({ "capability": "authScopedLive" })),
         );
     }
-    if AuthClientProtocolOffers::from_headers(headers).auth_invalidation != Some(AUTH_PROTOCOL_V1) {
+    if AuthClientProtocolOffers::from_http_headers(headers).auth_invalidation
+        != Some(AUTH_PROTOCOL_V1)
+    {
         return Some(
             SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
@@ -5338,7 +5340,8 @@ async fn prepare_registered_route_authority(
     let mode_state = runtime.auth_mode_state();
     let active_mode = mode_state.active;
     if active_mode == crate::manifest::AuthMode::Sessions && queued_replay_requested(source, body) {
-        let offered = AuthClientProtocolOffers::from_headers(headers).authority_descriptor;
+        let offered =
+            AuthClientProtocolOffers::from_http_headers(headers).authority_descriptor;
         if !runtime.auth_program_readiness().authority_descriptor
             || offered != Some(AUTH_PROTOCOL_V1)
         {
@@ -7310,7 +7313,7 @@ async fn auth_session(
     if uri.query().is_some() || !body.is_empty() {
         return Err(auth_request_invalid());
     }
-    let offers = AuthClientProtocolOffers::from_headers(&headers);
+    let offers = AuthClientProtocolOffers::from_http_headers(&headers);
     let state = runtime.auth_mode_state();
     let (resolved_authority, projection, captured_incarnation) = match authority {
         Some(Extension(authority)) => (
@@ -12632,6 +12635,49 @@ struct SessionDeleteRequest {
     connection_id: String,
 }
 
+impl SessionSubscribeRequest {
+    fn resolve(self, authority: &ResolvedAppAuthority) -> SubscribeRequest {
+        SubscribeRequest {
+            collection: self.collection,
+            scope: self.scope,
+            connection_id: self.connection_id,
+            auth: ephemeral_auth_from_authority(authority),
+        }
+    }
+}
+
+impl SessionPublishRequest {
+    fn resolve(self, authority: &ResolvedAppAuthority) -> PublishRequest {
+        let auth = ephemeral_auth_from_authority(authority);
+        PublishRequest {
+            collection: self.collection,
+            scope: self.scope,
+            connection_id: self.connection_id,
+            session_id: auth.session_id.clone(),
+            user_id: auth.user_id.clone(),
+            custom_key: None,
+            value: self.value,
+            ttl_ms: self.ttl_ms,
+            auth,
+        }
+    }
+}
+
+impl SessionDeleteRequest {
+    fn resolve(self, authority: &ResolvedAppAuthority) -> DeleteRequest {
+        let auth = ephemeral_auth_from_authority(authority);
+        DeleteRequest {
+            collection: self.collection,
+            scope: self.scope,
+            connection_id: self.connection_id,
+            session_id: auth.session_id.clone(),
+            user_id: auth.user_id.clone(),
+            custom_key: None,
+            auth,
+        }
+    }
+}
+
 fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContext {
     match authority {
         ResolvedAppAuthority::Session {
@@ -12828,63 +12874,34 @@ impl SessionLiveSocketClientMessage {
     }
 
     fn resolve(self, authority: &ResolvedAppAuthority) -> LiveSocketClientMessage {
-        let auth = ephemeral_auth_from_authority(authority);
         match self {
             Self::EphemeralSubscribe {
                 request_id,
                 request,
             } => LiveSocketClientMessage::EphemeralSubscribe {
                 request_id,
-                request: SubscribeRequest {
-                    collection: request.collection,
-                    scope: request.scope,
-                    connection_id: request.connection_id,
-                    auth,
-                },
+                request: request.resolve(authority),
             },
             Self::EphemeralPublish {
                 request_id,
                 request,
             } => LiveSocketClientMessage::EphemeralPublish {
                 request_id,
-                request: PublishRequest {
-                    collection: request.collection,
-                    scope: request.scope,
-                    connection_id: request.connection_id,
-                    session_id: auth.session_id.clone(),
-                    user_id: auth.user_id.clone(),
-                    custom_key: None,
-                    value: request.value,
-                    ttl_ms: request.ttl_ms,
-                    auth,
-                },
+                request: request.resolve(authority),
             },
             Self::EphemeralDelete {
                 request_id,
                 request,
             } => LiveSocketClientMessage::EphemeralDelete {
                 request_id,
-                request: DeleteRequest {
-                    collection: request.collection,
-                    scope: request.scope,
-                    connection_id: request.connection_id,
-                    session_id: auth.session_id.clone(),
-                    user_id: auth.user_id.clone(),
-                    custom_key: None,
-                    auth,
-                },
+                request: request.resolve(authority),
             },
             Self::EphemeralUnsubscribe {
                 request_id,
                 request,
             } => LiveSocketClientMessage::EphemeralUnsubscribe {
                 request_id,
-                request: SubscribeRequest {
-                    collection: request.collection,
-                    scope: request.scope,
-                    connection_id: request.connection_id,
-                    auth,
-                },
+                request: request.resolve(authority),
             },
             Self::Ping { request_id } => LiveSocketClientMessage::Ping { request_id },
         }
@@ -13499,6 +13516,7 @@ async fn drain_outbox(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EnsureEphemeralCollectionsInput {
     #[serde(default)]
     collections: Vec<EphemeralCollection>,
@@ -13525,6 +13543,7 @@ impl EnsureEphemeralCollectionsInput {
 // wire structs retain serde's duplicate-field checking; conversion installs
 // only the authority prepared by the shared invocation gate.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WirePublishRequest {
     collection: String,
     scope: Scope,
@@ -13538,6 +13557,7 @@ struct WirePublishRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WireDeleteRequest {
     collection: String,
     scope: Scope,
@@ -13549,11 +13569,34 @@ struct WireDeleteRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WireSubscribeRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
     auth: Option<AuthContext>,
+}
+
+fn parse_ephemeral_json<T: serde::de::DeserializeOwned>(
+    headers: &HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<T, ApiError> {
+    let body = body.map_err(|error| ApiError::request_json_invalid(error.to_string()))?;
+    if body.is_empty() {
+        return Err(ApiError::request_json_invalid("request body must not be empty"));
+    }
+    let is_json = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
+    if !is_json {
+        return Err(ApiError::request_json_invalid(
+            "nonempty request body requires Content-Type: application/json",
+        ));
+    }
+    serde_json::from_slice(&body)
+        .map_err(|error| ApiError::request_json_invalid(error.to_string()))
 }
 
 fn resolved_wire_ephemeral_auth(
@@ -13667,11 +13710,18 @@ async fn publish_ephemeral(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    request: Result<Json<WirePublishRequest>, JsonRejection>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     let policy_mode = runtime.active_policy_auth_mode();
-    let mut request = request.resolve(policy_mode, authority.resolved())?;
+    let mut request = match policy_mode {
+        PolicyAuthMode::Sessions => {
+            parse_ephemeral_json::<SessionPublishRequest>(&headers, body)?
+                .resolve(authority.resolved())
+        }
+        PolicyAuthMode::Dev => parse_ephemeral_json::<WirePublishRequest>(&headers, body)?
+            .resolve(policy_mode, authority.resolved())?,
+    };
     let room_authority = if policy_mode == PolicyAuthMode::Sessions {
         let authorized = authorize_bound_ephemeral_room(
             &runtime,
@@ -13706,11 +13756,18 @@ async fn subscribe_ephemeral(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    request: Result<Json<WireSubscribeRequest>, JsonRejection>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     let policy_mode = runtime.active_policy_auth_mode();
-    let mut request = request.resolve(policy_mode, authority.resolved())?;
+    let mut request = match policy_mode {
+        PolicyAuthMode::Sessions => {
+            parse_ephemeral_json::<SessionSubscribeRequest>(&headers, body)?
+                .resolve(authority.resolved())
+        }
+        PolicyAuthMode::Dev => parse_ephemeral_json::<WireSubscribeRequest>(&headers, body)?
+            .resolve(policy_mode, authority.resolved())?,
+    };
     let room_authority = if policy_mode == PolicyAuthMode::Sessions {
         let authorized = authorize_bound_ephemeral_room(
             &runtime,
@@ -13750,11 +13807,16 @@ async fn delete_ephemeral(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    request: Result<Json<WireDeleteRequest>, JsonRejection>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let Json(request) = request.map_err(ApiError::from_json_rejection)?;
     let policy_mode = runtime.active_policy_auth_mode();
-    let mut request = request.resolve(policy_mode, authority.resolved())?;
+    let mut request = match policy_mode {
+        PolicyAuthMode::Sessions => parse_ephemeral_json::<SessionDeleteRequest>(&headers, body)?
+            .resolve(authority.resolved()),
+        PolicyAuthMode::Dev => parse_ephemeral_json::<WireDeleteRequest>(&headers, body)?
+            .resolve(policy_mode, authority.resolved())?,
+    };
     let room_authority = if policy_mode == PolicyAuthMode::Sessions {
         let authorized = authorize_bound_ephemeral_room(
             &runtime,
@@ -17539,6 +17601,10 @@ mod tests {
                     "authenticationThrottle",
                     "sessionInvalidation",
                     "clientCredentialPosture",
+                    "deploymentAttestation",
+                    "liveHealth",
+                    "handlerCompatibility",
+                    "operatorSurface",
                 ]),
                 "{path}"
             );

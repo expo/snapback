@@ -54,6 +54,15 @@ async function fetch(path, options = {}) {
         },
       });
     }
+    if (mode === 'master-read-failure') {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          throw new Error(`reader exposed ${DERIVED}`);
+        },
+      };
+    }
     if (mode === 'master-key-poison') {
       return response(200, {
         credential: DERIVED,
@@ -184,6 +193,18 @@ await flush();
 assertSecretAbsent(visibleText(), MASTER, 'master success property-key DOM');
 assert.match(elements.get('authmsg').textContent, /invalid response/i);
 assert.equal(storageContains(MASTER), false, 'poisoned master key never enters setup storage');
+
+mode = 'master-read-failure';
+tokenInput.value = MASTER;
+tokenSave.listeners.click();
+await flush();
+assert.equal(
+  elements.get('authmsg').textContent,
+  'Credential issuer returned an invalid response.',
+);
+assertSecretAbsent(visibleText(), DERIVED, 'reader successor DOM');
+assertSecretAbsent(visibleText(), MASTER, 'reader master DOM');
+assert.equal(storage.has('snapback_console_credential_v1'), false);
 
 for (const collision of [
   { master: 'QZX', minted: 'sbcc_QZX' },

@@ -58,6 +58,18 @@ fn auth_startup_required(message: &'static str) -> crate::diagnostic::SnapbackEr
     )
 }
 
+fn with_expected_deployment(
+    mut error: crate::diagnostic::SnapbackError,
+    expected: Option<&crate::auth::mode::DeploymentIdentity>,
+    observed: Option<&crate::auth::mode::DeploymentIdentity>,
+) -> crate::diagnostic::SnapbackError {
+    error.diagnostic.details = json!({
+        "expectedDeployment": expected,
+        "observedDeployment": observed,
+    });
+    error
+}
+
 fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::SnapbackError {
     crate::diagnostic::SnapbackError::error(
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -130,7 +142,14 @@ async fn compose_auth_mode_startup(
             {
                 return quarantine_pending_startup(snapback, error);
             }
-            Err(error) => return Err(error),
+            Err(error) => {
+                let expected = snapshot
+                    .state
+                    .requested_deployment
+                    .as_ref()
+                    .or(snapshot.state.active_deployment.as_ref());
+                return Err(with_expected_deployment(error, expected, None));
+            }
         },
         None => None,
     };
@@ -139,8 +158,12 @@ async fn compose_auth_mode_startup(
         match snapshot.state.active {
             AuthMode::Sessions => {
                 let carrier = carrier.as_ref().ok_or_else(|| {
-                    auth_startup_required(
+                    with_expected_deployment(
+                        auth_startup_required(
                         "settled sessions mode requires --startup-artifacts on every start",
+                        ),
+                        snapshot.state.active_deployment.as_ref(),
+                        None,
                     )
                 })?;
                 snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
@@ -149,7 +172,14 @@ async fn compose_auth_mode_startup(
                         "settled sessions mode lacks an active deployment",
                     )
                 })?;
-                carrier.require_deployment(expected)?;
+                if let Err(error) = carrier.require_deployment(expected) {
+                    let observed = carrier.deployment_identity(AuthMode::Sessions).ok();
+                    return Err(with_expected_deployment(
+                        error,
+                        Some(expected),
+                        observed.as_ref(),
+                    ));
+                }
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
                         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
@@ -210,9 +240,16 @@ async fn compose_auth_mode_startup(
         AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
     ));
     let Some(carrier) = carrier.as_ref() else {
+        let expected = snapshot.state.requested_deployment.as_ref();
         return quarantine_pending_startup(
             snapback,
-            auth_startup_required("a pending auth-mode transition requires --startup-artifacts"),
+            with_expected_deployment(
+                auth_startup_required(
+                    "a pending auth-mode transition requires --startup-artifacts",
+                ),
+                expected,
+                None,
+            ),
         );
     };
     let requested_mode = carrier.schema.effective_auth_mode();
@@ -226,7 +263,11 @@ async fn compose_auth_mode_startup(
         .as_ref()
         .expect("a validated pending snapshot has a requested deployment");
     if let Err(error) = carrier.require_deployment(expected) {
-        return quarantine_pending_startup(snapback, error);
+        let observed = carrier.deployment_identity(expected.auth_mode).ok();
+        return quarantine_pending_startup(
+            snapback,
+            with_expected_deployment(error, Some(expected), observed.as_ref()),
+        );
     }
     if deployment != *expected {
         return quarantine_pending_startup(
@@ -278,7 +319,7 @@ async fn compose_auth_mode_startup(
         (AuthMode::Sessions, AuthMode::Dev) => {
             let publication_generation = snapback.reserve_function_publication_generation()?;
             let now_ms = auth_runtime.provider().now_ms();
-            let state = match startup_blocking(|| {
+            let result = match startup_blocking(|| {
                 snapback
                     .auth_database_mut()
                     .consume_dev_downgrade_with_functions(
@@ -287,7 +328,7 @@ async fn compose_auth_mode_startup(
                         &carrier.functions,
                     )
             }) {
-                Ok(result) => result.state,
+                Ok(result) => result,
                 Err(error) => {
                     snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
                     let state = snapback.auth_database_mut().auth_mode_snapshot()?.state;
@@ -297,6 +338,17 @@ async fn compose_auth_mode_startup(
                     return Err(error);
                 }
             };
+            snapback.record_startup_diagnostics(&[
+                crate::diagnostic::Diagnostic::info(
+                    "SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED",
+                    "auth-mode",
+                    "sessions-to-dev downgrade committed before listener bind",
+                )
+                .with_details(json!({
+                    "sessionsRevoked": result.sessions_revoked,
+                    "transitionGeneration": result.state.transition_generation,
+                })),
+            ]);
             auth_runtime
                 .provider()
                 .exclusive_maintenance()
@@ -304,7 +356,7 @@ async fn compose_auth_mode_startup(
                 .clear_mailbox_after_committed_reset();
             snapback
                 .publish_preflighted_functions(carrier.functions.clone(), publication_generation);
-            Ok(state)
+            Ok(result.state)
         }
         _ => Err(crate::auth::mode::mode_corrupt(
             "pending auth-mode transition has no supported direction",

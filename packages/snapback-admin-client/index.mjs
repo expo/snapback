@@ -96,6 +96,9 @@ export class AdminClient {
       });
       text = await res.text();
     } catch (error) {
+      if (res?.ok && preserveCredentialResponse) {
+        throw opaqueCredentialResponseError();
+      }
       throw sanitizeAdminError(error, requestSecrets);
     }
     // @ref LLP 0032#confirmed-defect-register — S5.D3: check status before
@@ -124,6 +127,7 @@ export class AdminClient {
       throw error;
     }
     if (parseError) {
+      if (preserveCredentialResponse) throw opaqueCredentialResponseError();
       const d = {
         code: 'SNAPBACK_RESPONSE_NOT_JSON',
         message: `HTTP ${res.status} response is not JSON: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}`,
@@ -220,6 +224,18 @@ export class AdminClient {
   verifyConfigEntry(entry) {
     return this.#req('POST', '/config/verify', { entry, source: 'http' });
   }
+}
+
+function opaqueCredentialResponseError() {
+  const error = new Error(
+    'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: credential issuer returned an invalid response',
+  );
+  error.code = 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID';
+  error.diagnostic = {
+    code: error.code,
+    message: 'credential issuer returned an invalid response',
+  };
+  return error;
 }
 
 function storedConsoleCredential() {

@@ -682,13 +682,17 @@ success or failure cannot expose bytes under, or erase, a successor. Client-
 local custody, stale-capture, fence, and store diagnostics do not acquire an
 HTTP status merely because they share the `SNAPBACK_*` namespace.
 
-The target-owned capability projection adds the exact `hostedAuth` deployment
-descriptor: external TLS, trustworthy effective-source derivation,
-authentication throttle scope, session-invalidation topology, and browser
-credential posture. Hosted deployment readiness is the conjunction of the
-first four; hosted-browser readiness additionally requires sender constraint.
-The local target reports its actual unsupported states and never upgrades
-bearer v1 to an XSS-resistant posture because CSP is present.
+The target-owned capability projection adds the exact static `hostedAuth`
+support descriptor: external TLS, trustworthy effective-source derivation,
+authentication throttle scope, globally fenced invalidation, and browser
+credential posture. Four exact positives produce `deploymentCapable`; all five
+produce `hostedAuthCapable`. Neither is deployment readiness: hosted admission
+also requires LLP 0060's deployment-bound attestation, live-health snapshot,
+old-receiver-safe handler protocol, and disabled operator surface. No current
+target owns those authorities, so `--auth-deployment hosted` remains a
+must-understand refusal even if a synthetic manifest sets all static values
+positive. The local target reports its actual process-local bearer posture; a
+target with no auth surface reports `unavailable` on the three applicable axes.
 
 The remaining served HTTP mappings are deliberately allow-listed:
 

@@ -1263,6 +1263,26 @@ impl LocalDatabase {
         &mut self,
         manifest: SchemaManifest,
     ) -> SnapbackResult<()> {
+        // Raw schema application is the v0-dev compatibility ingress. A
+        // complete v1-sessions pair must use staged provisioning even before
+        // activeDeployment has been established.
+        // @ref LLP 0058#the-two-admissible-tuples — a null deployment identity
+        // is not authority to admit v1-dev or one half of a sessions pair.
+        if manifest.schema_version != crate::manifest::SNAPBACK_SCHEMA_VERSION
+            || manifest.effective_auth_mode() != AuthMode::Dev
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "auth",
+                "raw dev schema loading accepts only the snapback.v0-dev tuple",
+            )
+            .with_details(serde_json::json!({
+                "authMode": manifest.effective_auth_mode(),
+                "schemaVersion": manifest.schema_version,
+                "expectedAuthMode": AuthMode::Dev,
+                "expectedSchemaVersion": crate::manifest::SNAPBACK_SCHEMA_VERSION,
+            })));
+        }
         validate_schema(&manifest)?;
         reject_field_retypes(&self.schema, &manifest)?;
         reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
@@ -1555,6 +1575,14 @@ fn require_fresh_seed_target(conn: &Connection, state: &AuthModeStateRecord) -> 
     if state.active_deployment.is_some() {
         return Err(mode_corrupt(
             "transition seed is allowed only for a fresh database",
+        ));
+    }
+    let mode_meta = read_mode_meta(conn)?.unwrap_or_default();
+    if mode_meta.contains_key(META_LEGACY_SCHEMA_MANIFEST)
+        || mode_meta.contains_key(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
+    {
+        return Err(mode_corrupt(
+            "transition seed is not allowed for an adopted application",
         ));
     }
     for table in physical_user_tables(conn)? {
@@ -1864,6 +1892,63 @@ mod tests {
             values.get(META_LEGACY_SCHEMA_MANIFEST),
             values.get(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
         );
+    }
+
+    #[test]
+    fn adopted_empty_legacy_application_is_not_a_fresh_seed_target() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("adopted-empty.sqlite");
+        let connection = Connection::open(&path).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE _snapback_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);",
+            )
+            .unwrap();
+        let raw = serde_json::to_string(&SchemaManifest::default()).unwrap();
+        connection
+            .execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+                params![META_LEGACY_SCHEMA_MANIFEST, raw],
+            )
+            .unwrap();
+        drop(connection);
+
+        let mut database = LocalDatabase::open(&path).unwrap();
+        let (identity, manifest) = sessions_pair(Some("items"));
+        let seed = SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([(
+                    "value".to_owned(),
+                    serde_json::Value::String("seeded".to_owned()),
+                )])],
+            )]),
+        };
+        let error = database
+            .stage_auth_mode(identity, manifest, Some(seed))
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_STATE_CORRUPT");
+        assert_eq!(
+            database.auth_mode_snapshot().unwrap().state,
+            AuthModeStateRecord::initial_dev(None)
+        );
+    }
+
+    #[test]
+    fn raw_schema_loader_rejects_sessions_half_on_fresh_dev() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (_, manifest) = sessions_pair(Some("must_not_exist"));
+        let error = database.apply_schema(manifest).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        let exists: i64 = database
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'must_not_exist'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(exists, 0);
     }
 
     #[test]

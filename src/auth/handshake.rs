@@ -39,6 +39,23 @@ pub struct AuthClientProtocolOffers {
 }
 
 impl AuthClientProtocolOffers {
+    /// Ordinary HTTP requests accept only the four named decimal headers.
+    /// `Sec-WebSocket-Protocol` is a carrier exclusively for a genuine browser
+    /// WebSocket upgrade and must not become a second bootstrap grammar.
+    pub fn from_http_headers(headers: &HeaderMap) -> Self {
+        Self {
+            auth_client: decimal_protocol_header(headers, AUTH_CLIENT_PROTOCOL_HEADER),
+            auth_invalidation: decimal_protocol_header(headers, AUTH_INVALIDATION_PROTOCOL_HEADER),
+            authority_descriptor: decimal_protocol_header(
+                headers,
+                AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER,
+            ),
+            authorized_lease: decimal_protocol_header(headers, AUTHORIZED_LEASE_PROTOCOL_HEADER),
+        }
+    }
+
+    /// WebSocket-upgrade parsing: custom headers win when available; browser
+    /// clients may carry the same offers in closed subprotocol tokens.
     pub fn from_headers(headers: &HeaderMap) -> Self {
         Self {
             auth_client: decimal_protocol_offer(
@@ -131,6 +148,31 @@ pub struct AuthSessionAuthority {
     pub user_id: Option<String>,
     pub session_id: Option<String>,
     pub is_authenticated: bool,
+}
+
+/// Handshake-specific descriptor closure. Mutation inputs retain their own
+/// diagnostic surface; the bootstrap schema pins protocol-v1 and canonical
+/// UUIDv7 independently so the server schema and executable kit agree.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthSessionAuthorityDescriptor {
+    #[schemars(range(min = 1, max = 1))]
+    pub descriptor_version: u64,
+    #[schemars(pattern(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    ))]
+    pub authority_instance_id: String,
+    pub session_generation: u64,
+}
+
+impl From<AuthorityDescriptor> for AuthSessionAuthorityDescriptor {
+    fn from(value: AuthorityDescriptor) -> Self {
+        Self {
+            descriptor_version: u64::from(value.descriptor_version),
+            authority_instance_id: value.authority_instance_id,
+            session_generation: value.session_generation,
+        }
+    }
 }
 
 impl AuthSessionAuthority {
@@ -261,7 +303,9 @@ pub struct AuthSessionResponse {
     pub protocol_version: u64,
     #[schemars(length(min = 1))]
     pub server_startup_nonce: String,
-    #[schemars(length(min = 1))]
+    #[schemars(pattern(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    ))]
     pub authorization_stream_incarnation: String,
     pub transition_generation: u64,
     pub active_mode: AuthMode,
@@ -279,7 +323,7 @@ pub struct AuthSessionResponse {
     pub transports: Vec<String>,
     pub authority: AuthSessionAuthority,
     /// Consistency only: possession never authorizes an invocation.
-    pub authority_descriptor: AuthorityDescriptor,
+    pub authority_descriptor: AuthSessionAuthorityDescriptor,
     /// Exact lease capability facts appear only when this binary's full
     /// issuance/store/service implementation is ready. A client offer alone
     /// can never manufacture support. Always present: null means "not
@@ -332,7 +376,7 @@ impl AuthSessionResponse {
             },
             transports: vec!["bearer".to_owned()],
             authority: facts.authority,
-            authority_descriptor: facts.authority_descriptor,
+            authority_descriptor: facts.authority_descriptor.into(),
             authorized_lease: facts
                 .readiness
                 .authorized_lease
@@ -546,6 +590,11 @@ mod tests {
                 authority_descriptor: Some(1),
                 authorized_lease: Some(1),
             }
+        );
+        assert_eq!(
+            AuthClientProtocolOffers::from_http_headers(&headers),
+            AuthClientProtocolOffers::default(),
+            "ordinary HTTP bootstrap cannot negotiate through WebSocket tokens"
         );
 
         headers.insert(AUTH_CLIENT_PROTOCOL_HEADER, HeaderValue::from_static("bad"));

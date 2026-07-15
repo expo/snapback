@@ -110,6 +110,33 @@
       },
       "type": "object"
     },
+    "AuthSessionAuthorityDescriptor": {
+      "additionalProperties": false,
+      "description": "Handshake-specific descriptor closure. Mutation inputs retain their own\ndiagnostic surface; the bootstrap schema pins protocol-v1 and canonical\nUUIDv7 independently so the server schema and executable kit agree.",
+      "properties": {
+        "authorityInstanceId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "descriptorVersion": {
+          "format": "uint64",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sessionGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "descriptorVersion",
+        "authorityInstanceId",
+        "sessionGeneration"
+      ],
+      "type": "object"
+    },
     "AuthSessionAvailability": {
       "additionalProperties": false,
       "properties": {
@@ -148,34 +175,6 @@
       "required": [
         "key",
         "available"
-      ],
-      "type": "object"
-    },
-    "AuthorityDescriptor": {
-      "additionalProperties": false,
-      "description": "Opaque server-issued consistency descriptor for one queued mutation.\nPossession grants no authority; the invocation gate first resolves a live\ncredential and only then compares this value with its prepared authority.\n\n@ref LLP 0039#replay-parity-and-the-authority-instance-id — this is a\n  dedicated MutationRequest channel, never a ctx-answer-ledger member.",
-      "properties": {
-        "authorityInstanceId": {
-          "maxLength": 36,
-          "minLength": 36,
-          "type": "string"
-        },
-        "descriptorVersion": {
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "sessionGeneration": {
-          "format": "uint64",
-          "maximum": 9007199254740991,
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "descriptorVersion",
-        "authorityInstanceId",
-        "sessionGeneration"
       ],
       "type": "object"
     },
@@ -413,11 +412,11 @@
       "$ref": "#/$defs/AuthSessionAuthority"
     },
     "authorityDescriptor": {
-      "$ref": "#/$defs/AuthorityDescriptor",
+      "$ref": "#/$defs/AuthSessionAuthorityDescriptor",
       "description": "Consistency only: possession never authorizes an invocation."
     },
     "authorizationStreamIncarnation": {
-      "minLength": 1,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
       "type": "string"
     },
     "authorizedLease": {

@@ -58,6 +58,7 @@ pub enum EffectiveSource {
 #[serde(rename_all = "camelCase")]
 pub enum AuthenticationThrottle {
     #[default]
+    Unavailable,
     ProcessLocal,
     SharedEnforced,
 }
@@ -68,8 +69,9 @@ pub enum AuthenticationThrottle {
 #[serde(rename_all = "camelCase")]
 pub enum SessionInvalidation {
     #[default]
+    Unavailable,
     SingleProcess,
-    MultiReplicaConvergent,
+    GloballyFenced,
 }
 
 /// The strongest browser credential claim the target can honestly advertise.
@@ -82,6 +84,7 @@ pub enum SessionInvalidation {
 #[serde(rename_all = "camelCase")]
 pub enum BrowserCredentialPosture {
     #[default]
+    Unavailable,
     BearerV1XssExposed,
     SenderConstrainedV2,
 }
@@ -107,6 +110,18 @@ impl Default for HostedAuthCapabilities {
 }
 
 impl HostedAuthCapabilities {
+    /// A target with no authentication surface. This differs from the local
+    /// target, which really does have process-local bearer auth mechanisms.
+    pub const fn no_auth_target() -> Self {
+        Self {
+            external_tls: ExternalTls::Unavailable,
+            effective_source: EffectiveSource::Unavailable,
+            authentication_throttle: AuthenticationThrottle::Unavailable,
+            session_invalidation: SessionInvalidation::Unavailable,
+            client_credential_posture: BrowserCredentialPosture::Unavailable,
+        }
+    }
+
     pub const fn local_target() -> Self {
         Self {
             external_tls: ExternalTls::Unavailable,
@@ -117,7 +132,10 @@ impl HostedAuthCapabilities {
         }
     }
 
-    pub const fn deployment_ready(self) -> bool {
+    /// Static build support only. Actual hosted admission additionally needs
+    /// a deployment-bound attestation, live health, mixed-version proof, and
+    /// an isolated/disabled operator surface.
+    pub const fn deployment_capable(self) -> bool {
         matches!(self.external_tls, ExternalTls::Enforced)
             && matches!(self.effective_source, EffectiveSource::Trusted)
             && matches!(
@@ -126,12 +144,12 @@ impl HostedAuthCapabilities {
             )
             && matches!(
                 self.session_invalidation,
-                SessionInvalidation::MultiReplicaConvergent
+                SessionInvalidation::GloballyFenced
             )
     }
 
-    pub const fn hosted_auth_ready(self) -> bool {
-        self.deployment_ready()
+    pub const fn hosted_auth_capable(self) -> bool {
+        self.deployment_capable()
             && matches!(
                 self.client_credential_posture,
                 BrowserCredentialPosture::SenderConstrainedV2
@@ -156,7 +174,7 @@ impl HostedAuthCapabilities {
         }
         if !matches!(
             self.session_invalidation,
-            SessionInvalidation::MultiReplicaConvergent
+            SessionInvalidation::GloballyFenced
         ) {
             blockers.push("sessionInvalidation");
         }
@@ -171,6 +189,13 @@ impl HostedAuthCapabilities {
 }
 
 pub fn deployment_unsupported(capabilities: HostedAuthCapabilities) -> SnapbackError {
+    let mut blockers = capabilities.blockers();
+    blockers.extend([
+        "deploymentAttestation",
+        "liveHealth",
+        "handlerCompatibility",
+        "operatorSurface",
+    ]);
     SnapbackError::error(
         "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED",
         "auth-deployment",
@@ -178,7 +203,7 @@ pub fn deployment_unsupported(capabilities: HostedAuthCapabilities) -> SnapbackE
     )
     .with_details(serde_json::json!({
         "requestedDeployment": "hosted",
-        "blockers": capabilities.blockers(),
+        "blockers": blockers,
     }))
 }
 
@@ -188,7 +213,10 @@ pub fn validate_auth_deployment(
     requested: AuthDeploymentTarget,
     capabilities: HostedAuthCapabilities,
 ) -> SnapbackResult<()> {
-    if requested == AuthDeploymentTarget::Hosted && !capabilities.hosted_auth_ready() {
+    if requested == AuthDeploymentTarget::Hosted {
+        // No current Snapback target owns the deployment-attestation and
+        // live-health authorities required by LLP 0060. Static build support
+        // is deliberately insufficient to authorize serving.
         return Err(deployment_unsupported(capabilities));
     }
     Ok(())
@@ -199,7 +227,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hosted_auth_readiness_is_the_exact_five_fact_conjunction() {
+    fn hosted_auth_support_is_the_exact_five_fact_conjunction() {
         for mask in 0_u8..32 {
             let capabilities = HostedAuthCapabilities {
                 external_tls: if mask & 1 != 0 {
@@ -218,9 +246,9 @@ mod tests {
                     AuthenticationThrottle::ProcessLocal
                 },
                 session_invalidation: if mask & 8 != 0 {
-                    SessionInvalidation::MultiReplicaConvergent
+                    SessionInvalidation::GloballyFenced
                 } else {
-                    SessionInvalidation::SingleProcess
+                    SessionInvalidation::Unavailable
                 },
                 client_credential_posture: if mask & 16 != 0 {
                     BrowserCredentialPosture::SenderConstrainedV2
@@ -228,13 +256,24 @@ mod tests {
                     BrowserCredentialPosture::BearerV1XssExposed
                 },
             };
-            assert_eq!(capabilities.deployment_ready(), mask & 0b01111 == 0b01111);
-            assert_eq!(capabilities.hosted_auth_ready(), mask == 0b11111);
-            assert_eq!(
-                validate_auth_deployment(AuthDeploymentTarget::Hosted, capabilities).is_ok(),
-                mask == 0b11111,
-            );
+            assert_eq!(capabilities.deployment_capable(), mask & 0b01111 == 0b01111);
+            assert_eq!(capabilities.hosted_auth_capable(), mask == 0b11111);
+            assert!(validate_auth_deployment(AuthDeploymentTarget::Hosted, capabilities).is_err());
         }
+    }
+
+    #[test]
+    fn no_auth_target_does_not_claim_local_auth_mechanisms() {
+        assert_eq!(
+            serde_json::to_value(HostedAuthCapabilities::no_auth_target()).unwrap(),
+            serde_json::json!({
+                "externalTls": "unavailable",
+                "effectiveSource": "unavailable",
+                "authenticationThrottle": "unavailable",
+                "sessionInvalidation": "unavailable",
+                "clientCredentialPosture": "unavailable",
+            })
+        );
     }
 
     #[test]
@@ -258,6 +297,10 @@ mod tests {
                     "authenticationThrottle",
                     "sessionInvalidation",
                     "clientCredentialPosture",
+                    "deploymentAttestation",
+                    "liveHealth",
+                    "handlerCompatibility",
+                    "operatorSurface",
                 ],
             }),
         );

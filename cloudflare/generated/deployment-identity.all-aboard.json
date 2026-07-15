@@ -1,9 +1,9 @@
 {
   "format": 2,
   "app": "all-aboard",
-  "schemaHash": "sha256:726ddbf5262757f16c05fbdc2934eeed75e96f6e0b4cbfc7118c70a7a597954a",
-  "bundleHash": "sha256:e724d52f04d8278b300cd93f237f8899c895ae84a01717dd93c40803f071c267",
-  "inputsHash": "sha256:81db9650f330a006bde3edf05a8ab3f00f43624e809d3793b8b9058ce28e5444",
+  "schemaHash": "sha256:27b27839d5b5343727ab56c3564741b046e8c88c559b0ac41d27455bbdb167b1",
+  "bundleHash": "sha256:1d7740c837a56fd74e480eb980ad47c68ee2e2a175be075301b4d2967f21be7f",
+  "inputsHash": "sha256:6899057013bb8732634942d752eac6dece8aa71fa894e901628f1d2c1342b526",
   "inputs": [
     "cloudflare/app/all-aboard.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",

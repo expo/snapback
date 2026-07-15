@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:c82acfdfa9ea6ad5a2c9f2e576d6148a921735995cbbf10262ca5f3c6654a326"
+    "sha256": "sha256:3a2560594de74eaa421a5fe547bc5f6483f595fa2862836e098077fab8a1b0fc"
   },
   "manifestVersion": 1,
   "operations": [
@@ -20,7 +20,7 @@
       "authRequirement": "optional-user",
       "errorSchema": {
         "path": "schemas/error.response.schema.json",
-        "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+        "sha256": "sha256:2aa94dcdb68d639c9d80e4d29df2f3a3b2433cd124ecfd1e70689d62ef406ccd"
       },
       "functionId": "todo-v2:createTodo",
       "kind": "Mutation",
@@ -46,7 +46,7 @@
       "authRequirement": "optional-user",
       "errorSchema": {
         "path": "schemas/error.response.schema.json",
-        "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+        "sha256": "sha256:2aa94dcdb68d639c9d80e4d29df2f3a3b2433cd124ecfd1e70689d62ef406ccd"
       },
       "functionId": "todo-v2:setCompleted",
       "kind": "Mutation",
@@ -72,7 +72,7 @@
       "authRequirement": "optional-user",
       "errorSchema": {
         "path": "schemas/error.response.schema.json",
-        "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+        "sha256": "sha256:2aa94dcdb68d639c9d80e4d29df2f3a3b2433cd124ecfd1e70689d62ef406ccd"
       },
       "functionId": "todo-v2:deleteTodo",
       "kind": "Mutation",
@@ -93,7 +93,7 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:3b7b6e0cec596c5163ac6439ca56d65a5dcc57ff7e7854b1cded9b528ba65cf4"
+    "sha256": "sha256:c8bf6e05b7f7866f32c878573288df462d0db6fe46aeca9d23c5f1540f52a798"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
@@ -108,7 +108,7 @@
     },
     "errorResponse": {
       "path": "schemas/error.response.schema.json",
-      "sha256": "sha256:7bf8e1f592d07f4e957b861b6af79db7045640d8f02260651778d9b50ea2c3a9"
+      "sha256": "sha256:2aa94dcdb68d639c9d80e4d29df2f3a3b2433cd124ecfd1e70689d62ef406ccd"
     },
     "liveEnvelope": {
       "path": "schemas/live.envelope.schema.json",
