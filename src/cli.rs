@@ -140,15 +140,25 @@ async fn compose_auth_mode_startup(
                     AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
                 ) =>
             {
-                return quarantine_pending_startup(snapback, error);
+                return quarantine_pending_startup(
+                    snapback,
+                    with_expected_deployment(
+                        error,
+                        snapshot.state.requested_deployment.as_ref(),
+                        None,
+                    ),
+                );
             }
             Err(error) => {
-                let expected = snapshot
-                    .state
-                    .requested_deployment
-                    .as_ref()
-                    .or(snapshot.state.active_deployment.as_ref());
-                return Err(with_expected_deployment(error, expected, None));
+                return Err(with_expected_deployment(
+                    error,
+                    snapshot
+                        .state
+                        .requested_deployment
+                        .as_ref()
+                        .or(snapshot.state.active_deployment.as_ref()),
+                    None,
+                ));
             }
         },
         None => None,
@@ -157,29 +167,24 @@ async fn compose_auth_mode_startup(
     if snapshot.state.mode_state == AuthModeStatus::Settled {
         match snapshot.state.active {
             AuthMode::Sessions => {
-                let carrier = carrier.as_ref().ok_or_else(|| {
-                    with_expected_deployment(
-                        auth_startup_required(
-                        "settled sessions mode requires --startup-artifacts on every start",
-                        ),
-                        snapshot.state.active_deployment.as_ref(),
-                        None,
-                    )
-                })?;
-                snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
                 let expected = snapshot.state.active_deployment.as_ref().ok_or_else(|| {
                     crate::auth::mode::mode_corrupt(
                         "settled sessions mode lacks an active deployment",
                     )
                 })?;
-                if let Err(error) = carrier.require_deployment(expected) {
-                    let observed = carrier.deployment_identity(AuthMode::Sessions).ok();
-                    return Err(with_expected_deployment(
-                        error,
+                let carrier = carrier.as_ref().ok_or_else(|| {
+                    with_expected_deployment(
+                        auth_startup_required(
+                            "settled sessions mode requires --startup-artifacts on every start",
+                        ),
                         Some(expected),
-                        observed.as_ref(),
-                    ));
-                }
+                        None,
+                    )
+                })?;
+                let observed = snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
+                carrier.require_deployment(expected).map_err(|error| {
+                    with_expected_deployment(error, Some(expected), Some(&observed))
+                })?;
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
                         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
@@ -263,19 +268,22 @@ async fn compose_auth_mode_startup(
         .as_ref()
         .expect("a validated pending snapshot has a requested deployment");
     if let Err(error) = carrier.require_deployment(expected) {
-        let observed = carrier.deployment_identity(expected.auth_mode).ok();
         return quarantine_pending_startup(
             snapback,
-            with_expected_deployment(error, Some(expected), observed.as_ref()),
+            with_expected_deployment(error, Some(expected), Some(&deployment)),
         );
     }
     if deployment != *expected {
         return quarantine_pending_startup(
             snapback,
-            crate::diagnostic::SnapbackError::error(
-                "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
-                "auth-mode",
-                "startup artifact identity differs from the pending deployment",
+            with_expected_deployment(
+                crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+                    "auth-mode",
+                    "startup artifact identity differs from the pending deployment",
+                ),
+                Some(expected),
+                Some(&deployment),
             ),
         );
     }

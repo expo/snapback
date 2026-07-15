@@ -631,6 +631,15 @@ transition generation, and blocker names. Artifact source/body/seed, carrier
 paths, credentials, identity addresses, provider secrets, and key material are
 forbidden.
 
+`SNAPBACK_REQUEST_BODY_TIMEOUT` is the reviewed HTTP 408 class for an admitted
+request whose bounded body ingest did not complete before the monotonic ingest
+deadline. `SNAPBACK_AUTH_HANDSHAKE_INVALID` is produced by the kit when the
+closed bootstrap response, exact offer echo, UUIDv7 identities, or descriptor
+version fails validation; it is a client protocol refusal and has no server HTTP
+status mapping. `SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED` is a pre-bind
+informational audit fact carrying only revocation count and transition
+generation; it is not an HTTP failure response.
+
 ### Auth v1 registrations after item 4
 
 ENG-24603 through ENG-24607 register the remaining local auth-program surface

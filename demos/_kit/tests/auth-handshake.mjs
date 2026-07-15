@@ -73,7 +73,7 @@ const handshake = ({
 });
 
 try {
-  await suite.check('dev discovers once before online work and preserves legacy body authority', async () => {
+  await suite.check('dev rediscovers before every online operation and preserves legacy body authority', async () => {
     const calls = [];
     globalThis.fetch = async (url, init) => {
       const path = new URL(url).pathname;
@@ -89,6 +89,7 @@ try {
     assertEqual(calls.map(({ path }) => path), [
       '/auth/session',
       '/query/listTodos',
+      '/auth/session',
       '/action/reindex',
     ]);
     assertEqual(JSON.parse(calls[1].init.body).auth.user_id, 'user_ada');

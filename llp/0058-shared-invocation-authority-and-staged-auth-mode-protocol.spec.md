@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-2 dual-family revision, /llp-super-refine:
+**Revised:** 2026-07-15 (ENG-25001 defect reconciliation: closed raw-loader,
+prepared-generation, seed provenance, composed-gate, session DTO, handshake
+freshness/exactness, startup recovery, and carrier-boundary findings; clarified
+the executable-authority trusted-producer premise and safe post-consume/pre-bind
+startup interval; status remains Draft). 2026-07-14 (round-2 dual-family revision, /llp-super-refine:
 **separated committed executable coverage from one-time recorded evidence** in
 Acceptance/Status — the "actual-predecessor runs" and "byte-for-byte database/WAL
 comparison" are recorded ENG-24597 evidence, not a rerunnable committed harness,
@@ -429,6 +433,16 @@ The record is closed; all six strings are non-empty. `activeDeployment` may be
 complete pair. A sessions deployment and every `requestedDeployment` are always
 non-null and complete.
 
+These identities are authenticated producer assertions, not receiver-computed
+content-address proofs. The local CLI accepts them only from the owner-only,
+single-link executable carrier below; network provisioning accepts them only
+after the privileged AdminWrite boundary. The receiver validates the closed
+namespace, complete-pair equality, mode, and cross-half inputs identity, but it
+does not independently reproduce a build system's canonical source hashing.
+Their security role is generation coherence and crash/restart pinning; executable
+authority comes from the authenticated carrier. A future receiver-computed hash
+format would be a protocol revision, not an implicit strengthening of v1.
+
 ### Exact mode-state record
 
 ```json
@@ -677,7 +691,12 @@ Before binding any listener, startup:
    in-process pointer swap; and
 9. only then binds the listener and admits app data.
 
-Every fallible artifact/provider operation precedes step 7. A crash after step 7
+Every fallible artifact/provider operation precedes step 7. Process-local
+coordinator, invalidation, connection-registry, and worker construction that
+depends on the newly activated catalog occurs after step 8 but before step 9.
+This is a defined safe durable intermediate interval: admission is closed and no
+listener is bound; failure exits, and restart revalidates the pinned carrier and
+rebuilds those prerequisites before bind. A crash after step 7
 but before bind observes a complete settled sessions record on restart and again
 requires the same startup carrier. No intermediate durable state has a relocated
 manifest without poison or poison without sessions-ever-activated state.
@@ -923,7 +942,8 @@ generation, authority-instance id, admin reason, or room permission set.
 
 #### `PreparedAuthority`
 
-`PreparedAuthority` is immutable and contains:
+`PreparedAuthority` is immutable and contains the output of the composed
+production boundary:
 
 ```text
 durable transitionGeneration and process-local admissionEpoch
@@ -935,8 +955,13 @@ authority audit fact
 operation-level availability/protocol decision
 ```
 
-It is the shared result of mode, route-policy, wire-field, credential, and
-operation-level protocol enforcement. Functionless operations—including
+The route/operation registry and middleware first select the effective policy,
+allowed carrier, protocol offers, and source classification;
+`InvocationGate::prepare_admitted_authority` then owns the immutable
+mode/admission/wire/source/projection result. `PreparedConnectionAct` separately
+owns the exact connection-grant/effect fence for connection-bound HTTP and
+WebSocket acts. This composition, rather than either type in isolation, is the
+normative shared gate. Functionless operations—including
 ephemeral publish/delete/subscribe, live owner acts, standalone
 acknowledgements, and connection operations—consume this type plus their own
 closed operation inputs. They never invent a function id or construct a
@@ -959,7 +984,7 @@ bytes have been consumed before this type exists.
 
 ### Gate algorithm
 
-`InvocationGate::prepare_authority` performs this order:
+The composed route middleware plus `InvocationGate` performs this order:
 
 1. require an invariant-valid, `available`, settled durable mode generation and
    capture the current process-local `admissionEpoch`;
@@ -984,10 +1009,13 @@ A handler entry then calls
    `authorityIndependent` exception; and
 4. returns `PreparedInvocation` or fails before handler evaluation.
 
-The closed `InvocationSource` registry determines whether a source stops after
+The closed route, operation, and `InvocationSource` registries determine whether a source stops after
 authority preparation or must refine to a function invocation. There is no
 nullable function slot and no catch-all variant: adding a source requires an
-explicit authority-only or function-backed case.
+explicit authority-only or function-backed case. Exhaustive registry tests must
+prove every HTTP route, WebSocket frame operation, local/nested entry, and system
+exception has exactly one classification. The bootstrap handshake is the sole
+diagnostic discovery exception and cannot authorize later work.
 
 Both durable generation and process-local `admissionEpoch` are checked again
 atomically at write commit and response/live publication. A stage or timed-out
@@ -1356,7 +1384,12 @@ three remaining build facts. Each is a positive server-owned fact from its
 implementing registry/module, never absence of a diagnostic. A sessions stage
 may be validated and stored, but consume quarantines before catalog/poison
 activation with `SNAPBACK_AUTH_POLICY_UNAVAILABLE` and safe blocker names until
-every build fact and the process fact is true. No test-only environment variable
+every build fact and the process fact is true. These readiness facts assert that
+the implementations and construction paths are registered and available; they
+do not falsely assert that catalog-dependent process objects already exist.
+Those objects are constructed in the admission-closed, listener-free durable
+intermediate interval defined in §Consume ordering, and bind is the final proof
+that all of them exist together. No test-only environment variable
 or HTTP input may override the production readiness authority; embedded unit
 fixtures may construct the closed readiness type directly without making that
 constructor public.
@@ -1713,30 +1746,28 @@ as LLP 0012 obligations with the body-timeout registry gap named; the
 §Activation-readiness JSON labeled the item-4 boundary exhibit; the 20 s
 ingest-deadline collateral class named.
 
-**Named defect obligations (spec pins the correct behavior; shipped code has the
-gap — code fixes, not design changes, each with an acceptance obligation):**
-exact connection-grant live ownership (unsubscribe/resume/supersede must compare
-the stored grant id/effect fence, not authority alone); settled-dev raw loaders
-must enforce the v0-dev tuple before DDL/function replacement (including the
-null-`activeDeployment` fresh/adopted case); a non-callable prepared generation
-must compile every module and validate exports **before** consume/same-mode
-commit; every mandatory readiness prerequisite (coordinator rebuild, invalidation
-install, connection binding, worker) must be probed/constructed before durable
-consume or a safe durable intermediate state defined; the composed
-gate/connection-act boundary must be described normatively **or** unified into one
-production gate consumed by every HTTP/WebSocket/local/nested/system ingress, with
-an exhaustive ingress-to-gate registry test; HTTP session-mode ephemeral DTOs must
-be closed (`deny_unknown_fields`) and share the WebSocket twins' schema;
-handshake cache must invalidate across a replacement process; handshake exactness
-must validate canonical UUIDv7 and `descriptorVersion === 1` (descriptor and
-incarnation) before custody change; "truly empty" seed eligibility must exclude
-adopted-legacy/empty-table applications; deployment identities must be recomputed
-(content-verified) in the receiver or a trusted-producer premise stated; and
-operator-recovery diagnostics must carry expected/observed deployment identity,
-the downgrade audit fact must be recorded before bind, and the alternate offer
-carrier on ordinary HTTP bootstrap resolved. The split-document suggestion is left
-to the author. These are code-fidelity obligations: the normative design is
-unchanged, but the Spec cannot advance past Draft until they close.
+**Named defect obligations (ENG-25001 disposition):** all current code-fidelity
+findings are closed. Live resume/unsubscribe/supersede retain and compare the
+exact connection effect fence; raw loaders reject any non-v0-dev half before
+effects; sessions preflight evaluates every module and export in a fresh VM and
+retains the prepared generation; adopted applications are never fresh seed
+targets. The composed registry/middleware, `PreparedAuthority`, and
+`PreparedConnectionAct` boundary is normative above and is covered by exhaustive
+route/operation registries. HTTP and WebSocket session ephemeral operations now
+decode the same closed DTOs. Every online kit operation forces a current-process
+handshake; its schema and executable validator require canonical lowercase
+UUIDv7 identifiers and descriptor version 1. Ordinary HTTP ignores the
+WebSocket-only offer carrier. Startup errors carry safe expected/observed
+deployment identities and committed downgrade revocation facts are audited
+before bind. The readiness dependency is resolved by the explicit
+admission-closed, listener-free durable intermediate interval, and the deployment
+identity security claim is the authenticated trusted-producer premise above.
+
+The remaining evidence-hygiene work is deliberately not reclassified as a
+runtime defect: the one-time actual-predecessor run and byte-for-byte corruption
+record remain non-rerunnable historical evidence until committed harnesses are
+added. The split-document suggestion is left to the author. Closing these
+findings does not ratify or advance this Draft.
 
 The review advises — it does not ratify; this document remains Draft pending
 author triage completion and explicit ratification.

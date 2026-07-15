@@ -64,11 +64,16 @@ const kitVerdict = async (body) => {
     if (new URL(url).pathname === '/auth/session') return response(body);
     throw new Error(`unexpected path ${new URL(url).pathname}`);
   };
-  const db = new SnapbackClient('http://stub');
+  const protocols = body?.clientProtocols ?? {};
+  const db = new SnapbackClient('http://stub', {
+    authClientProtocol: protocols.authClient ?? null,
+    authInvalidationProtocol: protocols.authInvalidation ?? null,
+    authorityDescriptorProtocol: protocols.authorityDescriptor ?? null,
+    authorizedLeaseProtocol: protocols.authorizedLease ?? null,
+  });
   try {
     const projected = await db.authSession();
-    assert(projected !== null, 'a validated handshake projection is non-null');
-    return 'accept';
+    return projected !== null ? 'accept' : 'reject';
   } catch (error) {
     if (error?.diagnostic?.code === 'SNAPBACK_AUTH_HANDSHAKE_INVALID') return 'reject';
     throw error;

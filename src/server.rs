@@ -13580,28 +13580,6 @@ struct WireSubscribeRequest {
     auth: Option<AuthContext>,
 }
 
-fn parse_ephemeral_json<T: serde::de::DeserializeOwned>(
-    headers: &HeaderMap,
-    body: Result<Bytes, BytesRejection>,
-) -> Result<T, ApiError> {
-    let body = body.map_err(|error| ApiError::request_json_invalid(error.to_string()))?;
-    if body.is_empty() {
-        return Err(ApiError::request_json_invalid("request body must not be empty"));
-    }
-    let is_json = headers
-        .get(header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.split(';').next())
-        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
-    if !is_json {
-        return Err(ApiError::request_json_invalid(
-            "nonempty request body requires Content-Type: application/json",
-        ));
-    }
-    serde_json::from_slice(&body)
-        .map_err(|error| ApiError::request_json_invalid(error.to_string()))
-}
-
 fn resolved_wire_ephemeral_auth(
     supplied: Option<AuthContext>,
     policy_mode: PolicyAuthMode,
@@ -13689,6 +13667,29 @@ impl WireSubscribeRequest {
     }
 }
 
+fn parse_ephemeral_json<T: serde::de::DeserializeOwned>(
+    headers: &HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<T, ApiError> {
+    let body = body.map_err(|error| ApiError::request_json_invalid(error.to_string()))?;
+    if body.is_empty() {
+        return Err(ApiError::request_json_invalid("request body must not be empty"));
+    }
+    let is_json = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
+    if !is_json {
+        return Err(ApiError::request_json_invalid(
+            "request body requires Content-Type: application/json",
+        ));
+    }
+    // Deserialize the original bytes so duplicate fields remain observable.
+    serde_json::from_slice(&body)
+        .map_err(|error| ApiError::request_json_invalid(error.to_string()))
+}
+
 /// The ephemeral endpoints reach the sharded room authority directly: no
 /// global mutex, so a busy mutation on the write lane cannot delay presence
 /// (LLP 0013 §Delivery lanes; LLP 0032 L9). They are pure memory operations —
@@ -13710,10 +13711,10 @@ async fn ensure_ephemeral_collections(
 
 async fn publish_ephemeral(
     State(runtime): State<AppState>,
+    headers: HeaderMap,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
@@ -13756,10 +13757,10 @@ async fn publish_ephemeral(
 
 async fn subscribe_ephemeral(
     State(runtime): State<AppState>,
+    headers: HeaderMap,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
@@ -13807,10 +13808,10 @@ async fn subscribe_ephemeral(
 
 async fn delete_ephemeral(
     State(runtime): State<AppState>,
+    headers: HeaderMap,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
@@ -14146,6 +14147,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID"
         | "SNAPBACK_AUTH_GRANT_SCOPE_INVALID"
         | "SNAPBACK_AUTH_RESCUE_INVALID"
+        | "SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED"
         | "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED"
         | "SNAPBACK_AUTH_STALE_RESULT"
         | "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
@@ -21776,6 +21778,7 @@ mod tests {
         "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID",
         "SNAPBACK_AUTH_GRANT_SCOPE_INVALID",
         "SNAPBACK_AUTH_RESCUE_INVALID",
+        "SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED",
         "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED",
         "SNAPBACK_AUTH_STALE_RESULT",
         "SNAPBACK_AUTH_UNDECLARABLE_RETENTION",
@@ -22109,6 +22112,7 @@ mod tests {
         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
         "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED",
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
+        "SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED",
         "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
         "SNAPBACK_AUTH_MODE_PENDING",
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",

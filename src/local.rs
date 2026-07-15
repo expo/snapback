@@ -10411,38 +10411,39 @@ mod tests {
 
     #[test]
     fn sessions_preflight_prepares_module_source_and_export_before_staging() {
-        for (source, export, expected_code) in [
-            ("globalThis.__snapbackHandlers = {", "handler", "SNAPBACK_HANDLER_FAILED"),
+        for (source, export, expected) in [
+            ("globalThis. = 1;", "broken", "SNAPBACK_HANDLER_FAILED"),
             (
-                "globalThis.__snapbackHandlers = { present() { return null; } };",
+                "globalThis.__snapbackHandlers = {};",
                 "missing",
                 "SNAPBACK_HANDLER_EXPORT_MISSING",
             ),
         ] {
             let mut snapback = LocalSnapback::memory().unwrap();
-            let (schema, mut functions) = auth_artifact_pair(AuthMode::Sessions, 'p');
-            functions.functions = vec![FunctionDefinition::new(
-                "preparedHandler",
+            let (schema, mut functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+            functions.functions.push(FunctionDefinition::new(
+                export,
                 FunctionKind::Query,
                 FunctionRuntime::IbexModule(IbexModule {
                     source: source.to_owned(),
                     export: export.to_owned(),
                 }),
-            )];
+            ));
+            let artifacts = crate::auth::mode::StartupArtifacts {
+                format_version: crate::auth::mode::STARTUP_ARTIFACT_FORMAT_VERSION,
+                schema,
+                functions,
+                seed: None,
+            };
             let error = snapback
-                .prepare_auth_provision(
-                    EnsureAppMode::Sessions,
-                    Some(schema),
-                    Some(functions),
-                    None,
-                )
-                .unwrap_err();
-            assert_eq!(error.diagnostic.code, expected_code);
+                .preflight_auth_artifacts(&artifacts, AuthMode::Sessions)
+                .expect_err("unprepared executable generation must fail preflight");
+            assert_eq!(error.diagnostic.code, expected);
             assert_eq!(
-                snapback.db.auth_mode_snapshot().unwrap().state.mode_state,
-                crate::auth::mode::AuthModeStatus::Settled
+                snapback.auth_database_mut().auth_mode_snapshot().unwrap().state,
+                AuthModeStateRecord::initial_dev(None)
             );
-            assert!(snapback.functions.functions.is_empty());
+            assert!(snapback.function_kind(export).is_none());
         }
     }
 
