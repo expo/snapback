@@ -699,7 +699,9 @@ already ships the executor-swap harness. D5 joins them:
   corrections to the already-declared portable semantics, not a new
   expression form.
 
-**Remote-service publication (ENG-24556).** The standard SQLite + Ibex server
+#### Remote-service publication
+
+ENG-24556 publishes the standard SQLite + Ibex server
 now has a second, explicit target profile,
 `remote-service-sqlite-ibex`. Its server capability declaration is derived
 from the same Rust authority as `local-dev-sqlite-ibex` and differs in exactly
