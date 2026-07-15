@@ -5,7 +5,10 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final-review reconciliation: corrected the exhaustive
+**Revised:** 2026-07-15 (post-review hygiene: linked D6 to the actual LLP 0051
+D4 schema-governance section, registered the future handler-incompatibility
+diagnostic exposure, and replaced an unpreserved historical browser-run claim
+with rerunnable acceptance instructions; status remains Draft). 2026-07-15 (final-review reconciliation: corrected the exhaustive
 credential-carrier matrix to name the shipped admin headers, restored frozen
 LLP 0039's division in which LLP 0051 D4 owns generated marker schemas while
 this RFC owns hosted semantics/rollout/proof, and removed stale lease/disposal
@@ -519,7 +522,7 @@ environment variable, or app artifact can mint this object.
 LLP 0039 requires a must-understand invocation marker so a sessions-aware
 handler refuses an absent, unknown, or session-unaware coordinator before
 executing anything. Its frozen ownership split remains authoritative:
-[LLP 0051 D4](./0051-language-neutral-data-tier.rfc.md#d4-error-diagnostic-and-effect-envelopes)
+[LLP 0051 D4](./0051-language-neutral-data-tier.rfc.md#d4-finish-dk-7-the-live-envelope-becomes-schema-governed)
 owns the generated wire/serde schemas, registration, and schema drift gate;
 this RFC owns the hosted marker semantics, service-binding integrity,
 deployment ordering/interleavings, and conformance proof that LLP 0058 delegates
@@ -574,7 +577,12 @@ epoch. Rollback first withdraws the coordinator epoch, drains all pinned work,
 and only then restores handlers. Absent binding, unknown version, stale epoch,
 stale incarnation, bad echo, or unknown commit produces
 `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` and no handler execution. LLP 0060 owns
-this hosted envelope; LLP 0051 continues to own client-visible data envelopes.
+the closed fields, compatibility semantics, service-binding integrity,
+rollout, and proof for the invocation-request, response, and host-call marker
+families. LLP 0051 D4 owns those three private families' Rust/serde
+authorities, generated committed schemas, registration, instances, and shared
+drift gate, just as it owns the client-visible schema machinery; private
+transport does not exempt these envelopes from that inventory.
 
 The current Cloudflare target is dev-only and advertises no auth protocol;
 nothing here retroactively blesses it. This section exists so the first real
@@ -839,6 +847,14 @@ protocol and cannot be enabled through `local` or `hosted`.
   response details do not confirm account existence.
 - `SNAPBACK_AUTH_INVALIDATION_LAGGING`: the replica cannot prove its projection
   has reached the required stream position.
+- `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE`: reserved for D6's future hosted
+  boundary. A per-invocation coordinator refusal uses the ordinary closed HTTP
+  error envelope with status 503 and executes no handler; a binding or startup
+  preflight refusal is operator/control-plane state before serving and has no
+  HTTP response. Public details may name only the generic mismatch class and
+  supported protocol version, never deployment ids, admission epochs,
+  incarnations, invocation ids, binding credentials, or payloads. The current
+  local target must not emit this code as an implemented capability.
 - `SNAPBACK_AUTH_SENDER_PROOF_REQUIRED`,
   `SNAPBACK_AUTH_SENDER_PROOF_INVALID`, and
   `SNAPBACK_AUTH_SENDER_PROOF_REPLAYED`: reserved for the v2 protocol; v1 code
@@ -1014,12 +1030,17 @@ the absence of attestation and live health. These are proposed protocol choices
 pending fresh independent review and explicit author ratification; this session
 does not change Status on the author's behalf.
 
-The review evidence includes exact live-server hash admission for both operator
-documents, execution of the embedded setup program, a successful production
-admin build, and a clean Chrome 150 run of both complete credential-recovery
-boot paths with zero unintentional policy violations, console errors, or
-runtime exceptions. The intentional sink probe confirms the browser enforces
-Trusted Types rather than merely receiving the header.
+The local browser evidence is a rerunnable acceptance, not a claim about
+unpreserved historical console output. Build the production admin UI and the
+Snapback binary, then run `cd admin-ui && bun run test:browser-security` (the
+canonical `scripts/verify-local-proof` runs the same acceptance when its admin
+prerequisites are available). The acceptance reports the actual Chrome version
+and checks exact live-server hash admission for both operator documents,
+execution of the embedded setup program, both complete credential-recovery
+boot paths, zero unexpected policy violations, console errors, or runtime
+exceptions, and the intentional Trusted Types sink rejection. No committed
+receipt substantiates a particular historical Chrome 150 run, so this RFC
+makes no version-specific historical-run claim.
 
 That evidence validates the implemented local boundary only. It is not evidence
 for public-edge TLS/source derivation, shared throttle state, replica
@@ -1042,10 +1063,10 @@ durability matrix (projections are continuity-scoped, not disk-durable), flagged
 surface. ENG-25001 subsequently chose one serialized per-application authority
 for v1: there is no serving lease and no `multiReplicaConvergent` rename in the
 current contract, so the former lease constants and rename are not current
-obligations. The remaining protocol-grade items are the marker schema
-owner/wire form and the machine-readable attestation/health authorities; this
-RFC does not design the control plane and its altitude is not yet
-author-ratified.
+obligations. The remaining protocol-grade items are implementation of the D6
+marker schemas under LLP 0051 D4's now-explicit inventory and the
+machine-readable attestation/health authorities; this RFC does not design the
+control plane and its altitude is not yet author-ratified.
 
 Two further dual-family rounds (fresh Codex and fresh Fable, blind, via
 /llp-super-refine) reviewed the committed revision at `b11a6fa`;

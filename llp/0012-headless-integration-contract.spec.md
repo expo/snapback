@@ -5,7 +5,9 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-15 (registered the generated contract-data manifest as the
+**Revised:** 2026-07-15 (registered LLP 0060 D6's future
+`SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` startup and per-invocation exposure while
+keeping private binding markers out of public details). 2026-07-15 (registered the generated contract-data manifest as the
 sole derived v1-sessions artifact exception and registered
 `SNAPBACK_SCHEMA_PARSE_FAILED` in the shared diagnostic/status dialect; status
 remains Draft). 2026-07-14 (ENG-24905: function ids are required and stable — a
@@ -729,14 +731,23 @@ The remaining served HTTP mappings are deliberately allow-listed:
 | 403 | `SNAPBACK_AUTH_PERMISSION_DENIED`, `SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID` |
 | 409 | `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE`, `SNAPBACK_AUTH_INVALIDATION_PENDING`, `SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE`, `SNAPBACK_AUTH_RESNAPSHOT_REQUIRED`, `SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED`, `SNAPBACK_AUTH_RETRY_NOT_PENDING`, `SNAPBACK_AUTHORIZED_LEASE_BOUNDARY_MISMATCH`, `SNAPBACK_AUTHORIZED_LEASE_EXPIRED`, `SNAPBACK_AUTHORIZED_LEASE_REQUEST_REUSED`, `SNAPBACK_AUTHORIZED_LEASE_STALE` |
 | 429 | `SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED`, `SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY`, `SNAPBACK_AUTH_THROTTLED` |
-| 503 | `SNAPBACK_AUTH_CLOCK_ROLLBACK`, `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED`, `SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED`, `SNAPBACK_AUTHORIZATION_VERSION_CORRUPT`, `SNAPBACK_AUTHORIZED_LEASE_KEY_UNAVAILABLE`, `SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT`, `SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE`, `SNAPBACK_AUTH_PROJECTION_CORRUPT`, `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`, `SNAPBACK_AUTH_REVOCATION_UNCERTAIN`, `SNAPBACK_AUTH_RETRY_EXHAUSTED`, `SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT`, `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` |
-| startup / no bind | `SNAPBACK_AUTH_TRANSPORT_INSECURE` and durable projection/incarnation corruption; no client-authentication response exists |
+| 503 | `SNAPBACK_AUTH_CLOCK_ROLLBACK`, `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE`, `SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED`, `SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED`, `SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED`, `SNAPBACK_AUTHORIZATION_VERSION_CORRUPT`, `SNAPBACK_AUTHORIZED_LEASE_KEY_UNAVAILABLE`, `SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT`, `SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE`, `SNAPBACK_AUTH_PROJECTION_CORRUPT`, `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`, `SNAPBACK_AUTH_REVOCATION_UNCERTAIN`, `SNAPBACK_AUTH_RETRY_EXHAUSTED`, `SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT`, `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`, `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` (reserved LLP 0060 D6 per-invocation refusal) |
+| startup / no bind | `SNAPBACK_AUTH_TRANSPORT_INSECURE`, durable projection/incarnation corruption, and `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` (reserved LLP 0060 D6 binding/preflight refusal); no client-authentication response exists |
 | reserved hosted/v2 | `SNAPBACK_AUTH_SOURCE_UNTRUSTED`, `SNAPBACK_AUTH_INVALIDATION_LAGGING`, `SNAPBACK_AUTH_SENDER_PROOF_REQUIRED`, `SNAPBACK_AUTH_SENDER_PROOF_INVALID`, `SNAPBACK_AUTH_SENDER_PROOF_REPLAYED`; the local bearer-v1 target must not emit these as implemented capability |
 
 An item-6/8 corruption code not deliberately assigned a client class remains a
 500 or a pre-bind refusal. Adapters must not reinterpret that conservative
 default as bad request data. Public details remain identifier- and secret-free
 as specified by LLP 0053, LLP 0059, and LLP 0060.
+
+`SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` is reserved for a future hosted target;
+the current local target must not emit it as an implemented capability. A
+per-invocation coordinator refusal uses the ordinary closed HTTP error envelope
+with status 503 and executes no handler. A deployment/startup preflight refusal
+is operator/control-plane state before serving and has no HTTP response. Public
+details may name only the generic incompatibility class and supported protocol
+version; deployment ids, admission epochs, handler and authority-stream
+incarnations, invocation ids, binding credentials, and payloads remain private.
 
 ## Runtime State
 

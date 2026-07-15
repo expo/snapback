@@ -5,7 +5,9 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-15 (integrates ENG-24556's independently managed `remote-service-sqlite-ibex` target: Rust-owned capability/profile schemas, generated todo-v2 operation schemas, host-private-only HTTPS/credential policy, and commit-addressed data-tier/corpus identity; this is authority publication, not live-service evidence). 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
+**Revised:** 2026-07-15 (registers LLP 0060 D6's three private hosted marker
+envelopes in D4's generated/registered/drift-gated schema inventory without
+moving their hosted semantics or rollout ownership). 2026-07-15 (integrates ENG-24556's independently managed `remote-service-sqlite-ibex` target: Rust-owned capability/profile schemas, generated todo-v2 operation schemas, host-private-only HTTPS/credential policy, and commit-addressed data-tier/corpus identity; this is authority publication, not live-service evidence). 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
 the connection re-open bearer is request-only and structurally absent from
 responses, receipts, and retained state. Earlier: 2026-07-09 — ENG-23965 ships Increment 5's retained-query store,
@@ -38,7 +40,8 @@ provider side — the authoring-grammar fence), LLP 0037 (schema source of
 truth — DK-7), LLP 0039 (auth vertical slice — the `AuthContext` the D1
 ledger freezes), LLP 0040 (Cloudflare narrow proof), LLP 0043 (offline replay
 retention — the Parity gap this RFC closes the execution half of), LLP 0047
-(hosted execution limits), LLP 0048 (V8 conformance twin). Peer repo: Exact
+(hosted execution limits), LLP 0048 (V8 conformance twin), LLP 0060 (hosted
+marker semantics, rollout, and proof). Peer repo: Exact
 LLP 0329 (`exact/llp/0329-snapback-language-neutral-data-tier.rfc.md`) is
 this document's Exact-side counterpart; see §Relationship to Exact LLP 0329.
 
@@ -622,6 +625,16 @@ shapes DK-7 stopped short of:
   scope is the full client-visible wire surface, live envelope first
   because it is the currently-ungoverned core; the rest lands under the
   same mechanism before any "non-JS client is unblocked" claim is made.
+- **Private hosted marker envelopes use the same mechanism.** LLP 0060 D6's
+  versioned `SNAPBACK_AUTH_HANDLER_V1` boundary adds three private wire
+  families: the coordinator-to-handler invocation request, the
+  handler-to-coordinator response envelope with its required marker echo, and
+  the handler-to-host call. Their
+  closed fields, compatibility semantics, service-binding integrity, rollout,
+  and proof remain owned by LLP 0060. D4 owns their Rust/serde authorities,
+  generated committed schemas under `schemas/`, schema registration,
+  positive/negative instances, and the shared drift gate. Being private makes
+  them non-client-visible; it does not create a hand-mirror exemption.
 - A `snapback-protocol` **crate** is deliberately *not* carved yet — the
   repo is a single crate and the first Rust-client consumer doesn't
   exist. The schemas come first; the crate boundary is mechanical
@@ -929,6 +942,11 @@ disciplines.
    schemas. Together with ENG-23891's output/envelope set, D4's declared
    non-JS HTTP inventory is schema-governed; adding a new client-visible route
    body must join `artifact_schemas()` and its round-trip gate.
+   LLP 0060 subsequently assigned D6's private invocation-request, response,
+   and host-call marker schemas to the same machinery. They land
+   with the future hosted D6 implementation; that additional private inventory
+   neither reopens the completed local client-visible HTTP claim nor implies a
+   hosted target exists today.
 2. **The ctx-answer ledger (D1):** first, close the Ibex
    deterministic-member gap for queries/mutations — two mechanisms, as
    on V8: member deny-stubs single-sourced from the allowlist
