@@ -18,8 +18,8 @@ use crate::auth::handshake::{
     AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority,
-    ResolvedAppAuthority, WireAuthorityFields,
+    FunctionAttribution, HandlerAuthProjection, InvocationGate, InvocationSource,
+    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -2717,6 +2717,7 @@ fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiE
         ),
         None,
         None,
+        None,
     )
 }
 
@@ -2970,6 +2971,8 @@ pub struct ErrorResponse {
     /// Present only when a mutation reached the provider receipt boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<Receipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
 }
 
 /// Successful `POST /mutation/{name}` response. The mutation output and its
@@ -2987,6 +2990,23 @@ pub struct MutationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
     pub receipt: Receipt,
+}
+
+#[derive(Serialize)]
+struct FunctionResponse<T> {
+    #[serde(flatten)]
+    output: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attribution: Option<FunctionAttribution>,
+}
+
+impl<T> FunctionResponse<T> {
+    fn new(output: T, attribution: Option<FunctionAttribution>) -> Self {
+        Self {
+            output,
+            attribution,
+        }
+    }
 }
 
 /// Closed request carrier for the sole full-query lease issuance path. The
@@ -10746,22 +10766,27 @@ async fn invoke_query(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<HandlerInput>, JsonRejection>,
-) -> Result<Json<crate::manifest::QueryOutput>, ApiError> {
-    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+) -> Result<Json<FunctionResponse<crate::manifest::QueryOutput>>, ApiError> {
+    let attribution = authority.function_attribution();
+    let Json(input) = input
+        .map_err(ApiError::from_json_rejection)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     let output = if read.available() {
         with_read_lane(&read, move |lane| {
             lane.invoke_query_prepared(&name, input, authority)
         })
-        .await?
+        .await
     } else {
         with_snapback(&state, move |snapback| {
             snapback
                 .invoke_query_with_dependencies_prepared(&name, input, authority)
                 .map(|invocation| invocation.output)
         })
-        .await?
-    };
-    Ok(Json(output))
+        .await
+    }
+    .map_err(ApiError::from)
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
+    Ok(Json(FunctionResponse::new(output, attribution)))
 }
 
 /// Run a fresh full query, sign outside the app lock (preserving the global
@@ -10857,21 +10882,24 @@ async fn invoke_mutation(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<MutationResponse>, ApiError> {
-    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+) -> Result<Json<FunctionResponse<MutationResponse>>, ApiError> {
+    let attribution = authority.function_attribution();
+    let Json(request) = input
+        .map_err(ApiError::from_json_rejection)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     if let Some(current_id) = request.client_mutation_id.as_deref()
         && request
             .acknowledged_client_mutation_ids
             .iter()
             .any(|acknowledged| acknowledged == current_id)
     {
-        return Err(SnapbackError::error(
+        return Err(ApiError::from(SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
             "sync",
             "the current client mutation id cannot be acknowledged by the same request",
         )
-        .with_details(json!({ "clientMutationId": current_id }))
-        .into());
+        .with_details(json!({ "clientMutationId": current_id })))
+        .with_attribution(attribution));
     }
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
@@ -10887,10 +10915,17 @@ async fn invoke_mutation(
             authority,
         )
     })
-    .await?;
+    .await
+    .map_err(ApiError::from)
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
     match result {
-        Ok(output) => Ok(Json(MutationResponse::from_output(output, receipt))),
-        Err(error) => Err(ApiError::with_receipt(error, receipt)),
+        Ok(output) => Ok(Json(FunctionResponse::new(
+            MutationResponse::from_output(output, receipt),
+            attribution,
+        ))),
+        Err(error) => Err(
+            ApiError::with_receipt(error, receipt).with_attribution(attribution),
+        ),
     }
 }
 
@@ -10910,8 +10945,11 @@ async fn invoke_action(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<HandlerInput>, JsonRejection>,
-) -> Result<Json<crate::local::FunctionRunResult>, ApiError> {
-    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
+    let attribution = authority.function_attribution();
+    let Json(input) = input
+        .map_err(ApiError::from_json_rejection)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     let staged = {
         let name = name.clone();
         with_snapback(&state, move |snapback| {
@@ -10925,7 +10963,7 @@ async fn invoke_action(
             run_staged_app_action(&state, &name, input, stage, "action").await
         }
     };
-    Ok(Json(result))
+    Ok(Json(FunctionResponse::new(result, attribution)))
 }
 
 /// Commit one already-preflighted provisioning pair. Cross-mode changes and
@@ -13434,12 +13472,18 @@ async fn disconnect(
 }
 
 #[derive(Debug)]
-pub struct ApiError(SnapbackError, Option<Receipt>, Option<u64>);
+pub struct ApiError(
+    SnapbackError,
+    Option<Receipt>,
+    Option<u64>,
+    Option<FunctionAttribution>,
+);
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
         Self(
             SnapbackError::new(diagnostic_from_ephemeral(error)),
+            None,
             None,
             None,
         )
@@ -13459,13 +13503,19 @@ impl ApiError {
             .with_details(json!({ "error": error.into() })),
             None,
             None,
+            None,
         )
     }
 
     /// Attach a receipt to an error response (a REJECTED mutation still
     /// produces its receipt — LLP 0034 §3.2, ENG-22478).
     fn with_receipt(error: SnapbackError, receipt: Receipt) -> Self {
-        Self(error, Some(receipt), None)
+        Self(error, Some(receipt), None, None)
+    }
+
+    fn with_attribution(mut self, attribution: Option<FunctionAttribution>) -> Self {
+        self.3 = attribution;
+        self
     }
 
     fn auth_throttled(retry_after_seconds: u64) -> Self {
@@ -13477,6 +13527,7 @@ impl ApiError {
             ),
             None,
             Some(retry_after_seconds.max(1)),
+            None,
         )
     }
 }
@@ -13490,7 +13541,7 @@ fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnos
 
 impl From<SnapbackError> for ApiError {
     fn from(value: SnapbackError) -> Self {
-        Self(value, None, None)
+        Self(value, None, None, None)
     }
 }
 
@@ -13902,6 +13953,7 @@ impl IntoResponse for ApiError {
             Json(ErrorResponse {
                 diagnostic: self.0.diagnostic,
                 receipt: self.1,
+                attribution: self.3,
             }),
         )
             .into_response();
@@ -17422,7 +17474,7 @@ mod tests {
         async fn prepare_query(
             AxumPath(name): AxumPath<String>,
             Extension(authority): Extension<PreparedAuthority>,
-        ) -> Result<Json<Value>, super::ApiError> {
+        ) -> Result<Json<super::FunctionResponse<Value>>, super::ApiError> {
             let function = FunctionDefinition::new(
                 name,
                 FunctionKind::Query,
@@ -17435,9 +17487,14 @@ mod tests {
                     indexed_by: None,
                 })),
             );
+            let attribution = authority.function_attribution();
             let prepared = InvocationGate::prepare_function(authority, &function)
-                .map_err(super::ApiError::from)?;
-            Ok(Json(serde_json::to_value(prepared.projection()).unwrap()))
+                .map_err(super::ApiError::from)
+                .map_err(|error| error.with_attribution(attribution.clone()))?;
+            Ok(Json(super::FunctionResponse::new(
+                serde_json::to_value(prepared.projection()).unwrap(),
+                attribution,
+            )))
         }
 
         let state = sessions_activation_server_fixture_async().await;
@@ -17542,6 +17599,15 @@ mod tests {
         assert_eq!(projection["kind"], "human");
         assert_eq!(projection["actor"]["userId"], "carrier-agent");
         assert_eq!(projection["actor"]["grantId"], "carrier-grant");
+        assert_eq!(
+            projection["attribution"],
+            json!({
+                "actorUserId": "carrier-agent",
+                "effectiveUserId": "carrier-user",
+                "grantId": "carrier-grant",
+                "dryRun": false
+            })
+        );
 
         let denied = router
             .clone()
@@ -17549,10 +17615,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+        let denied = response_json(denied).await;
         assert_eq!(
-            response_json(denied).await["diagnostic"]["code"],
+            denied["diagnostic"]["code"],
             "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
         );
+        assert_eq!(denied["attribution"], projection["attribution"]);
 
         let wrong_class = router
             .clone()

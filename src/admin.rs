@@ -2177,6 +2177,7 @@ fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
         Json(crate::server::ErrorResponse {
             diagnostic: error.diagnostic,
             receipt: None,
+            attribution: None,
         }),
     )
         .into_response()

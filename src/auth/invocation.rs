@@ -17,7 +17,7 @@ use crate::manifest::{
 };
 use crate::storage::auth_grants::ExactGrantScope;
 use crate::storage::auth_agent_credentials::ResolvedScopedToken;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::time::Instant;
@@ -536,6 +536,22 @@ struct HandlerAuthActorProjection {
     grant_id: String,
 }
 
+/// Server-derived, bearer-free attribution for one app-data function
+/// response. Wrappers may copy this value, but cannot synthesize attribution
+/// authority when the invocation gate did not produce it.
+///
+/// @ref LLP 0055#audit — every resolved service-principal function response
+/// carries the same actor/effective/grant attribution and v1 has no agent
+/// dry-run surface.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionAttribution {
+    pub actor_user_id: String,
+    pub effective_user_id: Option<String>,
+    pub grant_id: String,
+    pub dry_run: bool,
+}
+
 impl HandlerAuthProjection {
     pub fn from_authority(authority: &ResolvedAppAuthority) -> Self {
         match authority {
@@ -811,6 +827,23 @@ impl PreparedAuthority {
 
     pub fn projection(&self) -> &HandlerAuthProjection {
         &self.projection
+    }
+
+    pub fn function_attribution(&self) -> Option<FunctionAttribution> {
+        match &self.resolved {
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                grant_id,
+                ..
+            } => Some(FunctionAttribution {
+                actor_user_id: actor_user_id.clone(),
+                effective_user_id: effective_user_id.clone(),
+                grant_id: grant_id.clone(),
+                dry_run: false,
+            }),
+            _ => None,
+        }
     }
 
     pub fn audit(&self) -> &AuthorityAuditFact {
@@ -1534,6 +1567,47 @@ mod tests {
                     "grantId": "grant_1"
                 }
             })
+        );
+    }
+
+    #[test]
+    fn function_attribution_exists_only_after_service_principal_resolution() {
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent_1".to_owned(),
+                credential_id: "credential_1".to_owned(),
+                credential_generation: 2,
+                grant_id: "grant_1".to_owned(),
+                token_id: "token_1".to_owned(),
+                effective_user_id: Some("user_1".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: 20_000,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(authority.function_attribution()).unwrap(),
+            json!({
+                "actorUserId": "agent_1",
+                "effectiveUserId": "user_1",
+                "grantId": "grant_1",
+                "dryRun": false
+            })
+        );
+        assert!(
+            prepared(ResolvedAppAuthority::DevImpersonation {
+                user_id: "user_1".to_owned(),
+                roles: Vec::new(),
+                local_dev_only: true,
+            })
+            .function_attribution()
+            .is_none()
         );
     }
 
