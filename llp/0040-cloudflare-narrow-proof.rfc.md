@@ -667,9 +667,10 @@ demonstration path. The resulting contracts are now executable regressions:
 ## Fresh-review proof hardening (2026-07-12, ENG-24498–ENG-24501)
 
 - The canonical local proof now invokes one manifest-driven Cloudflare runner.
-  It pins 18 suite ids and completion checks and explicitly classifies every
-  Cloudflare test file; remote evidence, measurement-only scripts, helpers, and
-  the conformance child protocol remain named outside the non-remote gate.
+  It pins an exact set of suite ids and completion checks and explicitly
+  classifies every Cloudflare test file; remote evidence, measurement-only
+  scripts, helpers, and the conformance child protocol remain named outside the
+  non-remote gate.
 - Deploy and guided config mutation resolve only the exact Wrangler version
   named by the committed Cloudflare pin and `bun.lock`, installed under this
   repository. The preflight runs before any remote mutation or secret stdin;
@@ -682,6 +683,36 @@ demonstration path. The resulting contracts are now executable regressions:
   summary, advances the nominal, and prunes terminal history in one Durable
   Object SQLite transaction. A new post-terminal fault proves rollback and
   recovery without a duplicate app commit or missing summary.
+
+### Proof-runtime preflight (2026-07-14, ENG-24454)
+
+The Miniflare surface is validated only on the Node major pinned in
+`.node-version` (currently 24.x; the exact patch is the ENG-24513 authority). On
+an unsupported major — observed on Node 25.9.0 — the first real-loopback
+`/action/refreshFeed` request in `acceptance.security-hardening.mjs`
+intermittently fails with `read ECONNRESET`. That is a Miniflare/Node
+transport-lifecycle race, not an action-semantic failure, and it must not be
+papered over: an action retry would hide a genuine transport regression behind
+the same code path.
+
+The local proof therefore preflights its runtime rather than fixing the
+transport (the deeper fix is upstream-shaped and out of scope here):
+
+- `cloudflare/test/proof-runtime.mjs` compares the active Node major against the
+  `.node-version` major (read, never hardcoded) and, on a mismatch, fails closed
+  with `SNAPBACK_CLOUDFLARE_PROOF_NODE_UNSUPPORTED` and an actionable diagnostic
+  directing the runner to the pinned Node. Support is exact-major equality;
+  patch/minor drift stays the separate concern of
+  `scripts/check-toolchain-authority.mjs`.
+- `startProof` (harness) calls the preflight before standing up Miniflare, so a
+  directly-run suite refuses closed instead of resetting mid-proof.
+  `local-suite.mjs` runs it once up front so the whole gate refuses with one
+  diagnostic before spawning any child on the same interpreter.
+- `proof-runtime-preflight.mjs` is a gate suite that unit-tests the
+  version-comparison logic and diagnostic with injected version strings, so the
+  logic is asserted independent of the interpreter it runs under. The manifest's
+  pinned suite count moves from 19 to 20. `package.json` `engines.node` declares
+  `24.x` as a compatibility signal, not the CI authority.
 
 ## Status
 

@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import esbuild from 'esbuild';
 import { Miniflare } from 'miniflare';
+import { assertProofRuntimeNode } from './proof-runtime.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -102,6 +103,10 @@ async function bundle(entry, appBundle, { seedOverride } = {}) {
 // compiled-seed preparation path with intentionally invalid fixtures; caller
 // bytes still never become production seed authority.
 export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride } = {}) {
+  // @ref LLP 0040#proof-runtime-preflight-2026-07-14-eng-24454 — fail closed on
+  // an unsupported Node major before standing up Miniflare, rather than letting
+  // the first real-loopback action reset (`read ECONNRESET`) under Node 25.
+  assertProofRuntimeNode();
   const selected = APPS[app];
   if (!selected) throw new Error(`unknown proof app ${app}`);
   const [gatewayScript, handlerScript] = await Promise.all([

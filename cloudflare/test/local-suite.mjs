@@ -13,6 +13,7 @@ import {
   TEST_FILE_CLASSIFICATIONS,
 } from './local-suite-manifest.mjs';
 import { resolveLockedWrangler } from '../locked-wrangler.mjs';
+import { assertProofRuntimeNode, PROOF_NODE_UNSUPPORTED_CODE } from './proof-runtime.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -86,6 +87,22 @@ function runSuite(suite, index) {
   process.stdout.write(`ok ${index}/${EXPECTED_LOCAL_SUITE_CHECKS} - ${suite.id}\n`);
 }
 
+// @ref LLP 0040#proof-runtime-preflight-2026-07-14-eng-24454 — refuse the whole
+// gate once, with one actionable diagnostic, before spawning any suite child on
+// an unsupported Node major (the children reuse this same process.execPath).
+function preflightProofRuntime() {
+  try {
+    assertProofRuntimeNode();
+  } catch (error) {
+    if (error?.code === PROOF_NODE_UNSUPPORTED_CODE) {
+      process.stderr.write(`${error.message}\n`);
+      process.exit(1);
+    }
+    throw error;
+  }
+}
+
+preflightProofRuntime();
 validateInventory();
 for (const [index, suite] of LOCAL_SUITES.entries()) runSuite(suite, index + 1);
 console.log(`cloudflare local suite: ${LOCAL_SUITES.length}/${EXPECTED_LOCAL_SUITE_CHECKS} explicit checks passed`);

@@ -23,9 +23,10 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'deployment-identity',
   'index-scaling',
   'idle-evidence',
+  'proof-runtime-preflight',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 19;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 20;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -123,6 +124,11 @@ export const LOCAL_SUITES = Object.freeze([
     file: 'cloudflare/test/validate-idle-measurement.mjs',
     evidence: ['validate-idle-measurement: ok —'],
   },
+  {
+    id: 'proof-runtime-preflight',
+    file: 'cloudflare/test/proof-runtime-preflight.mjs',
+    evidence: ['cloudflare proof-runtime preflight: node-major gate and diagnostic verified'],
+  },
 ]);
 
 export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
@@ -149,6 +155,8 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['index-scaling.mjs', 'gate'],
   ['measure.mjs', 'benchmark-non-gating'],
   ['measure.remote.mjs', 'remote-credentialed'],
+  ['proof-runtime.mjs', 'helper'],
+  ['proof-runtime-preflight.mjs', 'gate'],
   ['twin-engine.mjs', 'protocol-child-of-cargo-twin'],
   ['validate-idle-measurement.mjs', 'gate'],
 ]);

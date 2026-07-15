@@ -21,9 +21,19 @@ WebSocket Hibernation. This is a **proof, not a product** — see
 ## Run the local acceptance suite (no Cloudflare account)
 
 ```
-node cloudflare/test/local-suite.mjs    # all 18 explicitly inventoried non-remote gates
+node cloudflare/test/local-suite.mjs    # all 20 explicitly inventoried non-remote gates
 node cloudflare/test/measure.mjs        # latency measurements with fixtures
 ```
+
+Run these on the Node major pinned in [`.node-version`](../.node-version)
+(currently 24.x). The proof preflight fails closed with
+`SNAPBACK_CLOUDFLARE_PROOF_NODE_UNSUPPORTED` on any other major: the Miniflare
+loopback proof is validated only on the pinned Node, and unsupported majors
+(observed on Node 25.9.0, ENG-24454) intermittently reset the first
+real-loopback action request (`read ECONNRESET`). The preflight constrains the
+supported runtime; it deliberately does not fix that transport race (which is
+upstream-shaped) and adds no action retry that would mask a real transport
+failure.
 
 The handler harness is single-sourced with the LLP 0048 conformance twin; the
 twin's gate runs with `cargo run --bin snapback-conformance-twin`.
