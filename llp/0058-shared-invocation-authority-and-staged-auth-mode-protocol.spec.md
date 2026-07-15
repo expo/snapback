@@ -5,7 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final cross-family review follow-up: reconciled the
+**Revised:** 2026-07-15 (FINAL3 closure: reconciles sessions-to-dev with LLP
+0055's transactional five-class agent-authority purge, ReadyV1 compatibility,
+crash outcomes, and rollback evidence; pins session-generation safe-integer
+boundary evidence; status remains Draft); 2026-07-15 (final cross-family review follow-up: reconciled the
 composed commit-witness types, exact cache control, descriptor-schema closure,
 and readiness-negation evidence wording; status remains Draft). 2026-07-15 (final evidence/schema reconciliation: made
 `deploymentIdentity` mode/version/hash exact in the Rust schema, shipped kit,
@@ -849,16 +852,22 @@ the flag, startup:
 
 1. preflights and prepares the exact requested v0-dev carrier;
 2. revokes every durable session through LLP 0057's revoke-all transaction;
-3. clears only process-local capture-mailbox entries and connection grants
+3. for a `ReadyV2` catalog, transactionally deletes every durable agent
+   credential, scoped token, grant, invitation, and pairing request while
+   retaining agent principals and `_auth_scope_bases`; a recognized legacy
+   `ReadyV1` catalog has none of those tables and skips this step;
+4. clears only process-local capture-mailbox entries and connection grants
    available at pre-bind;
-4. writes the v0 manifest to the capability-aware key, leaves the legacy poison
+5. writes the v0 manifest to the capability-aware key, leaves the legacy poison
    untouched, deletes the staged key, and settles active/desired at dev with
    `sessionsEverActivated: true`; and
-5. emits an operator audit fact before binding.
+6. emits an operator audit fact before binding.
 
-It deletes no user, identity, catalog, app, or session row. Revoked sessions do
-not resurrect when sessions is later re-enabled. A pre-auth binary remains
-unable to open the database because the legacy key stays poisoned forever.
+It deletes no user, identity, catalog, app, session, or scope-basis row. Revoked
+sessions and deleted agent authority do not resurrect when sessions is later
+re-enabled; agents require fresh credentials and fresh consent. A pre-auth
+binary remains unable to open the database because the legacy key stays
+poisoned forever.
 
 Without the flag, startup quarantines the transition at the next generation,
 rewrites the staged record to that generation, preserves `active: sessions` and
@@ -876,7 +885,7 @@ not silently resume sessions app data and does not revoke or delete anything.
 | Before consume commit | old active mode plus pending/quarantined requested deployment |
 | After consume commit | complete new active manifest, settled state, and (once sessions ever activated) exact poison |
 | Before/after unstage commit | complete pending/quarantined state or complete old-mode settled state |
-| Before/after downgrade commit | complete sessions pending state or complete dev settled state with all sessions revoked and poison retained |
+| Before/after downgrade commit | complete sessions pending state with sessions and all five agent-authority classes unchanged, or complete dev settled state with all sessions revoked, all five agent-authority classes absent, principals/scope tombstones retained, and poison retained |
 
 SQLite transaction atomicity supplies the durable cut. The in-memory mode
 generation and function pointer publish only from a committed record and before
@@ -1334,6 +1343,12 @@ non-empty v0 hash spellings but may not use the reserved `snapback.v1:` prefix.
 The shared corpus includes positive v0 and v1 identities and per-field,
 namespace, digest-shape, cross-mode/version, and cross-app negatives.
 
+The same corpus pins both wire-visible generation boundaries:
+`transitionGeneration` and `authorityDescriptor.sessionGeneration` each accept
+`9_007_199_254_740_991` and reject `9_007_199_254_740_992`. Descriptor zero is
+the anonymous/no-session sentinel; a durable authenticated session generation
+is positive, and an attempted increment from the maximum fails closed.
+
 The kit enforces the same closure from its side of the wire. Handshake
 validation receives the exact offer tuple that request carried — captured once
 per request and used for both the emitted headers and the echo comparison —
@@ -1692,8 +1707,15 @@ Tests cover:
   `SNAPBACK_SCHEMA_PARSE_FAILED`, binding no listener, and mutating nothing;
 - the negative control where a missing legacy key demonstrates relocation alone
   would not satisfy the rollback backstop; and
-- downgrade refusing without the flag, then revoking every session, preserving
-  identity/app rows, and never resurrecting old credentials on re-enable.
+- downgrade refusing without the flag, then revoking every session,
+  transactionally deleting all five v2 agent-authority classes while preserving
+  identity/app rows, agent principals, and scope-basis tombstones, and never
+  resurrecting old credentials or consent on re-enable;
+- failure injection immediately after session revocation and the five-class
+  agent purge but before mode-state writes restores the pending/quarantined
+  predecessor, every session generation, and every deleted authority row; and
+- the same flagged downgrade succeeds on an exact ReadyV1 catalog by skipping
+  v2-only tables while retaining the shared session-revocation semantics.
 
 ### Shared gate matrix
 
@@ -1889,6 +1911,15 @@ The evidence-hygiene finding is closed by the committed harness and regression:
 the receipt records the pinned outcomes, while each run performs the direct byte
 comparisons. The split-document suggestion is left to the author. Closing these
 findings does not ratify or advance this Draft.
+
+**FINAL3 disposition (2026-07-15):** the blind GPT review's material finding is
+closed by making the five-class agent-authority purge normative in downgrade,
+crash, and Acceptance text and by fault-injecting the post-purge/pre-state-write
+rollback. Fable's READY review minors are closed by gating that purge to
+`ReadyV2`, proving ReadyV1 downgrade, and adding shared-corpus
+`sessionGeneration` max-safe/above-max-safe cases. Its LLP 0060-owned hosted
+schema observation remains outside this Spec. The verbatim artifacts and
+provenance remain in this document's Codex/Fable review ledgers.
 
 The review advises — it does not ratify; this document remains Draft pending
 author triage completion and explicit ratification.

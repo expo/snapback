@@ -544,6 +544,41 @@ MINOR
 
 All three focused Node suites passed.
 
+## Blind FINAL3 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, model `gpt-5.6-sol`, high reasoning, read-only sandbox
+- Method: fresh blind session; archived verbatim from `/private/tmp/eng25001-final3-codex-0058.md`
+- Session: `019f678a-b0de-7160-8e39-5da2a2eedf0e`
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none; reviewer was instructed not to inspect secrets or archived reviews
+
+### Verbatim review artifact
+
+VERDICT: NOT READY
+
+MATERIAL
+
+- Claim: LLP 0058 still omits durable agent-authority termination from its normative sessions-to-dev protocol and crash evidence.
+  - Exact evidence: [LLP 0058](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:850) enumerates only session revocation, process-local cleanup, and mode settlement; its crash trace mentions only revoked sessions at [line 879](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:879). Governing [LLP 0055](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0055-agent-principals-and-scoped-grants.rfc.md:1223) additionally requires transactional removal of credentials, tokens, grants, invitations, and pairing requests while preserving principals and scope tombstones.
+  - Impact: the implementation is currently safe, but the target Spec and its crash acceptance can authorize a future regression that resurrects service-principal authority after sessions re-enable.
+  - Required resolution: reconcile LLP 0058’s downgrade steps, crash trace, and Acceptance section with LLP 0055, and add a downgrade fault-injection test after authority termination but before mode-state commit proving the session revocations and all five agent-table deletions roll back together.
+
+MINOR
+
+None.
+
+EVIDENCE
+
+- `HEAD` is exactly `bd7d1da6d458439081a60c6fe06fe700edc678cf`; tracked status is clean.
+- The implementation performs session revocation, agent termination, mode settlement, authorization projection, and commit in one immediate transaction: [auth_mode.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth_mode.rs:859). The helper deletes all five authority tables while leaving principals and `_auth_scope_bases` untouched: [auth.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth.rs:1537).
+- Successful downgrade tests prove revoked session generation, preserved agent principal/tombstone, and zero agent-authority rows after restart and sessions re-enable: [auth_mode.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth_mode.rs:2501).
+- JavaScript-safe generation closure is sound: durable top-level/nested bounds and checked increment are in [mode.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/auth/mode.rs:162); response schema authority is in [handshake.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/auth/handshake.rs:314); the executable kit rejects unsafe integers at [client.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/demos/_kit/client.mjs:638); the shared corpus accepts max-safe and rejects max-safe-plus-one at [auth-session-parity.corpus.json](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/tests/conformance/auth-session-parity.corpus.json:158).
+- Read-only executable checks passed: auth-session schema/kit parity, all exact root-member checks, coordinator auth-race suite, and JavaScript syntax validation.
+
 ## Blind final2 review — 2026-07-15
 
 ### Provenance

@@ -1518,6 +1518,26 @@ fn restored_auth_timestamp_frontier_on(
             .copied(),
     );
     for (table, column) in columns {
+        // SQLite's dynamic typing means MAX alone is not a validator: a
+        // positive integer can sort above a negative corrupt value, and a
+        // restored database may have been produced with CHECK constraints
+        // ignored. Inspect every non-NULL cell before deriving the aggregate.
+        let invalid_sql = format!(
+            "SELECT EXISTS(
+               SELECT 1 FROM \"{table}\"
+               WHERE \"{column}\" IS NOT NULL
+                 AND (
+                   typeof(\"{column}\") <> 'integer'
+                   OR \"{column}\" NOT BETWEEN 0 AND {MAX_SAFE_TIMESTAMP_MS}
+                 )
+             )"
+        );
+        let invalid: i64 = conn.query_row(&invalid_sql, [], |row| row.get(0))?;
+        if invalid != 0 {
+            return Err(corrupt(
+                "auth catalog contains a non-integer or out-of-range durable timestamp",
+            ));
+        }
         let sql = format!("SELECT MAX(\"{column}\") FROM \"{table}\"");
         let value: Option<i64> = conn.query_row(&sql, [], |row| row.get(0))?;
         if let Some(value) = value {
@@ -2366,6 +2386,133 @@ mod tests {
 
         assert_eq!(row_count(&db, "_auth_agent_invitations"), 0);
         assert_eq!(db.auth_session_clock_floor().unwrap(), 1700);
+    }
+
+    #[test]
+    fn declared_restore_rejects_each_malformed_timestamp_before_any_effect() {
+        for malformed in ["-1", "'not-an-integer'"] {
+            let mut db = catalog_database();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('valid-user', 10)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES('valid-identity', 'valid-user', 'email-code', 'valid@example.com', 10)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms
+                     ) VALUES(
+                       'valid-session', 'valid-user', 'valid-identity',
+                       'valid-authority', ?1, 1, 10, 10, 100, 200
+                     )",
+                    params![vec![3_u8; 32]],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_verification_codes(
+                       challenge_id, canonical_address, code_digest, key_id,
+                       requested_at_ms, expires_at_ms
+                     ) VALUES('valid-challenge', 'valid@example.com', ?1, 'key', 10, 100)",
+                    params![vec![4_u8; 32]],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+            db.conn
+                .execute_batch(&format!(
+                    "PRAGMA ignore_check_constraints = ON;
+                     INSERT INTO _auth_users(id, created_at_ms)
+                       VALUES('malformed-user', {malformed});
+                     PRAGMA ignore_check_constraints = OFF;"
+                ))
+                .unwrap();
+
+            let predecessor_version = db.authorization_version().unwrap();
+            let predecessor_floor = db.auth_session_clock_floor().unwrap();
+            let error = db
+                .apply_auth_restore_declaration(&Uuid::now_v7().to_string(), 50)
+                .expect_err("every malformed restored timestamp must fail closed");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CATALOG_CORRUPT");
+            assert_eq!(
+                db.conn
+                    .query_row(
+                        "SELECT generation, revoked_at_ms FROM _auth_sessions
+                         WHERE id = 'valid-session'",
+                        [],
+                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+                    )
+                    .unwrap(),
+                (1, None),
+                "restore refusal must not revoke the valid positive row"
+            );
+            assert_eq!(row_count(&db, "_auth_verification_codes"), 1);
+            assert_eq!(db.auth_session_clock_floor().unwrap(), predecessor_floor);
+            assert_eq!(db.authorization_version().unwrap(), predecessor_version);
+            assert_eq!(
+                db.conn
+                    .query_row(
+                        "SELECT value FROM _snapback_meta WHERE key = ?1",
+                        params![META_AUTH_RESTORE_DECLARATION_ID],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                    .unwrap(),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn declared_restore_ready_v1_uses_nullable_timestamp_frontier() {
+        let mut db = LocalDatabase::memory().unwrap();
+        install_frozen_v1_catalog_fixture(&mut db).unwrap();
+        db.conn
+            .execute_batch(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES('v1-user', 10);
+                 INSERT INTO _auth_identities(
+                   id, user_id, provider, subject, verified_at_ms
+                 ) VALUES('v1-identity', 'v1-user', 'email-code', 'v1@example.com', 10);
+                 INSERT INTO _auth_sessions(
+                   id, user_id, identity_id, authority_instance_id, token_hash,
+                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                   absolute_expires_at_ms, revoked_at_ms
+                 ) VALUES(
+                   'v1-terminal', 'v1-user', 'v1-identity', 'v1-terminal-authority',
+                   randomblob(32), 2, 10, 10, 100, 200, 1700
+                 );
+                 INSERT INTO _auth_sessions(
+                   id, user_id, identity_id, authority_instance_id, token_hash,
+                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                   absolute_expires_at_ms
+                 ) VALUES(
+                   'v1-live', 'v1-user', 'v1-identity', 'v1-live-authority',
+                   randomblob(32), 1, 10, 10, 100, 200
+                 );",
+            )
+            .unwrap();
+
+        db.apply_auth_restore_declaration(&Uuid::now_v7().to_string(), 50)
+            .unwrap();
+
+        assert_eq!(db.inspect_auth_catalog().unwrap(), AuthCatalogState::ReadyV1);
+        assert_eq!(auth_catalog_marker(&db.conn).unwrap().as_deref(), Some("1"));
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 1700);
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 'v1-live'",
+                    [],
+                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+                )
+                .unwrap(),
+            (2, 1700)
+        );
     }
 
     #[test]

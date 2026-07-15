@@ -222,3 +222,38 @@ EVIDENCE:
 - Commit chain inspected: 8f03e42 (reentrant resume path + spec :1389–1396 predecessor text + acceptance note), 5c23b44 (generalized reentrant check, adoptPeer fence, real Contract participants `await coordinator.synchronize()` in resume at packages/snapback-contract/index.mjs:2392–2401 and :3906–3911, spec normative/acceptance text, intent-recovery stranding), baaf890 (plain-capture during-resume fence + test), c095370 (readiness gates: typed construction receipts with injected-failure tests in src/auth/runtime.rs; spec :2013–2023, :2056–2060), 3ac0473 (post-barrier rejection).
 - Composed evidence: auth-coordinator-contract.test.mjs mounts real single/multi-live surfaces (:246, :380) and asserts each real participant resumed exactly once (:394–417); ENG-25001 items verified — lock-rank guards src/auth/session_projection.rs:31–92 with inversion test :2876; L9 fixture src/server.rs:14937 (substantive, holds affected commit while unrelated room progresses); custody format-2 intent validation auth-coordinator.mjs:237–272/:305–400 with tests :164–323; phase-8 ownership release (test :1110–1138) and rotation network outside ownership (:835–876); terminal 4401/`auth_error` latch demos/_kit/client.mjs:2302–2323/:3911–3991; handshake cache `compareAndCommit` fence demos/_kit/client.mjs:969/:1133/:1512/:1693; LLP 0008 one-key Web-Lock localStorage adapter client-store.mjs:2938–2978 with delayed-predecessor-writer test offline-replay.test.mjs:1095–1127; fallback-lease fencing and two consecutive takeovers (+1 tokens) auth-custody-indexeddb.test.mjs:132–291.
 - Governing context: LLP 0057 §ENG-25001 closure (:1755–1786), LLP 0058 §ENG-25001 disposition (:1860–1893) and 5c23b44 deltas (witness pair, `no-store, private`, descriptor pinning, readiness-negation wording), LLP 0000 (:359–368) — all consistent with LLP 0059 at HEAD; worktree clean at 3ac047322d055fad03e8308fdc0905d758eb9f61; llp/reviews and secrets untouched.
+
+## Blind FINAL3 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code / `claude-fable-5`
+- Method: fresh blind read-only review; archived verbatim from `/private/tmp/eng25001-final3-fable-0057.md`
+- Session: not recorded in supplied artifact
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+VERDICT: READY
+
+MATERIAL:
+- None.
+
+MINOR:
+- Generation-max wording vs. code: the spec says "reaching the maximum on a revocation-class increment is catalog corruption" (llp/0057:172-174), but the implementation fails closed only when an increment would exceed the maximum — landing exactly on 9_007_199_254_740_991 succeeds (`revoke_all_sessions_in` blocks `generation >= max` at src/storage/auth.rs:1423-1433; `committed_generation` filters `+1 <= max` at src/auth/provider.rs:686-691). No wrap or JS-unsafe wire value is possible, so this is wording ambiguity, not a defect.
+- Implicit operational consequence: because the restore frontier includes future deadline columns (session/grant/invitation `expires_at_ms`, `absolute_expires_at_ms`), a declared restore of a fresh backup advances instance time roughly 90 days (to the maximum live absolute expiry), and the first GC pass then deletes all restored revoked sessions and tombstones. Both LLPs pin this conservative direction (LLP 0059:404-411 names the "spuriously high floor over-expires" residual) and tests assert it, but 0057's Restore section does not spell out the availability effect.
+
+EVIDENCE:
+- Verification is static (code and tests read at clean commit bd7d1da6d458439081a60c6fe06fe700edc678cf; suite not executed under the read-only constraint).
+- FINAL2 closure: src/storage/auth.rs:1114-1127 computes `restore_now_ms = read_session_clock_floor_on(tx).max(now_ms).max(restored_auth_timestamp_frontier_on(tx, catalog))` and advances the floor in-transaction before `revoke_all_sessions_in`, matching LLP 0059:395-399 and llp/0057:163-170. The frontier inventory covers every v1 and v2 catalog timestamp column and fails closed on negative/out-of-range values (src/storage/auth.rs:1473-1535). Introduced by commit 2fc3593.
+- Monotone floor: durable `_snapback_meta['auth_session_clock_floor_ms']` (src/storage/auth.rs:43, 979-999, 2039+); process clock `now_ms() = max(sample, floor)` via `fetch_max` (src/auth/provider.rs:1109-1125); durability/monotonicity unit test (src/storage/auth.rs:2142-2167).
+- Floor installed before any restored session can validate or mint: startup seeds the durable floor immediately after catalog inspection and before declared restore, mode composition, GC, and keyring work (src/cli.rs:1628-1638); restore is consumed pre-bind under exclusive maintenance with `provider.now_ms()`, never raw `SystemTime` (src/cli.rs:1659-1667); re-seed after composition (src/cli.rs:1794), then GC (1805) and projection rebuild (1815, via src/auth/runtime.rs:386-393, which re-advances the floor before deriving any deadline). A restored directory without `--restored-from-backup` refuses to bind (src/cli.rs:1669-1675); declaration mismatch fails before any effect (src/auth/lifecycle.rs:224-228). The only raw `epoch_ms()` outside the clamp is a test clock (src/server.rs:14463-14470).
+- Host clock rollback cannot resurrect authority: src/auth/runtime.rs:1374-1431 (restart at sample 150 after floor 250 reports `now_ms()==250`; slid session stays `SESSION_EXPIRED`), 1437-1487 (monotonic-deadline frontier persisted before terminal publication), 1494-1569 (frontier bounded to the sampled due set). Restore-specific: src/storage/auth.rs:2313-2349 (host sample 100, frontier 1100 → `revoked_at_ms=1100`, floor 1100; future-dated backup satisfies `created_at_ms <= revoked_at_ms`), 2352-2369 (v2 invitation frontier 1700 before purge).
+- Bulk revocation contract: src/storage/auth.rs:1421-1440 (Ready catalog required; revokes only `revoked_at_ms IS NULL` rows with one generation increment; deletes nothing; exhausted generation fails closed). Exactly two consumers as pinned: restore (auth.rs:1127) and the LLP 0058 downgrade (src/storage/auth_mode.rs:874, floored now from src/cli.rs:329; agent-authority termination per LLP 0055 at auth_mode.rs:878, with tests asserting purge plus principal/scope-basis survival).
+- Restore transaction composition: challenge purge, v2 agent termination, authorization-incarnation rotation in the same transaction, declaration id written last, exact-successor commit reconciliation (src/storage/auth.rs:1129-1174; tests at 2408-2445 and 2249-2255 for idempotency).
+- Safe-integer/generation cross-checks: `MAX_SAFE_TIMESTAMP_MS = 9_007_199_254_740_991` (src/storage/auth.rs:44); committed schema `sessionGeneration` min 1 / max 9007199254740991 (schemas/auth.credential.output.schema.json); handshake descriptor zero sentinel with the same max (schemas/auth.session.output.schema.json), matching llp/0057:995-999.
+- Credential-projection dependencies: projection rebuild validates the restore marker (src/auth/session_projection.rs:684-690); issuance and rotation perform the in-transaction cross-table digest check (src/auth/provider.rs:4169-4181, 3200/3249) with the three-candidate coordinator retry (provider.rs:50; coordinator.rs:651-722); the only unchecked insert path is `#[cfg(test)]`-gated (provider.rs:2545-2576).
+- Frozen-v1 compatibility: marker-1 preserved through backup/restore (src/auth/backup.rs:1716-1752); v1 reopen/no-migration/agent refusal (src/storage/auth.rs:2089+); v1 provider/session use (src/auth/provider.rs:5085).

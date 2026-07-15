@@ -615,6 +615,40 @@ MINOR
 
 Relevant Node tests: 3/3 passed. `ref-check --verbose`: 0 errors.
 
+## Blind FINAL3 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, model `gpt-5.6-sol`, high reasoning, read-only sandbox
+- Method: fresh blind session; archived verbatim from `/private/tmp/eng25001-final3-codex-0057.md`
+- Session: `019f678a-b0de-7771-b3c5-0abe2d2edfc2`
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none; reviewer was instructed not to inspect secrets or archived reviews
+
+### Verbatim review artifact
+
+VERDICT: NOT READY
+
+MATERIAL
+
+- Claim: restored timestamp validation is incomplete. [auth.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth.rs:1520) validates only `MAX(column)`. A column containing `-1` and `10` yields `MAX=10`, so the negative value escapes validation.
+- Impact: a malformed restored catalog can commit revocation, purge, incarnation rotation, clock reseeding, and the declaration marker instead of failing before destructive effects, violating LLP 0057’s portable nonnegative/fail-closed requirement.
+- Required resolution: validate every non-NULL timestamp’s integer storage class and `0..=9_007_199_254_740_991` range before computing the frontier. Add a mixed negative/positive corruption test proving the complete restore transaction remains unchanged.
+
+MINOR
+
+- Both focused frontier tests use the v2 `catalog_database()` fixture and nonnullable expiry columns ([auth.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth.rs:2314)). Add direct ReadyV1 declared-restore and nullable-field frontier tests.
+
+EVIDENCE
+
+- HEAD is exactly `bd7d1da6d458439081a60c6fe06fe700edc678cf`; tracked permitted paths are clean. Prohibited review/secrets paths were excluded.
+- The inventory itself is complete: 11 v1 and 19 v2 timestamp columns, including nullable terminal fields and agent/pending-authority tables ([auth.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth.rs:1477)).
+- Ordering is otherwise sound: frontier and floor precede revocation; v2 authority purge, incarnation rotation, and final declaration marker share the transaction ([auth.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth.rs:1121)).
+- Idempotence returns before destructive work; startup reseeds before GC and projection rebuild ([auth.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/storage/auth.rs:1109), [cli.rs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/cli.rs:1794)).
+- Earlier 0057 fixes remain present: cross-table token collision handling, malformed-alarm parse gating, stdin impersonation intake, rescue identity/ambiguity handling, and v2 restore authority purge.
+
 ## Blind final2 review — 2026-07-15
 
 ### Provenance

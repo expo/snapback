@@ -871,11 +871,14 @@ impl LocalDatabase {
                 functions,
             )?;
         }
+        let catalog = crate::storage::auth::inspect_auth_catalog_on(&tx)?;
         let sessions_revoked = crate::storage::auth::revoke_all_sessions_in(&tx, now_ms)?;
         // @ref LLP 0055#companion-obligations — downgrade ends all agent
         // bearer and pending-consent authority in the same transaction as
         // browser-session revocation; principals and scope tombstones survive.
-        crate::storage::auth::terminate_agent_authority_in(&tx)?;
+        if catalog == crate::storage::auth::AuthCatalogState::ReadyV2 {
+            crate::storage::auth::terminate_agent_authority_in(&tx)?;
+        }
         transaction_step_completed(0)?;
 
         let schema_json = serialize_json(&staged.schema_manifest)?;
@@ -2498,6 +2501,47 @@ mod tests {
             AuthModeStatus::Quarantined
         );
 
+        inject_auth_mode_failure_after_step(0);
+        let rollback = database
+            .consume_dev_downgrade_with_functions(true, 10, &dev_functions)
+            .expect_err("failure after authority purge must roll back the whole downgrade");
+        assert_eq!(
+            rollback.diagnostic.code,
+            "TEST_AUTH_MODE_TRANSACTION_FAILURE"
+        );
+        assert_eq!(
+            database
+                .with_auth_read(|conn| {
+                    Ok(conn.query_row(
+                        "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                        [],
+                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+                    )?)
+                })
+                .unwrap(),
+            (1, None),
+            "session revocation must roll back with the authority purge"
+        );
+        for table in [
+            "_auth_agent_credentials",
+            "_auth_grants",
+            "_auth_grant_tokens",
+            "_auth_agent_invitations",
+            "_auth_pairing_requests",
+        ] {
+            let count: i64 = database
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(count, 1, "rollback restored {table}");
+        }
+        assert_eq!(
+            database.auth_mode_snapshot().unwrap().state.mode_state,
+            AuthModeStatus::Quarantined
+        );
+
         let result = database
             .consume_dev_downgrade_with_functions(true, 10, &dev_functions)
             .unwrap();
@@ -2593,6 +2637,66 @@ mod tests {
                 "{table} did not resurrect after restart/re-enable"
             );
         }
+    }
+
+    #[test]
+    fn ready_v1_sessions_to_dev_downgrade_skips_absent_agent_tables() {
+        let mut database = LocalDatabase::memory().unwrap();
+        crate::storage::auth::install_frozen_v1_catalog_fixture(&mut database).unwrap();
+        let (sessions_identity, sessions_manifest) = sessions_pair(None);
+        database
+            .stage_auth_mode(sessions_identity, sessions_manifest, None)
+            .unwrap();
+        database.consume_sessions_auth_mode(&ready()).unwrap();
+        database
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('v1-user', 1)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
+                     VALUES('v1-identity', 'v1-user', 'email-code', 'v1@example.com', 1)",
+                    [],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms
+                     ) VALUES(
+                       'v1-session', 'v1-user', 'v1-identity', 'v1-authority',
+                       zeroblob(32), 1, 1, 1, 100, 100
+                     )",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        let (dev_identity, dev_manifest) = dev_pair(None);
+        database
+            .stage_auth_mode(dev_identity, dev_manifest, None)
+            .unwrap();
+
+        let result = database.consume_dev_downgrade(true, 10).unwrap();
+
+        assert_eq!(result.sessions_revoked, 1);
+        assert_eq!(result.state.active, AuthMode::Dev);
+        assert_eq!(
+            database.inspect_auth_catalog().unwrap(),
+            crate::storage::auth::AuthCatalogState::ReadyV1
+        );
+        assert_eq!(
+            database
+                .conn
+                .query_row(
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 'v1-session'",
+                    [],
+                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+                )
+                .unwrap(),
+            (2, 10)
+        );
     }
 
     #[test]

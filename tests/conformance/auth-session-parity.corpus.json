@@ -188,6 +188,8 @@
     { "name": "authority-descriptor-id-wrong-version", "base": "settledDevAnonymous", "set": [{ "path": ["authorityDescriptor", "authorityInstanceId"], "value": "01890f3c-9d5b-6000-8000-000000000001" }], "expect": "reject" },
     { "name": "authority-descriptor-id-uppercase", "base": "settledDevAnonymous", "set": [{ "path": ["authorityDescriptor", "authorityInstanceId"], "value": "01890F3C-9D5B-7000-8000-000000000001" }], "expect": "reject" },
     { "name": "authority-descriptor-negative-generation", "base": "settledDevAnonymous", "set": [{ "path": ["authorityDescriptor", "sessionGeneration"], "value": -1 }], "expect": "reject" },
+    { "name": "authority-descriptor-generation-max-safe", "base": "settledDevAnonymous", "set": [{ "path": ["authorityDescriptor", "sessionGeneration"], "value": 9007199254740991 }], "expect": "accept" },
+    { "name": "authority-descriptor-generation-above-max-safe", "base": "settledDevAnonymous", "set": [{ "path": ["authorityDescriptor", "sessionGeneration"], "value": 9007199254740992 }], "expect": "reject" },
     { "name": "lease-facts-wrong-renewal", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "renewal"], "value": "heartbeat" }], "expect": "reject" },
     { "name": "lease-facts-configured-zero", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "configuredMs"], "value": 0 }], "expect": "reject" },
     { "name": "lease-facts-hard-max-above-protocol", "base": "settledSessionsAuthenticated", "set": [{ "path": ["authorizedLease", "hardMaxMs"], "value": 86400001 }], "expect": "reject" },

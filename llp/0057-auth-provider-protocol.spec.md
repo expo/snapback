@@ -5,7 +5,11 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final cross-family review follow-up: narrows durable
+**Revised:** 2026-07-15 (FINAL3 closure: declared restore validates every
+non-null v1/v2 catalog timestamp's SQLite integer storage class and portable
+range before deriving the frontier, with mixed-corruption, nullable-field, and
+ReadyV1 evidence; clarifies the maximum generation boundary; status remains
+Draft); 2026-07-15 (final cross-family review follow-up: narrows durable
 clock-floor wording to the exact generic-seed versus declared-restore
 boundaries; status remains Draft); 2026-07-15 (ENG-25001 blind-review evidence closure: adds an exact
 frozen-v1 compatibility fixture across reopen, provider/session use,
@@ -170,8 +174,11 @@ keyring lifecycle work; declared restore receives `provider.now_ms()`, never a
 raw `SystemTime::now()` sample.
 
 `generation` is an integer in `1..=9_007_199_254_740_991` (the JS-safe range,
-since it is wire-visible in `authorityDescriptor`). Reaching the maximum on a
-revocation-class increment is catalog corruption, failed closed, never a wrap.
+since it is wire-visible in `authorityDescriptor`). Landing exactly on the
+maximum is representable; attempting a revocation-class increment when the
+stored generation is already at that maximum is catalog corruption, failed
+closed, never a wrap. The handshake-only `sessionGeneration: 0` is the
+anonymous/no-session sentinel and is never a durable session generation.
 
 | Name | Base/current value |
 |---|---:|
@@ -1392,6 +1399,17 @@ file. Before bind, one auth transaction compares
 - deletes every verification challenge; and
 - writes this declaration id as the final statement.
 
+Before computing that frontier, restore validates **every non-null value** in
+every inventoried v1 timestamp column and, for `ReadyV2`, every additional v2
+timestamp column. Each value must have SQLite storage class `integer` and lie
+in `0..=9_007_199_254_740_991`; checking only a per-column `MAX` is invalid
+because a valid positive value can hide a negative corrupt peer. Any malformed
+value fails before the floor advance, revocation, purge, incarnation rotation,
+or declaration marker. Nullable terminal columns participate whenever present.
+Including future expiry/deadline columns can conservatively advance the restored
+floor far enough that the first GC pass over-expires restored authority; this is
+the availability-only residual accepted by LLP 0059's fail-closed clock floor.
+
 For a restored `ReadyV2` catalog, LLP 0055 has lifecycle precedence: the same
 non-idempotent transaction also terminates every restored agent credential,
 grant, and scoped token and purges invitations and pairing requests before the
@@ -1654,6 +1672,12 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
   A v2 fixture additionally proves LLP 0055's credential/token/grant
   termination and invitation/pairing-request purge in the same idempotent
   declaration transaction.
+  ReadyV1 evidence proves the same shared restore path without querying absent
+  v2 tables, and a populated nullable terminal field can be the frontier.
+  Mixed valid-positive plus negative and valid-positive plus non-integer
+  restored timestamp fixtures each refuse before every destructive effect and
+  leave the floor, session, challenge, incarnation, and declaration marker
+  unchanged.
 - **Token-digest uniqueness** is proven across current and tombstone tables at
   issuance and rotation: a candidate colliding with a live tombstone is
   retried and, on the third collision, surfaces the retryable outcome (never
@@ -1784,3 +1808,12 @@ than open implementation defects.
 Implementation completion still does not make this Spec Accepted, and this
 revision performs neither ratification nor a status transition on the author's
 behalf; LLP 0039 remains frozen. The reviews advise — they do not ratify.
+
+**FINAL3 disposition (2026-07-15):** the blind GPT review's material finding is
+closed by per-cell integer/range validation before frontier aggregation plus
+mixed-corruption no-effect evidence; its ReadyV1 and nullable-field minor is
+also covered. The concurrent Fable review was READY; its two wording minors are
+resolved by the exact maximum-increment rule and the documented conservative
+future-deadline availability residual. The verbatim artifacts and provenance
+remain in this document's Codex/Fable review ledgers. This disposition does not
+ratify or advance the Draft.
