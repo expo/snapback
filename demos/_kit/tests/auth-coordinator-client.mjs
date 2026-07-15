@@ -88,6 +88,14 @@ const handshake = (authority = anonymous) => ({
     authorityInstanceId: authority.kind === 'session' ? authority.sessionId : INCARNATION,
     sessionGeneration: authority.kind === 'session' ? 1 : 0,
   },
+  deploymentIdentity: {
+    schemaVersion: 'v1-sessions',
+    authMode: 'sessions',
+    appId: APP,
+    schemaHash: 'sha256:schema',
+    bundleHash: 'sha256:bundle',
+    inputsHash: 'sha256:inputs',
+  },
   authorizedLease: null,
 });
 

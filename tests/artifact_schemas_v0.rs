@@ -311,6 +311,7 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
                     "authorityInstanceId": "01890f3c-9d5b-7000-8000-000000000001",
                     "sessionGeneration": 0
                 },
+                "deploymentIdentity": null,
                 "authorizedLease": null
             }),
         ),
@@ -545,7 +546,7 @@ fn auth_session_schema_rejects_the_eng_24991_negative_classes() {
 
     // Each omitted exact root member rejects, including the nullable ones.
     let members = base.as_object().expect("base is an object");
-    assert_eq!(members.len(), 16, "root member census changed");
+    assert_eq!(members.len(), 17, "root member census changed");
     for member in members.keys() {
         let mut omitted = base.clone();
         omitted.as_object_mut().unwrap().remove(member);

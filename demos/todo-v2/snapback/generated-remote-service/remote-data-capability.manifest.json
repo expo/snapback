@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:3a2560594de74eaa421a5fe547bc5f6483f595fa2862836e098077fab8a1b0fc"
+    "sha256": "sha256:52fac25e1f7bf2ed754bcc9f9e1c196b36f50e8d7bffc893c3bc4e5249b71757"
   },
   "manifestVersion": 1,
   "operations": [
@@ -31,7 +31,7 @@
       },
       "requestSchema": {
         "path": "schemas/mutation.input.schema.json",
-        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+        "sha256": "sha256:826cf8da19cffa51e82726b756f22a924d7d11b75ce48a9afe2fb09ad3264876"
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
@@ -57,7 +57,7 @@
       },
       "requestSchema": {
         "path": "schemas/mutation.input.schema.json",
-        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+        "sha256": "sha256:826cf8da19cffa51e82726b756f22a924d7d11b75ce48a9afe2fb09ad3264876"
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
@@ -83,7 +83,7 @@
       },
       "requestSchema": {
         "path": "schemas/mutation.input.schema.json",
-        "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+        "sha256": "sha256:826cf8da19cffa51e82726b756f22a924d7d11b75ce48a9afe2fb09ad3264876"
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
@@ -93,7 +93,7 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:c8bf6e05b7f7866f32c878573288df462d0db6fe46aeca9d23c5f1540f52a798"
+    "sha256": "sha256:3dcbb48c581da96486150b028126f672673e9e24feaa360f4854beaccda2d24c"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
@@ -140,7 +140,7 @@
     },
     "mutationInput": {
       "path": "schemas/mutation.input.schema.json",
-      "sha256": "sha256:e1d869984042b61d2750c7d21576db7d017c06691017d14907b30aff6421fd1d"
+      "sha256": "sha256:826cf8da19cffa51e82726b756f22a924d7d11b75ce48a9afe2fb09ad3264876"
     },
     "mutationOutput": {
       "path": "schemas/mutation.output.schema.json",
