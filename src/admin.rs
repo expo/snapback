@@ -444,10 +444,11 @@ impl fmt::Debug for ServerContext {
 }
 
 impl ServerContext {
-    /// Build a context from a listener that has already bound its concrete
-    /// socket. Embedders that serve session routes must use this constructor
-    /// and serve the returned context on that same listener; the detached and
-    /// caller-described constructors intentionally carry unknown posture.
+    /// Build a context from a listener for direct request-service composition.
+    /// Network embedders must still pass their serving listener through
+    /// `server::app(state).bind(listener)`, which overwrites this posture from
+    /// the consumed socket. The detached and caller-described constructors
+    /// intentionally carry unknown posture.
     pub fn from_bound_listener(listener: &std::net::TcpListener) -> std::io::Result<Self> {
         let address = listener.local_addr()?;
         let mut context = Self::new(
@@ -462,7 +463,7 @@ impl ServerContext {
     /// Build a context for a bound listener. The admin token is read once from
     /// `SNAPBACK_ADMIN_TOKEN`; an empty value is treated as unset. This legacy
     /// caller-described form does not establish listener transport authority;
-    /// session embedders use `from_bound_listener` instead.
+    /// network session embedders use `server::app(state).bind(listener)`.
     pub fn new(host: impl Into<String>, port: u16, loopback: bool) -> Self {
         Self {
             host: host.into(),

@@ -387,7 +387,7 @@ async fn admin_bypass_runners_refuse_production_on_both_transports() {
     assert_eq!(body["diagnostics"][0]["code"], "SNAPBACK_PROFILE_FORBIDS");
 }
 
-fn sessions_app(profile: ServerProfile) -> (axum::Router, SecretReadOperator) {
+fn sessions_app(profile: ServerProfile) -> (snapback::server::SnapbackApp, SecretReadOperator) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let mut context = ServerContext::from_bound_listener(&listener).unwrap();
     context.profile = profile;

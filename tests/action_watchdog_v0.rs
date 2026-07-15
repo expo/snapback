@@ -273,7 +273,10 @@ fn watchdog_functions() -> FunctionManifest {
     manifest
 }
 
-async fn watchdog_state_and_app() -> (snapback::server::SharedSnapback, axum::Router) {
+async fn watchdog_state_and_app() -> (
+    snapback::server::SharedSnapback,
+    snapback::server::SnapbackApp,
+) {
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L7 applies to
     // integration-fixture schema activation too: item 6's authorization
     // interlock reads the durable commit version during `apply_schema`.
@@ -296,7 +299,7 @@ async fn watchdog_state_and_app() -> (snapback::server::SharedSnapback, axum::Ro
     .expect("watchdog fixture blocking setup")
 }
 
-async fn watchdog_app() -> axum::Router {
+async fn watchdog_app() -> snapback::server::SnapbackApp {
     watchdog_state_and_app().await.1
 }
 
@@ -361,7 +364,10 @@ async fn held_http_response() -> (
     )
 }
 
-fn start_paused_action(app: axum::Router, url: String) -> tokio::task::JoinHandle<Value> {
+fn start_paused_action(
+    app: snapback::server::SnapbackApp,
+    url: String,
+) -> tokio::task::JoinHandle<Value> {
     tokio::spawn(async move {
         let response = app
             .oneshot(post_json(
@@ -374,7 +380,10 @@ fn start_paused_action(app: axum::Router, url: String) -> tokio::task::JoinHandl
     })
 }
 
-fn start_paused_mutation_action(app: axum::Router, url: String) -> tokio::task::JoinHandle<Value> {
+fn start_paused_mutation_action(
+    app: snapback::server::SnapbackApp,
+    url: String,
+) -> tokio::task::JoinHandle<Value> {
     tokio::spawn(async move {
         let response = app
             .oneshot(post_json(
@@ -510,7 +519,7 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
 /// precise cause and must not be masked by `SNAPBACK_HANDLER_DID_NOT_SETTLE`.
 async fn assert_paused_action_generation_fence(
     state: &snapback::server::SharedSnapback,
-    app: axum::Router,
+    app: snapback::server::SnapbackApp,
     label: &str,
     advance_generation: impl FnOnce(&mut LocalSnapback),
 ) {

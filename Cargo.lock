@@ -3191,6 +3191,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.29.0",
  "tower",
+ "tower-service",
  "unicode-normalization",
  "ureq",
  "uuid",

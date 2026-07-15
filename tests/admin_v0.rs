@@ -420,7 +420,7 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
@@ -1810,7 +1810,10 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
-        axum::serve(listener, snapback::server::app(state))
+        snapback::server::app(state)
+            .bind(listener)
+            .unwrap()
+            .serve()
             .await
             .unwrap();
     });
@@ -2099,7 +2102,7 @@ async fn stream_upgrade_requires_the_connection_token() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     let upgrade_status = |error: tokio_tungstenite::tungstenite::Error| match error {
@@ -2166,11 +2169,11 @@ async fn stream_upgrade_requires_the_connection_token() {
 
 /* ---------- harness ---------- */
 
-fn loopback_app(snapback: LocalSnapback) -> axum::Router {
+fn loopback_app(snapback: LocalSnapback) -> snapback::server::SnapbackApp {
     app_with_context(snapback, loopback_context(None))
 }
 
-fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
+fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
     snapback::server::app(AppState::from_snapback(snapback, ctx))
 }
 
@@ -2293,7 +2296,7 @@ fn post_with_connection_token(uri: &str, body: Value, token: &str) -> Request<Bo
 
 /// Open a connection grant over HTTP (ENG-23442) and return its token. In the
 /// dev-profile test contexts the suggested id is adopted verbatim.
-async fn open_connection(app: axum::Router, connection_id: &str) -> String {
+async fn open_connection(app: snapback::server::SnapbackApp, connection_id: &str) -> String {
     let resp = app
         .oneshot(post(
             "/connection/open",
@@ -2453,7 +2456,7 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
@@ -2549,7 +2552,7 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     let addr = listener.local_addr().unwrap();
     let app = snapback::server::app(state);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        app.bind(listener).unwrap().serve().await.unwrap();
     });
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;

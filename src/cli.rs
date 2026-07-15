@@ -1843,9 +1843,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         auth_terminal_sink,
         auth_gc_initial_delay,
     );
-    let server = std::future::IntoFuture::into_future(
-        axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()),
-    );
+    let server = app
+        .bind(listener)?
+        .serve_with_graceful_shutdown(shutdown_signal());
     tokio::pin!(server);
     let server_result: anyhow::Result<()> = tokio::select! {
         result = &mut server => result.map_err(anyhow::Error::new),
@@ -4263,7 +4263,7 @@ mod tests {
             ),
         ));
         let server = tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            app.bind(listener).unwrap().serve().await.unwrap();
         });
 
         let mut descriptor = stop_descriptor(Some(&startup_nonce));

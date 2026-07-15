@@ -9,7 +9,9 @@
 contexts now carry an unforgeable `Unknown` listener posture; only the
 listener-owning serve path records the bound socket, and sessions app-data plus
 `/auth/session` fail closed while posture is unknown; a real `0.0.0.0`
-embedded-listener regression closes the reviewed bypass). 2026-07-14 (round-3 dual-family revision, /llp-super-refine:
+embedded-listener regression closes the reviewed bypass; review follow-up makes
+the public network surface consume the serving listener and overwrite posture
+previously derived from a different socket). 2026-07-14 (round-3 dual-family revision, /llp-super-refine:
 withdrew D6's `_snapback_meta`-before-preflight carve-out that **contradicted
 frozen LLP 0039** — preflight now precedes all DDL, split into startup and
 per-invocation domains; removed D2's strict-transport prose escape hatch (HSTS
@@ -189,6 +191,14 @@ may remain), and detached construction is a test-and-tooling seam that must
 never carry a sessions network listener. A real `0.0.0.0` embedded-listener
 regression serves the detached router and proves both protected paths refuse
 with `SNAPBACK_AUTH_TRANSPORT_INSECURE` before bearer handling.
+
+The public embedded network path is `server::app(state).bind(listener)`: it
+consumes the Tokio listener, overwrites any posture already present in the
+context from that exact socket, and returns a bound application whose listener
+and router are private and inseparable. The unbound `SnapbackApp` remains a
+direct `Service<Request>` for tests and in-process callers but intentionally is
+not Axum's incoming-connection make-service. Thus the ordinary public API
+cannot repeat the reviewed `axum::serve(other_listener, app(state))` mismatch.
 
 The diagnostic is an operator/startup failure, not a client-authentication
 failure. `/health` may remain available only in an already-composed embedded

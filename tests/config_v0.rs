@@ -408,7 +408,7 @@ fn context(loopback: bool, token: Option<&str>) -> ServerContext {
     context
 }
 
-fn app(snapback: LocalSnapback, ctx: ServerContext) -> axum::Router {
+fn app(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
     snapback::server::app(AppState::from_snapback(snapback, ctx))
 }
 

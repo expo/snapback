@@ -76,6 +76,8 @@ use http_body::Body as HttpBody;
 use serde::{Deserialize, Serialize};
 use serde::ser::SerializeStruct as _;
 use serde_json::{Value, json};
+use std::convert::Infallible;
+use std::future::Future;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::OnceLock;
@@ -84,6 +86,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
+use tower_service::Service;
 use uuid::Uuid;
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
@@ -7314,14 +7317,95 @@ pub(crate) fn router_from_registrations(
         })
 }
 
-/// The full Snapback HTTP surface is installed only from registered entries;
-/// there is no second route-literal list that can drift outside policy.
+/// A direct Snapback HTTP service.
 ///
-/// @ref LLP 0031#enforcement — router↔registry parity is structural.
-pub fn app(state: AppState) -> Router {
+/// This deliberately implements request service only, not Axum's incoming
+/// connection make-service. Network embedders must call [`SnapbackApp::bind`],
+/// which consumes the listener that supplies transport posture. Keeping the
+/// inner `Router` private prevents the former accidental composition where a
+/// context derived from one listener was served on another.
+#[derive(Clone)]
+pub struct SnapbackApp {
+    state: AppState,
+    router: Router,
+}
+
+impl SnapbackApp {
+    /// Couple this application to the exact listener that will serve it.
+    ///
+    /// @ref LLP 0060#d1-plaintext-listener-fence — listener-owned transport
+    /// posture is refreshed from the consumed socket at the network boundary.
+    pub fn bind(self, listener: tokio::net::TcpListener) -> std::io::Result<BoundSnapbackApp> {
+        let address = listener.local_addr()?;
+        let mut state = self.state;
+        Arc::make_mut(&mut state.server).record_bound_address(address);
+        Ok(BoundSnapbackApp {
+            listener,
+            router: router_for_state(state),
+        })
+    }
+}
+
+impl Service<Request<Body>> for SnapbackApp {
+    type Response = Response;
+    type Error = Infallible;
+    type Future = <Router as Service<Request<Body>>>::Future;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        <Router as Service<Request<Body>>>::poll_ready(&mut self.router, cx)
+    }
+
+    fn call(&mut self, request: Request<Body>) -> Self::Future {
+        self.router.call(request)
+    }
+}
+
+/// A Snapback application whose transport posture and serving listener are one
+/// private, inseparable value.
+pub struct BoundSnapbackApp {
+    listener: tokio::net::TcpListener,
+    router: Router,
+}
+
+impl BoundSnapbackApp {
+    pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
+        self.listener.local_addr()
+    }
+
+    pub async fn serve(self) -> std::io::Result<()> {
+        axum::serve(self.listener, self.router).await
+    }
+
+    pub async fn serve_with_graceful_shutdown<F>(self, signal: F) -> std::io::Result<()>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        axum::serve(self.listener, self.router)
+            .with_graceful_shutdown(signal)
+            .await
+    }
+}
+
+fn router_for_state(state: AppState) -> Router {
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
         .layer(middleware::from_fn(local_dev_cors))
+}
+
+/// The full Snapback HTTP surface is installed only from registered entries;
+/// there is no second route-literal list that can drift outside policy. The
+/// returned value is safe for direct `Service<Request>` use; call `.bind()` to
+/// serve it on a network listener.
+///
+/// @ref LLP 0031#enforcement — router↔registry parity is structural.
+pub fn app(state: AppState) -> SnapbackApp {
+    SnapbackApp {
+        router: router_for_state(state.clone()),
+        state,
+    }
 }
 
 /// The registry is the metadata projection of the exact entries `app()`
@@ -8699,7 +8783,7 @@ fn yaml_string_list(values: &[String]) -> String {
 
 /// Backwards-compatible entry point: build the full app with a detached
 /// (loopback, address-unknown) server context.
-pub fn router(snapback: LocalSnapback) -> Router {
+pub fn router(snapback: LocalSnapback) -> SnapbackApp {
     app(AppState::detached(snapback))
 }
 
@@ -13183,14 +13267,14 @@ mod tests {
         CRON_DISPATCH_CONCURRENCY_DEFAULT,
         CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
         DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
-        RealtimeEnvelope, SharedSnapback, app, configured_action_worker_limit,
+        RealtimeEnvelope, SharedSnapback, SnapbackApp, app, configured_action_worker_limit,
         configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
         finish_registered_response, parse_action_watchdog_timeout, parse_optional_json,
         reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
         retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
         spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     };
-    use crate::admin::{AppState, ListenerTransportPosture, ServerContext, ServerProfile};
+    use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
@@ -13948,7 +14032,10 @@ mod tests {
         let address = listener.local_addr().expect("WebSocket server address");
         let ws_server_state = state.clone();
         let server = tokio::spawn(async move {
-            axum::serve(listener, app(ws_server_state))
+            app(ws_server_state)
+                .bind(listener)
+                .expect("bind protected-room WebSocket app")
+                .serve()
                 .await
                 .expect("serve protected-room WebSocket test");
         });
@@ -14061,7 +14148,7 @@ mod tests {
 
     fn auth_http_fixture_with_provider(
         mode: PolicyAuthMode,
-    ) -> (axum::Router, String, Arc<AuthProvider>) {
+    ) -> (SnapbackApp, String, Arc<AuthProvider>) {
         let (state, capability) = auth_runtime_fixture(mode);
         let provider = state
             .auth_provider
@@ -14070,7 +14157,7 @@ mod tests {
         (app(state), capability, provider)
     }
 
-    fn auth_http_fixture(mode: PolicyAuthMode) -> (axum::Router, String) {
+    fn auth_http_fixture(mode: PolicyAuthMode) -> (SnapbackApp, String) {
         let (state, capability) = auth_runtime_fixture(mode);
         (app(state), capability)
     }
@@ -16201,7 +16288,7 @@ mod tests {
     {
         const BEARER_SENTINEL: &str = "sbs_PLAINTEXT_HANDSHAKE_SENTINEL_MUST_NOT_BE_CONSUMED";
 
-        async fn handshake(router: axum::Router, bearer: Option<&str>) -> (StatusCode, Value) {
+        async fn handshake(router: SnapbackApp, bearer: Option<&str>) -> (StatusCode, Value) {
             let mut request = Request::builder().uri("/auth/session");
             if let Some(bearer) = bearer {
                 request = request.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
@@ -16280,7 +16367,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn detached_sessions_router_refuses_a_real_non_loopback_listener() {
+    async fn loopback_context_cannot_authorize_a_different_non_loopback_listener() {
         use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
         async fn request(port: u16, path: &str) -> (StatusCode, Value) {
@@ -16317,12 +16404,11 @@ mod tests {
             (status, body)
         }
 
-        let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
-        let detached = Arc::make_mut(&mut state.server);
-        detached.host = "127.0.0.1".to_owned();
-        detached.port = 0;
-        detached.loopback = true;
-        detached.listener_transport = ListenerTransportPosture::Unknown;
+        // auth_runtime_fixture deliberately carries positive posture from a
+        // different, throwaway loopback listener. The network bind below must
+        // replace that evidence rather than trusting the prebuilt context.
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        assert_eq!(state.server.listener_transport_loopback(), Some(true));
 
         // This is the shipped bypass shape: the router claims loopback while
         // an embedder serves it on every interface. Connect through loopback so
@@ -16335,7 +16421,10 @@ mod tests {
             .expect("embedded listener address")
             .port();
         let server = tokio::spawn(async move {
-            axum::serve(listener, app(state))
+            app(state)
+                .bind(listener)
+                .expect("couple sessions app to real non-loopback listener")
+                .serve()
                 .await
                 .expect("serve detached sessions router");
         });
@@ -16666,7 +16755,7 @@ mod tests {
         );
     }
 
-    async fn request_captured_challenge(router: &axum::Router, email: &str) -> String {
+    async fn request_captured_challenge(router: &SnapbackApp, email: &str) -> String {
         let response = router
             .clone()
             .oneshot(auth_http_request(
@@ -22159,7 +22248,10 @@ globalThis.__snapbackHandlers = {
             .expect("bind test server");
         let address = listener.local_addr().expect("test server address");
         let server = tokio::spawn(async move {
-            axum::serve(listener, super::app(state))
+            super::app(state)
+                .bind(listener)
+                .expect("bind socket test app")
+                .serve()
                 .await
                 .expect("serve socket test");
         });
@@ -22254,7 +22346,10 @@ globalThis.__snapbackHandlers = {
             .expect("bind test server");
         let address = listener.local_addr().expect("test server address");
         let server = tokio::spawn(async move {
-            axum::serve(listener, super::app(state))
+            super::app(state)
+                .bind(listener)
+                .expect("bind socket test app")
+                .serve()
                 .await
                 .expect("serve socket test");
         });

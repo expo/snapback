@@ -311,7 +311,7 @@ async fn only_a_committed_reset_invalidates_existing_leases() {
 }
 
 fn sessions_app() -> (
-    axum::Router,
+    snapback::server::SnapbackApp,
     snapback::admin_secret_read::SecretReadOperator,
 ) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

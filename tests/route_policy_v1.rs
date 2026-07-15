@@ -784,7 +784,7 @@ fn impersonation_state(profile: ServerProfile) -> (AppState, String) {
 }
 
 async fn impersonation_host_request(
-    router: &axum::Router,
+    router: &snapback::server::SnapbackApp,
     body: Value,
     admin: Option<&str>,
     capabilities: &[&str],
@@ -1691,7 +1691,7 @@ struct AdminPolicyProbe {
 }
 
 async fn admin_policy_outcome(
-    router: &axum::Router,
+    router: &snapback::server::SnapbackApp,
     probe: &AdminPolicyProbe,
     credential: Option<&str>,
 ) -> (StatusCode, String) {
@@ -2053,7 +2053,10 @@ async fn sessions_runtime_rejects_body_auth_for_every_websocket_operation() {
         .expect("bind sessions socket policy server");
     let addr = listener.local_addr().expect("sessions socket address");
     let server = tokio::spawn(async move {
-        axum::serve(listener, app(state))
+        app(state)
+            .bind(listener)
+            .expect("bind sessions socket policy app")
+            .serve()
             .await
             .expect("serve sessions socket policy app");
     });
@@ -2502,7 +2505,10 @@ async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
     let controller = state.auth_admission_controller();
     let addr = listener.local_addr().expect("quiescence server address");
     let server = tokio::spawn(async move {
-        axum::serve(listener, app(state))
+        app(state)
+            .bind(listener)
+            .expect("bind quiescence starvation app")
+            .serve()
             .await
             .expect("serve quiescence starvation app");
     });

@@ -532,7 +532,11 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     let server = {
         let app = app.clone();
         tokio::spawn(async move {
-            axum::serve(listener, app).await.expect("serve");
+            app.bind(listener)
+                .expect("bind app")
+                .serve()
+                .await
+                .expect("serve");
         })
     };
 
