@@ -15,6 +15,10 @@
 
 import { EphemeralOverlay, SnapbackClient as RuntimeSnapbackClient } from '../client.mjs';
 import { AdminClient } from '../../../packages/snapback-admin-client/index.mjs';
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
 // This suite isolates existing transport/error seams with request-specific
@@ -68,6 +72,39 @@ const grantFetch = (connectionId) => stubFetch(200, JSON.stringify({
   connectionId,
   connectionToken: 'sct_stub_token',
 }));
+
+const AUTHORIZATION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
+const SESSION_ID = '018f0d90-7b25-7a22-8c33-445566778899';
+const USER_ID = '018f0d90-7b26-7a22-8c33-445566778899';
+let coordinatorSequence = 0;
+const coordinatorCustody = async ({ session = false } = {}) => {
+  coordinatorSequence += 1;
+  const coordinator = new AuthCoordinator({
+    appId: `snapback.test/client-errors-${coordinatorSequence}`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymous = await coordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode: session ? 'sessions' : 'dev',
+    authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+  });
+  if (session) {
+    await coordinator.transition(anonymous, {
+      authority: {
+        kind: 'session',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+        sessionId: SESSION_ID,
+        userId: USER_ID,
+      },
+      bearer: 'session_bearer',
+      refreshAfterMs: 60_000,
+    }, 'client_error_fixture');
+  }
+  return coordinator;
+};
 
 const nextSocket = async (countBefore) => {
   for (let i = 0; i < 200; i += 1) {
@@ -253,7 +290,9 @@ try {
   await suite.check('sessions WebSocket upgrades carry exact protocol offers as subprotocols', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_session_protocols');
+    const authCoordinator = await coordinatorCustody();
     const db = new SnapbackClient('http://stub', {
+      authCoordinator,
       authClientProtocol: 1,
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
@@ -274,6 +313,7 @@ try {
       'snapback.authorized-lease.1',
     ]));
     await stream.close();
+    await db.closeAuth();
     return { protocols: ws.protocols.length };
   });
 
@@ -287,8 +327,9 @@ try {
         : { outcome: 'discharged' };
       return { ok: true, status: 200, text: async () => JSON.stringify(body) };
     };
+    const authCoordinator = await coordinatorCustody({ session: true });
     const db = new SnapbackClient('http://stub', {
-      bearerToken: 'session_bearer',
+      authCoordinator,
       authClientProtocol: 1,
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
@@ -307,6 +348,7 @@ try {
       '1',
       'standalone acknowledgement offers the descriptor protocol required by queued replay',
     );
+    await db.closeAuth();
     return { offered: true };
   });
 
