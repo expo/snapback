@@ -566,6 +566,31 @@
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
       };
+      // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).
+      // The imperative role-gate twin, available in queries and mutations only
+      // (actions carry no transactional read set — the host op refuses there
+      // too). The ergonomic per-declaration spelling is LLP 0004 codegen; this
+      // is the host-backed binding it lowers onto. The membership read is
+      // captured server-side; a failed check throws the trusted
+      // SNAPBACK_AUTH_PERMISSION_DENIED, which the host records out-of-band so a
+      // handler cannot un-deny it by catching.
+      ctx.permissions = (typeof Proxy === "function")
+        ? new Proxy(Object.create(null), {
+            get: function(_target, declaration) {
+              if (typeof declaration !== "string") { return undefined; }
+              return {
+                requireRole: function(resource) {
+                  var roles = Array.prototype.slice.call(arguments, 1);
+                  return host("permissions.requireRole", {
+                    declaration: declaration,
+                    resource: resource === undefined ? null : resource,
+                    roles: roles
+                  });
+                }
+              };
+            }
+          })
+        : Object.create(null);
     }
     var handlers = g.__snapbackHandlers || {};
     var handler = handlers[name];

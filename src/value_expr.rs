@@ -201,6 +201,24 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
             }
             Ok(Value::Object(output))
         }
+        // A membership semi-join is **authoritative-only**: it requires a
+        // non-recursive storage lookup over the membership table, which this
+        // pure evaluator has no access to (and must not — the evaluator answers
+        // optimistic/matcher contexts where consulting membership facts would
+        // be either impossible or a client-forgeable role check). The query
+        // path answers it through `QueryPlan::membership_filters`; the
+        // `ctx.permissions` twin answers it through the host lookup. Here it
+        // fails closed so a role check can never be optimistically satisfied.
+        //
+        // @ref LLP 0056#rule-helpers — the role check is server-decided in v1;
+        //   no blessed optimistic path evaluates a membership predicate.
+        ValueExpr::MembershipExists(_) => Err(ExprError::Fail(SnapbackError::error(
+            "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY",
+            "runtime",
+            "a membership predicate cannot be evaluated by the pure expression \
+             evaluator; it requires an authoritative, non-recursive storage \
+             semi-join",
+        ))),
     }
 }
 
@@ -699,6 +717,11 @@ fn validate_expr(expr: &ValueExpr, depth: usize) -> Result<(), SnapbackError> {
             }
             Ok(())
         }
+        // A membership semi-join carries no `ValueExpr` children (its resource
+        // reference is a row field or an argument path, not a nested
+        // expression), so there is nothing to recurse — the declaration/roles
+        // are validated at load by `membership_rules::validate_membership_predicate`.
+        ValueExpr::MembershipExists(_) => Ok(()),
     }
 }
 

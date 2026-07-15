@@ -25,6 +25,7 @@ pub(crate) mod live_matcher;
 pub mod live_wire;
 pub mod local;
 pub mod manifest;
+pub(crate) mod membership_rules;
 pub mod runtime;
 pub mod schema_export;
 pub(crate) mod secure_file;

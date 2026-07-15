@@ -12770,6 +12770,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES"
         | "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE"
+        | "SNAPBACK_MEMBERSHIP_EMPTY_ROLE_LIST"
         | "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS"
@@ -12787,6 +12788,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_PRINCIPAL_TYPE"
         | "SNAPBACK_MEMBERSHIP_RESERVED_ROLE"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE"
         | "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER"
         | "SNAPBACK_MEMBERSHIP_ROLE_EMPTY"
@@ -12798,6 +12800,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_ROLE"
+        | "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION"
+        | "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE"
+        | "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION"
         | "SNAPBACK_PERMISSION_SCOPE_MISSING"
         | "SNAPBACK_PLAN_BOUNDS"
         | "SNAPBACK_PLAN_INVALID"
@@ -12829,6 +12834,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SYSTEM_FIELD_WRITE"
         | "SNAPBACK_TIMESTAMP_OUT_OF_RANGE"
         | "SNAPBACK_UNSUPPORTED_BLOB"
+        | "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
         | "SNAPBACK_V8_COMPAT_CONFIG_INVALID"
         | "SNAPBACK_V8_COMPAT_FLAG_REFUSED"
         | "SNAPBACK_WEBSOCKET_MESSAGE_INVALID"
@@ -13134,6 +13140,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -13785,6 +13792,7 @@ mod tests {
                         .collect(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             )
@@ -14882,6 +14890,7 @@ mod tests {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             )],
@@ -15480,6 +15489,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -15493,6 +15503,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -19284,6 +19295,7 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN",
         "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES",
         "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE",
+        "SNAPBACK_MEMBERSHIP_EMPTY_ROLE_LIST",
         "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY",
         "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED",
         "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS",
@@ -19301,6 +19313,7 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_PRINCIPAL_TYPE",
         "SNAPBACK_MEMBERSHIP_RESERVED_ROLE",
         "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID",
         "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE",
         "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER",
         "SNAPBACK_MEMBERSHIP_ROLE_EMPTY",
@@ -19312,6 +19325,9 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER",
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD",
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_ROLE",
+        "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+        "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
+        "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
         "SNAPBACK_PERMISSION_SCOPE_MISSING",
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
@@ -19343,6 +19359,7 @@ mod tests {
         "SNAPBACK_SYSTEM_FIELD_WRITE",
         "SNAPBACK_TIMESTAMP_OUT_OF_RANGE",
         "SNAPBACK_UNSUPPORTED_BLOB",
+        "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY",
         "SNAPBACK_V8_COMPAT_CONFIG_INVALID",
         "SNAPBACK_V8_COMPAT_FLAG_REFUSED",
         "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",

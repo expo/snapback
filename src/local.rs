@@ -10372,6 +10372,7 @@ mod tests {
                     .collect(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         )];
@@ -10619,6 +10620,7 @@ mod tests {
                     filters: Vec::new(),
                     order: Vec::new(),
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             );
@@ -10715,6 +10717,7 @@ mod tests {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -10811,6 +10814,7 @@ mod tests {
             filters: Vec::new(),
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         }));
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
@@ -11070,6 +11074,7 @@ globalThis.__snapbackHandlers = {
                         filters: Vec::new(),
                         order: Vec::new(),
                         limit: None,
+                        membership_filters: Vec::new(),
                         indexed_by: None,
                     })),
                 ),
@@ -11602,6 +11607,7 @@ globalThis.__snapbackHandlers = {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         );
@@ -11617,6 +11623,7 @@ globalThis.__snapbackHandlers = {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: Some("by_value".to_owned()),
             })),
         );
@@ -12542,6 +12549,7 @@ globalThis.__snapbackHandlers = {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: Some("by_owner".to_owned()),
             })),
         );
@@ -13211,6 +13219,7 @@ globalThis.__snapbackHandlers = {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         ));

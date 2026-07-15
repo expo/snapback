@@ -467,6 +467,7 @@ fn functions() -> FunctionManifest {
                 }],
                 order,
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         )
@@ -519,6 +520,7 @@ fn functions() -> FunctionManifest {
             filters: Vec::new(),
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         })),
     );
@@ -536,6 +538,7 @@ fn functions() -> FunctionManifest {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         })),
     );
@@ -551,6 +554,7 @@ fn functions() -> FunctionManifest {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         })),
     );

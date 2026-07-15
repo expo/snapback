@@ -2446,6 +2446,7 @@ fn todo_functions() -> FunctionManifest {
                         direction: OrderDirection::Asc,
                     }],
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 })),
             ),

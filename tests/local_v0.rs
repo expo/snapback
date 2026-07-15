@@ -2874,6 +2874,7 @@ fn todo_functions() -> FunctionManifest {
                         direction: OrderDirection::Asc,
                     }],
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: Some("by_user".to_owned()),
                 })),
             ),
@@ -3823,6 +3824,7 @@ fn e5_unknown_index_fails_closed() {
             filters: Vec::new(),
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: Some("by_user".to_owned()),
         })),
     ));
@@ -3840,6 +3842,7 @@ fn e5_unknown_index_fails_closed() {
             filters: Vec::new(),
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: Some("does_not_exist".to_owned()),
         })),
     ));
@@ -3871,6 +3874,7 @@ fn whole_manifest_rejects_cumulative_in_budget_before_atomic_install() {
             filters: vec![filter("title"), filter("userId")],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         })),
     ));
@@ -3920,6 +3924,7 @@ fn whole_manifest_rejects_invalid_query_expressions_before_atomic_install() {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })),
         ));
@@ -4063,6 +4068,7 @@ fn query_filter_bind_budget_counts_every_filter_operand() {
         ],
         order: Vec::new(),
         limit: None,
+        membership_filters: Vec::new(),
         indexed_by: None,
     };
 
@@ -4115,6 +4121,7 @@ fn query_filter_values_match_declared_and_system_field_types() {
         }],
         order: Vec::new(),
         limit: None,
+        membership_filters: Vec::new(),
         indexed_by: None,
     };
 
@@ -4220,6 +4227,7 @@ fn query_without_take_uses_the_portable_default_result_cap() {
                 filters: Vec::new(),
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             },
             &input(json!({}), "u"),
@@ -4892,6 +4900,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })
             .unwrap(),
@@ -4944,6 +4953,7 @@ fn e4_query_validation_is_predicate_granular() {
                 }],
                 order: Vec::new(),
                 limit: None,
+                membership_filters: Vec::new(),
                 indexed_by: None,
             })
             .unwrap(),

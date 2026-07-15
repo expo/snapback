@@ -96,6 +96,7 @@ fn scan_all_rows(db: &LocalDatabase, table: &str) -> Vec<Value> {
         filters: Vec::new(),
         order: Vec::new(),
         limit: None,
+        membership_filters: Vec::new(),
         indexed_by: None,
     };
     db.query(&plan, &HandlerInput::default())

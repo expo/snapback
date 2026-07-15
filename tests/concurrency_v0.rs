@@ -981,6 +981,7 @@ fn concurrency_functions() -> FunctionManifest {
                         direction: OrderDirection::Asc,
                     }],
                     limit: None,
+                    membership_filters: Vec::new(),
                     indexed_by: Some("by_user".to_owned()),
                 })),
             ),

@@ -604,6 +604,42 @@ machinery), and referential integrity keys on a `resourceTable` binding the
 declaration records directly until codegen fills it from `v.id(...)` under the
 LLP 0004 authoring follow-on.
 
+*M3 landed 2026-07-14 via ENG-24909* — the **rule helpers, the membership
+predicate IR, and `ctx.permissions`**: the declaration-bound membership
+predicate node in the structured filter IR (`ValueExpr::MembershipExists` +
+`QueryPlan.membershipFilters` carrying `MembershipPredicate` /
+`MembershipResourceRef`, the first step past single-table filters), its
+correlated-`EXISTS` SQL lowering (non-recursive — the query executor applies no
+row-visibility rules), and — the load-bearing part — its capture as **ordinary**
+snapshot-bound `Query` dependencies over the membership table (never the dead
+`CapturedReadKind::Permission` kind that both the matcher and commit-time
+read-set validation ignore), including the pinned **empty-result** form (a
+membership insert wakes a previously-empty subscription) and the conservative
+table-level dependency for row-field resource refs. `memberOf` excludes
+`pendingRoles`; `hasRole` names roles explicitly. `ctx.permissions.<decl>.
+requireRole(...)` is decomposed into the membership read (`DatabaseCaptured` on
+both outcomes, captured into the read set) plus — on a failed check — the
+**existing** `TerminalAuthorization` deny (the existing
+`SNAPBACK_AUTH_PERMISSION_DENIED`, no new trusted code), with the trusted brand
+recorded out-of-band on the host context so a handler cannot un-deny by catching
+and a forged throw stays untyped. The client denial payload is the invariant
+`{ kind: "role" }` (no existence oracle); there is no application-returning
+`get()`; and `ctx.permissions` is a typed refusal in actions. The authoritative-
+only `MembershipExists` is refused by both the pure `ValueExpr` evaluator and the
+derived optimistic overlay, so a role check stays server-decided.
+
+M3 deliberately does **not** land: the matcher/room invalidation wiring beyond
+the conservative capture (M4/M5); the incremental membership semi-join lane and
+retained/offline role-gated reads (the named LLP 0008 follow-on); and the
+generated per-declaration authoring spelling for the helpers and
+`ctx.permissions.<decl>` (LLP 0004 codegen — the shipped binding is the
+host-backed lowering it targets). The stricter *resource-type* load check
+(row field / argument **of the declared resource type**, rejecting a different
+resource type) is enforced conservatively (declaration existence, field
+existence on the queried table, and vocabulary membership) until codegen fills
+the field-reference types alongside `resourceTable`, matching M1's posture; the
+runtime fail-closes on an unresolved declaration or a bad row field either way.
+
 **Delivery lanes, honestly.** A helper-gated query rides the **conservative
 re-query/`live_replace` lane** — which exists today and is exactly the lane
 0053's witnessed obligations protect. "Analyzable by construction" buys, in v1:

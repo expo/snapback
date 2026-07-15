@@ -81,6 +81,19 @@ pub(crate) fn query_dependencies_from_plan(
         boundary,
     });
 
+    // LLP 0056 M3: a declaration-bound membership semi-join contributes an
+    // ORDINARY snapshot-bound dependency over the membership table (never the
+    // dead `Permission` kind), so the matcher wakes on membership writes —
+    // including the empty-to-visible direction.
+    for predicate in &plan.membership_filters {
+        dependencies.extend(crate::membership_rules::query_membership_dependencies(
+            db.schema(),
+            input,
+            predicate,
+            db,
+        )?);
+    }
+
     Ok(dependencies)
 }
 
@@ -749,6 +762,7 @@ mod dependency_gate_tests {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         };
         CapturedReadDependency {
@@ -918,6 +932,7 @@ mod delta_tests {
             filters: Vec::new(),
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         }
     }
@@ -933,6 +948,7 @@ mod delta_tests {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         };
 
@@ -966,6 +982,7 @@ mod delta_tests {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         };
 
@@ -998,6 +1015,7 @@ mod delta_tests {
                     direction: direction.clone(),
                 }],
                 limit: Some(2),
+                membership_filters: Vec::new(),
                 indexed_by: None,
             };
             assert_eq!(
@@ -1033,6 +1051,7 @@ mod delta_tests {
                 direction: OrderDirection::Asc,
             }],
             limit: Some(2),
+            membership_filters: Vec::new(),
             indexed_by: None,
         };
         let rows = [
@@ -1120,6 +1139,7 @@ mod delta_tests {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         };
         // min(10, 3 + 2) = 5
@@ -1142,6 +1162,7 @@ mod delta_tests {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         };
         assert_eq!(
@@ -1161,6 +1182,7 @@ mod delta_tests {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         }
     }

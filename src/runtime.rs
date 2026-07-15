@@ -199,7 +199,13 @@ impl RuntimeManager {
             prepared.admission_lease().clone(),
             true,
         )?;
-        let result = run_ibex_handler_with_context(module, &mut invocation, pool)?;
+        let result = run_ibex_handler_with_context(module, &mut invocation, pool);
+        // A terminal role denial fails the (dry-run) mutation and never commits,
+        // preserving the trusted brand regardless of a handler catch.
+        if let Some(denial) = invocation.take_terminal_denial() {
+            return Err(denial);
+        }
+        let result = result?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext { writes, reads, .. } = invocation;
         db.dry_run_buffered_writes(&input, writes, reads, result, ctx_ledger)
@@ -249,7 +255,13 @@ pub(crate) fn execute_ibex_mutation_prepared(
         prepared.admission_lease().clone(),
         true,
     )?;
-    let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline)?;
+    let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
+    // A terminal role denial fails the mutation before commit and preserves the
+    // trusted brand regardless of a handler catch (LLP 0056 M3).
+    if let Some(denial) = invocation.take_terminal_denial() {
+        return Err(denial);
+    }
+    let result = result?;
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
@@ -291,7 +303,14 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     // @ref LLP 0053#the-authorization-event-universe-closed — protected
     //   module state must be fresh or reset-equivalent.
     let pool = if protected_query_profile { None } else { pool };
-    let value = run_ibex_handler_with_context(module, &mut invocation, pool)?;
+    let value = run_ibex_handler_with_context(module, &mut invocation, pool);
+    // A terminal role denial terminates the query subscription (LLP 0056 M3:
+    // denied-at-subscribe is terminated, not parked), with the trusted brand
+    // preserved regardless of a handler catch.
+    if let Some(denial) = invocation.take_terminal_denial() {
+        return Err(denial);
+    }
+    let value = value?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
     let rows = value.as_array().cloned().ok_or_else(|| {
@@ -563,6 +582,19 @@ pub(crate) struct IbexHostContext<'a> {
     recorded_ids: Vec<String>,
     /// Replay-mode state; `Some` iff the input carried a `ctx_ledger`.
     replay: Option<ReplayLedger>,
+    /// An out-of-band **trusted** role denial produced by
+    /// `ctx.permissions.<decl>.requireRole` (LLP 0056 M3). The trusted brand on
+    /// a `SnapbackError` cannot survive the JS error round-trip, so the real
+    /// terminal denial is recorded here and the outer result-assembly returns it
+    /// **regardless of what the handler did with the thrown error** — a handler
+    /// that catches it cannot un-deny (terminalization), and a handler that
+    /// *forges* `SNAPBACK_AUTH_PERMISSION_DENIED` never sets this, so a forged
+    /// throw stays untrusted.
+    ///
+    /// @ref LLP 0056#rule-helpers — the imperative twin's trusted, terminal
+    ///   denial; @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 — delivered
+    ///   by the existing TerminalAuthorization deny, no new trusted code.
+    terminal_denial: Option<SnapbackError>,
 }
 
 /// Replay-mode cursor over a supplied ctx-answer ledger (LLP 0051 D1).
@@ -609,6 +641,7 @@ impl<'a> IbexHostContext<'a> {
             grants: Value::Null,
             recorded_ids: Vec::new(),
             replay,
+            terminal_denial: None,
         })
     }
 
@@ -659,6 +692,7 @@ impl<'a> IbexHostContext<'a> {
             grants,
             recorded_ids: Vec::new(),
             replay: None,
+            terminal_denial: None,
         }
     }
 
@@ -763,8 +797,12 @@ impl<'a> IbexHostContext<'a> {
             match op {
                 // Closed v1 allowlist: database reads carry captured witnesses;
                 // log has a specified constant null result and cannot affect
-                // visibility through mutable output.
-                "db.query" | "db.get" | "runtime.log" => {}
+                // visibility through mutable output. The membership read backing
+                // requireRole is `DatabaseCaptured` on both outcomes (its
+                // snapshot-bound dependency joins the read summary), so it is
+                // admitted for protected queries exactly like `db.query`.
+                // @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906
+                "db.query" | "db.get" | "runtime.log" | "permissions.requireRole" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
                         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
@@ -961,12 +999,113 @@ impl<'a> IbexHostContext<'a> {
                 let output = host.run_mutation(&name, input)?;
                 Ok(output.result)
             }
+            // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
+            // The imperative twin, decomposed so LLP 0053's one-class-per-op
+            // rule holds exactly: the membership read (DatabaseCaptured, both
+            // outcomes) captured into the read set, then — on a failed check —
+            // the EXISTING TerminalAuthorization deny (`role_denial`), which
+            // reuses the existing `SNAPBACK_AUTH_PERMISSION_DENIED` (no new
+            // trusted code). It is generated sugar over that composition, not a
+            // third host operation.
+            "permissions.requireRole" => {
+                // `ctx.permissions` does not exist in actions — no transactional
+                // read set, so no capture. Typed refusal.
+                // @ref LLP 0056#non-goals — `ctx.permissions` in actions refused.
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
+                        "runtime",
+                        "ctx.permissions does not exist in actions (no transactional read set to capture into)",
+                    ));
+                }
+                let declaration = required_string(&args, "declaration")?;
+                let resource_arg = args.get("resource").cloned().unwrap_or(Value::Null);
+                let requested_roles: Vec<String> = args
+                    .get("roles")
+                    .and_then(Value::as_array)
+                    .map(|roles| {
+                        roles
+                            .iter()
+                            .filter_map(|role| role.as_str().map(str::to_owned))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                // Resolve the declaration to owned data so no borrow of `self`
+                // (via the schema) is held across the mutable capture below.
+                let (table_name, membership) = {
+                    let schema = self.db().schema();
+                    match crate::membership_rules::find_declaration(schema, &declaration) {
+                        Some((table, membership)) => (table.name.clone(), membership.clone()),
+                        None => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+                                "runtime",
+                                format!(
+                                    "ctx.permissions names declaration {declaration:?}, which is not declared"
+                                ),
+                            ));
+                        }
+                    }
+                };
+                // Unauthenticated / null effective principal: deny with the same
+                // invariant payload (the `optional-user` split; `authenticated`
+                // functions fail AUTH_REQUIRED before the handler runs).
+                let Some(principal) = self.input.auth.user_id.clone() else {
+                    let denial = crate::membership_rules::role_denial();
+                    self.terminal_denial = Some(denial.clone());
+                    return Err(denial);
+                };
+                let requested = if requested_roles.is_empty() {
+                    None
+                } else {
+                    Some(requested_roles.as_slice())
+                };
+                let roles = crate::membership_rules::effective_roles(&membership, requested);
+                let binding = if membership.resource.is_none() {
+                    // scope:"app" — the singleton system-constant resource.
+                    crate::membership_rules::ResourceBinding::AppSingleton
+                } else {
+                    crate::membership_rules::ResourceBinding::Fixed(resource_arg)
+                };
+                let outcome = crate::membership_rules::require_role(
+                    self.db(),
+                    &membership,
+                    &table_name,
+                    &principal,
+                    binding,
+                    &roles,
+                )?;
+                // The membership read is captured on BOTH outcomes (present or
+                // absent) as an ORDINARY snapshot-bound dependency — never the
+                // dead `Permission` kind — so a role revoked between check and
+                // commit fails commit-time read-set validation, and
+                // terminalization preserves the denial witness.
+                self.push_read_dependency(outcome.dependency);
+                match outcome.denial {
+                    None => Ok(Value::Bool(true)),
+                    Some(denial) => {
+                        // Record the trusted brand out-of-band; the outer
+                        // result-assembly returns it regardless of handler catch.
+                        self.terminal_denial = Some(denial.clone());
+                        Err(denial)
+                    }
+                }
+            }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
                 "runtime",
                 format!("unknown handler host call {op}"),
             )),
         }
+    }
+
+    /// Take any out-of-band trusted role denial recorded by
+    /// `permissions.requireRole`. The outer result-assembly calls this after the
+    /// handler returns and, if it is `Some`, fails the invocation with the
+    /// trusted denial — overriding a handler that caught the thrown error
+    /// (terminalization) and preserving the trusted brand a forged throw lacks.
+    fn take_terminal_denial(&mut self) -> Option<SnapbackError> {
+        self.terminal_denial.take()
     }
 
     fn ensure_writable(&self, op: &str) -> SnapbackResult<()> {

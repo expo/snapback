@@ -22,6 +22,7 @@ fn host_live_with(value: ValueExpr) -> FunctionDefinition {
             }],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         })),
     )

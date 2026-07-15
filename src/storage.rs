@@ -1898,12 +1898,14 @@ impl LocalDatabase {
                     let scan_plan = QueryPlan {
                         table: table.name.clone(),
                         filters: filter.clone(),
+                        membership_filters: Vec::new(),
                         order: Vec::new(),
                         limit: None,
                         indexed_by: None,
                     };
                     let (sql, params) = build_query_sql(
                         table,
+                        &schema,
                         &scan_plan,
                         input,
                         &bindings,
@@ -2728,6 +2730,13 @@ pub(crate) fn query_on_with_storage_limit(
     crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
     let table = schema_table(schema, &plan.table)?;
     validate_query_plan_shape(plan)?;
+    // LLP 0056 M3: fail-closed validation of each declaration-bound membership
+    // predicate against the schema and the queried table — an unknown
+    // declaration, an out-of-vocabulary `hasRole`, or a resource row field that
+    // is not a field of the queried table is refused before the query runs.
+    for predicate in &plan.membership_filters {
+        crate::membership_rules::validate_membership_predicate(schema, table, predicate)?;
+    }
     if storage_limit > QUERY_INTERNAL_OVERFETCH_MAX {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_LIMIT_INVALID",
@@ -2740,6 +2749,7 @@ pub(crate) fn query_on_with_storage_limit(
     validate_query_index(table, plan)?;
     let (sql, values) = build_query_sql(
         table,
+        schema,
         plan,
         input,
         &BTreeMap::new(),
@@ -2822,6 +2832,15 @@ impl DbRead<'_> {
         match self {
             DbRead::Live(db) => Some(db),
             DbRead::Pinned { .. } => None,
+        }
+    }
+
+    /// The schema backing this read view — used by LLP 0056 membership helpers
+    /// to resolve a declaration id to its table and field names.
+    pub(crate) fn schema(&self) -> &SchemaManifest {
+        match self {
+            DbRead::Pinned { schema, .. } => schema,
+            DbRead::Live(db) => db.schema(),
         }
     }
 
@@ -4508,8 +4527,10 @@ fn validate_query_index(table: &TableManifest, plan: &QueryPlan) -> SnapbackResu
     })))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_query_sql(
     table: &TableManifest,
+    schema: &SchemaManifest,
     plan: &QueryPlan,
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
@@ -4597,6 +4618,27 @@ fn build_query_sql(
         }
     }
 
+    // LLP 0056 M3: lower each declaration-bound membership semi-join to a
+    // correlated `EXISTS` over the membership table. Non-recursive by design —
+    // SQL applies no row-visibility rules, so a locked-down roster cannot break
+    // role evaluation for guests. A row-field resource ref correlates against
+    // the outer row; a query-argument ref binds a fixed value.
+    // @ref LLP 0056#rule-helpers — the declaration-bound membership predicate.
+    for predicate in &plan.membership_filters {
+        let (clause, extra) = build_membership_exists_sql(
+            schema,
+            table,
+            predicate,
+            input,
+            bindings,
+            now_ms,
+            runtime_id,
+            &mut filter_bindings,
+        )?;
+        where_parts.push(clause);
+        values.extend(extra);
+    }
+
     if !where_parts.is_empty() {
         sql.push_str(" WHERE ");
         sql.push_str(&where_parts.join(" AND "));
@@ -4629,6 +4671,105 @@ fn build_query_sql(
     }
 
     Ok((sql, values))
+}
+
+/// Lower one declaration-bound membership semi-join to a correlated `EXISTS`
+/// subquery over the membership table (LLP 0056 M3). Returns the WHERE clause
+/// and its bound parameters (in SQL order). Fail-closed: an unresolved
+/// declaration errors, and an absent effective principal matches no rows.
+#[allow(clippy::too_many_arguments)]
+fn build_membership_exists_sql(
+    schema: &SchemaManifest,
+    outer: &TableManifest,
+    predicate: &crate::manifest::MembershipPredicate,
+    input: &HandlerInput,
+    bindings: &BTreeMap<String, Value>,
+    now_ms: u64,
+    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+    filter_bindings: &mut usize,
+) -> SnapbackResult<(String, Vec<SqlValue>)> {
+    let Some((mtable, membership)) =
+        crate::membership_rules::find_declaration(schema, &predicate.declaration)
+    else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+            "query",
+            format!(
+                "membership predicate names declaration {:?}, which is not declared",
+                predicate.declaration
+            ),
+        ));
+    };
+    // No effective principal → the predicate matches no rows (fail-closed).
+    let Some(user_id) = input.auth.user_id.as_deref() else {
+        return Ok(("(0 = 1)".to_owned(), Vec::new()));
+    };
+
+    let mtable_ident = quote_ident(&mtable.name)?;
+    let principal_ident = quote_ident(&membership.principal)?;
+    let role_ident = quote_ident(&membership.role)?;
+    let mut params: Vec<SqlValue> = Vec::new();
+    let mut conds: Vec<String> = Vec::new();
+
+    // principal = the effective principal.
+    add_query_filter_bindings(filter_bindings, 1, &membership.principal)?;
+    params.push(json_to_sql_value(
+        &Value::String(user_id.to_owned()),
+        Some(&FieldType::Principal),
+    )?);
+    conds.push(format!("{mtable_ident}.{principal_ident} = ?"));
+
+    // resource axis (absent for scope: "app").
+    if let Some(resource_field) = &membership.resource {
+        let resource_ident = quote_ident(resource_field)?;
+        match &predicate.resource {
+            crate::manifest::MembershipResourceRef::RowField(field) => {
+                ensure_field_or_system(outer, field)?;
+                conds.push(format!(
+                    "{mtable_ident}.{resource_ident} = {}.{}",
+                    quote_ident(&outer.name)?,
+                    quote_ident(field)?
+                ));
+            }
+            crate::manifest::MembershipResourceRef::Arg(path) => {
+                let value = eval_expr(
+                    &ValueExpr::Arg(path.clone()),
+                    input,
+                    bindings,
+                    now_ms,
+                    runtime_id,
+                )?;
+                add_query_filter_bindings(filter_bindings, 1, resource_field)?;
+                params.push(json_to_sql_value(&value, field_type(mtable, resource_field))?);
+                conds.push(format!("{mtable_ident}.{resource_ident} = ?"));
+            }
+        }
+    }
+
+    // role IN (...) over the effective roles.
+    let roles = crate::membership_rules::effective_roles(membership, predicate.roles.as_deref());
+    if roles.is_empty() {
+        return Ok(("(0 = 1)".to_owned(), Vec::new()));
+    }
+    add_query_filter_bindings(filter_bindings, roles.len(), &membership.role)?;
+    let mut placeholders = Vec::with_capacity(roles.len());
+    for role in &roles {
+        params.push(json_to_sql_value(
+            &Value::String(role.clone()),
+            Some(&FieldType::String),
+        )?);
+        placeholders.push("?");
+    }
+    conds.push(format!(
+        "{mtable_ident}.{role_ident} IN ({})",
+        placeholders.join(", ")
+    ));
+
+    let clause = format!(
+        "EXISTS (SELECT 1 FROM {mtable_ident} WHERE {})",
+        conds.join(" AND ")
+    );
+    Ok((clause, params))
 }
 
 fn add_query_filter_bindings(
@@ -7295,6 +7436,7 @@ mod guarded_commit_tests {
                         direction,
                     }],
                     limit,
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 },
                 &HandlerInput::default(),
@@ -7332,6 +7474,7 @@ mod guarded_commit_tests {
                         direction: OrderDirection::Asc,
                     }],
                     limit: Some(1),
+                    membership_filters: Vec::new(),
                     indexed_by: None,
                 },
                 &HandlerInput::default(),

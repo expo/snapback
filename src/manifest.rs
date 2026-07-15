@@ -1057,6 +1057,10 @@ fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
         ValueExpr::Record { fields } => fields
             .values()
             .any(value_expr_uses_authority_or_ambient_input),
+        // A membership semi-join always reads the effective principal (the
+        // implicit `auth.userId` axis of the lookup), so it depends on
+        // authority by construction.
+        ValueExpr::MembershipExists(_) => true,
     }
 }
 
@@ -1136,6 +1140,16 @@ fn validate_protected_value_expr(
             }
             Ok(())
         }
+        // Admitted by the ENG-24906 amendment to LLP 0053's protected-query
+        // input profile: a membership semi-join is a snapshot-bound,
+        // `DatabaseCaptured` declarative expression kind. It carries no clock,
+        // id, or other `MutableNonDatabase` input — its resource reference is a
+        // row field or a query argument, both snapshot-bound — so it is
+        // admitted rather than refused as an unknown expression kind.
+        //
+        // @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906
+        //   — the membership predicate node is an admitted declarative input.
+        ValueExpr::MembershipExists(_) => Ok(()),
     }
 }
 
@@ -1146,6 +1160,12 @@ fn validate_protected_query_profile(function: &FunctionDefinition) -> SnapbackRe
     if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime {
         for filter in &plan.filters {
             validate_protected_value_expr(function, &filter.value)?;
+        }
+        // Membership predicates are the admitted DatabaseCaptured kind; they
+        // carry no mutable non-database input to reject, but validate the
+        // recursion for symmetry (a resource-ref cannot smuggle a clock).
+        for predicate in &plan.membership_filters {
+            let _ = predicate;
         }
     }
     Ok(())
@@ -1202,12 +1222,20 @@ fn host_plan_authorization_dimensions(
                     collect(value, dimensions);
                 }
             }
+            // A membership semi-join authorizes on the effective principal.
+            ValueExpr::MembershipExists(_) => {
+                dimensions.insert(AuthorizationInputDimension::UserId);
+            }
         }
     }
 
     let mut dimensions = BTreeSet::new();
     for filter in &plan.filters {
         collect(&filter.value, &mut dimensions);
+    }
+    // Every membership predicate authorizes on the effective principal.
+    if !plan.membership_filters.is_empty() {
+        dimensions.insert(AuthorizationInputDimension::UserId);
     }
     if function.read_set_summary.auth_scope_field.is_some() {
         dimensions.insert(AuthorizationInputDimension::UserId);
@@ -2007,10 +2035,88 @@ pub struct QueryPlan {
     pub table: String,
     #[serde(default)]
     pub filters: Vec<FilterExpr>,
+    /// Declaration-bound membership semi-joins ANDed onto the field filters —
+    /// the first structured-filter IR nodes past single-table filters. Empty
+    /// for an ordinary single-table query. Each entry gates the query rows by a
+    /// non-recursive membership existence check and contributes an *ordinary*
+    /// snapshot-bound capture (never the legacy `Permission` kind) so the
+    /// matcher and commit-time read-set validation both wake on membership
+    /// writes — including the empty-to-visible direction.
+    ///
+    /// @ref LLP 0056#what-exists-what-this-adds — the declaration-bound
+    ///   membership predicate node, the first step past single-table filters.
+    #[serde(
+        default,
+        rename = "membershipFilters",
+        alias = "membership_filters",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub membership_filters: Vec<MembershipPredicate>,
     #[serde(default)]
     pub order: Vec<OrderExpr>,
     pub limit: Option<usize>,
     pub indexed_by: Option<String>,
+}
+
+/// A declaration-bound membership semi-join: the structured-filter IR node the
+/// `eventMembers.memberOf(resourceRef)` / `eventMembers.hasRole(resourceRef,
+/// …)` rule helpers lower to. There is deliberately **no** global
+/// `memberOf`/`hasRole` resolver — two declarations can target the same
+/// resource type, and that ambiguity is an authorization bug factory
+/// (LLP 0056 §Rule helpers), so every predicate names its declaration.
+///
+/// Semantics: the predicate holds for the effective principal iff a membership
+/// row exists in the bound declaration whose `principal` axis is that
+/// principal, whose `resource` axis equals the resolved `resource` reference,
+/// and whose `role` is one of the effective roles. A null effective principal
+/// (unauthenticated) matches no rows — fail-closed.
+///
+/// The node is **authoritative-only**: it is evaluated by a non-recursive
+/// storage semi-join that deliberately bypasses the membership table's own
+/// row-visibility rules (a locked-down roster must not break role evaluation
+/// for guests), never by the pure/optimistic `ValueExpr` evaluator — which has
+/// no storage and no business consulting membership facts.
+///
+/// @ref LLP 0056#rule-helpers — declaration-bound; `memberOf` excludes
+///   `pendingRoles`; `hasRole` names roles explicitly; `resourceRef` is a row
+///   field of the queried table or a query argument of the declared resource
+///   type.
+/// @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 —
+///   admitted `DatabaseCaptured` declarative expression kind, snapshot-bound,
+///   with the pinned empty-result capture.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MembershipPredicate {
+    /// The stable declaration id this predicate binds to
+    /// (`MembershipManifest::effective_id`).
+    pub declaration: String,
+    /// Where the `resource` axis value is read from.
+    pub resource: MembershipResourceRef,
+    /// The satisfying roles. `None` is `memberOf` — every **non-pending** role
+    /// of the declaration. `Some(list)` is `hasRole` with exactly the named
+    /// roles (which may name pending roles explicitly).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roles: Option<Vec<String>>,
+}
+
+/// Where a [`MembershipPredicate`] reads its `resource` axis value from. Both
+/// forms are analyzable at subscribe time; anything else — a computed
+/// expression, a different resource type, a join through a third table — is a
+/// load-time error (LLP 0056 §Rule helpers).
+///
+/// @ref LLP 0056#rule-helpers — the two analyzable resource-reference forms.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MembershipResourceRef {
+    /// A column of the queried (primary) table whose type is the declared
+    /// resource reference. The per-row semi-join; v1 captures a **conservative
+    /// table-level** dependency for it (coarse wake = re-query cost; the
+    /// reverse choice would be a correctness loss).
+    RowField(String),
+    /// A query argument (dotted path) of the declared resource type. The
+    /// resource is fixed for the whole query, so v1 captures the fine-grained
+    /// `(principal, resource)` index-range dependency, including the
+    /// empty-result form.
+    Arg(String),
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2178,6 +2284,23 @@ pub enum ValueExpr {
     Record {
         fields: BTreeMap<String, ValueExpr>,
     },
+    /// A declaration-bound membership semi-join as a composable boolean
+    /// expression kind — the form the `eventMembers.memberOf(...)` /
+    /// `hasRole(...)` rule helpers and the `ctx.permissions.<decl>.requireRole`
+    /// twin lower to (LLP 0053 §Agent-auth item 1 admits it as a new
+    /// declarative IR expression kind).
+    ///
+    /// It is **authoritative-only**: unlike every other variant it cannot be
+    /// answered by the pure `ValueExpr` evaluator, because deciding it requires
+    /// a non-recursive storage semi-join over the membership table (bypassing
+    /// that table's row-visibility rules). The pure evaluator therefore refuses
+    /// it (`SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY`), the query path answers it
+    /// through `QueryPlan::membership_filters` / the `ctx.permissions` read, and
+    /// the derived optimistic overlay refuses rather than mirrors it — so a
+    /// role check is server-decided, never optimistically forged client-side.
+    ///
+    /// @ref LLP 0056#rule-helpers — the declaration-bound membership predicate.
+    MembershipExists(Box<MembershipPredicate>),
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]

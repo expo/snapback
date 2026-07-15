@@ -164,6 +164,7 @@ fn row_count(db: &LocalDatabase, table: &str) -> usize {
             filters: vec![],
             order: vec![],
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: None,
         },
         &input(),

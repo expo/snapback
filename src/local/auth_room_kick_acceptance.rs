@@ -1054,6 +1054,7 @@ fn game_functions() -> FunctionManifest {
             ],
             order: Vec::new(),
             limit: None,
+            membership_filters: Vec::new(),
             indexed_by: Some("by_game_user".to_owned()),
         })),
     );
