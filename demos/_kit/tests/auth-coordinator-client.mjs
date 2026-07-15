@@ -89,12 +89,12 @@ const handshake = (authority = anonymous) => ({
     sessionGeneration: authority.kind === 'session' ? 1 : 0,
   },
   deploymentIdentity: {
-    schemaVersion: 'v1-sessions',
+    schemaVersion: 'snapback.v1',
     authMode: 'sessions',
     appId: APP,
-    schemaHash: 'sha256:schema',
-    bundleHash: 'sha256:bundle',
-    inputsHash: 'sha256:inputs',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'a'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'b'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'c'.repeat(64)}`,
   },
   authorizedLease: null,
 });

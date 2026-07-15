@@ -1370,6 +1370,14 @@ suspended runs that barrier on its mandatory lifecycle/publication check before
 its first resumed exposure. This is fail-closed commit/exposure fencing, not a
 claim of globally simultaneous DOM blanking.
 
+Resume runs after cross-context ownership is released but while the owner's
+local exposure barrier remains closed. A resume participant may therefore run
+a handshake or durable-authority check. If that check reloads the exact settled
+revision, epoch, and authority already owned by the active local barrier, it
+returns that capture without recursively starting a peer-adoption barrier.
+This exact-match rule prevents reentrant resume while preserving the closed
+barrier; any different durable record is not treated as the local successor.
+
 Where Web Locks is unavailable, the storage adapter must provide an atomic
 compare-and-swap lease in the same transactional domain as custody:
 
@@ -1987,6 +1995,9 @@ authority. The broadcast harness delays delivery until durable settlement and
 exercises drop-all, either single phase, both phase orders, and every unique
 permutation of duplicate clearing/settled messages. These are readiness-gating
 tests, not claims inferred from the underlying reload mechanism.
+The composed Contract test also mounts single- and multi-live surfaces on one
+coordinator and proves that a durable-authority reload started by successor
+resume does not recursively replay that barrier or starve its completion.
 
 ### Client store and Contract boundaries
 

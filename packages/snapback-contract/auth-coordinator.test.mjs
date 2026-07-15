@@ -409,6 +409,86 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   await unregisterB();
 }
 
+// Resume may perform a mandatory durable-authority reload after cross-context
+// ownership is released. Reloading the exact locally settled successor must
+// confirm the capture without recursively replacing and replaying the active
+// barrier.
+// @ref LLP 0059#cross-context-ownership — exact local successor reloads are
+// fenced checks inside the still-closed exposure barrier, not peer adoption.
+{
+  const reentrant = new AuthCoordinator({
+    appId: `${APP}/resume-reload`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await reentrant.establishAnonymous(anonymous());
+  let resumeCalls = 0;
+  const unregister = reentrant.registerParticipant({
+    name: 'resume-durable-reload',
+    async quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {},
+    async resume(context) {
+      resumeCalls += 1;
+      assert.equal(resumeCalls, 1, 'exact successor reload must not recurse into resume');
+      assert.deepEqual(await reentrant.synchronize(), context.capture);
+    },
+  });
+  const after = await reentrant.transition(
+    before,
+    successor(session(), BEARER_SENTINEL, 10_000),
+    'resume_reload',
+  );
+  assert.equal(after.authorityEpoch, 1);
+  assert.equal(resumeCalls, 1);
+  await unregister();
+  await reentrant.close();
+}
+
+// The same exact-reload rule applies while a peer context is adopting a
+// successor it learned from durable custody rather than owning the transition.
+{
+  const sharedResumeState = { custody: {} };
+  const writer = new AuthCoordinator({
+    appId: `${APP}/peer-resume-reload`,
+    storage: createMemoryAuthCustodyStorage({ state: sharedResumeState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId: `${APP}/peer-resume-reload`,
+    storage: createMemoryAuthCustodyStorage({ state: sharedResumeState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await writer.establishAnonymous(anonymous());
+  await peer.synchronize();
+  let resumeCalls = 0;
+  peer.registerParticipant({
+    name: 'peer-resume-durable-reload',
+    async quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {},
+    async resume(context) {
+      resumeCalls += 1;
+      assert.equal(resumeCalls, 1, 'peer successor reload must not recurse into resume');
+      assert.deepEqual(await peer.synchronize(), context.capture);
+    },
+  });
+  const settled = await writer.transition(
+    before,
+    successor(session(), BEARER_SENTINEL, 10_000),
+    'peer_resume_reload',
+  );
+  assert.deepEqual(await peer.synchronize(), settled);
+  assert.equal(resumeCalls, 1);
+  await peer.close();
+  await writer.close();
+}
+
 // Same-authority bearer rotation changes the custody revision, not app
 // authority. Ordinary work captured before rotation remains current, while a
 // second credential write must compare the exact old revision and loses.
