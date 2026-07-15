@@ -618,6 +618,10 @@ impl<'a> IbexHostContext<'a> {
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
         crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+        crate::membership_rules::validate_impersonated_global_roles(
+            db.schema(),
+            handler_auth.roles(),
+        )?;
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
         Ok(Self {
@@ -1061,6 +1065,19 @@ impl<'a> IbexHostContext<'a> {
                     Some(requested_roles.as_slice())
                 };
                 let roles = crate::membership_rules::effective_roles(&membership, requested);
+                if membership.scope == crate::manifest::MembershipScope::App
+                    && crate::membership_rules::impersonated_global_role_satisfies(
+                        &membership,
+                        &declaration,
+                        &roles,
+                        self.handler_auth.roles(),
+                    )
+                {
+                    // Dev-only fidelity seam: this succeeds from frozen
+                    // session-role input, not from a membership row. Real
+                    // sessions always project roles: [].
+                    return Ok(Value::Bool(true));
+                }
                 let binding = if membership.resource.is_none() {
                     // scope:"app" — the singleton system-constant resource.
                     crate::membership_rules::ResourceBinding::AppSingleton

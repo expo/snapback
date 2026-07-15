@@ -462,6 +462,10 @@ impl HandlerAuthProjection {
     pub fn is_authenticated(&self) -> bool {
         self.is_authenticated
     }
+
+    pub(crate) fn roles(&self) -> &[String] {
+        self.roles.as_deref().unwrap_or(&[])
+    }
 }
 
 /// Every authority entry is registered here. The target classification is an

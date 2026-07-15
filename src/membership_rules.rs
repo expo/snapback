@@ -55,6 +55,75 @@ pub(crate) fn find_declaration<'a>(
     })
 }
 
+/// Validate dev-only `--as-role` inputs against app-global declarations. A
+/// bare role is usable only when exactly one app-scoped declaration owns that
+/// vocabulary entry; declaration-qualified roles bind explicitly. Scoped
+/// declarations are intentionally absent from this resolver.
+///
+/// @ref LLP 0056#what-stays-out-of-the-session -- impersonated global roles
+///   are declaration-safe and scoped memberships are never impersonated.
+pub(crate) fn validate_impersonated_global_roles(
+    schema: &SchemaManifest,
+    roles: &[String],
+) -> SnapbackResult<()> {
+    for role in roles {
+        if let Some((declaration, role)) = role.split_once(':') {
+            let valid = find_declaration(schema, declaration).is_some_and(|(_, membership)| {
+                membership.scope == crate::manifest::MembershipScope::App
+                    && membership.roles.iter().any(|candidate| candidate == role)
+            });
+            if !valid {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_INVALID",
+                    "auth",
+                    "qualified impersonated role does not name one app-global declaration role",
+                ));
+            }
+            continue;
+        }
+        let owners = schema
+            .tables
+            .iter()
+            .filter_map(|table| table.membership.as_ref())
+            .filter(|membership| {
+                membership.scope == crate::manifest::MembershipScope::App
+                    && membership.roles.iter().any(|candidate| candidate == role)
+            })
+            .count();
+        if owners > 1 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_AMBIGUOUS",
+                "auth",
+                "bare impersonated role belongs to more than one app-global membership declaration",
+            ));
+        }
+        if owners == 0 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_INVALID",
+                "auth",
+                "bare impersonated role does not belong to an app-global membership declaration",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn impersonated_global_role_satisfies(
+    membership: &MembershipManifest,
+    declaration: &str,
+    required_roles: &[String],
+    impersonated_roles: &[String],
+) -> bool {
+    if membership.scope != crate::manifest::MembershipScope::App {
+        return false;
+    }
+    required_roles.iter().any(|required| {
+        impersonated_roles.iter().any(|presented| {
+            presented == required || presented == &format!("{declaration}:{required}")
+        })
+    })
+}
+
 /// The satisfying role set. `memberOf` (`requested == None`) is every
 /// **non-pending** role of the declaration — an invited-but-not-accepted
 /// principal is not a member, so `pendingRoles` are excluded. `hasRole`
@@ -822,5 +891,106 @@ mod tests {
             roles: Some(vec!["host".to_owned(), "cohost".to_owned()]),
         };
         assert!(validate_membership_predicate(&schema, &events, &ok).is_ok());
+    }
+
+    fn role_table(
+        table: &str,
+        declaration: &str,
+        scope: crate::manifest::MembershipScope,
+    ) -> TableManifest {
+        let resource_scoped = scope == crate::manifest::MembershipScope::Resource;
+        let mut fields = vec![
+            FieldManifest {
+                name: "userId".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            },
+            FieldManifest {
+                name: "role".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+        ];
+        if resource_scoped {
+            fields.push(FieldManifest {
+                name: "eventId".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            });
+        }
+        TableManifest {
+            name: table.to_owned(),
+            fields,
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: Some(MembershipManifest {
+                id: Some(declaration.to_owned()),
+                principal: "userId".to_owned(),
+                resource: resource_scoped.then(|| "eventId".to_owned()),
+                role: "role".to_owned(),
+                roles: vec!["admin".to_owned()],
+                pending_roles: None,
+                bootstrap_role: None,
+                last_holder: None,
+                expiry: None,
+                incidental: None,
+                provenance: None,
+                transitions: Vec::new(),
+                scope,
+                resource_table: resource_scoped.then(|| "events".to_owned()),
+            }),
+        }
+    }
+
+    #[test]
+    fn impersonated_roles_are_global_only_and_ambiguity_is_refused() {
+        let schema = SchemaManifest {
+            tables: vec![
+                role_table(
+                    "app_roles",
+                    "appRoles",
+                    crate::manifest::MembershipScope::App,
+                ),
+                role_table(
+                    "billing_roles",
+                    "billingRoles",
+                    crate::manifest::MembershipScope::App,
+                ),
+                role_table(
+                    "event_roles",
+                    "eventRoles",
+                    crate::manifest::MembershipScope::Resource,
+                ),
+            ],
+            ..SchemaManifest::default()
+        };
+        let error = validate_impersonated_global_roles(&schema, &["admin".to_owned()])
+            .expect_err("a bare role with two global owners is ambiguous");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_AMBIGUOUS"
+        );
+        let unknown = validate_impersonated_global_roles(&schema, &["unknown".to_owned()])
+            .expect_err("an undeclared bare role is invalid");
+        assert_eq!(
+            unknown.diagnostic.code,
+            "SNAPBACK_IMPERSONATED_GLOBAL_ROLE_INVALID"
+        );
+        validate_impersonated_global_roles(&schema, &["appRoles:admin".to_owned()])
+            .expect("qualified role binds one declaration");
+        assert!(impersonated_global_role_satisfies(
+            schema.tables[0].membership.as_ref().unwrap(),
+            "appRoles",
+            &["admin".to_owned()],
+            &["appRoles:admin".to_owned()]
+        ));
+        assert!(!impersonated_global_role_satisfies(
+            schema.tables[2].membership.as_ref().unwrap(),
+            "eventRoles",
+            &["admin".to_owned()],
+            &["admin".to_owned()]
+        ));
     }
 }

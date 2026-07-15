@@ -3,7 +3,8 @@ use crate::ephemeral::{validate_collection_definitions, validate_collection_perm
 use crate::manifest::{
     AuthInput, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
     CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MembershipManifest,
-    MembershipOp, MembershipScope, MembershipTarget, MutationOutput, MutationPlan, MutationStep,
+    MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
+    MutationPlan, MutationStep,
     OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS,
     QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest,
     ValueExpr, auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid,
@@ -636,6 +637,7 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_changes", [])?;
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
+    tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
     auth_invalidation::clear_retry_episodes_in(tx)?;
     authorized_lease::clear_authorized_lease_reservations_in(tx)?;
     auth_invalidation::rotate_data_version_stream_in(tx)?;
@@ -2271,6 +2273,7 @@ impl LocalDatabase {
             },
             options,
             MembershipWriteGate::Deny,
+            None,
             &|| Ok(()),
             || Ok(()),
         )
@@ -2293,6 +2296,7 @@ impl LocalDatabase {
             effects,
             options,
             MembershipWriteGate::Deny,
+            None,
             check_live,
             before_commit,
         )
@@ -2304,6 +2308,7 @@ impl LocalDatabase {
         effects: BufferedEffects,
         options: BufferedCommitOptions<'_>,
         membership_gate: MembershipWriteGate,
+        membership_writer: Option<&MembershipWriter>,
         check_live: &Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -2367,6 +2372,22 @@ impl LocalDatabase {
                     let table = schema_table(&schema, &table)?;
                     let changed_fields = changed_field_names(&values);
                     let document = insert_document(&tx, table, &id, &values, next_version, now_ms)?;
+                    write_membership_creation_provenance(
+                        &tx,
+                        table,
+                        &id,
+                        membership_writer,
+                    )?;
+                    record_membership_transition(
+                        &tx,
+                        table,
+                        ChangeOp::Insert,
+                        None,
+                        Some(&document),
+                        &changed_fields,
+                        next_version,
+                        membership_writer,
+                    )?;
                     record_change(
                         &tx,
                         next_version,
@@ -2389,9 +2410,20 @@ impl LocalDatabase {
                     if values.is_empty() {
                         continue;
                     }
+                    let before = get_document_from_tx(&tx, table, &id)?;
                     let changed_fields = changed_field_names(&values);
                     if patch_document(&tx, table, &id, &values, next_version, now_ms)? {
                         let document = get_document_from_tx(&tx, table, &id)?;
+                        record_membership_transition(
+                            &tx,
+                            table,
+                            ChangeOp::Update,
+                            before.as_ref(),
+                            document.as_ref(),
+                            &changed_fields,
+                            next_version,
+                            membership_writer,
+                        )?;
                         record_change(
                             &tx,
                             next_version,
@@ -2414,6 +2446,16 @@ impl LocalDatabase {
                     let table = schema_table(&schema, &table)?;
                     let document = get_document_from_tx(&tx, table, &id)?;
                     if delete_document(&tx, table, &id)? {
+                        record_membership_transition(
+                            &tx,
+                            table,
+                            ChangeOp::Delete,
+                            document.as_ref(),
+                            None,
+                            &[],
+                            next_version,
+                            membership_writer,
+                        )?;
                         record_change(
                             &tx,
                             next_version,
@@ -2553,6 +2595,25 @@ impl LocalDatabase {
             -- table_name = ?, which was a full scan on the (version, id) index.
             CREATE INDEX IF NOT EXISTS _snapback_changes_by_table_version
               ON _snapback_changes(table_name, version);
+            -- @ref LLP 0056#agents -- full membership provenance is an
+            -- append-only durable record, including transitions whose source
+            -- membership row is later deleted.
+            CREATE TABLE IF NOT EXISTS _snapback_membership_transitions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              declaration_id TEXT NOT NULL,
+              op TEXT NOT NULL,
+              principal TEXT NOT NULL,
+              resource TEXT,
+              from_role TEXT,
+              to_role TEXT,
+              actor TEXT NOT NULL,
+              effective TEXT NOT NULL,
+              grant_id TEXT,
+              commit_version INTEGER NOT NULL CHECK(commit_version >= 0),
+              writer_class TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS _snapback_membership_transitions_by_declaration
+              ON _snapback_membership_transitions(declaration_id, commit_version, id);
             -- LLP 0043 M2: exactly-once queued replay. The settled output and
             -- data changes are written in one SQLite transaction.
             CREATE TABLE IF NOT EXISTS _snapback_client_mutations (
@@ -3176,6 +3237,23 @@ fn validate_membership_declaration(
         return Ok(());
     };
     let declaration = membership.effective_id(&table.name).to_owned();
+
+    if let Some(field) = table
+        .fields
+        .iter()
+        .find(|field| MEMBERSHIP_PROVENANCE_COLUMNS.contains(&field.name.as_str()))
+    {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED",
+            &table.name,
+            &declaration,
+            format!(
+                "field {:?} is host-managed membership provenance and cannot be app-declared",
+                field.name
+            ),
+        )
+        .with_detail("field", field.name.clone()));
+    }
 
     // The derivation owns the table: a hand-written permissionBacking is a
     // conflicting second authorization declaration over the same rows.
@@ -4204,6 +4282,17 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
             if field.optional { "" } else { " NOT NULL" }
         ));
     }
+    if table
+        .membership
+        .as_ref()
+        .is_some_and(|membership| membership.provenance.is_some())
+    {
+        columns.extend(
+            MEMBERSHIP_PROVENANCE_COLUMNS
+                .iter()
+                .map(|column| format!("{} TEXT", quote_ident(column).expect("fixed identifier"))),
+        );
+    }
 
     tx.execute(
         &format!(
@@ -4270,6 +4359,39 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
                 }
             }
         }
+    }
+
+    if table
+        .membership
+        .as_ref()
+        .is_some_and(|membership| membership.provenance.is_some())
+    {
+        let existing = physical_columns(tx, &table.name)?;
+        for column in MEMBERSHIP_PROVENANCE_COLUMNS {
+            if !existing.contains_key(column) {
+                tx.execute(
+                    &format!(
+                        "ALTER TABLE {} ADD COLUMN {} TEXT",
+                        quote_ident(&table.name)?,
+                        quote_ident(column)?
+                    ),
+                    [],
+                )?;
+            }
+        }
+        // Brownfield adoption is allowed: rows predating the declaration get
+        // an explicit historical tag instead of blocking activation.
+        tx.execute(
+            &format!(
+                "UPDATE {} SET {} = COALESCE({}, 'preexisting'), {} = COALESCE({}, 'preexisting')",
+                quote_ident(&table.name)?,
+                quote_ident(MEMBERSHIP_GRANTED_BY_ACTOR)?,
+                quote_ident(MEMBERSHIP_GRANTED_BY_ACTOR)?,
+                quote_ident(MEMBERSHIP_GRANTED_BY_EFFECTIVE)?,
+                quote_ident(MEMBERSHIP_GRANTED_BY_EFFECTIVE)?,
+            ),
+            [],
+        )?;
     }
 
     // Repair both a safe optional→required evolution and legacy databases
@@ -4419,6 +4541,14 @@ fn safe_rebuild_column_type(column: &PhysicalColumn) -> SnapbackResult<&'static 
 /// `validate_schema` reserves its physical name, so a user index cannot collide
 /// with it.
 pub(crate) const MEMBERSHIP_UNIQUE_INDEX_NAME: &str = "_membership_pk";
+pub(crate) const MEMBERSHIP_GRANTED_BY_ACTOR: &str = "grantedByActor";
+pub(crate) const MEMBERSHIP_GRANTED_BY_EFFECTIVE: &str = "grantedByEffective";
+pub(crate) const MEMBERSHIP_GRANTED_BY_GRANT: &str = "grantedByGrant";
+const MEMBERSHIP_PROVENANCE_COLUMNS: [&str; 3] = [
+    MEMBERSHIP_GRANTED_BY_ACTOR,
+    MEMBERSHIP_GRANTED_BY_EFFECTIVE,
+    MEMBERSHIP_GRANTED_BY_GRANT,
+];
 
 /// The generated true-unique index for a membership table: `(principal,
 /// resource)` for a resource-scoped declaration, or `(principal)` for
@@ -5388,11 +5518,20 @@ fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MembershipWriter {
     User { effective_principal: String },
+    Delegated {
+        actor_principal: String,
+        effective_principal: String,
+        grant_id: String,
+    },
     System,
     AdminBypass,
     Anonymous,
     Seed,
-    Import,
+    Import {
+        granted_by_actor: String,
+        granted_by_effective: String,
+        granted_by_grant: Option<String>,
+    },
     Admin,
 }
 
@@ -5421,13 +5560,53 @@ impl MembershipWriter {
     /// unreachable by a userless authority.
     fn effective_principal(&self) -> Option<&str> {
         match self {
-            Self::User { effective_principal } => Some(effective_principal),
+            Self::User { effective_principal }
+            | Self::Delegated {
+                effective_principal,
+                ..
+            } => Some(effective_principal),
             _ => None,
         }
     }
 
     fn is_privileged_noninvocation(&self) -> bool {
-        matches!(self, Self::Seed | Self::Import | Self::Admin)
+        matches!(self, Self::Seed | Self::Import { .. } | Self::Admin)
+    }
+
+    fn provenance(&self) -> Option<MembershipWriteProvenance> {
+        let values = match self {
+            Self::User { effective_principal } => MembershipWriteProvenance {
+                actor: effective_principal.clone(),
+                effective: effective_principal.clone(),
+                grant: None,
+                writer_class: "invocation".to_owned(),
+            },
+            Self::Delegated {
+                actor_principal,
+                effective_principal,
+                grant_id,
+            } => MembershipWriteProvenance {
+                actor: actor_principal.clone(),
+                effective: effective_principal.clone(),
+                grant: Some(grant_id.clone()),
+                writer_class: "delegated".to_owned(),
+            },
+            Self::System => MembershipWriteProvenance::tagged("system"),
+            Self::Seed => MembershipWriteProvenance::tagged("seed"),
+            Self::Import {
+                granted_by_actor,
+                granted_by_effective,
+                granted_by_grant,
+            } => MembershipWriteProvenance {
+                actor: granted_by_actor.clone(),
+                effective: granted_by_effective.clone(),
+                grant: granted_by_grant.clone(),
+                writer_class: "import".to_owned(),
+            },
+            Self::Admin => MembershipWriteProvenance::tagged("hostOps:dataEdit"),
+            Self::AdminBypass | Self::Anonymous => return None,
+        };
+        Some(values)
     }
 
     /// A minimal handler input carrying just the effective principal so the
@@ -5443,6 +5622,25 @@ impl MembershipWriter {
                 user_id: principal,
             },
             ..HandlerInput::default()
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MembershipWriteProvenance {
+    actor: String,
+    effective: String,
+    grant: Option<String>,
+    writer_class: String,
+}
+
+impl MembershipWriteProvenance {
+    fn tagged(tag: &str) -> Self {
+        Self {
+            actor: tag.to_owned(),
+            effective: tag.to_owned(),
+            grant: None,
+            writer_class: tag.to_owned(),
         }
     }
 }
@@ -5495,6 +5693,28 @@ pub struct MembershipPlan {
     /// of a protected role (protection wins over expiry). Empty for every other
     /// operation.
     skipped_protected: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MembershipCreationProvenance {
+    pub actor: String,
+    pub effective: String,
+    pub grant: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MembershipTransitionRecord {
+    pub declaration: String,
+    pub op: String,
+    pub principal: String,
+    pub resource: Option<String>,
+    pub from_role: Option<String>,
+    pub to_role: Option<String>,
+    pub actor: String,
+    pub effective: String,
+    pub grant: Option<String>,
+    pub commit_version: u64,
+    pub writer_class: String,
 }
 
 impl MembershipPlan {
@@ -5667,9 +5887,119 @@ impl LocalDatabase {
                 identity: None,
             },
             MembershipWriteGate::Sanctioned,
+            Some(writer),
             &|| Ok(()),
             || Ok(()),
         )
+    }
+
+    /// Build a privileged non-invocation insert. Seed, import, and admin data
+    /// edit carry their own authority, so they bypass the transition matrix but
+    /// still pass the closed vocabulary, resource, uniqueness, eligibility,
+    /// provenance, and invalidation seams at commit.
+    pub fn plan_privileged_membership_insert(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        values: Map<String, Value>,
+    ) -> SnapbackResult<MembershipPlan> {
+        if !writer.is_privileged_noninvocation() {
+            return Err(membership_refusal(
+                "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_REQUIRED",
+                "privileged membership insertion requires seed, import, or admin data-edit authority",
+            ));
+        }
+        let schema = self.schema.clone();
+        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+        let principal = extract_axis(&values, &membership.principal, "principal")?;
+        let role = extract_axis(&values, &membership.role, "role")?;
+        require_in_vocabulary(membership, &role)?;
+        if let (Some(resource_field), Some(resource_table)) =
+            (&membership.resource, &membership.resource_table)
+        {
+            let resource = extract_axis(&values, resource_field, "resource")?;
+            if read_resource_version(&self.conn, resource_table, &resource)?.is_none() {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                    format!(
+                        "privileged membership insert names resource {resource:?}, which does not exist in {resource_table}"
+                    ),
+                ));
+            }
+        }
+        self.require_eligible_if_protected(membership, &role, &principal)?;
+        Ok(MembershipPlan {
+            writes: vec![BufferedWrite::Insert {
+                table: table_manifest.name.clone(),
+                id: new_id(),
+                values,
+            }],
+            read_dependencies: Vec::new(),
+            result: Value::Null,
+            skipped_protected: Vec::new(),
+        })
+    }
+
+    pub fn membership_creation_provenance(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> SnapbackResult<Option<MembershipCreationProvenance>> {
+        let (table, membership) = resolve_membership_decl(&self.schema, table)?;
+        if membership.provenance.is_none() {
+            return Ok(None);
+        }
+        self.conn
+            .query_row(
+                &format!(
+                    "SELECT {}, {}, {} FROM {} WHERE _id = ?1",
+                    quote_ident(MEMBERSHIP_GRANTED_BY_ACTOR)?,
+                    quote_ident(MEMBERSHIP_GRANTED_BY_EFFECTIVE)?,
+                    quote_ident(MEMBERSHIP_GRANTED_BY_GRANT)?,
+                    quote_ident(&table.name)?,
+                ),
+                params![id],
+                |row| {
+                    Ok(MembershipCreationProvenance {
+                        actor: row.get(0)?,
+                        effective: row.get(1)?,
+                        grant: row.get(2)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(SnapbackError::from)
+    }
+
+    pub fn membership_transition_log(
+        &self,
+        declaration: &str,
+    ) -> SnapbackResult<Vec<MembershipTransitionRecord>> {
+        let mut statement = self.conn.prepare(
+            "SELECT declaration_id, op, principal, resource, from_role, to_role,
+                    actor, effective, grant_id, commit_version, writer_class
+             FROM _snapback_membership_transitions
+             WHERE declaration_id = ?1
+             ORDER BY commit_version, id",
+        )?;
+        statement
+            .query_map(params![declaration], |row| {
+                Ok(MembershipTransitionRecord {
+                    declaration: row.get(0)?,
+                    op: row.get(1)?,
+                    principal: row.get(2)?,
+                    resource: row.get(3)?,
+                    from_role: row.get(4)?,
+                    to_role: row.get(5)?,
+                    actor: row.get(6)?,
+                    effective: row.get(7)?,
+                    grant: row.get(8)?,
+                    commit_version: row.get::<_, i64>(9)? as u64,
+                    writer_class: row.get(10)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(SnapbackError::from)
     }
 
     /// Plan an `insert` transition (open-join, invite, ...). Reads the resource
@@ -6646,6 +6976,132 @@ fn membership_hostplan_write_denied(table: &str) -> SnapbackError {
         ),
     )
     .with_detail("table", table.to_owned())
+}
+
+fn membership_write_provenance(
+    writer: Option<&MembershipWriter>,
+) -> SnapbackResult<MembershipWriteProvenance> {
+    writer.and_then(MembershipWriter::provenance).ok_or_else(|| {
+        membership_refusal(
+            "SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE",
+            "a provenance-enabled membership write lacks a resolved writer attribution",
+        )
+    })
+}
+
+fn write_membership_creation_provenance(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    id: &str,
+    writer: Option<&MembershipWriter>,
+) -> SnapbackResult<()> {
+    let Some(membership) = &table.membership else {
+        return Ok(());
+    };
+    if membership.provenance.is_none() {
+        return Ok(());
+    }
+    let provenance = membership_write_provenance(writer)?;
+    tx.execute(
+        &format!(
+            "UPDATE {} SET {} = ?1, {} = ?2, {} = ?3 WHERE _id = ?4",
+            quote_ident(&table.name)?,
+            quote_ident(MEMBERSHIP_GRANTED_BY_ACTOR)?,
+            quote_ident(MEMBERSHIP_GRANTED_BY_EFFECTIVE)?,
+            quote_ident(MEMBERSHIP_GRANTED_BY_GRANT)?,
+        ),
+        params![
+            provenance.actor,
+            provenance.effective,
+            provenance.grant,
+            id
+        ],
+    )?;
+    Ok(())
+}
+
+fn membership_axis_value(
+    row: Option<&Value>,
+    field: &str,
+    label: &str,
+) -> SnapbackResult<Option<String>> {
+    let Some(row) = row.and_then(Value::as_object) else {
+        return Ok(None);
+    };
+    row.get(field)
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .map(Some)
+        .ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID",
+                format!("membership {label} field {field:?} is absent or not a string"),
+            )
+        })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_membership_transition(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    op: ChangeOp,
+    before: Option<&Value>,
+    after: Option<&Value>,
+    changed_fields: &[String],
+    commit_version: u64,
+    writer: Option<&MembershipWriter>,
+) -> SnapbackResult<()> {
+    let Some(membership) = &table.membership else {
+        return Ok(());
+    };
+    if membership.provenance != Some(MembershipProvenance::Full) {
+        return Ok(());
+    }
+    if op == ChangeOp::Update
+        && changed_fields
+            .iter()
+            .all(|field| !table.field_affects_authorization(field))
+    {
+        return Ok(());
+    }
+    let provenance = membership_write_provenance(writer)?;
+    let current = after.or(before);
+    let principal = membership_axis_value(current, &membership.principal, "principal")?
+        .expect("membership transition has a row image");
+    let resource = membership
+        .resource
+        .as_deref()
+        .map(|field| membership_axis_value(current, field, "resource"))
+        .transpose()?
+        .flatten();
+    let from_role = membership_axis_value(before, &membership.role, "role")?;
+    let to_role = membership_axis_value(after, &membership.role, "role")?;
+    let op = match op {
+        ChangeOp::Insert => "insert",
+        ChangeOp::Delete => "remove",
+        ChangeOp::Update if changed_fields.contains(&membership.role) => "setRole",
+        ChangeOp::Update => "patch",
+    };
+    tx.execute(
+        "INSERT INTO _snapback_membership_transitions(
+           declaration_id, op, principal, resource, from_role, to_role,
+           actor, effective, grant_id, commit_version, writer_class
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            membership.effective_id(&table.name),
+            op,
+            principal,
+            resource,
+            from_role,
+            to_role,
+            provenance.actor,
+            provenance.effective,
+            provenance.grant,
+            commit_version,
+            provenance.writer_class,
+        ],
+    )?;
+    Ok(())
 }
 
 fn insert_document(
@@ -8969,12 +9425,13 @@ mod membership_write_tests {
                             on_expiry: "remove".to_owned(),
                         }),
                         incidental: Some(vec!["notifyPrefs".to_owned()]),
-                        provenance: None,
+                        provenance: Some(MembershipProvenance::Full),
                         transitions: vec![
                             transition(Insert, &["host", "cohost"], Other, None, Some(&["invited"]), None),
                             transition(Insert, &["none"], Own, None, Some(&["guest"]), None),
                             transition(SetRole, &["self"], Own, Some(&["invited"]), Some(&["guest"]), None),
                             transition(SetRole, &["host"], Other, Some(&["guest"]), Some(&["cohost"]), None),
+                            transition(SetRole, &["host"], Other, Some(&["cohost"]), Some(&["guest"]), None),
                             transition(SetRole, &["host"], Other, Some(&["cohost"]), Some(&["host"]), None),
                             transition(Remove, &["self"], Own, Some(&["invited", "guest", "cohost", "host"]), None, None),
                             transition(Remove, &["host"], Other, Some(&["guest", "cohost"]), None, None),
@@ -9171,6 +9628,335 @@ mod membership_write_tests {
             .commit_membership_plan(&user("alice"), remove_plan)
             .expect("remove commit");
         assert!(remove_commit.authorization.as_ref().is_some_and(|w| w.event));
+    }
+
+    #[test]
+    fn full_provenance_keeps_delegated_downgrade_and_delete_attributable() {
+        let mut db = ready_db();
+        let (event_id, host_id) = create_event(&mut db, "alice");
+        assert_eq!(
+            db.membership_creation_provenance("event_members", &host_id)
+                .unwrap(),
+            Some(MembershipCreationProvenance {
+                actor: "alice".to_owned(),
+                effective: "alice".to_owned(),
+                grant: None,
+            })
+        );
+
+        let delegated = MembershipWriter::Delegated {
+            actor_principal: "agent-a".to_owned(),
+            effective_principal: "alice".to_owned(),
+            grant_id: "grant-historical".to_owned(),
+        };
+        let values = Map::from_iter([
+            ("userId".to_owned(), json!("bob")),
+            ("eventId".to_owned(), json!(event_id)),
+            ("role".to_owned(), json!("invited")),
+        ]);
+        let plan = db
+            .plan_membership_insert(&delegated, "event_members", values)
+            .expect("delegated invite plan");
+        let invite = db
+            .commit_membership_plan(&delegated, plan)
+            .expect("delegated invite commit");
+        let bob = commit_id_for_table(&invite, "event_members");
+        assert_eq!(
+            db.membership_creation_provenance("event_members", &bob)
+                .unwrap(),
+            Some(MembershipCreationProvenance {
+                actor: "agent-a".to_owned(),
+                effective: "alice".to_owned(),
+                grant: Some("grant-historical".to_owned()),
+            })
+        );
+
+        set_role(&mut db, "bob", &bob, "guest").expect("accept invite");
+        set_role(&mut db, "alice", &bob, "cohost").expect("promote cohost");
+        let downgrade = db
+            .plan_membership_set_role(&delegated, "event_members", &bob, "guest")
+            .expect("delegated downgrade plan");
+        db.commit_membership_plan(&delegated, downgrade)
+            .expect("delegated downgrade commit");
+        let remove = db
+            .plan_membership_remove(&delegated, "event_members", &bob)
+            .expect("delegated kick plan");
+        db.commit_membership_plan(&delegated, remove)
+            .expect("delegated kick commit");
+        assert_eq!(role_of(&db, &bob), None, "the kicked row is gone");
+
+        let log = db.membership_transition_log("event_members").unwrap();
+        let bob_log = log
+            .iter()
+            .filter(|record| record.principal == "bob")
+            .collect::<Vec<_>>();
+        let downgrade = bob_log
+            .iter()
+            .find(|record| record.op == "setRole" && record.from_role.as_deref() == Some("cohost"))
+            .expect("durable downgrade record");
+        let deletion = bob_log
+            .iter()
+            .find(|record| record.op == "remove")
+            .expect("durable deletion record");
+        for record in [downgrade, deletion] {
+            assert_eq!(record.actor, "agent-a");
+            assert_eq!(record.effective, "alice");
+            assert_eq!(record.grant.as_deref(), Some("grant-historical"));
+            assert_eq!(record.writer_class, "delegated");
+        }
+    }
+
+    #[test]
+    fn full_membership_provenance_survives_database_reopen() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("membership-provenance.sqlite3");
+        let (host_id, bob_id) = {
+            let mut db = LocalDatabase::open(&path).expect("file database");
+            db.activate_auth_catalog_v1().expect("auth catalog");
+            db.apply_schema(membership_schema()).expect("membership schema");
+            let (event_id, host_id) = create_event(&mut db, "alice");
+            invite(&mut db, "alice", &event_id, "bob");
+            let bob_id = member_id(&db, &event_id, "bob");
+            set_role(&mut db, "bob", &bob_id, "guest").expect("accept invite");
+            (host_id, bob_id)
+        };
+
+        let reopened = LocalDatabase::open(&path).expect("reopen database");
+        assert_eq!(
+            reopened
+                .membership_creation_provenance("event_members", &host_id)
+                .unwrap(),
+            Some(MembershipCreationProvenance {
+                actor: "alice".to_owned(),
+                effective: "alice".to_owned(),
+                grant: None,
+            })
+        );
+        let bob_log = reopened
+            .membership_transition_log("event_members")
+            .unwrap()
+            .into_iter()
+            .filter(|record| record.principal == "bob")
+            .collect::<Vec<_>>();
+        assert!(
+            bob_log
+                .iter()
+                .any(|record| record.op == "insert" && record.to_role.as_deref() == Some("invited"))
+        );
+        assert!(
+            bob_log.iter().any(|record| {
+                record.op == "setRole"
+                    && record.from_role.as_deref() == Some("invited")
+                    && record.to_role.as_deref() == Some("guest")
+            })
+        );
+        assert_eq!(role_of(&reopened, &bob_id).as_deref(), Some("guest"));
+    }
+
+    fn global_role_schema(provenance: Option<MembershipProvenance>) -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "app_roles".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: Some(MembershipManifest {
+                    id: Some("appRoles".to_owned()),
+                    principal: "userId".to_owned(),
+                    resource: None,
+                    role: "role".to_owned(),
+                    roles: vec!["admin".to_owned(), "moderator".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance,
+                    transitions: Vec::new(),
+                    scope: MembershipScope::App,
+                    resource_table: None,
+                }),
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    #[test]
+    fn global_roles_seed_real_rows_and_import_preserves_creation_provenance() {
+        let mut db = LocalDatabase::memory().expect("memory db");
+        db.apply_schema(global_role_schema(Some(MembershipProvenance::Creation)))
+            .expect("global role schema");
+
+        let seed = MembershipWriter::Seed;
+        let seed_plan = db
+            .plan_privileged_membership_insert(
+                &seed,
+                "app_roles",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("alice")),
+                    ("role".to_owned(), json!("admin")),
+                ]),
+            )
+            .expect("first global admin is seeded");
+        let seed_commit = db.commit_membership_plan(&seed, seed_plan).unwrap();
+        let alice = commit_id_for_table(&seed_commit, "app_roles");
+        assert_eq!(
+            db.membership_creation_provenance("app_roles", &alice)
+                .unwrap()
+                .unwrap()
+                .actor,
+            "seed"
+        );
+
+        let (_, declaration) = resolve_membership_decl(db.schema(), "app_roles").unwrap();
+        let real_row = crate::membership_rules::membership_read(
+            &DbRead::Live(&db),
+            declaration,
+            "app_roles",
+            "alice",
+            crate::membership_rules::ResourceBinding::AppSingleton,
+            &["admin".to_owned()],
+        )
+        .expect("real seeded global-role lookup");
+        assert!(real_row.present, "the app gate reads durable membership data");
+
+        let admin = MembershipWriter::Admin;
+        let admin_plan = db
+            .plan_privileged_membership_insert(
+                &admin,
+                "app_roles",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("bob")),
+                    ("role".to_owned(), json!("moderator")),
+                ]),
+            )
+            .expect("admin data-edit plan");
+        let admin_commit = db
+            .commit_membership_plan(&admin, admin_plan)
+            .expect("admin data-edit commit");
+        let bob = commit_id_for_table(&admin_commit, "app_roles");
+        assert_eq!(
+            db.membership_creation_provenance("app_roles", &bob)
+                .unwrap()
+                .unwrap()
+                .actor,
+            "hostOps:dataEdit"
+        );
+
+        let imported = MembershipWriter::Import {
+            granted_by_actor: "original-agent".to_owned(),
+            granted_by_effective: "original-user".to_owned(),
+            granted_by_grant: Some("historical-grant".to_owned()),
+        };
+        let import_plan = db
+            .plan_privileged_membership_insert(
+                &imported,
+                "app_roles",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("carol")),
+                    ("role".to_owned(), json!("moderator")),
+                ]),
+            )
+            .expect("import plan");
+        let import_commit = db
+            .commit_membership_plan(&imported, import_plan)
+            .expect("import commit");
+        let carol = commit_id_for_table(&import_commit, "app_roles");
+        assert_eq!(
+            db.membership_creation_provenance("app_roles", &carol)
+                .unwrap(),
+            Some(MembershipCreationProvenance {
+                actor: "original-agent".to_owned(),
+                effective: "original-user".to_owned(),
+                grant: Some("historical-grant".to_owned()),
+            })
+        );
+        assert!(
+            db.membership_transition_log("appRoles").unwrap().is_empty(),
+            "creation provenance does not manufacture the full transition ledger"
+        );
+
+        let duplicate = db
+            .plan_privileged_membership_insert(
+                &MembershipWriter::Admin,
+                "app_roles",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("alice")),
+                    ("role".to_owned(), json!("moderator")),
+                ]),
+            )
+            .expect("admin plan");
+        let error = db
+            .commit_membership_plan(&MembershipWriter::Admin, duplicate)
+            .expect_err("one global role per declaration");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION");
+    }
+
+    #[test]
+    fn enabling_provenance_backfills_preexisting_memberships() {
+        let mut db = LocalDatabase::memory().expect("memory db");
+        let mut plain = global_role_schema(None);
+        plain.tables[0].membership = None;
+        db.apply_schema(plain).expect("pre-membership shape");
+        db.execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "app_roles".to_owned(),
+                    values: BTreeMap::from([
+                        (
+                            "userId".to_owned(),
+                            ValueExpr::Literal(json!("legacy-user")),
+                        ),
+                        ("role".to_owned(), ValueExpr::Literal(json!("admin"))),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("seed preexisting row");
+        let legacy_id = db
+            .query(
+                &QueryPlan {
+                    table: "app_roles".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .unwrap()
+            .rows[0]["_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        db.apply_schema(global_role_schema(Some(MembershipProvenance::Full)))
+            .expect("brownfield provenance adoption");
+        assert_eq!(
+            db.membership_creation_provenance("app_roles", &legacy_id)
+                .unwrap(),
+            Some(MembershipCreationProvenance {
+                actor: "preexisting".to_owned(),
+                effective: "preexisting".to_owned(),
+                grant: None,
+            })
+        );
     }
 
     // --- Writer-class seam --------------------------------------------------
@@ -9664,6 +10450,14 @@ mod membership_write_tests {
             vec!["event_members".to_owned()]
         );
         assert_eq!(authorization.version.epoch, before_sweep.epoch + 1);
+        let sweep_record = db
+            .membership_transition_log("event_members")
+            .unwrap()
+            .into_iter()
+            .find(|record| record.principal == "carol" && record.op == "remove")
+            .expect("expiry removal is durably attributed");
+        assert_eq!(sweep_record.actor, "system");
+        assert_eq!(sweep_record.writer_class, "system");
         assert_eq!(role_of(&db, &carol_id), None, "expired guest swept");
         assert_eq!(role_of(&db, &host_id).as_deref(), Some("host"), "protected host survives expiry");
     }
