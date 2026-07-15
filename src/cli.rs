@@ -4504,10 +4504,9 @@ mod tests {
             .with_auth_read(|connection| {
                 Ok((
                     connection.query_row(
-                        "SELECT generation, revoked_at_ms IS NOT NULL
-                         FROM _auth_sessions WHERE id = ?1",
+                        "SELECT COUNT(*) FROM _auth_sessions WHERE id = ?1",
                         params![session_id],
-                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, bool>(1)?)),
+                        |row| row.get::<_, i64>(0),
                     )?,
                     connection.query_row(
                         "SELECT COUNT(*) FROM _auth_verification_codes",
@@ -4517,7 +4516,7 @@ mod tests {
                 ))
             })
             .unwrap();
-        assert_eq!(facts, ((2, true), 0));
+        assert_eq!(facts, (0, 0));
     }
 
     #[test]

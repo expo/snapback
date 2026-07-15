@@ -1223,7 +1223,8 @@ membership revoked while a delegated agent subscribes is an ordinary
 - **`--allow-auth-downgrade` covers the agent classes.** 0039's audit-logged
   sessions→dev downgrade revokes every durable session so re-enabling sessions
   resurrects nothing; the dated amendment extends exactly that to agents:
-  downgrade revokes credentials and tokens and terminally revokes grants,
+  downgrade transactionally removes credentials, tokens, grants, invitations,
+  and pairing requests (while retaining principals and scope-basis tombstones),
   invitations, and pending requests. Re-enabling sessions means fresh
   onboarding and fresh consent.
 

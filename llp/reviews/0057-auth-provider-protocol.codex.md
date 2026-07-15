@@ -615,6 +615,36 @@ MINOR
 
 Relevant Node tests: 3/3 passed. `ref-check --verbose`: 0 errors.
 
+## Blind final2 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, gpt-5.6-sol
+- Method: read-only blind review; archived verbatim from `/private/tmp/eng25001-final2-codex-0057.md`
+- Session: `019f675d-2e94-76e3-9f1b-b62eec92bc30`
+- Reviewed commit: `3ac047322d055fad03e8308fdc0905d758eb9f61`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+VERDICT: NOT READY
+
+MATERIAL
+- Claim: Declared restore does not implement the governing durable-clock frontier. Evidence: LLP 0057 §Normative vocabulary and §Restore require the maximum of the host sample, durable floor, and relevant restored-catalog timestamps; LLP 0059 §Durable session clock floor explicitly says this is not limited to session creation time. `LocalDatabase::apply_auth_restore_declaration` in `src/storage/auth.rs` computes only `max(persisted floor, now_ms, MAX(_auth_sessions.created_at_ms))` (lines 1113–1134), and `declared_restore_uses_restored_session_frontier_when_host_clock_is_lower` tests only future `created_at_ms` (lines 2244–2281). A restored row with `created_at_ms=100`, `last_used_at_ms=900`, later expiry fields, floor `50`, and host sample `50` is revoked and reseeded at `100`, below committed restored timestamps. Impact (inference): post-restore auth writes and lifetime decisions can resume at an epoch older than restored durable authority history, violating LLP 0059’s non-regression invariant; current evidence does not establish safety for the omitted timestamp classes. Required resolution: compute and validate every relevant v1/v2 catalog timestamp maximum inside the restore transaction before revocation, with a test where a non-creation timestamp is the frontier, or revise LLP 0057/0059 with a complete authority-safety argument and matching acceptance evidence.
+
+MINOR
+- None.
+
+EVIDENCE
+- Read LLP 0057 completely and inspected governing LLPs `llp/0000-snapback.explainer.md`, `llp/0039-auth-vertical-slice.rfc.md`, `llp/0055-agent-principals-and-scoped-grants.rfc.md`, `llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md`, `llp/0059-session-projection-and-client-barrier.spec.md`, and `llp/0060-hosted-auth-security.rfc.md`.
+- Inspected relevant implementation and tests in `src/storage/auth.rs`, `src/storage/auth_mode.rs`, `src/storage/auth_rescue.rs`, `src/auth/backup.rs`, `src/auth/provider.rs`, `src/auth/runtime.rs`, `src/auth/coordinator.rs`, `src/auth/rescue.rs`, `src/auth/lifecycle.rs`, `src/auth/wire.rs`, `src/cli.rs`, `src/server.rs`, `src/diagnostic.rs`, agent storage modules, and the committed auth credential/session schemas.
+- Verified frozen-v1 recognition/provider usability and no implicit migration; ReadyV2 fresh activation; backup publication-state preservation and v1/v2 marker retention; rescue row identity, commit reconciliation, AUTOINCREMENT refusal, and LLP 0058 managed-state refusal; shared downgrade/restore revocation; v2 authority purge; generation and wire-schema bounds; cross-table collision retries; malformed-family-alarm non-actionability; diagnostics; and commit-ambiguity reconciliation.
+- Inspected `packages/snapback-contract/auth-coordinator.mjs` and `packages/snapback-contract/auth-coordinator.test.mjs`. Both requested delayed-`synchronize()` cuts reject the predecessor with `SNAPBACK_CLIENT_AUTHORITY_STALE`: during successor resume (`pre-barrier-reload`) and after the barrier has completed (`post-barrier-reload`). No additional LLP 0057/0058/0059 race gap was found there.
+- `node packages/snapback-contract/auth-coordinator.test.mjs` passed: `auth coordinator conformance: ok`.
+- `git rev-parse HEAD` returned `3ac047322d055fad03e8308fdc0905d758eb9f61`. Path-scoped `git diff --quiet HEAD -- …` returned 0 for every inspected file. The last-commit diff was restricted to the three expressly permitted paths. Full worktree status and corpus-wide checks were intentionally not run because they could inspect prohibited paths; restricted review artifacts and secrets were not inspected. Rust tests were not executed because the read-only environment prevented build-artifact creation.
+
 ### Review body (verbatim)
 
 VERDICT NOT READY

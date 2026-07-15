@@ -13,6 +13,7 @@ use crate::manifest::{AuthMode, FunctionManifest, SchemaManifest, SeedData};
 use serde::{Deserialize, Serialize};
 
 pub const AUTH_MODE_FORMAT_VERSION: u32 = 1;
+pub const MAX_TRANSITION_GENERATION: u64 = 9_007_199_254_740_991;
 pub const STARTUP_ARTIFACT_FORMAT_VERSION: u32 = 1;
 pub const STARTUP_ARTIFACT_MAX_BYTES: usize = 32 * 1024 * 1024;
 pub const LEGACY_MANIFEST_POISON: &str =
@@ -161,6 +162,7 @@ impl DeploymentIdentity {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthModeQuarantine {
+    #[schemars(range(min = 0, max = 9007199254740991_u64))]
     pub transition_generation: u64,
     pub code: String,
 }
@@ -169,6 +171,7 @@ pub struct AuthModeQuarantine {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthModeStateRecord {
     pub format_version: u32,
+    #[schemars(range(min = 0, max = 9007199254740991_u64))]
     pub transition_generation: u64,
     pub active: AuthMode,
     pub desired: AuthMode,
@@ -197,14 +200,22 @@ impl AuthModeStateRecord {
     }
 
     pub fn next_generation(&self) -> SnapbackResult<u64> {
-        self.transition_generation
-            .checked_add(1)
-            .ok_or_else(|| mode_corrupt("auth-mode transition generation overflowed"))
+        if self.transition_generation >= MAX_TRANSITION_GENERATION {
+            return Err(mode_corrupt(
+                "auth-mode transition generation exhausted the portable range",
+            ));
+        }
+        Ok(self.transition_generation + 1)
     }
 
     pub fn validate_shape(&self) -> SnapbackResult<()> {
         if self.format_version != AUTH_MODE_FORMAT_VERSION {
             return Err(mode_corrupt("auth-mode record has an unsupported format"));
+        }
+        if self.transition_generation > MAX_TRANSITION_GENERATION {
+            return Err(mode_corrupt(
+                "auth-mode transition generation is outside the portable range",
+            ));
         }
         if let Some(active) = &self.active_deployment {
             active.validate()?;
@@ -566,6 +577,21 @@ mod tests {
         assert_eq!(
             readiness.validate().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn transition_generation_is_portable_and_exhaustion_fails_closed() {
+        let mut state = AuthModeStateRecord::initial_dev(None);
+        state.transition_generation = MAX_TRANSITION_GENERATION;
+        assert_eq!(
+            state.next_generation().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
+        );
+        state.transition_generation = MAX_TRANSITION_GENERATION + 1;
+        assert_eq!(
+            state.validate_shape().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_STATE_CORRUPT"
         );
     }
 }

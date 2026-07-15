@@ -872,6 +872,10 @@ impl LocalDatabase {
             )?;
         }
         let sessions_revoked = crate::storage::auth::revoke_all_sessions_in(&tx, now_ms)?;
+        // @ref LLP 0055#companion-obligations — downgrade ends all agent
+        // bearer and pending-consent authority in the same transaction as
+        // browser-session revocation; principals and scope tombstones survive.
+        crate::storage::auth::terminate_agent_authority_in(&tx)?;
         transaction_step_completed(0)?;
 
         let schema_json = serialize_json(&staged.schema_manifest)?;
@@ -2388,7 +2392,9 @@ mod tests {
 
     #[test]
     fn downgrade_flag_quarantines_then_explicit_consume_revokes_sessions() {
-        let mut database = LocalDatabase::memory().unwrap();
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("downgrade-agent-authority.sqlite");
+        let mut database = LocalDatabase::open(&path).unwrap();
         let (sessions_identity, sessions_manifest) = sessions_pair(None);
         database
             .stage_auth_mode(sessions_identity, sessions_manifest, None)
@@ -2411,6 +2417,33 @@ mod tests {
                        created_at_ms, last_used_at_ms, expires_at_ms, absolute_expires_at_ms
                      ) VALUES('s', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
                     [],
+                )?;
+                tx.execute_batch(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, registration_provenance
+                     ) VALUES('agent', 1, 'agent', 'Agent', 'test');
+                     INSERT INTO _auth_agent_credentials(
+                       id, user_id, secret_hash, generation, created_at_ms,
+                       rotated_at_ms, last_used_at_ms
+                     ) VALUES('credential', 'agent', randomblob(32), 1, 1, 1, 1);
+                     INSERT INTO _auth_grants(
+                       id, actor_user_id, scopes, created_at_ms, created_by, last_used_at_ms
+                     ) VALUES('grant', 'agent', '[]', 1, 'test', 1);
+                     INSERT INTO _auth_grant_tokens(
+                       id, token_hash, grant_id, credential_id, credential_generation,
+                       created_at_ms, expires_at_ms
+                     ) VALUES('grant-token', randomblob(32), 'grant', 'credential', 1, 1, 100);
+                     INSERT INTO _auth_agent_invitations(
+                       id, token_hash, class, created_by, minted_profile,
+                       created_at_ms, expires_at_ms
+                     ) VALUES('invitation', randomblob(32), 'creation', 'test', 'dev', 1, 100);
+                     INSERT INTO _auth_pairing_requests(
+                       id, code_hash, minted_by_user_id, agent_user_id,
+                       requested_scopes, created_at_ms, expires_at_ms
+                     ) VALUES('pairing', randomblob(32), 'u', 'agent', '[]', 1, 100);
+                     INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('retained-scope', 'mutation', 4, 0, 1);",
                 )?;
                 Ok(())
             })
@@ -2480,6 +2513,45 @@ mod tests {
             })
             .unwrap();
         assert_eq!((generation, revoked), (2, Some(10)));
+        for table in [
+            "_auth_agent_credentials",
+            "_auth_grants",
+            "_auth_grant_tokens",
+            "_auth_agent_invitations",
+            "_auth_pairing_requests",
+        ] {
+            let count: i64 = database
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(count, 0, "downgrade purged {table}");
+        }
+        assert_eq!(
+            database
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _auth_users WHERE id = 'agent'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1,
+            "agent principal survives downgrade"
+        );
+        assert_eq!(
+            database
+                .conn
+                .query_row(
+                    "SELECT generation FROM _auth_scope_bases WHERE function_id = 'retained-scope'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            4,
+            "scope tombstone survives downgrade"
+        );
         assert_eq!(database.schema(), &dev_manifest);
         assert_eq!(
             mode_meta(&database.conn)
@@ -2487,6 +2559,40 @@ mod tests {
                 .map(String::as_str),
             Some(LEGACY_MANIFEST_POISON)
         );
+
+        drop(database);
+        let mut database = LocalDatabase::open(&path).unwrap();
+        let (sessions_identity, sessions_manifest) = sessions_pair(None);
+        let sessions_functions = function_half(&sessions_identity);
+        database
+            .stage_auth_mode_with_functions(
+                sessions_identity,
+                sessions_manifest,
+                &sessions_functions,
+                None,
+            )
+            .unwrap();
+        database
+            .consume_sessions_auth_mode_with_functions(&ready(), &sessions_functions)
+            .unwrap();
+        for table in [
+            "_auth_agent_credentials",
+            "_auth_grants",
+            "_auth_grant_tokens",
+            "_auth_agent_invitations",
+            "_auth_pairing_requests",
+        ] {
+            let count: i64 = database
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(
+                count, 0,
+                "{table} did not resurrect after restart/re-enable"
+            );
+        }
     }
 
     #[test]

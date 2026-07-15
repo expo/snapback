@@ -510,7 +510,7 @@ mod tests {
         );
         assert!(!declaration_path.exists());
         assert!(mailbox.peek_address(&challenge).is_none());
-        assert_session(&database, "session-1", 2, Some(100));
+        assert_session(&database, "session-1", 2, Some(2000));
         assert_eq!(challenge_count(&database), 0);
 
         insert_restore_fixture(&mut database, "session-2", 2);

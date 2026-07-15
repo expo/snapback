@@ -544,6 +544,37 @@ MINOR
 
 All three focused Node suites passed.
 
+## Blind final2 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, gpt-5.6-sol
+- Method: read-only blind review; archived verbatim from `/private/tmp/eng25001-final2-codex-0058.md`
+- Session: `019f6769-0363-7690-bc21-9d3e8dff6cac`
+- Reviewed commit: `3ac047322d055fad03e8308fdc0905d758eb9f61`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+VERDICT: NOT READY
+
+MATERIAL
+- Agent authority survives downgrade. LLP 0055 §Companion obligations and §Validation Requirements require downgrade to terminate credentials, tokens, grants, invitations, and pairing requests. `src/storage/auth_mode.rs:874` revokes only sessions, leaving durable agent authority able to return after sessions are re-enabled.
+- Auth-session schema/kit parity is false for `transitionGeneration`. `schemas/auth.session.output.schema.json:560` allows any nonnegative uint64, while `demos/_kit/client.mjs:450` requires a JavaScript-safe integer. Thus `9007199254740992` passes the schema but fails the shipped client; the parity corpus lacks this boundary case.
+
+MINOR
+- none
+
+EVIDENCE
+- HEAD `3ac047322d055fad03e8308fdc0905d758eb9f61`; all reviewed exact paths matched HEAD.
+- Read LLP 0058 completely, especially §The two admissible tuples, §Durable staged-mode protocol, §Sessions-to-dev downgrade, §Exact response DTO, and §Acceptance.
+- Cross-checked LLP 0057 §Version composition and precedence, §Activation ordering, §Bulk session revocation, §Collision rescue, and §Physical backup and declared restore; LLP 0055 §Catalog and lifecycle, §Companion obligations, and §Validation Requirements.
+- `node packages/snapback-contract/auth-coordinator.test.mjs` passed.
+- Race cut 1: the test releases a predecessor synchronize result during held successor resume; it fails `SNAPBACK_CLIENT_AUTHORITY_STALE`, publication remains closed, and exact owner/peer successor reload tests keep `resumeCalls === 1`.
+- Race cut 2: the predecessor result is released only after the successor barrier finishes; it still fails stale, while a subsequent exact-successor `synchronize()` succeeds without replaying resume.
+
 ### Review body (verbatim)
 
 VERDICT NOT READY

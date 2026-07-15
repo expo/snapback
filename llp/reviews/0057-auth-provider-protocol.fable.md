@@ -189,3 +189,36 @@ Blind final implementation review of `llp/0057-auth-provider-protocol.spec.md` a
 
 ## Verdict
 READY — delivered in final message with resolution criteria.
+
+## Blind final2 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code / claude-fable-5
+- Method: read-only blind review; archived verbatim from `/private/tmp/eng25001-final2-fable-0057.md`
+- Session: `not recorded in supplied artifact`
+- Reviewed commit: `3ac047322d055fad03e8308fdc0905d758eb9f61`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+VERDICT: READY
+
+MATERIAL:
+- None.
+
+MINOR:
+- Diagnostic-only bug: `#finishClearingOwned`'s catch (packages/snapback-contract/auth-coordinator.mjs:1206–1215) sets `this.#activeBarrier = null` before building the `SNAPBACK_AUTH_TRANSITION_FAILED` details, so `phase` is always `'unknown'` for clearing-phase failures (the resume-path error at :1288–1294 reports phase correctly). Fix by capturing the phase before nulling.
+- Evidence-recording gap, editorial: the acceptance-evidence paragraph (llp/0059-session-projection-and-client-barrier.spec.md:2024–2031) names the during-resume durable-advancement suites but not the two committed delayed-delivery reload regressions (pre-barrier→during-resume, auth-coordinator.test.mjs:602–660; post-barrier, :662–703), and no revision note records 3ac0473. The normative rule (spec :1396–1402, "begun before the barrier but completing after settle … a mismatch fails stale") plus acceptance §Coordinator races item 1 (:1979–1983) already require the behavior, so this is prose lag, not drift; adding one evidence sentence would aid ratification review.
+- Liveness/ergonomics: `synchronize()` dedup (auth-coordinator.mjs:714) can hand a caller arriving after a completed barrier the still-pending pre-barrier promise, which then rejects `SNAPBACK_CLIENT_AUTHORITY_STALE` even though a fresh reload would succeed. Fail-closed and self-healing (the 3ac0473 test's follow-up `synchronize()` at test :701 succeeds); consider not deduping onto a reload whose ownership callback predates the last barrier.
+- Hardening: a `transition()`/`compareAndClear()` initiated while a barrier is in its resume phase (e.g., a terminal `auth_error` arriving on the freshly resumed socket via demos/_kit/client.mjs:3975–3991) can start a nested `#finishClearingOwned` that replaces `#activeBarrier` mid-resume, interleaving participant phases and letting the outer transition return a by-then-stale capture. All traced outcomes fail closed (`captureFor` :419–425 refuses clearing records, durable CAS and `#adoptSettled` :1485–1495 block stale writes/adoption, recovery converges from durable clearing), and the spec claims only `synchronize()` semantics during resume (:1392–1395), so this is an unclaimed corner — suggest a reentrancy guard or spec sentence plus a test, not a blocker.
+
+EVIDENCE:
+- Target: the prompt's filename `llp/0057-session-authentication-and-authorization.spec.md` does not exist at 3ac0473 (or in history); the session/AuthCoordinator spec is `llp/0059-session-projection-and-client-barrier.spec.md` (numbered 0057 before renumbering commit 69c718d). Read completely (2172 lines): Summary/Provenance, Server authority model, Two-phase mutation, Locking, Connection-bound authority, Fenced effects, Reset/restore, Client custody & AuthCoordinator (:1145–1569), Client store (:1570–1675), Contract/kit participation, Handshake/readiness, Diagnostics, Executable acceptance (:1858–2083), Implementation handoff, Open decisions/Review triage (:2113–2172).
+- Cut 1 (synchronize completing during resume): spec :1390–1399; implementation reentrant path auth-coordinator.mjs:688–713 (exact settled revision/epoch/key or `SNAPBACK_CLIENT_AUTHORITY_STALE`), adoptPeer barrier-active fence :1227–1238 (5c23b44), plain-capture fence (baaf890); tests auth-coordinator.test.mjs:412–448 (owner exact, no recursion), :450–490 (peer exact), :492–545 (durable advanced during owner resume → `SNAPBACK_AUTH_TRANSITION_FAILED`, stays blank, later clean sync adopts peer successor), :547–600 (peer-adoption resume race → STALE, resume ran once), :602–660 (pre-barrier reload delivered during resume → STALE).
+- Cut 2 (synchronize result completing after the barrier): 3ac0473 diff to auth-coordinator.mjs only — hoisted `exact` check, `exact && !publicationPaused` idempotent confirmation (:1239–1243), `localAtRead`/`publicationPausedAtRead` fence (:730–745, :1244–1256), unconditional plain-capture exact check incl. `result === null` (:1260–1277); regression test :662–703 (delivery delayed past barrier completion → STALE, successor capture intact, subsequent synchronize clean). Spec language pre-pinned by 5c23b44 (:1396–1402), so no spec change was required in 3ac0473; interaction with the during-resume fences preserved (barrier-active branches semantically unchanged).
+- Commit chain inspected: 8f03e42 (reentrant resume path + spec :1389–1396 predecessor text + acceptance note), 5c23b44 (generalized reentrant check, adoptPeer fence, real Contract participants `await coordinator.synchronize()` in resume at packages/snapback-contract/index.mjs:2392–2401 and :3906–3911, spec normative/acceptance text, intent-recovery stranding), baaf890 (plain-capture during-resume fence + test), c095370 (readiness gates: typed construction receipts with injected-failure tests in src/auth/runtime.rs; spec :2013–2023, :2056–2060), 3ac0473 (post-barrier rejection).
+- Composed evidence: auth-coordinator-contract.test.mjs mounts real single/multi-live surfaces (:246, :380) and asserts each real participant resumed exactly once (:394–417); ENG-25001 items verified — lock-rank guards src/auth/session_projection.rs:31–92 with inversion test :2876; L9 fixture src/server.rs:14937 (substantive, holds affected commit while unrelated room progresses); custody format-2 intent validation auth-coordinator.mjs:237–272/:305–400 with tests :164–323; phase-8 ownership release (test :1110–1138) and rotation network outside ownership (:835–876); terminal 4401/`auth_error` latch demos/_kit/client.mjs:2302–2323/:3911–3991; handshake cache `compareAndCommit` fence demos/_kit/client.mjs:969/:1133/:1512/:1693; LLP 0008 one-key Web-Lock localStorage adapter client-store.mjs:2938–2978 with delayed-predecessor-writer test offline-replay.test.mjs:1095–1127; fallback-lease fencing and two consecutive takeovers (+1 tokens) auth-custody-indexeddb.test.mjs:132–291.
+- Governing context: LLP 0057 §ENG-25001 closure (:1755–1786), LLP 0058 §ENG-25001 disposition (:1860–1893) and 5c23b44 deltas (witness pair, `no-store, private`, descriptor pinning, readiness-negation wording), LLP 0000 (:359–368) — all consistent with LLP 0059 at HEAD; worktree clean at 3ac047322d055fad03e8308fdc0905d758eb9f61; llp/reviews and secrets untouched.

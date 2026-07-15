@@ -1098,6 +1098,7 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         require_ready_on(&tx)?;
+        let catalog = inspect_auth_catalog_on(&tx)?;
         let applied: Option<String> = tx
             .query_row(
                 "SELECT value FROM _snapback_meta WHERE key = ?1",
@@ -1114,42 +1115,24 @@ impl LocalDatabase {
         // host clock. Derive the destructive cut from durable authority, not
         // the raw sample, and advance the shared frontier in this transaction
         // before any session terminal state is written.
-        // @ref LLP 0059#durable-session-clock-floor — restore can never write
-        // a revocation earlier than the restored session's creation epoch.
-        let latest_created_at: Option<i64> =
-            tx.query_row("SELECT MAX(created_at_ms) FROM _auth_sessions", [], |row| {
-                row.get(0)
-            })?;
-        let latest_created_at = latest_created_at
-            .map(|value| {
-                u64::try_from(value).map_err(|_| {
-                    corrupt("auth catalog contains a negative session creation timestamp")
-                })
-            })
-            .transpose()?
-            .unwrap_or(0);
+        // @ref LLP 0059#durable-session-clock-floor — restore must resume at
+        // or above every restored durable auth timestamp, not merely session
+        // creation time, before it writes terminal state or reseeds the floor.
+        let restored_catalog_frontier = restored_auth_timestamp_frontier_on(&tx, catalog)?;
         let restore_now_ms = read_session_clock_floor_on(&tx)?
             .max(now_ms)
-            .max(latest_created_at);
+            .max(restored_catalog_frontier);
         advance_session_clock_floor_on(&tx, restore_now_ms)?;
 
         let sessions_revoked = revoke_all_sessions_in(&tx, restore_now_ms)?;
         restore_transaction_step_completed(0)?;
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
-        if inspect_auth_catalog_on(&tx)? == AuthCatalogState::ReadyV2 {
+        if catalog == AuthCatalogState::ReadyV2 {
             // Restore terminates every v2 bearer and consent authority, not
             // only browser sessions. Deleting child rows before their parents
             // makes pre-backup agent credentials, scoped tokens, invitations,
             // and pairing secrets permanently non-actionable after restart.
-            for table in [
-                "_auth_grant_tokens",
-                "_auth_pairing_requests",
-                "_auth_grants",
-                "_auth_agent_invitations",
-                "_auth_agent_credentials",
-            ] {
-                tx.execute(&format!("DELETE FROM \"{table}\""), [])?;
-            }
+            terminate_agent_authority_in(&tx)?;
         }
         restore_transaction_step_completed(1)?;
 
@@ -1481,6 +1464,92 @@ fn backup_invalid(message: &str) -> SnapbackError {
 
 fn restore_invalid(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_BACKUP_INVALID", "auth-restore", message)
+}
+
+/// Return the maximum timestamp committed anywhere in a recognized auth
+/// catalog. Keep this inventory explicit: schema recognition pins the columns,
+/// and restore must fail closed if a restored value escapes the portable
+/// nonnegative timestamp domain.
+fn restored_auth_timestamp_frontier_on(
+    conn: &Connection,
+    catalog: AuthCatalogState,
+) -> SnapbackResult<u64> {
+    const V1_COLUMNS: &[(&str, &str)] = &[
+        ("_auth_users", "created_at_ms"),
+        ("_auth_identities", "verified_at_ms"),
+        ("_auth_sessions", "created_at_ms"),
+        ("_auth_sessions", "last_used_at_ms"),
+        ("_auth_sessions", "expires_at_ms"),
+        ("_auth_sessions", "absolute_expires_at_ms"),
+        ("_auth_sessions", "revoked_at_ms"),
+        ("_auth_session_tokens", "superseded_at_ms"),
+        ("_auth_verification_codes", "requested_at_ms"),
+        ("_auth_verification_codes", "expires_at_ms"),
+        ("_auth_verification_codes", "consumed_at_ms"),
+    ];
+    const V2_COLUMNS: &[(&str, &str)] = &[
+        ("_auth_users", "deactivated_at_ms"),
+        ("_auth_agent_credentials", "created_at_ms"),
+        ("_auth_agent_credentials", "rotated_at_ms"),
+        ("_auth_agent_credentials", "last_used_at_ms"),
+        ("_auth_agent_credentials", "revoked_at_ms"),
+        ("_auth_grants", "created_at_ms"),
+        ("_auth_grants", "expires_at_ms"),
+        ("_auth_grants", "revoked_at_ms"),
+        ("_auth_grants", "last_used_at_ms"),
+        ("_auth_grant_tokens", "created_at_ms"),
+        ("_auth_grant_tokens", "expires_at_ms"),
+        ("_auth_grant_tokens", "revoked_at_ms"),
+        ("_auth_agent_invitations", "created_at_ms"),
+        ("_auth_agent_invitations", "expires_at_ms"),
+        ("_auth_agent_invitations", "revoked_at_ms"),
+        ("_auth_agent_invitations", "consumed_at_ms"),
+        ("_auth_pairing_requests", "created_at_ms"),
+        ("_auth_pairing_requests", "expires_at_ms"),
+        ("_auth_pairing_requests", "consumed_at_ms"),
+    ];
+
+    let mut frontier = 0;
+    let columns = V1_COLUMNS.iter().copied().chain(
+        (catalog == AuthCatalogState::ReadyV2)
+            .then_some(V2_COLUMNS)
+            .into_iter()
+            .flatten()
+            .copied(),
+    );
+    for (table, column) in columns {
+        let sql = format!("SELECT MAX(\"{column}\") FROM \"{table}\"");
+        let value: Option<i64> = conn.query_row(&sql, [], |row| row.get(0))?;
+        if let Some(value) = value {
+            let value = u64::try_from(value)
+                .map_err(|_| corrupt("auth catalog contains a negative durable timestamp"))?;
+            if value > MAX_SAFE_TIMESTAMP_MS {
+                return Err(corrupt(
+                    "auth catalog contains a timestamp outside the portable range",
+                ));
+            }
+            frontier = frontier.max(value);
+        }
+    }
+    Ok(frontier)
+}
+
+/// Terminate bearer and pending-consent authority without deleting agent
+/// principals or the never-GC'd scope-basis tombstones.
+///
+/// @ref LLP 0055#companion-obligations — sessions-to-dev downgrade and
+/// declared restore must not allow pre-transition agent authority to revive.
+pub(super) fn terminate_agent_authority_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    for table in [
+        "_auth_grant_tokens",
+        "_auth_pairing_requests",
+        "_auth_grants",
+        "_auth_agent_invitations",
+        "_auth_agent_credentials",
+    ] {
+        tx.execute(&format!("DELETE FROM \"{table}\""), [])?;
+    }
+    Ok(())
 }
 
 /// Reset helper called from the ordinary app-reset transaction. A dormant
@@ -2242,7 +2311,7 @@ mod tests {
     }
 
     #[test]
-    fn declared_restore_uses_restored_session_frontier_when_host_clock_is_lower() {
+    fn declared_restore_uses_non_creation_timestamp_frontier_when_host_clock_is_lower() {
         let mut db = catalog_database();
         db.with_auth_transaction(|tx| {
             tx.execute("INSERT INTO _auth_users(id, created_at_ms) VALUES('user-restore-clock', 900)", [])?;
@@ -2276,8 +2345,27 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(revoked_at, 900);
-        assert_eq!(db.auth_session_clock_floor().unwrap(), 900);
+        assert_eq!(revoked_at, 1100);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 1100);
+    }
+
+    #[test]
+    fn declared_restore_uses_v2_agent_timestamp_frontier_before_purge() {
+        let mut db = catalog_database();
+        db.conn
+            .execute_batch(
+                "INSERT INTO _auth_agent_invitations(
+                   id, token_hash, class, created_by, minted_profile,
+                   created_at_ms, expires_at_ms
+                 ) VALUES('future-invitation', zeroblob(32), 'creation', 'test', 'dev', 10, 1700);",
+            )
+            .unwrap();
+
+        db.apply_auth_restore_declaration("0197f862-f196-7bb2-b3f0-2a67185dfd19", 100)
+            .unwrap();
+
+        assert_eq!(row_count(&db, "_auth_agent_invitations"), 0);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 1700);
     }
 
     #[test]

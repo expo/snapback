@@ -493,7 +493,8 @@ Closed values are:
 }
 ```
 
-`transitionGeneration` is an unsigned 64-bit integer. It increments exactly
+`transitionGeneration` is a nonnegative JavaScript-safe integer
+(`0..=9007199254740991`). It increments exactly
 once for each successful stage, re-stage, explicit unstage, quarantine, or
 consume commit. Overflow fails closed as corrupt state rather than wrapping.
 The quarantine record carries only a stable code and generation; secret or

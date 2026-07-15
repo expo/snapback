@@ -156,6 +156,8 @@
     { "name": "authorization-stream-incarnation-wrong-version", "base": "settledDevAnonymous", "set": [{ "path": ["authorizationStreamIncarnation"], "value": "01890f3c-9d5b-6000-8000-000000000001" }], "expect": "reject" },
     { "name": "authorization-stream-incarnation-uppercase", "base": "settledDevAnonymous", "set": [{ "path": ["authorizationStreamIncarnation"], "value": "01890F3C-9D5B-7000-8000-000000000001" }], "expect": "reject" },
     { "name": "transition-generation-negative", "base": "settledDevAnonymous", "set": [{ "path": ["transitionGeneration"], "value": -1 }], "expect": "reject" },
+    { "name": "transition-generation-max-safe", "base": "settledDevAnonymous", "set": [{ "path": ["transitionGeneration"], "value": 9007199254740991 }], "expect": "accept" },
+    { "name": "transition-generation-above-max-safe", "base": "settledDevAnonymous", "set": [{ "path": ["transitionGeneration"], "value": 9007199254740992 }], "expect": "reject" },
     { "name": "active-mode-unknown", "base": "settledDevAnonymous", "set": [{ "path": ["activeMode"], "value": "cloud" }], "expect": "reject" },
     { "name": "mode-state-unknown", "base": "settledDevAnonymous", "set": [{ "path": ["modeState"], "value": "unknown" }], "expect": "reject" },
     { "name": "quarantine-code-number", "base": "settledDevAnonymous", "set": [{ "path": ["quarantineCode"], "value": 7 }], "expect": "reject" },
