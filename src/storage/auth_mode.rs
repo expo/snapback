@@ -2496,23 +2496,37 @@ mod tests {
         drop(LocalDatabase::open(&path).unwrap());
         let connection = Connection::open(&path).unwrap();
         connection
+            .execute_batch("PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;")
+            .unwrap();
+        connection
             .execute(
                 "UPDATE _snapback_meta SET value = ?2 WHERE key = ?1",
                 params![META_AUTH_MODE_STATE, r#"{"formatVersion":2}"#],
             )
             .unwrap();
         let before = mode_meta(&connection);
-        drop(connection);
+        let wal_path = std::path::PathBuf::from(format!("{}-wal", path.display()));
+        let database_bytes_before = std::fs::read(&path).unwrap();
+        let wal_bytes_before = std::fs::read(&wal_path).expect("corruption write remains in WAL");
 
         let error = match LocalDatabase::open(&path) {
             Ok(_) => panic!("corrupt auth-mode state must refuse open"),
             Err(error) => error,
         };
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_STATE_CORRUPT");
-        let connection = Connection::open(&path).unwrap();
         let after = mode_meta(&connection);
         assert_eq!(before, after);
         assert!(!after.contains_key(META_STAGED_AUTH_MODE_MANIFEST));
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            database_bytes_before,
+            "corrupt open must not alter the database image"
+        );
+        assert_eq!(
+            std::fs::read(&wal_path).unwrap(),
+            wal_bytes_before,
+            "corrupt open must not append, checkpoint, or rewrite the WAL"
+        );
     }
 
     #[test]

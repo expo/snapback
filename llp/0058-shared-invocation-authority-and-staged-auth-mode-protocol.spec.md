@@ -5,7 +5,9 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-25001 defect reconciliation: closed raw-loader,
+**Revised:** 2026-07-15 (committed the pinned-predecessor rollback harness and
+receipt plus a direct corrupt database/WAL byte regression; corrected the LLP
+0012 registration account; status remains Draft). 2026-07-15 (ENG-25001 defect reconciliation: closed raw-loader,
 prepared-generation, seed provenance, composed-gate, session DTO, handshake
 freshness/exactness, startup recovery, and carrier-boundary findings; clarified
 the executable-authority trusted-producer premise and safe post-consume/pre-bind
@@ -543,11 +545,12 @@ poison, or monotonicity invariant failure returns
 **no durable write at all**. In particular, startup does not quarantine,
 rewrite a staged record, increment a generation, adopt, unstage, repair, or
 guess which key is authoritative. Committed tests compare all four meta values
-logically before and after this refusal; a **byte-for-byte database/WAL
-comparison** across the full corrupt-state matrix is a named acceptance
-obligation (§Review triage), not yet a committed fixture — the current test
-asserts the logical no-write invariant, and the stronger byte-identity fixture
-is the gap to close.
+logically before and after every corrupt-state refusal. A dedicated
+**byte-for-byte database/WAL comparison** holds a representative corrupt record
+in an uncheckpointed WAL and proves refused open neither changes the database
+image nor appends, checkpoints, deletes, or rewrites that WAL. This byte test is
+representative of the common read-only refusal path; it does not claim a
+byte-level fixture for every member of the logical corrupt-state matrix.
 
 Quarantine is eligible only after all four keys form a valid pending snapshot.
 It records a transition-specific refusal discovered after that point, such as a
@@ -1455,11 +1458,10 @@ pins the producer semantics and safe-detail boundary.
 | `SNAPBACK_AUTH_HANDSHAKE_INVALID` | **kit-produced**; a `clientProtocols` echo did not match the exact per-request offer tuple, or a required handshake field (descriptor version, incarnation UUIDv7) was malformed before custody change |
 
 `SNAPBACK_REQUEST_BODY_TIMEOUT` and the **kit-produced**
-`SNAPBACK_AUTH_HANDSHAKE_INVALID` are both new codes this Spec introduces, so
-both are LLP 0012 item-4 registration obligations before ship (the body-timeout
-code is emitted and 408-mapped in the server today but is absent from LLP 0012's
-registry — a named registration gap). Client-produced codes are marked
-kit-produced in the registry so their producer is unambiguous.
+`SNAPBACK_AUTH_HANDSHAKE_INVALID` are registered in LLP 0012. The former is a
+reviewed server-produced HTTP 408; the latter is client-produced and therefore
+has no server HTTP status. Client-produced codes are marked kit-produced in the
+registry so their producer is unambiguous.
 
 Existing LLP 0057 credential diagnostics retain their meanings and precedence.
 Mode/artifact failures include only expected/observed versions, modes, identity
@@ -1497,20 +1499,24 @@ loaded strings where structurally possible, proving no equality shortcut bypass.
 For each refusal the database/WAL, logical schema/version, functions, mode keys,
 and seed are unchanged relative to the immediate snapshot.
 
-**Predecessor evidence — committed coverage vs recorded evidence, stated
-honestly.** The *committed* tests prove the **current** binary rejecting foreign
-v1 identity strings with exact `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` (the v1
-strings differ from v0, the provisioned case cannot report `matched`, and no
-bytes or logical state change). Running an **actual pinned pre-auth predecessor
-binary** against (a) a fresh database and (b) an identical-content v0-dev
-database — the run that most directly evidences load-bearing claim 4 (a
-pre-auth binary fails *parsing* rather than silently reopening under body
-authority) — is **recorded ENG-24597 evidence, not a rerunnable committed
-harness**. Making it one (a pinned predecessor SHA built in a cached toolchain,
-the two-database matrix, and the poisoned-DB-open case, e.g. as a nightly CI
-job) is a named acceptance obligation (§Review triage); until then the
-distinction between committed executable coverage and one-time recorded
-evidence is stated rather than blurred.
+**Predecessor evidence — committed and rerunnable.** Run
+`node tests/acceptance/auth-mode-predecessor-v1.mjs`; the committed harness pins
+the unmodified predecessor `1d6cafb6d35b159d19de257db03d69ef1fd218e8`
+(verified as the parent of the first staged-mode commit) and its Ibex gitlink
+`f8d26ce889208fd5ee3b8d2a64b13787c37e5879`, builds its locked dependency
+graph, and exercises its real HTTP and SQLite boundaries. It submits the v1
+sessions pair against both a fresh database and an identical-content
+v0-provisioned database, requires exact
+`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`, and directly compares the database and
+WAL byte snapshots around each refusal. A third case installs the exact poison
+in a predecessor-created database, requires pre-bind
+`SNAPBACK_SCHEMA_PARSE_FAILED`, no readiness/listener publication, and unchanged
+database/WAL bytes. The machine-readable expected outcomes are committed in
+[the predecessor receipt](../tests/acceptance/auth-mode-predecessor-v1.receipt.json)
+and the harness compares every normal run against that receipt. Its ignored
+build/source cache is accepted only when both pinned Git objects and the
+provenance marker still match; the receipt records outcomes, while the byte
+comparisons themselves execute at runtime.
 
 Golden vectors pin all three exact `snapback.v1:sessions:*:sha256:` spellings,
 the three LLP 0012 domains, the three constant framed items followed by `appId`,
@@ -1557,8 +1563,10 @@ Tests cover:
   `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` with no durable write;
 - every crash boundary in §Crash and publication traces;
 - every four-key corruption class returning
-  `SNAPBACK_AUTH_MODE_STATE_CORRUPT` with byte-for-byte unchanged keys/database
-  and no quarantine, contrasted with a valid pending snapshot whose
+  `SNAPBACK_AUTH_MODE_STATE_CORRUPT` with logically unchanged keys and no
+  quarantine, plus a representative corrupt-record regression that holds an
+  uncheckpointed WAL open and compares the complete database and WAL bytes
+  before and after refused open, contrasted with a valid pending snapshot whose
   transition-specific failure atomically rewrites both generations into
   quarantine;
 - quarantine preserving old active mode while refusing app data;
@@ -1711,11 +1719,10 @@ a fallback when the pinned v1 mechanism refuses.
 ## Status
 
 **Draft.** ENG-24597/item 4 is implemented. Executable pair matrices,
-crash injection, route/operation parity, and cross-transport authority negatives
-are its **committed** implementation evidence; the **actual-predecessor runs**
-and the **byte-for-byte** corrupt-state comparison are **recorded ENG-24597
-evidence, not rerunnable committed harnesses** (Acceptance separates the two,
-and making them committed is a named obligation). LLP 0059/item 5 has
+crash injection, route/operation parity, cross-transport authority negatives,
+the pinned unmodified-predecessor harness/receipt, and the corrupt database/WAL
+byte regression are its **committed, rerunnable** implementation evidence. LLP
+0059/item 5 has
 subsequently closed the activation fence for an explicitly staged local sessions
 deployment.
 
@@ -1736,13 +1743,14 @@ provenance in
 Both families rate the design and implementation fidelity highly; the concerns
 are spec-vs-code fidelity, over-claimed evidence, and hygiene. Dispositions:
 
-**Resolved in text (round 2):** the Acceptance/Status over-claim — committed
-executable coverage is now separated from one-time recorded ENG-24597 evidence
-(the actual-predecessor runs and byte-for-byte corrupt-state comparison), and the
-byte-for-byte fixture and a rerunnable predecessor harness are named obligations;
+**Resolved in text (round 2, executable evidence closed 2026-07-15):** the
+Acceptance/Status over-claim was first corrected by separating committed tests
+from the one-time ENG-24597 record; the subsequently committed pinned-predecessor
+harness/receipt and corrupt database/WAL byte regression now make both claims
+rerunnable;
 `AuthorizationCommitWitness` defined and mapped to LLP 0053's `CompositeWitness`;
-`SNAPBACK_AUTH_HANDSHAKE_INVALID` and `SNAPBACK_REQUEST_BODY_TIMEOUT` registered
-as LLP 0012 obligations with the body-timeout registry gap named; the
+`SNAPBACK_AUTH_HANDSHAKE_INVALID` and `SNAPBACK_REQUEST_BODY_TIMEOUT` registration
+account corrected to match LLP 0012's client-produced/HTTP 408 entries; the
 §Activation-readiness JSON labeled the item-4 boundary exhibit; the 20 s
 ingest-deadline collateral class named.
 
@@ -1763,10 +1771,9 @@ before bind. The readiness dependency is resolved by the explicit
 admission-closed, listener-free durable intermediate interval, and the deployment
 identity security claim is the authenticated trusted-producer premise above.
 
-The remaining evidence-hygiene work is deliberately not reclassified as a
-runtime defect: the one-time actual-predecessor run and byte-for-byte corruption
-record remain non-rerunnable historical evidence until committed harnesses are
-added. The split-document suggestion is left to the author. Closing these
+The evidence-hygiene finding is closed by the committed harness and regression:
+the receipt records the pinned outcomes, while each run performs the direct byte
+comparisons. The split-document suggestion is left to the author. Closing these
 findings does not ratify or advance this Draft.
 
 The review advises — it does not ratify; this document remains Draft pending

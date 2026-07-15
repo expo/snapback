@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "predecessor": "1d6cafb6d35b159d19de257db03d69ef1fd218e8",
+  "predecessorIbex": "f8d26ce889208fd5ee3b8d2a64b13787c37e5879",
+  "cases": {
+    "fresh": {
+      "diagnostic": "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION",
+      "databaseBytesUnchanged": true,
+      "walBytesUnchanged": true
+    },
+    "provisionedV0": {
+      "diagnostic": "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION",
+      "databaseBytesUnchanged": true,
+      "walBytesUnchanged": true
+    },
+    "poisonOpen": {
+      "diagnostic": "SNAPBACK_SCHEMA_PARSE_FAILED",
+      "listenerBound": false,
+      "databaseBytesUnchanged": true,
+      "walBytesUnchanged": true
+    }
+  }
+}
