@@ -5,7 +5,19 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-15 (r3 — status Draft → Review by author adjudication:
+**Revised:** 2026-07-15 (r4 — the served guide: resolved open question 3 as
+**embedded-in-binary, always served** — every Snapback server build embeds
+the corpus and serves it read-only at `/_snapback/guide` (index, pages, and
+a flattened single-file projection `flat.md` generated from the manifest),
+with responses carrying the guide content hash + server build identity;
+this gives out-of-repo authors a channel that needs nothing but a running
+server, makes the version binding structural (the server is the version
+authority), and becomes the corpus source the Phase 2 MCP projection
+re-serves. Amended §Design 4 (new 4a), split the plan's Phase 2, and added
+the `operating.served-guide` design-only row to the capability index.
+Decided as an amendment rather than a new LLP: it resolves this RFC's own
+open question and extends its distribution design — one authority for guide
+distribution.) 2026-07-15 (r3 — status Draft → Review by author adjudication:
 Charlie ordered implementation after the single authorized super-refine round
 ended with split verdicts (fable READY / codex NOT READY, both concerns
 reconciled in r2), ending the loop; same revision decides the corpus location
@@ -81,10 +93,12 @@ Two things are Snapback-shaped rather than copied:
    projections go through surfaces Snapback owns or has designed: the admin
    console (LLP 0017, shipped) and the MCP surface (LLP 0042, **Draft and not
    yet implemented**). Phase 1 is therefore honest about its audience: the
-   corpus serves authors working in or adjacent to a Snapback checkout, and
-   **no out-of-repo channel exists until Phase 2's dependency lands**
-   (§Design 4). A Phase 1 generated **guide manifest** is the single interface
-   every later projection consumes.
+   corpus serves authors working in or adjacent to a Snapback checkout;
+   the first out-of-repo channel is the **served guide** (§Design 4a, r4):
+   every server build embeds the corpus and serves it — pages plus a
+   flattened single-file projection — with the version binding structural
+   because the server is the version authority. A Phase 1 generated
+   **guide manifest** is the single interface every projection consumes.
 
 Governance is proportionate to Snapback's stage: an authored capability index
 with required witnesses, two day-one inventory joins, and explicit gap rows;
@@ -439,6 +453,39 @@ verified against. Every later projection — MCP, admin console, CLI, any
 package — consumes the manifest rather than re-parsing the tree, so all
 projections share one shape and one version stamp.
 
+**4a. The served guide (r4; resolves former open question 3).** Every
+Snapback server build **embeds the guide corpus and serves it**:
+
+- **Embedding:** `build.rs` packs `guide/**` (pages, `capabilities.md`,
+  the manifest, and the flattened projection below; `eval-runs/` excluded)
+  into the binary — the admin console's built-snapshot pattern applied to
+  markdown. The corpus is ~130KB; the cost is negligible on every target
+  including the Cloudflare worker bundle.
+- **Routes** (registered in the LLP 0031 registry as system-static,
+  public read-only — documentation is a public projection):
+  `GET /_snapback/guide` (the index), `GET /_snapback/guide/{*path}`
+  (pages, served as markdown), and `GET /_snapback/guide/flat.md` — a
+  **flattened single-file projection** (capability index first, then pages
+  in nav order) generated from the manifest at
+  `guide/guide-flat.generated.md`, checked for staleness like the manifest.
+  One request gives an agent the entire authoring surface; this is the
+  Exact 0365 "llms.txt" idea with the server, not a file host, as the
+  channel.
+- **Identity:** responses carry the guide content hash and the server
+  build identity (both already stamped in the manifest), so a consumer can
+  detect a mismatch between the docs it cached and the server it is
+  talking to. The Phase 2 MCP increment re-serves this same embedded
+  corpus and inherits the handshake — the bytes question is solved once.
+- **Honesty properties:** the served corpus matches the *build*, not the
+  working tree — which is the right claim for its audience (out-of-repo
+  authors talking to a running server); checkout authors read the files.
+  Registering the routes forces their own classification in the
+  capability-index surface map via the §3 join — the guide must document
+  the routes that serve the guide.
+- Shipped surface lands with an acceptance witness (a suite asserting the
+  flat projection and hash header against a `--memory` server); until
+  then the capability row `operating.served-guide` is design-only.
+
 Discovery wiring, in order of leverage:
 
 1. **`AGENTS.md` pointer** (and the CLAUDE.md mirror): "Before building an
@@ -450,22 +497,18 @@ Discovery wiring, in order of leverage:
    at `guide/`" row.
 3. **`demos/_kit` README** — created in Phase 1 (the kit has none today)
    with a pointer, since every demo author lands there.
-4. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
-   surface lands, the guide manifest and pages are exposed as read-only MCP
-   resources. Version alignment is a design obligation on that increment,
-   not an assumption: the corpus must be embedded in or served by the
-   server/control plane (a server not running from a checkout has no
-   `guide/` to read), responses must carry both the server build
-   identity and the guide content hash from the manifest, and consumers
-   must surface mismatches rather than silently combining versions. Scoped
-   as an increment of the LLP 0042 surface; its content-provenance design
-   is an open question recorded there and here (§Open questions).
-5. **Admin console (LLP 0017)** — a docs tab rendering the same tree from
+4. **The served guide (§4a)** — the always-available channel: any running
+   server hands an agent the corpus, version-matched to the build.
+5. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
+   surface lands, it re-serves the §4a embedded corpus as read-only MCP
+   resources, inheriting the identity handshake — consumers surface
+   hash/build mismatches rather than silently combining versions.
+6. **Admin console (LLP 0017)** — a docs tab rendering the same tree from
    the manifest, following the console's existing built-snapshot pattern
    for where the bytes live. Renderer reuse per §Relationship
    (conditional on a supported dependency boundary).
 
-Phase 1 ships 1–3 plus the manifest (files only); 4 and 5 are Phases 2–3 and
+Phase 1 ships 1–3 plus the manifest (files only); 4–6 are Phases 2–3 and
 depend on the corpus, not the reverse.
 
 ### 5. Keeping it current: ownership, the diary loop, and a small eval
@@ -539,12 +582,19 @@ those pages land, leaving a pointer stub in the same change (0365 §6's
 standing rule, adopted here as the standing rule for any future
 author-facing doc a guide page replaces).
 
-**Phase 2 — MCP projection.**
-When the LLP 0042 surface lands: expose the manifest + pages as versioned
-read-only MCP resources with the §Design 4 identity handshake; extend
-`guide-consistency` to verify the projection against the manifest. The
-corpus-embedding and version-binding design belongs to that increment and is
-tracked in §Open questions until then.
+**Phase 2a — the served guide (§Design 4a; r4).**
+One slice, independent of LLP 0042: `generate-guide-manifest.mjs` also
+emits `guide/guide-flat.generated.md` (staleness-checked like the
+manifest); `build.rs` embeds the corpus; the three `/_snapback/guide`
+routes land with their LLP 0031 registration, hash/build-identity
+response headers, an acceptance witness against a `--memory` server, and
+the `operating.served-guide` capability row flipping design-only →
+shipped with the routes classified in the surface map.
+
+**Phase 2b — MCP projection.**
+When the LLP 0042 surface lands: re-serve the §4a embedded corpus as
+versioned read-only MCP resources, inheriting the identity handshake;
+extend `guide-consistency` to verify the projection against the manifest.
 
 **Phase 3 — admin console rendering.**
 A docs tab in the admin console rendering the corpus from the manifest,
@@ -572,12 +622,12 @@ warnings reviewed at the LLP 0016 reconcile cadence; escalation triggers
    Exact-side reciprocal-row item under the 0365 program) so both sides use
    the same form; this is the one conventions change worth pushing upstream
    early.
-3. **Where the guide bytes live off-checkout.** For Phase 2/3: embedded in
-   the binary at build time (LLP 0041's packaged CLI is the natural
-   carrier), carried like the admin console's built snapshot, or served
-   only by checkout-run servers — and the exact rule binding corpus hash to
-   server build identity. Owned by the Phase 2 increment; recorded here so
-   the manifest's version stamp is designed for it from day one.
+3. **Where the guide bytes live off-checkout — resolved (r4): embedded in
+   the binary and always served** (§Design 4a). The remaining sub-question
+   is dev-mode freshness: whether a checkout-run server should serve the
+   working-tree corpus instead of the embedded one (hash header
+   disambiguating). v1 ships embedded-only; decide the override if the
+   staleness ever bites (checkout authors read the files directly).
 4. **A published-package form.** If Snapback's `@snapback/*` packages get a
    real npm publish closure, `@snapback/guide` following 0365 §3's ephemeral
    staging pattern becomes cheap, and would ride the same LLP 0041 decision

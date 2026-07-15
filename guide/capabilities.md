@@ -61,12 +61,13 @@ with the Snapback label and `guide-gap` in the title.
 | operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | GAP (owner: ccheever, review: 2026-08-15) |
+| operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | design-only | — (LLP 0061 §4a; routes land with Phase 2a) | llp/0061 | GAP (owner: ccheever, review: 2026-08-15) |
 | testing.acceptance | Headless-first acceptance harness | tests, acceptance, harness | local | shipped | `createSuite` in demos/_kit/harness.mjs | llp/0010, llp/0012 | testing/acceptance.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | GAP (owner: ccheever, review: 2026-08-15) |
 
 Cross-repo seam: Contract/Exact *authoring* (language, components, styling,
 motion, routing, Acto verification) is the **Exact guide**'s corpus —
-`repo(exact):docs/guide/index.md` (one-directional for now; LLP 0061
+`repo(exact):guide/index.md` (one-directional for now; LLP 0061
 §Relationship).
 
 ## Surface map

@@ -83,7 +83,7 @@ Two classes, checked:
   must exist in the repo.
 - **Cross-repo references** (the Exact guide seam) name the repository in
   prose and may use `repo(exact):` inline
-  (`[the Exact guide](repo(exact):docs/guide/index.md)`). They resolve only
+  (`[the Exact guide](repo(exact):guide/index.md)`). They resolve only
   when the sibling checkout exists; the checker warns rather than fails when
   it is absent. The seam is one-directional from Snapback for now
   (LLP 0061 §Relationship).

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "b0e8431ade5325b794d3f62bad2b58567215d74e"
+    "commit": "60fe118b45313621e48a1fba38fb6ce07158749a"
   },
   "nav": {
     ".": [
@@ -182,7 +182,7 @@
       "examples": [],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "e1a07b3345d62b1555edc818264b4a1732ca97899d8868b4aaf50b4662a9a558",
+      "sha256": "9b0ddfe6e0418b9f77d9681ab9a7209287adef0ac90d6472e922a15136db1b56",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -291,7 +291,7 @@
       "examples": [],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "8ce1c5e19f2de0f9346201bc7f7ba71562227077a8fe3ed6b05529f005d09d60",
+      "sha256": "12614bcfd26bc41e84d33d706919980a10de08d6f72601d460cd2ae8ac4be2ee",
       "snippets": []
     },
     "getting-started.the-authoring-loop": {
@@ -657,6 +657,7 @@
       "operating.diagnostics",
       "operating.host-ops",
       "operating.secrets-config",
+      "operating.served-guide",
       "sync.offline"
     ]
   },
