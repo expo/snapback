@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# @ref LLP 0058#artifact-and-predecessor-matrix — Heavy historical rollback
+# evidence has an explicit manual cadence and stays out of the fast PR proof.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+cd "$ROOT"
+exec node tests/acceptance/auth-mode-predecessor-v1.mjs "$@"

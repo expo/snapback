@@ -5,7 +5,10 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-14 (ENG-24905: function ids are required and stable — a
+**Revised:** 2026-07-15 (registered the generated contract-data manifest as the
+sole derived v1-sessions artifact exception and registered
+`SNAPBACK_SCHEMA_PARSE_FAILED` in the shared diagnostic/status dialect; status
+remains Draft). 2026-07-14 (ENG-24905: function ids are required and stable — a
 manifest whose function omits its `id` fails load with the typed
 `SNAPBACK_FUNCTION_IDENTITY_INVALID` refusal, ids are deterministic across
 regeneration, and a rename retires the old id; the LLP 0055 stage
@@ -158,6 +161,13 @@ do not create a Cartesian product of acceptable tuples.
   the schema manifest and the function manifest. The mode is declared by the
   schema manifest, but the function artifact carries the same version so an
   executable bundle cannot cross the authority boundary as a v0 half;
+- the generated `contractDataManifest` is the sole derived artifact that moves
+  with that pair: it remains `snapback.v0` for v0-dev and uses
+  `schemaVersion: "snapback.v1"` for v1-sessions, copying the exact accepted
+  pair's `schemaHash`, `bundleHash`, and `inputsHash`. It is adapter metadata,
+  not a third independently admissible deployment half, and cannot authorize
+  or complete a pair. Capability, runtime-state, diagnostic, and wire artifacts
+  retain their existing version spellings;
 - the three v1-sessions identity strings occupy raw-value namespaces disjoint
   from v0: `snapback.v1:sessions:schema:sha256:<digest>` for `schemaHash`,
   `snapback.v1:sessions:function:sha256:<digest>` for `bundleHash`, and
@@ -639,6 +649,13 @@ version fails validation; it is a client protocol refusal and has no server HTTP
 status mapping. `SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED` is a pre-bind
 informational audit fact carrying only revocation count and transition
 generation; it is not an HTTP failure response.
+
+`SNAPBACK_SCHEMA_PARSE_FAILED` is the shared stored-schema-manifest parse
+diagnostic. It maps to HTTP 400 only when it is the top-level error of an
+already served API request. LLP 0058's relocate-and-poison rollback backstop
+reaches it during database open before listener bind, so that use has no HTTP
+response or status. Adapters may rely on the stable code and safe summary, not
+on parser-library detail text.
 
 ### Auth v1 registrations after item 4
 

@@ -1495,9 +1495,9 @@ deployment satisfies any axis.
 
 ## Diagnostics and failure semantics
 
-LLP 0012 remains the owning diagnostic registry. The item-4 companion amendment
-must register every new code/status class below before it can ship; this Spec
-pins the producer semantics and safe-detail boundary.
+LLP 0012 remains the owning diagnostic registry and now registers item 4's
+shared code/status classes, including the predecessor's existing schema-parse
+failure. This Spec pins their producer semantics and safe-detail boundary.
 
 | Code | Locus and meaning |
 | --- | --- |
@@ -1513,6 +1513,7 @@ pins the producer semantics and safe-detail boundary.
 | `SNAPBACK_AUTH_POLICY_UNAVAILABLE` | 503 capability/readiness fence, including pre-item-7 queued replay |
 | `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | 503 pre-item-6 auth-scoped live/protected-room refusal |
 | `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` | actual pre-auth predecessor rejects the v1 header |
+| `SNAPBACK_SCHEMA_PARSE_FAILED` | pre-bind predecessor refuses the deliberately poisoned stored legacy manifest; no HTTP response |
 | `SNAPBACK_CAPABILITY_UNSUPPORTED` | requested pair/required capability unsupported by knowing target |
 | `SNAPBACK_AUTH_HANDSHAKE_INVALID` | **kit-produced**; a `clientProtocols` echo did not match the exact per-request offer tuple, or a required handshake field (descriptor version, incarnation UUIDv7) was malformed before custody change |
 
@@ -1559,9 +1560,12 @@ For each refusal the database/WAL, logical schema/version, functions, mode keys,
 and seed are unchanged relative to the immediate snapshot.
 
 **Predecessor evidence — committed and rerunnable.** Run
-`node tests/acceptance/auth-mode-predecessor-v1.mjs`; the committed harness pins
+`scripts/verify-auth-mode-predecessor`; the named verification script invokes
+the committed harness, which pins
 the unmodified predecessor `1d6cafb6d35b159d19de257db03d69ef1fd218e8`
-(verified as the parent of the first staged-mode commit) and its Ibex gitlink
+(verified as the exact parent of pinned child
+`8da7b46bd5d665317f52c09437ce28a72a559709`, the first staged-mode commit) and
+its Ibex gitlink
 `f8d26ce889208fd5ee3b8d2a64b13787c37e5879`, builds its locked dependency
 graph, and exercises its real HTTP and SQLite boundaries. It submits the v1
 sessions pair against both a fresh database and an identical-content
@@ -1576,6 +1580,15 @@ and the harness compares every normal run against that receipt. Its ignored
 build/source cache is accepted only when both pinned Git objects and the
 provenance marker still match; the receipt records outcomes, while the byte
 comparisons themselves execute at runtime.
+
+This historical build is intentionally excluded from the fast per-PR/local
+proof. Its required manual cadence is monthly, before LLP 0058 ratification or
+an auth-mode release, and after any change to the staged-mode predecessor cut,
+poison/open behavior, predecessor harness, bootstrap path, or pinned Ibex
+runtime. A scheduled GitHub lane is deferred while Actions billing is blocked
+and the current credential-scrubbed workflows have no configured authenticated
+path to fetch a missing private historical Ibex object; when both constraints
+clear, this same named script is the command the scheduled lane must run.
 
 Golden vectors pin all three exact `snapback.v1:sessions:*:sha256:` spellings,
 the three LLP 0012 domains, the three constant framed items followed by `appId`,
