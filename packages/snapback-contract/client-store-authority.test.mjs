@@ -867,9 +867,11 @@ const coordinatorAt = async (authority) => {
   }
 }
 
-// Recovery cannot prove the clearing transition's predecessor authority. Even
-// when the pending successor names the same user, the real recovery barrier
-// deletes payload-bearing queues instead of inferring the ordinary table row.
+// Format-2 custody recovery carries and validates the exact predecessor and
+// successor authorities in its durable transition intent. A same-user
+// next-session recovery therefore applies the ordinary table row
+// idempotently: private queued payloads remain stranded/rerecordable and can
+// never replay under the successor session.
 {
   const custodyState = { custody: {} };
   const owner = new AuthCoordinator({
@@ -959,8 +961,22 @@ const coordinatorAt = async (authority) => {
     assert.deepEqual(state.pending, []);
     assert.deepEqual(state.failed, []);
     assert.deepEqual(state.acknowledged, []);
-    assert.deepEqual(state.stranded, []);
-    assert.equal(JSON.stringify(state).includes('private/recovery/'), false);
+    assert.deepEqual(
+      state.stranded.map((entry) => entry.id).sort(),
+      ['cm_recovery_pending', 'cm_recovery_stranded'],
+    );
+    for (const entry of state.stranded) {
+      assert.equal(entry.replayable, false);
+      assert.equal(entry.rerecordable, true);
+      assert.equal(entry.discardOnly, false);
+      assert.deepEqual(entry.predecessorPrincipalScope, authorityPrincipal(sessionA));
+    }
+    assert.equal(
+      state.stranded.find((entry) => entry.id === 'cm_recovery_pending').reason,
+      'same_principal_new_session',
+    );
+    assert.equal(JSON.stringify(state).includes('private/recovery/pending'), true);
+    assert.equal(JSON.stringify(state).includes('private/recovery/stranded'), true);
   } finally {
     await unregister();
     await recovery.close();

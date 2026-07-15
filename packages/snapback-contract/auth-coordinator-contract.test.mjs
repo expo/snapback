@@ -134,6 +134,7 @@ const tag = (value, capture) => {
   return value;
 };
 const registrations = [];
+const participantResumeCounts = new Map();
 const liveCallbacks = [];
 const pendingMutations = [];
 let nextLive = null;
@@ -158,11 +159,20 @@ const client = {
   authorityCaptureFor: (value) => tagged.get(value) ?? null,
   registerAuthBarrierParticipant(participant) {
     registrations.push(participant);
-    return coordinator.registerParticipant(participant);
+    return coordinator.registerParticipant({
+      ...participant,
+      async resume(context) {
+        participantResumeCounts.set(
+          participant.name,
+          (participantResumeCounts.get(participant.name) ?? 0) + 1,
+        );
+        return participant.resume?.(context);
+      },
+    });
   },
-  liveQuery(_name, options) {
+  liveQuery(name, options) {
     const capture = coordinator.capture();
-    liveCallbacks.push({ capture, onUpdate: options.onUpdate });
+    liveCallbacks.push({ name, capture, onUpdate: options.onUpdate });
     if (nextLive) {
       const waiting = nextLive;
       nextLive = null;
@@ -384,6 +394,7 @@ const secondCells = [];
 const firstSubscription = multi.provider.subscribe('first', {}, (cell) => firstCells.push(cell));
 const secondSubscription = multi.provider.subscribe('second', {}, (cell) => secondCells.push(cell));
 const liveCallsBeforeMultiTransition = liveCallbacks.length;
+const resumesBeforeMultiTransition = new Map(participantResumeCounts);
 const captureF = await coordinator.transition(
   captureE,
   anonymous('018f0d90-7b16-7a22-8c33-445566778899'),
@@ -392,7 +403,19 @@ const captureF = await coordinator.transition(
 assert.deepEqual(multi.boundary.current('first'), []);
 assert.deepEqual(multi.boundary.current('second'), []);
 await multi.flush();
-assert.equal(liveCallbacks.length, liveCallsBeforeMultiTransition + 2);
+assert.deepEqual(
+  liveCallbacks.slice(liveCallsBeforeMultiTransition).map(({ name }) => name),
+  ['first', 'second'],
+);
+assert.deepEqual(
+  [...participantResumeCounts]
+    .filter(([name]) => name.startsWith('snapback-contract-'))
+    .map(([name, count]) => [name, count - (resumesBeforeMultiTransition.get(name) ?? 0)]),
+  [...participantResumeCounts]
+    .filter(([name]) => name.startsWith('snapback-contract-'))
+    .map(([name]) => [name, 1]),
+  'each real Contract participant resumed exactly once',
+);
 assert.deepEqual(
   multi.boundary.current('first').map((row) => row._id),
   [`snapshot-${captureF.authorityEpoch}`],

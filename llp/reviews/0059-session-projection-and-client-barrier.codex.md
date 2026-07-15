@@ -610,3 +610,38 @@ No separate MINOR findings.
 None.
 
 The immutable expiry sample/frontier and durable-before-publication ordering are correctly implemented and tested (`src/auth/runtime.rs:434`, `src/auth/runtime.rs:1436`). Fresh coordinated handshake cache/returns are durably fenced (`demos/_kit/client.mjs:1117`), and the LLP 0008 one-key Web-Lock wording matches production structure.
+
+## Blind final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT NOT READY
+
+MATERIAL
+
+1. Owner-side reentrant resume is unsafe when durable authority changes during resume. The special path only applies when `#synchronizing` is already set (`packages/snapback-contract/auth-coordinator.mjs:688-715`). An owner transition is not tracked there, so its resume-time `synchronize()` can enter normal peer adoption (`:717-753`), recursively replay the barrier, then let the outer resume return its obsolete capture (`:1221-1245`).
+
+   Deterministic reproduction at `8f03e42`: during owner resume, a peer installed a second successor before the participant called `synchronize()`. The participant resumed twice; the original transition returned epoch/revision `1/3` while local and durable custody were already `2/5`. This violates LLP 0059’s rule that a different durable record is not the active local successor (`llp/0059-session-projection-and-client-barrier.spec.md:1373-1379`).
+
+2. The claimed composed Contract evidence is absent. The new coordinator tests cover only exact unchanged successor reloads (`packages/snapback-contract/auth-coordinator.test.mjs:412-489`), not a changed durable record during owner/peer resume. The alleged composed regression (`llp/0059-session-projection-and-client-barrier.spec.md:1998-2000`) stubs `client.authSession` as a no-op (`packages/snapback-contract/auth-coordinator-contract.test.mjs:154-161`); its single/multi-live transitions therefore never execute the production `authSession → synchronize()` reload (`:355-405`).
+
+Resolution criteria:
+
+- Make every `synchronize()` during an active resume—owner or peer—perform the exact durable revision/epoch/authority check. A different record must abort the current resume without nested adoption, replay, stale return, or a later outer `publicationPaused=false` overriding the newer barrier.
+- Add deterministic owner and peer tests where durable custody changes during resume, asserting one resume invocation, no stale capture return, and blank exposure until the current successor completes.
+- Add a genuinely composed single- and multi-live Contract regression using the real coordinated auth-session path, or an instrumented equivalent that actually calls `synchronize()`.
+- Only then retain the executable-evidence claim at LLP 0059:1998-2000.
+
+MINOR
+
+None independent of the material issue. Cross-document ownership is coherent: LLP 0039 owns coordinator/session-loss disposition (`llp/0039-auth-vertical-slice.rfc.md:1207-1230`), LLP 0053 owns permission invalidation (`llp/0053-authorization-invalidation.rfc.md:392-401`), and LLP 0059 owns the executable barrier protocol.

@@ -489,6 +489,116 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   await writer.close();
 }
 
+// If a different context advances durable custody during owner resume, the
+// original barrier aborts closed. It neither adopts the peer inside that
+// barrier nor returns its obsolete successor capture.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/owner-resume-race`;
+  const owner = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await owner.establishAnonymous(anonymous());
+  await peer.synchronize();
+  let peerSuccessor = null;
+  let resumeCalls = 0;
+  const unregister = owner.registerParticipant({
+    name: 'owner-resume-race',
+    async quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {},
+    async resume() {
+      resumeCalls += 1;
+      const ownerSuccessor = await peer.synchronize();
+      peerSuccessor = await peer.transition(
+        ownerSuccessor,
+        successor(session(SESSION_B, USER_B), 'bearer-owner-race-peer', 20_000),
+        'owner_resume_peer_advance',
+      );
+      await owner.synchronize();
+    },
+  });
+  assert.equal(
+    await errorCode(() => owner.transition(
+      before,
+      successor(session(SESSION_A, USER_A), 'bearer-owner-race', 10_000),
+      'owner_resume_race',
+    )),
+    'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.equal(resumeCalls, 1);
+  assert.equal(await errorCode(() => Promise.resolve(owner.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
+  await unregister();
+  assert.deepEqual(await owner.synchronize(), peerSuccessor);
+  await peer.close();
+  await owner.close();
+}
+
+// A peer-adoption resume has the same changed-durable outcome: one failed
+// resume, no nested adoption, then a later clean synchronization of the exact
+// current successor.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/peer-resume-race`;
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await writer.establishAnonymous(anonymous());
+  await peer.synchronize();
+  const firstSuccessor = await writer.transition(
+    before,
+    successor(session(SESSION_A, USER_A), 'bearer-peer-race', 10_000),
+    'peer_resume_first_successor',
+  );
+  let finalSuccessor = null;
+  let resumeCalls = 0;
+  const unregister = peer.registerParticipant({
+    name: 'peer-resume-race',
+    async quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {},
+    async resume() {
+      resumeCalls += 1;
+      finalSuccessor = await writer.transition(
+        firstSuccessor,
+        successor(session(SESSION_B, USER_B), 'bearer-peer-race-final', 20_000),
+        'peer_resume_second_successor',
+      );
+      await peer.synchronize();
+    },
+  });
+  assert.equal(
+    await errorCode(() => peer.synchronize()),
+    'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.equal(resumeCalls, 1);
+  assert.equal(await errorCode(() => Promise.resolve(peer.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
+  await unregister();
+  assert.deepEqual(await peer.synchronize(), finalSuccessor);
+  await peer.close();
+  await writer.close();
+}
+
 // Same-authority bearer rotation changes the custody revision, not app
 // authority. Ordinary work captured before rotation remains current, while a
 // second credential write must compare the exact old revision and loses.

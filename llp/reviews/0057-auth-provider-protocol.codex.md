@@ -556,3 +556,37 @@ No independent EDITORIAL concern rises above these items.
 **MATERIAL —** Rescue commit-boundary and managed-state evidence remains incomplete. LLP 0057 lines 1654–1666 explicitly disclaim injected rescue commit-boundary coverage and composed managed-state fixtures. The reconciliation branch in `src/storage/auth_rescue.rs` lines 221–233 is therefore unexercised. Its sole managed-state test, lines 1066–1095, inserts only an invalid `{}` `auth_mode_state_v1`, not a valid LLP 0058 four-key settled, pending, or quarantined snapshot. Resolution criterion: fault-inject definite rollback, committed-but-error, and divergent reconciliation outcomes; add valid four-key fixtures proving manifest-named rescue refuses without mutation and orphan handling preserves all keys.
 
 **MINOR —** `activate_auth_catalog_v1` and `activate_auth_catalog_v1_in` (`src/storage/auth.rs` lines 887 and 1375) now create `CURRENT_CATALOG = CATALOG_V2`. Behavior is correct, but the stale names obscure the newly established precedence. Resolution criterion: rename them to version-neutral/current-catalog activation names and update callers.
+
+## Blind final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT NOT READY
+
+MATERIAL
+
+1. Reentrant owner resume can return stale authority. LLP 0059 requires resume-time durable reloads to accept only the exact settled successor; any different record must not become the local successor ([llp/0059…:1373](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1373)). The special mismatch rejection applies only when `#synchronizing` is set ([auth-coordinator.mjs:688](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:688)). During an owner-initiated transition it is unset, so a different durable successor falls through to nested peer adoption ([auth-coordinator.mjs:728](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:728)), while the outer resume later unpauses and returns its original capture ([auth-coordinator.mjs:1221](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:1221)).
+
+A deterministic read-only reproduction produced two resume calls and returned epoch 1 while the coordinator’s durable/current capture was epoch 2. This violates authority coherence and LLP 0057’s delegated composed-lock obligation ([llp/0057…:1428](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0057-auth-provider-protocol.spec.md:1428)).
+
+2. Executable acceptance is overstated. LLP 0059 claims the composed Contract test proves resume-triggered durable reload does not recurse ([llp/0059…:1998](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1998)). But that test supplies an empty `authSession()` ([auth-coordinator-contract.test.mjs:154](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:154)); its single/multi-live transitions therefore never execute the production reload path ([auth-coordinator-contract.test.mjs:355](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:355)). The real-client regression does not construct a Contract surface ([auth-coordinator-client.mjs:5](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/demos/_kit/tests/auth-coordinator-client.mjs:5)). All three suites pass, but they do not prove the claimed composition.
+
+MINOR
+
+None.
+
+RESOLUTION CRITERIA
+
+- During any active resume barrier, make `synchronize()` accept only the exact revision/epoch/authority; a different record must fail closed without nested adoption, barrier replacement, duplicate resume, or returning a predecessor capture.
+- Add deterministic owner and peer tests where another context advances custody during resume; assert one resume call, closed exposure, and either a stale failure or a returned capture exactly matching durable custody.
+- Add a genuinely composed SnapbackClient + Contract single/multi-live regression whose resume performs the real durable reload, or narrow LLP 0059’s evidence claim until that test exists.

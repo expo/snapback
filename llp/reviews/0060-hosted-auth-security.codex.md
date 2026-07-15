@@ -772,3 +772,33 @@ Advisory only; no Status transition is implied.
 **MINOR —** LLP 0060 §D6 specifies `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE`, but the code is absent from §Diagnostics and observability and LLP 0012’s reserved hosted/v2 diagnostic inventory. Resolution criterion: register its response class and exposure rules in LLP 0012 and list it in LLP 0060, or explicitly designate it as an internal-only control-plane outcome.
 
 **MINOR —** LLP 0060 §Status claims a specific clean Chrome 150 execution, but commit `c38eabc` contains the rerunnable test (`admin-ui/tests/acceptance/csp-browser.mjs`), not a committed receipt recording that run and browser version. Resolution criterion: commit provenance-bearing output or phrase this as rerunnable acceptance rather than repository-verifiable historical evidence.
+
+## Blind final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+VERDICT NOT READY
+
+MATERIAL
+
+- LLP 0059 overstates executable evidence for reentrant resume synchronization. It claims the composed Contract regression proves that a successor-resume durable reload neither recursively replays the barrier nor starves completion (`llp/0059-session-projection-and-client-barrier.spec.md:1998`). The composed test mounts single- and multi-live surfaces, but its client’s `authSession()` is a no-op (`packages/snapback-contract/auth-coordinator-contract.test.mjs:154`), while the real surfaces’ resume handlers only update capture and schedule refresh (`packages/snapback-contract/index.mjs:2393`, `packages/snapback-contract/index.mjs:3900`). Consequently, that test never performs the claimed nested `coordinator.synchronize()` during resume.
+
+  The new coordinator unit tests do exercise exact-match owner and peer reentry (`packages/snapback-contract/auth-coordinator.test.mjs:412`, `packages/snapback-contract/auth-coordinator.test.mjs:450`), but only with synthetic participants. They also omit the security-relevant negative case required by LLP 0059: a different durable revision/epoch/authority encountered during resume must not be treated as the local successor (`llp/0059-session-projection-and-client-barrier.spec.md:1373`).
+
+  Resolution criteria: add a genuinely composed regression using the real single- and multi-live Contract surfaces whose resume-triggered refresh performs a nested synchronization, covering both owner and peer paths, once-only resume, bounded completion, and no premature publication. Add a changed-durable-record negative case proving stale authority remains unpublishable. Alternatively, narrow LLP 0059’s acceptance and evidence claims to exactly what the existing synthetic tests establish.
+
+MINOR
+
+- None. Cross-document ownership is coherent: LLP 0060 owns hosted marker semantics and rollout proof (`llp/0060-hosted-auth-security.rfc.md:525`), while LLP 0051 owns shared wire authorities, schemas, registration, and drift gates (`llp/0051-capability-negotiation.spec.md:628`).
+
+The targeted coordinator, composed Contract, and client suites pass, and `ref-check` reports no errors; the blocker is the material mismatch between claimed and executed acceptance evidence.

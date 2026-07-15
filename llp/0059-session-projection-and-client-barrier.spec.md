@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (blind-review readiness closure: landed two consecutive
+**Revised:** 2026-07-15 (final cross-family review follow-up: makes every
+owner/peer resume-time reload exact-or-stale, fences pre-barrier reloads that
+finish during resume, composes the real Contract participant reload, proves
+changed-durable owner/peer races, and reconciles intent-backed recovery and
+acceptance evidence; status remains Draft). 2026-07-15 (blind-review readiness closure: landed two consecutive
 fallback takeovers, every named Web-Lock-owner loss cut, the finite
 duplicate/reordered/dropped broadcast matrix, the delayed stale-authority
 one-key localStorage writer, and coordinator/expiry-worker construction
@@ -84,8 +88,9 @@ The item has six load-bearing claims:
 
 - **[confirmed — Charlie Cheever, 2026-07-13, LLP 0039 frozen author
   direction]** The required outcomes, landing position, activation boundary,
-  transition table, and acceptance races come from LLP 0039 and the ENG-24603
-  program assignment.
+  and acceptance races come from LLP 0039 and the ENG-24603 program
+  assignment. This Spec owns the concrete transition table that refines those
+  frozen outcomes.
 - **[observed — Snapback commit `d172fd1`, 2026-07-13]** The current
   `ConnectionRegistry` in `src/server.rs` binds only token/use state;
   `DeliveryNotifier` in `src/ephemeral.rs` already generation-guards waiter
@@ -703,6 +708,7 @@ with three closed bucket kinds:
 ```ts
 type LocalOpenBucketV1 =
   | { kind: "session"; incarnation: CanonicalUuidV7; sessionId: SessionId; generation: SafePositiveInteger }
+  | { kind: "service"; tokenHash: string /* exactly 64 lowercase hex digits */ }
   | { kind: "anonymous-or-malformed"; incarnation: CanonicalUuidV7 }
   | { kind: "canonical-unknown"; incarnation: CanonicalUuidV7 }
 ```
@@ -714,11 +720,13 @@ exact-`previousToken` attempts. Ordering is exact:
    SQLite access;
 2. an absent bearer or malformed presented bearer consumes the
    anonymous/malformed prebudget before any authority lookup;
-3. a canonical bearer is SHA-256-indexed only in `SessionProjection`—connection
+3. a syntactically valid scoped service token consumes its token-hash service
+   bucket before durable token/grant resolution;
+4. a canonical session bearer is SHA-256-indexed only in `SessionProjection`—connection
    open MUST NOT fall through to provider/database resolution;
-4. a current or attributable superseded bearer consumes its exact session
+5. a current or attributable superseded bearer consumes its exact session
    generation bucket; and
-5. an unknown canonical digest consumes the canonical-unknown bucket.
+6. an unknown canonical digest consumes the canonical-unknown bucket.
 
 The invalid buckets are separate from session buckets, so a hostile anonymous
 local page cannot consume every current session's open allowance. Malformed and
@@ -1247,6 +1255,15 @@ transition digest there too. Later bearer-only rotations may advance the
 settled revision while retaining the intent, so they do not pretend the
 original predecessor revision remains derivable.
 
+Recovery of a validated clearing intent applies the same transition row as the
+original owner; it does not discard the embedded predecessor merely because a
+different context finishes the barrier. In particular, an intent that proves
+authenticated A to a different session for the same user strands
+predecessor-scoped queued payloads as non-replayable/rerecordable exactly as
+the table below requires. A missing, malformed, digest-inconsistent, or
+containing-record-inconsistent intent is custody corruption and grants no such
+preservation.
+
 A fresh store is created only after a successful anonymous bootstrap handshake,
 at `authorityEpoch: 0` and `revision: 1`. Every custody record replacement,
 including clearing, settling, and bearer rotation, increments revision by
@@ -1372,11 +1389,17 @@ claim of globally simultaneous DOM blanking.
 
 Resume runs after cross-context ownership is released but while the owner's
 local exposure barrier remains closed. A resume participant may therefore run
-a handshake or durable-authority check. If that check reloads the exact settled
-revision, epoch, and authority already owned by the active local barrier, it
-returns that capture without recursively starting a peer-adoption barrier.
-This exact-match rule prevents reentrant resume while preserving the closed
-barrier; any different durable record is not treated as the local successor.
+a handshake or durable-authority check. Every `synchronize()` during owner or
+peer resume re-acquires custody only to compare the exact settled revision,
+epoch, and authority already owned by that active local barrier. An exact match
+returns the capture without recursively starting a peer-adoption barrier. Any
+different durable record aborts the current resume as stale; it cannot replace
+the active barrier, replay resume, or be adopted until a later clean
+synchronization starts with no barrier active. The failed barrier remains
+blank/paused and never returns its obsolete capture.
+A synchronization begun before the barrier but completing after settle follows
+the same rule: an exact record is confirmation only, while a mismatch fails
+stale; neither completion may replace the now-active barrier.
 
 Where Web Locks is unavailable, the storage adapter must provide an atomic
 compare-and-swap lease in the same transactional domain as custody:
@@ -1933,11 +1956,14 @@ wall-clock sleeps are not proof of ordering.
    closed. Change one retained authority-independent function to protected and
    remove another; both receive clear-retained terminal resyncs before reopen.
    A data-only seed refreshes retained results without inventing an auth epoch.
-7. With a fake monotonic clock, expiry/revocation/reset produces at most one
-   notifier-generation-matched `auth_error`, stops ordinary drain/reconnect,
-   and closes by 5000 ms even when the writer handoff/socket cannot accept the
-   frame. Old-socket teardown cannot close or unregister a replacement. A
-   pending ticket that rolls back produces no terminal frame or close.
+7. Expiry/revocation/reset produces at most one notifier-generation-matched
+   `auth_error`, stops ordinary drain/reconnect, and installs a close deadline
+   equal to the sampled monotonic instant plus the exact 5000-ms protocol
+   grace. Structural deadline assertions prove the ordering; a bounded real
+   transport test is only the liveness smoke proving close still occurs when
+   the writer handoff/socket cannot accept the frame. Old-socket teardown
+   cannot close or unregister a replacement. A pending ticket that rolls back
+   produces no terminal frame or close.
 8. Reset and declared restore each change incarnation in the same durable
    transaction, invalidate all old anonymous/session grants and queues, and
    survive crash at every phase. Restore declaration validation failure causes
@@ -1997,7 +2023,12 @@ permutation of duplicate clearing/settled messages. These are readiness-gating
 tests, not claims inferred from the underlying reload mechanism.
 The composed Contract test also mounts single- and multi-live surfaces on one
 coordinator and proves that a durable-authority reload started by successor
-resume does not recursively replay that barrier or starve its completion.
+resume does not recursively replay that barrier or starve its completion. The
+real single- and multi-live participants await `coordinator.synchronize()`
+while the exposure barrier is still closed; the coordinator suite separately
+advances durable custody during both owner and peer resume and proves the stale
+barrier runs resume once, returns no obsolete capture, stays blank, and adopts
+the actual successor only in a later clean synchronization.
 
 ### Client store and Contract boundaries
 

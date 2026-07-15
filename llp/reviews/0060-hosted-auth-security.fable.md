@@ -341,3 +341,29 @@ This is a strong, near-ratifiable revision. The post-ENG-25001 text is disciplin
 ## Readiness verdict
 
 **NOT READY.** MATERIAL-1 is a single false implemented-boundary sentence in D5's fail-closed honesty rules; once that sentence is corrected to match `src/auth/deployment.rs`, and ideally MINOR-1's `ref-check` attribution alongside it, nothing else I verified stands between this document and author ratification. This review is advisory only; Status remains the author's to change.
+
+## Blind final cross-family review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code 2.1.210
+- Model: `claude-fable-5`
+- Method: read-only plan-permission CLI; blind to `llp/reviews/`
+- Session: `a2864db9-0e4e-46be-9e7a-ce98af729ec4`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+# Blind final implementation review — llp/0060-hosted-auth-security.rfc.md @ 8f03e42
+
+## Context
+Read-only blind final review requested (no llp/reviews reads, no file changes). Deliverable is the ≤700-word review. Work performed: full read of LLP 0060; three parallel verification sweeps (server D1–D6/descriptor; client C1–C2; cross-document ownership across 0011/0012/0039/0051/0053/0057/0058/0059); direct inspection of the 8f03e42 reentrant-resume fix and its composed Contract regression; executable acceptance (6 contract/kit JS suites, 2 admin sentinel suites, 3 Rust descriptor tests, ref-check — all pass).
+
+## Final review (delivered in chat)
+
+VERDICT: READY. MATERIAL: none. MINOR: (1) non-exact reentrant reload asymmetry in auth-coordinator.mjs (transition-initiated resume can nest a peer-adoption barrier, clobbering `#activeBarrier` and leaking the owner barrier's completion — narrow pre-existing race, fail-closed at credential use); (2) fast-path null durable read miscodes absent custody as "corrupt" (auth-coordinator.mjs:700); (3) LLP 0059:1997-1999 composed-Contract sentence overstates determinism (reload is setTimeout(0)-scheduled, index.mjs:2212-2216; deterministic proof is auth-coordinator.test.mjs:412-491); (4) 0060 acceptance "both enforcement @ref annotations" undercounts (14 exist, all pass ref-check); (5) browser-security Chrome acceptance verified present but not rerun here (RFC frames it as rerunnable, consistent).
+
+No further action unless the user asks me to file the minors or apply fixes.

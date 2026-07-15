@@ -685,15 +685,14 @@ export class AuthCoordinator {
   /** Mandatory lifecycle/publication gate; reloads durable custody under ownership. */
   async synchronize() {
     this.#assertOperationAllowed();
-    if (
-      this.#synchronizing
-      && this.#activeBarrier?.phase === 'resume'
-      && this.#record?.phase === 'settled'
-    ) {
-      // A resume participant is inside the outer synchronize operation, so
-      // awaiting that same promise would deadlock the barrier. Re-read under
-      // ownership and accept only the exact settled record the closed local
-      // barrier is already adopting; a concurrent successor aborts resume.
+    if (this.#activeBarrier?.phase === 'resume' && this.#record?.phase === 'settled') {
+      // A resume participant may be inside either an owner transition or the
+      // outer synchronize operation. Starting peer adoption here would replace
+      // the active barrier; awaiting the same synchronize promise would
+      // deadlock it. Re-read under ownership and accept only the exact settled
+      // record the closed local barrier is already adopting. A concurrent
+      // successor aborts this resume and remains closed for a later clean
+      // synchronization.
       // @ref LLP 0059#cross-context-ownership — reentrant resume checks share
       // no in-memory authority assumption and cannot start a nested barrier.
       return this.#storage.withOwnership(this.#appId, async (owner) => {
@@ -724,21 +723,6 @@ export class AuthCoordinator {
       const validated = validateAuthCustody(record, this.#appId);
       if (validated.phase === 'clearing') {
         return this.#recoverOwned(owner, validated, 'peer_recovery');
-      }
-      const matchesLocallySettledBarrier = this.#activeBarrier?.phase === 'resume'
-        && this.#record?.phase === 'settled'
-        && this.#record.revision === validated.revision
-        && this.#record.authorityEpoch === validated.authorityEpoch
-        && canonicalAuthorityKey(this.#appId, this.#record.authority)
-          === canonicalAuthorityKey(this.#appId, validated.authority);
-      if (matchesLocallySettledBarrier) {
-        // A participant may perform handshake/refresh work during resume.
-        // Reloading the exact record already settled by this barrier proves
-        // its durable capture without recursively replacing the active
-        // barrier and replaying resume forever.
-        // @ref LLP 0059#cross-context-ownership — resume runs after custody
-        // ownership is released, while the local exposure barrier stays shut.
-        return captureFor(this.#appId, validated);
       }
       if (
         this.#record === null
@@ -1220,6 +1204,25 @@ export class AuthCoordinator {
 
   async #resumeAfterOwnership(result) {
     if (result?.adoptPeerAfterOwnership) {
+      if (this.#activeBarrier !== null) {
+        const durable = result.record;
+        const exact = durable.phase === 'settled'
+          && this.#record?.phase === 'settled'
+          && durable.revision === this.#record.revision
+          && durable.authorityEpoch === this.#record.authorityEpoch
+          && canonicalAuthorityKey(this.#appId, durable.authority)
+            === canonicalAuthorityKey(this.#appId, this.#record.authority);
+        if (!exact) {
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTHORITY_STALE',
+            'durable authority changed before an in-flight reload could adopt it',
+          );
+        }
+        // A synchronization begun before this barrier may finish after the
+        // owner has settled it. Its exact record is confirmation only: it must
+        // not replace the active barrier or replay participant resume.
+        return captureFor(this.#appId, durable);
+      }
       await this.#adoptPeerSettled(result.record);
       return captureFor(this.#appId, result.record);
     }

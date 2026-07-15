@@ -5,7 +5,9 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final evidence/schema reconciliation: made
+**Revised:** 2026-07-15 (final cross-family review follow-up: reconciled the
+composed commit-witness types, exact cache control, descriptor-schema closure,
+and readiness-negation evidence wording; status remains Draft). 2026-07-15 (final evidence/schema reconciliation: made
 `deploymentIdentity` mode/version/hash exact in the Rust schema, shipped kit,
 and shared corpus; aligned served capability negotiation refusals to LLP
 0012's 503 registration; made the poison harness observe the reserved port
@@ -791,12 +793,14 @@ as ordinary request admission and is dropped before reopen. Only after every
 required projection succeeds does the controller retire the predecessor and
 open a fresh increasing `admissionEpoch` for the still-settled sessions mode.
 
-**`AuthorizationCommitWitness` is owned here** (this Spec owns same-mode
-activation): it is the record a completing authorization-event transaction
-returns to the transition owner — the committed authorization version, the
-active deployment identity, and the incarnation — and it is the concrete
+**The composed authorization commit witness is owned here** (this Spec owns
+same-mode activation): the completing transaction returns the concrete
+`AuthorizationCommitWitness` (committed authorization version and
+incarnation) together with the containing `NetworkDeploymentCommit.state`
+that carries the active deployment identity. That exact pair is the concrete
 same-mode instance of LLP 0053's `CompositeWitness` vocabulary and LLP 0059's
-"durable witness floor." The **minimum commit-version floor** is the version at
+"durable witness floor"; this Spec does not claim those fields occupy one Rust
+struct. The **minimum commit-version floor** is the version at
 or above which every projected obligation and successor snapshot must be
 witnessed; a projection carrying a witness below the floor is rejected. The
 record shape is pinned here so the name is not used normatively while defined
@@ -1287,7 +1291,7 @@ only the historical item-4 body. The Rust/schemars type is the sole current
 closed shape for protocol version 1; LLP 0059 owns the required
 `deploymentIdentity: DeploymentIdentity | null` amendment. Sessions mode
 requires the six-field identity above to be non-null; a legacy dev database may
-return null. The response is `Cache-Control: no-store`; it never enters
+return null. The response is `Cache-Control: no-store, private`; it never enters
 receipts, logs, or runtime snapshots.
 `quarantineCode` is the stable safe code or null. `clientProtocols` echoes only
 exactly supported offered versions; unsupported/malformed offers are null and
@@ -1312,11 +1316,10 @@ validator (`demos/_kit/tests/auth-session-schema-parity.mjs`) and must produce
 identical structural accept/reject verdicts. The one contextual exception is
 `deploymentIdentity.appId`: the reusable schema requires a non-empty string,
 while the configured kit also requires equality with its coordinator app id;
-the corpus names those two verdicts explicitly. Known residual looseness: the shared
-`AuthorityDescriptor` definition (also used by mutation input) does not yet pin
-`descriptorVersion: 1` or the UUIDv7 instance-id grammar that the kit checks;
-tightening it would change mutation-input error classes and is deliberately out
-of this amendment's scope.
+the corpus names those two verdicts explicitly. The shared
+`AuthorityDescriptor` definition pins `descriptorVersion: 1` and canonical
+UUIDv7 authority-instance grammar for both auth-session and mutation-input
+consumers; the corpus exercises those negative classes.
 
 `deploymentIdentity` is itself exact: `dev` pairs only with `snapback.v0`,
 `sessions` pairs only with `snapback.v1`, and no other schema version is
@@ -1762,9 +1765,12 @@ queued replay; adding item 8 changes only retained reads. Missing or unknown
 client protocol versions fail closed at the same server gate the handshake
 reports.
 
-Each item-1 route-registry fact, item-2 surface-closure/secret-read-enforcement
-fact, item-3 provider-core fact, item-4 fact, and item-5 fact is independently
-negated and blocks consume. Process tests cover missing `--ready-file`, missing
+The readiness fact inventory is closed and derived structurally, so omitting
+any required item-1 route-registry, item-2 surface-closure/secret-read,
+item-3 provider-core, item-4, or item-5 fact blocks consume. A representative
+independent-negation test plus exact inventory/derivation equality prevents a
+new fact from being admitted without joining that gate; this is not a claim of
+one handwritten negative fixture for every fact. Process tests cover missing `--ready-file`, missing
 master credential, unsafe/unpublishable `P.secret-read-root`, nonce mismatch,
 and successful root/descriptor publication before app-data admission. A
 settled-sessions restart without the bridge refuses nonmutatingly and does not

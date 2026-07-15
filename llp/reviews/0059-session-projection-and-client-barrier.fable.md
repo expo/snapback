@@ -143,3 +143,48 @@ This is a strong, unusually well-evidenced Spec. The ENG-25001 revision's resolv
 ## Verdict
 
 **NOT READY.** MATERIAL 1, the 0058 closed-DTO contradiction, must be reconciled first; on everything else observed, this document is one small cross-document doc fix away from READY. Advisory only — no Status change is proposed, and ratification remains the author's call.
+
+## Blind final cross-family review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code 2.1.210
+- Model: `claude-fable-5`
+- Method: read-only plan-permission CLI; blind to `llp/reviews/`
+- Session: `3bc33f41-dd55-4c3a-a62c-307430e5bef9`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+# Blind final implementation review — LLP 0059 @ 8f03e42
+
+Task: read-only review; deliverable is a ≤700-word verdict (READY / NOT READY) with MATERIAL/MINOR findings, file:line evidence, and resolution criteria. No file modifications.
+
+## Direct findings so far (reentrant resume — reviewed personally)
+
+- Fix at HEAD (`packages/snapback-contract/auth-coordinator.mjs:688-713`, `:728-742`): exact-match (settled phase + revision + epoch + authority key) reload during active resume returns capture without nested barrier; mismatch throws `SNAPBACK_CLIENT_AUTHORITY_STALE` (fail-closed abort of resume). Covers both reentrant (`#synchronizing` set — peer-adoption barrier) and non-reentrant (owner `transition()`) paths.
+- Ownership released before resume (`auth-coordinator.mjs:1203`, `#resumeAfterOwnership:1221-1247`) → guard's `withOwnership` re-acquisition is deadlock-safe.
+- Regression tests at HEAD: `auth-coordinator.test.mjs:412-451` (owner) and `:453-490` (peer), assert resumeCalls === 1 and capture equality.
+- Composed Contract suite `auth-coordinator-contract.test.mjs:355-408`: single + multi-live surfaces on one coordinator; transition completes; `liveCallbacks.length === before + 2` would catch recursive replay; awaited transition would hang on starvation. Spec sentence (llp/0059 lines 1998-2000) attributes the no-recursion proof to this composed test — indirect there; direct proof is coordinator-level. Possible MINOR evidence-mapping nit.
+- Kit resume (`demos/_kit/client.mjs:1250-1266`) does handshake + `#commitAuthSession` (compareAndCommit) during resume — consistent with spec §Handshake.
+
+## Pending: three Explore agents
+1. Client coordinator/store/kit evidence (custody format 2, lease/fencing, Web-Lock kill matrix, broadcast matrix, localStorage one-key, client-store format 5).
+2. Server evidence (projection, clock floor, lock ranks, L9 fixture, throttle buckets, 4401/auth_error, construction receipts, leased outbox).
+3. Cross-document ownership (0039 frozen anchor, 0057 reconciliation, 0058 protocol 1/readiness/DTO, 0008 one-key, 0043 format 5, 0012 diagnostics registry, 0053/0060).
+
+## Agent results
+
+**Cross-document (done):** No material contradictions. 0057 reconciled from its side (0057:1456,1472-1475); 0058 ratified the handshake DTO fields into its own closed shape (0058:17,1223,1273,1287-1288); 0008 one-key Web-Lock protocol confirmed (0008:429-430); 0043 #auth-posture/format 5 confirmed (0043:215+); 0012 registers all server codes; client-local codes correctly absent. MINOR: 0059:87-88 "transition table … from LLP 0039" overstates (0039 defers the state machine, 0039:1560,1574-1580); axis/type labels (retainedReads/queuedReplay, AuthDispositionV1) are 0059 coinages over owners' unnamed constructs.
+
+**Client (done):** Format-2 custody/lease/broadcast/localStorage-hint constants all match (incl. AUTH_CUSTODY_SUPERSEDED_WAIT_MS=2000 at auth-coordinator.mjs:12 — agent's 2000-vs-5000 flag was a false positive; 5000ms is the separate lease observed-unchanged wait, spec'd as five seconds). Web-Lock kill matrix all 7 points (auth-custody-indexeddb.test.mjs:308-431); two consecutive fallback takeovers token+1 (:239-308); broadcast duplicate/reorder/drop matrix (auth-coordinator-missed-wakeup.test.mjs:375-427); localStorage one-key stale-writer test (offline-replay.test.mjs:1085-1129); kit 4401/auth_error latch + setBearerToken refusal (client.mjs:2290-2324, :1020-1023).
+- **MATERIAL: client-store-authority.test.mjs FAILS at HEAD (:962)** — verified personally. Clearing-state recovery in a fresh context strands same-user private payloads (reason same_principal_new_session, plaintext args retained) where the test requires fail-closed delete ("recovery cannot prove the clearing transition's predecessor authority", :870-872). Red named evidence suite (spec provenance line 104 cites store-authority suite) at the readiness-closure commit.
+- MINOR: spec 1998-2000 attributes the no-recursive-resume proof to the composed Contract test; that test (auth-coordinator-contract.test.mjs) has no recursion/starvation assertion and its client double stubs authSession; the real proof is coordinator-level (auth-coordinator.test.mjs:412-495).
+
+**Server (done):** All 11 claims confirmed (projection/tickets, stream incarnation exact-JSON + same-tx rotation, clock floor with frontier-before-terminal at auth/runtime.rs:485-493, lock ranks session_projection.rs:34-97 + inversion test :2875, L9 fixture server.rs:14937, throttle boundaries :23267, 4401/auth_error/5000ms, receipts pre-bind cli.rs:1897-1913 + negatives :4066/:4130, leased outbox budgets/poison ephemeral.rs:684/:704, two-phase rewiring, handshake fields). Nuances: (a) closed LocalOpenBucketV1 lists 3 bucket kinds, code has a 4th service bucket (server.rs:1763-1775); (b) terminal 5000ms close tested with real Instant deadlines, not the fake monotonic clock the acceptance names (spec's own standard: wall-clock sleeps aren't ordering proof).
+
+## Final verdict
+NOT READY — one MATERIAL: red named evidence suite client-store-authority.test.mjs:962 at 8f03e42 (three-way spec/code/test disagreement on clearing-recovery disposition for same-user stranded private payloads). MINOR: composed-Contract-test evidence misattribution (0059:1998-2000); fake-clock terminal-close acceptance not literally discharged; undocumented 4th throttle bucket; 0039 "transition table" provenance wording. Full text in final response.

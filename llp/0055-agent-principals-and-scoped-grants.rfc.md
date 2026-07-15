@@ -81,7 +81,7 @@ attribution block, hosted refused wholesale; round 2 — ending surfaces,
 invitation class split, one-live-credential invariant, structured scopes;
 round 1 — authority-transition reclassification, `sbat_` collision fix, plane
 narrowing, sealed projections; initial draft same day)
-**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0024, LLP 0031, LLP 0039, LLP 0042, LLP 0045, LLP 0053, LLP 0056
+**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0024, LLP 0031, LLP 0039, LLP 0042, LLP 0045, LLP 0053, LLP 0056, LLP 0058
 
 ## Summary
 

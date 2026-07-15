@@ -236,3 +236,117 @@ This is a mature, unusually rigorous protocol spec, and the post-ENG-25001 revis
 ## Readiness verdict
 
 **NOT READY.** One MATERIAL concern remains — the un-bracketed stale exactness claim in `HandlerAuthProjection` versus the shipped `kind`/`actor` projection. It is narrow and mechanical to resolve (a bracketing paragraph or an incorporated extension, plus a Related-list entry); everything else I checked, including every previously-material area, is confirmed accurate. This review advises only — Status remains the author's call, and nothing here ratifies or changes it.
+
+## Blind final cross-family review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code 2.1.210
+- Model: `claude-fable-5`
+- Method: read-only plan-permission CLI; blind to `llp/reviews/`
+- Session: `89686fa0-715f-4702-b72e-2473b926ab37`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+# Blind final implementation review — LLP 0058 @ 8f03e42
+
+## Context
+
+ENG-25001 asked for a blind final implementation review of
+`llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md` at exactly
+commit 8f03e42, covering material correctness, coherence, security, feasibility, and
+evidence gaps — with explicit inspection of LLP 0059's reentrant owner/peer resume
+synchronization and its composed Contract regression. Nothing under `llp/reviews/` was
+read; no files were modified. This is an assessment-only deliverable; the plan proposes
+no code changes.
+
+## Review
+
+**VERDICT: READY** — no unresolved material issue remains.
+
+**MATERIAL:** none.
+
+### Verification performed
+
+- Read LLP 0058 (1885 lines) and the LLP 0059 resume/custody sections in full.
+- Implementation fidelity swept against code: four meta keys and exact poison bytes
+  (`src/storage/auth_mode.rs:25-28`, `src/auth/mode.rs:18-19`), generation overflow
+  fail-closed (`src/auth/mode.rs:199-203`), six-variant `ResolvedAppAuthority` and gate
+  types (`src/auth/invocation.rs:272,814,1026,1114,1246`), null-prototype deep-frozen
+  projection enforced JS-side (`packages/snapback-harness/ctx-bootstrap.js:480-521`,
+  asserted `src/runtime.rs:3098-3102`), carrier hardening — O_NOFOLLOW, owner-only,
+  nlink==1, no extended ACLs, 32 MiB (`src/secure_file.rs:298-395`,
+  `src/auth/mode.rs:17`), closed 8-id capability registry and the two admissible pairs
+  (`src/manifest.rs:2790-2830,3129-3138`), 30000/20000 ms deadlines with compile-time
+  ordering assert (`src/auth/admission.rs:23`, `src/server.rs:4708-4711`), handshake DTO
+  exactness/`const:1`/required-nullable members (`src/auth/handshake.rs:280-333`), raw
+  loader closure (`src/local.rs:2567-2610`, `src/host_ops.rs:682,1507`), both-key live
+  owner predicate with no `is_some()` short circuit (`src/local.rs:2195-2201`),
+  fail-closed `DurableModeCommit` where only typed `RolledBack` re-arms reopen
+  (`src/storage/auth_mode.rs:82-90`), sticky-overflow sentinel
+  (`src/live_wire.rs:421-432`, `src/local.rs:8233`), and readiness derived-not-asserted
+  (`src/auth/mode.rs:427-445`).
+- Acceptance evidence: parity corpus dual-executed Rust+kit and wired into
+  `scripts/verify-local-proof` (85, 128) / `.github/workflows/local-proof.yml`
+  (`tests/artifact_schemas_v0.rs:449-528`,
+  `demos/_kit/tests/auth-session-schema-parity.mjs:24`); corrupt DB/WAL byte regression
+  (`src/storage/auth_mode.rs:2493-2529`); predecessor harness pins all three SHAs,
+  concurrent port sentinel, receipt format 2 fresh at 2026-07-15 with matching harness
+  SHA-256 (`tests/acceptance/auth-mode-predecessor-v1.mjs:18-96,162-182,362`); same-mode
+  witness/floor, paused-body, clear-retained-sentinel, lease-revalidation tests present
+  (`src/storage/auth_mode.rs:2087`, `src/auth/admission.rs:1312-1339`,
+  `src/local.rs:8702-8728`).
+- LLP 0059 reentrant resume (explicit ask): fix
+  `packages/snapback-contract/auth-coordinator.mjs:688-745` handles both the
+  transition-owner resume reload (exact settled revision+epoch+authority-key match →
+  capture; mismatch → `SNAPBACK_CLIENT_AUTHORITY_STALE`) and the peer-adoption reentrant
+  synchronize (re-read under ownership instead of awaiting its own promise). Ownership is
+  released before resume (`auth-coordinator.mjs:1203-1208`), so no lock deadlock.
+  **Empirically verified**: against the pre-fix coordinator (8f03e42^, run in a /tmp
+  copy), `auth-coordinator.test.mjs` fails with `SNAPBACK_AUTH_TRANSITION_FAILED` and the
+  composed `auth-coordinator-contract.test.mjs` (single + multi-live surfaces on one
+  coordinator) hangs to timeout; both pass at HEAD and are wired via
+  `scripts/verify-local-proof:150` → package `test` script.
+- Cross-document ownership: 0039 is Draft/FROZEN with the exact deferral section; 0012
+  registers `SNAPBACK_REQUEST_BODY_TIMEOUT` (408), kit-produced
+  `SNAPBACK_AUTH_HANDSHAKE_INVALID`, 503 `_INVALIDATION_CLIENT_UNSUPPORTED`, and the
+  must-understand auth-mode exception; 0053 owns `CompositeWitness` and lease constants;
+  0055's dated amendment matches 0058's projection rules; 0059 owns the required nullable
+  `deploymentIdentity` and reciprocally credits 0058 for staged mode/handshake; 0060 owns
+  hosted security. No contradictions.
+
+### MINOR findings and resolution criteria
+
+1. **Cache-Control spelling** — code emits `no-store, private` (`src/server.rs:4601`);
+   spec pins `no-store` (llp/0058 §Exact response DTO). Safe superset. *Resolve:* align
+   spec text (or trim code) in the next 0058 revision.
+2. **`AuthorizationCommitWitness` shape decomposed** — spec pins version + deployment
+   identity + incarnation as one record (llp/0058:794-803); code carries identity in the
+   sibling `NetworkDeploymentCommit.state` (`src/storage.rs:270-282`,
+   `src/storage/auth_mode.rs:58-70`). Facts all delivered. *Resolve:* reword the spec to
+   "returns to the transition owner" as a composed result, or name both types.
+3. **Per-fact readiness negation overclaim** — Acceptance says every item-1…5 fact is
+   "independently negated and blocks consume" (llp/0058:1765-1767); the committed test
+   negates one fact (`src/auth/mode.rs:547-570`); the other nine are covered structurally
+   via `validate()` recomputing the derived AND (`src/auth/mode.rs:440-445`). *Resolve:*
+   loop the negation over all ten facts, or soften the acceptance sentence.
+4. **Predecessor freshness gate is manual-only** — disclosed in-spec (manual cadence +
+   `--require-current-evidence` at ratification/release), but nothing automated flags the
+   receipt aging past 31 days; `verifiedAt` is date-only. *Resolve:* acceptable as
+   written; optionally note date-only granularity in the spec.
+5. **One-directional supersession pointer** — 0058 says 0055 "supersedes" its item-4
+   baseline; 0055 never names 0058. *Resolve:* optional one-line Related/amendment note
+   in 0055.
+
+None of these blocks ratification-readiness of the implementation reconciliation; the
+Draft still requires the author's own ratification per its Status section, which this
+review does not perform.
+
+## Verification (if minors are actioned later)
+
+`scripts/verify-local-proof` (runs cargo test + kit + contract package tests);
+`scripts/verify-auth-mode-predecessor --require-current-evidence` before ratification.

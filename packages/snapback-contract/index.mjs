@@ -2392,6 +2392,13 @@ export async function createSnapbackContractSurface({
         async commitDurable() {},
         async resume(context) {
           authorityCapture = context.capture;
+          // The participant itself performs the mandatory durable reload while
+          // the coordinator's local exposure barrier is still closed. This is
+          // outside cross-context ownership; exact successor confirmation may
+          // re-acquire custody, while a concurrent successor aborts resume.
+          // @ref LLP 0059#cross-context-ownership — Contract resume cannot
+          // defer its authority check until after the barrier has reopened.
+          await coordinator.synchronize();
           scheduleAuthorityRefresh(context);
         },
       });
@@ -3899,6 +3906,9 @@ async function createMultiLiveContractSurface({
         async commitDurable() {},
         async resume(context) {
           currentCapture = context.capture;
+          // @ref LLP 0059#cross-context-ownership — multi-live surfaces share
+          // the same exact durable resume fence as the single-query surface.
+          await coordinator.synchronize();
           scheduleAuthorityRefresh(context);
         },
       });

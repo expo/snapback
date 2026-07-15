@@ -479,3 +479,39 @@ Resolution criterion: add `deploymentIdentity` to the canonical DTO and exactnes
 **MATERIAL —** The predecessor harness overstates its pre-bind evidence. In `tests/acceptance/auth-mode-predecessor-v1.mjs`, the poison case runs synchronously, checks only process failure and absence of the ready file, then records `listenerBound: false`; it never observes whether the reserved port transiently accepted connections. LLP 0058 §§Artifact and predecessor matrix/Status claim committed proof of no listener publication. Resolution criterion: run the predecessor asynchronously with a concurrent connection sentinel or equivalent bind instrumentation, and derive `listenerBound` from that observation.
 
 **MINOR —** LLP 0058 now specifies monthly/event/release cadence, but the receipt contains no run timestamp, runner provenance, or cadence gate. Resolution criterion: record dated successful executions and make ratification/release check that evidence is current.
+
+## Blind final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+# VERDICT: NOT READY
+
+## MATERIAL
+
+LLP 0059 overclaims its composed Contract regression. It says the test proves that a durable-authority reload initiated during successor resume cannot recursively replay or starve the barrier ([LLP 0059:1998](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1998>)). However:
+
+- The test client’s `authSession()` is a no-op ([auth-coordinator-contract.test.mjs:154](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:154>)).
+- Both single- and multi-live tests transition the coordinator directly ([test:263](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:263>), [test:387](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:387>)).
+- Contract resume defers refresh through `setTimeout(0)`, after the active resume participant returns ([index.mjs:2210](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2210>), [index.mjs:2393](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2393>), [index.mjs:3756](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:3756>)).
+
+Therefore the composed test never calls `synchronize()` reentrantly during the active resume barrier and cannot establish the claimed security/liveness property.
+
+The coordinator implementation itself appears coherent: it accepts reentrant resume only after exact durable phase/revision/epoch/authority-key confirmation ([auth-coordinator.mjs:685](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:685>)). Direct owner and peer-adoption regressions exercise this path ([auth-coordinator.test.mjs:412](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.test.mjs:412>), [auth-coordinator.test.mjs:450](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.test.mjs:450>)). That unit evidence does not satisfy the explicitly claimed composed acceptance.
+
+## MINOR
+
+LLP 0058’s “known residual looseness” is stale: it says the auth-session schema does not pin descriptor version or UUIDv7 grammar ([LLP 0058:1315](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1315>)), but the dedicated schema pins both ([schema:113](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/schemas/auth.session.output.schema.json:113>)) and the corpus tests them ([corpus:184](</Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/tests/conformance/auth-session-parity.corpus.json:184>)).
+
+## Resolution criteria
+
+Add a composed single- and multi-live regression whose successor resume actually awaits coordinated durable synchronization during the active resume phase, covering both owner and peer adoption. Assert bounded completion, exactly-once resume, blank-until-ready behavior, and no stale publication. Then correct LLP 0058’s residual-looseness text. Coordinator, Contract, kit tests and `ref-check --verbose` currently pass.

@@ -5,7 +5,9 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-25001 blind-review evidence closure: adds an exact
+**Revised:** 2026-07-15 (final cross-family review follow-up: narrows durable
+clock-floor wording to the exact generic-seed versus declared-restore
+boundaries; status remains Draft); 2026-07-15 (ENG-25001 blind-review evidence closure: adds an exact
 frozen-v1 compatibility fixture across reopen, provider/session use,
 agent-surface refusal, no-migration activation, and marker-preserving physical
 backup/restore; exercises rescue's rollback, exact-successor, and divergent
@@ -158,8 +160,10 @@ carry `CHECK` bounds (e.g. `created_at_ms <= revoked_at_ms`) that a backward
 wall move would otherwise violate, so `now` here means the floored epoch
 throughout — session lifetimes, tombstone `superseded_at_ms`, challenge
 timestamps, key `retired_at_ms`, bulk revocation, and declared restore alike.
-An implementation that reaches restore or provider work **before** the
-coordinator seeds the floor MUST seed it from the catalog's own maxima first.
+An implementation that reaches declared restore before the generic coordinator
+seed MUST incorporate the catalog's own maxima inside that restore transaction
+before applying any supplied `now`; provider work must not begin until either
+that restore boundary or the generic seed has established the floor.
 The production startup path seeds the durable floor immediately after catalog
 inspection, before declared restore, provider-mode composition, auth GC, or
 keyring lifecycle work; declared restore receives `provider.now_ms()`, never a

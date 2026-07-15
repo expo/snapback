@@ -154,3 +154,38 @@ This is a strong, near-final revision. The ENG-25001 repairs are real: every hea
 ## Verdict
 
 **NOT READY.** Two MATERIAL concerns remain, both acceptance-accuracy rather than design or implementation defects: the code verified well, so each is resolvable either by landing the named vectors (issuance-collision through a production route; rescue managed-state refusal; rescue commit-boundary reconciliation injection) or by precisely scoping the Acceptance text to the coverage that actually exists. Advisory only — no ratification or Status change performed.
+
+## Blind final cross-family review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code 2.1.210
+- Model: `claude-fable-5`
+- Method: read-only plan-permission CLI; blind to `llp/reviews/`
+- Session: `3dcf3648-673d-4107-8382-3d7bfca73f72`
+- Reviewed commit: `8f03e42`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+# Blind final implementation review — LLP 0057 @ 8f03e42
+
+## Context
+Blind final implementation review of `llp/0057-auth-provider-protocol.spec.md` at exact commit 8f03e42 (verified HEAD, clean tree). Read-only; nothing under `llp/reviews/` was read; no files modified. Deliverable (in final message, ≤700 words): VERDICT, MATERIAL, MINOR, evidence as file:line, resolution criteria.
+
+## Method
+1. Full read of LLP 0057 (1783 lines) + LLP 0059 changed sections + the 8f03e42/c095370 diffs.
+2. Explore agent A verified all eight ENG-25001 implementation obligations in Rust (cross-table digest uniqueness, family-alarm parse gate, clock-floor seeding order, backup three-state envelope, stdin impersonation intake, rescue identity/four-key/commit reconciliation, frozen-v1 fixture, 0058 downgrade bulk revocation) — all VERIFIED with impl+test line evidence.
+3. Explore agent B verified all six cross-document ownership claims (0055, 0058, 0059 anchors, 0039 frozen deferrals, sessionGeneration-0 sentinel, 0045/0053 boundaries) — all CONSISTENT.
+4. Direct inspection of the reentrant resume guards (`packages/snapback-contract/auth-coordinator.mjs:688-714`, `:728-742`), barrier machinery (`:1221-1247`, `:1298-1351`), regression tests (`auth-coordinator.test.mjs:412-490`), and the composed Contract test (`auth-coordinator-contract.test.mjs`). Ran both JS suites (pass) and `./ref-check` (0 errors).
+
+## Findings (final)
+- MATERIAL: none.
+- MINOR 1: mismatch-during-resume path falls through to nested peer adoption that replaces `#activeBarrier` mid-resume (auth-coordinator.mjs:743-750 → 1328), while the reentrant guard throws STALE; 0059:1373-1379 pins only exact-match. Untested interleaving.
+- MINOR 2: 0059:1998-2000 attributes the no-recursion proof to the composed Contract test; the actual proof is the coordinator unit suite (surface resume only schedules post-barrier work, index.mjs:2393-2396, 2210-2228).
+- MINOR 3: 0057:164-166 catalog-maxima floor seeding is implemented only inside the declared-restore transaction (storage/auth.rs:1119-1134), not the generic seed (auth/runtime.rs:326-337).
+
+## Verdict
+READY — delivered in final message with resolution criteria.
