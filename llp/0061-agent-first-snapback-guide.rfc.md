@@ -5,13 +5,35 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-15 (initial draft)
+**Revised:** 2026-07-15 (r2 — reconciled round-1 fable + codex reviews: replaced
+date-based freshness with a reviewed-commit baseline; replaced the informal
+Phase 1 exit with a pinned cold-agent retrieval eval (diaries stay a
+complementary source); scoped the guide's Phase 1 audience honestly to
+checkout/adjacent authors and corrected the Summary's overstatement of the MCP
+surface (LLP 0042 is Draft, unimplemented); added the Phase 1 generated guide
+manifest as the single projection interface and the build-identity handshake
+question for Phase 2; fixed the unsafe stale-port anti-pattern to the
+provenance/OS-assigned-port discipline the kit actually implements; added
+required witnesses + two day-one inventory joins to the capability index and
+reworded Goal 1's completeness claim honestly; extended `targets:` to every
+page and added checked `maturity:`, with auth pages restricted to
+acceptance-witnessed behavior (0055/0056 material stays GAP); named page
+ownership and the LLP 0016 reconcile line; made the seam one-directional for
+Phase 1 with a filed Exact-side coordination item; kept `examples:` instead of
+renaming it; made transclusion-from-demos the Phase 1 default snippet
+mechanism; corrected motivation evidence (diary 0010 was a deliberate React
+control arm; the diary 0008 exhibit was Exact-side and historical — removed;
+demos are documented-but-fragmented, not silent; count/status fixes); decided
+the `docs/contract-exact-integration.md` disposition; added sync/offline and
+diagnostics pages to the outline; conditioned Phase 3 renderer reuse on a
+supported dependency boundary). 2026-07-15 (initial draft)
 **Related:** LLP 0000 (root), LLP 0004 (application data API), LLP 0005
 (Contract/Exact/React integration), LLP 0010 (agent DX and acceptance),
 LLP 0012 (headless integration contract), LLP 0013 (ephemeral realtime state),
 LLP 0015 (demo application suite), LLP 0016 (diary-driven change program),
 LLP 0017 (admin console inspection surface), LLP 0019 (agentic readiness),
-LLP 0024 (agent operating surface), LLP 0036 (app secrets and config),
+LLP 0024 (agent operating surface), LLP 0031 (server route taxonomy),
+LLP 0036 (app secrets and config), LLP 0041 (packaged dev loop),
 LLP 0042 (agent MCP surface), LLP 0039/0053/0055–0060 (auth program),
 Exact LLP 0365 (the agent-first Exact guide — the sibling-repo pattern this
 adapts; `~/projects/exact/llp/0365-agent-first-exact-guide.rfc.md`)
@@ -21,9 +43,9 @@ adapts; `~/projects/exact/llp/0365-agent-first-exact-guide.rfc.md`)
 Create **the Snapback Guide**: a curated tree of markdown documents under
 `docs/guide/` that teaches an agent (primarily) and a human (secondarily) how
 to build an application **on** Snapback — schema and functions, queries and
-mutations, live queries, ephemeral realtime, auth, secrets, the Contract/Exact
-adapter, the headless surface, acceptance testing, and deployment — with
-verified code for all of it.
+mutations, live queries, ephemeral realtime, sync and offline behavior, auth,
+secrets, the Contract/Exact adapter, the headless surface, acceptance testing,
+and deployment — with verified code for all of it.
 
 This is the Snapback counterpart to **Exact LLP 0365** (the agent-first Exact
 guide, Accepted 2026-07-14). It deliberately **adopts 0365's pattern and
@@ -37,47 +59,59 @@ reader benefit.
 
 Two things are Snapback-shaped rather than copied:
 
-1. **Snippets are verified against a live server.** Snapback's local target is
-   cheap to start (`--memory`, scale-to-zero); guide snippets are executed
-   through the same harness the demo acceptance suites use, not merely
-   compiled. The guide's trust property is "this ran", one level stronger than
-   the Exact guide's "this compiled".
-2. **The server is a distribution channel.** Out-of-repo authors talk to a
-   running Snapback server, so the guide projects through surfaces Snapback
-   already owns — the admin console (LLP 0017) and the MCP surface (LLP 0042)
-   — instead of standing up an npm package as the primary out-of-repo channel.
+1. **Runnable snippets are verified by execution.** Snapback's local target is
+   cheap to start (`--memory`, scale-to-zero); the guide's runnable snippets
+   are transcluded from or executed through the same harness the demo
+   acceptance suites use, not merely compiled. For that class, the trust
+   property is "this ran", one level stronger than the Exact guide's "this
+   compiled" (other snippet classes carry the weaker properties §Design 3
+   assigns them).
+2. **The server is a natural distribution channel — later.** Out-of-repo
+   authors talk to a running Snapback server, so the guide's out-of-repo
+   projections go through surfaces Snapback owns or has designed: the admin
+   console (LLP 0017, shipped) and the MCP surface (LLP 0042, **Draft and not
+   yet implemented**). Phase 1 is therefore honest about its audience: the
+   corpus serves authors working in or adjacent to a Snapback checkout, and
+   **no out-of-repo channel exists until Phase 2's dependency lands**
+   (§Design 4). A Phase 1 generated **guide manifest** is the single interface
+   every later projection consumes.
 
 Governance is proportionate to Snapback's stage: an authored capability index
-with explicit gap rows and harness-verified snippets from day one; the heavier
-0365 machinery (registry inventory joins, review-lock hashes, PR-line policy,
-retrieval evals) is named as adopt-on-trigger, not cloned.
+with required witnesses, two day-one inventory joins, and explicit gap rows;
+harness-verified snippets; a small pinned retrieval eval. The heavier 0365
+machinery (the full registry JSON with joins over every enumerable surface,
+review-lock tooling, PR-line policy) is named as adopt-on-trigger, not cloned.
 
 ## Motivation
 
-### The evidence: agents already build around Snapback's product surface
+### The evidence: the knowledge exists, and authors can't find it
 
 Snapback's primary consumers today are agents building demo applications
-(LLP 0015), and the diary corpus (LLP 0016) is a standing ledger of exactly
-the failure the Exact guide calls the Motion incident — shipped surface that
-an author could not discover, so they built around it:
+(LLP 0015), and the diary corpus (LLP 0016) records what they needed and
+where they had to go to get it:
 
 - Diary 0010 (All Aboard red-team rerun): connection-state semantics "had no
-  React-facing documentation; I had to read the Contract [source]", and the
-  same diary weighs "direct `client.mutate` vs generated mutation binding;
-  hand-wired handles vs" the product path — an author adjudicating between
-  paved road and hand-rolling because nothing taught the paved road.
-- ENG-22218 (graffiti-board prerequisites) exists because the demo would
-  otherwise use "hand-wired HTTP glue" instead of "product-shaped Snapback
-  APIs" — the carrier work shipped, but nothing turned it into teachable
-  surface.
-- Diary 0008 (All Aboard) records load-bearing behavior that is
-  "…and undocumented; if someone adds a dynamic attr to `board-content`, the
-  drag…" — working code whose constraints live only in the diary that
-  discovered them.
+  React-facing documentation; I had to read the Contract [source]". The
+  exercise was a deliberate React control arm — the author chose hand-wiring
+  as the experiment — but the documentation finding stands on its own: the
+  React/DataProvider arm's connection-state and generated-mutation-binding
+  material was discoverable only by reading source.
+- ENG-22218 (graffiti-board prerequisites) shipped the carrier work that lets
+  a demo use "product-shaped Snapback APIs" instead of "hand-wired HTTP
+  glue". The graffiti README then documented those paths *for that demo* —
+  but the technique lives in a demo README, findable only by an author who
+  already knows which demo answers their question.
+- Every demo re-derives the same starting knowledge: how to author a backend,
+  run the server, wire the adapter, structure acceptance tests. The demo
+  READMEs are individually substantial; collectively they are fragmented,
+  uneven, and indexed by app name rather than by intent.
 
-Each new demo re-derives the same knowledge: how to author a backend, run the
-server, wire the adapter, structure acceptance tests. The diaries prove the
-knowledge exists and prove it is not where an author looks.
+The failure mode is the one Exact LLP 0365 documents as the Motion incident —
+shipped surface an author cannot discover from where they stand. Snapback's
+version is milder (the demos document more than Exact's examples did) but
+structural: the teaching material is scattered across six demo READMEs, a
+one-file `docs/`, a contributor primer, and 61 prior design documents, with
+no map from "I want to do X" to the paved-road technique.
 
 ### What exists and why it isn't enough
 
@@ -86,42 +120,50 @@ knowledge exists and prove it is not where an author looks.
 | `AGENTS.md` / `CLAUDE.md` | agents working **on** Snapback | A repo-contributor primer: LLP process, bootstrap, toolchain authority. It teaches you to change Snapback, not to build on it. |
 | `README.md` | new humans | Vision, architecture, repo setup, toolchain pins. Its "Demos" section is the closest thing to author documentation and is three paragraphs of pointers. |
 | `docs/contract-exact-integration.md` | authors | One page, one seam. The only file in `docs/`. |
-| The LLP corpus (61 documents) | designers | Design authorities with revision histories and adjudication notes — the wrong genre to teach from, and organized by decision, not by intent. |
-| `demos/` + `demos/_kit` | copy-from corpus | The de-facto guide. Excellent but silent: no index from "I want live queries" to the demo and files that show them, and demos carry app-specific noise a fresh author must strip. |
+| The LLP corpus (61 prior documents) | designers | Design authorities with revision histories and adjudication notes — the wrong genre to teach from, and organized by decision, not by intent. |
+| `demos/` READMEs + `demos/_kit` | copy-from corpus | The de-facto guide, and individually good — but organized per-app, uneven in coverage, and with no index from "I want live queries" to the demo and files that show them. Demos also carry app-specific noise a fresh author must strip. |
 | Diaries | nobody prospectively | Friction records — evidence for this RFC, unreadable as a tutorial, and explicitly not maintained as current truth. |
 
-The gap is the same one 0365 names: a **single, complete, current,
-agent-optimized map from intent ("I want to do X") to the paved-road
-technique**, with code the author can trust without re-deriving it.
+The gap is the same one 0365 names: a **single, current, agent-optimized map
+from intent ("I want to do X") to the paved-road technique**, with code the
+author can trust without re-deriving it.
 
 ### Why now
 
-The auth program (LLPs 0055–0060) just multiplied the author-facing surface —
-sessions, principals, grants, invalidation barriers, authorized leases — and
-the card-game demo (diary 0013) shows how much of it an author must hold to
-use it correctly. That knowledge currently lives in five specs and one diary.
-Every capability Snapback ships from here either lands in a teaching surface
-or joins the hand-wiring ledger above.
+The auth program (LLPs 0055–0060 — three RFCs and three Specs; 0057–0060
+ratified, 0055/0056 still in Review) just multiplied the author-facing
+surface — sessions, principals, grants, invalidation barriers, authorized
+leases — and the card-game demo (diary 0013) shows how much of it an author
+must hold to use it correctly. That knowledge currently lives in six design
+documents and one diary. Every capability Snapback ships from here either
+lands in a teaching surface or joins the fragmentation ledger above.
 
 ## Goals
 
-1. **Complete capability awareness.** An agent that loads the guide's
-   capability index knows every author-facing feature area Snapback has —
-   including the ones the guide doesn't cover yet, which appear as explicit
-   gap rows rather than silence.
+1. **Capability awareness, honestly scoped.** An agent that loads the guide's
+   capability index sees every author-facing capability enumerable from the
+   surfaces the index joins day one (the declared route registry and the
+   host-ops surface — §Design 2), each shipped row backed by a code witness —
+   plus hand-authored rows for everything else, where coverage is best-effort
+   with a named escalation trigger. Uncovered capabilities appear as explicit
+   gap rows with owners, never as silence.
 2. **Paved-road teaching.** Each page teaches the current product-shaped
    technique, names the LLP and code authorities it derives from, and links
    the demo that exercises it.
 3. **Ran-in-CI code.** Every runnable snippet executes against a real
-   `--memory` server in CI through the demo harness. Agents paste without
+   `--memory` server in CI — by transclusion from already-verified demo and
+   fixture code wherever possible (§Design 3). Agents paste without
    re-deriving.
-4. **Honesty about the boundary.** Snapback documents local-target guarantees
-   that are deliberately not hosted guarantees (LLP 0060; the README's
-   must-not-claim posture). Guide pages inherit that obligation: every page
-   that touches a target-dependent behavior says which target it describes.
+4. **Honesty about targets and maturity.** Snapback documents local-target
+   guarantees that are deliberately not hosted guarantees (LLP 0060; the
+   README's must-not-claim posture), and parts of the auth surface are
+   activation-fenced or still in design review. Every guide page carries
+   checked `targets:` and `maturity:` metadata (§Design 1), and auth pages
+   teach only behavior witnessed by an acceptance test or the server's own
+   capability reporting.
 5. **Consistent shape with the Exact guide.** An agent that has used either
-   guide can navigate the other: same frontmatter fields, same link classes,
-   same snippet-class markers, same index shape.
+   guide can navigate the other: a compatible frontmatter core, the same link
+   classes, the same snippet-class markers, the same index shape.
 6. **Proportionate governance.** Day-one checks are cheap and few; the heavy
    apparatus has named adoption triggers instead of speculative installation.
 
@@ -135,6 +177,11 @@ or joins the hand-wiring ledger above.
   and repo development stay in the README/AGENTS.md.
 - Teaching Contract/Exact authoring — that is the Exact guide's corpus; the
   seam is defined below.
+- Enabling out-of-repo application development by itself. The `@snapback/*`
+  packages are private and the demos invoke codegen by repository-relative
+  paths; until a supported acquisition path exists (LLP 0041's packaged CLI
+  is the natural carrier), the guide serves checkout-based authors and says
+  so (§Design 4).
 - Building a rendered docs website. The admin-console projection (§Design 4)
   is a later phase; the markdown corpus is the value.
 
@@ -154,11 +201,11 @@ repos are already siblings in practice; the guides cross-link instead.
 
 | Reused from Exact LLP 0365 | Form of reuse |
 | --- | --- |
-| Page conventions: frontmatter fields (`id`, `capabilities`, `authorities`, `examples`, `status`, `reviewed`), intent-first headings, complete inventories, named anti-patterns | Copied into `docs/guide/conventions.md`, adapted where Snapback differs (e.g. `targets:` frontmatter for the local/hosted honesty boundary — Goal 4) |
-| Link policy: relative corpus-internal links; marked `repo:` references for out-of-corpus authorities | Copied verbatim |
-| Snippet classes: runnable / fixture-backed / explicitly-partial-with-reason | Copied, with the runnable class upgraded from "compiles" to "executes against a `--memory` server" |
-| Capability index with explicit GAP rows and a size budget | Copied as an authored index (registry-lite; see §Design 2) |
-| Discovery wiring order: primer pointer first, index second | Copied, plus Snapback-specific channels (MCP, admin console) |
+| Page conventions: frontmatter core (`title`, `id`, `order`, `audience`, `capabilities`, `authorities`, `examples`, `status`, `reviewed`), intent-first headings, complete inventories, named anti-patterns | Adopted as a **compatible core plus Snapback extensions** (`targets:`, `maturity:`, `reviewed-commit:` — §Design 1), defined in a schema artifact that is a Phase 1 deliverable. `examples:` keeps its name and points at demo paths. |
+| Link policy: relative corpus-internal links; marked `repo:` references for out-of-corpus authorities | Copied verbatim for the in-repo classes; the cross-repo reference form is new and coordinated (§seam below) |
+| Snippet classes: runnable / fixture-backed / explicitly-partial-with-reason | Copied, with the runnable class upgraded from "compiles" to "executes against a `--memory` server" and transclusion-from-verified-code as the default mechanism (§Design 3) |
+| Capability index with explicit GAP rows and a size budget | Adopted with required witnesses for shipped rows and two day-one inventory joins (§Design 2) |
+| Discovery wiring order: primer pointer first, index second | Copied, plus Snapback-specific channels (MCP, admin console) in later phases |
 
 If a third repo adopts the same shape, extracting the conventions into the
 upstream LLP repo (<https://github.com/ccheever/llp>) becomes worth doing;
@@ -170,23 +217,30 @@ a shared dependency (rule of three).
 - The **Exact guide** teaches Contract/Exact authoring: language, components,
   styling, motion, routing, verification with Acto.
 - The **Snapback guide** teaches the backend and the integration from the
-  backend side: authoring schema/functions, data semantics, realtime, auth,
-  and the `@snapback/contract` adapter + generated bindings — including the
-  connection-state and generated-mutation-binding material diary 0010 could
-  not find, and the React/DataProvider arm (LLP 0005's three-surface story).
-- Each guide's capability index carries a **cross-repo row** at the seam:
-  Exact's data-layer row points at the Snapback guide; Snapback's
-  client-authoring row points at the Exact guide. Cross-repo links use
-  explicit repository-qualified references (a `repo:` link resolves within
-  one repo only; cross-repo references name the repo and are understood to
-  require the sibling checkout or its published rendering).
+  backend side: authoring schema/functions, data semantics, realtime, sync
+  and offline behavior, auth, and the `@snapback/contract` adapter +
+  generated bindings — including the connection-state and
+  generated-mutation-binding material diary 0010 could only get from source,
+  and the React/DataProvider arm (LLP 0005's three-surface story).
+- **Phase 1 links one direction only:** Snapback's client-authoring rows
+  point at the Exact guide by versioned reference. The reciprocal row in
+  Exact's capability registry is Exact-side work with an Exact-side owner —
+  it is filed as a coordination item under the 0365 implementation program
+  rather than asserted here, because 0365's registry requires a local
+  surface witness and representing a Snapback-owned capability there is a
+  design question for that registry's owner. Until it lands, the seam is
+  one-way and this RFC says so.
+- Cross-repo references name the repository explicitly and degrade honestly:
+  an agent with both checkouts resolves them as paths; an agent without gets
+  prose naming the repo and document. The exact link form is the one
+  conventions question worth coordinating upstream early (§Open questions).
 
 **Styling/rendering:** if and when the Snapback guide gets a rendered form,
-it should be rendered by the same machinery as the Exact guide (the
-`js/src/guide/` app pattern and `@exact/markdown`, per 0365 §2) rather than a
-Snapback-local renderer — that is the one place literal code sharing is
-cheap, because Snapback's admin console is already an Exact app. Deferred to
-Phase 3.
+the preference is to reuse the Exact guide app's machinery (the
+`js/src/guide/` pattern and `@exact/markdown`, per 0365 §2) — but literal
+reuse is conditional on a supported dependency boundary existing (a published
+or vendorable `@exact/markdown`); absent one, Phase 3 is pattern reuse, not a
+package dependency. Deferred to Phase 3 either way.
 
 ## Design
 
@@ -204,6 +258,8 @@ docs/guide/
 |-- index.md                       # the map: what Snapback is to an app author
 |-- capabilities.md                # AUTHORED capability index incl. GAP rows (§2)
 |-- conventions.md                 # page/frontmatter/link/snippet rules (from 0365)
+|-- frontmatter.schema.json        # the schema artifact (compatible core + extensions)
+|-- guide-manifest.generated.json  # GENERATED: nav, frontmatter, hashes, versions (§4)
 |-- getting-started/
 |   |-- your-first-backend.md      # schema + functions + codegen + run + query
 |   `-- the-authoring-loop.md      # edit -> codegen -> acceptance test -> inspect
@@ -216,6 +272,8 @@ docs/guide/
 |-- realtime/
 |   |-- live-queries.md            # subscriptions, replace updates, connection state
 |   `-- ephemeral-state.md         # rooms, presence/cursors, TTL, overlays (LLP 0013)
+|-- sync/
+|   `-- offline-and-retention.md   # retained queries, leases, outbox, optimistic overlays
 |-- auth/
 |   |-- sessions-and-principals.md # server-derived identity, ctx.auth
 |   |-- protecting-data.md         # grants, invalidation barriers, leases
@@ -226,11 +284,12 @@ docs/guide/
 |   `-- headless.md                # the required headless surface (LLP 0012)
 |-- operating/
 |   |-- running-the-server.md      # ports, --memory/--db, sidecar lock, inspect
+|   |-- diagnostics.md             # stable SNAPBACK_* codes and what to do with them
 |   |-- secrets-and-config.md      # LLP 0036
 |   |-- admin-console.md           # inspection surface as an author's debugger
 |   `-- host-ops.md                # CLI/HTTP/MCP operating surface (LLP 0024/0042)
 |-- testing/
-|   `-- acceptance.md              # harness, headless-first, fixed-port hygiene
+|   `-- acceptance.md              # harness, headless-first, server lifecycle hygiene
 |-- deploying/
 |   `-- cloudflare.md              # the hosted target as far as it is real (LLP 0040/0049)
 `-- recipes/
@@ -241,38 +300,62 @@ docs/guide/
 
 Page conventions are 0365 §1's, with these Snapback deltas:
 
-- **`targets:` frontmatter** (`[local]`, `[local, cloudflare]`) on every page
-  describing target-dependent behavior, and a rendered banner line when a
-  page's technique is local-only. This is Goal 4 made mechanical — the guide
-  must never generalize a local-target guarantee into a hosted claim
-  (LLP 0060's posture).
-- **`demos:` frontmatter** instead of 0365's `examples:` — pointing at demo
-  directories and specific files; the consistency check verifies the paths.
-- **Anti-patterns sections** seed directly from the diaries: "do not
-  hand-wire HTTP glue for app data; the generated client exists", "do not
-  poll a query you can subscribe to", "do not assert `userId` from the
-  client" (LLP 0039's one idea), "do not reuse a fixed acceptance port
-  without killing the stale server".
+- **`targets:` frontmatter on every page** (`[local]`, `[local, cloudflare]`,
+  or `[all]` for genuinely target-independent material), with a rendered
+  banner line when a page's technique is local-only. `guide-consistency`
+  requires the field everywhere — target-dependence is the rule in this
+  product, not the exception — so the honesty boundary (Goal 4) is mechanical
+  corpus-wide, not per-directory.
+- **`maturity:` frontmatter** (`shipped` | `partial` | `design-only`),
+  checked against the capability index. A page may teach `shipped` behavior
+  normally; `partial` requires naming what works and what doesn't;
+  `design-only` material may exist only as an explicitly marked
+  design-reference section, never as a technique. Auth pages additionally
+  teach only behavior witnessed by an acceptance test or the server's own
+  capability/inspect reporting — the mechanical form of the activation-fence
+  rule; LLP 0055/0056 material stays a GAP row until an author can exercise
+  it.
+- **`reviewed:` + `reviewed-commit:`** — the page's last intentional review
+  date (display metadata) and the commit it was reviewed at (identity — §3).
+- **`examples:` frontmatter** points at demo directories and specific files;
+  the consistency check verifies the paths. The field keeps 0365's name for
+  schema compatibility.
+- **Anti-patterns sections** seed from the diaries and the kit's actual
+  discipline: "do not hand-wire HTTP glue for app data; the generated client
+  exists", "do not poll a query you can subscribe to", "do not assert
+  `userId` from the client" (LLP 0039's one idea), and for tests: "do not
+  claim a fixed port and kill whatever holds it — request an OS-assigned
+  port (or an isolated one), verify server provenance before reusing
+  anything, and stop only processes your own harness started"
+  (`demos/_kit/server-process.mjs` is the transcludable reference for this).
 
-### 2. The capability index (registry-lite)
+### 2. The capability index (registry-lite, with witnesses)
 
 One **authored** file, `docs/guide/capabilities.md`: a table of every
-author-facing capability — id, one-liner, intent aliases, target coverage,
-owning authorities (LLP + code), the guide page or an explicit **GAP** row
-with a filing pointer. Phase 1 seeds it with a sweep of the shipped surface:
-the route registry (LLP 0031), the generated manifests/codegen surface, the
-`packages/` public APIs, the host-ops surface (LLP 0024), and the README's
-"Implemented now" list.
+author-facing capability — id, one-liner, intent aliases, `targets` +
+`maturity`, owning authorities (LLP + code), a **required code witness for
+every shipped row** (a route in the declared registry, a host-op id, a
+package export, a generated-manifest field, or a CLI command that proves the
+capability exists), and the guide page or an explicit **GAP** row naming an
+owner and a review date, with the filing pointer.
 
-Deliberately **not** copied from 0365 day one: the JSON registry with
-mechanical inventory joins, surface witnesses, and deferral-exception
-records. Snapback's author-facing surface is currently enumerable by hand
-(one route registry, four packages, one demo kit) and changes through a
-small number of LLP-governed programs. **Adoption trigger:** when the index
-misses a shipped capability twice — i.e. a diary or guide-gap issue records
-an author building around something the index should have listed — the 0365
-registry machinery (authored JSON + generated index + inventory joins)
-becomes the recorded next step, not a new debate.
+Two **day-one inventory joins**, run by `guide-consistency` (§3), keep the
+index honest where the repo already has declared, machine-readable
+enumerations: the **server route registry** (LLP 0031's declared registry
+with enforcement tests) and the **host-ops operation list** (LLP 0024).
+Every entry in those enumerations must map to a capability id or carry a
+`notAuthorFacing` classification in the index. Other surfaces (package
+exports, codegen declarations, CLI flags) are seeded by the Phase 1 sweep
+and maintained by hand; index ids are stable and are reserved now as the
+resource ids any later projection (MCP, console) uses.
+
+Deliberately still deferred from 0365: the JSON registry file, joins over
+*every* enumerable surface, and the deferral-exception ledger.
+**Escalation trigger:** if the hand-maintained portion misses a shipped
+capability twice — a diary or guide-gap issue records an author building
+around something the index should have listed — the full 0365 registry
+machinery becomes the recorded next step, not a new debate. (The joined
+surfaces don't wait for that trigger; they are closed from day one.)
 
 ### 3. Verification: snippets that ran
 
@@ -280,35 +363,70 @@ Registered in the local proof (`scripts/verify-local-proof`), not as a bare
 loose script, and kept honest by the same headless-first posture as
 LLP 0010/0012:
 
-- **`guide-snippets`** — extracts fenced snippets under `docs/guide/` and
-  verifies each under its declared class:
-  - *Runnable* JS/schema snippets are assembled into a scratch app (via the
-    same codegen + harness path the demos use), loaded into a `--memory`
-    server, and executed — queries return, mutations commit, subscriptions
-    deliver. This is stronger than compile-checking and is cheap precisely
-    because of Snapback's scale-to-zero local target.
+- **`guide-snippets`** — verifies every fenced snippet under `docs/guide/`
+  under its declared class:
+  - **Transclusion is the default.** Runnable snippets are marked regions
+    transcluded at check time from demo and fixture code that CI already
+    executes end-to-end — behavioral drift becomes structural breakage, and
+    "this ran" is inherited rather than rebuilt. Pages hand-copy nothing the
+    demos already prove.
+  - *Standalone-runnable* snippets (for techniques no demo exercises) are
+    assembled into a scratch app via the codegen + harness path and executed
+    against a `--memory` server on an OS-assigned port — queries return,
+    mutations commit, subscriptions deliver, with semantic assertions rather
+    than mere invocation success. The scratch-app assembler is built only
+    for this minority class.
   - *Fixture-backed* snippets declare sibling fixture files compiled/run with
     them.
   - *Partial* fences carry a reason (`snippet-fragment reason="excerpt"`), so
     unrunnable code is a tracked class, not an escape hatch.
-  - Contract-arm snippets on `clients/` pages follow the acceptance suites'
-    existing Exact-availability gating (`SNAPBACK_VERIFY_EXACT`), so the
-    core-only local iteration stays core-only.
-- **`guide-consistency`** — frontmatter schema valid; `authorities:` and
-  `demos:` paths exist; capability ids in pages exist in the index and index
-  page-links resolve; every page reachable from `index.md`; the index within
-  its size budget; `targets:` present on pages under `auth/`, `realtime/`,
-  `deploying/`, and `operating/`.
-- **Freshness** — warning-only at first, one signal: a guide page whose
-  `authorities:` files changed since the page's `reviewed:` date (computed
-  from git, reported by the consistency check). The 0365 review-lock hash
-  machinery is the recorded upgrade path if date-based reporting proves too
-  noisy or too weak. **Day-one gate:** none beyond snippet/consistency
-  failures — proportionality per Goal 6.
+  - **Exact-dependent snippets:** merge/release CI runs `guide-snippets`
+    with `SNAPBACK_VERIFY_EXACT=1`, so Contract-arm snippets are always
+    verified before landing; the local runner may skip Contract fences when
+    Exact dependencies are absent, and skipped-vs-verified status is
+    recorded per snippet in the guide manifest. ("Core-only iteration" here
+    refers narrowly to the local guide runner, not to the full local proof,
+    whose required-surface gate has its own Exact behavior.)
+- **`guide-consistency`** — frontmatter validates against
+  `frontmatter.schema.json`; `authorities:` and `examples:` paths exist;
+  capability ids in pages exist in the index and index page-links resolve;
+  the §2 inventory joins hold; GAP rows carry owner + review date, and
+  expired review dates are reported; every page reachable from `index.md`;
+  the index within its size budget; `targets:` and `maturity:` present and
+  consistent with the index; the generated manifest (§4) not stale.
+- **Freshness** — warning-only, but sound: the check compares each page's
+  `reviewed-commit:` baseline against HEAD with
+  `git diff <reviewed-commit>..HEAD -- <authorities>`, so any authority
+  change since the page's last intentional review is visible regardless of
+  dates, same-day revisions, or how many edits landed. Bumping the baseline
+  is a deliberate act (edit the frontmatter in a review pass); no tool
+  regenerates it. This adopts 0365's dates-are-not-identity principle at a
+  fraction of its review-lock tooling; the full lock file with per-authority
+  content hashes is the recorded upgrade if per-commit granularity proves
+  too coarse. **Day-one gates:** snippet failures, consistency failures
+  (including join violations), and expired GAP review dates. Drift warnings
+  stay warnings.
 
 ### 4. Distribution and discovery
 
-In order of leverage:
+**Audience honesty first:** the `@snapback/*` packages are private, and demo
+tooling invokes codegen by repository-relative paths; there is no supported
+out-of-repo acquisition path today. Phase 1 therefore serves authors working
+**in or adjacent to a Snapback checkout**, and the guide's index page says
+so. Out-of-repo channels arrive with the phases that make them real; the
+packaged CLI (LLP 0041) is the natural future carrier for both an installed
+guide bundle and a `snapback guide` command, and is named in §Open questions
+rather than promised here.
+
+**The guide manifest** — `docs/guide/guide-manifest.generated.json`,
+generated in Phase 1: nav tree, per-page frontmatter, content hashes,
+capability-index join (including GAP state), per-snippet
+verified/skipped status, and the Snapback build identity the snippets were
+verified against. Every later projection — MCP, admin console, CLI, any
+package — consumes the manifest rather than re-parsing the tree, so all
+projections share one shape and one version stamp.
+
+Discovery wiring, in order of leverage:
 
 1. **`AGENTS.md` pointer** (and the CLAUDE.md mirror): "Before building an
    app on Snapback, load `docs/guide/index.md`; before using a feature area,
@@ -317,98 +435,144 @@ In order of leverage:
    guide should have prevented, file it as a guide gap* (§5).
 2. **`README.md`** — the Demos section gains a "building on Snapback starts
    at `docs/guide/`" row.
-3. **`demos/_kit` pointer** — a short note in the kit README, since every
-   demo author lands there.
-4. **MCP surface (LLP 0042)** — the guide index and pages exposed as MCP
-   resources (read-only, server-versioned), so an out-of-repo agent connected
-   to a running Snapback server can load the guide for exactly the server
-   version it is talking to. This is Snapback's analog of 0365's npm
-   package: the server, not a package registry, is the natural channel to an
-   out-of-repo author. Scoped as an increment of the LLP 0042 surface, not a
-   parallel mechanism.
-5. **Admin console (LLP 0017)** — a docs tab rendering the same tree, using
-   the Exact guide app's rendering machinery (§Relationship). The console is
-   already the author's inspection surface; putting "how do I" next to
-   "what is happening" is the console equivalent of docs-next-to-code.
+3. **`demos/_kit` README** — created in Phase 1 (the kit has none today)
+   with a pointer, since every demo author lands there.
+4. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
+   surface lands, the guide manifest and pages are exposed as read-only MCP
+   resources. Version alignment is a design obligation on that increment,
+   not an assumption: the corpus must be embedded in or served by the
+   server/control plane (a server not running from a checkout has no
+   `docs/guide/` to read), responses must carry both the server build
+   identity and the guide content hash from the manifest, and consumers
+   must surface mismatches rather than silently combining versions. Scoped
+   as an increment of the LLP 0042 surface; its content-provenance design
+   is an open question recorded there and here (§Open questions).
+5. **Admin console (LLP 0017)** — a docs tab rendering the same tree from
+   the manifest, following the console's existing built-snapshot pattern
+   for where the bytes live. Renderer reuse per §Relationship
+   (conditional on a supported dependency boundary).
 
-Phase 1 ships 1–3 (files only); 4 and 5 are Phases 2–3 and depend on the
-corpus, not the reverse.
+Phase 1 ships 1–3 plus the manifest (files only); 4 and 5 are Phases 2–3 and
+depend on the corpus, not the reverse.
 
-### 5. Keeping it current: the diary loop
+### 5. Keeping it current: ownership, the diary loop, and a small eval
 
-Snapback already has what 0365 had to invent a retrieval eval to
-approximate: **every demo build produces a diary whose explicit job is to
-record friction** (LLP 0016). The guide closes that loop:
+**Ownership and review.** Each capability-index row and each GAP row names
+an owner. Guide prose rides ordinary PR review, and the guide corpus gets
+its own line in the LLP 0016 reconcile audit (run before each demo lands):
+*did this demo's diary record friction a guide page should absorb, and did
+any recently landed surface change what a page teaches?* Structure is
+checked mechanically (§3); claims are reviewed by people/agents on this
+cadence — a snippet that runs can still teach an anti-pattern, so checked
+structure does not substitute for reviewed prose.
 
-- A diary entry recording knowledge the author needed and couldn't find is a
-  **guide gap**: filed as a Linear issue (Exact project, Snapback label,
-  `guide-gap` in the title or label), linked from the capability index's
-  filing pointer, and normally fixed by a page or an index row.
-- The LLP 0016 reconcile cadence (corpus audit before each demo lands) adds
-  one question: *did this demo's diary record friction a guide page should
-  absorb?*
-- New capability programs (the next LLP 0032-style phase, new RFC
-  implementations) treat "guide page or explicit index GAP row" as part of
-  landing author-facing surface. This is convention in this RFC — the 0365
-  `Guide:` PR-line machinery with parsing epochs is the adopt-on-trigger
-  upgrade if convention visibly leaks.
+**The diary loop.** A diary entry recording knowledge the author needed and
+couldn't find is a **guide gap**: filed as a Linear issue (Exact project,
+Snapback label, `guide-gap` in the title or label), linked from the
+capability index's filing pointer, and normally fixed by a page or an index
+row. Diaries are a rich source of *new cases*; they are complementary to —
+not a substitute for — the eval below, because they are post hoc,
+uncontrolled, and only required when a demo is built or substantially
+changed. (A cheap optional extension once the corpus exists: periodically
+replay an old diary workaround as a cold-agent intent against the current
+guide — a "friction replay" that tests currentness and discoverability
+together.)
+
+**The retrieval eval (pinned, small).** The Phase 1 exit criterion, kept
+repeatable rather than anecdotal, sized to this repo:
+
+- *Fixture:* a fresh agent context, cold-started in the checkout with
+  `AGENTS.md` as the only steer.
+- *Seed intents* (at least three, across feature areas): "add a live-updating
+  list to an app" (realtime), "let two users see each other's cursors"
+  (ephemeral), "scope a query to the signed-in user" (auth).
+- *Budget:* the relevant guide page loaded within the first ~15 tool uses.
+- *Rubric:* the agent (a) loads the relevant page(s), (b) plans with the
+  paved technique, (c) does not reach for the named anti-patterns
+  (hand-wired HTTP glue, polling a subscribable query, client-asserted
+  identity).
+- *Evidence:* the transcript is retained with the check's artifacts.
+- *Owner and cadence:* the guide's named owner; at Phase 1 exit and after
+  any discovery-wiring change.
+
+**New capability programs** (the next LLP 0032-style phase, new RFC
+implementations) treat "guide page or explicit index GAP row" as part of
+landing author-facing surface. This is convention in this RFC — the 0365
+`Guide:` PR-line machinery with parsing epochs is the adopt-on-trigger
+upgrade if convention visibly leaks.
 
 ## Plan
 
-**Phase 1 — corpus + index + checks (the value phase).**
-Create `docs/guide/` with `index.md`, `conventions.md` (adapted from 0365),
-and `capabilities.md` seeded by the shipped-surface sweep. First pages in
-priority order: **getting-started** (both pages), **clients/contract-adapter
-+ react-dataprovider** (the diary-0010 gap), **realtime/live-queries**,
-**auth/sessions-and-principals + protecting-data + targets** (the freshly
-multiplied surface), **testing/acceptance**, and two recipes
-(presence-cursors, hidden-hands). Land `guide-snippets` and
-`guide-consistency` wired into `scripts/verify-local-proof`, the AGENTS.md /
-README / `demos/_kit` pointers, and the diary-loop line in AGENTS.md.
-*Exit criterion: a fresh agent given "build a realtime multiplayer demo on
-Snapback" and only the AGENTS.md pointer loads the relevant guide pages and
-uses the generated client, live queries, and ephemeral store instead of
-hand-wiring HTTP glue — checked informally against the next real demo build
-and its diary, which is the eval this repo already runs.*
+**Phase 1 — corpus + index + manifest + checks (the value phase).**
+Create `docs/guide/` with `index.md` (including the audience statement),
+`conventions.md` + `frontmatter.schema.json` (adapted from 0365; compatible
+core + Snapback extensions), and `capabilities.md` seeded by the
+shipped-surface sweep with witnesses, owners, and the two day-one joins.
+First pages in priority order: **getting-started** (both pages),
+**clients/contract-adapter + react-dataprovider** (the diary-0010 gap),
+**realtime/live-queries**, **testing/acceptance**,
+**auth/sessions-and-principals + targets** (shipped-and-witnessed material
+only; protecting-data follows as its witnesses land), and two recipes
+(presence-cursors, hidden-hands). Land `guide-snippets` (transclusion-first)
+and `guide-consistency` wired into `scripts/verify-local-proof`, the
+`generate:guide-manifest` generator, the AGENTS.md / README pointers, the
+`demos/_kit` README, the diary-loop line in AGENTS.md, and the retrieval-eval
+protocol + fixtures.
+*Exit criterion: the §5 retrieval eval passes on its seed intents, and the
+`docs/contract-exact-integration.md` absorption (below) has landed.*
+
+`docs/contract-exact-integration.md` is **absorbed** into `clients/` when
+those pages land, leaving a pointer stub in the same change (0365 §6's
+standing rule, adopted here as the standing rule for any future
+author-facing doc a guide page replaces).
 
 **Phase 2 — MCP projection.**
-Expose the guide tree through the LLP 0042 MCP surface as versioned
-read-only resources; extend `guide-consistency` to verify the projection
-manifest. Depends on the 0042 surface existing; adds no new corpus rules.
+When the LLP 0042 surface lands: expose the manifest + pages as versioned
+read-only MCP resources with the §Design 4 identity handshake; extend
+`guide-consistency` to verify the projection against the manifest. The
+corpus-embedding and version-binding design belongs to that increment and is
+tracked in §Open questions until then.
 
 **Phase 3 — admin console rendering.**
-A docs tab in the admin console rendering the corpus, reusing the Exact
-guide app's content pipeline and renderer rather than building one here.
-Optional; the corpus and MCP forms carry the agent-facing value.
+A docs tab in the admin console rendering the corpus from the manifest,
+reusing the Exact guide app's content pipeline and renderer if a supported
+dependency boundary exists (published or vendored), else applying the
+pattern with the console's own machinery. Optional; the corpus and MCP
+forms carry the agent-facing value.
 
-**Ongoing.** The diary loop (§5); the capability index updated as programs
-land; freshness warnings reviewed at the LLP 0016 reconcile cadence;
-adoption triggers (§2, §3, §5) fire the named 0365 upgrades if the light
-mechanisms leak.
+**Ongoing.** The diary loop and reconcile-audit line (§5); the retrieval
+eval re-run on discovery-wiring changes; the capability index updated as
+programs land, with the joins keeping the joined surfaces closed; drift
+warnings reviewed at the LLP 0016 reconcile cadence; escalation triggers
+(§2, §5) fire the named 0365 upgrades if the light mechanisms leak.
 
 ## Open questions
 
-1. **Snippet-harness shape.** Whether `guide-snippets` assembles scratch
-   apps per page or maintains one guide fixture app whose pages transclude
-   marked regions (0365's transclusion idea, which makes behavioral drift
-   structural). Decide when building the check; transclusion from the demos
-   themselves is attractive since they are already CI-verified.
-2. **How much of the auth surface is teachable now.** LLPs 0057–0060 are
-   ratified but parts are activation-fenced; the `auth/` pages must teach
-   only what an author can actually exercise. The `targets:` convention
-   helps, but the page/spec boundary needs care in Phase 1.
-3. **Cross-repo link mechanics.** The seam rows need a reference form that
+1. **How much of the auth surface is teachable now.** The `maturity:` rule
+   and the acceptance-witness requirement (§Design 1) bound this
+   mechanically, but the Phase 1 page/spec boundary for `protecting-data.md`
+   — which grant/barrier/lease behaviors have executable witnesses today —
+   needs the sweep to answer precisely.
+2. **Cross-repo link mechanics.** The seam rows need a reference form that
    works for an agent with both checkouts and degrades honestly for one
-   without (name-the-repo prose vs a `repo(exact):` scheme). Coordinate the
-   convention with the Exact guide so both sides use the same form; this is
-   the one conventions change worth pushing upstream early.
-4. **Whether `docs/contract-exact-integration.md` is absorbed or bridged.**
-   It predates the guide and overlaps `clients/`; default is absorb-with-
-   pointer-stub per 0365 §6's standing rule, decided when `clients/` lands.
-5. **A published-package form.** If Snapback's `@snapback/*` packages get a
+   without. Coordinate the convention with the Exact guide (and file the
+   Exact-side reciprocal-row item under the 0365 program) so both sides use
+   the same form; this is the one conventions change worth pushing upstream
+   early.
+3. **Where the guide bytes live off-checkout.** For Phase 2/3: embedded in
+   the binary at build time (LLP 0041's packaged CLI is the natural
+   carrier), carried like the admin console's built snapshot, or served
+   only by checkout-run servers — and the exact rule binding corpus hash to
+   server build identity. Owned by the Phase 2 increment; recorded here so
+   the manifest's version stamp is designed for it from day one.
+4. **A published-package form.** If Snapback's `@snapback/*` packages get a
    real npm publish closure, `@snapback/guide` following 0365 §3's ephemeral
-   staging pattern becomes cheap. Not proposed now; the MCP channel covers
-   the out-of-repo case first.
+   staging pattern becomes cheap, and would ride the same LLP 0041 decision
+   as question 3. Not proposed now.
+5. **A fast docs-only entry point.** Whether `guide-snippets` +
+   `guide-consistency` get a standalone runner for docs-only edits, so the
+   guide's edit loop doesn't pay the full local proof (clippy + cargo test +
+   acceptance). Likely yes; decide when registering the checks.
 
 ## Alternatives considered
 
@@ -417,10 +581,12 @@ mechanisms leak.
   cadences; readers get the same value from cross-links at the seam. The
   shape is shared instead, and the rendering machinery may be shared later
   (§Relationship).
-- **Clone 0365's full governance day one.** Rejected as disproportionate:
-  Snapback's author-facing surface is hand-enumerable and its change traffic
-  flows through a few LLP-governed programs. Each heavy mechanism is named
-  with an adoption trigger instead.
+- **Clone 0365's full governance day one.** Rejected as disproportionate —
+  but revised from r1: the parts of that governance that are load-bearing
+  for honesty (witnesses, sound freshness identity, a repeatable eval, the
+  joins over already-declared registries) are adopted in right-sized form
+  now; only the heavy tooling (registry JSON over all surfaces, lock files,
+  PR-line parsing) waits for its named triggers.
 - **Just improve README + AGENTS.md.** Rejected: both are primers with the
   wrong audience (repo contributors) and hard size pressure; the builder-
   facing map needs its own boundary, conventions, and checks — the same
