@@ -155,14 +155,14 @@ impl AuthRuntime {
         };
         let startup_diagnostic = match catalog {
             AuthCatalogState::Uninitialized => None,
-            AuthCatalogState::ReadyV1 => match provider.readiness() {
+            AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => match provider.readiness() {
                 AuthProviderReadiness::Available => None,
                 AuthProviderReadiness::Unavailable => Some(provider_unavailable_diagnostic()),
             },
         };
         Ok(Self {
             provider,
-            catalog_ready: catalog == AuthCatalogState::ReadyV1,
+            catalog_ready: catalog.is_ready(),
             startup_diagnostic,
         })
     }

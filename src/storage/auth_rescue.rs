@@ -331,7 +331,7 @@ fn rescue_in_transaction(
 
     let catalog_collision_cleared = match inspect_auth_catalog_on(transaction) {
         Ok(AuthCatalogState::Uninitialized) => true,
-        Ok(AuthCatalogState::ReadyV1) => {
+        Ok(AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2) => {
             return Err(rescue_invalid(
                 "auth catalog became owned during collision rescue",
             ));

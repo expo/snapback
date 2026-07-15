@@ -47,7 +47,7 @@ pub(crate) fn activate_catalog(
     random: &dyn RandomSource,
 ) -> SnapbackResult<AuthActivation> {
     match database.inspect_auth_catalog()? {
-        AuthCatalogState::ReadyV1 => Ok(AuthActivation {
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => Ok(AuthActivation {
             catalog_created: false,
             email_code: existing_keyring_readiness(keyring),
         }),
@@ -57,7 +57,7 @@ pub(crate) fn activate_catalog(
                 .map_err(provider_unavailable)?;
             activation_keyring_ready()?;
             database.activate_auth_catalog_v1()?;
-            if database.inspect_auth_catalog()? != AuthCatalogState::ReadyV1 {
+            if !database.inspect_auth_catalog()?.is_ready() {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_CATALOG_CORRUPT",
                     "auth",
@@ -357,7 +357,7 @@ mod tests {
         assert!(matches!(activated.email_code, EmailCodeReadiness::Ready(_)));
         assert_eq!(
             database.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV1
+            AuthCatalogState::ReadyV2
         );
     }
 

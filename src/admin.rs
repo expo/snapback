@@ -826,8 +826,7 @@ impl AppState {
                 .ensure_authorization_stream_incarnation()
                 .expect("trusted auth-provider builder creates its stream");
             let catalog_ready = match database.inspect_auth_catalog() {
-                Ok(crate::storage::auth::AuthCatalogState::ReadyV1) => true,
-                Ok(crate::storage::auth::AuthCatalogState::Uninitialized) => false,
+                Ok(state) => state.is_ready(),
                 Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_TABLE_COLLISION" => false,
                 Err(error) => panic!("trusted auth-provider catalog inspection failed: {error:?}"),
             };

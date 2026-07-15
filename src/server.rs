@@ -12515,6 +12515,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_UNKNOWN_CRON_JOB"
         | "SNAPBACK_UNKNOWN_SUBSCRIPTION"
         | "SNAPBACK_AUTH_MODE_DEV"
+        // @ref LLP 0055#principal-kinds — an operation naming a principal that is
+        //   not a known agent.
+        | "SNAPBACK_AUTH_AGENT_UNKNOWN"
         | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
@@ -12538,6 +12541,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0056#declaring-a-membership-table — a duplicate write against
         //   the generated unique index is a conflict, not a bad request.
         | "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        // @ref LLP 0055#principal-kinds — deactivation is refused when it would
+        //   leave a protected LLP 0056 resource with no eligible holder; the
+        //   operation conflicts with the last-eligible-holder invariant.
+        | "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -12556,6 +12563,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID"
         | "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
         | "SNAPBACK_AUTH_PERMISSION_DENIED"
+        // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
+        //   refused fail-closed at every authority-creating/exercising path.
+        | "SNAPBACK_AUTH_AGENT_DEACTIVATED"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -12565,6 +12575,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_SESSION_EXPIRED"
         | "SNAPBACK_AUTH_STREAM_RESET"
         | "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED"
+        // @ref LLP 0055#credentials-and-tokens — a credential of one class
+        //   presented on another class's surface is a typed mismatch, never an
+        //   anonymous fall-through.
+        | "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
         | "SNAPBACK_AUTH_CODE_INVALID" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
@@ -19339,6 +19353,7 @@ mod tests {
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "SNAPBACK_ADMIN_TOKEN_REQUIRED",
         "SNAPBACK_AUTH_CODE_INVALID",
+        "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH",
         "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED",
         "SNAPBACK_AUTH_REQUIRED",
         "SNAPBACK_AUTH_SESSION_EXPIRED",
@@ -19349,6 +19364,7 @@ mod tests {
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
+        "SNAPBACK_AUTH_AGENT_DEACTIVATED",
         "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_REQUIRED",
@@ -19366,6 +19382,7 @@ mod tests {
     ];
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_AUTH_AGENT_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
         "SNAPBACK_UNKNOWN_CRON_JOB",
@@ -19377,6 +19394,7 @@ mod tests {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
         "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
         "SNAPBACK_AUTH_INVALIDATION_PENDING",

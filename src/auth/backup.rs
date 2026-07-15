@@ -13,7 +13,9 @@ use crate::auth::lifecycle::{RESTORE_DECLARATION_FILE, RestoreDeclaration};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::{FileIdentity, TargetInstanceReservation};
 use crate::storage::LocalDatabase;
-use crate::storage::auth::{AUTH_CATALOG_VERSION, AuthCatalogState};
+use crate::storage::auth::AUTH_CATALOG_VERSION;
+#[cfg(test)]
+use crate::storage::auth::AuthCatalogState;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -95,13 +97,13 @@ pub(crate) fn create_backup(
         .filter(|name| portable_basename(name))
         .ok_or_else(|| backup_invalid("source database basename is not portable"))?
         .to_owned();
-    if database
+    if !database
         .inspect_auth_catalog()
-        .map_err(|_| backup_invalid("source auth catalog is not an exact ReadyV1 catalog"))?
-        != AuthCatalogState::ReadyV1
+        .map_err(|_| backup_invalid("source auth catalog is not an exact recognized catalog"))?
+        .is_ready()
     {
         return Err(backup_invalid(
-            "source auth catalog is not an exact ReadyV1 catalog",
+            "source auth catalog is not an exact recognized catalog",
         ));
     }
 
@@ -242,12 +244,12 @@ pub(crate) fn restore_backup(
     }
     restore_step_completed(1)?;
 
-    if LocalDatabase::inspect_auth_catalog_file_read_only(&staged_database)
-        .map_err(|_| backup_invalid("restored auth catalog is not an exact ReadyV1 catalog"))?
-        != AuthCatalogState::ReadyV1
+    if !LocalDatabase::inspect_auth_catalog_file_read_only(&staged_database)
+        .map_err(|_| backup_invalid("restored auth catalog is not an exact recognized catalog"))?
+        .is_ready()
     {
         return Err(backup_invalid(
-            "restored auth catalog is not an exact ReadyV1 catalog",
+            "restored auth catalog is not an exact recognized catalog",
         ));
     }
     validate_retained_key_references(
@@ -1655,7 +1657,7 @@ mod tests {
         let restored = LocalDatabase::open(&target_database).unwrap();
         assert_eq!(
             restored.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV1
+            AuthCatalogState::ReadyV2
         );
         assert_eq!(restored.auth_retained_key_ids().unwrap().len(), 1);
         let restored_keyring = AuthKeyringStore::file_for_database(&target_database);

@@ -19,6 +19,17 @@ const SESSION_PREFIX: &str = "sbs_";
 const IMPERSONATION_PREFIX: &str = "sbic_";
 const CODE_DIGEST_DOMAIN: &[u8] = b"snapback.auth.email-code.v1";
 
+// @ref LLP 0055#credentials-and-tokens — the five agent-principal secret
+//   classes. They must be mutually prefix-free with every already-minted class
+//   (asserted programmatically over `REGISTERED_CREDENTIAL_PREFIXES`); class
+//   dispatch is structural on the prefix *before* resolver selection, so a
+//   wrong-class credential is a typed mismatch, never an anonymous fall-through.
+const AGENT_CREDENTIAL_PREFIX: &str = "sbac_";
+const SCOPED_TOKEN_PREFIX: &str = "sbagt_";
+const CREATION_INVITATION_PREFIX: &str = "sbagi_";
+const RECOVERY_INVITATION_PREFIX: &str = "sbagr_";
+const PAIRING_CODE_PREFIX: &str = "sbpc_";
+
 /// Crypto failures deliberately carry no caller-controlled or secret input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CryptoError {
@@ -359,6 +370,230 @@ impl fmt::Debug for ImpersonationBearer {
     }
 }
 
+/// Declares one LLP 0055 credential newtype that rides the shared 32-byte +
+/// CRC-32 bearer spelling under a dedicated, prefix-free class prefix. Every
+/// class carries a distinct prefix so structural dispatch is unambiguous, a
+/// redacted `Debug`, and a zeroizing buffer — the same secret-hygiene contract
+/// as `SessionBearer`.
+macro_rules! agent_secret_bearer {
+    ($name:ident, $prefix:ident, $debug:literal) => {
+        pub struct $name(Zeroizing<String>);
+
+        impl $name {
+            pub fn parse(input: &str) -> Result<Self, CryptoError> {
+                parse_bearer(input, $prefix).map(|value| Self(Zeroizing::new(value)))
+            }
+
+            pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+                mint_bearer(random, $prefix).map(|value| Self(Zeroizing::new(value)))
+            }
+
+            #[cfg_attr(not(test), allow(dead_code))]
+            pub(crate) fn expose_secret(&self) -> &str {
+                &self.0
+            }
+
+            #[cfg_attr(not(test), allow(dead_code))]
+            pub fn token_hash(&self) -> TokenHash {
+                hash_bearer(self.expose_secret().as_bytes())
+            }
+        }
+
+        impl fmt::Debug for $name {
+            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str($debug)
+            }
+        }
+    };
+}
+
+// @ref LLP 0055#credentials-and-tokens — long-lived agent credential (`sbac_`),
+//   short-lived scoped token (`sbagt_`), single-use creation (`sbagi_`) and
+//   recovery (`sbagr_`) invitations, and the user-minted pairing code
+//   (`sbpc_`). All stored hashed; the lifecycle that consumes them is G3/G4.
+agent_secret_bearer!(AgentCredential, AGENT_CREDENTIAL_PREFIX, "AgentCredential([REDACTED])");
+agent_secret_bearer!(ScopedToken, SCOPED_TOKEN_PREFIX, "ScopedToken([REDACTED])");
+agent_secret_bearer!(
+    CreationInvitation,
+    CREATION_INVITATION_PREFIX,
+    "CreationInvitation([REDACTED])"
+);
+agent_secret_bearer!(
+    RecoveryInvitation,
+    RECOVERY_INVITATION_PREFIX,
+    "RecoveryInvitation([REDACTED])"
+);
+agent_secret_bearer!(PairingCode, PAIRING_CODE_PREFIX, "PairingCode([REDACTED])");
+
+/// Every credential/secret class the repository mints, named for structural
+/// prefix dispatch. Classification runs on the registered prefix **before** any
+/// resolver is selected: a bearer of one class reaching another's surface is a
+/// typed `CREDENTIAL_CLASS_MISMATCH`, never a fall-through and never a
+/// retry-as-anonymous.
+///
+/// @ref LLP 0055#credentials-and-tokens — the registered, collision-checked,
+///   prefix-free namespace; `sbrp_`/`sbrm_` are a nonce and a MAC that never
+///   authenticate.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CredentialClass {
+    /// `sbs_` — human/app session bearer (LLP 0057/0039).
+    Session,
+    /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
+    ImpersonationCapability,
+    /// `sbac_` — long-lived agent credential (LLP 0055).
+    AgentCredential,
+    /// `sbagt_` — short-lived scoped token (LLP 0055).
+    ScopedToken,
+    /// `sbagi_` — single-use creation invitation (LLP 0055).
+    CreationInvitation,
+    /// `sbagr_` — single-use recovery invitation (LLP 0055).
+    RecoveryInvitation,
+    /// `sbpc_` — the user-minted pairing code (LLP 0055).
+    PairingCode,
+    /// `sbc_` — an email-code challenge id; an identifier, not a bearer.
+    ChallengeId,
+    /// `sbak_` — an auth key id; an identifier, not a bearer.
+    AuthKeyId,
+    /// `sbat_` — the local admin token.
+    AdminToken,
+    /// `sbcc_` — a browser console client credential.
+    ConsoleCredential,
+    /// `sct_` — a WebSocket connection token.
+    ConnectionToken,
+    /// `sbrk_` — the secret-read root key.
+    SecretReadRootKey,
+    /// `sbrl_` — a secret-read lease bearer.
+    SecretReadLease,
+    /// `sbrp_` — a secret-read startup-proof nonce. **Never authenticates.**
+    SecretReadProofNonce,
+    /// `sbrm_` — a secret-read startup-proof MAC. **Never authenticates.**
+    SecretReadProofMac,
+}
+
+impl CredentialClass {
+    /// The exact registered prefix for this class.
+    pub fn prefix(self) -> &'static str {
+        match self {
+            Self::Session => SESSION_PREFIX,
+            Self::ImpersonationCapability => IMPERSONATION_PREFIX,
+            Self::AgentCredential => AGENT_CREDENTIAL_PREFIX,
+            Self::ScopedToken => SCOPED_TOKEN_PREFIX,
+            Self::CreationInvitation => CREATION_INVITATION_PREFIX,
+            Self::RecoveryInvitation => RECOVERY_INVITATION_PREFIX,
+            Self::PairingCode => PAIRING_CODE_PREFIX,
+            Self::ChallengeId => CHALLENGE_PREFIX,
+            Self::AuthKeyId => KEY_PREFIX,
+            Self::AdminToken => "sbat_",
+            Self::ConsoleCredential => "sbcc_",
+            Self::ConnectionToken => "sct_",
+            Self::SecretReadRootKey => "sbrk_",
+            Self::SecretReadLease => "sbrl_",
+            Self::SecretReadProofNonce => "sbrp_",
+            Self::SecretReadProofMac => "sbrm_",
+        }
+    }
+
+    /// Whether a value of this class can ever resolve to live authority when
+    /// presented as a bearer. Identifiers (`sbc_`, `sbak_`) and the secret-read
+    /// proof nonce/MAC (`sbrp_`, `sbrm_`) are structurally non-authenticating —
+    /// presenting one at any authenticating surface is a class mismatch, never
+    /// authority.
+    ///
+    /// @ref LLP 0055#credentials-and-tokens — `sbrp_`/`sbrm_` are a nonce and a
+    ///   MAC; they must NEVER authenticate.
+    pub fn is_authenticating(self) -> bool {
+        !matches!(
+            self,
+            Self::ChallengeId
+                | Self::AuthKeyId
+                | Self::SecretReadProofNonce
+                | Self::SecretReadProofMac
+        )
+    }
+}
+
+/// The complete registered credential namespace. Every entry is asserted
+/// mutually prefix-free (`credential_prefixes_are_mutually_prefix_free`), so the
+/// `starts_with` scan in [`classify_credential`] matches at most one class.
+pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
+    (SESSION_PREFIX, CredentialClass::Session),
+    (IMPERSONATION_PREFIX, CredentialClass::ImpersonationCapability),
+    (AGENT_CREDENTIAL_PREFIX, CredentialClass::AgentCredential),
+    (SCOPED_TOKEN_PREFIX, CredentialClass::ScopedToken),
+    (CREATION_INVITATION_PREFIX, CredentialClass::CreationInvitation),
+    (RECOVERY_INVITATION_PREFIX, CredentialClass::RecoveryInvitation),
+    (PAIRING_CODE_PREFIX, CredentialClass::PairingCode),
+    (CHALLENGE_PREFIX, CredentialClass::ChallengeId),
+    (KEY_PREFIX, CredentialClass::AuthKeyId),
+    ("sbat_", CredentialClass::AdminToken),
+    ("sbcc_", CredentialClass::ConsoleCredential),
+    ("sct_", CredentialClass::ConnectionToken),
+    ("sbrk_", CredentialClass::SecretReadRootKey),
+    ("sbrl_", CredentialClass::SecretReadLease),
+    ("sbrp_", CredentialClass::SecretReadProofNonce),
+    ("sbrm_", CredentialClass::SecretReadProofMac),
+];
+
+/// Structurally classify a presented credential by its registered prefix. The
+/// namespace is prefix-free, so at most one class matches; an unregistered
+/// spelling returns `None` (an unknown class, which callers must still refuse —
+/// never treat as anonymous).
+pub fn classify_credential(input: &str) -> Option<CredentialClass> {
+    REGISTERED_CREDENTIAL_PREFIXES
+        .iter()
+        .find(|(prefix, _)| input.starts_with(prefix))
+        .map(|(_, class)| *class)
+}
+
+/// The outcome of asserting a presented credential belongs to the class a
+/// resolver expects. Carries only class tags — never caller-controlled or
+/// secret bytes — so it is safe to surface in a typed diagnostic.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CredentialClassMismatch {
+    pub expected: CredentialClass,
+    /// The structurally-detected class, or `None` for an unregistered prefix.
+    pub actual: Option<CredentialClass>,
+}
+
+impl CredentialClassMismatch {
+    /// The typed refusal a resolver returns for a wrong-class credential. It
+    /// carries only class prefixes (never caller bytes) so it is safe to
+    /// surface. This is the single producer of the code — a wrong-class
+    /// credential is always this, never an anonymous fall-through.
+    ///
+    /// @ref LLP 0055#credentials-and-tokens — a credential of one class
+    ///   reaching another's surface is a typed `CREDENTIAL_CLASS_MISMATCH`.
+    pub fn into_snapback_error(self) -> crate::diagnostic::SnapbackError {
+        crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH",
+            "auth",
+            "a credential was presented on a surface that resolves a different class",
+        )
+        .with_details(serde_json::json!({
+            "expectedPrefix": self.expected.prefix(),
+            "presentedPrefix": self.actual.map(CredentialClass::prefix),
+        }))
+    }
+}
+
+/// Assert, structurally and before any resolver runs, that `input` is of the
+/// `expected` class. A wrong or unknown class is a [`CredentialClassMismatch`]
+/// that the caller maps to `SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH` — the
+/// resolver is never invoked and there is no anonymous fall-through.
+///
+/// @ref LLP 0055#credentials-and-tokens — class dispatch is structural on
+///   the prefix before resolver selection; a wrong-class credential is a typed
+///   mismatch.
+pub fn dispatch_credential_class(
+    input: &str,
+    expected: CredentialClass,
+) -> Result<CredentialClass, CredentialClassMismatch> {
+    match classify_credential(input) {
+        Some(actual) if actual == expected => Ok(actual),
+        actual => Err(CredentialClassMismatch { expected, actual }),
+    }
+}
+
 fn update_lp(mac: &mut Hmac<Sha256>, bytes: &[u8]) {
     let length = u32::try_from(bytes.len()).expect("auth digest component length fits u32");
     mac.update(&length.to_be_bytes());
@@ -616,6 +851,160 @@ mod tests {
     #[test]
     fn crc32_uses_iso_hdlc_parameters() {
         assert_eq!(crc32fast::hash(b"123456789"), 0xcbf4_3926);
+    }
+
+    // ---- LLP 0055 credential-class prefix namespace (the collision trap) ----
+
+    /// The whole registered namespace is mutually prefix-free. This is the
+    /// invariant every structural class dispatch rests on: if any prefix were a
+    /// prefix of another, `classify_credential`'s `starts_with` scan could match
+    /// two classes and a wrong-class credential could be resolved as another.
+    #[test]
+    fn credential_prefixes_are_mutually_prefix_free() {
+        let prefixes: Vec<&str> = REGISTERED_CREDENTIAL_PREFIXES
+            .iter()
+            .map(|(prefix, _)| *prefix)
+            .collect();
+        for (i, left) in prefixes.iter().enumerate() {
+            for (j, right) in prefixes.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                assert!(
+                    !right.starts_with(left),
+                    "credential prefix {left:?} is a prefix of {right:?}; the namespace is not \
+                     prefix-free and structural class dispatch is unsound"
+                );
+            }
+        }
+        // Every class's own `prefix()` round-trips through the registry.
+        for (prefix, class) in REGISTERED_CREDENTIAL_PREFIXES {
+            assert_eq!(class.prefix(), *prefix);
+            assert_eq!(classify_credential(prefix), Some(*class));
+        }
+    }
+
+    /// The five LLP 0055 classes plus the two pre-existing CRC bearers each
+    /// parse only their own spelling and reject every other class's sample.
+    /// This is the cross-class sweep: no bearer class is accepted by any other
+    /// class's resolver.
+    #[test]
+    fn every_crc_bearer_class_rejects_every_other_class() {
+        let random = ScriptedRandom::new(vec![vec![7_u8; 32]; 16]);
+        // One concrete sample per CRC-bearer class, minted through its own type.
+        let session = SessionBearer::generate(&random).unwrap().expose_secret().to_string();
+        let impersonation = ImpersonationBearer::generate(&random).unwrap().expose_secret().to_string();
+        let credential = AgentCredential::generate(&random).unwrap().expose_secret().to_string();
+        let token = ScopedToken::generate(&random).unwrap().expose_secret().to_string();
+        let creation = CreationInvitation::generate(&random).unwrap().expose_secret().to_string();
+        let recovery = RecoveryInvitation::generate(&random).unwrap().expose_secret().to_string();
+        let pairing = PairingCode::generate(&random).unwrap().expose_secret().to_string();
+
+        let samples: [(CredentialClass, &str); 7] = [
+            (CredentialClass::Session, &session),
+            (CredentialClass::ImpersonationCapability, &impersonation),
+            (CredentialClass::AgentCredential, &credential),
+            (CredentialClass::ScopedToken, &token),
+            (CredentialClass::CreationInvitation, &creation),
+            (CredentialClass::RecoveryInvitation, &recovery),
+            (CredentialClass::PairingCode, &pairing),
+        ];
+
+        // Each sample classifies as exactly its own class.
+        for (class, sample) in &samples {
+            assert_eq!(classify_credential(sample), Some(*class));
+        }
+
+        // Each class's own parser accepts only its own sample and rejects the
+        // other six — never a fall-through.
+        for (class, _sample) in &samples {
+            for (other_class, other) in &samples {
+                let accepts = match class {
+                    CredentialClass::Session => SessionBearer::parse(other).is_ok(),
+                    CredentialClass::ImpersonationCapability => {
+                        ImpersonationBearer::parse(other).is_ok()
+                    }
+                    CredentialClass::AgentCredential => AgentCredential::parse(other).is_ok(),
+                    CredentialClass::ScopedToken => ScopedToken::parse(other).is_ok(),
+                    CredentialClass::CreationInvitation => CreationInvitation::parse(other).is_ok(),
+                    CredentialClass::RecoveryInvitation => RecoveryInvitation::parse(other).is_ok(),
+                    CredentialClass::PairingCode => PairingCode::parse(other).is_ok(),
+                    _ => unreachable!("sweep only covers CRC-bearer classes"),
+                };
+                assert_eq!(
+                    accepts,
+                    class == other_class,
+                    "{class:?} parser wrongly {} {other_class:?}",
+                    if accepts { "accepted" } else { "rejected" }
+                );
+            }
+        }
+    }
+
+    /// The secret-read proof nonce (`sbrp_`) and MAC (`sbrm_`) — and the pure
+    /// identifiers `sbc_`/`sbak_` — are structurally non-authenticating, and no
+    /// authenticating CRC-bearer parser accepts one.
+    #[test]
+    fn nonce_mac_and_identifier_classes_never_authenticate() {
+        for class in [
+            CredentialClass::SecretReadProofNonce,
+            CredentialClass::SecretReadProofMac,
+            CredentialClass::ChallengeId,
+            CredentialClass::AuthKeyId,
+        ] {
+            assert!(!class.is_authenticating(), "{class:?} must not authenticate");
+        }
+        // A well-formed `sbrp_`/`sbrm_` value is refused by every bearer parser.
+        for value in ["sbrp_00000000-0000-0000-0000-000000000000", "sbrm_deadbeef"] {
+            assert_eq!(
+                classify_credential(value)
+                    .map(CredentialClass::is_authenticating)
+                    .unwrap_or(false),
+                false
+            );
+            assert!(SessionBearer::parse(value).is_err());
+            assert!(ScopedToken::parse(value).is_err());
+            assert!(AgentCredential::parse(value).is_err());
+        }
+    }
+
+    /// A wrong-class or unregistered credential presented where one class is
+    /// expected is a typed mismatch carrying only class tags — never resolved,
+    /// never anonymous.
+    #[test]
+    fn dispatch_refuses_wrong_and_unknown_classes() {
+        let random = ScriptedRandom::new(vec![vec![3_u8; 32]; 4]);
+        let token = ScopedToken::generate(&random).unwrap().expose_secret().to_string();
+
+        // Right class → ok.
+        assert_eq!(
+            dispatch_credential_class(&token, CredentialClass::ScopedToken),
+            Ok(CredentialClass::ScopedToken)
+        );
+        // Wrong (but registered) class → mismatch naming both classes.
+        assert_eq!(
+            dispatch_credential_class(&token, CredentialClass::Session),
+            Err(CredentialClassMismatch {
+                expected: CredentialClass::Session,
+                actual: Some(CredentialClass::ScopedToken),
+            })
+        );
+        // Unregistered spelling → mismatch with `actual: None`, still refused.
+        assert_eq!(
+            dispatch_credential_class("totally-unknown", CredentialClass::Session),
+            Err(CredentialClassMismatch {
+                expected: CredentialClass::Session,
+                actual: None,
+            })
+        );
+
+        // The mismatch maps to the typed refusal, carrying only class prefixes.
+        let error = dispatch_credential_class(&token, CredentialClass::Session)
+            .unwrap_err()
+            .into_snapback_error();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH");
+        assert_eq!(error.diagnostic.details["expectedPrefix"], "sbs_");
+        assert_eq!(error.diagnostic.details["presentedPrefix"], "sbagt_");
     }
 
     fn hex(bytes: &[u8]) -> String {

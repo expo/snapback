@@ -1175,6 +1175,47 @@ reopen the database "without agents" and silently strand live grants).
   declared restore kills credentials rather than trusting TTLs they do not
   have.
 
+**Implementation status.** *G1 landed via ENG-24912* — the **catalog shape,
+principal machinery, and prefix namespace**, on top of the LLP 0057 auth-catalog
+implementation (which postdates this RFC and now owns the `_auth_*` catalog,
+reservation, and version marker). What landed:
+
+- **Catalog version 2.** `AUTH_CATALOG_VERSION` is bumped `1 → 2`: `_auth_users`
+  gains `kind`/`display_name`/`operator_contact`/`registration_provenance`/
+  `deactivated_at_ms`/`owner_user_id` (with biconditional CHECKs pinning
+  human⇔no-provenance, agent⇔has-provenance, and confining
+  deactivation/ownership to agents), and the six tables — `_auth_grants`,
+  `_auth_agent_credentials`, `_auth_grant_tokens`, `_auth_agent_invitations`,
+  `_auth_pairing_requests`, and the never-GC'd `_auth_scope_bases` tombstone —
+  join the exact recognized shape. `_auth_*` protection, journal/sync exclusion,
+  and reset-wiping come free from the existing reservation.
+- **Refuse-at-open** is delivered by LLP 0057's existing marker machinery: a
+  binary recognizes the versions it understands ({1, 2}) and any higher marker
+  fails closed with `SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED`, so an older
+  (v1-only) binary refuses a v2 catalog rather than reopening "without agents".
+- **Ownership + durable deactivation.** Create-time owner/provenance recording,
+  the fail-closed deactivation consult, and the **eligible-holder** refusal
+  (computed against LLP 0056 M1's membership manifests — the same predicate as
+  0056 M2's eligible-holder rule, from the other side; sole-ness is *not*
+  enough — the two-step schedule is refused).
+- **The prefix namespace.** `sbac_`/`sbagt_`/`sbagi_`/`sbagr_`/`sbpc_` are
+  registered with per-class secret newtypes and a single structural classifier
+  over the **full** implemented namespace — which now also includes 0057's
+  `sbic_`/`sbc_`/`sbak_`, beyond the classes this RFC enumerated. Mutual
+  prefix-freeness is asserted programmatically; a wrong-class credential is a
+  typed `SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH`, never an anonymous
+  fall-through; `sbrp_`/`sbrm_` are structurally non-authenticating.
+
+**Deferred (flagged forward dependencies), not guessed:** the six-table
+grant/token/credential/invitation/pairing **lifecycle** (mint, rotate,
+revoke-self, recover, consent, settlement) is G3/G4; the tables and the
+deactivation/ownership/prefix machinery land here. A **first-class v1→v2
+migration** is deferred — LLP 0057 pins "a future migration changes the marker
+first-class" — so an existing v1 catalog is recognized as legacy (sessions work;
+agents unavailable) rather than silently rebuilt; fresh catalogs are created at
+v2. **Logical export/import** carrying the agent columns awaits LLP 0057's
+export/import tooling (unbuilt); durability is proven across restart today.
+
 ### Landing decomposition
 
 - **Stage prerequisites:** stable, non-optional function ids (0012/0004

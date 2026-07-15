@@ -5,7 +5,7 @@
 //! startup calls the migration before bind, then sessions startup obtains one
 //! complete read transaction through `session_projection_source`.
 
-use super::auth::{AuthCatalogState, inspect_auth_catalog_on};
+use super::auth::inspect_auth_catalog_on;
 use super::{AuthorizationVersion, LocalDatabase};
 use crate::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamIncarnation, AuthorizationStreamRecord,
@@ -80,7 +80,7 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Deferred)?;
-        if inspect_auth_catalog_on(&tx)? != AuthCatalogState::ReadyV1 {
+        if !inspect_auth_catalog_on(&tx)?.is_ready() {
             return Err(projection_corrupt(
                 "session projection requires an exact-ready auth catalog",
             ));

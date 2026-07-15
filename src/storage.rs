@@ -31,6 +31,14 @@ use uuid::Uuid;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 
+// @ref LLP 0055#principal-kinds — agent-principal ownership and durable
+//   deactivation live in their own module beneath the auth catalog. Grant/token
+//   lifecycle (G3/G4) is not wired yet, so the storage methods are dead until
+//   the routes land.
+#[allow(dead_code)]
+#[path = "storage/auth_agents.rs"]
+pub(crate) mod auth_agents;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;

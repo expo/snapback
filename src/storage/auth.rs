@@ -18,7 +18,21 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use uuid::Uuid;
 
-pub(crate) const AUTH_CATALOG_VERSION: &str = "1";
+/// The catalog version this binary **creates** and treats as current. LLP 0055
+/// G1 (agent principals) bumps it from `"1"` to `"2"`: the `_auth_users` agent
+/// columns and the six `_auth_*` agent catalog tables join the exact recognized
+/// shape.
+///
+/// @ref LLP 0055#catalog-and-lifecycle — the six agent tables join the protected
+///   catalog and the catalog version is bumped; an older binary that only
+///   understands v1 refuses a v2 marker at open (see `inspect_auth_catalog_on`).
+pub(crate) const AUTH_CATALOG_VERSION: &str = "2";
+/// The frozen predecessor version. A v2-aware binary still **recognizes** an
+/// existing v1 catalog (sessions keep working); agent operations require v2. A
+/// first-class v1→v2 migration is deferred (LLP 0057 pins "a future migration
+/// changes the marker first-class"); until it lands, an existing v1 catalog is
+/// legacy and agent surfaces are unavailable on it.
+pub(crate) const AUTH_CATALOG_VERSION_V1: &str = "1";
 pub(crate) const AUTH_GC_BATCH: usize = 512;
 const META_AUTH_CATALOG_VERSION: &str = "auth_catalog_version";
 pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declaration_id";
@@ -29,7 +43,7 @@ pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declarat
 const META_AUTH_SESSION_CLOCK_FLOOR_MS: &str = "auth_session_clock_floor_ms";
 const MAX_SAFE_TIMESTAMP_MS: u64 = 9_007_199_254_740_991;
 #[cfg(test)]
-const AUTH_ACTIVATION_STEPS: usize = AUTH_TABLES.len() + AUTH_INDEXES.len() + 1;
+const AUTH_ACTIVATION_STEPS: usize = CURRENT_CATALOG.tables.len() + CURRENT_CATALOG.indexes.len() + 1;
 
 #[cfg(test)]
 thread_local! {
@@ -97,8 +111,46 @@ fn restore_transaction_step_completed(step: usize) -> SnapbackResult<()> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AuthCatalogState {
     Uninitialized,
+    /// A recognized, exact catalog version 1 (pre-agent). Sessions resolve; the
+    /// LLP 0055 agent surfaces are unavailable until a v1→v2 migration lands.
     ReadyV1,
+    /// A recognized, exact catalog version 2 — the current shape, with agent
+    /// principal columns and the six agent catalog tables.
+    ReadyV2,
 }
+
+impl AuthCatalogState {
+    /// Whether the catalog is a recognized, usable version for the session and
+    /// identity surfaces common to every version. Version-specific surfaces
+    /// (agent operations) take a stricter check.
+    pub(crate) fn is_ready(self) -> bool {
+        matches!(self, Self::ReadyV1 | Self::ReadyV2)
+    }
+}
+
+/// One recognized catalog version: its marker value and its exact table/index
+/// shape. Recognition compares stored SQL text and the physical pragma shape
+/// against the descriptor for the marked version.
+struct CatalogSchema {
+    version: &'static str,
+    tables: &'static [ExpectedTable],
+    indexes: &'static [ExpectedIndex],
+}
+
+const CATALOG_V1: CatalogSchema = CatalogSchema {
+    version: AUTH_CATALOG_VERSION_V1,
+    tables: AUTH_TABLES_V1,
+    indexes: AUTH_INDEXES_V1,
+};
+
+const CATALOG_V2: CatalogSchema = CatalogSchema {
+    version: AUTH_CATALOG_VERSION,
+    tables: AUTH_TABLES_V2,
+    indexes: AUTH_INDEXES_V2,
+};
+
+/// The version a fresh activation creates.
+const CURRENT_CATALOG: &CatalogSchema = &CATALOG_V2;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct AuthGcResult {
@@ -136,7 +188,9 @@ struct ExpectedIndex {
     sql: &'static str,
 }
 
-const AUTH_TABLES: &[ExpectedTable] = &[
+/// The frozen version-1 table set, retained verbatim so a v2-aware binary still
+/// recognizes a legacy v1 catalog exactly. It must never drift.
+const AUTH_TABLES_V1: &[ExpectedTable] = &[
     ExpectedTable {
         name: "_auth_users",
         sql: r#"
@@ -230,7 +284,8 @@ CREATE TABLE "_auth_verification_codes" (
     },
 ];
 
-const AUTH_INDEXES: &[ExpectedIndex] = &[
+/// The frozen version-1 index set. Never drift (see [`AUTH_TABLES_V1`]).
+const AUTH_INDEXES_V1: &[ExpectedIndex] = &[
     ExpectedIndex {
         name: "_auth_identities_provider_subject_uq",
         table: "_auth_identities",
@@ -307,6 +362,447 @@ const AUTH_INDEXES: &[ExpectedIndex] = &[
     },
 ];
 
+/// The current (version-2) table set: version 1 with the LLP 0055 agent columns
+/// on `_auth_users`, plus the six agent catalog tables. Fresh activation creates
+/// exactly this shape and recognition validates a `"2"` marker against it.
+///
+/// @ref LLP 0055#catalog-and-lifecycle — `_auth_grants`, `_auth_agent_credentials`,
+///   `_auth_grant_tokens`, `_auth_agent_invitations`, `_auth_pairing_requests`,
+///   and `_auth_scope_bases` join the protected `_auth_*` catalog; the six-table
+///   lifecycle (grants/tokens/consent) lands in G3/G4 — G1 owns only the shape.
+const AUTH_TABLES_V2: &[ExpectedTable] = &[
+    ExpectedTable {
+        name: "_auth_users",
+        // @ref LLP 0055#principal-kinds — `kind` is immutable and defaults
+        //   `human`; agents additionally carry `display_name`,
+        //   `operator_contact`, an immutable `registration_provenance`,
+        //   `deactivated_at_ms`, and a nullable `owner_user_id`. The biconditional
+        //   checks pin human⇔no-provenance and agent⇔has-provenance, and confine
+        //   deactivation/ownership to agents. Immutability of `kind` and
+        //   `registration_provenance` is an application invariant (create-only).
+        sql: r#"
+CREATE TABLE "_auth_users" (
+  id TEXT NOT NULL PRIMARY KEY,
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  kind TEXT NOT NULL DEFAULT 'human' CHECK(kind IN ('human', 'agent')),
+  display_name TEXT,
+  operator_contact TEXT,
+  registration_provenance TEXT,
+  deactivated_at_ms INTEGER
+    CHECK(deactivated_at_ms IS NULL OR deactivated_at_ms BETWEEN 0 AND 9007199254740991),
+  owner_user_id TEXT,
+  CHECK(kind = 'agent' OR registration_provenance IS NULL),
+  CHECK(kind = 'human' OR registration_provenance IS NOT NULL),
+  CHECK(kind = 'agent' OR deactivated_at_ms IS NULL),
+  CHECK(kind = 'agent' OR owner_user_id IS NULL),
+  CHECK(owner_user_id IS NULL OR owner_user_id <> id),
+  FOREIGN KEY(owner_user_id) REFERENCES "_auth_users"(id) ON DELETE SET NULL
+)
+"#,
+    },
+    ExpectedTable {
+        name: "_auth_identities",
+        sql: r#"
+CREATE TABLE "_auth_identities" (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK(length(provider) > 0),
+  subject TEXT NOT NULL CHECK(length(subject) > 0),
+  verified_at_ms INTEGER NOT NULL
+    CHECK(verified_at_ms BETWEEN 0 AND 9007199254740991),
+  FOREIGN KEY(user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE
+)
+"#,
+    },
+    ExpectedTable {
+        name: "_auth_sessions",
+        sql: r#"
+CREATE TABLE "_auth_sessions" (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  identity_id TEXT NOT NULL,
+  authority_instance_id TEXT NOT NULL,
+  token_hash BLOB NOT NULL CHECK(length(token_hash) = 32),
+  generation INTEGER NOT NULL DEFAULT 1 CHECK(generation >= 1),
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  last_used_at_ms INTEGER NOT NULL
+    CHECK(last_used_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  absolute_expires_at_ms INTEGER NOT NULL
+    CHECK(absolute_expires_at_ms BETWEEN 0 AND 9007199254740991),
+  revoked_at_ms INTEGER
+    CHECK(revoked_at_ms IS NULL OR revoked_at_ms BETWEEN 0 AND 9007199254740991),
+  CHECK(created_at_ms <= last_used_at_ms),
+  CHECK(last_used_at_ms <= expires_at_ms),
+  CHECK(expires_at_ms <= absolute_expires_at_ms),
+  CHECK(revoked_at_ms IS NULL OR created_at_ms <= revoked_at_ms),
+  FOREIGN KEY(user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE,
+  FOREIGN KEY(identity_id, user_id)
+    REFERENCES "_auth_identities"(id, user_id) ON DELETE CASCADE
+)
+"#,
+    },
+    ExpectedTable {
+        name: "_auth_session_tokens",
+        sql: r#"
+CREATE TABLE "_auth_session_tokens" (
+  token_hash BLOB NOT NULL PRIMARY KEY CHECK(length(token_hash) = 32),
+  session_id TEXT NOT NULL,
+  superseded_at_ms INTEGER NOT NULL
+    CHECK(superseded_at_ms BETWEEN 0 AND 9007199254740991),
+  FOREIGN KEY(session_id) REFERENCES "_auth_sessions"(id) ON DELETE CASCADE
+)
+"#,
+    },
+    ExpectedTable {
+        name: "_auth_verification_codes",
+        sql: r#"
+CREATE TABLE "_auth_verification_codes" (
+  challenge_id TEXT NOT NULL PRIMARY KEY,
+  canonical_address TEXT NOT NULL CHECK(length(canonical_address) > 0),
+  code_digest BLOB NOT NULL CHECK(length(code_digest) = 32),
+  key_id TEXT NOT NULL CHECK(length(key_id) > 0),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 5,
+  requested_at_ms INTEGER NOT NULL
+    CHECK(requested_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  consumed_at_ms INTEGER
+    CHECK(consumed_at_ms IS NULL OR consumed_at_ms BETWEEN 0 AND 9007199254740991),
+  superseded_by TEXT,
+  CHECK(attempts >= 0 AND attempts <= max_attempts),
+  CHECK(max_attempts = 5),
+  CHECK(requested_at_ms <= expires_at_ms),
+  CHECK(consumed_at_ms IS NULL OR consumed_at_ms >= requested_at_ms),
+  CHECK(consumed_at_ms IS NULL OR superseded_by IS NULL)
+)
+"#,
+    },
+    // @ref LLP 0055#credentials-and-tokens — at most one live agent credential
+    //   per principal (the partial unique index below); id is stable across
+    //   rotation. Rotation/revoke-self and the tombstoned family window are G4.
+    ExpectedTable {
+        name: "_auth_agent_credentials",
+        sql: r#"
+CREATE TABLE "_auth_agent_credentials" (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  secret_hash BLOB NOT NULL CHECK(length(secret_hash) = 32),
+  generation INTEGER NOT NULL DEFAULT 1 CHECK(generation >= 1),
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  rotated_at_ms INTEGER NOT NULL
+    CHECK(rotated_at_ms BETWEEN 0 AND 9007199254740991),
+  last_used_at_ms INTEGER NOT NULL
+    CHECK(last_used_at_ms BETWEEN 0 AND 9007199254740991),
+  revoked_at_ms INTEGER
+    CHECK(revoked_at_ms IS NULL OR revoked_at_ms BETWEEN 0 AND 9007199254740991),
+  FOREIGN KEY(user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE
+)
+"#,
+    },
+    // @ref LLP 0055#grants — grants are immutable: created, then revoked or
+    //   expired. Delegated grants (effective_user_id NOT NULL) MUST carry an
+    //   expiry; autonomous ones (NULL) may be indefinite. `scopes` is canonical
+    //   structured JSON; `created_by` is a tagged provenance string.
+    ExpectedTable {
+        name: "_auth_grants",
+        sql: r#"
+CREATE TABLE "_auth_grants" (
+  id TEXT NOT NULL PRIMARY KEY,
+  actor_user_id TEXT NOT NULL,
+  effective_user_id TEXT,
+  scopes TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER
+    CHECK(expires_at_ms IS NULL OR expires_at_ms BETWEEN 0 AND 9007199254740991),
+  revoked_at_ms INTEGER
+    CHECK(revoked_at_ms IS NULL OR revoked_at_ms BETWEEN 0 AND 9007199254740991),
+  created_by TEXT NOT NULL,
+  request_id TEXT,
+  consent_digest BLOB CHECK(consent_digest IS NULL OR length(consent_digest) = 32),
+  last_used_at_ms INTEGER NOT NULL
+    CHECK(last_used_at_ms BETWEEN 0 AND 9007199254740991),
+  CHECK(effective_user_id IS NULL OR expires_at_ms IS NOT NULL),
+  FOREIGN KEY(actor_user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE,
+  FOREIGN KEY(effective_user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE
+)
+"#,
+    },
+    // @ref LLP 0055#credentials-and-tokens — a scoped token binds exactly one
+    //   grant and records its minting credential id + generation for the durable
+    //   authority axis. Per-invocation validation and settlement are G3/G4.
+    ExpectedTable {
+        name: "_auth_grant_tokens",
+        sql: r#"
+CREATE TABLE "_auth_grant_tokens" (
+  id TEXT NOT NULL PRIMARY KEY,
+  token_hash BLOB NOT NULL CHECK(length(token_hash) = 32),
+  grant_id TEXT NOT NULL,
+  credential_id TEXT NOT NULL,
+  credential_generation INTEGER NOT NULL CHECK(credential_generation >= 1),
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  revoked_at_ms INTEGER
+    CHECK(revoked_at_ms IS NULL OR revoked_at_ms BETWEEN 0 AND 9007199254740991),
+  FOREIGN KEY(grant_id) REFERENCES "_auth_grants"(id) ON DELETE CASCADE,
+  FOREIGN KEY(credential_id) REFERENCES "_auth_agent_credentials"(id) ON DELETE CASCADE
+)
+"#,
+    },
+    // @ref LLP 0055#grants — creation (`sbagi_`) and recovery (`sbagr_`)
+    //   invitations are distinct classes with distinct routes; `minted_profile`
+    //   records the profile at mint so the effect site can refuse a
+    //   demo→reboot→prod laundering path. Consumption/lifecycle is G3.
+    ExpectedTable {
+        name: "_auth_agent_invitations",
+        sql: r#"
+CREATE TABLE "_auth_agent_invitations" (
+  id TEXT NOT NULL PRIMARY KEY,
+  token_hash BLOB NOT NULL CHECK(length(token_hash) = 32),
+  class TEXT NOT NULL CHECK(class IN ('creation', 'recovery')),
+  created_by TEXT NOT NULL,
+  minted_profile TEXT NOT NULL CHECK(length(minted_profile) > 0),
+  agent_user_id TEXT,
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  revoked_at_ms INTEGER
+    CHECK(revoked_at_ms IS NULL OR revoked_at_ms BETWEEN 0 AND 9007199254740991),
+  consumed_at_ms INTEGER
+    CHECK(consumed_at_ms IS NULL OR consumed_at_ms BETWEEN 0 AND 9007199254740991),
+  consumed_by TEXT,
+  CHECK((class = 'recovery') = (agent_user_id IS NOT NULL)),
+  CHECK(consumed_at_ms IS NULL OR revoked_at_ms IS NULL),
+  FOREIGN KEY(agent_user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE
+)
+"#,
+    },
+    // @ref LLP 0055#grants — the user-minted pairing code is the consent secret;
+    //   these rows are the pending consent records. Single-use CAS, the attempt
+    //   ceiling, and approval→grant are G3.
+    ExpectedTable {
+        name: "_auth_pairing_requests",
+        sql: r#"
+CREATE TABLE "_auth_pairing_requests" (
+  id TEXT NOT NULL PRIMARY KEY,
+  code_hash BLOB NOT NULL CHECK(length(code_hash) = 32),
+  minted_by_user_id TEXT NOT NULL,
+  agent_user_id TEXT,
+  requested_scopes TEXT,
+  state TEXT NOT NULL DEFAULT 'pending'
+    CHECK(state IN ('pending', 'approved', 'denied')),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0 AND attempts <= 5),
+  created_at_ms INTEGER NOT NULL
+    CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+  expires_at_ms INTEGER NOT NULL
+    CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
+  consumed_at_ms INTEGER
+    CHECK(consumed_at_ms IS NULL OR consumed_at_ms BETWEEN 0 AND 9007199254740991),
+  grant_id TEXT,
+  FOREIGN KEY(minted_by_user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE,
+  FOREIGN KEY(agent_user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE,
+  FOREIGN KEY(grant_id) REFERENCES "_auth_grants"(id) ON DELETE SET NULL
+)
+"#,
+    },
+    // @ref LLP 0055#grants — `_auth_scope_bases` is a durable tombstone table:
+    //   one row per function id carrying the basis `generation`, whether the
+    //   function is currently `present`, and whether it is `authority_creating`.
+    //   It is NEVER garbage-collected — a removed-then-readded function id must
+    //   resume above its stale basis so old consent cannot revive. The activation
+    //   re-validation that advances the basis is G3 (LLP 0053 event 2).
+    ExpectedTable {
+        name: "_auth_scope_bases",
+        sql: r#"
+CREATE TABLE "_auth_scope_bases" (
+  function_id TEXT NOT NULL PRIMARY KEY,
+  kind TEXT NOT NULL CHECK(length(kind) > 0),
+  generation INTEGER NOT NULL CHECK(generation >= 0),
+  present INTEGER NOT NULL CHECK(present IN (0, 1)),
+  authority_creating INTEGER NOT NULL CHECK(authority_creating IN (0, 1))
+)
+"#,
+    },
+];
+
+/// The current (version-2) index set: the version-1 indexes plus the agent
+/// tables' indexes (chiefly the at-most-one-live-credential partial unique index
+/// and the token/invitation/pairing-code lookup uniqueness).
+const AUTH_INDEXES_V2: &[ExpectedIndex] = &[
+    ExpectedIndex {
+        name: "_auth_identities_provider_subject_uq",
+        table: "_auth_identities",
+        sql: r#"CREATE UNIQUE INDEX "_auth_identities_provider_subject_uq"
+  ON "_auth_identities"(provider, subject)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_identities_id_user_uq",
+        table: "_auth_identities",
+        sql: r#"CREATE UNIQUE INDEX "_auth_identities_id_user_uq"
+  ON "_auth_identities"(id, user_id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_identities_user",
+        table: "_auth_identities",
+        sql: r#"CREATE INDEX "_auth_identities_user"
+  ON "_auth_identities"(user_id, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_sessions_token_uq",
+        table: "_auth_sessions",
+        sql: r#"CREATE UNIQUE INDEX "_auth_sessions_token_uq"
+  ON "_auth_sessions"(token_hash)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_sessions_authority_instance_uq",
+        table: "_auth_sessions",
+        sql: r#"CREATE UNIQUE INDEX "_auth_sessions_authority_instance_uq"
+  ON "_auth_sessions"(authority_instance_id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_sessions_user_live",
+        table: "_auth_sessions",
+        sql: r#"CREATE INDEX "_auth_sessions_user_live"
+  ON "_auth_sessions"(user_id, created_at_ms, id)
+  WHERE revoked_at_ms IS NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_sessions_absolute_expiry",
+        table: "_auth_sessions",
+        sql: r#"CREATE INDEX "_auth_sessions_absolute_expiry"
+  ON "_auth_sessions"(absolute_expires_at_ms, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_session_tokens_session",
+        table: "_auth_session_tokens",
+        sql: r#"CREATE INDEX "_auth_session_tokens_session"
+  ON "_auth_session_tokens"(session_id, superseded_at_ms, token_hash)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_verification_codes_one_active",
+        table: "_auth_verification_codes",
+        sql: r#"CREATE UNIQUE INDEX "_auth_verification_codes_one_active"
+  ON "_auth_verification_codes"(canonical_address)
+  WHERE consumed_at_ms IS NULL AND superseded_by IS NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_verification_codes_address_requested",
+        table: "_auth_verification_codes",
+        sql: r#"CREATE INDEX "_auth_verification_codes_address_requested"
+  ON "_auth_verification_codes"(canonical_address, requested_at_ms)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_verification_codes_requested",
+        table: "_auth_verification_codes",
+        sql: r#"CREATE INDEX "_auth_verification_codes_requested"
+  ON "_auth_verification_codes"(requested_at_ms, challenge_id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_verification_codes_expiry",
+        table: "_auth_verification_codes",
+        sql: r#"CREATE INDEX "_auth_verification_codes_expiry"
+  ON "_auth_verification_codes"(expires_at_ms, challenge_id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_agent_credentials_user_live",
+        table: "_auth_agent_credentials",
+        sql: r#"CREATE UNIQUE INDEX "_auth_agent_credentials_user_live"
+  ON "_auth_agent_credentials"(user_id)
+  WHERE revoked_at_ms IS NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_agent_credentials_user",
+        table: "_auth_agent_credentials",
+        sql: r#"CREATE INDEX "_auth_agent_credentials_user"
+  ON "_auth_agent_credentials"(user_id, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_grants_actor_live",
+        table: "_auth_grants",
+        sql: r#"CREATE INDEX "_auth_grants_actor_live"
+  ON "_auth_grants"(actor_user_id, created_at_ms, id)
+  WHERE revoked_at_ms IS NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_grants_effective_live",
+        table: "_auth_grants",
+        sql: r#"CREATE INDEX "_auth_grants_effective_live"
+  ON "_auth_grants"(effective_user_id, created_at_ms, id)
+  WHERE revoked_at_ms IS NULL AND effective_user_id IS NOT NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_grants_expiry",
+        table: "_auth_grants",
+        sql: r#"CREATE INDEX "_auth_grants_expiry"
+  ON "_auth_grants"(expires_at_ms, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_grant_tokens_token_uq",
+        table: "_auth_grant_tokens",
+        sql: r#"CREATE UNIQUE INDEX "_auth_grant_tokens_token_uq"
+  ON "_auth_grant_tokens"(token_hash)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_grant_tokens_grant_live",
+        table: "_auth_grant_tokens",
+        sql: r#"CREATE INDEX "_auth_grant_tokens_grant_live"
+  ON "_auth_grant_tokens"(grant_id, created_at_ms, id)
+  WHERE revoked_at_ms IS NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_grant_tokens_expiry",
+        table: "_auth_grant_tokens",
+        sql: r#"CREATE INDEX "_auth_grant_tokens_expiry"
+  ON "_auth_grant_tokens"(expires_at_ms, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_agent_invitations_token_uq",
+        table: "_auth_agent_invitations",
+        sql: r#"CREATE UNIQUE INDEX "_auth_agent_invitations_token_uq"
+  ON "_auth_agent_invitations"(token_hash)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_agent_invitations_agent",
+        table: "_auth_agent_invitations",
+        sql: r#"CREATE INDEX "_auth_agent_invitations_agent"
+  ON "_auth_agent_invitations"(agent_user_id, id)
+  WHERE agent_user_id IS NOT NULL"#,
+    },
+    ExpectedIndex {
+        name: "_auth_agent_invitations_expiry",
+        table: "_auth_agent_invitations",
+        sql: r#"CREATE INDEX "_auth_agent_invitations_expiry"
+  ON "_auth_agent_invitations"(expires_at_ms, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_pairing_requests_code_uq",
+        table: "_auth_pairing_requests",
+        sql: r#"CREATE UNIQUE INDEX "_auth_pairing_requests_code_uq"
+  ON "_auth_pairing_requests"(code_hash)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_pairing_requests_minter",
+        table: "_auth_pairing_requests",
+        sql: r#"CREATE INDEX "_auth_pairing_requests_minter"
+  ON "_auth_pairing_requests"(minted_by_user_id, created_at_ms, id)"#,
+    },
+    ExpectedIndex {
+        name: "_auth_pairing_requests_expiry",
+        table: "_auth_pairing_requests",
+        sql: r#"CREATE INDEX "_auth_pairing_requests_expiry"
+  ON "_auth_pairing_requests"(expires_at_ms, id)"#,
+    },
+];
+
 #[derive(Debug)]
 struct SchemaObject {
     kind: String,
@@ -379,15 +875,17 @@ impl LocalDatabase {
     }
 
     pub(crate) fn auth_catalog_ready(&self) -> SnapbackResult<bool> {
-        Ok(self.inspect_auth_catalog()? == AuthCatalogState::ReadyV1)
+        Ok(self.inspect_auth_catalog()?.is_ready())
     }
 
-    /// Install catalog v1 after the caller has established a usable keyring.
-    /// Keeping keyring creation outside this method makes the required
-    /// keyring-before-DDL ordering explicit at the integration seam.
+    /// Install the current auth catalog after the caller has established a
+    /// usable keyring. Keeping keyring creation outside this method makes the
+    /// required keyring-before-DDL ordering explicit at the integration seam. A
+    /// recognized catalog of any version is left in place (a first-class v1→v2
+    /// migration is deferred; see [`AUTH_CATALOG_VERSION_V1`]).
     pub(crate) fn activate_auth_catalog_v1(&mut self) -> SnapbackResult<()> {
         match self.inspect_auth_catalog()? {
-            AuthCatalogState::ReadyV1 => return Ok(()),
+            AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => return Ok(()),
             AuthCatalogState::Uninitialized => {}
         }
 
@@ -716,12 +1214,12 @@ impl LocalDatabase {
         image
             .sync_all()
             .map_err(|_| backup_invalid("could not sync the backup database image"))?;
-        // Prove the normalized image reopens standalone and still carries the
-        // exact ReadyV1 catalog, again without touching any pathname.
+        // Prove the normalized image reopens standalone and still carries an
+        // exact recognized catalog, again without touching any pathname.
         let check = open_backup_image_connection(image, true)?;
-        if inspect_auth_catalog_on(&check)? != AuthCatalogState::ReadyV1 {
+        if !inspect_auth_catalog_on(&check)?.is_ready() {
             return Err(backup_invalid(
-                "backup database image is not an exact ReadyV1 catalog",
+                "backup database image is not an exact recognized auth catalog",
             ));
         }
         Ok(())
@@ -833,17 +1331,17 @@ fn normalize_backup_image_format(_image: &File) -> std::io::Result<()> {
 /// catalog activation together with manifest relocation and mode settlement.
 pub(super) fn activate_auth_catalog_v1_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     match inspect_auth_catalog_on(tx)? {
-        AuthCatalogState::ReadyV1 => return Ok(()),
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => return Ok(()),
         AuthCatalogState::Uninitialized => {}
     }
 
     let mut activation_step = 0;
-    for table in AUTH_TABLES {
+    for table in CURRENT_CATALOG.tables {
         tx.execute_batch(table.sql)?;
         activation_step_completed(activation_step)?;
         activation_step += 1;
     }
-    for index in AUTH_INDEXES {
+    for index in CURRENT_CATALOG.indexes {
         tx.execute_batch(index.sql)?;
         activation_step_completed(activation_step)?;
         activation_step += 1;
@@ -911,11 +1409,30 @@ fn restore_invalid(message: &str) -> SnapbackError {
 
 /// Reset helper called from the ordinary app-reset transaction. A dormant
 /// unmarked collision is not auth-owned and is deliberately left untouched.
+///
+/// @ref LLP 0055#catalog-and-lifecycle — `app.reset` wipes agents, grants,
+///   credentials, tokens, invitations, and pairing requests with the rest. The
+///   `_auth_scope_bases` tombstone is cleared too: a reset app has no functions
+///   or consent for a stale basis to revive against.
 pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
-    if auth_catalog_marker(tx)?.is_none() {
+    let Some(marker) = auth_catalog_marker(tx)? else {
         return Ok(());
-    }
+    };
     require_ready_on(tx)?;
+    // Agent tables exist only from version 2 onward; clear them first (children
+    // before the `_auth_users` parent they reference).
+    if marker == CATALOG_V2.version {
+        for table in [
+            "_auth_grant_tokens",
+            "_auth_pairing_requests",
+            "_auth_grants",
+            "_auth_agent_invitations",
+            "_auth_agent_credentials",
+            "_auth_scope_bases",
+        ] {
+            tx.execute(&format!("DELETE FROM \"{table}\""), [])?;
+        }
+    }
     for table in [
         "_auth_verification_codes",
         "_auth_session_tokens",
@@ -932,10 +1449,21 @@ pub(super) fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthC
     let objects = schema_objects(conn)?;
     let marker = auth_catalog_marker_from_objects(conn, &objects)?;
     match marker.as_deref() {
-        Some(AUTH_CATALOG_VERSION) => {
-            validate_exact_v1(conn, &objects)?;
+        // The current version this binary creates and treats as agent-capable.
+        Some(version) if version == CATALOG_V2.version => {
+            validate_exact(conn, &objects, &CATALOG_V2)?;
+            Ok(AuthCatalogState::ReadyV2)
+        }
+        // A recognized legacy catalog: sessions resolve, agents are unavailable
+        // until a first-class v1→v2 migration lands.
+        Some(version) if version == CATALOG_V1.version => {
+            validate_exact(conn, &objects, &CATALOG_V1)?;
             Ok(AuthCatalogState::ReadyV1)
         }
+        // @ref LLP 0055#catalog-and-lifecycle — refuse-at-open: any marker above
+        //   this binary's understanding fails closed rather than reopening the
+        //   database "without agents" and silently stranding live grants. This is
+        //   the same wall that makes an older (v1-only) binary reject a v2 marker.
         Some(version) => Err(SnapbackError::error(
             "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
             "auth",
@@ -955,7 +1483,8 @@ pub(super) fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthC
                 .with_details(json!({ "objectKind": "table", "objectName": object.name })));
             }
             if let Some(object) = objects.iter().find(|object| {
-                AUTH_INDEXES
+                CURRENT_CATALOG
+                    .indexes
                     .iter()
                     .any(|index| index.name.eq_ignore_ascii_case(&object.name))
             }) {
@@ -980,7 +1509,8 @@ pub(super) fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthC
 /// table collision would otherwise be copyable.
 pub(super) fn reject_exact_auth_catalog_object_collision(conn: &Connection) -> SnapbackResult<()> {
     if let Some(object) = schema_objects(conn)?.into_iter().find(|object| {
-        AUTH_INDEXES
+        CURRENT_CATALOG
+            .indexes
             .iter()
             .any(|index| index.name.eq_ignore_ascii_case(&object.name))
     }) {
@@ -999,27 +1529,34 @@ pub(super) fn reject_exact_auth_catalog_object_collision(conn: &Connection) -> S
 }
 
 fn require_ready_on(conn: &Connection) -> SnapbackResult<()> {
-    match inspect_auth_catalog_on(conn)? {
-        AuthCatalogState::ReadyV1 => Ok(()),
-        AuthCatalogState::Uninitialized => Err(corrupt("auth catalog is not initialized")),
+    if inspect_auth_catalog_on(conn)?.is_ready() {
+        Ok(())
+    } else {
+        Err(corrupt("auth catalog is not initialized"))
     }
 }
 
-fn validate_exact_v1(conn: &Connection, objects: &[SchemaObject]) -> SnapbackResult<()> {
+fn validate_exact(
+    conn: &Connection,
+    objects: &[SchemaObject],
+    schema: &'static CatalogSchema,
+) -> SnapbackResult<()> {
     let by_name = objects
         .iter()
         .map(|object| (object.name.as_str(), object))
         .collect::<BTreeMap<_, _>>();
-    let expected_tables = AUTH_TABLES
+    let expected_tables = schema
+        .tables
         .iter()
         .map(|table| table.name)
         .collect::<BTreeSet<_>>();
-    let expected_indexes = AUTH_INDEXES
+    let expected_indexes = schema
+        .indexes
         .iter()
         .map(|index| index.name)
         .collect::<BTreeSet<_>>();
 
-    for table in AUTH_TABLES {
+    for table in schema.tables {
         let Some(object) = by_name.get(table.name) else {
             return Err(corrupt_with_object(
                 "auth catalog table is missing",
@@ -1033,7 +1570,7 @@ fn validate_exact_v1(conn: &Connection, objects: &[SchemaObject]) -> SnapbackRes
                 != Some(normalize_schema_sql(table.sql))
         {
             return Err(corrupt_with_object(
-                "auth catalog table definition differs from version 1",
+                "auth catalog table definition differs from the recognized version",
                 &object.kind,
                 table.name,
             ));
@@ -1053,7 +1590,7 @@ fn validate_exact_v1(conn: &Connection, objects: &[SchemaObject]) -> SnapbackRes
         }
     }
 
-    for index in AUTH_INDEXES {
+    for index in schema.indexes {
         let Some(object) = by_name.get(index.name) else {
             return Err(corrupt_with_object(
                 "auth catalog index is missing",
@@ -1067,7 +1604,7 @@ fn validate_exact_v1(conn: &Connection, objects: &[SchemaObject]) -> SnapbackRes
                 != Some(normalize_schema_sql(index.sql))
         {
             return Err(corrupt_with_object(
-                "auth catalog index definition differs from version 1",
+                "auth catalog index definition differs from the recognized version",
                 &object.kind,
                 index.name,
             ));
@@ -1075,7 +1612,7 @@ fn validate_exact_v1(conn: &Connection, objects: &[SchemaObject]) -> SnapbackRes
     }
 
     // Ignore only SQLite-owned primary-key autoindexes. Every other object
-    // attached to a catalog table must be one of the named v1 indexes.
+    // attached to a catalog table must be one of the named indexes.
     for object in objects {
         if !expected_tables.contains(object.table.as_str()) || object.kind == "table" {
             continue;
@@ -1099,43 +1636,56 @@ fn validate_exact_v1(conn: &Connection, objects: &[SchemaObject]) -> SnapbackRes
     // The SQL text comparison above pins every CHECK expression. The pragma
     // shape additionally proves declared types/nullability/defaults/PKs,
     // foreign keys, uniqueness, indexed columns/collations/order, and partial
-    // predicates against a once-built exact-v1 reference catalog. This avoids
-    // trusting writable-schema text that does not match the physical btree.
-    if catalog_shape(conn, objects)? != *expected_catalog_shape()? {
+    // predicates against a once-built exact reference catalog for the marked
+    // version. This avoids trusting writable-schema text that does not match
+    // the physical btree.
+    if catalog_shape(conn, objects, schema)? != *expected_catalog_shape(schema)? {
         return Err(corrupt(
-            "auth catalog physical constraints differ from version 1",
+            "auth catalog physical constraints differ from the recognized version",
         ));
     }
 
     Ok(())
 }
 
-fn expected_catalog_shape() -> SnapbackResult<&'static CatalogShape> {
-    static EXPECTED: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
-    match EXPECTED.get_or_init(|| {
+fn expected_catalog_shape(schema: &'static CatalogSchema) -> SnapbackResult<&'static CatalogShape> {
+    // One memoized reference shape per recognized version. `version` is the
+    // stable discriminator (`CATALOG_V1`/`CATALOG_V2`).
+    static EXPECTED_V1: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
+    static EXPECTED_V2: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
+    let cell = if schema.version == CATALOG_V1.version {
+        &EXPECTED_V1
+    } else {
+        &EXPECTED_V2
+    };
+    match cell.get_or_init(|| {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;
-        for table in AUTH_TABLES {
+        for table in schema.tables {
             conn.execute_batch(table.sql)?;
         }
-        for index in AUTH_INDEXES {
+        for index in schema.indexes {
             conn.execute_batch(index.sql)?;
         }
         let objects = schema_objects(&conn)?;
-        catalog_shape(&conn, &objects)
+        catalog_shape(&conn, &objects, schema)
     }) {
         Ok(shape) => Ok(shape),
         Err(error) => Err(error.clone()),
     }
 }
 
-fn catalog_shape(conn: &Connection, objects: &[SchemaObject]) -> SnapbackResult<CatalogShape> {
+fn catalog_shape(
+    conn: &Connection,
+    objects: &[SchemaObject],
+    schema: &CatalogSchema,
+) -> SnapbackResult<CatalogShape> {
     let objects_by_name = objects
         .iter()
         .map(|object| (object.name.as_str(), object))
         .collect::<BTreeMap<_, _>>();
     let mut tables = BTreeMap::new();
-    for expected in AUTH_TABLES {
+    for expected in schema.tables {
         let object = objects_by_name.get(expected.name).ok_or_else(|| {
             corrupt_with_object("auth catalog table is missing", "table", expected.name)
         })?;
@@ -1154,7 +1704,7 @@ fn catalog_shape(conn: &Connection, objects: &[SchemaObject]) -> SnapbackResult<
     }
 
     let mut indexes = BTreeMap::new();
-    for expected in AUTH_INDEXES {
+    for expected in schema.indexes {
         let object = objects_by_name.get(expected.name).ok_or_else(|| {
             corrupt_with_object("auth catalog index is missing", "index", expected.name)
         })?;
@@ -1541,7 +2091,7 @@ mod tests {
             .expect("exact catalog successor proves activation committed");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV1
+            AuthCatalogState::ReadyV2
         );
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 2);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
@@ -1636,10 +2186,10 @@ mod tests {
             .execute("DROP TABLE ordinary", [])
             .expect("drop ordinary table");
 
-        db.activate_auth_catalog_v1().expect("activate exact v1");
+        db.activate_auth_catalog_v1().expect("activate exact catalog");
         assert_eq!(
             db.inspect_auth_catalog().expect("ready catalog"),
-            AuthCatalogState::ReadyV1
+            AuthCatalogState::ReadyV2
         );
         assert!(db.auth_catalog_ready().expect("ready predicate"));
         assert_eq!(
@@ -1718,7 +2268,9 @@ mod tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.conn
             .execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, '2')",
+                // A version above this binary's understanding (v2) — the
+                // refuse-at-open case: it must fail closed, not adopt.
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, '99')",
                 params![META_AUTH_CATALOG_VERSION],
             )
             .expect("unknown marker");
@@ -1780,7 +2332,7 @@ mod tests {
                 [],
             )
             .expect("create wrong physical index");
-        let expected_sql = AUTH_INDEXES
+        let expected_sql = AUTH_INDEXES_V2
             .iter()
             .find(|index| index.name == "_auth_sessions_token_uq")
             .expect("expected index")
@@ -2008,7 +2560,7 @@ mod tests {
         assert_eq!(row_count(&db, "_auth_users"), 0);
         assert_eq!(
             db.inspect_auth_catalog().expect("catalog survives reset"),
-            AuthCatalogState::ReadyV1
+            AuthCatalogState::ReadyV2
         );
     }
 
