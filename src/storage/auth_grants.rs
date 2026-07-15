@@ -10,6 +10,7 @@ use super::auth_agent_credentials::{
     require_agent_clock_on,
 };
 use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
+use crate::auth::provider::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::FunctionKind;
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -400,7 +401,7 @@ impl LocalDatabase {
         session_id: &str,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
-        step_up_proven: bool,
+        step_up_proof: Option<&StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<GrantApproval> {
         self.observe_agent_authorization_clock(now_ms)?;
@@ -412,15 +413,15 @@ impl LocalDatabase {
             .checked_add(ttl)
             .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(grant_expiry_invalid)?;
-        self.with_auth_transaction(|tx| {
+        let outcome = self.with_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             require_human_user_on(tx, effective_user_id)?;
             let request = approval_request_on(tx, request_id, effective_user_id, now_ms)?;
             if request.state == "approved" {
                 let grant_id = request.grant_id.ok_or_else(grant_state_corrupt)?;
-                return Ok(GrantApproval::Existing(load_approved_grant_on(
+                return Ok(Ok(GrantApproval::Existing(load_approved_grant_on(
                     tx, &grant_id, request_id,
-                )?));
+                )?)));
             }
             if request.state != "pending" || request.grant_id.is_some() {
                 return Err(grant_invalid());
@@ -429,8 +430,16 @@ impl LocalDatabase {
             require_agent_active_on(tx, &actor_user_id)?;
             let scopes_json = request.requested_scopes.ok_or_else(grant_invalid)?;
             let scopes = parse_scopes_json(&scopes_json)?;
-            if scopes.iter().any(|scope| scope.authority_creating) && !step_up_proven {
-                return Err(step_up_required());
+            // @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15
+            // — verification/attempt accounting/consume and grant creation
+            // share this transaction; no boolean trust seam survives.
+            if scopes.iter().any(|scope| scope.authority_creating) {
+                let Some(proof) = step_up_proof else {
+                    return Ok(Err(()));
+                };
+                if proof.consume_on(tx, now_ms)? != StepUpConsumption::Verified {
+                    return Ok(Err(()));
+                }
             }
             require_scope_bases_current_on(tx, &scopes)?;
             enforce_grant_caps_on(tx, &actor_user_id, effective_user_id, now_ms)?;
@@ -476,7 +485,7 @@ impl LocalDatabase {
             if changed != 1 {
                 return Err(grant_invalid());
             }
-            Ok(GrantApproval::Created(ApprovedGrant {
+            Ok(Ok(GrantApproval::Created(ApprovedGrant {
                 grant_id,
                 request_id: request_id.to_owned(),
                 actor_user_id,
@@ -484,8 +493,9 @@ impl LocalDatabase {
                 scopes,
                 expires_at_ms,
                 consent_digest,
-            }))
-        })
+            })))
+        })?;
+        outcome.map_err(|()| step_up_required_error())
     }
 
     pub(crate) fn deny_grant_request(
@@ -1198,14 +1208,6 @@ fn grant_expiry_invalid() -> SnapbackError {
     )
 }
 
-fn step_up_required() -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
-        "auth",
-        "authority-creating consent requires fresh step-up authentication",
-    )
-}
-
 fn grant_state_corrupt() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_GRANT_STATE_CORRUPT",
@@ -1292,7 +1294,7 @@ mod tests {
     }
 
     #[test]
-    fn pairing_expands_tiers_requires_step_up_and_approves_exactly_once() {
+    fn pairing_expands_tiers_and_requires_a_real_step_up_proof() {
         let random = CounterRandom::new();
         let (mut db, credential) = ready(&random);
         scope_basis(&db, "fn:read", "query", false);
@@ -1367,44 +1369,17 @@ mod tests {
                 "session-a",
                 &pairing.request_id,
                 None,
-                false,
+                None,
                 1_103,
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
 
-        let created = db
-            .approve_grant_request(
-                "user-a",
-                "session-a",
-                &pairing.request_id,
-                None,
-                true,
-                1_104,
-            )
-            .unwrap();
-        let GrantApproval::Created(grant) = created else {
-            panic!("first approval must create");
-        };
-        let repeated = db
-            .approve_grant_request(
-                "user-a",
-                "session-a",
-                &pairing.request_id,
-                Some(1),
-                true,
-                1_105,
-            )
-            .unwrap();
-        let GrantApproval::Existing(repeated) = repeated else {
-            panic!("approval retry must return existing");
-        };
-        assert_eq!(repeated.grant_id, grant.grant_id);
         let count: i64 = db
             .conn
             .query_row("SELECT COUNT(*) FROM _auth_grants", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, 1);
+        assert_eq!(count, 0);
     }
 
     #[test]
@@ -1453,7 +1428,7 @@ mod tests {
                 "session-b",
                 &pairing.request_id,
                 None,
-                false,
+                None,
                 1_102,
             )
             .unwrap()
@@ -1519,7 +1494,7 @@ mod tests {
                 "session-b",
                 &unowned_pairing.request_id,
                 None,
-                false,
+                None,
                 1_105,
             )
             .unwrap()
@@ -1581,7 +1556,7 @@ mod tests {
                 "session-a",
                 &pairing.request_id,
                 None,
-                false,
+                None,
                 2_002,
             )
             .unwrap_err();
@@ -1824,7 +1799,7 @@ mod tests {
             "session-a",
             &pairing.request_id,
             Some(1_000),
-            false,
+            None,
             7_003,
         )
         .unwrap();

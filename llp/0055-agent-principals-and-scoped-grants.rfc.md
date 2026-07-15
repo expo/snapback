@@ -5,7 +5,10 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-7 dual-family revision, /llp-super-refine:
+**Revised:** 2026-07-15 (ENG-24913 G2 checkpoint: landed the non-production,
+operation-bound step-up substrate and coupled its single-use consumption to
+`authorityCreating` grant approval; owner credential routes, revoke-all, and
+LLP 0045 production delivery remain pending); 2026-07-14 (round-7 dual-family revision, /llp-super-refine:
 **integrated the round-6 dispositions into the normative body**, which both
 families found were recorded in the triage but not the body — rewrote the two
 owner-re-credentialing "grants nothing new" passages to carry the
@@ -1793,6 +1796,26 @@ Lifecycle, audit, projections:
   under the capture-class constraint 0039 pins for auth codes?
 - Does `_auth_accounts` (merged away in 0039) return when agent credentials and
   external OAuth both exist?
+
+## Implementation checkpoint: step-up consent (2026-07-15)
+
+The first bounded G2 slice is implemented as the dated LLP 0039 amendment
+§Dated amendment: operation-bound step-up. In `dev`, `test`, and `demo`, a
+session-authenticated human can request a five-minute capture challenge bound to
+the exact `grantApproval` request id. The digest additionally binds the exact
+user and session authority. Approval re-reads the stored scopes and, iff any is
+`authorityCreating`, verifies and consumes that proof in the same SQLite
+transaction that creates the immutable grant. Ordinary consent still requires
+no step-up. Login challenges, other targets, and other sessions cannot be
+substituted; concurrent replay creates at most one grant.
+
+This checkpoint intentionally does **not** claim the owner invitation,
+owner-credential, owner-deactivation, or revoke-all routes. The closed operation
+vocabulary is ready to add those targets, but each protected effect must couple
+proof consumption to its own durable transaction. Production challenge creation
+remains fail-closed with
+`SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE` until LLP 0045 supplies the
+ephemeral human-delivery seam; capture is not a production escape hatch.
 
 ## Status
 

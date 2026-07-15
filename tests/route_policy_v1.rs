@@ -193,17 +193,18 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/refresh"),
         ("POST", "/auth/logout"),
         ("POST", "/auth/family-alarm"),
+        ("POST", "/auth/step-up/request"),
         ("POST", "/auth/pairing-codes"),
         ("POST", "/auth/agents/pair"),
+        ("POST", "/auth/agents/rotate"),
+        ("POST", "/auth/agents/token"),
+        ("POST", "/auth/agents/revoke-self"),
         ("GET", "/auth/grant-requests"),
         ("POST", "/auth/grant-requests/{id}/approve"),
         ("POST", "/auth/grant-requests/{id}/deny"),
         ("GET", "/auth/grants"),
         ("DELETE", "/auth/grants/by-actor/{actor_id}"),
         ("DELETE", "/auth/grants/{id}"),
-        ("POST", "/auth/agents/rotate"),
-        ("POST", "/auth/agents/token"),
-        ("POST", "/auth/agents/revoke-self"),
         ("POST", "/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
@@ -313,7 +314,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 17);
+    assert_eq!(provider.len(), 18);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -371,6 +372,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     );
 
     for path in [
+        "/auth/step-up/request",
         "/auth/pairing-codes",
         "/auth/grant-requests",
         "/auth/grant-requests/{id}/approve",
@@ -420,6 +422,12 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     assert_eq!(
         revoke_self.response_sensitivity,
         ResponseSensitivity::PublicNoStore
+    );
+
+    let step_up = provider["/auth/step-up/request"];
+    assert_eq!(
+        step_up.response_sensitivity,
+        ResponseSensitivity::SensitiveApplicationData
     );
 
     let mailbox = registry

@@ -27,7 +27,8 @@ use crate::auth::lease::{
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
-    PlannedRevocationCommit, ProviderError, auth_required as provider_auth_required,
+    PlannedRevocationCommit, ProviderError, StepUpBinding,
+    auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
 };
@@ -3973,6 +3974,19 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
+                "/auth/step-up/request",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(auth_step_up_request).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
                 "/auth/pairing-codes",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
@@ -5069,7 +5083,8 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
-        "/auth/pairing-codes"
+        "/auth/step-up/request"
+        | "/auth/pairing-codes"
         | "/auth/grant-requests"
         | "/auth/grant-requests/{id}/approve"
         | "/auth/grant-requests/{id}/deny"
@@ -6611,6 +6626,23 @@ struct AgentPairRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct GrantApprovalRequest {
     requested_ttl_ms: Option<u64>,
+    step_up: Option<StepUpProofRequest>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StepUpProofRequest {
+    challenge_id: String,
+    code: SecretInput,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "operation", rename_all = "camelCase", deny_unknown_fields)]
+enum StepUpRequest {
+    GrantApproval {
+        #[serde(rename = "requestId")]
+        request_id: String,
+    },
 }
 
 struct PairingCodeSecretResponse {
@@ -6725,9 +6757,7 @@ fn require_agent_routes_available(runtime: &AppState) -> Result<Arc<AuthProvider
     installed_auth_provider(runtime)
 }
 
-fn require_grant_session(
-    authority: &PreparedAuthority,
-) -> Result<(String, String), ApiError> {
+fn require_grant_session(authority: &PreparedAuthority) -> Result<(String, String), ApiError> {
     require_provider_session_authority(authority, InvocationSource::AgentGrantManagement)?;
     let ResolvedAppAuthority::Session {
         user_id,
@@ -6738,6 +6768,75 @@ fn require_grant_session(
         unreachable!("grant-management source requires session authority");
     };
     Ok((user_id.clone(), session_id.clone()))
+}
+
+fn grant_step_up_binding(
+    authority: &PreparedAuthority,
+    request_id: String,
+) -> Result<StepUpBinding, ApiError> {
+    require_provider_session_authority(authority, InvocationSource::AgentGrantManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        generation,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("grant-management source requires session authority");
+    };
+    Ok(StepUpBinding::grant_approval(
+        user_id.clone(),
+        session_id.clone(),
+        *generation,
+        authority_instance_id.clone(),
+        request_id,
+    ))
+}
+
+/// Fresh-authentication requests derive their human address from the exact
+/// live session. The wire chooses only a closed operation and target; it can
+/// neither redirect delivery nor mint an unbound proof.
+///
+/// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant — step-up is operation/target bound,
+/// five-minute, single-use, and capture-only outside production until LLP 0045.
+async fn auth_step_up_request(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<RequestCodeResponse>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    let request: StepUpRequest = parse_auth_json(&headers, body)?;
+    let binding = match request {
+        StepUpRequest::GrantApproval { request_id } => {
+            grant_step_up_binding(&authority, request_id)?
+        }
+    };
+    let admission = provider.admit().await;
+    let now_ms = provider.now_ms();
+    let lookup_binding = binding.clone();
+    let (admission, address) = with_snapback(&runtime.snapback, move |snapback| {
+        let address =
+            admission.step_up_address(snapback.auth_database_mut(), &lookup_binding, now_ms);
+        (admission, address)
+    })
+    .await;
+    let address = address.map_err(map_provider_error)?;
+    let admission = admission
+        .for_address(address)
+        .await
+        .map_err(map_provider_error)?;
+    let effect_authority = authority.clone();
+    let response = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority
+            .effect_guard("step-up challenge transaction")
+            .map_err(ProviderError::from)?;
+        admission.request_step_up(snapback.auth_database_mut(), &binding, now_ms)
+    })
+    .await
+    .map_err(map_provider_error)?;
+    Ok(Json(response))
 }
 
 async fn auth_pairing_code(
@@ -6830,6 +6929,28 @@ async fn auth_grant_request_approve(
     let provider = require_agent_routes_available(&runtime)?;
     let request: GrantApprovalRequest = parse_auth_json(&headers, body)?;
     let now_ms = provider.now_ms();
+    let requested_ttl_ms = request.requested_ttl_ms;
+    let proof_admission = match request.step_up {
+        Some(step_up) => {
+            let binding = grant_step_up_binding(&authority, request_id.clone())?;
+            let admission = provider.admit().await;
+            let challenge_id = step_up.challenge_id.clone();
+            let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+                let coordination =
+                    admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                (admission, coordination)
+            })
+            .await;
+            let coordination = coordination.map_err(map_provider_error)?;
+            Some(
+                admission
+                    .for_step_up(coordination, binding, step_up.code.as_str())
+                    .await
+                    .map_err(map_provider_error)?,
+            )
+        }
+        None => None,
+    };
     let effect_authority = authority.clone();
     let approval = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("grant approval transaction")?;
@@ -6837,8 +6958,8 @@ async fn auth_grant_request_approve(
             &user_id,
             &session_id,
             &request_id,
-            request.requested_ttl_ms,
-            false,
+            requested_ttl_ms,
+            proof_admission.as_ref().map(|admission| admission.proof()),
             now_ms,
         )
     })
@@ -13713,6 +13834,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
         | "SNAPBACK_AUTH_GRANT_STATE_CORRUPT"
         | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
@@ -18692,6 +18814,315 @@ mod tests {
         );
     }
 
+    /// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant — authority-creating consent consumes
+    /// one operation/target/session-bound proof in the grant transaction;
+    /// ordinary consent remains frictionless.
+    #[tokio::test]
+    async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let credential = mint_test_credential(&state, "step-up@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let second_credential = mint_test_credential(&state, "step-up@example.com").await;
+        let second_bearer = second_credential["token"].as_str().unwrap().to_owned();
+        let user_id = credential["session"]["userId"].as_str().unwrap().to_owned();
+        let now_ms = provider.now_ms();
+        let request_ids = with_snapback(&state.snapback, {
+            let provider = provider.clone();
+            let user_id = user_id.clone();
+            move |snapback| {
+                let db = snapback.auth_database_mut();
+                db.create_agent_principal(
+                    "step-up-agent",
+                    now_ms,
+                    &crate::storage::auth_agents::AgentRegistration {
+                        display_name: Some("Step-up Agent".to_owned()),
+                        operator_contact: None,
+                        registration_provenance: "step-up-route-test".to_owned(),
+                        owner_user_id: Some(user_id.clone()),
+                    },
+                )?;
+                let agent_credential = db
+                    .issue_initial_agent_credential(
+                        "step-up-agent",
+                        now_ms,
+                        provider.agent_random_source(),
+                    )?
+                    .secret;
+                db.with_auth_transaction(|tx| {
+                    tx.execute(
+                        "INSERT INTO _auth_scope_bases(
+                           function_id, kind, generation, present, authority_creating
+                         ) VALUES
+                           ('fn:seatRole', 'mutation', 0, 1, 1),
+                           ('fn:listItems', 'query', 0, 1, 0)",
+                        [],
+                    )?;
+                    Ok(())
+                })?;
+
+                let mut present = |function_id: &str,
+                                   kind: crate::storage::auth_grants::ScopedFunctionKind|
+                 -> crate::diagnostic::SnapbackResult<String> {
+                    let pairing =
+                        db.mint_pairing_code(&user_id, now_ms, provider.agent_random_source())?;
+                    db.present_pairing_code(
+                        &agent_credential,
+                        &pairing.request_id,
+                        &pairing.secret,
+                        &[crate::storage::auth_grants::GrantScopeRequest::Exact {
+                            function_id: function_id.to_owned(),
+                            kind,
+                        }],
+                        now_ms,
+                    )?;
+                    Ok(pairing.request_id)
+                };
+                Ok::<_, SnapbackError>((
+                    present(
+                        "fn:seatRole",
+                        crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    )?,
+                    present(
+                        "fn:seatRole",
+                        crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    )?,
+                    present(
+                        "fn:listItems",
+                        crate::storage::auth_grants::ScopedFunctionKind::Query,
+                    )?,
+                ))
+            }
+        })
+        .await
+        .unwrap();
+        let (bound_request, other_request, ordinary_request) = request_ids;
+        let router = app(state.clone());
+
+        let ordinary = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{ordinary_request}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(ordinary.status(), StatusCode::OK);
+
+        let missing = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{bound_request}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(missing).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+
+        let login_admission = provider.admit_email("step-up@example.com").await.unwrap();
+        let login_now_ms = provider.now_ms();
+        let login_challenge = with_snapback(&state.snapback, move |snapback| {
+            login_admission
+                .request_code(snapback.auth_database_mut(), login_now_ms)
+                .map(|response| response.challenge_id)
+        })
+        .await
+        .unwrap();
+        let login_mailbox =
+            serde_json::to_value(provider.mailbox_entry(&login_challenge).await.unwrap()).unwrap();
+        let login_code = login_mailbox["code"].as_str().unwrap().to_owned();
+        let login_as_step_up = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{bound_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": login_challenge, "code": login_code}
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(login_as_step_up.status(), StatusCode::UNAUTHORIZED);
+
+        let challenge_response = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({
+                    "operation": "grantApproval",
+                    "requestId": bound_request,
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(challenge_response.status(), StatusCode::OK);
+        assert_eq!(
+            challenge_response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let challenge = response_json(challenge_response).await;
+        let challenge_id = challenge["challengeId"].as_str().unwrap().to_owned();
+        let expires_at = challenge["expiresAt"].as_u64().unwrap();
+        assert!(expires_at >= now_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS);
+        assert!(expires_at <= now_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS + 1_000);
+        let mailbox =
+            serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
+        let code = mailbox["code"].as_str().unwrap().to_owned();
+
+        let substituted = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": challenge_id, "code": code}
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(substituted.status(), StatusCode::UNAUTHORIZED);
+        let substituted_json = response_json(substituted).await;
+        assert_eq!(
+            substituted_json["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+        assert!(!substituted_json.to_string().contains(&code));
+
+        let wrong_session = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{bound_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": challenge_id, "code": code}
+                }))
+                .unwrap(),
+                &second_bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(wrong_session.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_session).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+
+        let approval_body = serde_json::to_vec(&json!({
+            "stepUp": {"challengeId": challenge_id, "code": code}
+        }))
+        .unwrap();
+        let first = router.clone().oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{bound_request}/approve"),
+            approval_body.clone(),
+            &bearer,
+        ));
+        let second = router.clone().oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{bound_request}/approve"),
+            approval_body,
+            &bearer,
+        ));
+        let (first, second) = tokio::join!(first, second);
+        assert_eq!(first.unwrap().status(), StatusCode::OK);
+        assert_eq!(second.unwrap().status(), StatusCode::OK);
+
+        let replay_for_other = router
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{other_request}/approve"),
+                serde_json::to_vec(&json!({
+                    "stepUp": {"challengeId": challenge_id, "code": code}
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(replay_for_other.status(), StatusCode::UNAUTHORIZED);
+
+        with_snapback(&state.snapback, move |snapback| {
+            snapback.auth_database_mut().with_auth_read(|connection| {
+                let grants: i64 = connection.query_row(
+                    "SELECT COUNT(*) FROM _auth_grants WHERE request_id = ?1",
+                    rusqlite::params![bound_request],
+                    |row| row.get(0),
+                )?;
+                let plaintext_matches: i64 = connection.query_row(
+                    "SELECT COUNT(*) FROM _auth_verification_codes
+                     WHERE challenge_id = ?1 AND code_digest = CAST(?2 AS BLOB)",
+                    rusqlite::params![&challenge_id, &code],
+                    |row| row.get(0),
+                )?;
+                let (attempts, consumed): (i64, bool) = connection.query_row(
+                    "SELECT attempts, consumed_at_ms IS NOT NULL
+                     FROM _auth_verification_codes WHERE challenge_id = ?1",
+                    rusqlite::params![&challenge_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?;
+                assert_eq!(grants, 1);
+                assert_eq!(plaintext_matches, 0);
+                assert_eq!(attempts, 3);
+                assert!(consumed);
+                Ok::<_, SnapbackError>(())
+            })
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn production_step_up_delivery_fails_closed_without_capture() {
+        let state = sessions_activation_server_fixture_async().await;
+        let credential = mint_test_credential(&state, "prod-step-up@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(super::now_millis(), &OsRandom)
+            .unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Prod, keyring).unwrap());
+        let state = state.with_auth_provider(provider);
+        let router = app(state.clone());
+        let response = router
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({
+                    "operation": "grantApproval",
+                    "requestId": "prod-target",
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
+        );
+        let challenge_count = with_snapback(&state.snapback, |snapback| {
+            snapback.auth_database_mut().with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM _auth_verification_codes
+                         WHERE canonical_address = 'prod-step-up@example.com'",
+                        [],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .map_err(SnapbackError::from)
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(challenge_count, 0);
+    }
+
     /// @ref LLP 0058#gate-algorithm — required provider-route credentials are
     /// resolved before the closed body is parsed; only a valid live bearer may
     /// reach the provider DTO parser.
@@ -21281,6 +21712,7 @@ mod tests {
         "SNAPBACK_AUTH_PROJECTION_CORRUPT",
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
         "SNAPBACK_AUTH_GRANT_STATE_CORRUPT",
         "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT",
         "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
