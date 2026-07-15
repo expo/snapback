@@ -5570,6 +5570,21 @@ impl MembershipWriter {
                     effective_principal: user_id.clone(),
                 }
             }
+            Resolved::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                grant_id,
+                ..
+            } => effective_user_id.as_ref().map_or_else(
+                || Self::User {
+                    effective_principal: actor_user_id.clone(),
+                },
+                |effective_user_id| Self::Delegated {
+                    actor_principal: actor_user_id.clone(),
+                    effective_principal: effective_user_id.clone(),
+                    grant_id: grant_id.clone(),
+                },
+            ),
             Resolved::System => Self::System,
             Resolved::AdminBypass { .. } => Self::AdminBypass,
             Resolved::Anonymous => Self::Anonymous,

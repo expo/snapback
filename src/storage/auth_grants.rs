@@ -11,6 +11,7 @@ use super::auth_agent_credentials::{
 };
 use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::manifest::FunctionKind;
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -58,6 +59,15 @@ impl ScopedFunctionKind {
             "liveQuery" => Some(Self::LiveQuery),
             "action" => Some(Self::Action),
             _ => None,
+        }
+    }
+
+    pub(crate) fn into_function_kind(self) -> FunctionKind {
+        match self {
+            Self::Query => FunctionKind::Query,
+            Self::Mutation => FunctionKind::Mutation,
+            Self::LiveQuery => FunctionKind::LiveQuery,
+            Self::Action => FunctionKind::Action,
         }
     }
 }

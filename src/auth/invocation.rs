@@ -15,6 +15,7 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
 };
+use crate::storage::auth_grants::ExactGrantScope;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -287,10 +288,46 @@ pub enum ResolvedAppAuthority {
         roles: Vec<String>,
         local_dev_only: bool,
     },
+    /// One server-resolved scoped-token authority. The grant scopes remain
+    /// server-only and are consumed by `prepare_function`; the handler sees
+    /// only the sealed projection below.
+    ///
+    /// @ref LLP 0055#resolved-authority-serviceprincipal — carrier identity is
+    ///   distinct from effective identity, and delegated authority projects
+    ///   the effective user while retaining an attributable actor.
+    ServicePrincipal {
+        actor_user_id: String,
+        credential_id: String,
+        credential_generation: u64,
+        grant_id: String,
+        token_id: String,
+        effective_user_id: Option<String>,
+        scopes: Vec<ResolvedGrantScope>,
+        token_expires_at_ms: u64,
+    },
     AdminBypass {
         reason: String,
     },
     System,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedGrantScope {
+    function_id: String,
+    kind: FunctionKind,
+    basis: u64,
+    authority_creating: bool,
+}
+
+impl ResolvedGrantScope {
+    pub(crate) fn from_exact(scope: ExactGrantScope) -> Self {
+        Self {
+            function_id: scope.function_id,
+            kind: scope.kind.into_function_kind(),
+            basis: scope.basis,
+            authority_creating: scope.authority_creating,
+        }
+    }
 }
 
 impl ResolvedAppAuthority {
@@ -318,7 +355,12 @@ impl ResolvedAppAuthority {
     }
 
     pub fn carries_user(&self) -> bool {
-        matches!(self, Self::Session { .. } | Self::DevImpersonation { .. })
+        matches!(
+            self,
+            Self::Session { .. }
+                | Self::DevImpersonation { .. }
+                | Self::ServicePrincipal { .. }
+        )
     }
 
     /// Stable, bearer-free identity for durable invalidation retry ownership.
@@ -339,6 +381,21 @@ impl ResolvedAppAuthority {
             Self::DevImpersonation { user_id, .. } => {
                 format!("dev:{}:{user_id}", user_id.len())
             }
+            Self::ServicePrincipal {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                ..
+            } => format!(
+                "service-principal:{}:{}:{}:{}:{}:{}:{credential_generation}",
+                actor_user_id.len(),
+                actor_user_id,
+                credential_id.len(),
+                credential_id,
+                grant_id.len(),
+                grant_id,
+            ),
             Self::AdminBypass { .. } => "admin-bypass".to_owned(),
             Self::System => "system".to_owned(),
         }
@@ -359,6 +416,18 @@ impl ResolvedAppAuthority {
             },
             Self::DevImpersonation { user_id, .. } => AuthorityKey::DevImpersonation {
                 user_id: user_id.clone(),
+            },
+            Self::ServicePrincipal {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                ..
+            } => AuthorityKey::ServicePrincipal {
+                actor_user_id: actor_user_id.clone(),
+                credential_id: credential_id.clone(),
+                credential_generation: *credential_generation,
+                grant_id: grant_id.clone(),
             },
             Self::AdminBypass { .. } => AuthorityKey::AdminBypass,
             Self::System => AuthorityKey::System,
@@ -381,6 +450,20 @@ impl ResolvedAppAuthority {
                 session_id: None,
                 user_id: Some(user_id.clone()),
             },
+            Self::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                ..
+            } => AuthInput {
+                principal: None,
+                session_id: None,
+                user_id: Some(
+                    effective_user_id
+                        .as_ref()
+                        .unwrap_or(actor_user_id)
+                        .clone(),
+                ),
+            },
             Self::Anonymous | Self::AdminBypass { .. } | Self::System => AuthInput::default(),
         }
     }
@@ -397,6 +480,12 @@ pub enum AuthorityKey {
     },
     DevImpersonation {
         user_id: String,
+    },
+    ServicePrincipal {
+        actor_user_id: String,
+        credential_id: String,
+        credential_generation: u64,
+        grant_id: String,
     },
     AdminBypass,
     System,
@@ -415,6 +504,18 @@ pub struct HandlerAuthProjection {
     provider: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     roles: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actor: Option<HandlerAuthActorProjection>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HandlerAuthActorProjection {
+    user_id: String,
+    kind: String,
+    grant_id: String,
 }
 
 impl HandlerAuthProjection {
@@ -431,6 +532,8 @@ impl HandlerAuthProjection {
                 is_authenticated: true,
                 provider: Some(provider.clone()),
                 roles: Some(Vec::new()),
+                kind: Some("human".to_owned()),
+                actor: None,
             },
             ResolvedAppAuthority::DevImpersonation { user_id, roles, .. } => Self {
                 user_id: Some(user_id.clone()),
@@ -438,6 +541,35 @@ impl HandlerAuthProjection {
                 is_authenticated: true,
                 provider: None,
                 roles: Some(roles.clone()),
+                kind: Some("human".to_owned()),
+                actor: None,
+            },
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                grant_id,
+                effective_user_id,
+                ..
+            } => Self {
+                user_id: Some(
+                    effective_user_id
+                        .as_ref()
+                        .unwrap_or(actor_user_id)
+                        .clone(),
+                ),
+                session_id: None,
+                is_authenticated: true,
+                provider: Some("agent-credential".to_owned()),
+                roles: Some(Vec::new()),
+                kind: Some(if effective_user_id.is_some() {
+                    "human".to_owned()
+                } else {
+                    "agent".to_owned()
+                }),
+                actor: effective_user_id.as_ref().map(|_| HandlerAuthActorProjection {
+                    user_id: actor_user_id.clone(),
+                    kind: "agent".to_owned(),
+                    grant_id: grant_id.clone(),
+                }),
             },
             ResolvedAppAuthority::Anonymous
             | ResolvedAppAuthority::AdminBypass { .. }
@@ -447,6 +579,8 @@ impl HandlerAuthProjection {
                 is_authenticated: false,
                 provider: None,
                 roles: None,
+                kind: None,
+                actor: None,
             },
         }
     }
@@ -592,6 +726,7 @@ impl InvocationSource {
 pub enum AuthorityAuditFact {
     Anonymous,
     Session,
+    ServicePrincipal,
     DevBodyAuthority,
     DirectRunnerBodyUser,
     HostOperationImpersonation,
@@ -929,6 +1064,9 @@ impl InvocationGate {
         let audit = match (&resolved, source) {
             (ResolvedAppAuthority::Anonymous, _) => AuthorityAuditFact::Anonymous,
             (ResolvedAppAuthority::Session { .. }, _) => AuthorityAuditFact::Session,
+            (ResolvedAppAuthority::ServicePrincipal { .. }, _) => {
+                AuthorityAuditFact::ServicePrincipal
+            }
             (ResolvedAppAuthority::AdminBypass { .. }, _) => AuthorityAuditFact::AdminBypass,
             (ResolvedAppAuthority::System, _) => AuthorityAuditFact::System,
             (
@@ -1021,6 +1159,19 @@ impl InvocationGate {
                 "this function requires an authenticated user",
             ));
         }
+        if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
+            if !scopes
+                .iter()
+                .any(|scope| scope.function_id == function.id && scope.kind == function.kind)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                    "auth",
+                    "the scoped grant does not authorize this function",
+                )
+                .with_details(serde_json::json!({ "reason": "missing_scope" })));
+            }
+        }
         Ok(PreparedInvocation {
             authority,
             function_id: function.id.clone(),
@@ -1078,10 +1229,18 @@ fn source_allows_authority(
         }
         InvocationSource::HttpQuery
         | InvocationSource::HttpMutation
-        | InvocationSource::HttpAction
-        | InvocationSource::LiveInitialQuery
+        | InvocationSource::HttpAction => {
+            ordinary
+                || (mode == AuthMode::Sessions
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+        }
+        InvocationSource::ConnectionOpen => {
+            ordinary
+                || (mode == AuthMode::Sessions
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+        }
+        InvocationSource::LiveInitialQuery
         | InvocationSource::StandaloneAcknowledgement
-        | InvocationSource::ConnectionOpen
         | InvocationSource::ConnectionClose
         | InvocationSource::EphemeralRegister
         | InvocationSource::EphemeralPublish
@@ -1299,7 +1458,63 @@ mod tests {
                 "sessionId": "session_1",
                 "isAuthenticated": true,
                 "provider": "email-code",
-                "roles": []
+                "roles": [],
+                "kind": "human"
+            })
+        );
+
+        let autonomous = serde_json::to_value(HandlerAuthProjection::from_authority(
+            &ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent_1".to_owned(),
+                credential_id: "credential_1".to_owned(),
+                credential_generation: 2,
+                grant_id: "grant_1".to_owned(),
+                token_id: "token_1".to_owned(),
+                effective_user_id: None,
+                scopes: Vec::new(),
+                token_expires_at_ms: 20_000,
+            },
+        ))
+        .unwrap();
+        assert_eq!(
+            autonomous,
+            json!({
+                "userId": "agent_1",
+                "sessionId": null,
+                "isAuthenticated": true,
+                "provider": "agent-credential",
+                "roles": [],
+                "kind": "agent"
+            })
+        );
+
+        let delegated = serde_json::to_value(HandlerAuthProjection::from_authority(
+            &ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent_1".to_owned(),
+                credential_id: "credential_1".to_owned(),
+                credential_generation: 2,
+                grant_id: "grant_1".to_owned(),
+                token_id: "token_1".to_owned(),
+                effective_user_id: Some("user_1".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: 20_000,
+            },
+        ))
+        .unwrap();
+        assert_eq!(
+            delegated,
+            json!({
+                "userId": "user_1",
+                "sessionId": null,
+                "isAuthenticated": true,
+                "provider": "agent-credential",
+                "roles": [],
+                "kind": "human",
+                "actor": {
+                    "userId": "agent_1",
+                    "kind": "agent",
+                    "grantId": "grant_1"
+                }
             })
         );
     }
@@ -1334,6 +1549,7 @@ mod tests {
         enum Kind {
             Anonymous,
             Session,
+            Service,
             Dev,
             Admin,
             System,
@@ -1348,6 +1564,16 @@ mod tests {
                 authority_instance_id: "authority".to_owned(),
                 session_not_after_ms: 10_000,
                 provider_not_after_ms: None,
+            },
+            Kind::Service => ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent".to_owned(),
+                credential_id: "credential".to_owned(),
+                credential_generation: 1,
+                grant_id: "grant".to_owned(),
+                token_id: "token".to_owned(),
+                effective_user_id: Some("user".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: 10_000,
             },
             Kind::Dev => ResolvedAppAuthority::DevImpersonation {
                 user_id: "dev".to_owned(),
@@ -1382,10 +1608,16 @@ mod tests {
                 }
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation
-                | InvocationSource::HttpAction
-                | InvocationSource::LiveInitialQuery
+                | InvocationSource::HttpAction => {
+                    ordinary
+                        || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                }
+                InvocationSource::ConnectionOpen => {
+                    ordinary
+                        || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                }
+                InvocationSource::LiveInitialQuery
                 | InvocationSource::StandaloneAcknowledgement
-                | InvocationSource::ConnectionOpen
                 | InvocationSource::ConnectionClose
                 | InvocationSource::EphemeralRegister
                 | InvocationSource::EphemeralPublish
@@ -1413,6 +1645,7 @@ mod tests {
                 for kind in [
                     Kind::Anonymous,
                     Kind::Session,
+                    Kind::Service,
                     Kind::Dev,
                     Kind::Admin,
                     Kind::System,

@@ -193,6 +193,16 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/refresh"),
         ("POST", "/auth/logout"),
         ("POST", "/auth/family-alarm"),
+        ("POST", "/auth/pairing-codes"),
+        ("POST", "/auth/agents/pair"),
+        ("GET", "/auth/grant-requests"),
+        ("POST", "/auth/grant-requests/{id}/approve"),
+        ("POST", "/auth/grant-requests/{id}/deny"),
+        ("GET", "/auth/grants"),
+        ("DELETE", "/auth/grants/{id}"),
+        ("POST", "/auth/agents/rotate"),
+        ("POST", "/auth/agents/token"),
+        ("POST", "/auth/agents/revoke-self"),
         ("POST", "/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
@@ -302,7 +312,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 6);
+    assert_eq!(provider.len(), 16);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -359,6 +369,57 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         ResponseSensitivity::PublicNoStore
     );
 
+    for path in [
+        "/auth/pairing-codes",
+        "/auth/grant-requests",
+        "/auth/grant-requests/{id}/approve",
+        "/auth/grant-requests/{id}/deny",
+        "/auth/grants",
+        "/auth/grants/{id}",
+    ] {
+        let route = provider[path];
+        assert_eq!(route.path_policy, RoutePolicy::SessionAuth, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::RequiredSessionBearer,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ResolvedCaller,
+            "{path}"
+        );
+    }
+
+    for path in [
+        "/auth/agents/pair",
+        "/auth/agents/rotate",
+        "/auth/agents/token",
+    ] {
+        let route = provider[path];
+        assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AgentCredentialBody,
+            "{path}"
+        );
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::CredentialSecret,
+            "{path}"
+        );
+    }
+    let revoke_self = provider["/auth/agents/revoke-self"];
+    assert_eq!(revoke_self.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        revoke_self.credential_resolution,
+        CredentialResolution::AgentFamilySecretBody
+    );
+    assert_eq!(
+        revoke_self.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
+
     let mailbox = registry
         .iter()
         .find(|route| route.path == "/_snapback/api/auth/mailbox")
@@ -380,17 +441,17 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     let router = app(AppState::detached(
         LocalSnapback::memory().expect("in-memory auth route fixture"),
     ));
-    for path in provider
-        .keys()
-        .copied()
-        .filter(|path| *path != "/auth/session")
+    for route in provider
+        .values()
+        .filter(|route| route.path != "/auth/session")
     {
+        let path = materialize_path(route.path);
         let response = router
             .clone()
             .oneshot(
                 Request::builder()
-                    .method("POST")
-                    .uri(path)
+                    .method(route.method)
+                    .uri(&path)
                     .header("content-type", "application/json")
                     .header(header::AUTHORIZATION, "Bearer planted-dev-oracle")
                     .body(Body::from(r#"{"auth":{"userId":"planted"}}"#))
@@ -398,11 +459,12 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
             )
             .await
             .expect("probe dev-mode provider route");
-        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{}", route.path);
         assert_eq!(
             response.headers()[header::CACHE_CONTROL],
             "no-store, private",
-            "{path}"
+            "{}",
+            route.path
         );
         assert_eq!(diagnostic_code(response).await, "SNAPBACK_AUTH_MODE_DEV");
     }

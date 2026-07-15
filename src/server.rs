@@ -12012,6 +12012,10 @@ fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContex
             user_id: Some(user_id.clone()),
             permissions: Default::default(),
         },
+        // The invocation gate refuses service-principal authority for every
+        // ephemeral source in v1. Keep the projection userless as a second
+        // fail-closed wall if a caller reaches this conversion unexpectedly.
+        ResolvedAppAuthority::ServicePrincipal { .. } => AuthContext::default(),
         ResolvedAppAuthority::Anonymous
         | ResolvedAppAuthority::AdminBypass { .. }
         | ResolvedAppAuthority::System => AuthContext::default(),
@@ -13275,7 +13279,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
-        "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
+        "SNAPBACK_AUTH_REFRESH_SUPERSEDED" | "SNAPBACK_AUTH_GRANT_PENDING" => {
+            StatusCode::CONFLICT
+        }
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
@@ -13292,6 +13298,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID"
         | "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
         | "SNAPBACK_AUTH_PERMISSION_DENIED"
+        | "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
         //   refused fail-closed at every authority-creating/exercising path.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATED"
@@ -17888,6 +17895,21 @@ mod tests {
                         (now_ms + 60_000) as i64,
                     ],
                 )?;
+                tx.execute(
+                    "INSERT INTO _auth_pairing_requests(
+                       id, code_hash, minted_by_user_id, agent_user_id,
+                       requested_scopes, state, attempts, created_at_ms,
+                       expires_at_ms, consumed_at_ms, grant_id
+                     ) VALUES('route-pending',
+                              X'0101010101010101010101010101010101010101010101010101010101010101',
+                              'grant-user', 'route-agent',
+                              ?1, 'pending', 0, ?2, ?3, NULL, NULL)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60_000) as i64,
+                    ],
+                )?;
                 Ok(())
             })?;
             Ok::<_, SnapbackError>(issued.secret.expose_secret().to_owned())
@@ -17946,6 +17968,30 @@ mod tests {
         assert_eq!(pairing["grantId"], "route-grant");
         assert_eq!(pairing["grantExpiresAtMs"], now_ms + 60_000);
         assert_eq!(pairing["scopes"], ordinary["scopes"]);
+
+        let mut pending_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "pairingRequestId": "route-pending",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut pending_request);
+        let pending = router
+            .clone()
+            .oneshot(pending_request)
+            .await
+            .unwrap();
+        assert_eq!(pending.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            response_json(pending).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_GRANT_PENDING"
+        );
 
         for invalid in [
             json!({"credential": credential}),
@@ -20449,6 +20495,7 @@ mod tests {
         "SNAPBACK_AUTH_CODE_LOCKED",
         "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
         "SNAPBACK_AUTH_PERMISSION_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
@@ -20486,6 +20533,7 @@ mod tests {
         "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
         "SNAPBACK_AUTH_INVALIDATION_PENDING",
         "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE",
+        "SNAPBACK_AUTH_GRANT_PENDING",
         "SNAPBACK_AUTH_GRANT_SCOPE_STALE",
         "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
         "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
