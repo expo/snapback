@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final cross-family review follow-up: makes every
+**Revised:** 2026-07-15 (final durable-confirmation follow-up: adds a short
+exact ownership read after result delivery, before peer barrier entry, and
+after owner/peer resume before exposure; treats that final locked read as the
+linearization point; and proves missed-broadcast direct, adoption, recovery,
+read-failure, and same-authority-revision cuts). 2026-07-15 (final cross-family review follow-up: makes every
 owner/peer resume-time reload exact-or-stale, fences pre-barrier reloads that
 finish during resume, composes the real Contract participant reload, proves
 changed-durable owner/peer races, and reconciles intent-backed recovery and
@@ -1400,6 +1404,18 @@ blank/paused and never returns its obsolete capture.
 A synchronization begun before the barrier but completing after settle follows
 the same rule: an exact record is confirmation only, while a mismatch fails
 stale; neither completion may replace the now-active barrier.
+The ownership read that first discovers a result is provisional. After that
+result is delivered outside ownership, the coordinator reacquires ownership
+only long enough to compare the exact settled revision, epoch, and authority.
+Peer adoption performs this confirmation before participant work and repeats
+it after resume before unpausing. An owner transition likewise confirms after
+durable settle and again after resume before unpausing. Participant quiesce,
+durable clearing, and resume never run while this confirmation ownership is
+held. The last successful locked read is the return/exposure linearization
+point. A mismatch, clearing/null record, or failed read leaves the local gate
+paused and fail-closed; the changed record may be adopted only by a later clean
+synchronization. The same rule applies whether delivery occurs during the
+barrier, after it has completed, or after a same-authority revision rotation.
 
 Where Web Locks is unavailable, the storage adapter must provide an atomic
 compare-and-swap lease in the same transactional domain as custody:
@@ -2028,7 +2044,16 @@ real single- and multi-live participants await `coordinator.synchronize()`
 while the exposure barrier is still closed; the coordinator suite separately
 advances durable custody during both owner and peer resume and proves the stale
 barrier runs resume once, returns no obsolete capture, stays blank, and adopts
-the actual successor only in a later clean synchronization.
+the actual successor only in a later clean synchronization. Those resume-race
+tests do not ask the participant to call `synchronize()` after advancing the
+peer: the coordinator's own post-resume confirmation detects the change. The
+same suite delays ownership-result delivery with broadcasts disabled and proves
+both direct A-to-B and peer-adoption B-to-C advances fail stale and remain
+blank. It also covers failed-clearing peer recovery followed by synchronization
+in the original context, null-to-established custody, a failed final durable
+read, a same-authority revision advance, and a same-authority write during
+resume that cannot reopen exposure. These cuts distinguish the final locked
+confirmation from the earlier local-record delivery fences.
 
 ### Client store and Contract boundaries
 

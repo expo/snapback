@@ -736,7 +736,12 @@ export class AuthCoordinator {
             phase: this.#record.phase,
             revision: this.#record.revision,
             authorityEpoch: this.#record.authorityEpoch,
-            authorityKey: canonicalAuthorityKey(this.#appId, this.#record.authority),
+            authorityKey: canonicalAuthorityKey(
+              this.#appId,
+              this.#record.phase === 'settled'
+                ? this.#record.authority
+                : this.#record.pendingAuthority,
+            ),
           });
         return {
           adoptPeerAfterOwnership: true,
@@ -910,7 +915,10 @@ export class AuthCoordinator {
         bearer,
         refreshAfterMs,
       });
-      this.#adoptSettled(next);
+      // A same-authority credential rotation may be reentrant from participant
+      // resume. It may update the barrier's exact settled record, but it must
+      // not reopen publication before every participant is ready.
+      this.#adoptSettled(next, { expose: !this.#publicationPaused });
       this.#publish(next);
       return { rotated: true, capture: captureFor(this.#appId, next) };
     });
@@ -1028,7 +1036,9 @@ export class AuthCoordinator {
       current = validateAuthCustody(current, this.#appId);
       const successorKey = canonicalAuthorityKey(this.#appId, normalized.authority);
       if (current.phase === 'settled' && canonicalAuthorityKey(this.#appId, current.authority) === successorKey) {
-        this.#adoptSettled(current);
+        // An idempotent transition may run from inside successor resume. Exact
+        // durable confirmation is useful there, but cannot reopen the barrier.
+        this.#adoptSettled(current, { expose: !this.#publicationPaused });
         return captureFor(this.#appId, current);
       }
       if (current.phase === 'clearing') {
@@ -1205,19 +1215,26 @@ export class AuthCoordinator {
       return { resumeAfterOwnership: true, settled, barrier };
     } catch (error) {
       this.#publicationPaused = true;
+      const failedPhase = this.#activeBarrier?.phase ?? 'unknown';
       this.#activeBarrier?.completion?.resolve();
       this.#activeBarrier = null;
       throw coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition barrier did not settle',
-        { phase: this.#activeBarrier?.phase ?? 'unknown', causeCode: error?.code ?? null },
+        { phase: failedPhase, causeCode: error?.code ?? null },
       );
     }
   }
 
   async #resumeAfterOwnership(result) {
     if (result?.adoptPeerAfterOwnership) {
-      const durable = result.record;
+      // Ownership used to obtain result.record has ended. Reacquire it for a
+      // short exact read before participant work; a peer may have advanced the
+      // durable record while the first result was being delivered.
+      const durable = await this.#confirmDurableExact(
+        captureFor(this.#appId, result.record),
+        'peer_adoption_preconfirm_failed',
+      );
       const exact = durable.phase === 'settled'
         && this.#record?.phase === 'settled'
         && durable.revision === this.#record.revision
@@ -1226,6 +1243,7 @@ export class AuthCoordinator {
           === canonicalAuthorityKey(this.#appId, this.#record.authority);
       if (this.#activeBarrier !== null) {
         if (!exact) {
+          this.#publicationPaused = true;
           throw coordinatorError(
             'SNAPBACK_CLIENT_AUTHORITY_STALE',
             'durable authority changed before an in-flight reload could adopt it',
@@ -1246,25 +1264,38 @@ export class AuthCoordinator {
         : this.#record?.phase === result.localAtRead.phase
           && this.#record.revision === result.localAtRead.revision
           && this.#record.authorityEpoch === result.localAtRead.authorityEpoch
-          && canonicalAuthorityKey(this.#appId, this.#record.authority)
+          && canonicalAuthorityKey(
+            this.#appId,
+            this.#record.phase === 'settled'
+              ? this.#record.authority
+              : this.#record.pendingAuthority,
+          )
             === result.localAtRead.authorityKey;
       if (!localUnchanged || this.#publicationPaused !== result.publicationPausedAtRead) {
+        await this.#failClosedAfterConfirmation('peer_adoption_local_mismatch');
         throw coordinatorError(
           'SNAPBACK_CLIENT_AUTHORITY_STALE',
           'local authority changed before an in-flight custody reload could adopt',
         );
       }
-      await this.#adoptPeerSettled(result.record);
-      return captureFor(this.#appId, result.record);
+      await this.#adoptPeerSettled(durable);
+      return captureFor(this.#appId, durable);
     }
     if (!result?.resumeAfterOwnership) {
-      const exact = result === null
+      const durable = await this.#confirmDurableExact(
+        result,
+        'direct_synchronization_confirm_failed',
+      );
+      const exact = durable === null
         ? this.#record === null
         : this.#record?.phase === 'settled'
-          && result.custodyRevision === this.#record.revision
-          && result.authorityEpoch === this.#record.authorityEpoch
-          && result.authorityKey === canonicalAuthorityKey(this.#appId, this.#record.authority);
+          && durable.revision === this.#record.revision
+          && durable.authorityEpoch === this.#record.authorityEpoch
+          && canonicalAuthorityKey(this.#appId, durable.authority)
+            === canonicalAuthorityKey(this.#appId, this.#record.authority)
+          && !this.#publicationPaused;
       if (!exact) {
+        await this.#failClosedAfterConfirmation('direct_synchronization_local_mismatch');
         throw coordinatorError(
           'SNAPBACK_CLIENT_AUTHORITY_STALE',
           'authority changed before an in-flight custody reload returned',
@@ -1274,17 +1305,25 @@ export class AuthCoordinator {
       // its successor resume. Only the exact current local record can return;
       // an already-read predecessor capture is stale even once the barrier is
       // no longer active.
-      return result;
+      return durable === null ? null : captureFor(this.#appId, durable);
     }
     const { settled, barrier } = result;
     try {
+      const confirmed = await this.#confirmDurableExact(
+        captureFor(this.#appId, settled),
+        'owner_transition_preconfirm_failed',
+      );
       await this.#runAwaitedPhase('resume', Object.freeze({
         ...barrier,
-        capture: captureFor(this.#appId, settled),
-        authority: clone(settled.authority),
+        capture: captureFor(this.#appId, confirmed),
+        authority: clone(confirmed.authority),
       }), { reverse: true });
+      const final = await this.#confirmDurableExact(
+        captureFor(this.#appId, confirmed),
+        'owner_transition_postconfirm_failed',
+      );
       this.#publicationPaused = false;
-      return captureFor(this.#appId, settled);
+      return captureFor(this.#appId, final);
     } catch (error) {
       this.#publicationPaused = true;
       throw coordinatorError(
@@ -1347,6 +1386,33 @@ export class AuthCoordinator {
     }
   }
 
+  async #failClosedAfterConfirmation(reason) {
+    this.#publicationPaused = true;
+    if (this.#activeBarrier === null) {
+      await this.#failClosedOfflineExposure(reason);
+    }
+  }
+
+  async #confirmDurableExact(expected, reason) {
+    try {
+      return await this.#storage.withOwnership(this.#appId, async (owner) => {
+        const raw = await owner.read();
+        if (expected === null) {
+          if (raw === null) return null;
+        } else if (captureMatches(this.#appId, raw, expected, { revision: true })) {
+          return validateAuthCustody(raw, this.#appId);
+        }
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'durable authority changed before custody confirmation',
+        );
+      });
+    } catch (error) {
+      await this.#failClosedAfterConfirmation(reason);
+      throw error;
+    }
+  }
+
   async #adoptPeerSettled(record) {
     const previous = this.#record;
     const authorityChanged = previous === null
@@ -1354,7 +1420,13 @@ export class AuthCoordinator {
       || previous.authorityEpoch !== record.authorityEpoch
       || canonicalAuthorityKey(this.#appId, previous.authority) !== canonicalAuthorityKey(this.#appId, record.authority);
     if (!authorityChanged && !this.#publicationPaused) {
-      this.#adoptSettled(record);
+      this.#publicationPaused = true;
+      this.#adoptSettled(record, { expose: false });
+      await this.#confirmDurableExact(
+        captureFor(this.#appId, record),
+        'peer_same_authority_postconfirm_failed',
+      );
+      this.#publicationPaused = false;
       return;
     }
     this.#publicationPaused = true;
@@ -1396,6 +1468,10 @@ export class AuthCoordinator {
         capture: captureFor(this.#appId, record),
         authority: clone(record.authority),
       }), { reverse: true });
+      await this.#confirmDurableExact(
+        captureFor(this.#appId, record),
+        'peer_adoption_postconfirm_failed',
+      );
       this.#publicationPaused = false;
     } finally {
       this.#activeBarrier = null;

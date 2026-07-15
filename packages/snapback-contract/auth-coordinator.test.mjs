@@ -525,7 +525,6 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
         successor(session(SESSION_B, USER_B), 'bearer-owner-race-peer', 20_000),
         'owner_resume_peer_advance',
       );
-      await owner.synchronize();
     },
   });
   assert.equal(
@@ -584,7 +583,6 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
         successor(session(SESSION_B, USER_B), 'bearer-peer-race-final', 20_000),
         'peer_resume_second_successor',
       );
-      await peer.synchronize();
     },
   });
   assert.equal(
@@ -697,9 +695,342 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   assert.deepEqual(delayed.capture(), settled);
   releaseReloadResolve();
   assert.equal(await errorCode(() => staleReload), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
-  assert.deepEqual(delayed.capture(), settled);
+  assert.equal(await errorCode(() => Promise.resolve(delayed.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
   assert.deepEqual(await delayed.synchronize(), settled);
   await delayed.close();
+}
+
+// A dropped wakeup cannot let a direct A read escape after another context
+// durably settles B while the first ownership result is in delivery.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/missed-direct-final-confirm`;
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let delayNext = false;
+  let readResolve;
+  let releaseResolve;
+  const read = new Promise((resolve) => { readResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const delayedStorage = {
+    ...baseStorage,
+    async withOwnership(ownedAppId, operation) {
+      const result = await baseStorage.withOwnership(ownedAppId, operation);
+      if (!delayNext) return result;
+      delayNext = false;
+      readResolve();
+      await release;
+      return result;
+    },
+  };
+  const peer = new AuthCoordinator({
+    appId,
+    storage: delayedStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await writer.establishAnonymous(anonymous());
+  assert.deepEqual(await peer.synchronize(), before);
+  delayNext = true;
+  const stale = peer.synchronize();
+  await read;
+  const successorCapture = await writer.transition(
+    before,
+    successor(session(), 'bearer-missed-direct', 10_000),
+    'missed_direct_final_confirm',
+  );
+  releaseResolve();
+  assert.equal(await errorCode(() => stale), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+  assert.equal(await errorCode(() => Promise.resolve(peer.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
+  assert.deepEqual(await peer.synchronize(), successorCapture);
+  await peer.close();
+  await writer.close();
+}
+
+// Null is also an exact custody result. A delayed empty-store read cannot
+// return after another context establishes the first durable authority.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/null-final-confirm`;
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let readResolve;
+  let releaseResolve;
+  const read = new Promise((resolve) => { readResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  let delayNext = true;
+  const peer = new AuthCoordinator({
+    appId,
+    storage: {
+      ...baseStorage,
+      async withOwnership(ownedAppId, operation) {
+        const result = await baseStorage.withOwnership(ownedAppId, operation);
+        if (!delayNext) return result;
+        delayNext = false;
+        readResolve();
+        await release;
+        return result;
+      },
+    },
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const staleNull = peer.synchronize();
+  await read;
+  const established = await writer.establishAnonymous(anonymous());
+  releaseResolve();
+  assert.equal(await errorCode(() => staleNull), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+  assert.deepEqual(await peer.synchronize(), established);
+  await peer.close();
+  await writer.close();
+}
+
+// The peer-adoption marker is equally provisional: B read after local A may
+// not be adopted if a missed-broadcast writer settles C before delivery.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/missed-adoption-final-confirm`;
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let delayNext = false;
+  let readResolve;
+  let releaseResolve;
+  const read = new Promise((resolve) => { readResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const delayedStorage = {
+    ...baseStorage,
+    async withOwnership(ownedAppId, operation) {
+      const result = await baseStorage.withOwnership(ownedAppId, operation);
+      if (!delayNext) return result;
+      delayNext = false;
+      readResolve();
+      await release;
+      return result;
+    },
+  };
+  const peer = new AuthCoordinator({
+    appId,
+    storage: delayedStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const first = await writer.establishAnonymous(anonymous());
+  await peer.synchronize();
+  const second = await writer.transition(
+    first,
+    successor(session(SESSION_A, USER_A), 'bearer-adoption-b', 10_000),
+    'missed_adoption_b',
+  );
+  delayNext = true;
+  const stale = peer.synchronize();
+  await read;
+  const third = await writer.transition(
+    second,
+    successor(session(SESSION_B, USER_B), 'bearer-adoption-c', 20_000),
+    'missed_adoption_c',
+  );
+  releaseResolve();
+  assert.equal(await errorCode(() => stale), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+  assert.equal(await errorCode(() => Promise.resolve(peer.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
+  assert.deepEqual(await peer.synchronize(), third);
+  await peer.close();
+  await writer.close();
+}
+
+// Failed local clearing retains a phase-aware fingerprint. After a peer
+// recovers durable custody, the original context can synchronize normally
+// instead of canonicalizing clearing.authority (which is necessarily null).
+{
+  const state = { custody: {} };
+  const appId = `${APP}/clearing-local-recovery`;
+  const owner = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await owner.establishAnonymous(anonymous());
+  let failQuiesce = true;
+  const unregister = owner.registerParticipant({
+    name: 'fail-clearing-once',
+    async quiesce() {
+      if (failQuiesce) {
+        failQuiesce = false;
+        throw Object.assign(new Error('fail quiesce once'), { code: 'TEST_QUIESCE_FAILED' });
+      }
+    },
+  });
+  let transitionError = null;
+  try {
+    await owner.transition(
+      before,
+      successor(session(), 'bearer-clearing-recovery', 10_000),
+      'clearing_local_recovery',
+    );
+  } catch (error) {
+    transitionError = error;
+  }
+  assert.equal(transitionError?.code, 'SNAPBACK_AUTH_TRANSITION_FAILED');
+  assert.equal(transitionError?.diagnostic?.details?.phase, 'quiesce');
+  const recovered = await peer.synchronize();
+  assert.deepEqual(await owner.synchronize(), recovered);
+  await unregister();
+  await peer.close();
+  await owner.close();
+}
+
+// Failure of the final durable read is itself a mandatory-gate failure: the
+// prior local capture is blanked and remains unavailable until a clean sync.
+{
+  const baseStorage = createMemoryAuthCustodyStorage();
+  let confirmationFailureArmed = false;
+  let armedCalls = 0;
+  const failingStorage = {
+    ...baseStorage,
+    async withOwnership(appId, operation) {
+      if (confirmationFailureArmed) {
+        armedCalls += 1;
+        if (armedCalls === 2) {
+          confirmationFailureArmed = false;
+          throw Object.assign(new Error('confirmation read failed'), { code: 'TEST_CONFIRM_READ_FAILED' });
+        }
+      }
+      return baseStorage.withOwnership(appId, operation);
+    },
+  };
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/confirmation-read-failure`,
+    storage: failingStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await coordinator.establishAnonymous(anonymous());
+  confirmationFailureArmed = true;
+  armedCalls = 0;
+  assert.equal(await errorCode(() => coordinator.synchronize()), 'TEST_CONFIRM_READ_FAILED');
+  assert.equal(
+    await errorCode(() => Promise.resolve(coordinator.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  await coordinator.synchronize();
+  await coordinator.close();
+}
+
+// Revision is part of exact confirmation even when authority is unchanged.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/same-authority-revision-confirm`;
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let delayNext = false;
+  let readResolve;
+  let releaseResolve;
+  const read = new Promise((resolve) => { readResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const peer = new AuthCoordinator({
+    appId,
+    storage: {
+      ...baseStorage,
+      async withOwnership(ownedAppId, operation) {
+        const result = await baseStorage.withOwnership(ownedAppId, operation);
+        if (!delayNext) return result;
+        delayNext = false;
+        readResolve();
+        await release;
+        return result;
+      },
+    },
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await writer.establishAnonymous(anonymous());
+  const first = await writer.transition(
+    anonymousCapture,
+    successor(session(), 'bearer-revision-one', 10_000),
+    'same_authority_revision_setup',
+  );
+  await peer.synchronize();
+  delayNext = true;
+  const stale = peer.synchronize();
+  await read;
+  const rotated = await writer.compareAndRotateBearer(first, {
+    bearer: 'bearer-revision-two',
+    refreshAfterMs: 20_000,
+  });
+  assert.equal(rotated.rotated, true);
+  releaseResolve();
+  assert.equal(await errorCode(() => stale), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+  assert.deepEqual(await peer.synchronize(), rotated.capture);
+  await peer.close();
+  await writer.close();
+}
+
+// A same-authority credential write from inside resume may update durable
+// custody, but it cannot reopen local publication. The outer exact revision
+// confirmation then aborts closed and a clean synchronization adopts it.
+{
+  const storage = createMemoryAuthCustodyStorage();
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/reentrant-same-authority-exposure`,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await coordinator.establishAnonymous(anonymous());
+  let rotatedCapture = null;
+  const unregister = coordinator.registerParticipant({
+    name: 'rotate-during-resume',
+    async resume(context) {
+      if (rotatedCapture !== null) return;
+      const rotated = await coordinator.compareAndRotateBearer(context.capture, {
+        bearer: 'bearer-reentrant-rotation',
+        refreshAfterMs: 30_000,
+      });
+      assert.equal(rotated.rotated, true);
+      rotatedCapture = rotated.capture;
+      assert.equal(
+        await errorCode(() => Promise.resolve(coordinator.capture())),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+      );
+    },
+  });
+  assert.equal(
+    await errorCode(() => coordinator.transition(
+      anonymousCapture,
+      successor(session(), 'bearer-before-reentrant-rotation', 10_000),
+      'reentrant_same_authority_exposure',
+    )),
+    'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.deepEqual(await coordinator.synchronize(), rotatedCapture);
+  await unregister();
+  await coordinator.close();
 }
 
 // Same-authority bearer rotation changes the custody revision, not app
@@ -812,6 +1143,10 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   assert.equal(await errorCode(() => Promise.resolve(peer.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
   releaseResolve();
   const next = await pending;
+  await peer.synchronize();
+  while (!peerPhases.includes('resume')) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
   await peer.synchronize();
   assert.equal(peer.capture().authorityKey, next.authorityKey);
   assert.deepEqual(peerPhases, ['quiesce', 'blank', 'clearMemory', 'resume']);

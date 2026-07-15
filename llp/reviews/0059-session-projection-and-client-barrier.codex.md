@@ -683,3 +683,41 @@ MINOR
 - Validated-intent same-user recovery strands payloads non-replayably at [client-store.mjs:3047](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store.mjs:3047), proved at [client-store-authority.test.mjs:954](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:954).
 
 Relevant committed suites passed; the targeted deterministic probe exposed the blocker.
+
+## Final durable-confirmation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Session: `019f675d-60f0-7c03-aa52-fcd4f14d3f0b`
+- Reviewed commit: `3ac047322d055fad03e8308fdc0905d758eb9f61`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final2-codex-0059.md`
+
+### Verbatim review
+
+VERDICT: NOT READY
+
+MATERIAL
+
+- `synchronize()` can still return stale custody after another context advances durable custody between ownership release and result delivery. Commit `3ac0473` compares both direct-capture and `adoptPeerAfterOwnership` results only against local `#record`/`#publicationPaused`; a missed broadcast leaves those unchanged. Focused probes showed the direct path returning predecessor A after durable B settled, and the adoption path installing B after durable C settled. This violates the fail-closed cross-context gate and invalidates the `authCoordinator` readiness claim.
+
+MINOR
+
+None
+
+EVIDENCE
+
+- `packages/snapback-contract/auth-coordinator.mjs:716-750` reads under ownership, then calls `#resumeAfterOwnership` after ownership returns. `packages/snapback-contract/auth-coordinator.mjs:1219-1277` performs no second durable comparison: direct results compare only to local `#record`; adoption results compare `localAtRead` and `publicationPausedAtRead` only to local state.
+- `packages/snapback-contract/auth-coordinator.mjs:479-529` confirms the test storage releases ownership before returning the result. The production Web-Lock adapter likewise releases at `packages/snapback-contract/auth-custody-indexeddb.mjs:370-391`.
+- The direct two-context probe, run with `node --input-type=module -e '<delayed direct synchronize-result probe>'`, resolved epoch-0/A while durable custody was epoch-1/B.
+- The adoption three-generation probe, run with `node --input-type=module -e '<delayed adoptPeerAfterOwnership probe>'`, resolved and installed epoch-1/B while durable custody was epoch-2/C.
+- The checked-in cuts are genuinely controlled but incomplete: `packages/snapback-contract/auth-coordinator.test.mjs:615-621` delays delivery after the ownership callback. The first releases during held participant resume at lines 635-655; the second releases after transition completion at lines 665-701. Both call `transition()` on the same coordinator, updating its local record, so neither covers a peer durable transition with a lost/delayed broadcast. There is no delayed-delivery regression for `adoptPeerAfterOwnership`.
+- Exact successor confirmation without replay is correctly implemented at `packages/snapback-contract/auth-coordinator.mjs:688-712,1227-1242` and exercised at `packages/snapback-contract/auth-coordinator.test.mjs:412-490`.
+- The defect contradicts `llp/0059-session-projection-and-client-barrier.spec.md:1374-1402` and its readiness requirement at lines 1791-1796.
+- Other challenged matrices are substantiated: owner-loss cuts at `packages/snapback-contract/auth-custody-indexeddb.test.mjs:308-428`; consecutive fallback takeovers at lines 239-305; broadcast permutations at `packages/snapback-contract/auth-coordinator-missed-wakeup.test.mjs:374-428`; stale one-key localStorage writer at `packages/snapback-contract/offline-replay.test.mjs:1082-1134`; pre-bind construction ordering at `src/cli.rs:1892-1911` and tests at lines 4130-4153.
+- Passing commands: `node packages/snapback-contract/auth-coordinator.test.mjs`, `auth-coordinator-contract.test.mjs`, `auth-coordinator-missed-wakeup.test.mjs`, `auth-custody-indexeddb.test.mjs`, `client-store-authority.test.mjs`, `offline-replay.test.mjs`, and `./ref-check --verbose`.
