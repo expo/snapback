@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "85dcf6e9b73ce436a3cd743cd235cdcaa3bb8960"
+    "commit": "0316fe44b4943437916c65c1aac856f77c41ed04"
   },
   "nav": {
     ".": [
@@ -415,8 +415,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "dce5e0ba248bd5b6a02360c2bf1799492d5a3ee566897a4498d1cebc51ab257e",
+      "reviewedCommit": "0316fe44b4943437916c65c1aac856f77c41ed04",
+      "sha256": "1d1b8912b1de52b521a595b7314d07156d4105ff140c1bbeade8fc9fd8a52ea4",
       "snippets": []
     },
     "realtime.live-queries": {
@@ -579,8 +579,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "4b63ff864bd34c7540c69b4ec4a22ccc85d55620a98180c6f0ea7e36209c3538",
+      "reviewedCommit": "0316fe44b4943437916c65c1aac856f77c41ed04",
+      "sha256": "a2c975ffe078c67c5a81f2e6ce366d7bcfe571fcf242c52ce16c14e5179c28b3",
       "snippets": []
     },
     "testing.acceptance": {
