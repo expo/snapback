@@ -5,7 +5,11 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-14 (round-16 dual-family revision: **reconciled the
+**Revised:** 2026-07-15 (G6 prerequisite: landed the mutation-only,
+declaration-bound `ctx.membership.<decl>.{insert,setRole,remove,patch}` bridge;
+its closed host-owned writer carrier remains separate from raw writes through
+direct, nested, replay, and dry-run commit paths). Earlier: 2026-07-14
+(round-16 dual-family revision: **reconciled the
 eligibility divergence this session's LLP 0055 round-6 edit created** — LLP 0055
 now owns the ineligibility predicate (durable recoverability), this document
 consumes it rather than restating "not permanently ended", the shipped
@@ -967,10 +971,12 @@ principal on the resource row it actually created; teardown waives `lastHolder`
 and clears the roster with the resource); and the host-bound **`sweepExpired()`**
 (remove-only, rollback-checked clock, `lastHolder` wins over expiry with a typed
 diagnostic). The activation scan's `lastHolder` leg is upgraded from row-counting
-to the **eligible**-holder predicate now that G1 has landed. M2 deliberately does
-**not** land: the generated JS methods and their `ctx.membership.<decl>.*` host-op
-dispatch, the cron→sweep wiring, and `--as-membership` (the LLP 0004 codegen/bridge
-follow-on — the host methods are the enforcement seam the bridge will call); the
+to the **eligible**-holder predicate now that G1 has landed. The 2026-07-15 G6
+prerequisite lands the generated JS authoring methods and
+`ctx.membership.<decl>.*` host-op dispatch, carrying the resolved invocation
+writer separately from raw buffered writes through direct, nested, replay, and
+dry-run paths. M2 deliberately does **not** land: the cron→sweep wiring and
+`--as-membership` (the remaining LLP 0004 codegen/bridge follow-on); the
 rule helpers and `ctx.permissions` read (M3); the matcher/predicate-IR and
 invalidation wiring (M4/M5); and the provenance columns/log (M5). One residual is
 named rather than guessed: a membership removal racing a **concurrent
@@ -1418,6 +1424,16 @@ lost:
    authorized transition from the sweep enforces nothing. Deferred to
    implementation: the carrier's exact representation, witness non-reuse
    mechanics, and the bootstrap exception's exactly-once property.
+
+*Resolved for ordinary user transitions 2026-07-15:* the representation is a
+Rust-only buffered membership command carrying `MembershipWriter`; commit-time
+planning converts it to an authorized plan kept in a lane distinct from raw
+`BufferedWrite`. Bootstrap/sweep/privileged producers retain their existing
+dedicated host entry points, and their broader generated wiring remains scoped
+to the follow-ons above. This first bridge permits one generated membership
+write per mutation: until sequential read-your-membership-writes planning is
+implemented, a second command is refused typed rather than allowing two plans
+authorized against the same pre-state to compose into an undeclared transition.
 5. **Blast-radius instrumentation:** the per-declaration counters, their
    reporting surface, and whether a numeric bar gates blessing memberships for
    the reference apps before narrowing lands.

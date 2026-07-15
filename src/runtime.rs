@@ -12,8 +12,9 @@ use crate::manifest::{
     QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, effective_query_limit,
 };
 use crate::storage::{
-    BufferedCommitPayload, BufferedWrite, CapturedReadDependency, CapturedReadKind,
-    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit,
+    BufferedCommitPayload, BufferedMembershipCommand, BufferedWrite, CapturedReadDependency,
+    CapturedReadKind, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
+    MutationCommit,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -99,6 +100,7 @@ pub trait IbexActionHost {
 /// instance mutex; only the bounded validation/SQLite commit re-enters it.
 pub(crate) struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
+    pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
@@ -166,10 +168,12 @@ impl RuntimeManager {
             pool,
             None,
         )?;
+        let membership_plans = db.authorize_membership_commands(executed.membership_commands)?;
         db.commit_buffered_writes_idempotent_guarded(
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
+                membership_plans,
                 read_dependencies: executed.reads,
                 result: executed.result,
                 ctx_ledger: executed.ctx_ledger,
@@ -197,6 +201,7 @@ impl RuntimeManager {
             input.clone(),
             prepared.projection().clone(),
             prepared.admission_lease().clone(),
+            MembershipWriter::from_resolved(prepared.authority().resolved()),
             true,
         )?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool);
@@ -207,8 +212,21 @@ impl RuntimeManager {
         }
         let result = result?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
-        let IbexHostContext { writes, reads, .. } = invocation;
-        db.dry_run_buffered_writes(&input, writes, reads, result, ctx_ledger)
+        let IbexHostContext {
+            writes,
+            membership_commands,
+            reads,
+            ..
+        } = invocation;
+        let membership_plans = db.authorize_membership_commands(membership_commands)?;
+        db.dry_run_buffered_writes(
+            &input,
+            writes,
+            membership_plans,
+            reads,
+            result,
+            ctx_ledger,
+        )
     }
 
     // This is the explicit runtime boundary: keeping the independently named
@@ -253,6 +271,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
+        MembershipWriter::from_resolved(prepared.authority().resolved()),
         true,
     )?;
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
@@ -265,10 +284,16 @@ pub(crate) fn execute_ibex_mutation_prepared(
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
-    let IbexHostContext { writes, reads, .. } = invocation;
+    let IbexHostContext {
+        writes,
+        membership_commands,
+        reads,
+        ..
+    } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
     Ok(ExecutedIbexMutation {
         writes,
+        membership_commands,
         reads,
         result,
         ctx_ledger,
@@ -293,6 +318,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
+        MembershipWriter::from_resolved(prepared.authority().resolved()),
         false,
     )?;
     invocation.protected_query_profile = protected_query_profile;
@@ -562,6 +588,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// This bit is host-owned and cannot be changed by handler code.
     protected_query_profile: bool,
     writes: Vec<BufferedWrite>,
+    /// Declaration-bound membership operations carry their host-derived writer
+    /// separately from raw `ctx.db` writes all the way to the central commit seam.
+    membership_commands: Vec<BufferedMembershipCommand>,
+    membership_writer: MembershipWriter,
     reads: Vec<CapturedReadDependency>,
     read_keys: HashSet<String>,
     now_ms: u64,
@@ -609,6 +639,7 @@ impl<'a> IbexHostContext<'a> {
         input: HandlerInput,
         handler_auth: HandlerAuthProjection,
         admission: AdmissionLease,
+        membership_writer: MembershipWriter,
         writable: bool,
     ) -> SnapbackResult<Self> {
         let replay = validate_replay_ledger(&input)?;
@@ -636,6 +667,8 @@ impl<'a> IbexHostContext<'a> {
             },
             protected_query_profile: false,
             writes: Vec::new(),
+            membership_commands: Vec::new(),
+            membership_writer,
             reads,
             read_keys,
             now_ms,
@@ -687,6 +720,8 @@ impl<'a> IbexHostContext<'a> {
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
             writes: Vec::new(),
+            membership_commands: Vec::new(),
+            membership_writer: MembershipWriter::System,
             reads,
             read_keys,
             now_ms: run.due_at_ms,
@@ -950,6 +985,76 @@ impl<'a> IbexHostContext<'a> {
                 let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
                 self.writes.push(BufferedWrite::Delete { table, id });
                 Ok(Value::Bool(existed))
+            }
+            // Declaration-bound membership authoring. The JS helper supplies a
+            // stable declaration id and operation arguments; the host resolves
+            // the table and attaches the immutable writer derived from the
+            // prepared invocation. Raw `ctx.db` writes never enter this lane.
+            // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+            "membership.write" => {
+                self.ensure_writable("membership")?;
+                self.ensure_buffered_write_capacity()?;
+                // Each planner authorizes against one immutable snapshot. Until
+                // sequential read-your-membership-writes planning lands, refuse
+                // a second command instead of letting two individually valid
+                // transitions compose into an undeclared authority escalation.
+                if !self.membership_commands.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED",
+                        "runtime",
+                        "v1 permits one generated membership write per mutation",
+                    ));
+                }
+                let declaration = required_string(&args, "declaration")?;
+                let operation = required_string(&args, "operation")?;
+                let table = crate::membership_rules::find_declaration(
+                    self.db().schema(),
+                    &declaration,
+                )
+                .map(|(table, _)| table.name.clone())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+                        "runtime",
+                        format!(
+                            "ctx.membership names declaration {declaration:?}, which is not declared"
+                        ),
+                    )
+                })?;
+                let writer = self.membership_writer.clone();
+                let command = match operation.as_str() {
+                    "insert" => BufferedMembershipCommand::insert(
+                        writer,
+                        table,
+                        required_object(&args, "values")?,
+                    ),
+                    "setRole" => BufferedMembershipCommand::set_role(
+                        writer,
+                        table,
+                        required_string(&args, "memberId")?,
+                        required_string(&args, "role")?,
+                    ),
+                    "remove" => BufferedMembershipCommand::remove(
+                        writer,
+                        table,
+                        required_string(&args, "memberId")?,
+                    ),
+                    "patch" => BufferedMembershipCommand::patch(
+                        writer,
+                        table,
+                        required_string(&args, "memberId")?,
+                        required_object(&args, "values")?,
+                    ),
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
+                            "runtime",
+                            format!("unknown membership helper operation {operation:?}"),
+                        ));
+                    }
+                };
+                self.membership_commands.push(command);
+                Ok(Value::Null)
             }
             "runtime.now" => Ok(json!(self.now_ms)),
             // Diagnostics-routed console (LLP 0048 allowlist slice 1): the
@@ -1253,7 +1358,7 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn ensure_buffered_write_capacity(&self) -> SnapbackResult<()> {
-        if self.writes.len() >= QUERY_MAX_BUFFERED_WRITES {
+        if self.writes.len() + self.membership_commands.len() >= QUERY_MAX_BUFFERED_WRITES {
             return Err(SnapbackError::error(
                 "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
                 "runtime",
@@ -2702,5 +2807,208 @@ mod parse_handler_output_tests {
                 "output: {output}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod membership_bridge_tests {
+    use super::IbexHostContext;
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{
+        AuthInput, FieldManifest, FieldType, HandlerInput, MembershipManifest, MembershipOp,
+        MembershipProvenance, MembershipScope, MembershipTarget, MembershipTransition,
+        SchemaManifest, TableManifest,
+    };
+    use crate::storage::{BufferedCommitPayload, DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::json;
+
+    fn schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "app_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: Some(MembershipManifest {
+                    id: None,
+                    principal: "userId".to_owned(),
+                    resource: None,
+                    role: "role".to_owned(),
+                    roles: vec!["member".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance: Some(MembershipProvenance::Full),
+                    transitions: vec![MembershipTransition {
+                        op: MembershipOp::Insert,
+                        by: vec!["none".to_owned()],
+                        target: MembershipTarget::Own,
+                        from: None,
+                        to: Some(vec!["member".to_owned()]),
+                        fields: None,
+                    }],
+                    scope: MembershipScope::App,
+                    resource_table: None,
+                }),
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn input() -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                principal: Some("alice".to_owned()),
+                user_id: Some("alice".to_owned()),
+                session_id: None,
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn context<'a>(db: &'a LocalDatabase) -> IbexHostContext<'a> {
+        let input = input();
+        let authority = ResolvedAppAuthority::dev_from_auth(&input.auth);
+        IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            true,
+        )
+        .expect("membership bridge context")
+    }
+
+    fn ready_db() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_auth_catalog_v1().expect("auth catalog");
+        db.apply_schema(schema()).expect("membership schema");
+        db
+    }
+
+    #[test]
+    fn generated_membership_command_commits_with_provenance_and_raw_writes_stay_denied() {
+        let mut db = ready_db();
+        let mut ctx = context(&db);
+        ctx.handle_host_call(
+            "membership.write",
+            json!({
+                "declaration": "app_members",
+                "operation": "insert",
+                "values": { "userId": "alice", "role": "member" }
+            }),
+        )
+        .expect("generated helper command");
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        let plans = db
+            .authorize_membership_commands(commands)
+            .expect("authorized plans");
+        db.commit_buffered_writes_idempotent_guarded(
+            &input(),
+            BufferedCommitPayload {
+                writes: Vec::new(),
+                membership_plans: plans,
+                read_dependencies: Vec::new(),
+                result: json!(null),
+                ctx_ledger: crate::manifest::CtxAnswerLedger {
+                    version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                    ids: Vec::new(),
+                    now: 1,
+                    auth_fingerprint: None,
+                },
+            },
+            None,
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("sanctioned bridge commit");
+        let rows = db.scan_table("app_members", 10, 0).expect("membership rows");
+        assert_eq!(rows.total, 1);
+        let id = rows.rows[0]["_id"].as_str().expect("member id");
+        let provenance = db
+            .membership_creation_provenance("app_members", id)
+            .expect("provenance")
+            .expect("full provenance");
+        assert_eq!(provenance.actor, "alice");
+        assert_eq!(provenance.effective, "alice");
+
+        let mut raw_db = ready_db();
+        let error = raw_db
+            .commit_buffered_writes(
+                &input(),
+                vec![crate::storage::BufferedWrite::Insert {
+                    table: "app_members".to_owned(),
+                    id: "forged".to_owned(),
+                    values: serde_json::from_value(json!({
+                        "userId": "alice",
+                        "role": "member"
+                    }))
+                    .expect("raw values"),
+                }],
+                Vec::new(),
+                json!(null),
+            )
+            .expect_err("raw membership write remains refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED");
+    }
+
+    #[test]
+    fn membership_bridge_dry_run_rolls_back_and_refuses_snapshot_composition() {
+        let mut db = ready_db();
+        let mut ctx = context(&db);
+        let args = json!({
+            "declaration": "app_members",
+            "operation": "insert",
+            "values": { "userId": "alice", "role": "member" }
+        });
+        ctx.handle_host_call("membership.write", args.clone())
+            .expect("first command");
+        let error = ctx
+            .handle_host_call("membership.write", args)
+            .expect_err("two snapshot-authorized commands must not compose");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED");
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        let plans = db
+            .authorize_membership_commands(commands)
+            .expect("authorized plans");
+        db.dry_run_buffered_writes(
+            &input(),
+            Vec::new(),
+            plans,
+            Vec::new(),
+            json!(null),
+            crate::manifest::CtxAnswerLedger {
+                version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                ids: Vec::new(),
+                now: 1,
+                auth_fingerprint: None,
+            },
+        )
+        .expect("membership dry run");
+        assert_eq!(
+            db.scan_table("app_members", 10, 0)
+                .expect("post-dry-run scan")
+                .total,
+            0
+        );
     }
 }

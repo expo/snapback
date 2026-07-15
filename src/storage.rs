@@ -496,6 +496,7 @@ struct BufferedCommitOptions<'a> {
 
 pub(crate) struct BufferedCommitPayload {
     pub writes: Vec<BufferedWrite>,
+    pub membership_plans: Vec<AuthorizedMembershipPlan>,
     pub read_dependencies: Vec<CapturedReadDependency>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
@@ -503,6 +504,7 @@ pub(crate) struct BufferedCommitPayload {
 
 struct BufferedEffects {
     writes: Vec<BufferedWrite>,
+    membership_plans: Vec<AuthorizedMembershipPlan>,
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
 }
@@ -2230,6 +2232,7 @@ impl LocalDatabase {
     {
         let BufferedCommitPayload {
             writes,
+            membership_plans,
             read_dependencies,
             result,
             ctx_ledger,
@@ -2238,6 +2241,7 @@ impl LocalDatabase {
             input,
             BufferedEffects {
                 writes,
+                membership_plans,
                 read_dependencies,
                 result,
             },
@@ -2256,24 +2260,32 @@ impl LocalDatabase {
     /// back instead of committed. The JS-tier half of execute-and-discard —
     /// the handler already ran against the buffered ctx; this answers what
     /// its writes would do without keeping them.
-    pub fn dry_run_buffered_writes(
+    pub(crate) fn dry_run_buffered_writes(
         &mut self,
         input: &HandlerInput,
         writes: Vec<BufferedWrite>,
+        membership_plans: Vec<AuthorizedMembershipPlan>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
         ctx_ledger: CtxAnswerLedger,
     ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes(
+        self.apply_buffered_writes_with_lifecycle_gated(
             input,
-            writes,
-            read_dependencies,
-            result,
+            BufferedEffects {
+                writes,
+                membership_plans,
+                read_dependencies,
+                result,
+            },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
                 apply: false,
                 identity: None,
             },
+            MembershipWriteGate::Deny,
+            None,
+            &|| Ok(()),
+            || Ok(()),
         )
     }
 
@@ -2289,6 +2301,7 @@ impl LocalDatabase {
             input,
             BufferedEffects {
                 writes,
+                membership_plans: Vec::new(),
                 read_dependencies,
                 result,
             },
@@ -2341,9 +2354,13 @@ impl LocalDatabase {
         check_live()?;
         let BufferedEffects {
             writes,
-            read_dependencies,
+            membership_plans,
+            mut read_dependencies,
             result,
         } = effects;
+        for authorized in &membership_plans {
+            read_dependencies.extend(authorized.plan.read_dependencies.iter().cloned());
+        }
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
         let schema = self.schema.clone();
         // The handler's frozen clock is part of the buffered effect, not a
@@ -2366,8 +2383,22 @@ impl LocalDatabase {
         // @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — handler-captured dependencies are validated at commit so callers no longer own the read-set.
         validate_captured_read_set(&tx, &schema, input, &read_dependencies)?;
 
+        let mut carried_writes: Vec<_> = writes
+            .into_iter()
+            .map(|write| (write, membership_gate, membership_writer.cloned()))
+            .collect();
+        for authorized in membership_plans {
+            carried_writes.extend(authorized.plan.writes.into_iter().map(|write| {
+                (
+                    write,
+                    MembershipWriteGate::Sanctioned,
+                    Some(authorized.writer.clone()),
+                )
+            }));
+        }
+
         let mut changes = Vec::new();
-        for write in writes {
+        for (write, write_gate, write_writer) in carried_writes {
             check_live()?;
             // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
             //   the writer-class seam. A raw `ctx.db` membership-table write, and
@@ -2386,7 +2417,7 @@ impl LocalDatabase {
                 write.table(),
                 guard_op,
                 Some(write.id()),
-                membership_gate,
+                write_gate,
             )?;
             match write {
                 BufferedWrite::Insert { table, id, values } => {
@@ -2397,7 +2428,7 @@ impl LocalDatabase {
                         &tx,
                         table,
                         &id,
-                        membership_writer,
+                        write_writer.as_ref(),
                     )?;
                     record_membership_transition(
                         &tx,
@@ -2407,7 +2438,7 @@ impl LocalDatabase {
                         Some(&document),
                         &changed_fields,
                         next_version,
-                        membership_writer,
+                        write_writer.as_ref(),
                     )?;
                     record_change(
                         &tx,
@@ -2443,7 +2474,7 @@ impl LocalDatabase {
                             document.as_ref(),
                             &changed_fields,
                             next_version,
-                            membership_writer,
+                            write_writer.as_ref(),
                         )?;
                         record_change(
                             &tx,
@@ -2475,7 +2506,7 @@ impl LocalDatabase {
                             None,
                             &[],
                             next_version,
-                            membership_writer,
+                            write_writer.as_ref(),
                         )?;
                         record_change(
                             &tx,
@@ -5519,11 +5550,10 @@ fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
 //   * creation/deletion witnesses (bootstrap/teardown) bound to the resource row
 //     actually appearing/disappearing in this transaction.
 //
-// The generated JS methods (`ctx.membership.<decl>.*`) and the cron->sweep
-// wiring are the LLP 0004 codegen/bridge follow-on: they dispatch into these
-// host methods (see `IbexHostContext::handle_host_call`). M2 lands the host
-// enforcement and tests it directly; the bridge is a documented forward
-// dependency.
+// The generated JS methods (`ctx.membership.<decl>.*`) dispatch through the
+// host-owned command/authority carrier into these methods (see
+// `IbexHostContext::handle_host_call`). Cron->sweep remains the separate LLP
+// 0004 follow-on.
 // ============================================================================
 
 /// The resolved authority a membership write runs under, mapped from
@@ -5731,6 +5761,99 @@ pub struct MembershipPlan {
     skipped_protected: Vec<String>,
 }
 
+/// A membership effect whose writer was derived from the closed invocation
+/// authority by the Rust host. Application code can request a declaration-bound
+/// operation, but it cannot construct or alter this carrier.
+///
+/// @ref LLP 0056#protocol-obligations-deferred-to-implementation — the host-owned writer-authority carrier
+///   remains distinct from raw buffered writes through replay, dry-run, and
+///   nested mutation commit.
+#[derive(Debug)]
+pub(crate) struct AuthorizedMembershipPlan {
+    writer: MembershipWriter,
+    plan: MembershipPlan,
+}
+
+impl AuthorizedMembershipPlan {
+    pub(crate) fn user_transition(writer: MembershipWriter, plan: MembershipPlan) -> Self {
+        Self { writer, plan }
+    }
+}
+
+/// A declaration-bound membership operation buffered by the host bridge. Both
+/// the table binding and writer are host-derived; only operation arguments come
+/// from application code.
+#[derive(Debug)]
+pub(crate) struct BufferedMembershipCommand {
+    writer: MembershipWriter,
+    table: String,
+    op: BufferedMembershipOp,
+}
+
+#[derive(Debug)]
+enum BufferedMembershipOp {
+    Insert(Map<String, Value>),
+    SetRole {
+        member_id: String,
+        role: String,
+    },
+    Remove {
+        member_id: String,
+    },
+    Patch {
+        member_id: String,
+        values: Map<String, Value>,
+    },
+}
+
+impl BufferedMembershipCommand {
+    pub(crate) fn insert(
+        writer: MembershipWriter,
+        table: String,
+        values: Map<String, Value>,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::Insert(values),
+        }
+    }
+
+    pub(crate) fn set_role(
+        writer: MembershipWriter,
+        table: String,
+        member_id: String,
+        role: String,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::SetRole { member_id, role },
+        }
+    }
+
+    pub(crate) fn remove(writer: MembershipWriter, table: String, member_id: String) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::Remove { member_id },
+        }
+    }
+
+    pub(crate) fn patch(
+        writer: MembershipWriter,
+        table: String,
+        member_id: String,
+        values: Map<String, Value>,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::Patch { member_id, values },
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MembershipCreationProvenance {
     pub actor: String,
@@ -5899,6 +6022,39 @@ fn matches_role_lists(transition: &crate::manifest::MembershipTransition, from: 
 /// one row; the referential-integrity and closed-vocabulary refusals are
 /// enforced here on the live path for every writer, not only at activation.
 impl LocalDatabase {
+    pub(crate) fn authorize_membership_commands(
+        &self,
+        commands: Vec<BufferedMembershipCommand>,
+    ) -> SnapbackResult<Vec<AuthorizedMembershipPlan>> {
+        commands
+            .into_iter()
+            .map(|command| {
+                let plan = match command.op {
+                    BufferedMembershipOp::Insert(values) => {
+                        self.plan_membership_insert(&command.writer, &command.table, values)?
+                    }
+                    BufferedMembershipOp::SetRole { member_id, role } => self
+                        .plan_membership_set_role(
+                            &command.writer,
+                            &command.table,
+                            &member_id,
+                            &role,
+                        )?,
+                    BufferedMembershipOp::Remove { member_id } => self
+                        .plan_membership_remove(&command.writer, &command.table, &member_id)?,
+                    BufferedMembershipOp::Patch { member_id, values } => self
+                        .plan_membership_patch(
+                            &command.writer,
+                            &command.table,
+                            &member_id,
+                            values,
+                        )?,
+                };
+                Ok(AuthorizedMembershipPlan::user_transition(command.writer, plan))
+            })
+            .collect()
+    }
+
     /// Commit a pre-authorized membership effect under the `Sanctioned` gate:
     /// the engine has already derived and checked the transition, `lastHolder`,
     /// referential integrity, and the witnesses, so the raw-write refusal and
@@ -5914,6 +6070,7 @@ impl LocalDatabase {
             &input,
             BufferedEffects {
                 writes: plan.writes,
+                membership_plans: Vec::new(),
                 read_dependencies: plan.read_dependencies,
                 result: plan.result,
             },
@@ -8115,6 +8272,7 @@ mod guarded_commit_tests {
     fn buffered_payload() -> BufferedCommitPayload {
         BufferedCommitPayload {
             writes: buffered_writes(),
+            membership_plans: Vec::new(),
             read_dependencies: Vec::new(),
             result: json!(2),
             ctx_ledger: ledger(),
@@ -9271,6 +9429,7 @@ mod guarded_commit_tests {
                 &input,
                 BufferedCommitPayload {
                     writes: buffered_writes(),
+                    membership_plans: Vec::new(),
                     read_dependencies: Vec::new(),
                     result: json!({ "now": ledger.now }),
                     ctx_ledger: ledger.clone(),

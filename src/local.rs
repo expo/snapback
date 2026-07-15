@@ -4211,10 +4211,14 @@ impl LocalSnapback {
                 ),
             ));
         }
+        let membership_plans = self
+            .db
+            .authorize_membership_commands(executed.membership_commands)?;
         let commit = self.db.commit_buffered_writes_idempotent_guarded(
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
+                membership_plans,
                 read_dependencies: executed.reads,
                 result: executed.result,
                 ctx_ledger: executed.ctx_ledger,
@@ -13535,6 +13539,7 @@ globalThis.__snapbackHandlers = {
                 id: "guarded_item".to_owned(),
                 values,
             }],
+            membership_commands: Vec::new(),
             reads: Vec::new(),
             result: json!("guarded_item"),
             ctx_ledger: CtxAnswerLedger {

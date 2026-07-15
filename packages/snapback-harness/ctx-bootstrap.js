@@ -591,6 +591,51 @@
             }
           })
         : Object.create(null);
+      // LLP 0056 authoring bridge: declaration-bound helpers are generated
+      // sugar over one host op. The declaration id is resolved to its table by
+      // Rust and the writer carrier comes from the prepared invocation, never
+      // from this application-visible object.
+      if (mode === "mutation") {
+        ctx.membership = (typeof Proxy === "function")
+          ? new Proxy(Object.create(null), {
+              get: function(_target, declaration) {
+                if (typeof declaration !== "string") { return undefined; }
+                return {
+                  insert: function(values) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "insert",
+                      values: values || {}
+                    });
+                  },
+                  setRole: function(memberId, role) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "setRole",
+                      memberId: memberId,
+                      role: role
+                    });
+                  },
+                  remove: function(memberId) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "remove",
+                      memberId: memberId
+                    });
+                  },
+                  patch: function(memberId, values) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "patch",
+                      memberId: memberId,
+                      values: values || {}
+                    });
+                  }
+                };
+              }
+            })
+          : Object.create(null);
+      }
     }
     var handlers = g.__snapbackHandlers || {};
     var handler = handlers[name];
