@@ -257,3 +257,37 @@ EVIDENCE:
 - Safe-integer/generation cross-checks: `MAX_SAFE_TIMESTAMP_MS = 9_007_199_254_740_991` (src/storage/auth.rs:44); committed schema `sessionGeneration` min 1 / max 9007199254740991 (schemas/auth.credential.output.schema.json); handshake descriptor zero sentinel with the same max (schemas/auth.session.output.schema.json), matching llp/0057:995-999.
 - Credential-projection dependencies: projection rebuild validates the restore marker (src/auth/session_projection.rs:684-690); issuance and rotation perform the in-transaction cross-table digest check (src/auth/provider.rs:4169-4181, 3200/3249) with the three-candidate coordinator retry (provider.rs:50; coordinator.rs:651-722); the only unchecked insert path is `#[cfg(test)]`-gated (provider.rs:2545-2576).
 - Frozen-v1 compatibility: marker-1 preserved through backup/restore (src/auth/backup.rs:1716-1752); v1 reopen/no-migration/agent refusal (src/storage/auth.rs:2089+); v1 provider/session use (src/auth/provider.rs:5085).
+
+## Blind FINAL4 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code / `claude-fable-5`
+- Method: fresh blind read-only targeted review; archived verbatim from `/private/tmp/eng25001-final4-fable-0057.md`
+- Session: not recorded in supplied artifact
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+**VERDICT**
+
+READY
+
+**MATERIAL**
+
+None found in the three review targets.
+
+**MINOR**
+
+1. Downgrade fault injection exercises the cut after the authority purge (step 0) but not the downgrade's post-mode-state-write pre-commit cut (step 1); only the sessions-consume path injects later steps. Same single-transaction rollback mechanism, so this is evidence breadth, not correctness.
+2. Neither declared restore nor downgrade has a lost-commit-ack reconciliation test (catalog activation has one). Restore self-heals via the durable declaration id's idempotent branch, and the Spec claims ambiguity injection only for mint/rotation and rescue — thin evidence, not drift.
+3. Mixed-corruption refusal fixtures plant malformed values only in `_auth_users.created_at_ms`; the other 29 inventoried columns run the same loop body but have no dedicated negative.
+
+**EVIDENCE**
+
+- Per-cell reconciliation: `restored_auth_timestamp_frontier_on` (`src/storage/auth.rs:1473`) runs, per column, an EXISTS over every non-NULL cell requiring `typeof='integer'` and `BETWEEN 0 AND 9007199254740991` before the MAX aggregate, refusing `SNAPBACK_AUTH_CATALOG_CORRUPT`; the column-MAX shortcut is rejected exactly as the Spec requires. The 11-column v1 and 19-column v2 inventories match every `_ms` column in both DDLs (`_auth_scope_bases` has none); ReadyV1 never queries v2 tables. Tests: malformed `-1`/text hidden behind valid positive peers (inserted under `ignore_check_constraints`) refuse with floor, session, challenge, incarnation, and marker untouched (`auth.rs:2392`); nullable `revoked_at_ms` is the frontier on frozen v1 (`auth.rs:2472`); the v2 frontier is taken before the purge deletes its row (`auth.rs:2373`).
+- Atomicity: one IMMEDIATE transaction orders validation → floor advance → bulk revocation → challenge purge → ReadyV2 five-class purge → incarnation/stream rotation → declaration marker written last (`auth.rs:1085-1174`). Injection at all four seams rolls back sessions, challenges, marker, and authorization version (`auth.rs:2874`). Post-commit, lifecycle clears the mailbox then unlinks the declaration with parent fsync; a crash before unlink retries into the idempotent AlreadyApplied branch (`src/auth/lifecycle.rs:210-240`). Startup seeds the durable floor first, refuses bind on an unconsumed declaration, and passes floored `provider.now_ms()` (`src/cli.rs:1638-1668`).
+- Downgrade: refuses without the flag (quarantine), re-checks pending Sessions→Dev inside the transaction, fails closed on corrupt/unsupported/uninitialized catalogs (`inspect_auth_catalog_on` errors; `require_ready_on` inside `revoke_all_sessions_in`), purges the five agent-authority classes only on exact ReadyV2, and skips them on ReadyV1 — which cannot hold unrepresentable state because exact recognition excludes agent tables (`auth_mode.rs:835-926`; ReadyV1 test `auth_mode.rs:2643`; post-purge rollback test `auth_mode.rs:2504`). An unrevoked generation at the maximum fails closed; landing on it is representable (`auth.rs:1421-1439`). Corpus max-safe accept / above-max reject is consumed by both Rust (`tests/artifact_schemas_v0.rs`) and the JS kit parity test (`demos/_kit/tests/auth-session-schema-parity.mjs`). The frozen-v1 fixture is `#[cfg(test)]` — no production fresh-v1 path.

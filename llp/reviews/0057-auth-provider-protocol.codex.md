@@ -696,3 +696,40 @@ MINOR
 - Otherwise confirmed: owner/peer changed-durable tests are deterministic; real single/multi Contract participants await one reload inside resume ([index.mjs:2393](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2393), [index.mjs:3907](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:3907)); validated format-2 intent recovery preserves same-user payloads only as non-replayable/rerecordable ([client-store-authority.test.mjs:870](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:870)); remaining 0057/0058/0059 wording corrections match implementation.
 
 Relevant Node tests: 3/3 passed. `ref-check --verbose`: 0 errors.
+
+## Blind FINAL4 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, model `gpt-5.6-sol`, high reasoning, read-only sandbox
+- Method: fresh blind read-only targeted review; archived verbatim from `/private/tmp/eng25001-final4-codex-0057.md`
+- Session: `019f67a6-a627-7fd3-b86e-6476dd569abc`
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none; reviewer was instructed not to inspect secrets or archived reviews
+
+### Verbatim review artifact
+
+VERDICT
+
+READY
+
+MATERIAL
+
+None.
+
+MINOR
+
+None.
+
+EVIDENCE
+
+- Confirmed HEAD `b0448e1d0daae84e207479065111323062548393`; tracked index/worktree clean without listing untracked files.
+- Explicit v1/v2 timestamp inventories cover all timestamp columns: `src/storage/auth.rs:1477-1510`. Every non-NULL cell is checked for SQLite `integer` storage class and range before `MAX`: `src/storage/auth.rs:1520-1554`.
+- Validation precedes floor advance and all destructive operations: `src/storage/auth.rs:1121-1158`. The per-cell `EXISTS` check prevents positive maxima from hiding negative or text corruption.
+- Mixed negative/text fixtures preserve session generation/revocation, challenge, floor, full authorization version—including incarnation—and declaration marker: `src/storage/auth.rs:2392-2467`.
+- Real ReadyV1 and populated nullable-frontier coverage is present: `src/storage/auth.rs:2472-2515`.
+- Maximum-generation wording matches refusal at stored maximum while permitting an increment to it: `llp/0057-auth-provider-protocol.spec.md:176-181`; `src/storage/auth.rs:1421-1439`.
+- Governing interactions align with LLP 0055 agent-authority termination, LLP 0058 ReadyV1/v2 handling, and LLP 0059 floor/restore atomicity: `llp/0055-agent-principals-and-scoped-grants.rfc.md:1280-1285`; `llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:847-891`; `llp/0059-session-projection-and-client-barrier.spec.md:400-403,1124-1147`.
+- Static inspection only; no repository-producing test command was run.

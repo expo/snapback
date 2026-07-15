@@ -1224,9 +1224,8 @@ membership revoked while a delegated agent subscribes is an ordinary
   sessions→dev downgrade revokes every durable session so re-enabling sessions
   resurrects nothing; the dated amendment extends exactly that to agents:
   downgrade transactionally removes credentials, tokens, grants, invitations,
-  and pairing requests (while retaining principals and scope-basis tombstones),
-  invitations, and pending requests. Re-enabling sessions means fresh
-  onboarding and fresh consent.
+  and pairing requests (while retaining principals and scope-basis tombstones).
+  Re-enabling sessions means fresh onboarding and fresh consent.
 
 ### Attestation, honestly
 

@@ -419,3 +419,40 @@ EVIDENCE:
 - JS-safe generation parity: `MAX_TRANSITION_GENERATION = 9_007_199_254_740_991` with fail-closed `next_generation`/`validate_shape` plus test `transition_generation_is_portable_and_exhaustion_fails_closed` (src/auth/mode.rs); `validate_shape` runs on every mode-state write/load (auth_mode.rs:615-1402). Handshake response range (src/auth/handshake.rs:314), descriptor `sessionGeneration` ≤ `AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION` (handshake.rs:167; src/manifest.rs:2427-2433) with runtime check (src/auth/descriptor.rs:116), strictly-positive credential descriptor (src/auth/wire.rs:144-148), projection-side checks (src/auth/session_projection.rs:736, 1366, 1696). Generated schema pins `maximum: 9007199254740991` on `transitionGeneration` and `sessionGeneration` and 1..=86400000 on `configuredMs` (schemas/auth.session.output.schema.json:127-133, 560-564, 201-206). Kit validates via inclusive `Number.isSafeInteger` (demos/_kit/client.mjs:450, 638, 151-162). Both harnesses execute the same corpus file (tests/artifact_schemas_v0.rs:472-557; demos/_kit/tests/auth-session-schema-parity.mjs:23-27).
 - Fail-closed refusal/transition ordering: both durable-commit closures enter fail-closed posture and only a typed `RolledBack` re-arms predecessor reopen; `Uncertain`/post-commit failures leave admission closed (src/auth/admission.rs:950-982, 997-1017). Corrupt mode state refuses open read-only with database/WAL byte comparison (auth_mode.rs:2599+). Sessions body-auth presence is rejected before source/audit admission (src/auth/invocation.rs:1145-1156). CLI downgrade emits the committed audit fact and clears the capture mailbox before listener bind (src/cli.rs:327-367).
 - HEAD commit scope: hosted-admission schema authority plus credential-response opacity on error paths (src/auth/deployment.rs:213-312; demos/_kit/client.mjs:1612, 1642; packages/snapback-admin-client/index.mjs:99, 117) — additive, hosted serving still refused, no 0058 regression.
+
+## Blind FINAL4 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: Claude Code / `claude-fable-5`
+- Method: fresh blind read-only targeted review; archived verbatim from `/private/tmp/eng25001-final4-fable-0058.md`
+- Session: not recorded in supplied artifact
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none
+
+### Verbatim review artifact
+
+VERDICT
+
+READY. The b0448e1 closure implements what the FINAL3 spec text claims for the restore/downgrade authority boundary, with committed rerunnable evidence.
+
+MATERIAL
+
+None found. Verified directly:
+
+- **Per-cell reconciliation**: `restored_auth_timestamp_frontier_on` checks every non-NULL cell for storage class `integer` and range `0..=9007199254740991` across an explicit inventory (11 v1 columns, 19 ReadyV2-only columns) before any `MAX` aggregation. The inventory matches the pinned catalog DDL exactly, including nullable terminals (`revoked_at_ms`, `consumed_at_ms`, `deactivated_at_ms`). A malformed cell returns `SNAPBACK_AUTH_CATALOG_CORRUPT` before floor advance, revoke-all, challenge deletion, agent purge, incarnation rotation, or the declaration marker.
+- **All-or-nothing**: restore and downgrade are each one Immediate transaction; any error drops the transaction (rollback). Downgrade re-validates the pending snapshot under the write lane, requires the complete v0-dev pair on the production path, gates the five-class agent purge to a recognized ReadyV2 catalog (exact-schema `inspect_auth_catalog_on`, failing closed on unknown markers), re-checks the legacy poison, and settles dev with `sessionsEverActivated` retained. Fault injection after revoke+purge proves full rollback (sessions and all five agent tables restored, quarantine preserved); injection hooks are `#[cfg(test)]`-gated, so no production surface.
+- **Commit witness/recovery**: both paths capture the authorization predecessor, run the commit hook, and commit through the authorization interlock with a minimum commit version; the declaration id is written last and the idempotent re-apply path is separate.
+- **v1 representability**: `revoke_all_sessions_in` refuses (corrupt) when any unrevoked generation ≥ max before incrementing — landing exactly on max is representable, increment-from-max fails closed, matching 0057's amended wording. `next_generation` mirrors this for `transitionGeneration`. Wire bounds hold on both sides (schemars ranges; kit `Number.isSafeInteger`), and the shared corpus pins max-safe accept / above-max reject for both `transitionGeneration` (pre-existing) and `sessionGeneration` (added), so 0058's "both boundaries" claim is accurate.
+
+MINOR
+
+- Malformed-timestamp fixtures corrupt only `_auth_users.created_at_ms`, the first inventoried v1 column, on a v2 catalog; no committed negative corrupts a v2-only column (e.g. `_auth_grants.expires_at_ms`). The shared per-column loop makes divergence unlikely, but "every additional v2 timestamp column" rests on code inspection.
+- 0057's "incarnation … unchanged" refusal evidence is asserted via `authorization_version()` equality rather than a direct incarnation read — adequate but indirect.
+- Per-column EXISTS scans add O(rows × 30) work at restore; harmless for a rare pre-bind path.
+
+EVIDENCE
+
+src/storage/auth.rs:1085-1179 (restore ordering), 1473-1555 (inventory/per-cell), 1421-1440 (generation guard), 1562-1573 (five-class purge), 2391-2516 (mixed-corruption, ReadyV1 tests); src/storage/auth_mode.rs:835-926, 2504-2543, 2642-2700; src/auth/mode.rs:202-209; src/auth/handshake.rs:165-168, 310-315; demos/_kit/client.mjs:160; tests/conformance/auth-session-parity.corpus.json:158-192; catalog DDL CHECKs in src/storage/auth.rs:200-609.

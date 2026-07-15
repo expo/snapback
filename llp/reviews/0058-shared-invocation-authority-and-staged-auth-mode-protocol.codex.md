@@ -632,3 +632,40 @@ MINOR
 - Format-2 intent validation and same-user non-replayable stranding are correctly implemented at [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:237) and proven at [client-store-authority.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:870).
 
 All three focused Node suites passed.
+
+## Blind FINAL4 review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: OpenAI Codex CLI v0.144.4, model `gpt-5.6-sol`, high reasoning, read-only sandbox
+- Method: fresh blind read-only targeted review; archived verbatim from `/private/tmp/eng25001-final4-codex-0058.md`
+- Session: `019f67a7-47eb-7343-be72-f073844a7058`
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Human authorization: ENG-25001 completion request
+- Secrets or redactions: none; reviewer was instructed not to inspect secrets or archived reviews
+
+### Verbatim review artifact
+
+VERDICT
+
+READY
+
+MATERIAL
+
+None.
+
+MINOR
+
+- `llp/0055-agent-principals-and-scoped-grants.rfc.md:1228` redundantly repeats “invitations, and pending requests” after already naming invitations and pairing requests. Resolution: delete the duplicate phrase.
+
+EVIDENCE
+
+- Exact HEAD confirmed as `b0448e1d0daae84e207479065111323062548393`; tracked status was clean.
+- `src/storage/auth_mode.rs:874` revokes sessions for either recognized catalog, while `src/storage/auth_mode.rs:879` gates the five-table purge to `ReadyV2`. `src/storage/auth.rs:1562` deletes credentials, grant tokens, grants, invitations, and pairing requests without touching users or scope bases.
+- `src/storage/auth_mode.rs:2504` injects failure after revocation/purge and before mode-state writes; assertions at `src/storage/auth_mode.rs:2512` and `src/storage/auth_mode.rs:2525` prove session revocation and all five deletions roll back.
+- `src/storage/auth_mode.rs:2545` proves successful `ReadyV2` revocation/purge; `src/storage/auth_mode.rs:2575` and `src/storage/auth_mode.rs:2587` preserve the agent principal and scope-basis tombstone.
+- `src/storage/auth_mode.rs:2643` covers exact `ReadyV1`, successfully revoking its session without accessing absent v2 tables.
+- LLP 0058’s downgrade steps, crash outcome, Acceptance, and FINAL3 disposition align at `llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:847`, `:877`, `:1677`, and `:1915`.
+- Corpus max-safe acceptance and above-max rejection at `tests/conformance/auth-session-parity.corpus.json:191` agree with the schema maximum at `schemas/auth.session.output.schema.json:127` and the kit’s safe-integer validation at `demos/_kit/client.mjs:151`.
+- No tests were run, as requested.
