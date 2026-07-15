@@ -412,3 +412,51 @@ READINESS VERDICT: NOT READY
 
 - MATERIAL: The actual pinned pre-auth predecessor harness and byte-for-byte corruption database/WAL harness are not committed and rerunnable. The document says they are not committed while its Status and acceptance prose claim implementation as fact. Commit a repeatable pinned-predecessor harness covering fresh and provisioned state and a byte-level corrupt-state comparison, or narrow the implementation-complete claim until that evidence exists.
 - MINOR: The diagnostics text says the request-body timeout is absent from LLP 0012, but LLP 0012 now registers it.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Review body (local Markdown links omitted)
+
+## Overall assessment
+
+At committed HEAD `62a11ce`, LLP 0058 presents a strong, security-conscious staged-auth protocol with unusually good executable evidence. The durable transition boundary appears faithfully implemented. However, two normative surfaces declared “exact” no longer describe committed code, so material specification drift remains.
+
+## Strengths
+
+- The staged-mode state machine, pair validation, poison boundary, and fail-closed startup behavior are precise and internally coherent.
+- Preflight evaluates every Ibex module before staging.
+- Corrupt-state coverage verifies both database and uncheckpointed WAL bytes remain unchanged.
+- The predecessor harness pins both predecessor commits, exercises real HTTP/SQLite boundaries, and compares database/WAL bytes directly.
+- Related LLPs provide clear ownership boundaries for route policy, session projection, invalidation, and later-item activation.
+
+## Concerns
+
+### MATERIAL — The “exact” authority enumeration and handler projection are stale
+
+LLP 0058 normatively defines five internal authority variants and says `HandlerAuthProjection` is exactly the five-field shape shown.
+
+Committed code additionally implements `ResolvedAppAuthority::ServicePrincipal` and handler-visible `kind` and `actor` fields. These are intentional LLP 0055 semantics, but LLP 0055 is absent from LLP 0058’s Related metadata and normative enumeration.
+
+The statement that handshake `authority` uses the same handler projection constructor is also inaccurate: the handshake uses a distinct three-field `AuthSessionAuthority`.
+
+Resolution criterion: revise LLP 0058 to incorporate the service-principal variants and sealed projections, or explicitly scope its enumeration as an item-4 historical baseline superseded by a named normative amendment. Clarify the distinct handshake projection and add LLP 0055 to Related.
+
+### MATERIAL — The exact handshake DTO omits a required field
+
+The example and exactness rule say every displayed member is required, but omit `deploymentIdentity`. LLP 0059 explicitly revises this response with required `deploymentIdentity`, and committed Rust requires it.
+
+Resolution criterion: add `deploymentIdentity` to the canonical DTO and exactness semantics, including its dev/sessions nullability rules, or explicitly identify LLP 0059’s revised DTO as the sole current closed shape.
+
+## Readiness verdict
+
+**NOT READY**

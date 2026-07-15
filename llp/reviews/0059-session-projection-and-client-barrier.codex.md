@@ -534,3 +534,49 @@ READINESS VERDICT: NOT READY
 - MATERIAL: The constants table says “Client custody format 1” while the normative type and implementation use format 2. Make the table consistent at 2.
 - MATERIAL: `validateAuthCustody` does not bind a transition intent's embedded authority/key pairs or a settled intent successor to the containing settled record, and `#adoptPeerSettled` trusts that validation. Validate both embedded authority/key pairs; require a settled intent successor epoch, key, and authority to equal the containing record; validate the derivable transition ID if possible; and add corruption and peer-adoption tests.
 - MINOR: The lock hierarchy says the stalled-revocation L9 fixture is not discoverable while the Status section says a fixture proves it. Reconcile the prose or name the test.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Review body (local Markdown links omitted)
+
+## Overall assessment
+
+The revision is substantially stronger and most prior repairs are visibly implemented. However, three MATERIAL boundary gaps remain. I reviewed committed `62a11ce` without inspecting `llp/reviews/` or secrets and made no changes.
+
+## Strengths
+
+- The Spec clearly separates durable authority, process projection, publication fences, and client custody, while preserving LLP 0039/0057/0058 ownership boundaries.
+- Major repairs are concrete: durable clock-floor storage, ranked projection locks, custody-v2 transition intent validation, ownership release before resume/network, protocol-1 coordinator enforcement, deployment identity validation, Web-Lock one-key storage, and terminal `4401/auth_error`.
+- The server retains prepared authority/admission through the response body, supporting the final-publication claim.
+- The inspected coordinator, handshake, and offline-replay JavaScript suites all pass.
+
+## Concerns
+
+1. **MATERIAL — expiry can publish a terminal event beyond the persisted frontier.**
+   LLP 0059 requires the authoritative deadline to be durably advanced before terminal publication. `terminalize_due_sessions` computes the frontier using one `(epoch, monotonic)` sample, awaits its durable write, then calls `expire_due` with fresh samples. A second session can become due during that await and be terminalized although its later epoch deadline was not persisted. After a crash plus wall-clock rollback, that generation can rebuild current. The existing test covers only one session with no advancement during the durable-write interval.
+   **Resolution:** terminalize using the exact sampled pair whose complete due frontier was persisted, or loop/recompute and persist until the terminalized set is wholly covered. Add a deterministic two-session test advancing time during the storage await, followed by rollback restart.
+
+2. **MATERIAL — fresh coordinated handshakes lack the durable final compare-and-commit fence.**
+   The Spec requires every async completion to validate after its final await. The cached lookup correctly uses durable `compareAndCommit`, but `#coordinatedAuthSession` checks only in-memory `isCurrent` and then caches/returns the newly fetched response. Another context can durably transition custody between that check and exposure while its broadcast remains delayed. The handshake suite tests cache behavior but no cross-context transition at this cut.
+   **Resolution:** durably compare-and-commit the exact capture immediately before caching or returning every successful fresh handshake, including establish/transition paths; add a delayed-broadcast, two-coordinator race proving the predecessor response cannot be returned or used to start an operation.
+
+3. **MATERIAL — production readiness probes do not prove the facts they assert.**
+   LLP 0059 says each omitted module, wiring, or worker must keep its fact false. Yet `runtime_auth_program_readiness` derives connection binding from two route-path names, two-phase revocation from logout/session route presence, and `authCoordinator` from source-text substrings. These checks do not establish final drains/reverse invalidation, provider-callsite rewiring, expiry-worker installation, durable custody, mandatory participants, or store wiring.
+   **Resolution:** derive facts from typed registrations/construction receipts for the actual mechanisms and worker installation, with negative tests independently omitting each required wiring and proving sessions cannot bind.
+
+4. **EDITORIAL — barrier phase numbering drift.**
+   `auth-coordinator.mjs` calls durable settle “phase 7” and resume “phase 8,” while the Spec’s numbered barrier makes them phases 8 and 9. Align the comment to prevent future recovery mistakes.
+
+No separate MINOR findings.
+
+**Readiness verdict: NOT READY**

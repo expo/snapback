@@ -100,3 +100,57 @@ LLP 0059 floor governs every durable `now`; C4 (generation domain) → pinned
 `1..=9_007_199_254_740_991` with fail-closed exhaustion; C5–C7 (family-alarm
 grace rationale, dev homonym, jitter uniformity) → non-blocking, folded into
 the round-2 wording where cheap.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Anthropic Claude
+- Provider/runtime: Claude CLI, model `claude-fable-5`
+- Method: read-only Plan mode; high effort; no session persistence; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+# LLP 0005 final review — LLP 0057 (auth catalog and provider protocol) @ 62a11ce
+
+**Blind, advisory-only.** Document read in full; related LLPs 0059/0058/0024/0039 checked at every cited anchor; decisive implemented-boundary claims verified against code and the test corpus. Nothing under `llp/reviews/` was read.
+
+## Overall assessment
+
+This is a strong, near-final revision. The ENG-25001 repairs are real: every headline code-level obligation from the prior rounds — cross-table digest uniqueness, parse-gated family alarm, clock-floor derivation, descriptor-bound backup/restore, keyring commit-ambiguity reconciliation, stdin impersonation intake, and the rescue hardening — is implemented in the production paths the document describes, usually exactly as written. The remaining problems are concentrated in one place: the **Acceptance section asserts several executable vectors that do not exist as described**, and a few prose passages describe implementation mechanics more precisely than the code warrants. For a Spec that declares its executable artifacts "the implementation acceptance authority," those acceptance-accuracy gaps are material.
+
+## Strengths
+
+- **Cross-table token-digest uniqueness** is enforced inside both the issuance and rotation transactions (`src/auth/provider.rs:4169-4181`, `:3198-3206`), with the three-candidate coordinator loops (`src/server.rs:7592`, `:7647`; `AUTH_MAX_COLLISION_ATTEMPTS` at `src/auth/coordinator.rs:50`), zeroizing candidates, and exact premark removal on collision (`coordinator.rs:720-722`) — precisely the pinned repair.
+- **Family alarm parse-gating** matches the spec's predicate description: the `actionable` flag requires `parsed.is_some() && live tombstone` (`provider.rs:1657-1691`) and gates the commit (`:3080-3084`); a production-path test plants the dummy digest as a live tombstone and proves no revocation (`provider.rs:6487`).
+- **Clock-floor ordering** is exactly as pinned: catalog inspection → floor seed → declared restore with `provider.now_ms()` → mode composition → GC (`src/cli.rs:1567-1715`); restore derives its cut from the floor and catalog maxima (`src/storage/auth.rs:1118-1133`).
+- **Backup/restore descriptor discipline** holds: descriptor-bound online backup via `/dev/fd` (never pathname reopen), header normalization through the pinned descriptor, staged-inspection through the retained descriptor, inode revalidation before and after rename, and post-attempt cleanup suppression (`src/auth/backup.rs`, `src/storage/auth.rs:1283-1377`).
+- **Keyring** open checks (no-follow, owner, mode 0600, single hard link, 64 KiB cap) and the commit-ambiguous rename reconciliation (accept only exact prior or exact candidate bytes; mutation still returns unavailable) match the spec (`src/auth/keyring.rs:641-701`; `src/secure_file.rs`).
+- **Rescue hardening** is all present: AUTOINCREMENT refusal, unshadowed-rowid-alias copy with bidirectional equality proof, managed four-key refusal with the stable diagnostic, and the exact-stored-name source / strict-grammar target split (`src/storage/auth_rescue.rs:330-349`, `:369-373`, `:496-546`, `:769-838`).
+- **Cross-document reconciliation** checks out: LLP 0059's `#durable-session-clock-floor` and `#rollback-and-ambiguous-commit` sections exist and say what 0057 attributes to them; LLP 0058 line 831 consumes "LLP 0057's revoke-all transaction" and the downgrade code genuinely does (`src/storage/auth_mode.rs:874`, tested at `:2390`); LLP 0024's `auth.mintSession` row (its line 134) matches 0057's nested-flat-payload reconciliation verbatim.
+- Mint/rotation **commit-ambiguity reconciliation** is implemented and tested (`provider.rs:4021-4036`, predecessor/successor test at `:6614`).
+
+## Concerns
+
+**MATERIAL 1 — Acceptance overclaim: issuance-collision coverage "through the production HTTP and host-operation paths."**
+`Acceptance, "Token-digest uniqueness" bullet (~line 1551) claims the retryable-collision outcome is "asserted through the production HTTP and host-operation paths, not only a test-only helper." In fact: collision *reporting* is tested at the production plan/commit layer (`provider.rs:6540`), but three-candidate exhaustion is exercised only through the `#[cfg(test)]` helper `mint_session` (`provider.rs:2546`, used at `:5524`), which has its own retry loop separate from the server coordinator loops; no test drives a collision through the HTTP route, host-op, or `server.rs` coordinator loops, and nothing under `tests/` references `CandidateCollision`. Since this was the headline ENG-25001 defect obligation, the acceptance sentence overstates the closing evidence. *Resolution:* land a vector injecting a tombstone-colliding candidate through the production HTTP or host-op path asserting bounded retry and the retryable outcome (and exhaustion → `PROVIDER_UNAVAILABLE`), or reword the bullet to the plan/commit-layer coverage that exists.
+
+**MATERIAL 2 — Acceptance overclaims in the rescue bullets.**
+(a) The "managed sessions-era/staged/quarantined database is either atomically four-key-consistent after rescue or refused" vector does not exist: the rescue test helper deletes all three managed keys before every test (`auth_rescue.rs:1044-1049`), so no test ever reaches `SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` (present only in the diagnostics registry, `server.rs:21740`). (b) "Commit-ambiguity reconciliation (mint, rotation, rescue): fault injection at the commit boundary" — for rescue, all eight injection points fire *inside* `rescue_in_transaction` before `commit()` (`auth_rescue.rs:388-464`; commit at `:222`); `rescue_successor_is_durable` is never fault-injected. Mint/rotation are covered, so this is rescue-specific. *Resolution:* add the two rescue vectors, or scope the acceptance bullets to pre-commit rollback and code-inspection status for the untested paths.
+
+**MINOR 1 — "Reusable bulk-revocation transaction … both consume" is half-true.** Declared restore inlines a duplicate of the UPDATE plus generation-max guard (`storage/auth.rs:1135-1151`) instead of calling `revoke_all_sessions_in` (`:1420`); only the 0058 downgrade consumes the shared function. Durable outcomes are identical today, but two copies of the fail-closed guard can drift. *Resolution:* refactor restore to consume the shared transaction, or reword `Bulk session revocation to require identical durable outcomes rather than shared consumption.
+
+**MINOR 2 — Backup outcome reporting.** `Consistent backup step 6 says "The operation returns which of the three occurred," but `create_backup` returns only a manifest or `SNAPBACK_AUTH_BACKUP_INVALID`; Unpublished vs CommitAmbiguous differ only in message text, and the plain rename-error message ("artifact directory could not be published", `backup.rs:1082`) does not convey ambiguity. The safety behavior (cleanup suppression after a rename attempt) is correctly implemented (`backup.rs:1076`, `:1104`). *Resolution:* surface a named outcome/diagnostic detail distinguishing CommitAmbiguous, or reword the claim to the surfaced distinction.
+
+**MINOR 3 — Rescue reconciliation prose misdescribes the code.** The spec says production reconciliation "reopens the database after a commit error" and reports failure for exact-predecessor vs terminal recovery otherwise; the code re-reads on the same connection and returns the same commit error for every non-successor state (`auth_rescue.rs:222-235`). Safe under SQLite atomicity, but the descriptive sentences should match. *Resolution:* align prose with code or implement the reopen/three-way split.
+
+**MINOR 4 — Generation/timestamp schema bounds.** The pinned `generation` domain is `1..=2^53-1`, but the committed credential schema's `sessionGeneration` minimum is `0` (`manifest.rs:2427-2433` sets only the max), and item-4's `auth.session.output.schema.json` `session_generation` has no maximum at all (`auth/handshake.rs:165`). The handshake is item-4-owned, but the domain pin is this document's. *Resolution:* add the bounds or explicitly note the schema laxity.
+
+**EDITORIAL 1 — Diagnostics table omission.** `Diagnostics lists `RESCUE_INVALID`, `RESCUE_SCHEMA_UNSUPPORTED`, and `BACKUP_INVALID` but omits `SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED`, which `Transactional algorithm makes normative.
+
+## Verdict
+
+**NOT READY.** Two MATERIAL concerns remain, both acceptance-accuracy rather than design or implementation defects: the code verified well, so each is resolvable either by landing the named vectors (issuance-collision through a production route; rescue managed-state refusal; rescue commit-boundary reconciliation injection) or by precisely scoping the Acceptance text to the coverage that actually exists. Advisory only — no ratification or Status change performed.

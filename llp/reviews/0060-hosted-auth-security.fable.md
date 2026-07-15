@@ -293,3 +293,51 @@ Resolution criterion: reword to "currently unmet (tests land with the C1 defect-
 All decisive as-shipped claims verified against the code are accurate; the future-facing contract is internally coherent and consistent with LLP 0039 (frozen), 0053, 0058, 0059, and 0040 after the round-3 corrections. The five concerns above are MINOR or EDITORIAL — clearly-labeled polish, none blocking. No unresolved MATERIAL concern remains. The document is ready to leave the refine loop; Draft status pending author ratification remains the correct label, and nothing in this review ratifies it on the author's behalf.
 
 READINESS VERDICT: READY
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Anthropic Claude
+- Provider/runtime: Claude CLI, model `claude-fable-5`
+- Method: read-only Plan mode; high effort; no session persistence; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+# LLP 0005 final review — LLP 0060 (hosted-auth deployment and client-page security), committed HEAD 62a11ce
+
+Reviewed blind against the full document, the governing/related LLPs (0039, 0040, 0053, 0058, 0059, 0000), and the current code and tests for every decisive implemented-boundary claim. Nothing under `llp/reviews/` was read.
+
+## Overall assessment
+
+This is a strong, near-ratifiable revision. The post-ENG-25001 text is disciplined about the distinction that sank earlier drafts — what is implemented versus what is future contract — and nearly every decisive implemented-boundary claim I checked is true in code, with real regression tests behind it. The cross-document reproductions are faithful. One implemented-boundary sentence in D5 is factually wrong about the code and internally contradicts the paragraph that follows it; that alone blocks readiness.
+
+## Strengths
+
+- **D1 posture claims verified end-to-end.** The pre-bind sessions refusal with no override, the private `ListenerTransportPosture::Unknown` on detached/caller-described contexts, fail-closed unknown posture with `/health` preserved, the listener-consuming `app(state).bind(listener)` API with private inseparable listener/router, and the real `0.0.0.0` detached-router bypass regression all exist as described.
+- **D5's honest naming is real.** `deployment_capable()`/`hosted_auth_capable()`, closed enums with `Unavailable`, the drift-gated generated schema, the 32-case conjunction matrix, and `--auth-deployment hosted` refusal ordered before any database/provider/listener effect all match.
+- **C1's implemented custody claims verified on all three client surfaces.** Issuing-path opaque failures, the exact `{challengeId, expiresAt}` projection, exchange/refresh secret-position exclusion, exact-empty-204 logout with body-read-failure barrier and peer-successor preservation, console-mint master-substring rejection including the one-byte `sbcc_` prefix collision and canonical numeric `expiresAtMs`, and floor-free numeric-position redaction all have code plus poison tests.
+- **The custody matrix's candor is a feature.** Naming the `sbcc_` `localStorage` record and the headless direct-bearer seam as intentional carriers, instead of asserting universal non-exposure, matches what the code actually does and is verified by sentinels.
+- **C2's CSP/Trusted-Types evidence is executable and byte-exact:** response-specific inline hashing, fallback-policy preservation, and the headless-Chromium intentional-`innerHTML`-TypeError probe.
+- **Cross-document fidelity.** D6's restatement of frozen 0039, 0053's matrix, 0059's temporal protocol, 0058's delegation, and 0040's per-app Durable Object shape are faithful. The document consistently refuses to self-ratify.
+
+## Concerns
+
+**MATERIAL-1 — D5's absent-descriptor honesty rule misstates the implemented default and contradicts its own next paragraph.** The doc says "an absent `hostedAuth` field deserializes to the **all-unavailable**, bearer-v1 local posture." The implemented default is `local_target()` — `externalTls`/`effectiveSource` unavailable but `authenticationThrottle: processLocal`, `sessionInvalidation: singleProcess`, `clientCredentialPosture: bearerV1XssExposed`. All-unavailable is the distinct explicit constructor `no_auth_target()`, which the Cloudflare manifest sets by hand. The next paragraph explains why the difference matters. Additionally, an absent individual field is a deserialization error, not a fail-closed `unavailable`. The fail-closed conclusion survives, but a decisive "already implemented" claim is false as written. **Resolution:** restate the rule accurately — absent whole `hostedAuth` defaults to the bearer-v1 local posture; all-unavailable is the separate explicit `no_auth_target` posture required of no-auth targets; absent individual fields are rejected by the closed schema; both defaults remain hosted-non-capable.
+
+**MINOR-1 — Acceptance overstates `ref-check`'s coverage.** "Diagnostic inventory and `ref-check` include the transport code and both enforcement references" reads as if `ref-check` validates diagnostic codes; it validates `@ref` annotations only, and the served-diagnostic inventory lives in LLP 0012. **Resolution:** reword the bullet to attribute the inventory to LLP 0012 and scope `ref-check` to the enforcement `@ref`s, or add the cross-check.
+
+**MINOR-2 — "Poison tests cover malformed text" is uneven on issuing paths.** All three clients handle a non-JSON 2xx on issuing paths in code, but the dedicated issuing-path poison suites emphasize reader failures and shape/position poisons. **Resolution:** add one malformed-text 2xx issuing-path case per surface, or narrow the sentence to what the suites prove.
+
+**MINOR-3 — Related-header reciprocity gap.** LLP 0059 does not list LLP 0060 in its `Related` header, though 0060 reproduces 0059's temporal protocol and lists it. **Resolution:** add LLP 0060 to 0059's `Related`.
+
+**EDITORIAL-1 —** C1's "Error object property names are sanitized too" implicitly covers "kit, shared admin, and embedded setup alike," but the setup page's sanitizer redacts only message and code strings — vacuously adequate for its flat error shape, yet the sentence's scope should be limited or the shape constraint stated.
+
+**EDITORIAL-2 —** The `Revised:` header has grown into a ~50-line narrative that duplicates the Changelog; consider compressing it to dates plus one-clause summaries and letting the Changelog carry detail.
+
+## Readiness verdict
+
+**NOT READY.** MATERIAL-1 is a single false implemented-boundary sentence in D5's fail-closed honesty rules; once that sentence is corrected to match `src/auth/deployment.rs`, and ideally MINOR-1's `ref-check` attribution alongside it, nothing else I verified stands between this document and author ratification. This review is advisory only; Status remains the author's to change.

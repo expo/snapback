@@ -703,3 +703,53 @@ READINESS VERDICT: READY
 
 - MINOR: The direct-bearer headless seam remains browser-reachable. Record its removal or isolation as an explicit prerequisite before enabling hosted browser-positive admission.
 - EDITORIAL: Status history for the former D4 serving-lease and `multiReplica` design can read as current. Label it superseded or move it to a changelog.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Review body (local Markdown links omitted)
+
+## Overall assessment
+
+The RFC is substantially stronger and the implemented local boundary is well supported, but two MATERIAL inconsistencies remain: the exhaustive credential-carrier matrix contradicts current transport code, and D6 conflicts with frozen LLP 0039 over wire-schema ownership.
+
+Review was performed at exact HEAD `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`. No review artifacts or secrets were read. `./ref-check --verbose` passed with 0 errors.
+
+## Strengths
+
+- D1 now has a credible unforgeable transport boundary: posture derives from the consumed listener, unknown posture fails closed, and the real `0.0.0.0` regression covers `/inspect` and `/auth/session`.
+- Hosted capability honesty is precise. Closed enums, exact conjunction helpers, all-unavailable no-auth posture, schema closure, and unconditional current-target refusal are implemented and tested.
+- D2–D5 make defensible security choices: predelivered first-contact protection, mutually authenticated edge-to-origin transport, canonical effective-source derivation, atomic charge-on-denial limiting, and serialized per-app invalidation authority.
+- Issuing-path opacity is correctly implemented for challenge request, exchange, refresh, and console mint; tests cover malformed bodies, reader failures, unknown successors, numeric/property-name reflections, and one-byte collisions.
+- The RFC consistently avoids claiming hosted auth, sender constraint, or active-XSS resistance from current local evidence.
+
+## Concerns
+
+- **MATERIAL — The “exhaustive” custody matrix forbids carriers the implementation requires.** C1 says every unnamed location is forbidden, but the admin-master row incorrectly names `Authorization`; code uses `x-snapback-admin-token`. The derived `sbcc_` and `AdminSecretRead` rows omit their required `x-snapback-console-credential` and `x-snapback-secret-read-lease` headers.
+  **Resolution:** name each exact request/header carrier in the matrix and acceptance criteria, then make the existing transport tests explicitly trace back to those rows.
+
+- **MATERIAL — D6’s wire-schema ownership contradicts frozen LLP 0039.** LLP 0060 says it owns the hosted envelope. Frozen LLP 0039 assigns the marker’s wire/serde schema and registration to LLP 0051 D4, leaving deployment ordering and proof to the hosted contract. LLP 0060’s own Status still calls the owner/wire form unresolved.
+  **Resolution:** preserve LLP 0039’s split—0060 owns semantics, binding, rollout, and proof; 0051 D4 owns generated schema registration—and add LLP 0051 to Related plus a schema/drift-gate acceptance item. Alternatively, explicitly amend the frozen governing assignment.
+
+- **MINOR — Stale serving-lease residue.** D5 lists “lease state” as v1 live health, while D4 explicitly eliminates serving leases and the concrete admission snapshot uses serialized-authority currency.
+  **Resolution:** replace “lease state” with serialized-authority currency.
+
+- **MINOR — Unsupported disposal claim.** C1 says the headless admin master is cleared when the client is disposed, but `AdminClient` exposes no disposal operation and retains an explicit token in `masterToken`.
+  **Resolution:** implement and test deterministic clearing or remove the assertion.
+
+- **EDITORIAL — “all-unavailable, bearer-v1 local posture” is self-contradictory.** The implemented default is `unavailable`, `unavailable`, `processLocal`, `singleProcess`, `bearerV1XssExposed`. Spell out the exact default tuple.
+
+## Readiness verdict
+
+**NOT READY**
+
+Advisory only; no Status transition is implied.

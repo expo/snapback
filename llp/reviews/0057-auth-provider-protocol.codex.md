@@ -494,3 +494,48 @@ READINESS VERDICT: NOT READY
 
 - MATERIAL: Normative prose is stale and false after implementation. It still says issuance lacks the tombstone check and retry is only for `PredecessorChanged`; that the stdin impersonation capability is not shipped; and that rescue reachability, rowid/AUTOINCREMENT, managed state, and commit reconciliation remain defects. Reconcile the current-state prose with the shipped behavior and move superseded facts to a historical changelog.
 - MINOR: The normative vocabulary still calls raw-clock restore a named defect even though the implementation now closes it.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Review body (local Markdown links omitted)
+
+## Overall assessment
+
+Fresh blind review of committed HEAD `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`. I did not read review artifacts or credentials and made no changes.
+
+The ENG-25001 repairs are technically strong, but two material discrepancies remain between the normative Spec and the current implemented boundary.
+
+## Strengths
+
+- Ownership and precedence are unusually explicit: LLP 0039 owns product outcomes, LLP 0045 the delivery durability boundary, LLP 0058 staged mode, and LLP 0059 clock, commit, and projection ordering.
+- Cross-table token uniqueness is implemented before mutation for issuance and rotation, with explicit collision outcomes and bounded coordinator retries.
+- Malformed family alarms remain non-actionable even when the dummy digest equals a tombstone, with a focused adversarial test.
+- Restore correctly derives its destructive timestamp from the durable floor, host sample, and restored creation frontier; exhausted generations fail closed.
+- Backup/restore descriptor binding, keyring revalidation, rowid preservation, `AUTOINCREMENT` refusal, managed-state rescue refusal, bounded stdin intake, and portable schema maxima are concretely implemented and tested.
+
+## Concerns
+
+- **MATERIAL — The normative catalog version and activation contract no longer describe current production behavior.** LLP 0057 fixes `AUTH_CATALOG_VERSION` at `1`, defines only `ReadyV1`, and says activation creates that exact catalog. Current code defines version `2` as the created/current catalog and writes that marker even through `activate_auth_catalog_v1_in`. LLP 0055 confirms fresh catalogs are now v2, but LLP 0055 is absent from 0057’s Related/precedence story.
+  **Resolution:** Reconcile 0057 as an explicitly versioned v1 base protocol: add LLP 0055 precedence/relationship, distinguish legacy-v1 recognition from fresh-v2 creation, and revise activation, constants, acceptance, and implementation-status claims so an implementer cannot reasonably create v1 as the current catalog.
+
+- **MATERIAL — The promised three-state backup publication result is not exposed.** The Spec requires the operation to return exactly `Unpublished`, `Published`, or `CommitAmbiguous`, because only the first proves no output exists. Implementation correctly suppresses cleanup once rename is attempted, but every pre/post-rename failure becomes the same `SNAPBACK_AUTH_BACKUP_INVALID`; the CLI emits structured output only on success. Tests confirm both a proven pre-rename failure and a post-rename surviving unit produce that same code.
+  **Resolution:** Return a stable, machine-readable publication-state field or distinct diagnostic for every exit, and test clean publication, proven pre-rename failure, ambiguous rename, post-check failure, and parent-fsync failure.
+
+- **MINOR — Acceptance overstates production-path collision coverage.** The Spec says tombstone collisions are asserted through production HTTP and host-operation paths. Existing focused tests exercise provider transaction seams; production route loops exist, but no deterministic route/host-op test forces first-through-third tombstone collisions.
+  **Resolution:** Add injected-RNG HTTP exchange/refresh and host-op mint tests, or narrow the acceptance claim to the evidence actually present.
+
+No independent EDITORIAL concern rises above these items.
+
+## Readiness verdict
+
+**NOT READY**

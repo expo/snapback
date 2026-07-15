@@ -99,3 +99,47 @@ named defect obligations, landed-evidence claim removed. Concern 3
 (format-3 historical qualifier) → the body already qualifies format 3 as the
 historical item-5 predecessor; the constants table entry is noted. Concern 5
 (LiveAuthErrorFrameV1 code-reason pairings) → recorded for the wire-DTO pin.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Anthropic Claude
+- Provider/runtime: Claude CLI, model `claude-fable-5`
+- Method: read-only Plan mode; high effort; no session persistence; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+# LLP 0005 final review — LLP 0059 at committed HEAD `62a11ce` (blind; advisory only)
+
+## Overall assessment
+
+This is a strong, unusually well-evidenced Spec. The ENG-25001 revision's resolved-defect claims verify against shipped code essentially across the board: I checked every decisive implemented-boundary claim in the resolution list against the Rust server, the client packages, and the executable suites, and all but coverage-completeness nuances confirmed. The document is internally coherent, honest about residuals, and disciplined about provenance and non-self-ratification. One cross-document contradiction with LLP 0058 remains, which by this corpus's own round-2 standard (reconciliation, not unilateral override) is material.
+
+## Strengths
+
+- **Implemented boundaries verify.** Lock-rank guards exist exactly as specified, ranks 10/20/30, with an inversion test. The named L9 fixture exists and does what the spec claims: unrelated protected-room HTTP+WS progress while the affected commit holds the writer lane. The durable clock floor is real, including the obligation to durably advance the floor to the due-expiry frontier *before* publishing a time-derived terminal event. Exact incarnation bytes, `SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT`, and same-transaction rotation confirm. Throttle buckets/limits, the `4401`/`auth_error`/5000 ms terminal close, and all cited diagnostics confirm.
+- **Client custody claims verify.** Custody format 2 with `transitionIntent` carrying embedded predecessor/successor authorities, key derivation from those authorities, and peer idempotent physical-store catch-up before resume; phase-8 ownership release before resume/network; late-registrant `commitDurable` catch-up; format-5 store with v1–v4 fail-closed migration; the LLP 0008 one-key localStorage adapter; and protocol 1 hard-requiring the coordinator all confirm.
+- **The 0057 contradiction is genuinely resolved from the 0057 side.** 0057 `Concurrency now states exact-durable reconciliation "matching LLP 0059" and explicitly retracts its earlier discard-and-unavailable rule.
+- **Honest residuals and scoping.** The XSS/at-rest bearer residual, canonical-token CPU spray, floor over-expiry availability residual, and the grant-mint-scoped "indistinguishable" claim are all stated without overclaim. `ref-check --verbose` passes with 0 errors; `@ref LLP 0059#…` annotations exist at the cited boundaries.
+
+## Concerns
+
+**MATERIAL 1 — 0059 amends LLP 0058's closed DTO without reconciling 0058.** `Bootstrap response revision declares that 0058's closed `GET /auth/session` success body "gains the required field … `deploymentIdentity`". The implementation carries it, so 0059 matches the code — but LLP 0058's `Exact response DTO does not include `deploymentIdentity`, and 0058's ENG-24991 "Exactness" amendment asserts every member is listed and required against an exact schema. Two normative Specs now publish contradictory exact DTOs for the same wire route; a reader implementing 0058's validator would reject the actual server response. 0058 is a living, non-frozen Spec, and 0059 itself applied the "reconcile the owning document, don't override unilaterally" rule to 0057 and 0008 in round 2. **Resolution:** update 0058's DTO example and exactness member list to include `deploymentIdentity`, or add an explicit 0058 deferral note pointing at 0059 `Bootstrap response revision, landed as a doc reconciliation.
+
+**MINOR 1 — Acceptance matrix is partially, not fully, landed while the spec claims its evidence has landed.** `Executable acceptance states "Every acceptance below is required before its readiness fact can be true," and `Open decisions asserts item 5's executable evidence has landed. Coordinator races item 3 ("Kill a Web-Lock owner … during every participant phase") is covered by a crash-during-`commitDurable` case plus recovery-path tests, not a literal per-phase kill loop; item 5's broadcast matrix tests drop/delay/stale-arrival but has no explicit duplicate/reorder cases; the fallback-lease fencing-token increase is exercised only implicitly via `priorToken + 1`. Behavioral-equivalence arguments are plausible, but the spec's gate sentence makes the claim stronger than the landed suites. **Resolution:** add the missing named cases, or qualify those acceptance items with the landed equivalents they are satisfied by.
+
+**MINOR 2 — LLP 0008 characterization slightly overstated.** 0059 twice calls the adopted design "governing LLP 0008's **ratified** Web-Lock one-key design"; 0008's Status is Draft, and 0008 phrases the mechanism as one exclusive Web Lock **per storage key**, not the "canonical per-app Web Lock" wording in `Durable client store. Semantics match; the words don't. **Resolution:** soften "ratified," for example to "LLP 0008's landed one-key protocol," and align the lock description with the per-storage-key reality.
+
+**EDITORIAL 1 —** The Revised header and `Review triage say "close-only 4401 terminal latch," but the body correctly says "this frame **or** close code" is classified terminal, and the code clears on an in-band `auth_error` frame and then force-closes into the 4401 latch. Align the summary phrasing with the body.
+
+**EDITORIAL 2 —** The Revised header is now a multi-page unstructured block that is genuinely hard to audit; consider moving the per-round detail into a dated history subsection in the body.
+
+**EDITORIAL 3 —** `Durable session clock floor's restore rule says "restored session creation frontier"; 0057 phrases the same fix as "durable clock floor and relevant catalog maxima." Same substance — align the wording or cite the 0057 phrasing.
+
+## Verdict
+
+**NOT READY.** MATERIAL 1, the 0058 closed-DTO contradiction, must be reconciled first; on everything else observed, this document is one small cross-document doc fix away from READY. Advisory only — no Status change is proposed, and ratification remains the author's call.

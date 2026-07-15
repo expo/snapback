@@ -196,3 +196,43 @@ CompositeWitness. Concern 4 (item-4 readiness JSON present tense) → labeled th
 boundary exhibit. Concern 5 (20 s deadline collateral) → named. Concern 6
 (SNAPBACK_AUTH_HANDSHAKE_INVALID registry) → registered as an LLP 0012
 obligation, marked kit-produced. Concern 7 (changelog/density) → non-blocking.
+
+## Final implementation review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Anthropic Claude
+- Provider/runtime: Claude CLI, model `claude-fable-5`
+- Method: read-only Plan mode; high effort; no session persistence; blind to `llp/reviews/`
+- Reviewed commit: `62a11cedfb1ff7ad0258dc3e6ce667989b88b819`
+- Human authorization: ENG-24996 completion request
+- Secrets or redactions: none
+
+### Verbatim review
+
+# LLP 0005 final review — LLP 0058 @ 62a11ce (blind, advisory)
+
+## Overall assessment
+
+This is a mature, unusually rigorous protocol spec, and the post-ENG-25001 revision has genuinely closed the prior material findings rather than papering over them. I verified the decisive implemented-boundary claims directly against code and committed tests at HEAD, and nearly everything checks out exactly as written — including the claims that earlier rounds found overstated, which are now accurate. It discharges LLP 0039's deferred obligation №3 point-by-point while respecting the frozen boundary. One spec-vs-code fidelity defect remains in a normative security-shape section, plus a small cluster of registry/hygiene items.
+
+## Strengths
+
+- **Fidelity to the frozen parent.** LLP 0039 `Protocol obligations deferred to implementation (item 3, `0039:1586-1609`) is discharged element-for-element: durable transition-state record, crash traces at every boundary, the ten-step pre-effect preflight, the rejection matrix including v1-dev and matching-hash negatives, MODE_PENDING refusal with privileged-only correction, and relocate-and-poison as a separate backstop. Items 4/5 scoping statements match 0039 exactly.
+- **Evidence claims are now real and honestly framed.** `tests/acceptance/auth-mode-predecessor-v1.mjs` pins the claimed predecessor `1d6cafb…` and Ibex gitlink, builds it with locked deps, asserts exact `SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION` against fresh and v0-provisioned databases with direct DB+WAL byte snapshots, runs the poison third case, and deep-equals against the committed receipt. The corrupt-WAL regression (`src/storage/auth_mode.rs:2492-2530`) is genuine: `wal_autocheckpoint = 0`, corruption verified resident in the WAL, refused open, both files byte-compared. The handshake parity corpus is truly shared — Rust `include_str!` and the kit validator consume the same file, with ≥50-case and 17-member-census guards on both sides.
+- **Code matches the security-critical constants and boundaries.** Exact poison bytes (`src/auth/mode.rs:18-19`); the four meta keys, mutated only in Immediate transactions on the write lane; 30 000/20 000 ms deadlines with a compile-time strictly-below assert, 408 mapping, and epoch-close body cancellation answered on the still-open connection; carrier validation implements every listed check including O_NOFOLLOW, single hard link, ACL rejection, inode/size stability, and 32 MiB; the raw loader's settled-dev-only seam and in-process sessions refusal are implemented and tested; all five normative gate types plus `PreparedConnectionAct` exist; the live-owner predicate compares both conjuncts under the owner lock with no `is_some()` short-circuit; `TargetCapabilityId` is closed to exactly eight ids with the two-pair emission.
+- **Cross-corpus coherence.** 0053's `CompositeWitness` mapping, 0059's "durable witness floor," 0057's later-item seams, and 0060's hosted delegation all read consistently from both sides; all Related documents exist; `ref-check --verbose` reports 0 errors.
+
+## Concerns
+
+**MATERIAL-1 — `HandlerAuthProjection's "exactly" claim is stale against shipped code.** The spec pins the handler-visible projection to *exactly* `{userId, sessionId, isAuthenticated, provider?, roles?}` with "Own-key rules are exact." Shipped code projects two more own keys: `kind` (`"human"` for every real session and dev impersonation — `src/auth/invocation.rs:517-528, 605, 614`) and a nested frozen `actor` projection for delegated agents (`packages/snapback-harness/ctx-bootstrap.js:487-521`, allow-list of seven keys), governed by LLP 0055 — which is absent from 0058's Related list. The `Shared gate matrix test description ("expose only own non-accessor data keys" per the enumeration) and the handshake sentence "`authority` is the same `HandlerAuthProjection` constructor" inherit the stale shape. Unlike the readiness JSON and live-admission matrix, this section is not bracketed as an item-4 boundary exhibit, so it reads as a false current normative claim about the handler-visible authority surface — exactly the fidelity class ENG-25001 closed elsewhere. *Resolution:* amend `HandlerAuthProjection (and the two dependent passages) to either bracket the five-key shape as the item-4 boundary with `kind`/`actor` delegated to LLP 0055, or incorporate the extension; add LLP 0055 to Related.
+
+**MINOR-1 — LLP 0012 registry lags two facts 0058 asserts under 0012's authority.** (a) The contract-data-manifest v1 exception is real — codegen emits `"schemaVersion": "snapback.v1"` — but 0012 still says only the schema and function manifests move to v1. (b) `SNAPBACK_SCHEMA_PARSE_FAILED`, relied on normatively in `Acceptance and asserted by the committed poison tests, is not registered in 0012. *Resolution:* land the 0012 amendment covering both, or record the pending amendment as a named obligation in 0058.
+
+**MINOR-2 — the predecessor harness is not CI-wired.** The parity `.mjs` and all `cargo test` evidence run in CI via `scripts/verify-local-proof` → `.github/workflows/local-proof.yml:79`, but nothing invokes `tests/acceptance/auth-mode-predecessor-v1.mjs`. The spec's "committed, rerunnable" wording is accurate — this is not an over-claim — but the flagship predecessor/rollback evidence regresses silently unless someone remembers to run it. *Resolution:* wire it into CI or a named script (a scheduled or opt-in job is fine), or state its manual cadence in `Status.
+
+**EDITORIAL-1 — "verified as the parent of the first staged-mode commit."** History contains two same-subject staged-mode commits (`17938c1` and the pinned `8da7b46`, apparent rebase divergence); `git log --follow src/auth/mode.rs` surfaces the other one. The harness pins `8da7b46` and self-asserts `parent == 1d6cafb`, so the claim is sound, but "the first" is ambiguous. *Resolution:* cite the pinned child SHA in the sentence.
+
+## Readiness verdict
+
+**NOT READY.** One MATERIAL concern remains — the un-bracketed stale exactness claim in `HandlerAuthProjection` versus the shipped `kind`/`actor` projection. It is narrow and mechanical to resolve (a bracketing paragraph or an incorporated extension, plus a Related-list entry); everything else I checked, including every previously-material area, is confirmed accurate. This review advises only — Status remains the author's call, and nothing here ratifies or changes it.
