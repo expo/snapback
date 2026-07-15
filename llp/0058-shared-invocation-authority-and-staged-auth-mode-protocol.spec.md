@@ -1316,10 +1316,12 @@ validator (`demos/_kit/tests/auth-session-schema-parity.mjs`) and must produce
 identical structural accept/reject verdicts. The one contextual exception is
 `deploymentIdentity.appId`: the reusable schema requires a non-empty string,
 while the configured kit also requires equality with its coordinator app id;
-the corpus names those two verdicts explicitly. The shared
-`AuthorityDescriptor` definition pins `descriptorVersion: 1` and canonical
-UUIDv7 authority-instance grammar for both auth-session and mutation-input
-consumers; the corpus exercises those negative classes.
+the corpus names those two verdicts explicitly. The dedicated auth-session
+schema pins `descriptorVersion: 1` and canonical UUIDv7 authority-instance
+grammar, and the corpus exercises those negative classes. Mutation input uses
+the generic Rust `AuthorityDescriptor` plus runtime validation; its generated
+shared type remains intentionally broader (`u32` at the type layer), so this
+amendment does not claim a schema-level tightening for that separate consumer.
 
 `deploymentIdentity` is itself exact: `dev` pairs only with `snapback.v0`,
 `sessions` pairs only with `snapback.v1`, and no other schema version is

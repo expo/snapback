@@ -11,7 +11,7 @@
 **Reviewed:** `llp/0060-hosted-auth-security.rfc.md`, sha256 `09eb415d0d95d269bba792f916aca9ee7403d6386f28412a5b9ad57cca80cfef` (committed at repo HEAD `fdfdd94`).
 **Verdict:** NOT READY
 
-### Review body (verbatim)
+### Review summary
 
 ## Overall assessment
 
@@ -802,3 +802,53 @@ MINOR
 - None. Cross-document ownership is coherent: LLP 0060 owns hosted marker semantics and rollout proof (`llp/0060-hosted-auth-security.rfc.md:525`), while LLP 0051 owns shared wire authorities, schemas, registration, and drift gates (`llp/0051-capability-negotiation.spec.md:628`).
 
 The targeted coordinator, composed Contract, and client suites pass, and `ref-check` reports no errors; the blocker is the material mismatch between claimed and executed acceptance evidence.
+
+## Targeted follow-up review — 2026-07-15 (`5c23b44`)
+
+**Reviewer family:** GPT (OpenAI Codex)
+**Provider / runtime:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, high reasoning effort, read-only sandbox, blind to archived reviews.
+**Reviewed:** committed repository state `5c23b44`.
+
+### Review body (verbatim)
+
+## VERDICT READY
+
+### MATERIAL
+
+None.
+
+### MINOR
+
+None.
+
+### Evidence and resolution
+
+- Resume synchronization is exact-or-stale: reentrant reloads compare durable revision, epoch, and authority key without starting a nested barrier; pre-barrier adoption completions are confirmation-only or stale.
+- Deterministic owner/peer changed-durable tests prove one resume, closed failure, no obsolete capture, and later clean successor adoption.
+- Real single- and multi-live Contract participants await durable synchronization inside resume; the composed test verifies every real Contract participant resumes exactly once.
+- Format-2 custody validates the complete transition intent and its authority-key/digest bindings. Recovery selects the proven same-user transition, clears runnable queues, and preserves payloads only as principal-bound `replayable:false` stranded work.
+- The 0057 clock-floor boundary, 0058 witness/cache/schema/readiness evidence, and 0059 provenance/deadline/Contract evidence wording are corrected.
+
+Focused tests passed: coordinator, Contract barrier, client-store authority; `ref-check --verbose` passed with 0 errors. Worktree remained unchanged.
+
+### Review body (verbatim)
+
+## VERDICT READY
+
+### MATERIAL
+
+None.
+
+### MINOR
+
+None.
+
+### Evidence and resolution
+
+- Resume synchronization is exact-or-stale: reentrant reloads compare durable revision, epoch, and authority key without starting a nested barrier; pre-barrier adoption completions are confirmation-only or stale. [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:686), [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:1205)
+- Deterministic owner/peer changed-durable tests prove one resume, closed failure, no obsolete capture, and later clean successor adoption. [auth-coordinator.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.test.mjs:492), [auth-coordinator.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.test.mjs:547)
+- Real single- and multi-live Contract participants await durable synchronization inside resume; the composed test verifies every real Contract participant resumes exactly once. [index.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2393), [index.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:3907), [auth-coordinator-contract.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:397)
+- Format-2 custody validates the complete transition intent and its authority-key/digest bindings. Recovery selects the proven same-user transition, clears runnable queues, and preserves payloads only as principal-bound `replayable:false` stranded work. [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:237), [client-store.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store.mjs:1240), [client-store-authority.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:870)
+- The 0057 clock-floor boundary, 0058 witness/cache/schema/readiness evidence, and 0059 provenance/deadline/Contract evidence wording are corrected. [0057](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0057-auth-provider-protocol.spec.md:155), [0058](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:796), [0059](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1959)
+
+Focused tests passed: coordinator, Contract barrier, client-store authority; `ref-check --verbose` passed with 0 errors. Worktree remained unchanged.

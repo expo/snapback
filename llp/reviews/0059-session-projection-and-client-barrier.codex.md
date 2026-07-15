@@ -11,7 +11,7 @@
 **Reviewed:** `llp/0059-session-projection-and-client-barrier.spec.md`, sha256 `565534f09b958e329e1abb69e3e595a9cc8ad53aa672d4e617e4013383fbfbbf` (committed at repo HEAD `fdfdd94`).
 **Verdict:** NOT READY
 
-### Review body (verbatim)
+### Review summary
 
 ## Overall assessment
 
@@ -645,3 +645,41 @@ Resolution criteria:
 MINOR
 
 None independent of the material issue. Cross-document ownership is coherent: LLP 0039 owns coordinator/session-loss disposition (`llp/0039-auth-vertical-slice.rfc.md:1207-1230`), LLP 0053 owns permission invalidation (`llp/0053-authorization-invalidation.rfc.md:392-401`), and LLP 0059 owns the executable barrier protocol.
+
+## Targeted follow-up review — 2026-07-15 (`5c23b44`)
+
+**Reviewer family:** GPT (OpenAI Codex)
+**Provider / runtime:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, high reasoning effort, read-only sandbox, blind to archived reviews.
+**Reviewed:** committed repository state `5c23b44`.
+
+### Review body (verbatim)
+
+VERDICT NOT READY
+
+MATERIAL
+
+- A pre-barrier `synchronize()` can still return an obsolete predecessor capture. The ordinary path reads and returns a direct capture, while the completion guard only handles `adoptPeerAfterOwnership`. A deterministic probe delayed completion after ownership release, transitioned durable custody from epoch 0 to settled epoch 1, held successor resume closed, then observed the earlier synchronization return epoch 0—contradicting LLP 0059's completion rule. The new owner/peer tests cover synchronizations initiated inside resume, not this pre-barrier direct-capture completion. Resolution: exact-or-stale check every synchronization result against any active barrier at completion, including ordinary captures, and add deterministic owner/peer post-ownership-delay tests.
+
+MINOR
+
+- None independently remaining. The requested wording corrections are present in LLPs 0057–0059.
+- Real single/multi Contract participants await the reload; exact-once evidence is present.
+- Validated-intent same-user recovery strands payloads non-replayably and is proven by test.
+
+Relevant committed suites passed; the targeted deterministic probe exposed the blocker.
+
+### Review body (verbatim)
+
+VERDICT NOT READY
+
+MATERIAL
+
+- A pre-barrier `synchronize()` can still return an obsolete predecessor capture. The ordinary path reads and returns a direct capture at [auth-coordinator.mjs:715](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:715), while the completion guard only handles `adoptPeerAfterOwnership` at [auth-coordinator.mjs:1205](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:1205). A deterministic probe delayed completion after ownership release, transitioned durable custody from epoch 0 to settled epoch 1, held successor resume closed, then observed the earlier synchronization return epoch 0—contradicting [LLP 0059:1400](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1400). The new owner/peer tests at [auth-coordinator.test.mjs:492](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.test.mjs:492) cover synchronizations initiated inside resume, not this pre-barrier direct-capture completion. Resolution: exact-or-stale check every synchronization result against any active barrier at completion, including ordinary captures, and add deterministic owner/peer post-ownership-delay tests.
+
+MINOR
+
+- None independently remaining. The requested wording corrections are present in [0057:155](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0057-auth-provider-protocol.spec.md:155), [0058:796](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:796), [0058:1294](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1294), and [0058:1768](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1768).
+- Real single/multi Contract participants await the reload at [index.mjs:2399](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2399) and [index.mjs:3909](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:3909); exact-once evidence is [auth-coordinator-contract.test.mjs:397](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:397).
+- Validated-intent same-user recovery strands payloads non-replayably at [client-store.mjs:3047](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store.mjs:3047), proved at [client-store-authority.test.mjs:954](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:954).
+
+Relevant committed suites passed; the targeted deterministic probe exposed the blocker.

@@ -599,6 +599,66 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   await writer.close();
 }
 
+// A synchronization may finish its storage callback before a transition, yet
+// have its promise delivery delayed until successor resume. The already-read
+// predecessor capture is stale at completion and cannot escape the closed
+// barrier.
+{
+  const baseStorage = createMemoryAuthCustodyStorage();
+  let delayNextCompletion = false;
+  let reloadReadResolve;
+  let releaseReloadResolve;
+  const reloadRead = new Promise((resolve) => { reloadReadResolve = resolve; });
+  const releaseReload = new Promise((resolve) => { releaseReloadResolve = resolve; });
+  const delayedStorage = {
+    ...baseStorage,
+    async withOwnership(appId, operation) {
+      const result = await baseStorage.withOwnership(appId, operation);
+      if (!delayNextCompletion) return result;
+      delayNextCompletion = false;
+      reloadReadResolve();
+      await releaseReload;
+      return result;
+    },
+  };
+  const delayed = new AuthCoordinator({
+    appId: `${APP}/pre-barrier-reload`,
+    storage: delayedStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await delayed.establishAnonymous(anonymous());
+  delayNextCompletion = true;
+  const staleReload = delayed.synchronize();
+  await reloadRead;
+
+  let resumeEnteredResolve;
+  let releaseResumeResolve;
+  const resumeEntered = new Promise((resolve) => { resumeEnteredResolve = resolve; });
+  const releaseResume = new Promise((resolve) => { releaseResumeResolve = resolve; });
+  const unregister = delayed.registerParticipant({
+    name: 'hold-successor-resume',
+    async resume() {
+      resumeEnteredResolve();
+      await releaseResume;
+    },
+  });
+  const transition = delayed.transition(
+    before,
+    successor(session(), BEARER_SENTINEL, 10_000),
+    'pre_barrier_reload_completion',
+  );
+  await resumeEntered;
+  releaseReloadResolve();
+  assert.equal(await errorCode(() => staleReload), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+  assert.equal(await errorCode(() => Promise.resolve(delayed.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
+  releaseResumeResolve();
+  const settled = await transition;
+  assert.deepEqual(delayed.capture(), settled);
+  await unregister();
+  await delayed.close();
+}
+
 // Same-authority bearer rotation changes the custody revision, not app
 // authority. Ordinary work captured before rotation remains current, while a
 // second credential write must compare the exact old revision and loses.

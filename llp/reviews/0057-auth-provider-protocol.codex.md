@@ -11,7 +11,7 @@
 **Reviewed:** `llp/0057-auth-provider-protocol.spec.md`, sha256 `2abcd3f1364697f301b5e1f0d57281a96d40b74d7b03a95c238657c83175ff74` (committed at repo HEAD `fdfdd94`).
 **Verdict:** READY WITH REVISIONS
 
-### Review body (verbatim)
+### Review summary
 
 ## Overall assessment
 
@@ -590,3 +590,45 @@ RESOLUTION CRITERIA
 - During any active resume barrier, make `synchronize()` accept only the exact revision/epoch/authority; a different record must fail closed without nested adoption, barrier replacement, duplicate resume, or returning a predecessor capture.
 - Add deterministic owner and peer tests where another context advances custody during resume; assert one resume call, closed exposure, and either a stale failure or a returned capture exactly matching durable custody.
 - Add a genuinely composed SnapbackClient + Contract single/multi-live regression whose resume performs the real durable reload, or narrow LLP 0059’s evidence claim until that test exists.
+
+## Targeted follow-up review — 2026-07-15 (`5c23b44`)
+
+**Reviewer family:** GPT (OpenAI Codex)
+**Provider / runtime:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, high reasoning effort, read-only sandbox, blind to archived reviews.
+**Reviewed:** committed repository state `5c23b44`.
+
+### Review body (verbatim)
+
+VERDICT NOT READY
+
+MATERIAL
+
+- A `synchronize()` begun before owner resume can return an obsolete predecessor capture. The settled fast path returns a bare capture at `auth-coordinator.mjs:727`, while post-ownership validation only handles `adoptPeerAfterOwnership`; other results return unchanged at `auth-coordinator.mjs:1229`. A deterministic seam paused that result after ownership release, began a same-coordinator transition, paused successor resume, then released the old synchronization: it returned epoch 0 while the durable successor was epoch 1. This contradicts LLP 0059's completion rule.
+
+  Resolution: carry the read record/barrier generation through every synchronize result, including the locally-matching fast path, and exact-or-stale validate after ownership before returning. Add deterministic owner and peer tests where synchronization begins before the barrier and completes during resume.
+
+MINOR
+
+- LLP 0058 still overclaims that the shared `AuthorityDescriptor` pins `descriptorVersion: 1` for mutation inputs. The shared Rust type remains unrestricted `u32`; only runtime validation and the handshake-specific schema enforce version 1. Resolution: narrow the wording or constrain the shared generated schema.
+
+- Otherwise confirmed: owner/peer changed-durable tests are deterministic; real single/multi Contract participants await one reload inside resume; validated format-2 intent recovery preserves same-user payloads only as non-replayable/rerecordable; remaining 0057/0058/0059 wording corrections match implementation.
+
+Relevant Node tests: 3/3 passed. `ref-check --verbose`: 0 errors.
+
+### Review body (verbatim)
+
+VERDICT NOT READY
+
+MATERIAL
+
+- A `synchronize()` begun before owner resume can return an obsolete predecessor capture. The settled fast path returns a bare capture at [auth-coordinator.mjs:727](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:727), while post-ownership validation only handles `adoptPeerAfterOwnership`; other results return unchanged at [auth-coordinator.mjs:1229](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:1229). A deterministic seam paused that result after ownership release, began a same-coordinator transition, paused successor resume, then released the old synchronization: it returned epoch 0 while the durable successor was epoch 1. This contradicts [LLP 0059:1400](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:1400).
+
+  Resolution: carry the read record/barrier generation through every synchronize result, including the locally-matching fast path, and exact-or-stale validate after ownership before returning. Add deterministic owner and peer tests where synchronization begins before the barrier and completes during resume.
+
+MINOR
+
+- LLP 0058 still overclaims that the shared `AuthorityDescriptor` pins `descriptorVersion: 1` for mutation inputs at [LLP 0058:1319](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1319). The shared Rust type remains unrestricted `u32` at [manifest.rs:2423](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/src/manifest.rs:2423); only runtime validation and the handshake-specific schema enforce version 1. Resolution: narrow the wording or constrain the shared generated schema.
+
+- Otherwise confirmed: owner/peer changed-durable tests are deterministic; real single/multi Contract participants await one reload inside resume ([index.mjs:2393](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2393), [index.mjs:3907](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:3907)); validated format-2 intent recovery preserves same-user payloads only as non-replayable/rerecordable ([client-store-authority.test.mjs:870](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:870)); remaining 0057/0058/0059 wording corrections match implementation.
+
+Relevant Node tests: 3/3 passed. `ref-check --verbose`: 0 errors.

@@ -1226,7 +1226,26 @@ export class AuthCoordinator {
       await this.#adoptPeerSettled(result.record);
       return captureFor(this.#appId, result.record);
     }
-    if (!result?.resumeAfterOwnership) return result;
+    if (!result?.resumeAfterOwnership) {
+      if (this.#activeBarrier !== null) {
+        const exact = result !== null
+          && this.#record?.phase === 'settled'
+          && result.custodyRevision === this.#record.revision
+          && result.authorityEpoch === this.#record.authorityEpoch
+          && result.authorityKey === canonicalAuthorityKey(this.#appId, this.#record.authority);
+        if (!exact) {
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTHORITY_STALE',
+            'authority changed before an in-flight custody reload returned',
+          );
+        }
+        // The read may have begun before the barrier and completed after its
+        // durable settle. Only the exact active successor can return; an
+        // already-read predecessor capture is stale even though its storage
+        // ownership ended before the transition began.
+      }
+      return result;
+    }
     const { settled, barrier } = result;
     try {
       await this.#runAwaitedPhase('resume', Object.freeze({

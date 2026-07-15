@@ -11,7 +11,7 @@
 **Reviewed:** `llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md`, sha256 `9cb837fff1c0a9fc37b71711560ba69587067e39227fc1a6e384ac76ef2ae46c` (committed at repo HEAD `fdfdd94`).
 **Verdict:** NOT READY
 
-### Review body (verbatim)
+### Review summary
 
 ## Overall assessment
 
@@ -515,3 +515,54 @@ LLP 0058’s “known residual looseness” is stale: it says the auth-session s
 ## Resolution criteria
 
 Add a composed single- and multi-live regression whose successor resume actually awaits coordinated durable synchronization during the active resume phase, covering both owner and peer adoption. Assert bounded completion, exactly-once resume, blank-until-ready behavior, and no stale publication. Then correct LLP 0058’s residual-looseness text. Coordinator, Contract, kit tests and `ref-check --verbose` currently pass.
+
+## Targeted follow-up review — 2026-07-15 (`5c23b44`)
+
+**Reviewer family:** GPT (OpenAI Codex)
+**Provider / runtime:** OpenAI Codex CLI v0.144.4 (`codex exec`, non-interactive), model gpt-5.6-sol, high reasoning effort, read-only sandbox, blind to archived reviews.
+**Reviewed:** committed repository state `5c23b44`.
+
+### Review body (verbatim)
+
+VERDICT NOT READY
+
+MATERIAL
+
+- A `synchronize()` begun before an owner barrier can still return an obsolete predecessor capture during resume. Plain capture results bypass the active-barrier exact-or-stale check; that check only handles `{adoptPeerAfterOwnership}` results. A deterministic read-only probe delayed delivery of a plain predecessor result until owner resume and observed `{"beforeEpoch":0,"syncEpochDuringResume":0,"syncReturnedObsolete":true}`.
+
+  Resolution: apply active-barrier exact-or-stale validation to every ownership result, including plain captures, or serialize transitions against an outstanding synchronization. Add a regression delaying a locally matching plain result into owner resume.
+
+- Existing changed-durable owner/peer tests are deterministic and correctly cover synchronize calls started during resume, but do not cover the failing pre-barrier plain-result cut.
+
+MINOR
+
+- No open wording minor found. Corrections are present for the 0057 clock-floor boundary; 0058 composed witness, cache control, descriptor closure, and readiness evidence; and 0059 provenance/evidence claims.
+
+- Single/multi Contract participants await one reload inside resume, with exactly-once participant evidence.
+
+- Format-2 intent validation and same-user non-replayable stranding are correctly implemented and proven.
+
+All three focused Node suites passed.
+
+### Review body (verbatim)
+
+VERDICT NOT READY
+
+MATERIAL
+
+- A `synchronize()` begun before an owner barrier can still return an obsolete predecessor capture during resume. Plain capture results bypass the active-barrier exact-or-stale check at [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:727); that check only handles `{adoptPeerAfterOwnership}` results at [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:1205). A deterministic read-only probe delayed delivery of a plain predecessor result until owner resume and observed:
+  `{"beforeEpoch":0,"syncEpochDuringResume":0,"syncReturnedObsolete":true}`.
+
+  Resolution: apply active-barrier exact-or-stale validation to every ownership result, including plain captures, or serialize transitions against an outstanding synchronization. Add a regression delaying a locally matching plain result into owner resume.
+
+- Existing changed-durable owner/peer tests are deterministic and correctly cover synchronize calls started during resume at [auth-coordinator.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.test.mjs:492), but do not cover the failing pre-barrier plain-result cut.
+
+MINOR
+
+- No open wording minor found. Corrections are present for the 0057 clock-floor boundary at [0057](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0057-auth-provider-protocol.spec.md:155); 0058 composed witness, cache control, descriptor closure, and readiness evidence at [0058](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:788); and 0059 provenance/evidence claims at [0059](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/llp/0059-session-projection-and-client-barrier.spec.md:87).
+
+- Single/multi Contract participants await one reload inside resume at [index.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:2391) and [index.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/index.mjs:3907), with exactly-once participant evidence at [auth-coordinator-contract.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator-contract.test.mjs:397).
+
+- Format-2 intent validation and same-user non-replayable stranding are correctly implemented at [auth-coordinator.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/auth-coordinator.mjs:237) and proven at [client-store-authority.test.mjs](/Users/ccheever/projects/snapback-eng-25001-auth-review-resolution/packages/snapback-contract/client-store-authority.test.mjs:870).
+
+All three focused Node suites passed.
