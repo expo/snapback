@@ -555,9 +555,18 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     InvocationAuthority::ClientAsserted
                 );
                 assert_eq!(sessions.path_policy, RoutePolicy::Public);
+                let expected_resolution = match route.path {
+                    "/query/{name}" | "/mutation/{name}" | "/action/{name}" => {
+                        CredentialResolution::OptionalSessionOrScopedToken
+                    }
+                    _ => CredentialResolution::OptionalSessionBearer,
+                };
                 assert_eq!(
                     sessions.credential_resolution,
-                    CredentialResolution::OptionalSessionBearer
+                    expected_resolution,
+                    "unexpected sessions carrier for {} {}",
+                    route.method,
+                    route.path
                 );
                 assert_eq!(
                     sessions.invocation_authority,
