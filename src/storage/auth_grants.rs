@@ -27,8 +27,10 @@ pub const DELEGATED_GRANT_DEFAULT_TTL_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const DELEGATED_GRANT_MAX_TTL_MS: u64 = 90 * 24 * 60 * 60 * 1_000;
 pub const GRANT_SCOPE_ENTRY_CAP: usize = 128;
 pub const GRANT_SCOPE_BYTES_CAP: usize = 16 * 1_024;
-const NON_OWNER_AGENT_WARNING: &str =
-    "You do not own this agent. Its owner or operator may re-credential it, which terminates this grant.";
+const OTHER_OWNER_AGENT_WARNING: &str =
+    "You do not own this agent. Its owner can re-credential it and use memberships or roles that this grant creates for the agent.";
+const UNOWNED_AGENT_WARNING: &str =
+    "This agent is unowned. Where the deployment profile permits operator recovery, a replacement credential can use memberships or roles that this grant creates for the agent.";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -104,11 +106,19 @@ pub(crate) struct PendingGrantRequest {
     pub agent_user_id: String,
     pub agent_display_name: Option<String>,
     pub registration_provenance: String,
-    pub grantor_is_agent_owner: bool,
+    pub owner_assumption: AgentOwnershipAssumption,
     pub owner_assumption_warning: Option<String>,
     pub scopes: Vec<ExactGrantScope>,
     pub created_at_ms: u64,
     pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentOwnershipAssumption {
+    OwnedByGrantor,
+    OwnedByAnotherUser,
+    Unowned,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -391,14 +401,14 @@ impl LocalDatabase {
             enforce_grant_caps_on(tx, &actor_user_id, effective_user_id, now_ms)?;
 
             let agent = agent_consent_identity_on(tx, &actor_user_id)?;
-            let (grantor_is_agent_owner, owner_assumption_warning) =
+            let (owner_assumption, owner_assumption_warning) =
                 owner_assumption(&agent.2, effective_user_id);
             let expires_at_ms = grant_expires_at_ms;
             let consent_digest = consent_digest(
                 &actor_user_id,
                 agent.0.as_deref(),
                 &agent.1,
-                grantor_is_agent_owner,
+                owner_assumption,
                 owner_assumption_warning.as_deref(),
                 &scopes,
                 expires_at_ms,
@@ -676,7 +686,7 @@ fn pending_request_on(
 ) -> SnapbackResult<PendingGrantRequest> {
     let (display_name, provenance, owner_user_id) =
         agent_consent_identity_on(tx, agent_user_id)?;
-    let (grantor_is_agent_owner, owner_assumption_warning) =
+    let (owner_assumption, owner_assumption_warning) =
         owner_assumption(&owner_user_id, effective_user_id);
     Ok(PendingGrantRequest {
         request_id: request_id.to_owned(),
@@ -684,7 +694,7 @@ fn pending_request_on(
         agent_user_id: agent_user_id.to_owned(),
         agent_display_name: display_name,
         registration_provenance: provenance,
-        grantor_is_agent_owner,
+        owner_assumption,
         owner_assumption_warning,
         scopes: scopes.to_vec(),
         created_at_ms,
@@ -715,17 +725,27 @@ fn agent_consent_identity_on(
 fn owner_assumption(
     owner_user_id: &Option<String>,
     effective_user_id: &str,
-) -> (bool, Option<String>) {
-    let grantor_is_agent_owner = owner_user_id.as_deref() == Some(effective_user_id);
-    let warning = (!grantor_is_agent_owner).then(|| NON_OWNER_AGENT_WARNING.to_owned());
-    (grantor_is_agent_owner, warning)
+) -> (AgentOwnershipAssumption, Option<String>) {
+    match owner_user_id.as_deref() {
+        Some(owner_user_id) if owner_user_id == effective_user_id => {
+            (AgentOwnershipAssumption::OwnedByGrantor, None)
+        }
+        Some(_) => (
+            AgentOwnershipAssumption::OwnedByAnotherUser,
+            Some(OTHER_OWNER_AGENT_WARNING.to_owned()),
+        ),
+        None => (
+            AgentOwnershipAssumption::Unowned,
+            Some(UNOWNED_AGENT_WARNING.to_owned()),
+        ),
+    }
 }
 
 fn consent_digest(
     agent_user_id: &str,
     display_name: Option<&str>,
     provenance: &str,
-    grantor_is_agent_owner: bool,
+    owner_assumption: AgentOwnershipAssumption,
     owner_assumption_warning: Option<&str>,
     scopes: &[ExactGrantScope],
     expires_at_ms: u64,
@@ -736,7 +756,7 @@ fn consent_digest(
         agent_user_id: &'a str,
         display_name: Option<&'a str>,
         registration_provenance: &'a str,
-        grantor_is_agent_owner: bool,
+        owner_assumption: AgentOwnershipAssumption,
         owner_assumption_warning: Option<&'a str>,
         scopes: &'a [ExactGrantScope],
         expires_at_ms: u64,
@@ -745,7 +765,7 @@ fn consent_digest(
         agent_user_id,
         display_name,
         registration_provenance: provenance,
-        grantor_is_agent_owner,
+        owner_assumption,
         owner_assumption_warning,
         scopes,
         expires_at_ms,
@@ -1041,7 +1061,10 @@ mod tests {
             panic!("first presentation must create");
         };
         assert_eq!(request.request_id, pairing.request_id);
-        assert!(request.grantor_is_agent_owner);
+        assert_eq!(
+            request.owner_assumption,
+            AgentOwnershipAssumption::OwnedByGrantor
+        );
         assert_eq!(request.owner_assumption_warning, None);
         assert_eq!(
             request
@@ -1154,10 +1177,13 @@ mod tests {
         else {
             panic!("first presentation must create");
         };
-        assert!(!request.grantor_is_agent_owner);
+        assert_eq!(
+            request.owner_assumption,
+            AgentOwnershipAssumption::OwnedByAnotherUser
+        );
         assert_eq!(
             request.owner_assumption_warning.as_deref(),
-            Some(NON_OWNER_AGENT_WARNING)
+            Some(OTHER_OWNER_AGENT_WARNING)
         );
 
         let GrantApproval::Created(grant) = db
@@ -1177,8 +1203,8 @@ mod tests {
             "agent-a",
             Some("Agent A"),
             r#"{"source":"test"}"#,
-            false,
-            Some(NON_OWNER_AGENT_WARNING),
+            AgentOwnershipAssumption::OwnedByAnotherUser,
+            Some(OTHER_OWNER_AGENT_WARNING),
             &grant.scopes,
             grant.expires_at_ms,
         )
@@ -1187,7 +1213,7 @@ mod tests {
             "agent-a",
             Some("Agent A"),
             r#"{"source":"test"}"#,
-            true,
+            AgentOwnershipAssumption::OwnedByGrantor,
             None,
             &grant.scopes,
             grant.expires_at_ms,
@@ -1195,6 +1221,72 @@ mod tests {
         .unwrap();
         assert_eq!(grant.consent_digest, disclosed_digest);
         assert_ne!(grant.consent_digest, owner_digest);
+
+        db.conn
+            .execute(
+                "UPDATE _auth_users SET owner_user_id = NULL WHERE id = 'agent-a'",
+                [],
+            )
+            .unwrap();
+        let unowned_pairing = db.mint_pairing_code("user-b", 1_103, &random).unwrap();
+        let PairingPresentation::Created(unowned_request) = db
+            .present_pairing_code(
+                &credential,
+                &unowned_pairing.request_id,
+                &unowned_pairing.secret,
+                &[GrantScopeRequest::Exact {
+                    function_id: "fn:read".to_owned(),
+                    kind: ScopedFunctionKind::Query,
+                }],
+                1_104,
+            )
+            .unwrap()
+        else {
+            panic!("unowned presentation must create");
+        };
+        assert_eq!(
+            unowned_request.owner_assumption,
+            AgentOwnershipAssumption::Unowned
+        );
+        assert_eq!(
+            unowned_request.owner_assumption_warning.as_deref(),
+            Some(UNOWNED_AGENT_WARNING)
+        );
+        let GrantApproval::Created(unowned_grant) = db
+            .approve_grant_request(
+                "user-b",
+                "session-b",
+                &unowned_pairing.request_id,
+                None,
+                false,
+                1_105,
+            )
+            .unwrap()
+        else {
+            panic!("unowned approval must create");
+        };
+        let unowned_digest = consent_digest(
+            "agent-a",
+            Some("Agent A"),
+            r#"{"source":"test"}"#,
+            AgentOwnershipAssumption::Unowned,
+            Some(UNOWNED_AGENT_WARNING),
+            &unowned_grant.scopes,
+            unowned_grant.expires_at_ms,
+        )
+        .unwrap();
+        let other_owner_digest = consent_digest(
+            "agent-a",
+            Some("Agent A"),
+            r#"{"source":"test"}"#,
+            AgentOwnershipAssumption::OwnedByAnotherUser,
+            Some(OTHER_OWNER_AGENT_WARNING),
+            &unowned_grant.scopes,
+            unowned_grant.expires_at_ms,
+        )
+        .unwrap();
+        assert_eq!(unowned_grant.consent_digest, unowned_digest);
+        assert_ne!(unowned_grant.consent_digest, other_owner_digest);
     }
 
     #[test]
