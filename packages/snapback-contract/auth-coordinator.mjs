@@ -648,6 +648,14 @@ export class AuthCoordinator {
   /** Establish a fresh store only from a successful anonymous handshake. */
   async establishAnonymous(authority) {
     this.#assertOperationAllowed();
+    if (this.#activeBarrier !== null || this.#record !== null) {
+      throw coordinatorError(
+        this.#publicationPaused
+          ? 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+          : 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'anonymous custody bootstrap cannot replace or reopen existing local custody',
+      );
+    }
     const normalized = normalizeClientAuthority(authority);
     if (normalized.kind !== 'anonymous') {
       throw coordinatorError(
@@ -656,26 +664,36 @@ export class AuthCoordinator {
       );
     }
     const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
-      let record = await owner.read();
-      if (record === null) {
-        record = await owner.replace(null, {
-          formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
-          appId: this.#appId,
-          authorityEpoch: 0,
-          revision: 1,
-          phase: 'settled',
-          authority: normalized,
-          pendingAuthority: null,
-          bearer: null,
-          pendingBearer: null,
-          refreshAfterMs: null,
-          transitionIntent: null,
-        });
-        this.#publish(record);
-      } else {
-        record = validateAuthCustody(record, this.#appId);
+      const existing = await owner.read();
+      if (existing !== null) {
+        // @ref LLP 0059#transition-barrier — establishAnonymous is creation,
+        // never an adoption/recovery shortcut that can reopen a paused gate.
+        validateAuthCustody(existing, this.#appId);
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'durable custody already exists; synchronize before using it',
+        );
       }
-      if (record.phase === 'clearing') return this.#recoverOwned(owner, record, 'bootstrap_recovery');
+      const record = await owner.replace(null, {
+        formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+        appId: this.#appId,
+        authorityEpoch: 0,
+        revision: 1,
+        phase: 'settled',
+        authority: normalized,
+        pendingAuthority: null,
+        bearer: null,
+        pendingBearer: null,
+        refreshAfterMs: null,
+        transitionIntent: null,
+      });
+      this.#publish(record);
+      if (this.#activeBarrier !== null || this.#record !== null) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+          'local custody changed while anonymous bootstrap was being created',
+        );
+      }
       this.#adoptSettled(record);
       return captureFor(this.#appId, record);
     });

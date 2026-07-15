@@ -1215,11 +1215,10 @@ export class SnapbackClient {
     cacheGeneration = this.__authSessionCacheGeneration,
   } = {}) {
     const coordinator = this.authCoordinator;
-    await coordinator.synchronize();
-    let capture = null;
-    try { capture = coordinator.capture(); } catch { /* fresh custody boot */ }
+    const synchronized = await coordinator.synchronize();
+    let capture = synchronized;
 
-    if (!capture) {
+    if (capture === null) {
       try {
         const session = await this.#fetchAuthSessionWithBearer(null);
         const authority = clientAuthorityFromHandshake(session);
@@ -1235,6 +1234,18 @@ export class SnapbackClient {
         throw error;
       }
     }
+
+    // A non-null synchronization result may be an exact confirmation returned
+    // inside a still-paused resume barrier. It authorizes neither bootstrap nor
+    // an ordinary cache publication; only the barrier's stagePublication hook
+    // may publish at the final locked confirmation.
+    if (!coordinator.isCurrent(capture)) {
+      if (retry) {
+        return this.#coordinatedAuthSession({ retry: false, cacheGeneration });
+      }
+      throw staleAuthorityError();
+    }
+    capture = coordinator.capture();
 
     const credential = coordinator.credentialFor(capture);
     try {

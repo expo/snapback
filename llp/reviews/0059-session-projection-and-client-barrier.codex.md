@@ -756,3 +756,37 @@ EVIDENCE
 - All focused commands passed: `node packages/snapback-contract/auth-coordinator.test.mjs`, `auth-coordinator-missed-wakeup.test.mjs`, `auth-custody-indexeddb.test.mjs`, `auth-coordinator-contract.test.mjs`, `node demos/_kit/tests/auth-coordinator-client.mjs`, and `client-errors.mjs`.
 - Other closure anchors inspected include durable clock/frontier handling at `src/storage/auth.rs:972-1015` and `src/auth/runtime.rs:1377-1545`; pre-bind receipts at `src/cli.rs:1752-1925`; lock ranks at `src/auth/session_projection.rs:38-96,2876-2881`; handshake fencing at `src/server.rs:17393-17469`; and terminal server delivery at `src/server.rs:24542-24618`.
 - Close-only client code exists at `demos/_kit/client.mjs:2318-2326,3910-3915`, while current terminal tests cover frames only at `demos/_kit/tests/client-errors.mjs:388-440`.
+
+## FINAL4 bootstrap-gate review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Session: `019f67a6-9ec0-7013-bcf6-4e095adebd4c`
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Human authorization: ENG-25001 FINAL4 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final4-codex-0059.md`
+
+### Verbatim review
+
+VERDICT: NOT READY
+
+MATERIAL
+
+During owner or peer resume, the real kit can reopen publication before final durable confirmation. A paused `capture()` throws ([auth-coordinator.mjs:609](...)), but `#coordinatedAuthSession` interprets that as fresh custody and calls `establishAnonymous` ([client.mjs:1218](...), [client.mjs:1229](...)). If durable custody already exists, `establishAnonymous` adopts it ([auth-coordinator.mjs:675](...)), and `#adoptSettled` clears `#publicationPaused` ([auth-coordinator.mjs:1680](...)) while the resume participant and final confirmation are still pending ([auth-coordinator.mjs:1332](...), [auth-coordinator.mjs:1575](...)). Ordinary `compareAndCommit` can then execute externally observable callbacks early.
+
+Resolution: refuse/bootstrap-stage `establishAnonymous` whenever a barrier is active or publication is paused; distinguish genuinely absent custody from paused custody in the kit. Add owner and peer real-kit tests proving concurrent `authSession()` cannot return/cache/expose or enable `compareAndCommit` until final confirmation, and remains blank on mismatch/failure.
+
+MINOR
+
+None.
+
+EVIDENCE
+
+Read-only owner-resume probe held `resume`, observed initial `compareAndCommit → {committed:false}`, called `establishAnonymous`, then observed pre-final `compareAndCommit → {committed:true,value:"EXPOSED_BEFORE_FINAL"}` and successful `capture()`.
+
+Executed successfully: `auth-coordinator.test.mjs`, `auth-custody-indexeddb.test.mjs`, `auth-coordinator-client.mjs`, and `auth-handshake.mjs` (16/16). Existing staging tests cover intended ordering/failure behavior ([auth-coordinator.test.mjs:412](...), [auth-coordinator.test.mjs:963](...), [auth-coordinator.test.mjs:1043](...)) but not this re-entry path.

@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (FINAL3 publication closure: pauses ordinary
+**Revised:** 2026-07-15 (FINAL4 bootstrap-gate closure: makes anonymous
+establishment creation-only, uses a durable-null synchronization result as the
+sole kit bootstrap witness, refuses paused exact captures before handshake or
+cache work, and proves real owner/peer success plus mismatch/read-failure cache
+discard without reopening publication). 2026-07-15 (FINAL3 publication closure: pauses ordinary
 `compareAndCommit` callbacks throughout owner/peer resume; stages exact
 capture-bound resume effects and flushes them, in order, only inside the final
 locked durable confirmation; discards them on mismatch, clearing/null, read or
@@ -1590,6 +1594,14 @@ Pending/unavailable mode remains blank. Missing/invalid custody, a rejected
 session, an auth-mode change, or an incarnation mismatch runs the corresponding
 transition barrier. A fresh store establishes anonymous custody only from the
 server's current handshake; it does not invent an incarnation offline.
+`establishAnonymous` is creation-only: it succeeds only when the locked durable
+read is null and never adopts or recovers an existing settled/clearing record.
+An existing local record or active barrier refuses bootstrap without changing
+the paused gate. The coordinated kit treats only `synchronize() === null` as a
+fresh-custody witness. A non-null exact capture returned by `synchronize()`
+during resume is still paused and therefore cannot be relabeled as missing
+custody, start anonymous bootstrap, issue a normal handshake, or publish/cache
+through ordinary `compareAndCommit`.
 
 Every successful fresh coordinated handshake path — initial anonymous
 establishment, same-authority refresh, authority transition, and participant
@@ -2064,6 +2076,14 @@ wall-clock sleeps are not proof of ordering.
     mismatched/unconfirmed work never runs, later queued work is discarded, and
     the local gate remains blank. The real kit transport handshake cache uses
     this staging path rather than publishing from resume.
+11. Hold real kit owner and peer resume before final confirmation, then invoke
+    a concurrent ordinary `authSession`. It recognizes the paused exact capture,
+    performs no bootstrap/handshake/cache publication, and cannot enable a
+    `compareAndCommit` callback. On success, only the staged transport handshake
+    becomes cached after final confirmation. Advance custody after staging in
+    the owner cut and fail final ownership acquisition in the peer cut: both
+    remain blank, discard the staged cache, and a later clean synchronization
+    fetches only the actual durable successor.
 
 The landed coordinator suites now prove ordered participant phases,
 clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
@@ -2098,6 +2118,10 @@ and failed final confirmation, callback failure/non-reentrancy cleanup, and the
 real kit resume-handshake cache path. Raw and managed live-stream suites inject
 a close-only `4401/auth_error`, assert the terminal latch and exact
 `compareAndClear`, and prove that neither path constructs a reconnect socket.
+FINAL4 adds real-kit concurrent `authSession` cuts for owner and peer success,
+owner mismatch, and peer final-read failure, plus direct creation-only
+bootstrap regressions; these prove a paused exact result is never confused with
+genuinely absent custody.
 
 ### Client store and Contract boundaries
 

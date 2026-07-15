@@ -344,6 +344,28 @@ assert.deepEqual(anonymousCapture, {
   authorityKey: canonicalAuthorityKey(APP, anonymous()),
 });
 
+// A context with no local record cannot use anonymous bootstrap to adopt
+// durable custody that another context already created. Synchronization is the
+// only adoption/recovery path and keeps paused-vs-absent semantics explicit.
+{
+  const duplicate = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: shared }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  assert.equal(
+    await errorCode(() => duplicate.establishAnonymous(anonymous())),
+    'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.equal(
+    await errorCode(() => Promise.resolve(duplicate.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  assert.deepEqual(await duplicate.synchronize(), anonymousCapture);
+  await duplicate.close();
+}
+
 // Broadcast bytes are a closed, secret-free wakeup protocol. A valid-looking
 // clearing message with any extra field cannot synchronously pause publication.
 for (const channels of hub.channels.values()) {
@@ -438,6 +460,11 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
         await reentrant.compareAndCommit(context.capture, () => publicationOrder.push('must-not-run')),
         { committed: false },
       );
+      assert.equal(
+        await errorCode(() => reentrant.establishAnonymous(anonymous())),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'owner resume cannot misuse anonymous bootstrap to reopen publication',
+      );
       context.stagePublication(context.capture, () => {
         publicationOrder.push('staged-publication');
         assert.equal(reentrant.isCurrent(context.capture), false, 'barrier opens only after staged flush');
@@ -488,6 +515,11 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     async resume(context) {
       resumeCalls += 1;
       publicationOrder.push('resume-enter');
+      assert.equal(
+        await errorCode(() => peer.establishAnonymous(anonymous())),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'peer resume cannot misuse anonymous bootstrap to reopen publication',
+      );
       context.stagePublication(context.capture, () => publicationOrder.push('staged-publication'));
       assert.equal(resumeCalls, 1, 'peer successor reload must not recurse into resume');
       assert.deepEqual(await peer.synchronize(), context.capture);

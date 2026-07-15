@@ -263,3 +263,34 @@ EVIDENCE:
 - Executed at HEAD: `node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-coordinator-contract.test.mjs` — all pass ("all assertions passed"); all are wired into `packages/snapback-contract/package.json` `test`.
 - FINAL3 scope: `bd7d1da` adds `HostedAdmission` as schema authority only under LLP 0060 (`src/auth/deployment.rs`: "no current target owns the authenticated producer"), consistent with LLP 0059 not enabling hosted sessions; kit changes tighten credential-response redaction (`demos/_kit/tests/auth-coordinator-client.mjs`). `2fc3593` implements the spec's restore frontier "not limited to session creation time" via `restored_auth_timestamp_frontier_on` with unit tests asserting non-creation maxima (`src/storage/auth.rs`); Rust-side evidence verified statically, not executed.
 - Spec Status remains author-owned Draft (`llp/0059-session-projection-and-client-barrier.spec.md:2154`); no status change proposed.
+
+## FINAL4 bootstrap-gate review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: external Fable review artifact; exact CLI version was not emitted with this artifact
+- Model: `claude-fable-5`
+- Method: read-only blind targeted implementation review
+- Session: unavailable (ephemeral reviewer did not emit a session identifier)
+- Reviewed commit: `b0448e1d0daae84e207479065111323062548393`
+- Human authorization: ENG-25001 FINAL4 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final4-fable-0059.md`
+
+### Verbatim review
+
+VERDICT
+READY. The staged final-confirm closure from 99d32ad, unchanged at HEAD, implements the spec's resume rules: settled successor authority is adopted unexposed (`#adoptSettled(..., {expose:false})`, `#publicationPaused` held from the clearing write through the final locked confirmation), and exposure opens only after `#confirmDurableExact` flushes staged callbacks under re-acquired ownership (`auth-coordinator.mjs:1332-1337` owner; `:1575-1580` peer, with a pre-participant confirmation at `:1240`).
+
+MATERIAL
+None found in the focus area. Verified: `compareAndCommit` refuses at three cuts while paused — before ownership, after the fenced read, and inside the lease-fenced commit (`:854-897`) — satisfying "even if durable custody already contains the exact successor." `stagePublication` accepts only the exact active resume barrier's revision-compared capture (`:1442-1460`); flush revalidates every staged capture against the final durable read (`captureMatches` requires settled, so clearing/null fail), runs synchronously and non-reentrantly (`#inCommit`) in enqueue order, under `owner.fencePublication` when lease-fenced. Changed custody, failed read, or callback failure discards unrun callbacks, reblanks participants, and leaves the gate paused (`:1339-1347`, `:1581-1585`); adoption only via a later clean synchronize. Leak channels are closed: `capture()` throws CLEARING and `isCurrent` is false while paused; `synchronize()` during resume is exact-compare-only (`:688-713`); delivery-after-settle requires exact-and-unpaused (`:1290-1314`); the kit stages its resume handshake cache (`client.mjs:1303`) and fences even its cached `authSession` return through `compareAndCommit` (`:1000-1005`); Contract resume defers refresh work whose effects route through `compareAndCommit`; a same-authority rotation from inside resume cannot reopen exposure; quiesce aborts requests/streams, and close-only `4401/auth_error` latches without reconnect.
+
+MINOR
+- The staged-flush composition under the fallback lease `fencePublication` is not directly tested; coordinator staged tests use memory storage without a fence (lease fencing is proven only at the storage/`compareAndCommit` level).
+- A participant-initiated non-idempotent transition from inside its own resume replaces `#activeBarrier` (`:1184`) mid-resume; traced outcomes remain fail-closed, but completion bookkeeping resolves early. The spec defines only the idempotent case.
+- `#flushStagedPublications`' `barrier !== this.#activeBarrier` guard is tautological at both call sites (argument read from that same field at call time); the phase/pause checks carry the load.
+- Kit no-reconnect negatives rest on short bounded sleeps — smoke-grade under the spec's own wall-clock caveat.
+
+EVIDENCE
+Deterministic owner and peer cuts at HEAD: ordering `['resume-enter','resume-exit','staged-publication']` with refused `must-not-run` `compareAndCommit` and `isCurrent` false during flush (`auth-coordinator.test.mjs:424-509`); resume-race discard, `stagedPublications === 0` (`:528-620`); injected final-read failure in both modes with later clean adoption (`:963-1042`); staged callback failure/reentrancy — `['first']`, `clearMemory` twice, CLEARING (`:1045-1078`); same-authority write during resume aborts closed (`:1136-1176`). Staged-client cuts: kit cache published only at final confirmation (`auth-coordinator-client.mjs:472-478`); raw and managed close-only terminal latch, exact `compareAndClear`, no replacement socket (`client-errors.mjs:473-530`).

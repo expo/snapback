@@ -894,4 +894,267 @@ try {
   await coordinator.close();
 }
 
+// FINAL4: an ordinary coordinated authSession racing either owner resume or
+// peer adoption observes a paused exact capture, not "missing custody". It
+// must reject without issuing a bootstrap handshake, publishing a cache, or
+// enabling compareAndCommit; the transport's staged handshake becomes cached
+// only after the final exact confirmation.
+for (const mode of ['owner', 'peer']) {
+  const state = { custody: {} };
+  const subject = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const writer = mode === 'peer'
+    ? new AuthCoordinator({
+      appId: APP,
+      storage: createMemoryAuthCustodyStorage({ state }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    })
+    : subject;
+  const before = await writer.establishAnonymous(anonymous);
+  if (writer !== subject) await subject.synchronize();
+  const client = new SnapbackClient('http://stub', { authCoordinator: subject });
+  let handshakeCalls = 0;
+  let enterResume;
+  let releaseResume;
+  const resumeEntered = new Promise((resolve) => { enterResume = resolve; });
+  const resumeGate = new Promise((resolve) => { releaseResume = resolve; });
+  const unregisterHold = subject.registerParticipant({
+    name: `final4-real-kit-hold-${mode}`,
+    async resume() {
+      enterResume();
+      await resumeGate;
+    },
+  });
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(pathOf(url), '/auth/session');
+    assert.equal(authorization(init), `Bearer ${BEARER_A}`);
+    handshakeCalls += 1;
+    return response(handshake(sessionA));
+  };
+  try {
+    let barrier;
+    if (mode === 'owner') {
+      barrier = subject.transition(before, {
+        authority: sessionA,
+        bearer: BEARER_A,
+        refreshAfterMs: 20_000,
+      }, 'final4_owner_concurrent_auth_session');
+    } else {
+      const settled = await writer.transition(before, {
+        authority: sessionA,
+        bearer: BEARER_A,
+        refreshAfterMs: 20_000,
+      }, 'final4_peer_concurrent_auth_session');
+      assert.equal(settled.authorityEpoch, 1);
+      barrier = subject.synchronize();
+    }
+    await resumeEntered;
+    let earlyPublication = 0;
+    const pausedCapture = await subject.synchronize();
+    assert.deepEqual(
+      await subject.compareAndCommit(pausedCapture, () => { earlyPublication += 1; }),
+      { committed: false },
+    );
+    await assert.rejects(
+      client.authSession({ force: true }),
+      (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+    );
+    assert.equal(handshakeCalls, 0, `${mode}: paused authSession performs no handshake`);
+    assert.equal(earlyPublication, 0, `${mode}: paused compareAndCommit callback did not run`);
+    assert.throws(
+      () => subject.capture(),
+      { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+    );
+    releaseResume();
+    await barrier;
+    assert.equal(handshakeCalls, 1, `${mode}: transport resume performs one staged handshake`);
+    const cached = await client.authSession();
+    assert.equal(cached.authority.sessionId, SESSION_A);
+    assert.equal(handshakeCalls, 1, `${mode}: cache is exposed only after final confirmation`);
+  } finally {
+    globalThis.fetch = originalFetch;
+    releaseResume?.();
+    await unregisterHold();
+    await client.closeAuth();
+    if (writer !== subject) await writer.close();
+    await subject.close();
+  }
+}
+
+// A real kit transport may finish and stage its handshake before a later
+// participant makes the owner's final exact confirmation stale. The staged
+// cache is discarded, every surface stays blank, and a later clean adoption
+// must fetch the actual peer successor instead of returning the staged value.
+{
+  const state = { custody: {} };
+  const subject = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await subject.establishAnonymous(anonymous);
+  await peer.synchronize();
+  let client;
+  let concurrentAuthError = null;
+  let compareCallbackCalls = 0;
+  const unregisterDisrupt = subject.registerParticipant({
+    name: 'final4-owner-real-kit-mismatch',
+    async resume(context) {
+      try {
+        await client.authSession({ force: true });
+      } catch (error) {
+        concurrentAuthError = error;
+      }
+      assert.deepEqual(
+        await subject.compareAndCommit(context.capture, () => { compareCallbackCalls += 1; }),
+        { committed: false },
+      );
+      const current = await peer.synchronize();
+      await peer.transition(current, {
+        authority: sessionB,
+        bearer: BEARER_B,
+        refreshAfterMs: 30_000,
+      }, 'final4_owner_real_kit_mismatch');
+    },
+  });
+  client = new SnapbackClient('http://stub', { authCoordinator: subject });
+  const handshakeBearers = [];
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(pathOf(url), '/auth/session');
+    const bearer = authorization(init)?.replace(/^Bearer /, '') ?? null;
+    handshakeBearers.push(bearer);
+    return response(handshake(bearer === BEARER_B ? sessionB : sessionA));
+  };
+  try {
+    await assert.rejects(
+      subject.transition(before, {
+        authority: sessionA,
+        bearer: BEARER_A,
+        refreshAfterMs: 20_000,
+      }, 'final4_owner_real_kit_stage'),
+      (error) => error?.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+    );
+    assert.equal(concurrentAuthError?.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+    assert.equal(compareCallbackCalls, 0);
+    assert.deepEqual(handshakeBearers, [BEARER_A]);
+    assert.throws(() => subject.capture(), { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' });
+    await unregisterDisrupt();
+    const recovered = await client.authSession();
+    assert.equal(recovered.authority.sessionId, SESSION_B);
+    assert.equal(handshakeBearers[0], BEARER_A);
+    assert(
+      handshakeBearers.slice(1).length > 0
+        && handshakeBearers.slice(1).every((bearer) => bearer === BEARER_B),
+      'owner mismatch discarded staged A; clean recovery fetched only durable B',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    await unregisterDisrupt();
+    await client.closeAuth();
+    await peer.close();
+    await subject.close();
+  }
+}
+
+// The corresponding peer-adoption cut fails the final ownership acquisition
+// after the real transport staged its handshake. Failure cleanup must discard
+// that cache, remain blank, and force a fresh handshake on clean recovery.
+{
+  const state = { custody: {} };
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let failNextOwnership = false;
+  const subjectStorage = {
+    ...baseStorage,
+    async withOwnership(appId, operation) {
+      if (failNextOwnership) {
+        failNextOwnership = false;
+        throw Object.assign(new Error('FINAL4 peer final confirmation failed'), {
+          code: 'TEST_FINAL4_PEER_CONFIRM_FAILED',
+        });
+      }
+      return baseStorage.withOwnership(appId, operation);
+    },
+  };
+  const writer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const subject = new AuthCoordinator({
+    appId: APP,
+    storage: subjectStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await writer.establishAnonymous(anonymous);
+  await subject.synchronize();
+  let client;
+  let concurrentAuthError = null;
+  let compareCallbackCalls = 0;
+  const unregisterFailure = subject.registerParticipant({
+    name: 'final4-peer-real-kit-final-read-failure',
+    async resume(context) {
+      try {
+        await client.authSession({ force: true });
+      } catch (error) {
+        concurrentAuthError = error;
+      }
+      assert.deepEqual(
+        await subject.compareAndCommit(context.capture, () => { compareCallbackCalls += 1; }),
+        { committed: false },
+      );
+      failNextOwnership = true;
+    },
+  });
+  client = new SnapbackClient('http://stub', { authCoordinator: subject });
+  let handshakeCalls = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(pathOf(url), '/auth/session');
+    assert.equal(authorization(init), `Bearer ${BEARER_A}`);
+    handshakeCalls += 1;
+    return response(handshake(sessionA));
+  };
+  try {
+    await writer.transition(before, {
+      authority: sessionA,
+      bearer: BEARER_A,
+      refreshAfterMs: 20_000,
+    }, 'final4_peer_real_kit_stage');
+    await assert.rejects(
+      subject.synchronize(),
+      (error) => error?.code === 'TEST_FINAL4_PEER_CONFIRM_FAILED',
+    );
+    assert.equal(concurrentAuthError?.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+    assert.equal(compareCallbackCalls, 0);
+    assert.equal(handshakeCalls, 1);
+    assert.throws(() => subject.capture(), { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' });
+    await unregisterFailure();
+    const recovered = await client.authSession();
+    assert.equal(recovered.authority.sessionId, SESSION_A);
+    assert(
+      handshakeCalls >= 2,
+      'peer final-confirm failure discarded the staged cache and fetched again',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    await unregisterFailure();
+    await client.closeAuth();
+    await subject.close();
+    await writer.close();
+  }
+}
+
 console.log('coordinated SnapbackClient auth races: ok');
