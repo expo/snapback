@@ -49,6 +49,55 @@ pub enum AuthProviderHealth {
     Unavailable,
 }
 
+/// A linear construction plan for the real process-local expiry authority.
+/// Production consumes this same value to spawn the worker whose provider is
+/// bound here; it is not a freely minted readiness flag.
+pub(crate) struct TwoPhaseRevocationConstructionReceipt {
+    provider: Arc<AuthProvider>,
+}
+
+/// A construction plan bound to one inspected runtime/provider. Production
+/// uses it for the actual durable projection rebuild before listener bind.
+pub(crate) struct AuthCoordinatorConstructionReceipt {
+    provider: Arc<AuthProvider>,
+    _canonical_client_module: &'static [u8],
+}
+
+pub(crate) struct AuthCoordinatorInstalledReceipt {
+    _private: (),
+}
+
+impl TwoPhaseRevocationConstructionReceipt {
+    pub(crate) async fn spawn(
+        self,
+        state: SharedSnapback,
+        coordinator: Arc<AuthCoordinator>,
+        terminal_sink: AuthExpiryTerminalSink,
+    ) -> SnapbackResult<AuthExpiryWorker> {
+        spawn_auth_expiry_worker(state, coordinator, self.provider, terminal_sink).await
+    }
+}
+
+impl AuthCoordinatorConstructionReceipt {
+    pub(crate) fn build(
+        self,
+        runtime: &AuthRuntime,
+        snapback: &mut LocalSnapback,
+    ) -> SnapbackResult<(Arc<AuthCoordinator>, AuthCoordinatorInstalledReceipt)> {
+        if !Arc::ptr_eq(&self.provider, &runtime.provider) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "auth coordinator construction plan does not match the inspected runtime",
+            ));
+        }
+        Ok((
+            runtime.build_coordinator(snapback)?,
+            AuthCoordinatorInstalledReceipt { _private: () },
+        ))
+    }
+}
+
 /// Infallible, clone-shared bridge from projection expiry to server terminal
 /// propagation. Expiry has already become authoritative when this callback
 /// runs, so making the callback fallible would create an unretryable state in
@@ -169,6 +218,28 @@ impl AuthRuntime {
 
     pub(crate) fn provider(&self) -> Arc<AuthProvider> {
         self.provider.clone()
+    }
+
+    pub(crate) fn two_phase_revocation_construction_receipt(
+        &self,
+    ) -> TwoPhaseRevocationConstructionReceipt {
+        TwoPhaseRevocationConstructionReceipt {
+            provider: self.provider(),
+        }
+    }
+
+    pub(crate) fn auth_coordinator_construction_receipt(
+        &self,
+    ) -> AuthCoordinatorConstructionReceipt {
+        AuthCoordinatorConstructionReceipt {
+            provider: self.provider(),
+            // Bundle the canonical custody implementation without treating
+            // source spelling as a readiness probe. Client protocol 1 still
+            // requires its actual coordinator and mandatory kit participant.
+            _canonical_client_module: include_bytes!(
+                "../../packages/snapback-contract/auth-coordinator.mjs"
+            ),
+        }
     }
 
     /// Reserve and authenticate the process issuer before listener bind. The
@@ -357,24 +428,39 @@ async fn terminalize_due_sessions(
     coordinator: &Arc<AuthCoordinator>,
     terminal_sink: &AuthExpiryTerminalSink,
 ) -> ProviderResult<()> {
+    terminalize_due_sessions_after_sample(state, provider, coordinator, terminal_sink, || {}).await
+}
+
+async fn terminalize_due_sessions_after_sample<F>(
+    state: &SharedSnapback,
+    provider: &Arc<AuthProvider>,
+    coordinator: &Arc<AuthCoordinator>,
+    terminal_sink: &AuthExpiryTerminalSink,
+    after_sample: F,
+) -> ProviderResult<()>
+where
+    F: FnOnce(),
+{
     let sampled_epoch = provider.now_ms();
     let sampled_monotonic = provider.monotonic_now();
-    let Some(frontier) = coordinator
-        .due_expiry_frontier(sampled_epoch, sampled_monotonic)
+    let Some(batch) = coordinator
+        .sample_due_expiries(sampled_epoch, sampled_monotonic)
         .map_err(ProviderError::from)?
     else {
         return Ok(());
     };
+    after_sample();
+    let durable_frontier_ms = batch.durable_frontier_ms();
     let durable_frontier = crate::server::with_snapback(state, move |snapback| {
         snapback
             .auth_database_mut()
-            .advance_auth_session_clock_floor(frontier.max(sampled_epoch))
+            .advance_auth_session_clock_floor(durable_frontier_ms)
     })
     .await
     .map_err(ProviderError::from)?;
     provider.seed_session_clock_floor(durable_frontier);
     let expired = coordinator
-        .expire_due(provider.now_ms(), provider.monotonic_now())
+        .expire_sampled_due(batch)
         .map_err(ProviderError::from)?;
     terminal_sink.consume(expired);
     Ok(())
@@ -1345,6 +1431,88 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_SESSION_EXPIRED"
         );
+    }
+
+    /// A second session may become due while the sampled batch waits for the
+    /// storage mutex. Only the first sampled deadline is covered by the
+    /// committed frontier, so the later session must remain outside this
+    /// terminal publication and survive a rolled-back restart.
+    #[tokio::test]
+    async fn expiry_terminalizes_only_the_sampled_set_before_storage_await() {
+        let mut snapback = activated_memory_snapback();
+        let first = insert_lifetime_session(&mut snapback, 200, 300);
+        let second = insert_lifetime_session(&mut snapback, 400, 500);
+        let clock = Arc::new(RuntimeDualClock::new(100));
+        let (runtime, provider) = ready_runtime_with_clock(clock.clone());
+        let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
+        let state = Arc::new(Mutex::new(snapback));
+        clock.set(201, 101);
+
+        let storage_guard = state.clone().lock_owned().await;
+        let (sampled_tx, sampled_rx) = oneshot::channel();
+        let terminalized = Arc::new(StdMutex::new(Vec::new()));
+        let observed = Arc::clone(&terminalized);
+        let task_state = Arc::clone(&state);
+        let task_provider = Arc::clone(&provider);
+        let task_coordinator = Arc::clone(&coordinator);
+        let task = tokio::spawn(async move {
+            terminalize_due_sessions_after_sample(
+                &task_state,
+                &task_provider,
+                &task_coordinator,
+                &AuthExpiryTerminalSink::new(move |expired| {
+                    observed.lock().unwrap().extend(expired);
+                }),
+                move || sampled_tx.send(()).expect("signal exact sampled cut"),
+            )
+            .await
+        });
+        sampled_rx
+            .await
+            .expect("expiry pass sampled before storage await");
+        clock.set(401, 301);
+        drop(storage_guard);
+        task.await.unwrap().unwrap();
+        assert_eq!(
+            terminalized.lock().unwrap().len(),
+            1,
+            "time advanced during storage await cannot enlarge the sampled due set",
+        );
+
+        let mut snapback = Arc::try_unwrap(state)
+            .ok()
+            .expect("the test retains a single state owner")
+            .into_inner();
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .auth_session_clock_floor()
+                .unwrap(),
+            201,
+            "only the sampled first-session frontier was persisted",
+        );
+        let (restart, restart_provider) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(201)));
+        let rebuilt = restart.build_coordinator(&mut snapback).unwrap();
+        assert_eq!(
+            rebuilt
+                .resolve_required_bearer(
+                    &first,
+                    restart_provider.now_ms(),
+                    restart_provider.monotonic_now(),
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+        );
+        rebuilt
+            .resolve_required_bearer(
+                &second,
+                restart_provider.now_ms(),
+                restart_provider.monotonic_now(),
+            )
+            .expect("unsampled second session remains live after rollback restart");
     }
 
     /// Ordinary forward time across restart still expires a slid session and

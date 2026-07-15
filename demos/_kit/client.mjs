@@ -1114,6 +1114,14 @@ export class SnapbackClient {
     return session;
   }
 
+  async #commitAuthSession(session, capture, cacheGeneration = this.__authSessionCacheGeneration) {
+    const committed = await this.authCoordinator.compareAndCommit(capture, () => (
+      this.#cacheAuthSession(session, capture, cacheGeneration)
+    ));
+    if (!committed.committed) throw staleAuthorityError();
+    return committed.value;
+  }
+
   async currentAuthorityDescriptor() {
     const session = await this.authSession();
     return requireAuthorityDescriptor(session?.authorityDescriptor);
@@ -1166,13 +1174,20 @@ export class SnapbackClient {
     try { capture = coordinator.capture(); } catch { /* fresh custody boot */ }
 
     if (!capture) {
-      const session = await this.#fetchAuthSessionWithBearer(null);
-      const authority = clientAuthorityFromHandshake(session);
-      if (authority.kind !== 'anonymous') {
-        throw staleAuthorityError();
+      try {
+        const session = await this.#fetchAuthSessionWithBearer(null);
+        const authority = clientAuthorityFromHandshake(session);
+        if (authority.kind !== 'anonymous') {
+          throw staleAuthorityError();
+        }
+        capture = await coordinator.establishAnonymous(authority);
+        return await this.#commitAuthSession(session, capture, cacheGeneration);
+      } catch (error) {
+        if (error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE' && retry) {
+          return this.#coordinatedAuthSession({ retry: false, cacheGeneration });
+        }
+        throw error;
       }
-      capture = await coordinator.establishAnonymous(authority);
-      return this.#cacheAuthSession(session, capture, cacheGeneration);
     }
 
     const credential = coordinator.credentialFor(capture);
@@ -1195,7 +1210,7 @@ export class SnapbackClient {
           refreshAfterMs: observed.kind === 'session' ? credential.refreshAfterMs : null,
         }, 'handshake_authority_change');
       }
-      return this.#cacheAuthSession(session, capture, cacheGeneration);
+      return await this.#commitAuthSession(session, capture, cacheGeneration);
     } catch (error) {
       if (
         this.__authSessionCacheGeneration === cacheGeneration
@@ -1204,7 +1219,10 @@ export class SnapbackClient {
         this.__authSessionLastSuccessful = null;
         this.__authSessionCapture = null;
       }
-      if (!coordinator.isCurrent(capture) && retry) {
+      if (
+        (error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE' || !coordinator.isCurrent(capture))
+        && retry
+      ) {
         return this.#coordinatedAuthSession({
           retry: false,
           cacheGeneration,
@@ -1229,7 +1247,7 @@ export class SnapbackClient {
       };
       throw error;
     }
-    this.#cacheAuthSession(session, capture);
+    await this.#commitAuthSession(session, capture);
   }
 
   #validateCredentialResponse(response, forbiddenSecrets = []) {

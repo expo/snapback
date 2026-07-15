@@ -7,7 +7,7 @@ import {
 import { SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 15 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 16 });
 const originalFetch = globalThis.fetch;
 const APP_ID = 'snapback.test/auth-handshake';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
@@ -531,6 +531,94 @@ try {
       assertEqual(error.diagnostic.code, 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
     }
     return { rejectedFacts: 3 };
+  });
+
+  await suite.check('a delayed custody broadcast cannot publish a stale fresh handshake', async () => {
+    const state = { custody: {} };
+    const queuedBroadcasts = [];
+    const channels = new Set();
+    const broadcastChannelFactory = () => {
+      const channel = {
+        onmessage: null,
+        postMessage(message) {
+          queuedBroadcasts.push({ source: channel, message: structuredClone(message) });
+        },
+        close() { channels.delete(channel); },
+      };
+      channels.add(channel);
+      return channel;
+    };
+    const storage = createMemoryAuthCustodyStorage({ state });
+    const coordinatorA = new AuthCoordinator({
+      appId: APP_ID,
+      storage,
+      broadcastChannelFactory,
+      hintStorage: null,
+    });
+    const coordinatorB = new AuthCoordinator({
+      appId: APP_ID,
+      storage: createMemoryAuthCustodyStorage({ state }),
+      broadcastChannelFactory,
+      hintStorage: null,
+    });
+    const captureA = await coordinatorA.establishAnonymous({
+      kind: 'anonymous',
+      authMode: 'dev',
+      authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+    });
+    await coordinatorB.synchronize();
+    const captureB = coordinatorB.capture();
+    assertEqual(captureB.authorityKey, captureA.authorityKey);
+    const db = new SnapbackClient('http://stub', { authCoordinator: coordinatorA });
+
+    let releaseStale;
+    let staleRequestEntered;
+    const staleEntered = new Promise((resolve) => { staleRequestEntered = resolve; });
+    const staleRelease = new Promise((resolve) => { releaseStale = resolve; });
+    let calls = 0;
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      calls += 1;
+      if (calls === 1) {
+        staleRequestEntered();
+        await staleRelease;
+        return response(handshake({ nonce: 'stale-anonymous-response' }));
+      }
+      return response(handshake({ activeMode: 'sessions', nonce: `fresh-session-${calls}` }));
+    };
+
+    const pending = db.authSession({ force: true });
+    await staleEntered;
+    await coordinatorB.transition(captureB, {
+      authority: {
+        kind: 'session',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+        sessionId: SESSION_ID,
+        userId: USER_ID,
+      },
+      bearer: 'session-successor',
+      refreshAfterMs: 60_000,
+    }, 'delayed_broadcast_race');
+    assert(queuedBroadcasts.length > 0, 'successor wakeups remain delayed');
+    releaseStale();
+    const projected = await pending;
+    assertEqual(projected.authority.isAuthenticated, true);
+    assert(
+      projected.serverStartupNonce.startsWith('fresh-session-'),
+      'the stale anonymous response never escaped the durable final fence',
+    );
+    const cached = await db.authSession();
+    assertEqual(cached.authority.isAuthenticated, true);
+    assert(
+      cached.serverStartupNonce.startsWith('fresh-session-'),
+      'the durable cache also excludes the stale anonymous response',
+    );
+    assert(calls >= 2, 'stale final comparison forced a successor handshake');
+    await db.closeAuth();
+    await coordinatorB.close();
+    await coordinatorA.close();
+    return { delayedWakeups: queuedBroadcasts.length, requests: calls };
   });
 } finally {
   globalThis.fetch = originalFetch;

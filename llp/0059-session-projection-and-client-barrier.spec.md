@@ -8,17 +8,17 @@
 **Revised:** 2026-07-15 (ENG-25001 defect resolution: durable terminal
 frontiers and monotonic restore; coordinator-only protocol 1; custody format 2
 transition intent with embedded-authority validation; ownership release before
-resume/network; close-only 4401
-terminal latch; deployment identity and UUIDv7 boundary; counted prepared
-handshake authority and durable cache fence; executable readiness probes;
-LLP 0008 Web-Lock one-key reconciliation; and dev/test lock-rank assertions).
+resume/network; terminal `auth_error` frame or `4401/auth_error` close latch;
+deployment identity and UUIDv7 boundary; counted prepared
+handshake authority and durable cache fence; typed construction receipts;
+LLP 0008 per-storage-key Web-Lock one-key reconciliation; and dev/test lock-rank assertions).
 2026-07-14 (round-2 dual-family revision, /llp-super-refine:
 reconciled the LLP 0057/0059 commit-ambiguity contradiction from the 0057 side
 (exact-durable-successor reconciliation is now the single owning rule); restated
 the **lock-rank assertions as a named defect obligation** (shipped locks are raw
 mutexes — no landed rank facility) and removed the landed-evidence overclaim;
 flagged the **localStorage segmented-namespace protocol as a genuine conflict
-with governing LLP 0008's ratified Web-Lock one-key design**, requiring
+with governing LLP 0008's landed one-key protocol**, requiring
 reconciliation not a unilateral override; scoped the grant-mint "indistinguishable"
 sentence so it no longer contradicts LLP 0057's `AUTH_REQUIRED` vs
 `SESSION_EXPIRED`; cross-referenced the durable-restore clock-floor fix and named
@@ -28,7 +28,7 @@ transition intent, phase-8 ownership release, close-code terminal latch,
 handshake app-identity/UUIDv7, final-fence handshake capture, readiness probes)
 as named defect obligations. Full triage in §Open decisions and status.)
 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0059-session-projection-and-client-barrier.codex.md` and applied its editorial correction to the public credential-classification prose; material findings remain for author triage). 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
-**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058
+**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060
 
 ## Summary
 
@@ -369,12 +369,20 @@ maximum epoch the process has ever committed. The rule is:
   reclamation write, so forward progress made while serving survives a later
   restart up to the maintenance cadence.
 - Before publishing any time-derived terminal event, the expiry authority
-  durably advances the floor to the maximum epoch deadline of every due
-  generation. This applies when monotonic time proves expiry while the wall
-  sample moved backward and closes the crash window before the next GC pass.
+  samples one immutable set of due `(sessionId, generation, deadline)` tuples
+  and durably advances the floor to the maximum of that complete set's epoch
+  deadlines and the sampled epoch. After the storage await it terminalizes
+  only those sampled predecessors whose generation, state, and deadline still
+  match. Clock movement during the await cannot add a newly due session to the
+  publication; that session waits for the next pass, whose own complete
+  frontier is persisted first. This also applies when monotonic time proves
+  expiry while the wall sample moved backward and closes the crash window
+  before the next GC pass.
 - A declared restore computes its destructive timestamp as the maximum of the
-  host sample, restored durable floor, and restored session creation frontier,
-  then advances the floor in the same transaction before writing revocations.
+  host sample, restored durable floor, and the relevant restored catalog
+  timestamp maxima, then advances the floor in the same transaction before
+  writing revocations. This is the LLP 0057 restore frontier; it is not limited
+  to session creation time.
 
 Consequently, once either authoritative deadline terminalizes a session
 generation at some epoch `E` the process has committed to the floor, no ordinary
@@ -1515,6 +1523,14 @@ session, an auth-mode change, or an incarnation mismatch runs the corresponding
 transition barrier. A fresh store establishes anonymous custody only from the
 server's current handshake; it does not invent an incarnation offline.
 
+Every successful fresh coordinated handshake path — initial anonymous
+establishment, same-authority refresh, authority transition, and participant
+resume — reacquires durable custody with `compareAndCommit` immediately before
+placing the response in the cache or returning it. The cache write occurs in
+the synchronous fenced commit. An in-memory `isCurrent` hint or a missed or
+delayed broadcast cannot substitute for this final durable comparison; a stale
+response is discarded and may be retried once against the adopted successor.
+
 ## Durable client store protocol
 
 ### Format 3 and authority tags
@@ -1562,8 +1578,8 @@ record. Item 5's `queuedReplay:false` forbids every automatic send.
 Transactional IndexedDB/SQLite adapters publish their current namespace pointer
 with the same expected-epoch CAS as collection changes.
 
-The localStorage adapter adopts governing LLP 0008's ratified one-key
-load/modify/save protocol under the canonical per-app Web Lock. It performs no
+The localStorage adapter adopts governing LLP 0008's landed one-key
+load/modify/save protocol under the canonical per-storage-key Web Lock. It performs no
 read-then-`setItem` CAS outside that lock and keeps no independently mutable
 current pointer. Each operation reloads the one record under ownership and
 compares its expected authority epoch/key before replacement. A delayed
@@ -1720,7 +1736,8 @@ surface-specific protocol offers.
 ### Readiness facts
 
 Item 5 changes exactly these LLP 0058 runtime facts from false to true when and
-only when their named implementation and executable probes are installed:
+only when their named implementation and typed production-construction
+receipts are installed:
 
 ```json
 {
@@ -1741,6 +1758,21 @@ only when their named implementation and executable probes are installed:
   prerequisite; composed production satisfies it through LLP 0043's format 5,
   which preserves the item-5 epoch/key barrier and migrates formats 1 through 4
   fail closed.
+
+These receipts are opaque Rust construction plans, not route-name or
+source-substring probes. The connection plan owns the exact typed route
+registrations from the same registration edge as `app()` and is consumed to
+construct the production `SnapbackApp`. The two-phase plan is bound to the
+inspected runtime's provider and is consumed to spawn the process-critical
+expiry worker. The coordinator plan is bound to that same provider, includes
+the canonical client custody module in the production distribution, and is
+used for the actual durable projection rebuild. Provider-identity mismatch,
+coordinator rebuild failure, or expiry-worker start failure aborts before the
+listener. Browser protocol 1 is offered only through the real coordinator with
+the mandatory kit transport participant, and Contract/client stores register
+their barrier participants when those surfaces are constructed. The server
+does not claim that a native construction plan proves a browser instance is
+alive.
 
 No manifest field, environment variable, dev flag, or mocked readiness object
 may assert one early. `sessionActivationReady` remains derived as LLP 0058
@@ -1813,7 +1845,10 @@ wall-clock sleeps are not proof of ordering.
    either commits eviction plus fully projected successor or returns no bearer.
 6. Restart after an uncoalesced in-memory sliding extension. Rebuilt expiry is
    no later than durable expiry. Exercise forward/backward wall-clock jumps and
-   stale deadline entries with a fake dual clock.
+   stale deadline entries with a fake dual clock. Pause a pass after it samples
+   the first of two sessions but before its storage-floor write, advance both
+   clocks until the second is due, then prove only the exact sampled first set
+   terminalizes and a rollback-clock restart keeps the second live.
 7. Corrupt each index source independently: duplicate current token, dangling
    identity, invalid generation/timestamp, malformed incarnation, and
    contradictory reset marker. Startup refuses before listener bind with the
@@ -1910,7 +1945,7 @@ wall-clock sleeps are not proof of ordering.
 2. A delayed terminal `auth_error` for A calls `compareAndClear(A)` after B is
    settled. It returns false without blanking B, closing B's socket, deleting
    B's store, or broadcasting a new epoch.
-3. Kill a Web-Lock owner before clearing, during every participant phase, and
+3. Kill a per-storage-key Web-Lock owner before clearing, during every participant phase, and
    before settled publication. A successor owner reloads the durable phase,
    resumes idempotently, and never exposes partial data.
 4. Repeat using the fallback lease. Pause an expired holder, let a new holder
@@ -1935,6 +1970,15 @@ wall-clock sleeps are not proof of ordering.
    globally; durable epoch CAS immediately rejects B's delayed writes. On
    resume, B reloads and blanks before its first callback, render publication,
    reconnect, or app operation.
+
+The landed coordinator suite proves ordered participant phases, clearing-state
+recovery, delayed/missed wakeups, and stale-owner rejection. The implementation
+allocates the fallback lease token as exact predecessor plus one, but an
+explicit two-takeover increment assertion remains part of item 4's acceptance.
+The stronger matrix above remains normative: it does not yet claim exhaustive
+per-phase owner-process kills or every duplicate/reordered broadcast
+permutation as landed merely because the underlying durable reload behavior is
+covered.
 
 ### Client store and Contract boundaries
 
@@ -1971,8 +2015,12 @@ wall-clock sleeps are not proof of ordering.
    with its authority. Missing, malformed, stale, or cross-app values fail
    before a grant or callback can become visible.
 2. The complete item-1-through-item-5 readiness matrix is generated and tested.
-   Each omitted module/wiring/worker keeps its owning fact false and therefore
-   keeps `sessionActivationReady` false. No override can force it true.
+   Each omitted typed construction receipt keeps its owning fact false and
+   therefore keeps `sessionActivationReady` false; negative startup tests omit
+   connection binding, two-phase revocation, and coordinator receipts one at a
+   time and prove sessions remains quarantined before bind. Coordinator rebuild
+   or expiry-worker construction failure separately aborts production startup.
+   No override can force readiness true.
 3. At the item-5 boundary, readiness true admits online finite
    anonymous/authenticated requests while auth-scoped live, retained reads, and
    queued replay remain refused; the conservative authority-independent live
@@ -1997,9 +2045,11 @@ invariant across an externally enableable commit:
    historical item-5 client-store format 3, and mandatory kit/Contract
    participants; composed production now uses LLP 0043's format 5, which
    preserves these barriers and migrates formats 1 through 4 fail closed;
-5. revised the closed handshake DTO, derived activation facts from executable
-   route-registry and coordinator-module probes, and ran the interleaving and
-   activation matrix; and
+5. revised the closed handshake DTO, derived activation facts from opaque typed
+   plans issued by the actual connection, two-phase runtime, and canonical
+   coordinator construction edges, consumed those same plans to construct the
+   app, rebuild the coordinator, and spawn the worker before bind, and ran the
+   interleaving and activation matrix; and
 6. ran `./ref-check --verbose` and added non-mechanical `@ref LLP 0059#...`
    annotations at each non-obvious ticket, lock-order, fence, custody, and
    epoch-CAS implementation boundary.
@@ -2043,8 +2093,8 @@ to this document's exact-durable-successor reconciliation (0057 §Concurrency no
 longer states the contradictory discard-and-unavailable rule); the lock-rank
 overclaim (both families) and localStorage conflict with governing LLP 0008
 (GPT #10) were accurately recorded as implementation defects at that revision;
-ENG-25001 subsequently landed rank guards and selected LLP 0008's ratified
-Web-Lock one-key design; the
+ENG-25001 subsequently landed rank guards and selected LLP 0008's landed
+one-key design under a per-storage-key Web Lock; the
 grant-mint "indistinguishable" acceptance sentence (both) — scoped to grant
 minting so it no longer flattens LLP 0057's `AUTH_REQUIRED` vs `SESSION_EXPIRED`
 distinction; and the durable-time terminal irreversibility (GPT #1) — cross-
@@ -2055,14 +2105,16 @@ time-derived terminal event" named as an obligation.
 **Resolved defect obligations (ENG-25001):** protocol 1 now requires the
 canonical coordinator; custody format 2 carries durable predecessor/successor
 intent and peers run the physical-store commit; phase 8 and credential refresh
-release ownership before network work; both live APIs terminal-latch a
-close-only `4401/auth_error`; the handshake carries canonical deployment/app
+release ownership before network work; both live APIs latch terminal state on
+an `auth_error` frame or `4401/auth_error` close; the handshake carries
+canonical deployment/app
 identity and UUIDv7 boundaries; stable pending handshakes retain one counted
-prepared authority through final publication and cached responses use durable
-compare-and-commit; readiness uses executable route/module probes; projection
+prepared authority through final publication and every fresh coordinated
+handshake cache/return uses durable compare-and-commit; readiness uses typed
+construction plans consumed by the fallible pre-bind runtime gates; projection
 locks carry dev/test rank assertions; the L9 fixture proves unrelated
 publication during a stalled affected commit; and this Spec adopts LLP 0008's
-Web-Lock one-key localStorage protocol.
+per-storage-key Web-Lock one-key localStorage protocol.
 
 This document remains **Draft** pending author triage completion and explicit
 ratification; the reviews advise, they do not ratify, and neither LLP 0039 nor

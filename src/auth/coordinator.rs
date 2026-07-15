@@ -16,7 +16,7 @@ use super::provider::{
 };
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorizationStreamIncarnation, BoundConnectionSessionIdentity,
-    ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
+    DueExpiryBatch, ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
     ProjectedConnectionTokenResolution, ProjectedSessionAuthority, ProjectedTokenResolution,
     RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest, ranked_mutex_lock,
 };
@@ -1017,30 +1017,29 @@ impl AuthCoordinator {
         )
     }
 
-    pub(crate) fn expire_due(
+    pub(crate) fn sample_due_expiries(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<Vec<ExpiredSession>> {
-        let mut topology = self.lock_topology()?;
-        if topology.global_rebuild_required {
-            return Err(projection_unavailable());
-        }
-        topology.projection.expire_due(epoch_now_ms, monotonic_now)
-    }
-
-    pub(crate) fn due_expiry_frontier(
-        &self,
-        epoch_now_ms: u64,
-        monotonic_now: Instant,
-    ) -> SnapbackResult<Option<u64>> {
+    ) -> SnapbackResult<Option<DueExpiryBatch>> {
         let topology = self.lock_topology()?;
         if topology.global_rebuild_required {
             return Err(projection_unavailable());
         }
         topology
             .projection
-            .due_expiry_frontier(epoch_now_ms, monotonic_now)
+            .sample_due_expiries(epoch_now_ms, monotonic_now)
+    }
+
+    pub(crate) fn expire_sampled_due(
+        &self,
+        batch: DueExpiryBatch,
+    ) -> SnapbackResult<Vec<ExpiredSession>> {
+        let mut topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        topology.projection.expire_sampled_due(batch)
     }
 
     pub(crate) fn expiry_scan_delay(&self, monotonic_now: Instant) -> SnapbackResult<Duration> {

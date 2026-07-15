@@ -814,7 +814,7 @@ export class AuthCoordinator {
       const record = await owner.read();
       if (!captureMatches(this.#appId, record, capture)) return { committed: false };
       const validated = validateAuthCustody(record, this.#appId);
-      this.#adoptSettled(validated);
+      this.#adoptSettled(validated, { expose: !this.#publicationPaused });
       const view = Object.freeze({
         ...captureFor(this.#appId, validated),
         authority: clone(validated.authority),
@@ -1161,8 +1161,8 @@ export class AuthCoordinator {
       // Return from withOwnership before participant resume. Resume may open
       // sockets and perform the bootstrap handshake; keeping the Web Lock or
       // lease mutex across it can deadlock every other context.
-      // @ref LLP 0059#transition-barrier — durable settle ends phase 7;
-      // phase 8 is local exposure work outside cross-context ownership.
+      // @ref LLP 0059#transition-barrier — durable settle ends phase 8;
+      // phase 9 is local exposure work outside cross-context ownership.
       return { resumeAfterOwnership: true, settled, barrier };
     } catch (error) {
       this.#publicationPaused = true;

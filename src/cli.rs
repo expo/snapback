@@ -394,30 +394,35 @@ fn validate_auth_transport(
 /// invalidation and authorized-retention layers, so queued replay must not be
 /// left test-only while either later layer is unavailable.
 // @ref LLP 0051#d1-the-ctx-answer-ledger-recordable-replayable-deterministic-ops — queued replay carries a dedicated server-issued authority descriptor before item 8 restores retained reads.
+enum AuthCoordinatorReadinessReceipt<'a> {
+    Construction(&'a crate::auth::runtime::AuthCoordinatorConstructionReceipt),
+    Installed(&'a crate::auth::runtime::AuthCoordinatorInstalledReceipt),
+}
+
+struct AuthProgramConstructionReceipts<'a> {
+    connection_binding: Option<&'a server::ConnectionBindingConstructionReceipt>,
+    two_phase_revocation: Option<&'a crate::auth::runtime::TwoPhaseRevocationConstructionReceipt>,
+    auth_coordinator: Option<AuthCoordinatorReadinessReceipt<'a>>,
+}
+
 fn runtime_auth_program_readiness(
     secret_read_process_prerequisites: bool,
+    receipts: &AuthProgramConstructionReceipts<'_>,
     authorization_invalidation: bool,
     authorized_lease: bool,
 ) -> crate::auth::mode::AuthProgramReadiness {
-    let routes = server::route_registry();
-    let connection_binding = ["/connection/open", "/live/{connection_id}/stream"]
-        .iter()
-        .all(|required| routes.iter().any(|route| route.path == *required));
-    let coordinator_module = include_str!("../packages/snapback-contract/auth-coordinator.mjs");
-    let auth_coordinator = [
-        "export class AuthCoordinator",
-        "async compareAndCommit(",
-        "async transition(",
-        "registerParticipant(",
-    ]
-    .iter()
-    .all(|marker| coordinator_module.contains(marker));
-    let two_phase_revocation = routes.iter().any(|route| route.path == "/auth/logout")
-        && routes.iter().any(|route| route.path == "/auth/session");
+    let auth_coordinator = receipts
+        .auth_coordinator
+        .as_ref()
+        .map(|receipt| match receipt {
+            AuthCoordinatorReadinessReceipt::Construction(_receipt) => true,
+            AuthCoordinatorReadinessReceipt::Installed(_receipt) => true,
+        })
+        .unwrap_or(false);
     crate::auth::mode::AuthProgramReadiness::new(
         secret_read_process_prerequisites,
-        connection_binding,
-        two_phase_revocation,
+        receipts.connection_binding.is_some(),
+        receipts.two_phase_revocation.is_some(),
         auth_coordinator,
         authorization_invalidation,
         true,
@@ -1734,8 +1739,23 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // mechanisms. Item 7's descriptor is an independent build fact; item 6's
     // boot-local invalidation issuer and item 8's lease service are installed
     // later in this startup sequence.
-    let mut auth_program_readiness =
-        runtime_auth_program_readiness(secret_read_process_prerequisites, false, false);
+    let connection_binding_receipt = server::connection_binding_construction_receipt();
+    let two_phase_revocation_receipt =
+        auth_runtime.two_phase_revocation_construction_receipt();
+    let auth_coordinator_receipt = auth_runtime.auth_coordinator_construction_receipt();
+    let auth_construction_receipts = AuthProgramConstructionReceipts {
+        connection_binding: Some(&connection_binding_receipt),
+        two_phase_revocation: Some(&two_phase_revocation_receipt),
+        auth_coordinator: Some(AuthCoordinatorReadinessReceipt::Construction(
+            &auth_coordinator_receipt,
+        )),
+    };
+    let mut auth_program_readiness = runtime_auth_program_readiness(
+        secret_read_process_prerequisites,
+        &auth_construction_receipts,
+        false,
+        false,
+    );
     let auth_mode_state = compose_auth_mode_startup(
         &args,
         &mut snapback,
@@ -1764,7 +1784,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // Rebuild from the exact post-compose, post-restore, post-GC durable state
     // before ownership moves into SharedSnapback or a listener can serve.
     // @ref LLP 0059#startup-rebuild-and-deadline-derivation — pre-bind publication is all-or-nothing.
-    let auth_coordinator = auth_runtime.build_coordinator(&mut snapback)?;
+    let (auth_coordinator, auth_coordinator_installed) =
+        auth_coordinator_receipt.build(&auth_runtime, &mut snapback)?;
 
     // A sessions deployment cannot publish an app-data listener until its
     // boot-local invalidation namespace has both a committed durable sequence
@@ -1812,8 +1833,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // after both request-side services inhabit the clone-shared AppState; no
     // handshake can advertise a lease path that startup has not installed.
     let authorized_lease_ready = auth_mode_state.active == crate::manifest::AuthMode::Sessions;
+    let installed_auth_receipts = AuthProgramConstructionReceipts {
+        connection_binding: Some(&connection_binding_receipt),
+        two_phase_revocation: Some(&two_phase_revocation_receipt),
+        auth_coordinator: Some(AuthCoordinatorReadinessReceipt::Installed(
+            &auth_coordinator_installed,
+        )),
+    };
     auth_program_readiness = runtime_auth_program_readiness(
         secret_read_process_prerequisites,
+        &installed_auth_receipts,
         authorized_lease_ready,
         authorized_lease_ready,
     );
@@ -1837,14 +1866,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // wait for its running handshake, and only then bind any listener.
     // @ref LLP 0059#startup-rebuild-and-deadline-derivation — a sessions
     //   listener cannot exist without a supervised terminal worker.
-    let mut auth_expiry_worker = crate::auth::runtime::spawn_auth_expiry_worker(
-        state.clone(),
-        auth_coordinator.clone(),
-        auth_runtime.provider(),
-        auth_terminal_sink.clone(),
-    )
-    .await
-    .map_err(anyhow::Error::new)?;
+    let mut auth_expiry_worker = two_phase_revocation_receipt
+        .spawn(
+            state.clone(),
+            auth_coordinator.clone(),
+            auth_terminal_sink.clone(),
+        )
+        .await
+        .map_err(anyhow::Error::new)?;
     let listener = match bind_listener(&bind_ip.to_string(), args.port).await {
         Ok(listener) => listener,
         Err(error) => {
@@ -1865,7 +1894,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     debug_assert_eq!(loopback, local_addr.ip().is_loopback());
     let published_server_context = Arc::make_mut(&mut app_state.server);
     published_server_context.record_bound_address(local_addr);
-    let app = server::app(app_state.clone());
+    let app = connection_binding_receipt.build(app_state.clone());
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
     }
@@ -3550,13 +3579,13 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, AuthCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand, ManagedPath,
-        ReadyFileTarget, ResolvedHttpTarget, TargetArgs, bind_first_available, bind_listener,
-        managed_startup_paths, mint_secret_read_via_http, parse_run_args,
-        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
-        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
-        validate_path_disjointness, validated_secret_read_root_path, write_ready_file_atomic,
-        write_ready_file_atomic_protected,
+        Args, AuthCommand, AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand, ManagedPath, ReadyFileTarget,
+        ResolvedHttpTarget, TargetArgs, bind_first_available, bind_listener, managed_startup_paths,
+        mint_secret_read_via_http, parse_run_args, path_with_filename_suffix,
+        prepare_database_path, prepare_database_path_for_startup, reject_misdirected_serve_flags,
+        resolve_http_target, runtime_auth_program_readiness, validate_path_disjointness,
+        validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
     use clap::Parser;
@@ -3568,18 +3597,33 @@ mod tests {
 
     #[test]
     fn production_readiness_exposes_item7_before_item8() {
-        let before_invalidation = runtime_auth_program_readiness(true, false, false);
+        let mut snapback = crate::local::LocalSnapback::memory().unwrap();
+        let runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            None,
+            crate::auth::provider::AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let connection = crate::server::connection_binding_construction_receipt();
+        let revocation = runtime.two_phase_revocation_construction_receipt();
+        let coordinator = runtime.auth_coordinator_construction_receipt();
+        let receipts = AuthProgramConstructionReceipts {
+            connection_binding: Some(&connection),
+            two_phase_revocation: Some(&revocation),
+            auth_coordinator: Some(AuthCoordinatorReadinessReceipt::Construction(&coordinator)),
+        };
+        let before_invalidation = runtime_auth_program_readiness(true, &receipts, false, false);
         assert!(before_invalidation.session_activation_ready);
         assert!(before_invalidation.authority_descriptor);
         assert!(!before_invalidation.authorization_invalidation);
         assert!(!before_invalidation.authorized_lease);
 
-        let after_invalidation = runtime_auth_program_readiness(true, true, false);
+        let after_invalidation = runtime_auth_program_readiness(true, &receipts, true, false);
         assert!(after_invalidation.authority_descriptor);
         assert!(after_invalidation.authorization_invalidation);
         assert!(!after_invalidation.authorized_lease);
 
-        let after_lease_install = runtime_auth_program_readiness(true, true, true);
+        let after_lease_install = runtime_auth_program_readiness(true, &receipts, true, true);
         assert!(after_lease_install.authority_descriptor);
         assert!(after_lease_install.authorization_invalidation);
         assert!(after_lease_install.authorized_lease);
@@ -3982,6 +4026,71 @@ mod tests {
             false,
         )
         .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn omitted_construction_receipts_prevent_sessions_from_binding() {
+        use crate::auth::mode::{AppDataAvailability, AuthModeStatus};
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        for missing in [
+            "connection-binding",
+            "two-phase-revocation",
+            "auth-coordinator",
+        ] {
+            let directory = tempfile::tempdir().unwrap();
+            let database = directory.path().join("app.sqlite3");
+            let carrier = directory.path().join("startup.json");
+            sessions_startup_carrier(&carrier);
+            let args = Args {
+                db: database.clone(),
+                startup_artifacts: Some(carrier),
+                ..Args::default()
+            };
+            let mut snapback = LocalSnapback::open(&database).unwrap();
+            let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+                &mut snapback,
+                Some(&database),
+                AuthProviderProfile::Test,
+            )
+            .unwrap();
+            let connection = crate::server::connection_binding_construction_receipt();
+            let revocation = runtime.two_phase_revocation_construction_receipt();
+            let coordinator = runtime.auth_coordinator_construction_receipt();
+            let receipts = AuthProgramConstructionReceipts {
+                connection_binding: (missing != "connection-binding").then_some(&connection),
+                two_phase_revocation: (missing != "two-phase-revocation").then_some(&revocation),
+                auth_coordinator: (missing != "auth-coordinator")
+                    .then_some(AuthCoordinatorReadinessReceipt::Construction(&coordinator)),
+            };
+            let readiness = runtime_auth_program_readiness(true, &receipts, false, false);
+
+            let state =
+                super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                    .await
+                    .unwrap();
+            assert_eq!(state.active, AuthMode::Dev, "missing {missing}");
+            assert_eq!(state.desired, AuthMode::Sessions, "missing {missing}");
+            assert_eq!(
+                state.mode_state,
+                AuthModeStatus::Quarantined,
+                "missing {missing}"
+            );
+            assert_eq!(
+                state.app_data_availability,
+                AppDataAvailability::RefusedPending,
+                "missing {missing}"
+            );
+            assert_eq!(
+                state.quarantine.as_ref().map(|value| value.code.as_str()),
+                Some("SNAPBACK_AUTH_POLICY_UNAVAILABLE"),
+                "missing {missing}"
+            );
+            assert!(!runtime.catalog_ready(), "missing {missing}");
+        }
     }
 
     #[cfg(unix)]

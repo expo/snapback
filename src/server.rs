@@ -8353,6 +8353,16 @@ fn router_for_state(state: AppState) -> Router {
         .layer(middleware::from_fn(local_dev_cors))
 }
 
+fn app_from_registrations(
+    registrations: Vec<RegisteredRoute>,
+    state: AppState,
+) -> SnapbackApp {
+    let router = router_from_registrations(registrations, state.clone())
+        .with_state(state.clone())
+        .layer(middleware::from_fn(local_dev_cors));
+    SnapbackApp { router, state }
+}
+
 /// The full Snapback HTTP surface is installed only from registered entries;
 /// there is no second route-literal list that can drift outside policy. The
 /// returned value is safe for direct `Service<Request>` use; call `.bind()` to
@@ -8376,6 +8386,29 @@ pub fn route_registry() -> Vec<RouteSpec> {
         .into_iter()
         .map(|registration| registration.spec)
         .collect()
+}
+
+/// Opaque build receipt issued by the module that constructs the real
+/// connection registry, terminal lifecycle, and connection-scoped handlers.
+/// It is deliberately not a route-name lookup: production composition must
+/// request this typed edge, while listener bind remains separately gated on
+/// successful `AppState` and worker construction.
+pub(crate) struct ConnectionBindingConstructionReceipt {
+    registrations: Vec<RegisteredRoute>,
+}
+
+pub(crate) fn connection_binding_construction_receipt() -> ConnectionBindingConstructionReceipt {
+    ConnectionBindingConstructionReceipt {
+        registrations: all_route_registrations(),
+    }
+}
+
+impl ConnectionBindingConstructionReceipt {
+    /// Consume the exact typed route registrations represented by this receipt
+    /// to construct the production app that will be bound.
+    pub(crate) fn build(self, state: AppState) -> SnapbackApp {
+        app_from_registrations(self.registrations, state)
+    }
 }
 
 /// Transport for an authority-bearing operation multiplexed inside one HTTP

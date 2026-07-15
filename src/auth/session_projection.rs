@@ -416,6 +416,28 @@ pub(crate) struct ExpiredSession {
     pub close_by: Instant,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct DueExpiryBatch {
+    sampled_epoch_ms: u64,
+    sampled_monotonic: Instant,
+    durable_frontier_ms: u64,
+    entries: Vec<SampledDueExpiry>,
+}
+
+impl DueExpiryBatch {
+    pub(crate) fn durable_frontier_ms(&self) -> u64 {
+        self.durable_frontier_ms
+    }
+}
+
+#[derive(Clone, Debug)]
+struct SampledDueExpiry {
+    session_id: String,
+    generation: u64,
+    deadline: DeadlinePair,
+    close_by: Instant,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProjectedSessionInsert {
     pub session_id: String,
@@ -925,17 +947,16 @@ impl SessionProjection {
         }
     }
 
-    /// Observe both authoritative clocks and terminalize every due exact
-    /// `(session, generation, deadline)` entry under one topology ownership
-    /// pass. Each entry still receives a unique ticket, so sibling operations
-    /// retain their own markers and can reconcile independently.
-    pub(crate) fn expire_due(
-        &mut self,
+    /// Capture one immutable due set and its complete durable frontier. The
+    /// caller persists that frontier before returning this exact batch for
+    /// terminal publication; later clock movement cannot enlarge the batch.
+    pub(crate) fn sample_due_expiries(
+        &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<Vec<ExpiredSession>> {
+    ) -> SnapbackResult<Option<DueExpiryBatch>> {
         validate_timestamp_u64(epoch_now_ms)?;
-        let due: Vec<_> = self
+        let entries: Vec<_> = self
             .deadline_index
             .iter()
             .filter(|key| {
@@ -949,49 +970,78 @@ impl SessionProjection {
                 } else {
                     key.monotonic_deadline
                 };
-                (
-                    key.session_id.clone(),
-                    key.generation,
-                    close_origin.checked_add(TERMINAL_CLOSE_GRACE),
-                )
+                Ok(SampledDueExpiry {
+                    session_id: key.session_id.clone(),
+                    generation: key.generation,
+                    deadline: DeadlinePair {
+                        monotonic_deadline: key.monotonic_deadline,
+                        epoch_deadline_ms: key.epoch_deadline_ms,
+                    },
+                    close_by: close_origin
+                        .checked_add(TERMINAL_CLOSE_GRACE)
+                        .ok_or_else(|| {
+                            projection_unavailable(
+                                "terminal close deadline overflowed monotonic time",
+                            )
+                        })?,
+                })
             })
-            .collect();
-        let mut expired = Vec::with_capacity(due.len());
-        for (session_id, generation, close_by) in due {
-            let close_by = close_by.ok_or_else(|| {
-                projection_unavailable("terminal close deadline overflowed monotonic time")
-            })?;
-            let ticket = self.begin_expiry(&session_id, generation, epoch_now_ms, monotonic_now)?;
-            self.finalize_expiry(&ticket, &session_id, epoch_now_ms, monotonic_now)?;
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        let Some(deadline_frontier_ms) = entries
+            .iter()
+            .map(|entry| entry.deadline.epoch_deadline_ms)
+            .max()
+        else {
+            return Ok(None);
+        };
+        Ok(Some(DueExpiryBatch {
+            sampled_epoch_ms: epoch_now_ms,
+            sampled_monotonic: monotonic_now,
+            durable_frontier_ms: deadline_frontier_ms.max(epoch_now_ms),
+            entries,
+        }))
+    }
+
+    /// Terminalize only the sampled predecessors whose complete deadline
+    /// frontier has already been persisted. An extended/revoked replacement
+    /// is skipped; it is never confused with the sampled generation/deadline.
+    pub(crate) fn expire_sampled_due(
+        &mut self,
+        batch: DueExpiryBatch,
+    ) -> SnapbackResult<Vec<ExpiredSession>> {
+        let mut expired = Vec::with_capacity(batch.entries.len());
+        for entry in batch.entries {
+            let still_matches = self
+                .by_session
+                .get(&entry.session_id)
+                .is_some_and(|session| {
+                    session.generation == entry.generation
+                        && session.state == ProjectedSessionState::Current
+                        && session.deadline == entry.deadline
+                });
+            if !still_matches {
+                continue;
+            }
+            let ticket = self.begin_expiry(
+                &entry.session_id,
+                entry.generation,
+                batch.sampled_epoch_ms,
+                batch.sampled_monotonic,
+            )?;
+            self.finalize_expiry(
+                &ticket,
+                &entry.session_id,
+                batch.sampled_epoch_ms,
+                batch.sampled_monotonic,
+            )?;
             expired.push(ExpiredSession {
                 authorization_stream_incarnation: self.incarnation.as_str().to_owned(),
-                session_id,
-                generation,
-                close_by,
+                session_id: entry.session_id,
+                generation: entry.generation,
+                close_by: entry.close_by,
             });
         }
         Ok(expired)
-    }
-
-    /// Return the durable epoch frontier that must be committed before any
-    /// currently due generation may become terminal in process memory. A
-    /// monotonic deadline can fire while the wall clock moved backward, so
-    /// the frontier is the durable epoch deadline rather than merely the
-    /// sampled epoch.
-    pub(crate) fn due_expiry_frontier(
-        &self,
-        epoch_now_ms: u64,
-        monotonic_now: Instant,
-    ) -> SnapbackResult<Option<u64>> {
-        validate_timestamp_u64(epoch_now_ms)?;
-        Ok(self
-            .deadline_index
-            .iter()
-            .filter(|key| {
-                epoch_now_ms >= key.epoch_deadline_ms || monotonic_now >= key.monotonic_deadline
-            })
-            .map(|key| key.epoch_deadline_ms)
-            .max())
     }
 
     /// Expiry scheduling never sleeps more than one second, so a forward wall
@@ -2559,9 +2609,11 @@ mod tests {
         let mut projection = rebuild_at(source(), monotonic_now);
         let session_id = only_session_id(&projection);
         let incarnation = projection.incarnation().clone();
-        let expired = projection
-            .expire_due(200, monotonic_now + Duration::from_millis(50))
-            .unwrap();
+        let due = projection
+            .sample_due_expiries(200, monotonic_now + Duration::from_millis(50))
+            .unwrap()
+            .expect("one due session");
+        let expired = projection.expire_sampled_due(due).unwrap();
         assert_eq!(
             expired,
             vec![ExpiredSession {
