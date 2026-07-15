@@ -721,3 +721,38 @@ EVIDENCE
 - The defect contradicts `llp/0059-session-projection-and-client-barrier.spec.md:1374-1402` and its readiness requirement at lines 1791-1796.
 - Other challenged matrices are substantiated: owner-loss cuts at `packages/snapback-contract/auth-custody-indexeddb.test.mjs:308-428`; consecutive fallback takeovers at lines 239-305; broadcast permutations at `packages/snapback-contract/auth-coordinator-missed-wakeup.test.mjs:374-428`; stale one-key localStorage writer at `packages/snapback-contract/offline-replay.test.mjs:1082-1134`; pre-bind construction ordering at `src/cli.rs:1892-1911` and tests at lines 4130-4153.
 - Passing commands: `node packages/snapback-contract/auth-coordinator.test.mjs`, `auth-coordinator-contract.test.mjs`, `auth-coordinator-missed-wakeup.test.mjs`, `auth-custody-indexeddb.test.mjs`, `client-store-authority.test.mjs`, `offline-replay.test.mjs`, and `./ref-check --verbose`.
+
+## FINAL3 publication review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: GPT (OpenAI Codex)
+- Provider/runtime: Codex CLI 0.144.4
+- Model: `gpt-5.6-sol`
+- Method: read-only, ephemeral CLI; high reasoning effort; blind to `llp/reviews/`
+- Session: `019f678b-8c0b-79e0-b834-def857dfc440`
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Human authorization: ENG-25001 FINAL3 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final3-codex-0059.md`
+
+### Verbatim review
+
+VERDICT: NOT READY
+
+MATERIAL
+- `compareAndCommit` can publish during participant `resume`, before the final locked durable confirmation. It invokes the commit callback even when `#publicationPaused` is true; the real kit transport participant follows this path to mutate its handshake cache. Therefore the final read is not the exposure linearization point. Resolution criterion: while paused, publication callbacks must be rejected or staged; they may execute only at/after the final exact locked confirmation. Mismatch, null/clearing, or read failure must discard staged effects and remain paused. Add deterministic owner and peer tests covering successful, changed-record, and failed final confirmations.
+
+MINOR
+- The raw and managed client branches for a close-only `4401/auth_error` terminal event lack direct executable tests; existing tests exercise terminal frames. Resolution criterion: add close-only tests proving the terminal latch, current-authority `compareAndClear`, and no reconnect for both clients.
+
+EVIDENCE
+- `git rev-parse HEAD` returned `bd7d1da6d458439081a60c6fe06fe700edc678cf`.
+- `llp/0059-session-projection-and-client-barrier.spec.md:1394-1418,1435-1442` requires the final locked read to linearize all return/exposure, explicitly including `compareAndCommit`.
+- `packages/snapback-contract/auth-coordinator.mjs:854-893` invokes `commit(view)` regardless of `#publicationPaused`; final owner confirmation occurs later at `1312-1326`, and peer confirmation at `1466-1475`.
+- The production path is `demos/_kit/client.mjs:945-947` → `1250-1265` → `1123-1137`, where resume calls `compareAndCommit` and updates `__authSessionLastSuccessful` before the coordinator’s post-resume confirmation.
+- Read-only inline Node probe produced `[["resume-enter",false],["commit-ran",false],["result",true],["after-return",true]]`, proving the callback ran and returned committed while `isCurrent` remained false.
+- Final-confirmation cuts are otherwise covered at `packages/snapback-contract/auth-coordinator.test.mjs:492-598,600-701,703-1033`; broadcast matrices at `auth-coordinator-missed-wakeup.test.mjs:251-428`; takeover/owner-loss fencing at `auth-custody-indexeddb.test.mjs:340-535`; composed Contract behavior at `auth-coordinator-contract.test.mjs:246-440`.
+- All focused commands passed: `node packages/snapback-contract/auth-coordinator.test.mjs`, `auth-coordinator-missed-wakeup.test.mjs`, `auth-custody-indexeddb.test.mjs`, `auth-coordinator-contract.test.mjs`, `node demos/_kit/tests/auth-coordinator-client.mjs`, and `client-errors.mjs`.
+- Other closure anchors inspected include durable clock/frontier handling at `src/storage/auth.rs:972-1015` and `src/auth/runtime.rs:1377-1545`; pre-bind receipts at `src/cli.rs:1752-1925`; lock ranks at `src/auth/session_projection.rs:38-96,2876-2881`; handshake fencing at `src/server.rs:17393-17469`; and terminal server delivery at `src/server.rs:24542-24618`.
+- Close-only client code exists at `demos/_kit/client.mjs:2318-2326,3910-3915`, while current terminal tests cover frames only at `demos/_kit/tests/client-errors.mjs:388-440`.

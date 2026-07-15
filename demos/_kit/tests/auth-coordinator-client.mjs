@@ -415,6 +415,14 @@ try {
   assert.equal(storage.snapshot(APP).bearer, BEARER_A);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/exchange', '/auth/session']);
   assert.equal(surfaceResumeWitnesses.at(-1), '/auth/session');
+  const resumeHandshakeCallCount = calls.length;
+  const cachedAfterResume = await db.authSession();
+  assert.equal(cachedAfterResume.authority.sessionId, SESSION_A);
+  assert.equal(
+    calls.length,
+    resumeHandshakeCallCount,
+    'successful resume publishes its staged handshake cache at final confirmation',
+  );
 
   calls = [];
   const authenticated = await db.query('list', { userId: 'forged' });

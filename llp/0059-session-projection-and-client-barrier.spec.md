@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (final durable-confirmation follow-up: adds a short
+**Revised:** 2026-07-15 (FINAL3 publication closure: pauses ordinary
+`compareAndCommit` callbacks throughout owner/peer resume; stages exact
+capture-bound resume effects and flushes them, in order, only inside the final
+locked durable confirmation; discards them on mismatch, clearing/null, read or
+callback failure; and adds owner/peer, real-kit handshake-cache, and raw/managed
+close-only terminal evidence). 2026-07-15 (final durable-confirmation follow-up: adds a short
 exact ownership read after result delivery, before peer barrier entry, and
 after owner/peer resume before exposure; treats that final locked read as the
 linearization point; and proves missed-broadcast direct, adoption, recovery,
@@ -1340,6 +1345,11 @@ non-reentrant `commit` before releasing ownership. `commit` cannot await, call
 user code, or start another coordinator operation. The coordinator has an
 internal `compareAndRotateBearer` operation that additionally compares custody
 revision and is the only path that may replace a bearer or refresh schedule.
+While an owner or peer publication barrier is paused, `compareAndCommit` MUST
+return `{committed:false}` without invoking its callback, even if durable
+custody already contains the exact successor. Resume work uses the staging
+interface below instead; this prevents a nominally current callback from
+becoming observable before the barrier's final exact durable confirmation.
 
 `compareAndClear` first performs the same epoch-and-authority-key comparison. A
 stale capture returns `{cleared:false}` without blanking, disconnecting,
@@ -1412,10 +1422,16 @@ it after resume before unpausing. An owner transition likewise confirms after
 durable settle and again after resume before unpausing. Participant quiesce,
 durable clearing, and resume never run while this confirmation ownership is
 held. The last successful locked read is the return/exposure linearization
-point. A mismatch, clearing/null record, or failed read leaves the local gate
-paused and fail-closed; the changed record may be adopted only by a later clean
-synchronization. The same rule applies whether delivery occurs during the
-barrier, after it has completed, or after a same-authority revision rotation.
+point. Resume participants may prepare app-visible effects outside ownership,
+but they enqueue each effect with its exact successor capture. The coordinator
+flushes those synchronous, non-reentrant callbacks in enqueue order while the
+final locked confirmation and publication fence still hold, before unpausing
+the gate. A mismatch, clearing/null record, failed read, or failed callback
+discards every callback not yet run and leaves the local gate paused and
+fail-closed; participant state is reblanked after a callback failure. The
+changed record may be adopted only by a later clean synchronization. The same
+rule applies whether delivery occurs during the barrier, after it has
+completed, or after a same-authority revision rotation.
 
 Where Web Locks is unavailable, the storage adapter must provide an atomic
 compare-and-swap lease in the same transactional domain as custody:
@@ -1577,11 +1593,13 @@ server's current handshake; it does not invent an incarnation offline.
 
 Every successful fresh coordinated handshake path — initial anonymous
 establishment, same-authority refresh, authority transition, and participant
-resume — reacquires durable custody with `compareAndCommit` immediately before
-placing the response in the cache or returning it. The cache write occurs in
-the synchronous fenced commit. An in-memory `isCurrent` hint or a missed or
-delayed broadcast cannot substitute for this final durable comparison; a stale
-response is discarded and may be retried once against the adopted successor.
+resume — performs an exact durable custody fence immediately before placing the
+response in the cache or returning it. Outside a barrier this is
+`compareAndCommit`. During owner/peer resume it is an exact-capture staged cache
+write flushed only by the coordinator's final locked confirmation. An in-memory
+`isCurrent` hint or a missed or delayed broadcast cannot substitute for this
+final durable comparison; a stale response is discarded and may be retried once
+against the adopted successor.
 
 ## Durable client store protocol
 
@@ -1704,12 +1722,26 @@ interface AuthBarrierParticipant {
   commitDurable(ctx: BarrierContext): Promise<void>
   resume(ctx: SettledBarrierContext): Promise<void>
 }
+
+interface SettledBarrierContext extends BarrierContext {
+  capture: AuthorityCaptureV1
+  authority: ClientAuthorityV1
+  stagePublication<T>(
+    capture: AuthorityCaptureV1,
+    commit: (current: SettledCustodyView) => T,
+  ): void
+}
 ```
 
 `blank` and `clearMemory` are synchronous and cannot call app code.
 `commitDurable` must use the exact expected/next epoch supplied by the
 coordinator. `resume` receives no bearer directly; it asks coordinator custody
-through a narrow request/grant API.
+through a narrow request/grant API. It may perform network and other preparatory
+work while ownership is released, but any resulting cache, callback, observer,
+or boundary effect MUST be submitted through `stagePublication` with the exact
+resume capture. Staged callbacks are synchronous and non-reentrant, use the
+same callback restrictions as `compareAndCommit`, and execute only at the final
+locked confirmation. A participant MUST NOT publish directly during resume.
 
 Mandatory participants are:
 
@@ -2025,6 +2057,13 @@ wall-clock sleeps are not proof of ordering.
    globally; durable epoch CAS immediately rejects B's delayed writes. On
    resume, B reloads and blanks before its first callback, render publication,
    reconnect, or app operation.
+10. During both owner and peer resume, ordinary `compareAndCommit` refuses
+    without running its callback. Exact-capture staged callbacks run in enqueue
+    order only during the final locked confirmation. Advance or clear the
+    durable record, fail that read, and throw or reenter from a staged callback;
+    mismatched/unconfirmed work never runs, later queued work is discarded, and
+    the local gate remains blank. The real kit transport handshake cache uses
+    this staging path rather than publishing from resume.
 
 The landed coordinator suites now prove ordered participant phases,
 clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
@@ -2053,7 +2092,12 @@ blank. It also covers failed-clearing peer recovery followed by synchronization
 in the original context, null-to-established custody, a failed final durable
 read, a same-authority revision advance, and a same-authority write during
 resume that cannot reopen exposure. These cuts distinguish the final locked
-confirmation from the earlier local-record delivery fences.
+confirmation from the earlier local-record delivery fences. The FINAL3 closure
+also proves successful owner/peer staged ordering, discard on changed custody
+and failed final confirmation, callback failure/non-reentrancy cleanup, and the
+real kit resume-handshake cache path. Raw and managed live-stream suites inject
+a close-only `4401/auth_error`, assert the terminal latch and exact
+`compareAndClear`, and prove that neither path constructs a reconnect socket.
 
 ### Client store and Contract boundaries
 

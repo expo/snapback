@@ -106,6 +106,36 @@ const coordinatorCustody = async ({ session = false } = {}) => {
   return coordinator;
 };
 
+const terminalCoordinatorSpy = () => {
+  const capture = Object.freeze({
+    authorityEpoch: 7,
+    custodyRevision: 11,
+    authorityKey: `sha256:${'a'.repeat(64)}`,
+  });
+  const clears = [];
+  let current = true;
+  return {
+    appId: 'snapback.test/client-errors-terminal-spy',
+    clears,
+    capture: () => capture,
+    synchronize: async () => capture,
+    credentialFor: () => ({ bearer: null }),
+    isCurrent: (candidate) => current && candidate === capture,
+    registerParticipant: () => async () => {},
+    compareAndCommit: async (candidate, commit) => (
+      candidate === capture && current
+        ? { committed: true, value: commit({ ...capture, authority: { kind: 'anonymous' } }) }
+        : { committed: false }
+    ),
+    compareAndClear: async (candidate, reason) => {
+      clears.push({ candidate, reason });
+      if (candidate !== capture || !current) return { cleared: false };
+      current = false;
+      return { cleared: true };
+    },
+  };
+};
+
 const nextSocket = async (countBefore) => {
   for (let i = 0; i < 200; i += 1) {
     if (FakeWebSocket.instances.length > countBefore) return FakeWebSocket.instances.at(-1);
@@ -438,6 +468,64 @@ try {
     );
     assertEqual(manager.isOpen(), false, 'terminal manager remains closed');
     return { states: states.map(({ state }) => state), sockets: 1 };
+  });
+
+  await suite.check('item5: raw close-only 4401/auth_error latches and clears without reconnect', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_terminal_raw_close_only');
+    const authCoordinator = terminalCoordinatorSpy();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_terminal_raw_close_only');
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+    ws.dispatch('close', { code: 4401, reason: 'auth_error' });
+    const error = await assertThrows(
+      () => stream.nextUpdate(50),
+      'SNAPBACK_AUTH_STREAM_RESET',
+      'close-only terminal event must latch on the raw stream',
+    );
+    await waitFor(() => authCoordinator.clears.length === 1, 'raw close-only compareAndClear');
+    await sleep(10);
+    assertEqual(FakeWebSocket.instances.length, before + 1, 'raw terminal close constructs no replacement socket');
+    assertEqual(authCoordinator.clears[0].reason, 'SNAPBACK_AUTH_STREAM_RESET', 'raw clear uses fixed close-only code');
+    await db.closeAuth();
+    return { code: error.code, clears: authCoordinator.clears.length };
+  });
+
+  await suite.check('item5: managed close-only 4401/auth_error is terminal and never reconnects', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_terminal_managed_close_only');
+    const authCoordinator = terminalCoordinatorSpy();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const before = FakeWebSocket.instances.length;
+    const states = [];
+    const manager = db.liveStreamManager('conn_terminal_managed_close_only', {
+      reconnectBaseDelayMs: 1,
+      reconnectMaxDelayMs: 1,
+    });
+    manager.onState((state, detail) => states.push({ state, detail }));
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    ws.dispatch('close', { code: 4401, reason: 'auth_error' });
+    await waitFor(
+      () => states.some(({ state, detail }) => state === 'closed' && detail?.terminal),
+      'managed close-only terminal latch',
+    );
+    await waitFor(() => authCoordinator.clears.length === 1, 'managed close-only compareAndClear');
+    await sleep(10);
+    assertEqual(FakeWebSocket.instances.length, before + 1, 'managed terminal close never reconnects');
+    assertEqual(manager.isOpen(), false, 'managed close-only terminal latch remains closed');
+    assertEqual(authCoordinator.clears[0].reason, 'SNAPBACK_AUTH_STREAM_RESET', 'managed clear uses fixed close-only code');
+    await db.closeAuth();
+    return { states: states.map(({ state }) => state), clears: authCoordinator.clears.length };
   });
 
   await suite.check('eng_24372: a timed-out reader does not consume the next frame', async () => {

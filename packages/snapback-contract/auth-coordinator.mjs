@@ -854,11 +854,14 @@ export class AuthCoordinator {
   async compareAndCommit(capture, commit) {
     this.#assertOperationAllowed();
     if (typeof commit !== 'function') throw new TypeError('compareAndCommit requires a commit callback');
+    if (this.#publicationPaused) return { committed: false };
     return this.#storage.withOwnership(this.#appId, async (owner) => {
       const record = await owner.read();
-      if (!captureMatches(this.#appId, record, capture)) return { committed: false };
+      if (this.#publicationPaused || !captureMatches(this.#appId, record, capture)) {
+        return { committed: false };
+      }
       const validated = validateAuthCustody(record, this.#appId);
-      this.#adoptSettled(validated, { expose: !this.#publicationPaused });
+      this.#adoptSettled(validated, { expose: true });
       const view = Object.freeze({
         ...captureFor(this.#appId, validated),
         authority: clone(validated.authority),
@@ -866,6 +869,9 @@ export class AuthCoordinator {
         refreshAfterMs: validated.refreshAfterMs,
       });
       const runCommit = () => {
+        // A broadcast or same-context barrier may pause publication while a
+        // fallback owner is asynchronously revalidating its lease.
+        if (this.#publicationPaused) return { committed: false };
         this.#inCommit = true;
         try {
           const value = commit(view);
@@ -875,7 +881,7 @@ export class AuthCoordinator {
               'compareAndCommit callback must be synchronous and non-reentrant',
             );
           }
-          return value;
+          return { committed: true, value };
         } finally {
           this.#inCommit = false;
         }
@@ -886,10 +892,9 @@ export class AuthCoordinator {
       // the publication commit, so a paused former holder rejects with lock
       // loss instead of publishing under a successor. Owners whose ownership
       // spans the whole operation (Web Locks, serialized memory) run direct.
-      const value = typeof owner.fencePublication === 'function'
+      return typeof owner.fencePublication === 'function'
         ? await owner.fencePublication(runCommit)
         : runCommit();
-      return { committed: true, value };
     });
   }
 
@@ -1180,6 +1185,7 @@ export class AuthCoordinator {
       phase: 'clearing',
       context,
       completion,
+      stagedPublications: [],
       // @ref LLP 0059#transition-barrier — barrier phase completion is tracked
       // per registration; a participant that registers after commitDurable has
       // completed globally catches up through these phases (with this exact
@@ -1317,15 +1323,23 @@ export class AuthCoordinator {
         ...barrier,
         capture: captureFor(this.#appId, confirmed),
         authority: clone(confirmed.authority),
+        stagePublication: (capture, commit) => this.#stagePublication(
+          this.#activeBarrier,
+          capture,
+          commit,
+        ),
       }), { reverse: true });
       const final = await this.#confirmDurableExact(
         captureFor(this.#appId, confirmed),
         'owner_transition_postconfirm_failed',
+        () => this.#flushStagedPublications(this.#activeBarrier, confirmed),
       );
       this.#publicationPaused = false;
       return captureFor(this.#appId, final);
     } catch (error) {
       this.#publicationPaused = true;
+      this.#discardStagedPublications(this.#activeBarrier);
+      await this.#reblankAfterResumeFailure(barrier);
       throw coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition resume did not complete',
@@ -1393,23 +1407,107 @@ export class AuthCoordinator {
     }
   }
 
-  async #confirmDurableExact(expected, reason) {
+  async #confirmDurableExact(expected, reason, onConfirmed = null) {
     try {
       return await this.#storage.withOwnership(this.#appId, async (owner) => {
         const raw = await owner.read();
+        let durable;
         if (expected === null) {
-          if (raw === null) return null;
+          if (raw === null) durable = null;
         } else if (captureMatches(this.#appId, raw, expected, { revision: true })) {
-          return validateAuthCustody(raw, this.#appId);
+          durable = validateAuthCustody(raw, this.#appId);
         }
-        throw coordinatorError(
-          'SNAPBACK_CLIENT_AUTHORITY_STALE',
-          'durable authority changed before custody confirmation',
-        );
+        if (durable === undefined) {
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTHORITY_STALE',
+            'durable authority changed before custody confirmation',
+          );
+        }
+        if (onConfirmed !== null) {
+          const publish = () => onConfirmed(durable);
+          if (typeof owner.fencePublication === 'function') {
+            await owner.fencePublication(publish);
+          } else {
+            publish();
+          }
+        }
+        return durable;
       });
     } catch (error) {
       await this.#failClosedAfterConfirmation(reason);
       throw error;
+    }
+  }
+
+  #stagePublication(barrier, capture, commit) {
+    // @ref LLP 0059#cross-context-ownership — resume effects remain staged
+    // until the exact successor is confirmed under the final ownership fence.
+    this.#assertOperationAllowed();
+    if (typeof commit !== 'function') throw new TypeError('stagePublication requires a commit callback');
+    if (
+      barrier === null
+      || barrier !== this.#activeBarrier
+      || barrier.phase !== 'resume'
+      || !this.#publicationPaused
+      || !captureMatches(this.#appId, this.#record, capture, { revision: true })
+    ) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'publication cannot be staged outside the exact active resume barrier',
+      );
+    }
+    barrier.stagedPublications.push({ capture: clone(capture), commit });
+  }
+
+  #flushStagedPublications(barrier, durable) {
+    if (barrier === null || barrier !== this.#activeBarrier || barrier.phase !== 'resume') {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'staged publication lost its active resume barrier',
+      );
+    }
+    const staged = barrier.stagedPublications.splice(0);
+    for (const entry of staged) {
+      if (!captureMatches(this.#appId, durable, entry.capture, { revision: true })) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'staged publication capture changed before final confirmation',
+        );
+      }
+      const view = Object.freeze({
+        ...captureFor(this.#appId, durable),
+        authority: clone(durable.authority),
+        bearer: durable.bearer,
+        refreshAfterMs: durable.refreshAfterMs,
+      });
+      this.#inCommit = true;
+      try {
+        const value = entry.commit(view);
+        if (value && typeof value.then === 'function') {
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTH_COMMIT_ASYNC',
+            'staged publication callback must be synchronous and non-reentrant',
+          );
+        }
+      } finally {
+        this.#inCommit = false;
+      }
+    }
+  }
+
+  #discardStagedPublications(barrier) {
+    if (barrier?.stagedPublications) barrier.stagedPublications.length = 0;
+  }
+
+  async #reblankAfterResumeFailure(context) {
+    for (const entry of this.#participants) {
+      if (entry.removed) continue;
+      try { await participantMethod(entry.participant, 'quiesce', context); } catch { /* remain closed */ }
+    }
+    for (const entry of this.#participants) {
+      if (entry.removed) continue;
+      try { participantMethod(entry.participant, 'blank', context); } catch { /* remain closed */ }
+      try { participantMethod(entry.participant, 'clearMemory', context); } catch { /* remain closed */ }
     }
   }
 
@@ -1452,6 +1550,7 @@ export class AuthCoordinator {
     this.#activeBarrier = {
       phase: 'peer_transition',
       context,
+      stagedPublications: [],
       catchUp: {
         phases: ['quiesce', 'blank', 'clearMemory', 'commitDurable'],
         context,
@@ -1467,12 +1566,23 @@ export class AuthCoordinator {
         ...context,
         capture: captureFor(this.#appId, record),
         authority: clone(record.authority),
+        stagePublication: (capture, commit) => this.#stagePublication(
+          this.#activeBarrier,
+          capture,
+          commit,
+        ),
       }), { reverse: true });
       await this.#confirmDurableExact(
         captureFor(this.#appId, record),
         'peer_adoption_postconfirm_failed',
+        () => this.#flushStagedPublications(this.#activeBarrier, record),
       );
       this.#publicationPaused = false;
+    } catch (error) {
+      this.#publicationPaused = true;
+      this.#discardStagedPublications(this.#activeBarrier);
+      await this.#reblankAfterResumeFailure(context);
+      throw error;
     } finally {
       this.#activeBarrier = null;
     }

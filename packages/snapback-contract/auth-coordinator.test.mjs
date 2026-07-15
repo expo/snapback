@@ -424,6 +424,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   });
   const before = await reentrant.establishAnonymous(anonymous());
   let resumeCalls = 0;
+  const publicationOrder = [];
   const unregister = reentrant.registerParticipant({
     name: 'resume-durable-reload',
     async quiesce() {},
@@ -432,8 +433,18 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     async commitDurable() {},
     async resume(context) {
       resumeCalls += 1;
+      publicationOrder.push('resume-enter');
+      assert.deepEqual(
+        await reentrant.compareAndCommit(context.capture, () => publicationOrder.push('must-not-run')),
+        { committed: false },
+      );
+      context.stagePublication(context.capture, () => {
+        publicationOrder.push('staged-publication');
+        assert.equal(reentrant.isCurrent(context.capture), false, 'barrier opens only after staged flush');
+      });
       assert.equal(resumeCalls, 1, 'exact successor reload must not recurse into resume');
       assert.deepEqual(await reentrant.synchronize(), context.capture);
+      publicationOrder.push('resume-exit');
     },
   });
   const after = await reentrant.transition(
@@ -443,6 +454,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   );
   assert.equal(after.authorityEpoch, 1);
   assert.equal(resumeCalls, 1);
+  assert.deepEqual(publicationOrder, ['resume-enter', 'resume-exit', 'staged-publication']);
   await unregister();
   await reentrant.close();
 }
@@ -466,6 +478,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   const before = await writer.establishAnonymous(anonymous());
   await peer.synchronize();
   let resumeCalls = 0;
+  const publicationOrder = [];
   peer.registerParticipant({
     name: 'peer-resume-durable-reload',
     async quiesce() {},
@@ -474,8 +487,11 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     async commitDurable() {},
     async resume(context) {
       resumeCalls += 1;
+      publicationOrder.push('resume-enter');
+      context.stagePublication(context.capture, () => publicationOrder.push('staged-publication'));
       assert.equal(resumeCalls, 1, 'peer successor reload must not recurse into resume');
       assert.deepEqual(await peer.synchronize(), context.capture);
+      publicationOrder.push('resume-exit');
     },
   });
   const settled = await writer.transition(
@@ -485,6 +501,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   );
   assert.deepEqual(await peer.synchronize(), settled);
   assert.equal(resumeCalls, 1);
+  assert.deepEqual(publicationOrder, ['resume-enter', 'resume-exit', 'staged-publication']);
   await peer.close();
   await writer.close();
 }
@@ -511,14 +528,16 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   await peer.synchronize();
   let peerSuccessor = null;
   let resumeCalls = 0;
+  let stagedPublications = 0;
   const unregister = owner.registerParticipant({
     name: 'owner-resume-race',
     async quiesce() {},
     blank() {},
     clearMemory() {},
     async commitDurable() {},
-    async resume() {
+    async resume(context) {
       resumeCalls += 1;
+      context.stagePublication(context.capture, () => { stagedPublications += 1; });
       const ownerSuccessor = await peer.synchronize();
       peerSuccessor = await peer.transition(
         ownerSuccessor,
@@ -536,6 +555,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     'SNAPBACK_AUTH_TRANSITION_FAILED',
   );
   assert.equal(resumeCalls, 1);
+  assert.equal(stagedPublications, 0);
   assert.equal(await errorCode(() => Promise.resolve(owner.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
   await unregister();
   assert.deepEqual(await owner.synchronize(), peerSuccessor);
@@ -570,14 +590,16 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   );
   let finalSuccessor = null;
   let resumeCalls = 0;
+  let stagedPublications = 0;
   const unregister = peer.registerParticipant({
     name: 'peer-resume-race',
     async quiesce() {},
     blank() {},
     clearMemory() {},
     async commitDurable() {},
-    async resume() {
+    async resume(context) {
       resumeCalls += 1;
+      context.stagePublication(context.capture, () => { stagedPublications += 1; });
       finalSuccessor = await writer.transition(
         firstSuccessor,
         successor(session(SESSION_B, USER_B), 'bearer-peer-race-final', 20_000),
@@ -590,6 +612,7 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     'SNAPBACK_CLIENT_AUTHORITY_STALE',
   );
   assert.equal(resumeCalls, 1);
+  assert.equal(stagedPublications, 0);
   assert.equal(await errorCode(() => Promise.resolve(peer.capture())), 'SNAPBACK_CLIENT_AUTHORITY_CLEARING');
   await unregister();
   assert.deepEqual(await peer.synchronize(), finalSuccessor);
@@ -934,6 +957,125 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
     'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
   );
   await coordinator.synchronize();
+  await coordinator.close();
+}
+
+// Owner and peer resume staging is discarded when the final confirmation
+// cannot run. No staged callback executes, and the context remains blank until
+// a later clean synchronization.
+for (const mode of ['owner', 'peer']) {
+  const state = { custody: {} };
+  const appId = `${APP}/staged-final-read-failure/${mode}`;
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let failNextOwnership = false;
+  const failingStorage = {
+    ...baseStorage,
+    async withOwnership(ownedAppId, operation) {
+      if (failNextOwnership) {
+        failNextOwnership = false;
+        throw Object.assign(new Error('staged final confirmation failed'), {
+          code: 'TEST_STAGED_FINAL_CONFIRM_FAILED',
+        });
+      }
+      return baseStorage.withOwnership(ownedAppId, operation);
+    },
+  };
+  const subject = new AuthCoordinator({
+    appId,
+    storage: failingStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const writer = mode === 'peer'
+    ? new AuthCoordinator({
+      appId,
+      storage: createMemoryAuthCustodyStorage({ state }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    })
+    : subject;
+  const before = await writer.establishAnonymous(anonymous());
+  if (mode === 'peer') await subject.synchronize();
+  let stagedPublications = 0;
+  const unregister = subject.registerParticipant({
+    name: `staged-final-read-failure-${mode}`,
+    async resume(context) {
+      context.stagePublication(context.capture, () => { stagedPublications += 1; });
+      failNextOwnership = true;
+    },
+  });
+  let settled;
+  if (mode === 'owner') {
+    assert.equal(
+      await errorCode(() => subject.transition(
+        before,
+        successor(session(), `bearer-staged-final-${mode}`, 10_000),
+        `staged_final_read_failure_${mode}`,
+      )),
+      'SNAPBACK_AUTH_TRANSITION_FAILED',
+    );
+  } else {
+    settled = await writer.transition(
+      before,
+      successor(session(), `bearer-staged-final-${mode}`, 10_000),
+      `staged_final_read_failure_${mode}`,
+    );
+    assert.equal(
+      await errorCode(() => subject.synchronize()),
+      'TEST_STAGED_FINAL_CONFIRM_FAILED',
+    );
+  }
+  assert.equal(stagedPublications, 0);
+  assert.equal(
+    await errorCode(() => Promise.resolve(subject.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  await unregister();
+  if (mode === 'owner') {
+    assert.equal((await subject.synchronize()).authorityEpoch, before.authorityEpoch + 1);
+  } else {
+    assert.deepEqual(await subject.synchronize(), settled);
+  }
+  if (writer !== subject) await writer.close();
+  await subject.close();
+}
+
+// Staged callbacks are ordered and non-reentrant. A throwing callback aborts
+// the remaining queue, re-blanks participants, and leaves publication paused.
+{
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/staged-callback-failure`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  const events = [];
+  let clearMemoryCalls = 0;
+  const unregister = coordinator.registerParticipant({
+    name: 'staged-callback-failure',
+    clearMemory() { clearMemoryCalls += 1; },
+    async resume(context) {
+      context.stagePublication(context.capture, () => events.push('first'));
+      context.stagePublication(context.capture, () => coordinator.capture());
+      context.stagePublication(context.capture, () => events.push('must-not-run'));
+    },
+  });
+  assert.equal(
+    await errorCode(() => coordinator.transition(
+      before,
+      successor(session(), 'bearer-staged-callback-failure', 10_000),
+      'staged_callback_failure',
+    )),
+    'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.deepEqual(events, ['first']);
+  assert.equal(clearMemoryCalls, 2, 'failure cleanup re-runs clearMemory after the initial barrier');
+  assert.equal(
+    await errorCode(() => Promise.resolve(coordinator.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  await unregister();
   await coordinator.close();
 }
 

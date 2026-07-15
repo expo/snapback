@@ -943,7 +943,7 @@ export class SnapbackClient {
       },
       commitDurable: async () => {},
       resume: async (context) => {
-        await this.#resumeAuthTransport(context.capture);
+        await this.#resumeAuthTransport(context.capture, context.stagePublication);
       },
     };
     this.__authParticipantUnregister = authCoordinator?.registerParticipant?.(
@@ -1247,7 +1247,7 @@ export class SnapbackClient {
     }
   }
 
-  async #resumeAuthTransport(capture) {
+  async #resumeAuthTransport(capture, stagePublication) {
     const credential = this.authCoordinator.credentialFor(capture);
     const session = await this.#fetchAuthSessionWithBearer(credential.bearer);
     const observed = clientAuthorityFromHandshake(session);
@@ -1262,7 +1262,14 @@ export class SnapbackClient {
       };
       throw error;
     }
-    await this.#commitAuthSession(session, capture);
+    if (typeof stagePublication !== 'function') {
+      throw staleAuthorityError();
+    }
+    // @ref LLP 0059#participant-contract — the handshake may complete during
+    // resume, but its cache is app-visible state. Stage it against the exact
+    // resume capture; AuthCoordinator flushes it inside the final locked
+    // confirmation and discards it on any failure.
+    stagePublication(capture, () => this.#cacheAuthSession(session, capture));
   }
 
   #validateCredentialResponse(response, forbiddenSecrets = []) {

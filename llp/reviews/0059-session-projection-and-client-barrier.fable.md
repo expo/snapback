@@ -228,3 +228,38 @@ MINOR:
 - Missing direct tests for two defensive delivery branches: the adopt-path barrier-active fence (`auth-coordinator.mjs:1227-1237`) and the adopt-path local-changed fence (`1244-1256`) are only reached indirectly; the pre/post-barrier regression tests pin the plain-capture variants only. Improvement: add delayed-delivery tests where the ownership read returns an `adoptPeerAfterOwnership` result and delivery lands (a) during an active barrier and (b) after a completed local transition.
 - Diagnostic fidelity: `#finishClearingOwned`'s catch nulls `#activeBarrier` before building the error detail, so `phase` is always `'unknown'` (`auth-coordinator.mjs:1206-1214`). Improvement: capture the phase before clearing the barrier.
 - Asymmetric fail-closed handling of vanished custody: `synchronize()` with a null durable record silently pauses and nulls local state without running quiesce/blank (`auth-coordinator.mjs:717-721`), while `restoreOffline()` treats the same disappearance over an exposed record as corruption with explicit fail-closed blanking (`782-786`). Commits/exposure gates still fail closed via the pause. Improvement: mirror `restoreOffline`'s blanking (or corrupt diagnostic) when a previously exposed record disappears.
+
+## FINAL3 publication review — 2026-07-15
+
+### Provenance
+
+- Reviewer family: Claude Fable
+- Provider/runtime: external Fable review artifact; exact CLI version was not emitted with this artifact
+- Model: `claude-fable-5`
+- Method: read-only blind implementation review
+- Session: unavailable (ephemeral reviewer did not emit a session identifier)
+- Reviewed commit: `bd7d1da6d458439081a60c6fe06fe700edc678cf`
+- Human authorization: ENG-25001 FINAL3 completion request
+- Secrets or redactions: none
+- Source artifact: `/private/tmp/eng25001-final3-fable-0059.md`
+
+### Verbatim review
+
+VERDICT: READY
+
+MATERIAL:
+- None.
+
+MINOR:
+- None. (Non-mismatch observation: a paused context adopting a same-authority newer revision reruns a full local barrier from the retained transition intent — conservative fail-closed behavior, consistent with the spec's later-clean-synchronization rule.)
+
+EVIDENCE:
+- Reviewed exactly `bd7d1da6d458439081a60c6fe06fe700edc678cf`; working tree clean before and after review; only in-memory test suites were executed.
+- Final locked confirmation after barriers clear: `packages/snapback-contract/auth-coordinator.mjs` `#confirmDurableExact` (1396–1414) performs a revision-exact settled compare under re-acquired ownership; owner transitions confirm after durable settle (1312–1315) and again after resume (1321–1324) before `#publicationPaused = false` (1325); peer adoption confirms before participant work (1234–1236) and after resume (1471–1475) before unpausing. Reentrant `synchronize()` during resume is exact-or-stale without nesting a barrier (688–713).
+- Delayed ownership-result fencing: the provisional read carries a phase-aware `localAtRead` fingerprint plus `publicationPausedAtRead` (733–751), rechecked at delivery (1262–1283); non-adopt results are durably reconfirmed against the exact local record (1284–1308). Every mismatch path pauses publication before throwing `SNAPBACK_CLIENT_AUTHORITY_STALE`; `capture()`/`isCurrent()` gate on the pause (601–620), so no obsolete capture can publish.
+- Clearing-phase custody with peer-recovered settled custody: the fingerprint canonicalizes `pendingAuthority` for clearing records (739–744), avoiding CORRUPT misclassification; `transition` from durable clearing recovers on a matching successor and fails STALE otherwise (1044–1049); `#adoptPeerSettled` runs the full barrier from the retained durable intent (1416–1479).
+- Tests in `packages/snapback-contract/auth-coordinator.test.mjs` verifying each closure: owner/peer reentrant-resume confirm without recursion (412–448, 450–490); changed-durable during owner resume → `SNAPBACK_AUTH_TRANSITION_FAILED`, resume ran once, capture stays `SNAPBACK_CLIENT_AUTHORITY_CLEARING`, later clean sync adopts the peer successor (492–544); same for peer-adoption resume (546–598); pre-barrier reload completing during resume, and after barrier completion, both fail stale then adopt cleanly (600–658, 660–701); direct A→B delayed delivery with broadcasts disabled (703–753); null→established (755–796); peer-adoption B→C provisional marker (798–853); failed-clearing peer recovery then original-context synchronize returns the recovered capture with no CORRUPT (855–901); failed final durable read blanks then recovers by clean sync (903–938); same-authority revision is part of exact confirmation (940–992); resume-time same-authority credential write cannot reopen exposure and the outer confirm aborts closed (994–1034); participant crash leaves durable `clearing` and recovery reruns the barrier from the exact clearing revision (1067–1105).
+- Supporting acceptance parity: Web-Lock owner killed at all seven cuts (before-clearing, quiesce, blank, clearMemory, commitDurable, before-settled-publication, resume) with full recovery barrier (`auth-custody-indexeddb.test.mjs` 308–428); two consecutive fallback takeovers assert fencing tokens exact predecessor+1 (239–301); fenced compareAndCommit publication after lease loss (430–519); broadcast matrix covers drop-all, single phases, both orders, and every unique duplicate permutation (`auth-coordinator-missed-wakeup.test.mjs` 374–431); real single- and multi-live participants await `coordinator.synchronize()` inside resume (`index.mjs:2401`, `index.mjs:3911`); the composed Contract test proves each real participant resumed exactly once and the transition completed (`auth-coordinator-contract.test.mjs` 365–433).
+- Executed at HEAD: `node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-coordinator-contract.test.mjs` — all pass ("all assertions passed"); all are wired into `packages/snapback-contract/package.json` `test`.
+- FINAL3 scope: `bd7d1da` adds `HostedAdmission` as schema authority only under LLP 0060 (`src/auth/deployment.rs`: "no current target owns the authenticated producer"), consistent with LLP 0059 not enabling hosted sessions; kit changes tighten credential-response redaction (`demos/_kit/tests/auth-coordinator-client.mjs`). `2fc3593` implements the spec's restore frontier "not limited to session creation time" via `restored_auth_timestamp_frontier_on` with unit tests asserting non-creation maxima (`src/storage/auth.rs`); Rust-side evidence verified statically, not executed.
+- Spec Status remains author-owned Draft (`llp/0059-session-projection-and-client-barrier.spec.md:2154`); no status change proposed.
