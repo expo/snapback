@@ -639,6 +639,34 @@ resource type) is enforced conservatively (declaration existence, field
 existence on the queried table, and vocabulary membership) until codegen fills
 the field-reference types alongside `resourceTable`, matching M1's posture; the
 runtime fail-closes on an unresolved declaration or a bad row field either way.
+*M2 landed 2026-07-14 via ENG-24908* — the **write path**, enforced at the host
+below every writer: the **writer-class seam** (one gate below both buffered Ibex
+writes and HostPlan — a raw `ctx.db` membership write, every generic HostPlan form
+including dry-run and nested action→mutation, and a resource delete that would
+orphan memberships are refused typed; the `system` sweep is the only
+system-authority write; `adminBypass`/anonymous match no class); the **declared
+transition matrix**, closed by default, with the host deriving caller class /
+self-other / from / to from the target row read in the write transaction, and
+`insert`/`patch` **field-bound**; **`lastHolder` counting eligible holders**
+(reusing G1's `deactivated_at` predicate) across all three legs, with the
+holder-set, resource-existence, and roster-emptiness aggregates **captured** so
+concurrent finals yield exactly one commit and one typed commit-time refusal; the
+**creation/teardown witnesses** (bootstrap seats the server-derived effective
+principal on the resource row it actually created; teardown waives `lastHolder`
+and clears the roster with the resource); and the host-bound **`sweepExpired()`**
+(remove-only, rollback-checked clock, `lastHolder` wins over expiry with a typed
+diagnostic). The activation scan's `lastHolder` leg is upgraded from row-counting
+to the **eligible**-holder predicate now that G1 has landed. M2 deliberately does
+**not** land: the generated JS methods and their `ctx.membership.<decl>.*` host-op
+dispatch, the cron→sweep wiring, and `--as-membership` (the LLP 0004 codegen/bridge
+follow-on — the host methods are the enforcement seam the bridge will call); the
+rule helpers and `ctx.permissions` read (M3); the matcher/predicate-IR and
+invalidation wiring (M4/M5); and the provenance columns/log (M5). One residual is
+named rather than guessed: a membership removal racing a **concurrent
+deactivation** of the relied-upon survivor is not linearized by the captured
+membership-row dependency (deactivation touches `_auth_users`, not the survivor's
+row); the sequential two-step schedule and concurrent membership-row removals are
+both closed, and G1's deactivation-would-strand refusal closes the reverse side.
 
 **Delivery lanes, honestly.** A helper-gated query rides the **conservative
 re-query/`live_replace` lane** — which exists today and is exactly the lane

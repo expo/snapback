@@ -12545,6 +12545,13 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         //   leave a protected LLP 0056 resource with no eligible holder; the
         //   operation conflicts with the last-eligible-holder invariant.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the M2 write invariants conflict with durable state: removing/demoting
+        //   the final eligible holder, deleting a resource whose roster remains,
+        //   and creating a protected resource without seating its bootstrap holder.
+        | "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -12566,6 +12573,18 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
         //   refused fail-closed at every authority-creating/exercising path.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATED"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the M2 writer-class seam and transition matrix are authorization
+        //   refusals: raw/HostPlan membership writes, a write matching no declared
+        //   transition, a userless authority, a field outside the matched
+        //   transition, seating a corpse, and the system-only sweep.
+        | "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED"
+        | "SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED"
+        | "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        | "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL"
+        | "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER"
+        | "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED"
+        | "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -12803,6 +12822,22 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION"
         | "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE"
         | "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the M2 write-path malformed/structural refusals: a null axis, a
+        //   missing resource/target/expiry, an immutable-axis patch, and the
+        //   bootstrap/teardown shape mismatches. (The privileged-writer guard
+        //   is an internal misuse surfaced as a bad request.)
+        | "SNAPBACK_MEMBERSHIP_NULL_AXIS"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        | "SNAPBACK_MEMBERSHIP_TARGET_MISSING"
+        | "SNAPBACK_MEMBERSHIP_PATCH_AXIS"
+        | "SNAPBACK_MEMBERSHIP_NOT_DECLARED"
+        | "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE"
+        | "SNAPBACK_MEMBERSHIP_TEARDOWN_RESOURCE_MISSING"
+        | "SNAPBACK_MEMBERSHIP_NO_EXPIRY"
+        | "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_MATRIX"
         | "SNAPBACK_PERMISSION_SCOPE_MISSING"
         | "SNAPBACK_PLAN_BOUNDS"
         | "SNAPBACK_PLAN_INVALID"
@@ -19328,6 +19363,18 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
         "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
         "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
+        // LLP 0056 M2 write-path malformed/structural refusals.
+        "SNAPBACK_MEMBERSHIP_NULL_AXIS",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+        "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
+        "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
+        "SNAPBACK_MEMBERSHIP_NOT_DECLARED",
+        "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE",
+        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH",
+        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",
+        "SNAPBACK_MEMBERSHIP_TEARDOWN_RESOURCE_MISSING",
+        "SNAPBACK_MEMBERSHIP_NO_EXPIRY",
+        "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_MATRIX",
         "SNAPBACK_PERMISSION_SCOPE_MISSING",
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
@@ -19395,6 +19442,14 @@ mod tests {
         "SNAPBACK_AUTH_PERMISSION_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
+        // LLP 0056 M2 writer-class seam + transition-matrix authorization refusals.
+        "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED",
+        "SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED",
+        "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED",
+        "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL",
+        "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER",
+        "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED",
+        "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
         "SNAPBACK_PROFILE_FORBIDS",
     ];
 
@@ -19412,6 +19467,10 @@ mod tests {
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
+        // LLP 0056 M2 write invariants that conflict with durable state.
+        "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED",
+        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED",
         "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION",
         "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
         "SNAPBACK_AUTH_INVALIDATION_PENDING",
