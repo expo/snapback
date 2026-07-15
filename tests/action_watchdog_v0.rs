@@ -504,13 +504,10 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
 /// fetch, and require the stale completion to fail with the generation fence —
 /// with an explicit fetch-start rendezvous instead of any timing threshold.
 ///
-/// The fence must win even though the vendored Ibex fetch completion has a
-/// settlement window: it erases its pending-request registry entry before it
-/// enqueues the resolve callback, so the eval loop can momentarily observe "no
-/// pending work" and report `SNAPBACK_HANDLER_DID_NOT_SETTLE` for a fetch that
-/// settled at the network layer. A reload/reset that crossed the action's async
-/// span is the precise cause and must not be masked by that transient
-/// settlement-floor diagnostic (fixed in `run_detached_ibex_action`).
+/// The vendored Ibex runtime closes the historical erase-before-enqueue
+/// settlement window, while Snapback keeps the caller-side floor precedence as
+/// defense in depth. A reload/reset that crossed the action's async span is the
+/// precise cause and must not be masked by `SNAPBACK_HANDLER_DID_NOT_SETTLE`.
 async fn assert_paused_action_generation_fence(
     state: &snapback::server::SharedSnapback,
     app: axum::Router,
@@ -581,11 +578,10 @@ async fn paused_host_call_free_action_rejects_reload_and_reset_drift() {
 }
 
 /// ENG-24530 stress proof: the completion-time generation fence must never be
-/// masked by the settlement-floor diagnostic, across many repetitions of the
-/// transient Ibex fetch-completion window that can spuriously report
-/// `SNAPBACK_HANDLER_DID_NOT_SETTLE`. The runtime fix makes the outcome
-/// deterministic; this repeats the exact generation-fence assertion so a
-/// regression that reintroduces the masking is caught rather than tolerated.
+/// masked by the settlement-floor diagnostic. Vendored Ibex now makes the
+/// fetch handoff continuously visible as pending work; this repeats the exact
+/// generation-fence assertion so either a runtime handoff regression or
+/// caller-side masking regression is caught rather than tolerated.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn paused_host_call_free_action_generation_fence_survives_settlement_race() {
     let _serial = serial_action_test().await;

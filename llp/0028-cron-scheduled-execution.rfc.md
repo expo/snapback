@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-14 (ENG-24530: the host-call-free completion generation fence also arbitrates the settlement-floor result, so a spurious `SNAPBACK_HANDLER_DID_NOT_SETTLE` from the vendored Ibex fetch-completion window cannot mask a real `SNAPBACK_ACTION_GENERATION_CONFLICT`; watchdog timeout precedence preserved; earlier: 2026-07-13 ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-15 (ENG-25006: vendored Ibex now keeps pending fetch work visible until its runtime callback is published; the ENG-24530 settlement-floor precedence remains a defense-in-depth caller contract); 2026-07-14 (ENG-24530: the host-call-free completion generation fence also arbitrates the settlement-floor result, so a spurious `SNAPBACK_HANDLER_DID_NOT_SETTLE` from the vendored Ibex fetch-completion window cannot mask a real `SNAPBACK_ACTION_GENERATION_CONFLICT`; watchdog timeout precedence preserved; earlier: 2026-07-13 ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -484,20 +484,19 @@ reload, schema change, or reset during a host-call-free await therefore returns
 upper bound when the native operation never settles.
 
 That completion fence also arbitrates the *settlement-floor* result, not only
-clean success (ENG-24530). The vendored Ibex fetch completion erases its
-pending-request registry entry before it enqueues the resolve callback, so the
-eval loop can momentarily observe "no pending work" and report
-`SNAPBACK_HANDLER_DID_NOT_SETTLE` for a fetch that in fact settled at the
-network layer — a spurious floor. When a reload/reset crossed the async span,
-that floor must not mask the true cause, so the worker re-runs the staging-
-generation check on the `SNAPBACK_HANDLER_DID_NOT_SETTLE` path and surfaces
-`SNAPBACK_ACTION_GENERATION_CONFLICT` when the generation advanced; a genuinely
-unsettled handler with no generation drift keeps its floor diagnostic. Watchdog
-precedence is preserved because the recheck reports abandonment/deadline
-(`SNAPBACK_ACTION_TIMEOUT`) ahead of the generation fence. The underlying
-native erase-before-enqueue window is tracked for a runtime-side fix; the
-Snapback precedence rule makes the caller-visible outcome deterministic
-meanwhile.
+clean success (ENG-24530). Before ENG-25006, Ibex fetch completion erased its
+pending-request registry entry before it enqueued the resolve callback, so the
+eval loop could momentarily observe "no pending work" and report
+`SNAPBACK_HANDLER_DID_NOT_SETTLE` for a fetch that had settled at the network
+layer. Vendored Ibex now publishes the runtime callback before releasing the
+pending-fetch keepalive and re-wakes the loop after that release, closing the
+native window. Snapback retains its caller-side precedence rule as defense in
+depth: when a reload/reset crossed the async span, any settlement-floor result
+still re-runs the staging-generation check and surfaces
+`SNAPBACK_ACTION_GENERATION_CONFLICT`; a genuinely unsettled handler with no
+generation drift keeps its floor diagnostic. Watchdog precedence is preserved
+because the recheck reports abandonment/deadline (`SNAPBACK_ACTION_TIMEOUT`)
+ahead of the generation fence.
 
 Cron follows the same structure: a tick *claims* due runs under the lock,
 executes each claim detached (same watchdog), and *finishes* each claim back

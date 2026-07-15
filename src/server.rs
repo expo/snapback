@@ -650,15 +650,13 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                 // another Snapback host call. Linearize completion against the
                 // same staging generation so a reload/reset during that await
                 // cannot escape as success — and so a spurious settlement-floor
-                // diagnostic cannot mask that fence (ENG-24530). The vendored
-                // Ibex fetch completion erases its pending-request registry
-                // entry before it enqueues the resolve callback, so the eval
-                // loop can momentarily observe "no pending work" and report
-                // SNAPBACK_HANDLER_DID_NOT_SETTLE for a fetch that did settle at
-                // the network layer. When a reload/reset crossed the async span,
+                // diagnostic cannot mask that fence (ENG-24530). ENG-25006
+                // closes Ibex's historical erase-before-enqueue fetch window,
+                // but this caller-side precedence remains defense in depth:
+                // when a reload/reset crossed the async span,
                 // SNAPBACK_ACTION_GENERATION_CONFLICT is the precise, stable
-                // cause and must win over that transient floor. The watchdog is
-                // still the hard upper bound: validate_live reports
+                // cause and must still win over a settlement floor. The
+                // watchdog is the hard upper bound: validate_live reports
                 // abandonment/deadline (SNAPBACK_ACTION_TIMEOUT) ahead of the
                 // generation fence, so a genuinely stuck native op keeps timing
                 // out and a truly unsettled handler with no generation drift
