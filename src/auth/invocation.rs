@@ -552,6 +552,42 @@ pub struct FunctionAttribution {
     pub dry_run: bool,
 }
 
+/// The sealed direct baseline used by host-mediated authorization for a
+/// delegated invocation. Authentication-shape fields are intentionally
+/// impossible here: authorization may not distinguish a user's real session
+/// from the same user's delegated baseline.
+///
+/// @ref LLP 0055#resolved-authority-serviceprincipal — delegated authority is
+/// intersected with this exact effective-user projection, which excludes
+/// sessionId, provider, and every actor dimension.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectAuthorizationProjection {
+    user_id: String,
+    is_authenticated: bool,
+    roles: Vec<String>,
+    kind: String,
+}
+
+impl DirectAuthorizationProjection {
+    fn for_effective_user(user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_owned(),
+            is_authenticated: true,
+            roles: Vec::new(),
+            kind: "human".to_owned(),
+        }
+    }
+
+    fn legacy_input(&self) -> AuthInput {
+        AuthInput {
+            principal: None,
+            session_id: None,
+            user_id: Some(self.user_id.clone()),
+        }
+    }
+}
+
 impl HandlerAuthProjection {
     pub fn from_authority(authority: &ResolvedAppAuthority) -> Self {
         match authority {
@@ -782,6 +818,7 @@ pub struct PreparedAuthority {
     source: InvocationSource,
     resolved: ResolvedAppAuthority,
     projection: HandlerAuthProjection,
+    direct_authorization: Option<DirectAuthorizationProjection>,
     audit: AuthorityAuditFact,
     availability: OperationAvailability,
     /// Item-5 leaf handles for the final externally-observable publication
@@ -829,6 +866,10 @@ impl PreparedAuthority {
         &self.projection
     }
 
+    pub fn direct_authorization_projection(&self) -> Option<&DirectAuthorizationProjection> {
+        self.direct_authorization.as_ref()
+    }
+
     pub fn function_attribution(&self) -> Option<FunctionAttribution> {
         match &self.resolved {
             ResolvedAppAuthority::ServicePrincipal {
@@ -859,7 +900,9 @@ impl PreparedAuthority {
     }
 
     pub(crate) fn canonical_auth_input(&self) -> AuthInput {
-        self.resolved.legacy_input()
+        self.direct_authorization
+            .as_ref()
+            .map_or_else(|| self.resolved.legacy_input(), |direct| direct.legacy_input())
     }
 
     pub(crate) fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
@@ -1020,7 +1063,7 @@ impl PreparedInvocation {
     /// projection used by HostPlan/storage expressions. Runtime JS receives
     /// `HandlerAuthProjection` separately.
     pub fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
-        input.auth = self.authority.resolved.legacy_input();
+        input.auth = self.authority.canonical_auth_input();
         input
     }
 
@@ -1134,6 +1177,15 @@ impl InvocationGate {
             }
         };
         let projection = HandlerAuthProjection::from_authority(&resolved);
+        let direct_authorization = match &resolved {
+            ResolvedAppAuthority::ServicePrincipal {
+                effective_user_id: Some(effective_user_id),
+                ..
+            } => Some(DirectAuthorizationProjection::for_effective_user(
+                effective_user_id,
+            )),
+            _ => None,
+        };
         Ok(PreparedAuthority {
             admission,
             active_mode,
@@ -1141,6 +1193,7 @@ impl InvocationGate {
             source,
             resolved,
             projection,
+            direct_authorization,
             audit,
             availability: OperationAvailability::Available,
             publication: None,
@@ -1609,6 +1662,74 @@ mod tests {
             .function_attribution()
             .is_none()
         );
+    }
+
+    #[test]
+    fn delegated_authority_has_exact_direct_non_widening_baseline() {
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent_1".to_owned(),
+                credential_id: "credential_1".to_owned(),
+                credential_generation: 2,
+                grant_id: "grant_1".to_owned(),
+                token_id: "token_1".to_owned(),
+                effective_user_id: Some("user_1".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: 20_000,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(authority.direct_authorization_projection()).unwrap(),
+            json!({
+                "userId": "user_1",
+                "isAuthenticated": true,
+                "roles": [],
+                "kind": "human"
+            })
+        );
+        assert_eq!(
+            authority.canonical_auth_input(),
+            AuthInput {
+                principal: None,
+                session_id: None,
+                user_id: Some("user_1".to_owned()),
+            },
+            "host authorization sees only the direct effective-user baseline"
+        );
+        assert_eq!(authority.projection().session_id(), None);
+        assert_eq!(
+            serde_json::to_value(authority.projection()).unwrap()["actor"]["userId"],
+            "agent_1",
+            "the once-run handler still sees delegated attribution"
+        );
+
+        let autonomous = InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent_1".to_owned(),
+                credential_id: "credential_1".to_owned(),
+                credential_generation: 2,
+                grant_id: "grant_1".to_owned(),
+                token_id: "token_1".to_owned(),
+                effective_user_id: None,
+                scopes: Vec::new(),
+                token_expires_at_ms: 20_000,
+            },
+        )
+        .unwrap();
+        assert!(autonomous.direct_authorization_projection().is_none());
     }
 
     #[test]
