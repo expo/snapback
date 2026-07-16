@@ -38,8 +38,8 @@ with the Snapback label and `guide-gap` in the title.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate manifests, client api, Contract bindings | codegen, generate, artifacts | local | shipped | `runCodegenCli` in packages/snapback-codegen/index.mjs | llp/0037, llp/0021 | getting-started/your-first-backend.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | GAP (owner: ccheever, review: 2026-08-15) |
-| backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | GAP (owner: ccheever, review: 2026-08-15) |
+| backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
+| backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | recipes/presence-cursors.md |
@@ -57,7 +57,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.react | React arm: hand-wired client, connection axis | react, hooks, dataprovider | local | shipped | demos/all-aboard/surfaces/react/src/main.tsx | llp/0005 | clients/react.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
-| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | GAP (owner: ccheever, review: 2026-08-15) |
+| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
 | operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | GAP (owner: ccheever, review: 2026-08-15) |

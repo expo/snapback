@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "bcd438bd726db4c9781cc35494e89327e268ba94"
+    "commit": "54a44db83f15c12335da013d52e3a9a2399294d7"
   },
   "nav": {
     ".": [
@@ -49,6 +49,16 @@
         "id": "backend.mutations",
         "order": 2,
         "title": "Mutations"
+      },
+      {
+        "id": "backend.actions-and-fetch",
+        "order": 3,
+        "title": "Actions and outbound fetch"
+      },
+      {
+        "id": "backend.cron",
+        "order": 4,
+        "title": "Scheduled execution with cron"
       }
     ],
     "clients": [
@@ -73,6 +83,13 @@
         "id": "getting-started.the-authoring-loop",
         "order": 2,
         "title": "The authoring loop"
+      }
+    ],
+    "operating": [
+      {
+        "id": "operating.secrets-and-config",
+        "order": 1,
+        "title": "Secrets and deployment config"
       }
     ],
     "realtime": [
@@ -181,6 +198,94 @@
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
       "sha256": "27f84d8e8926c6e64422b74a82e4a445bce2e256f7fc11a8a75a37de2902205c",
       "snippets": []
+    },
+    "backend.actions-and-fetch": {
+      "path": "guide/backend/actions-and-fetch.md",
+      "title": "Actions and outbound fetch",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.actions"
+      ],
+      "authorities": [
+        "llp/0004-application-data-api.rfc.md",
+        "llp/0009-code-execution-security.rfc.md",
+        "llp/0036-app-secrets-and-config.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "demos/all-aboard/snapback/functions.mjs",
+        "demos/all-aboard/snapback/handlers.mjs",
+        "demos/all-aboard/tests/acceptance/egress.mjs"
+      ],
+      "examples": [
+        "demos/all-aboard"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "54a44db83f15c12335da013d52e3a9a2399294d7",
+      "sha256": "f0521f2db2a3a8e9eae7ed44c75e29dacac9a07999801edc49f83075d3532e3f",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/egress.mjs"
+        }
+      ]
+    },
+    "backend.cron": {
+      "path": "guide/backend/cron.md",
+      "title": "Scheduled execution with cron",
+      "order": 4,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.cron"
+      ],
+      "authorities": [
+        "llp/0028-cron-scheduled-execution.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "demos/all-aboard/snapback/functions.mjs",
+        "demos/all-aboard/tests/acceptance/cron.mjs"
+      ],
+      "examples": [
+        "demos/all-aboard"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "54a44db83f15c12335da013d52e3a9a2399294d7",
+      "sha256": "ac47f7f88ea59ef98c556af6af7798a4fc9115bb99f58e897fbdfcb0c72aacc1",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/cron.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/cron.mjs"
+        }
+      ]
     },
     "backend.mutations": {
       "path": "guide/backend/mutations.md",
@@ -291,7 +396,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "acd3cc86dbd2b592b8b65847456025aa82ef68cc45da5b8ca9f2779a799a884e",
+      "sha256": "d6784ec03f00e23530eaf692dc127f5a6ed7348d7029e6ac4ae449a154985d44",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -527,8 +632,51 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "2ddef4e133c840422a3db407c7073b057551973a15a529d6f41c5d57ea05f63c",
+      "sha256": "effe2b13ffcd75be5ffdf88bcbfe00b2b243df2485a3f22894084c81e700d6d7",
       "snippets": []
+    },
+    "operating.secrets-and-config": {
+      "path": "guide/operating/secrets-and-config.md",
+      "title": "Secrets and deployment config",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.secrets-config"
+      ],
+      "authorities": [
+        "llp/0036-app-secrets-and-config.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "demos/all-aboard/snapback/functions.mjs",
+        "demos/all-aboard/tests/acceptance/egress.mjs"
+      ],
+      "examples": [
+        "demos/all-aboard"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "54a44db83f15c12335da013d52e3a9a2399294d7",
+      "sha256": "1c44fda797b2877742115610240e9abc0d2942bcfb5843c94fb114a5a9113fd3",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/egress.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/egress.mjs"
+        }
+      ]
     },
     "realtime.live-queries": {
       "path": "guide/realtime/live-queries.md",
@@ -747,7 +895,9 @@
       "auth.scoped-queries",
       "auth.sessions",
       "auth.target-honesty",
+      "backend.actions",
       "backend.codegen",
+      "backend.cron",
       "backend.functions",
       "backend.provisioning",
       "backend.query-semantics",
@@ -757,6 +907,7 @@
       "clients.optimistic-overlays",
       "clients.react",
       "operating.inspect",
+      "operating.secrets-config",
       "operating.served-guide",
       "operating.server-lifecycle",
       "realtime.durable-push",
@@ -767,14 +918,11 @@
     "gaps": [
       "auth.agent-principals",
       "auth.scoped-roles",
-      "backend.actions",
-      "backend.cron",
       "clients.headless",
       "deploy.cloudflare",
       "operating.admin-console",
       "operating.diagnostics",
       "operating.host-ops",
-      "operating.secrets-config",
       "sync.offline"
     ]
   },
@@ -782,5 +930,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "9aa2c2c84c9ac4ade18e0d6584448324eb86f9478aa0f3f1625c5cda37e044e3"
+  "contentHash": "69c87e1ae46c05650866418b98d44b2710f7220093fbd311defb1e774b947c24"
 }

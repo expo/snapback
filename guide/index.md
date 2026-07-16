@@ -50,6 +50,10 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
+  egress, config grants, and mutation-owned durable effects.
+- [Scheduled execution](./backend/cron.md) — action-backed jobs,
+  demand activation, deterministic ticks, and the run ledger.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
@@ -70,6 +74,10 @@ you never build around a feature because you didn't know it existed.
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
   vacuous-pass protection, safe server lifecycle.
+
+### Operating
+- [Secrets and deployment config](./operating/secrets-and-config.md) —
+  declare, set, verify, grant, and consume write-only values.
 
 ### Recipes
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,

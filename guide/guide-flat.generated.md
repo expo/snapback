@@ -43,8 +43,8 @@ with the Snapback label and `guide-gap` in the title.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate manifests, client api, Contract bindings | codegen, generate, artifacts | local | shipped | `runCodegenCli` in packages/snapback-codegen/index.mjs | llp/0037, llp/0021 | getting-started/your-first-backend.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | GAP (owner: ccheever, review: 2026-08-15) |
-| backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | GAP (owner: ccheever, review: 2026-08-15) |
+| backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
+| backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | recipes/presence-cursors.md |
@@ -62,7 +62,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.react | React arm: hand-wired client, connection axis | react, hooks, dataprovider | local | shipped | demos/all-aboard/surfaces/react/src/main.tsx | llp/0005 | clients/react.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
-| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | GAP (owner: ccheever, review: 2026-08-15) |
+| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
 | operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | GAP (owner: ccheever, review: 2026-08-15) |
@@ -227,6 +227,10 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
+  egress, config grants, and mutation-owned durable effects.
+- [Scheduled execution](./backend/cron.md) — action-backed jobs,
+  demand activation, deterministic ticks, and the run ledger.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
@@ -247,6 +251,10 @@ you never build around a feature because you didn't know it existed.
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
   vacuous-pass protection, safe server lifecycle.
+
+### Operating
+- [Secrets and deployment config](./operating/secrets-and-config.md) —
+  declare, set, verify, grant, and consume write-only values.
 
 ### Recipes
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
@@ -939,6 +947,224 @@ app database, not a wall-clock timestamp.
 
 ---
 
+<!-- snapback-guide-source: guide/backend/actions-and-fetch.md -->
+---
+title: Actions and outbound fetch
+id: backend.actions-and-fetch
+order: 3
+audience: agent-first
+capabilities: [backend.actions]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+examples: [demos/all-aboard]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+---
+
+# Actions and outbound fetch
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+An action is the non-transactional function class for external I/O and
+longer-running orchestration. It may fetch only when the deployment enables
+outbound actions, receives only the config entries named by `uses`, and
+commits durable state by calling a mutation.
+
+## Declare the powers the action needs
+
+All Aboard's feed action declares typed arguments, its JS handler, the one
+config pool it may read, and the tables mutations it invokes can write:
+
+```js source=demos/all-aboard/snapback/functions.mjs
+export const refreshFeed = defineAction({
+  args: {
+    trigger: v.optional(v.string()),
+    source: v.optional(v.string()),
+    feedUrl: v.optional(v.string()),
+    // Testing knob (short-cadence acceptance rigs): lowers the upstream-poll
+    // budget window; clamped so it can never RAISE the 180s production budget.
+    pollBudgetMs: v.optional(v.integer()),
+  },
+  js: { source: 'handlers.mjs', exportName: 'refreshFeed' },
+  // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the grant that
+  // hands the live fetch its rotating key via ctx.secrets.
+  uses: ['caltrainFeed'],
+  writes: ['trainStatus', 'liveDepartures', 'feedRefreshState'],
+});
+```
+
+`uses` is an allowlist, not documentation. Codegen rejects unknown entries,
+and `ctx.secrets` refuses an entry the action was not granted. Declare values
+and configure deployments as described in
+[secrets and config](../operating/secrets-and-config.md).
+
+## Keep network I/O outside the transaction
+
+Actions do not get `ctx.db`. Fetch or compute first, then call a named
+mutation through `ctx.runMutation`; that mutation owns the atomic durable
+commit and live fan-out:
+
+```js source=demos/all-aboard/snapback/handlers.mjs
+      const snapshot = await fetchCaltrainSnapshot(ctx, args || {});
+      return await ctx.runMutation('applyLiveFeedSnapshot', {
+        trigger,
+        source: '511-siri-stop-monitoring',
+        delays: snapshot.delays,
+        departures: snapshot.departures,
+```
+
+This split prevents a slow or failed network request from holding the write
+lane. Nested mutations inherit the action's server-resolved authority; they do
+not accept a replacement identity.
+
+## Enable egress deliberately
+
+The local runtime denies `fetch` by default. Enable it explicitly with
+`SNAPBACK_OUTBOUND_ACTIONS=1` for the deployment/process that should have
+egress. Queries and mutations remain denied even in that runtime:
+
+```js source=demos/all-aboard/tests/acceptance/egress.mjs
+  await suite.check('a query in the same runtime is still denied fetch and has no ctx.secrets', async () => {
+    const { rows } = await dbOn.query('queryProbe', {});
+    assert(/AMBIENT_CAPABILITY_DENIED/.test(rows[0].fetchState), `query fetch should be denied, got: ${rows[0].fetchState}`);
+    assertEqual(rows[0].secretsState, 'undefined', 'queries get no config surface');
+```
+
+Action wall-clock limits and the detached watchdog still apply. A timed-out
+action cannot commit late, and a later invocation gets an isolated worker.
+
+## Handle failure as data only when the product means it
+
+An action may return a structured fallback result when fallback is an explicit
+product behavior, as All Aboard does for recorded data. Otherwise throw: the
+action error remains a structured diagnostic envelope. Never convert
+configuration, permission, or timeout failures into a false success merely to
+keep a UI quiet.
+
+## Anti-patterns
+
+- **Do not fetch inside a query or mutation.** The ambient-capability gate
+  refuses it, and transactions must not wait on the network.
+- **Do not pass API keys in action arguments.** Declare config and grant it
+  with `uses`.
+- **Do not write durable state directly from an action.** Call a mutation so
+  validation, receipts, and live delivery share one commit.
+- **Do not enable egress globally as a convenience.** Turn it on only for the
+  deployment that needs actions with network access.
+
+---
+
+<!-- snapback-guide-source: guide/backend/cron.md -->
+---
+title: Scheduled execution with cron
+id: backend.cron
+order: 4
+audience: agent-first
+capabilities: [backend.cron]
+authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs]
+examples: [demos/all-aboard]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+---
+
+# Scheduled execution with cron
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Cron jobs are generated manifest entries that ask the target scheduler to run
+an **action**. The action may perform I/O and calls mutations for durable
+effects, so scheduled writes use the same atomic commit and live-delivery path
+as user-triggered work.
+
+## Define the job
+
+All Aboard declares one demand-gated interval:
+
+```js source=demos/all-aboard/snapback/functions.mjs
+export const caltrainCron = defineCron({
+  warmPoll: {
+    // jitter:false because the 180s cadence is a fixed product interval for a
+    // single demand-gated app; no thundering-herd concern (LLP 0028 §Jitter).
+    schedule: { everyMs: 180_000, jitter: false },
+    action: 'refreshFeed',
+    activation: { kind: 'WhileLive', whileLive: ['liveTrainStatus'] },
+  },
+});
+```
+
+The complete authoring inventory for each job:
+
+- `schedule`: exactly one of `everyMs` (local floor 1,000 ms) or a
+  five-field `cron` expression;
+- `action`: the name of a declared action; authenticated-only actions are
+  rejected because the scheduler runs with system authority;
+- `enabled`: defaults to `true`;
+- `activation`: always (default) or `whileLive` over named live queries;
+- `jitter` / `jitterMaxMs`: jitter defaults on; opt out only for a
+  product-fixed cadence with no herd concern;
+- `overlapPolicy`: defaults to `NoOverlap`;
+- `retryPolicy`: defaults to `{ mode: 'NextTick' }`.
+
+Codegen validates job names, schedules, action existence/kind, and the
+auth-requirement boundary before the server loads the manifest.
+
+## Gate polling on real demand
+
+`whileLive` keeps a polling job inactive when nobody subscribes to the
+declared query. The first subscription arms it; the last disconnect makes it
+inactive again:
+
+```js source=demos/all-aboard/tests/acceptance/cron.mjs
+  // Subscribing to the declared live query arms the job (whileLive activation).
+  const live = await db.liveQuery('liveTrainStatus', { connectionId: 'cron-rider' });
+  const versionBefore = live.version;
+```
+
+This is how a scale-to-zero app avoids paying for upstream polling while idle.
+The target owns the wakeup mechanism; the action/mutation behavior stays
+portable.
+
+## Test deterministically
+
+`POST /_snapback/api/cron/tick` is an AdminWrite test/operations seam. The
+kit's `cronTick()` sends the admin credential, recomputes activation, and
+runs due work. Do not wait for wall-clock cadence in acceptance tests.
+
+The acceptance asserts the whole path—tick → action → mutation → live update:
+
+```js source=demos/all-aboard/tests/acceptance/cron.mjs
+  await suite.check('scheduler run: action -> mutation -> live delta', async () => {
+    const rows = await live.poll();
+    assert(live.version > versionBefore, `durable version advanced (${versionBefore} -> ${live.version})`);
+    const limited = rows.find((r) => r.patternId === 'sb-limited');
+```
+
+`GET /inspect` exposes registered jobs, activation state, next/last timing,
+and the bounded recent-run ledger. Assert the job and a successful run so a
+vacuous tick cannot pass.
+
+## Anti-patterns
+
+- **Do not schedule a mutation directly.** Cron targets actions; the action
+  calls a mutation for durable effects.
+- **Do not sleep in tests.** Force an authenticated tick and inspect its run
+  ledger.
+- **Do not poll while nobody can observe the result.** Use `whileLive` for
+  warm-poll products that should scale to zero.
+- **Do not disable jitter casually.** Fixed no-jitter schedules need an
+  explicit product reason.
+
+---
+
 <!-- snapback-guide-source: guide/clients/contract-adapter.md -->
 ---
 title: The Contract adapter
@@ -1506,6 +1732,110 @@ failures everywhere carry stable `SNAPBACK_*` diagnostic codes
 - **Do not point a new suite at a server you didn't start.** Suites own
   their server lifecycle; see
   [testing/acceptance](../testing/acceptance.md).
+
+---
+
+<!-- snapback-guide-source: guide/operating/secrets-and-config.md -->
+---
+title: Secrets and deployment config
+id: operating.secrets-and-config
+order: 1
+audience: agent-first
+capabilities: [operating.secrets-config]
+authorities: [llp/0036-app-secrets-and-config.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+examples: [demos/all-aboard]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+---
+
+# Secrets and deployment config
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Snapback config is deployment state, separate from app rows. Apps declare
+secret entries in source; operators set values through the setup/admin
+surface; only actions explicitly naming an entry in `uses` receive a
+redacting handle.
+
+## Declare names and acquisition help, never values
+
+`defineConfig` puts public metadata in the generated function manifest:
+
+```js source=demos/all-aboard/snapback/functions.mjs
+export const appConfig = defineConfig({
+  caltrainFeed: {
+    description: '511.org Open Data API key',
+    purpose: 'Fetches Caltrain StopMonitoring predictions for live departure boards',
+    required: false,
+    pool: true,
+```
+
+The v1 entry inventory is: `description`, `purpose`, `required`
+(default true), `pool`, optional action `probe`, `howToGet`, and
+`acquisition` metadata for the setup wizard. V1 values are secret; defaults
+and non-secret values are deliberately rejected.
+
+Values never belong in source, manifests, seed data, LLPs, or demo diaries.
+
+## Set and inspect config
+
+Use `/_snapback/admin/setup` for the browser wizard or the admin-gated config
+API/host operations for automation. The core operations are `status`,
+`set`, `unset`, and `verify`.
+
+`status` reports declaration, set state, member count, source, generation,
+and verification—never value bytes:
+
+```js source=demos/all-aboard/tests/acceptance/egress.mjs
+  await suite.check('config.status reports names and states, never values', async () => {
+    const { status, body, raw } = await configApi(on, 'GET', 'status');
+    assertEqual(status, 200, 'status is readable');
+    const entry = body.entries.find((e) => e.name === 'feedKeys');
+    assert(entry, 'feedKeys is declared');
+```
+
+`set` replaces a scalar/pool or appends a pool member; `unset` removes the
+deployment value. `verify` invokes the entry's declared action probe and
+records only its outcome. Config survives `app.reset` because reset owns app
+data, not deployment custody.
+
+## Read through a granted handle
+
+An action names entries in `uses`, then reads `ctx.secrets.get(name)` for the
+entry or `ctx.secrets.rotating(name)` for round-robin pool selection. Handle
+stringification, interpolation, JSON, and
+debug formatting redact. `.expose()` is the narrow, explicit materialization
+for building an outbound request; keep the returned string local and
+short-lived.
+
+The acceptance proves accidental materialization stays redacted:
+
+```js source=demos/all-aboard/tests/acceptance/egress.mjs
+    assertEqual(config.stringified, JSON.stringify(REDACTED), 'JSON.stringify redacts');
+    assertEqual(config.template, REDACTED, 'template literal redacts');
+    assertEqual(config.concatenated, `prefix:${REDACTED}`, 'string concat redacts');
+    assert(!config.stringified.includes('key-'), 'no key material in stringified form');
+```
+
+Queries and mutations have no `ctx.secrets`; actions cannot access an entry
+outside `uses`. Missing and undeclared entries fail with stable
+`SNAPBACK_CONFIG_*` diagnostics.
+
+## Anti-patterns
+
+- **Do not put values in `defineConfig`.** It declares names and operator
+  help only.
+- **Do not pass secrets as function arguments or store them in app tables.**
+  Use an action's granted handle.
+- **Do not log or return `.expose()`.** Redaction protects the handle, not a
+  copied plaintext string.
+- **Do not treat `app.reset` as credential rotation.** Use `set`/`unset`
+  and verification on the deployment config surface.
 
 ---
 
