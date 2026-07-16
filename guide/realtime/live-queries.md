@@ -108,8 +108,9 @@ export type ConnectionAxis = 'connecting' | 'live' | 'stale' | 'disconnected';
 `open → live`; `budget-missed`/`lost → stale` (degraded — render retained
 data, marked); `closed → disconnected`. Defaults:
 `LIVE_HEARTBEAT_INTERVAL_MS = 5_000`, `LIVE_FRESHNESS_BUDGET_MS = 15_000`,
-reconnect backoff 250ms → 10s. The [clients pages](../clients/contract-adapter.md)
-show each arm consuming this axis.
+reconnect backoff 250ms → 10s. The
+[headless client](../clients/headless.md) owns this state machine; the
+[Contract adapter](../clients/contract-adapter.md) and React arm consume it.
 
 ## Anti-patterns
 

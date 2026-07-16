@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1e06be2458682673ce3bf389cb075a118d880856"
+    "commit": "67ca44771ef1e3cd585c73a64454c29c0acbc850"
   },
   "nav": {
     ".": [
@@ -66,6 +66,11 @@
         "id": "clients.contract-adapter",
         "order": 1,
         "title": "The Contract adapter"
+      },
+      {
+        "id": "clients.headless",
+        "order": 1,
+        "title": "The headless client"
       },
       {
         "id": "clients.react",
@@ -403,7 +408,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "6da3eada15fb40012b5094260dba20214b981bf5ec88dbc46be2e1131f600dec",
+      "sha256": "1a9619a73ca50a3639ebe610a9b17395d0a7baba220cf0e408e4dfdabd257bd9",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -462,6 +467,46 @@
           "lang": "ts",
           "class": "transcluded",
           "source": "demos/todo-v2/surfaces/contract/main.ts"
+        }
+      ]
+    },
+    "clients.headless": {
+      "path": "guide/clients/headless.md",
+      "title": "The headless client",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.headless"
+      ],
+      "authorities": [
+        "llp/0012-headless-integration-contract.spec.md",
+        "demos/_kit/client.mjs",
+        "demos/todo/tests/acceptance/headless.mjs",
+        "demos/card-game/tests/acceptance/authority-scope.mjs"
+      ],
+      "examples": [
+        "demos/todo",
+        "demos/todo-v2",
+        "demos/graffiti",
+        "demos/card-game"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "67ca44771ef1e3cd585c73a64454c29c0acbc850",
+      "sha256": "3356a3384cd84547877852ab606afc1267562760fc77f4521ed54d2ee22552f5",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/client.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
         }
       ]
     },
@@ -639,7 +684,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "f8542f1c8f33b56562552cdcc54c56baaa0f7fe22e033bf7bd026865e85f1938",
+      "sha256": "0549a3e03437f9e10091d25c348111df0d1379453ad4e1c1fe12298ff694a4b3",
       "snippets": []
     },
     "operating.secrets-and-config": {
@@ -711,7 +756,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "a1fd4d2c6701bd03b57babd8dd0449026909d9747da00115a6bede71df513349",
+      "sha256": "b18089e3f97ae165d69dae7ae1fffbb16e7ad877653c5970888d01bebde4cb1e",
       "snippets": [
         {
           "lang": "js",
@@ -954,6 +999,7 @@
       "backend.schema",
       "backend.seed",
       "clients.contract",
+      "clients.headless",
       "clients.optimistic-overlays",
       "clients.react",
       "operating.inspect",
@@ -969,7 +1015,6 @@
     "gaps": [
       "auth.agent-principals",
       "auth.scoped-roles",
-      "clients.headless",
       "deploy.cloudflare",
       "operating.admin-console",
       "operating.diagnostics",
@@ -980,5 +1025,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "ac07cdfda283179b9ba332d992f4ae5484d2e6528ea5b58a3de991e4421e03c6"
+  "contentHash": "2376593bf4e3f7b90f65a9d35448eac6a5be59e7d58550a4608678afce8ba8a7"
 }

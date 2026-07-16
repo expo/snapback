@@ -70,6 +70,8 @@ you never build around a feature because you didn't know it existed.
   honesty; how to check the server instead of trusting prose.
 
 ### Clients
+- [The headless client](./clients/headless.md) — the complete
+  `SnapbackClient` surface: calls, live/ephemeral state, receipts, and auth.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React arm](./clients/react.md) — hand-wired client, live queries in
