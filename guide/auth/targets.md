@@ -26,7 +26,8 @@ The full local server (LLP 0002) is where every guide technique on a
 commit version and read-set validation, live queries over the durable lane,
 ephemeral realtime, and local sessions-mode auth with server-derived
 principals, connection-bound live grants, auth-invalidation barriers, and
-signed authorized-lease offline retention.
+signed authorized-lease offline retention. The systematic local contract is
+[protecting live and retained data](./protecting-data.md).
 
 **What the local target deliberately does NOT claim** (LLP 0060; the
 README's must-not-claim posture): these are local-target guarantees, not

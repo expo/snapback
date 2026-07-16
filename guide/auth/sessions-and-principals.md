@@ -96,8 +96,9 @@ principals' subscriptions are untouched:
 
 Offline retention of authorized data is honest too — retained rows survive
 a cold boot only until the signed lease's exact deadline; see the
-[hidden hands recipe](../recipes/hidden-hands.md) for the full witnessed
-sequence.
+[hidden hands recipe](../recipes/hidden-hands.md) for the paved sequence and
+[protecting data](./protecting-data.md) for connection grants, invalidation,
+retry, and lease mechanics.
 
 ## Ask the server what auth is actually on
 

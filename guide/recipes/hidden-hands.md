@@ -26,7 +26,9 @@ across logout, and honestly offline. The working reference is
 suite (which runs in the local proof).
 
 Prerequisite: sessions-mode auth —
-[sessions and principals](../auth/sessions-and-principals.md).
+[sessions and principals](../auth/sessions-and-principals.md). For the complete
+grant/invalidation/lease contract behind this recipe, use
+[protecting data](../auth/protecting-data.md).
 
 ## One query, disjoint worlds
 

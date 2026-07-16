@@ -68,6 +68,8 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Protecting live and retained data](./auth/protecting-data.md) —
+  connection grants, invalidation obligations, recovery, and authorized leases.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 

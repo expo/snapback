@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "39d6ce2db5832c9391dc8e5f7ad23243294f5774"
+    "commit": "d85bf1c02747900a3e8d8bcf4de522effb317c82"
   },
   "nav": {
     ".": [
@@ -32,6 +32,11 @@
         "id": "auth.sessions-and-principals",
         "order": 1,
         "title": "Sessions and principals"
+      },
+      {
+        "id": "auth.protecting-data",
+        "order": 2,
+        "title": "Protecting live and retained data"
       },
       {
         "id": "auth.targets",
@@ -152,6 +157,52 @@
     ]
   },
   "pages": {
+    "auth.protecting-data": {
+      "path": "guide/auth/protecting-data.md",
+      "title": "Protecting live and retained data",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "auth.invalidation-barrier",
+        "auth.authorized-leases"
+      ],
+      "authorities": [
+        "llp/0053-authorization-invalidation.rfc.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/auth/mode.rs",
+        "src/local/authorization_acceptance.rs",
+        "demos/_kit/tests/auth-invalidation-client.mjs",
+        "packages/snapback-contract/authorized-lease.mjs"
+      ],
+      "examples": [
+        "demos/card-game",
+        "demos/_kit/tests/auth-invalidation-client.mjs"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "d85bf1c02747900a3e8d8bcf4de522effb317c82",
+      "sha256": "6ab31814249018483f7aa5f501207273483f742e0255a62884d9c9c0e0854459",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/tests/auth-invalidation-client.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/tests/auth-invalidation-client.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/client.mjs"
+        }
+      ]
+    },
     "auth.sessions-and-principals": {
       "path": "guide/auth/sessions-and-principals.md",
       "title": "Sessions and principals",
@@ -178,7 +229,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "2a372af84752924154235532dc150e8f3bb8c2a9",
-      "sha256": "b3db37f9e8b00a204fab2f3e91b1fbf262f9f8ebcae83d7c82f93d155346be60",
+      "sha256": "af9064727d137b0a87b9fd35bc6cf3940b5015f4a2775b88060435e816b5237d",
       "snippets": [
         {
           "lang": "js",
@@ -228,7 +279,7 @@
       "examples": [],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "27f84d8e8926c6e64422b74a82e4a445bce2e256f7fc11a8a75a37de2902205c",
+      "sha256": "5302174aa1eb77614c659358e79665fdd8c852775a0211b5ec1b42c2dfb71bf9",
       "snippets": []
     },
     "backend.actions-and-fetch": {
@@ -428,7 +479,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "b2a91b7d7490804cf0ae5ccbfe93bb81ae1dbc342f41539128fa37766c56738b",
+      "sha256": "5187de5c73dfd9ef90100c6661954dc90479c787e87872de5609f4a5c8c11272",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -704,7 +755,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "79b99c4c286f30ff3a8dc91e481126048e93bb1fa606c0c9cdfd5646d59b4850",
+      "sha256": "60076e43ef7d441836a422ac3ae9688694cf0b76576fb1602866a6d8af0cd7df",
       "snippets": []
     },
     "operating.admin-console": {
@@ -973,7 +1024,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "2a372af84752924154235532dc150e8f3bb8c2a9",
-      "sha256": "636fcef3908840772fbe07317bf4b2f053e1ecab09804f9528128cd7794e3ab1",
+      "sha256": "96ca70df28f617cda45f29deccc519bf5e28cdf3edacf1ee37e3e665a9808ad6",
       "snippets": [
         {
           "lang": "js",
@@ -1188,5 +1239,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "07401cf2d5bf5719aeb6f2c0cf0a707461ee5552e349a2ef9dc2a8ed37c179a4"
+  "contentHash": "5b5ea7ac26ed585677434f6fb524f1ace66aad5762de9ee3863a2736adf15dba"
 }
