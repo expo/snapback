@@ -5,7 +5,7 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-14 (auth-program implementation reconciliation: items 4–8 now make the local sessions posture enableable with the shared invocation gate, server-derived handler authority, connection-bound projection, coordinator barrier, authorization invalidation, two-axis client storage, and signed-lease retained reads; hosted readiness and the broader permission-language questions remain open). 2026-07-13 (ENG-24596: record LLP 0057's implemented local auth catalog/provider/session core and its item-4/item-5 activation fence; earlier: narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: items 4–8 now make the local sessions posture enableable with the shared invocation gate, server-derived handler authority, connection-bound projection, coordinator barrier, authorization invalidation, two-axis client storage, and signed-lease retained reads; hosted readiness and the broader permission-language questions remain open). 2026-07-13 (ENG-24596: record LLP 0057's implemented local auth catalog/provider/session core and its item-4/item-5 activation fence; earlier: narrow authorization-invalidation addendum: LLP 0053, once Accepted, supersedes the universal epoch/generic-resync mechanism while preserving server-directed fail-closed reauthorization, fresh snapshots, and user-switch wipe; quarantine is ratified as immediate clear-while-uncertain and typed denial ownership is pinned; earlier 2026-07-02: v1 auth/sync direction ratified before LLP 0032 P4)
 **Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0020, LLP 0032, LLP 0039, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060
 
 ## Summary
@@ -403,6 +403,20 @@ OAuth, passkey, and external-provider ordering remain later product choices.
   sign-out; encryption-at-rest remains open.
 - Which BYOP provider should be the first adapter? Valet shipped Clerk and WorkOS
   adapters, so either is a proven starting point.
+
+## Dated addendum: agent principals and membership roles (2026-07-16)
+
+Authentication has immutable human and agent principal kinds. A
+service-principal invocation retains its actor while optionally projecting a
+human effective principal; handlers receive only the server-derived sealed
+projection. Delegation never changes durable identity and never permits a
+caller-supplied actor/effective substitution.
+
+The roles open question is answered for this slice: roles and memberships are
+app data in a system-recognized declaration shape. The host owns principal,
+resource, role, provenance, and transition enforcement; raw writes are denied.
+Role failures expose only `{kind: "role"}` publicly, with full cause confined
+to gated diagnostics, so denial is not a hidden-row oracle.
 
 ## Status
 

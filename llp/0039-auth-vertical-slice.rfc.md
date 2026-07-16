@@ -5,7 +5,7 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
 non-production step-up slice now reuses the bounded challenge/mailbox protocol
 with a distinct operation-bound digest and transactional consumption; production
 human delivery remains fail-closed on LLP 0045); 2026-07-13 (ENG-24592 focused exact confirmation completed READY
@@ -276,7 +276,9 @@ the handler runs:
 - `adminBypass { reason }` — host-ops and admin surfaces only; **bypass
   grants no identity and suppresses no check** (below);
 - `system` — cron and server-originated executions; carries no user;
-- later: `servicePrincipal` (reserved; [LLP 0042](./0042-agent-mcp-surface.rfc.md)).
+- `servicePrincipal` — scoped agent actor plus effective user, admitted only by
+  the generated app-data gate described in the dated amendment below
+  ([LLP 0042](./0042-agent-mcp-surface.rfc.md)).
 
 **One gate, every path — the composition matrix.**
 
@@ -1950,6 +1952,36 @@ The remaining invalidation questions — structural proof for subject-scoped
 suppression, non-user scope algebra, and hosted-coordinator parity — live in
 [LLP 0053](./0053-authorization-invalidation.rfc.md) §Open Questions. Mutable
 protected inputs and the 24-hour lease default/hard maximum are pinned, not open.
+
+## Dated amendment: agent authority and lifecycle (2026-07-16)
+
+LLP 0055/0056 extend this frozen auth program without weakening its operator
+plane. `Authorization` means an app-plane bearer: either the existing session
+bearer or an agent scoped token. Scoped tokens are accepted only by generated
+app-data invocation and `/connection/open`; host operations and lifecycle or
+provisioning routes never resolve them. `servicePrincipal` connections bind
+both durable authority `(actorUserId, credentialId, credentialGeneration,
+grantId)` and carrier authority `(tokenId, connectionId)`, with deadline
+`min(token, grant)`. Item-7 settlement compares the durable tuple and then
+revalidates live authority; token churn ends only the carrier.
+
+The user compromise surface is `POST /auth/sessions/revoke-all`: it revokes the
+user's sessions, credentials for owned agents, and grants issued by the user.
+The non-browser process carrier gains a distinct `AgentDestroyCapability` for
+the production kill verbs; neither it nor impersonation authority can be
+satisfied by the browser console credential. Declared restore revokes restored
+credentials, tokens, and grants and purges invitations and pairing requests.
+Sessions-to-dev downgrade does the same terminally, so re-enabling sessions
+revives nothing. Pure grant/credential/token/principal endings are authority
+transitions, not LLP 0053 authorization events; manifest activation remains
+existing event 2.
+
+The catalog marker is refuse-at-open from the first catalog-creating binary.
+The item-7 descriptor gains the durable service-principal axes. For item 8,
+`auth.kind` remains a pure function of immutable `userId`; `auth.actorKind`
+and `auth.isDelegated` make a result retention-ineligible. Hosted
+service-principal admission remains gated by LLP 0060, and hosted mutations
+also require LLP 0019 F8's durable audit log.
 
 ## Dated amendment: operation-bound step-up (2026-07-15)
 

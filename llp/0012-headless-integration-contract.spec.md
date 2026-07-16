@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-15 (registered LLP 0060 D6's future
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (registered LLP 0060 D6's future
 `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` startup and per-invocation exposure while
 keeping private binding markers out of public details). 2026-07-15 (registered the generated contract-data manifest as the
 sole derived v1-sessions artifact exception and registered
@@ -960,6 +960,25 @@ polish of either adapter.
   server lifecycle? [LLP 0030](./0030-managed-snapback-vite-dev.rfc.md) now owns
   the proposed Vite-managed dev answer; revise this Spec once that API is proven.
 - Does Design Mode persist a high-level intent log in addition to source edits?
+
+## Dated registration: agent auth and roles (2026-07-16)
+
+The shared wire registry includes the server-derived service-principal
+attribution DTO `{actorUserId, effectiveUserId, grantId, dryRun}`; required
+stable function ids and `authorityCreating`; unique-index and membership
+declarations (`v.principal`, vocabulary, provenance, stable declaration id);
+and the invariant public role-denial payload `{kind: "role"}` with richer data
+confined to gated doctor output. CLI and MCP may copy the attribution block but
+cannot synthesize one with authority.
+
+Registered diagnostics include `GRANT_SCOPE_DENIED`, `GRANT_INVALID`,
+`GRANT_PENDING`, `GRANT_CAP`, `AGENT_CREDENTIAL_INVALID`,
+`CREDENTIAL_CLASS_MISMATCH`, `AUTHORITY_CREATING_UNCONSENTED`, and
+`MEMBERSHIP_RAW_WRITE_DENIED`, plus the registration, invitation, pairing,
+membership vocabulary, uniqueness, immutability, nullability, transition, and
+activation refusal families. Existing status, redaction, and
+diagnostic-envelope rules apply. The manifest registry also admits the
+membership-required unique-index capability.
 
 ## Status
 

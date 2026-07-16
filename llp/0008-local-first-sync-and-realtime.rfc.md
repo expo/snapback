@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0053, LLP 0059
 
 ## Summary
@@ -698,6 +698,17 @@ full loop, with delta-resume-while-pending deferred). What remains:
   baselines bound single-client latency, but the many-simultaneous-high-frequency-
   clients ceiling is unmeasured and is the key empirical unknown.
 - Acceptable matcher cost under fan-out at scale.
+
+## Dated follow-on: membership semi-joins (2026-07-16)
+
+The analyzable sync subset may grow a membership semi-join lane keyed by the
+stable declaration id. Fixed resource bindings capture the exact
+principal/resource range. The follow-on must replace v1's conservative
+table-level row-field capture with a proven finer dependency before claiming
+incremental fan-out for that case. Role-gated live replacement does not imply
+retained eligibility: retained role-gated queries remain refused in v1 until
+the authorized-lease proof can bind the membership dependency and expiry
+floor.
 
 ## Status
 

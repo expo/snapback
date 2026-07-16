@@ -5,7 +5,7 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
 
 ## Summary
@@ -532,6 +532,22 @@ Ratified on 2026-06-26 for v0 implementation:
 - Cursor- vs offset-based pagination: `skip(n)` is an O(n) convenience that
   destabilizes under concurrent writes — the large-dataset reference apps (Linear,
   Notion) need stable cursors.
+
+## Dated alignment: generated agent-auth authoring (2026-07-16)
+
+Codegen owns stable function ids and the `ctx.auth` additions (`kind`, actor,
+delegation, and `isDirectHuman`). Schema authoring gains `v.principal()` and
+`.membership()` with stable `id`, `pendingRoles`, `incidental` plus its floor,
+and `provenance`. Generated `ctx.membership.<declaration>` writes and
+`ctx.permissions.<declaration>` checks are declaration-bound; raw writes to a
+membership table are refused. Bootstrap/teardown witnesses are host-derived,
+role names generate literal unions, and invalid declarations fail at load.
+
+Codegen derives `authorityCreating` from declared permission-backing writes;
+opaque functions may be marked explicitly. A create-with-host convenience, if
+shipped, is only sugar over the same bootstrap witness. Optimistic adapters
+must preserve the same transition and denial semantics rather than invent a
+client-only membership lane.
 
 ## Status
 

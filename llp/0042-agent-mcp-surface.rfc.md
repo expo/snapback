@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Tooling, API, Runtime, Auth, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
 `reviews/0042-agent-mcp-surface.claude.md`: 0024's pinned tool names and five
 authority modes adopted, lifecycle asymmetry stated, catalog bound to 0024's
 entry shape, destructive-tool posture added; initial same day)
@@ -95,12 +95,15 @@ pinned ids:
 - `unauthenticated`;
 - `devUser` — local/dev only, `localDevOnly: true`, audit fact emitted;
 - `devAdminBypass` — requires an explicit recorded `reason`;
-- `servicePrincipal` — reserved until LLP 0011 pins scoped tokens (the session
-  core underneath is [LLP 0039](./0039-auth-vertical-slice.rfc.md)).
+- `servicePrincipal` — sessions-mode generated app-data calls only; the session
+  core is [LLP 0039](./0039-auth-vertical-slice.rfc.md), and hosted use remains
+  gated by the dated amendment below.
 
-The first local slice allows `none`, `unauthenticated`, `devUser`, and
-`devAdminBypass`. Hosted service-principal mutation calls are rejected with a
-structured capability/auth diagnostic until scoped tokens exist.
+The local slice allows `none`, `unauthenticated`, `devUser`, and
+`devAdminBypass`; eligible local and trusted-local sessions targets additionally
+allow `servicePrincipal` for generated app-data calls. Hosted
+service-principal mutation calls remain rejected with a structured
+capability/auth diagnostic until the deployment and audit gates below land.
 
 One security fact stated plainly: the MCP server authenticates to the admin
 surface with the auto-minted local admin token, which makes a wired-in MCP
@@ -139,8 +142,22 @@ Snapback from returning an envelope.
   diagnostic carrying a machine-readable `next` hint (0024's requirement).
 - `snapback_reset` records the authority tuple; `devAdminBypass` calls without
   a `reason` are rejected.
-- Hosted or service-principal-only authority is rejected honestly until LLP
-  0011 implements scoped tokens.
+- Hosted service-principal authority is rejected honestly until the dated
+  deployment and audit gates below land.
+
+## Dated amendment: service-principal projection (2026-07-16)
+
+The app-data MCP projection is additive: dev host operations retain
+`devUser`/`devAdminBypass`; sessions-mode generated app-data tools may use
+`servicePrincipal` only through the app-data gate. `function.run`, lifecycle,
+and provisioning tools never resolve a scoped token. Hosted service principals
+remain refused pending LLP 0060, and hosted mutations additionally await LLP
+0019 F8's durable audit log. CLI/MCP copy the server attribution block verbatim
+and cannot synthesize attribution authority.
+
+Role simulation follows LLP 0024: `--as-role` names exactly one declaration,
+`--as-membership` seeds a row, and `--as-agent` is synthetic dev
+impersonation. These are development tools, not production bearer lanes.
 
 ## Open Questions
 

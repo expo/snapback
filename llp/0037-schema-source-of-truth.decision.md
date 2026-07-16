@@ -5,7 +5,7 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
 **Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057
 
 ## Summary
@@ -119,6 +119,18 @@ Reopen this decision if either occurs:
   enough that hand-authored schema fragments start accumulating beside the
   generated ones — two sources again, the exact failure this decision exists
   to prevent.
+
+## Dated alignment: agent-auth generated schemas (2026-07-16)
+
+LLP 0055/0056 add no second schema authority. Agent credential/request/result
+DTOs, service-principal attribution, function `authorityCreating`, manifest
+encodings for `v.principal` and membership declarations, and role-denial
+details are Rust/serde-owned wire shapes with committed generated JSON Schemas
+where they cross process or language boundaries. JavaScript authoring helpers,
+generated membership methods, and role-literal TypeScript unions are derived
+outputs, not competing wire authorities. Codegen may derive values such as the
+authority-creating marker, but the server manifest types remain the parser and
+schema authority.
 
 ## Status
 

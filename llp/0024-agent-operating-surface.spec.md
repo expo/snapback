@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0057
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
@@ -250,7 +250,7 @@ The v0 authority modes are:
 | `unauthenticated` | Run as a guest/unauthenticated app principal. | Allowed where the app exposes that path. |
 | `devUser` | Local dev impersonation as a user id and optional roles. | Local/dev only. |
 | `devAdminBypass` | Local admin bypass with an explicit reason. | Local/dev only, never implicit. |
-| `servicePrincipal` | Actor principal with scoped grant and optional effective principal. | Reserved until LLP 0011 pins scoped tokens. |
+| `servicePrincipal` | Actor principal with scoped grant and optional effective principal. | Sessions-mode generated app-data calls only; hosted use remains gated below. |
 
 Every `function.run`, `function.explain` permission check, mutation dry-run,
 direct admin write, reset, or acceptance profile that mutates state must record
@@ -258,10 +258,12 @@ the authority tuple. Local dev impersonation must set `localDevOnly: true` and
 emit or retain an audit/diagnostic fact that the operation did not prove hosted
 authorization.
 
-Hosted app-data MCP mutation tools are gated on `servicePrincipal`. Until
-LLP 0011 defines scoped tokens, hosted projections must reject those calls with a
-structured capability/auth diagnostic. They must not silently reinterpret
-`devUser` as hosted authority.
+Hosted app-data MCP mutation tools are gated on `servicePrincipal`. The scoped
+token slice now exists for eligible local and trusted-local sessions targets,
+but hosted projections must still reject those calls with a structured
+capability/auth diagnostic until the deployment and audit gates in the dated
+amendment below land. They must not silently reinterpret `devUser` as hosted
+authority.
 
 The environment half of this authority tuple is operation-level policy, not a
 property of one route. Every alias and transport asks the same centralized
@@ -465,7 +467,7 @@ A catalog entry does not imply permission to call the function. The caller must
 provide an authority tuple. Queries may run as `unauthenticated`, `devUser`, or
 `servicePrincipal` only when the app auth rules allow the requested behavior.
 Mutations follow the same rule and are additionally disabled for hosted
-app-data MCP until service-principal scoped tokens exist.
+app-data MCP until the dated deployment and audit gates below land.
 
 Generated app-data MCP calls return the `function.run` or `function.explain`
 result envelope. They do not define an MCP-specific result shape.
@@ -521,6 +523,25 @@ Before this Spec moves beyond `Draft`, the first implementation should prove:
 - HTTP legacy routes either delegate to the same host-ops core or are documented
   compatibility aliases;
 - no projection returns a distinct diagnostic shape for the same core failure.
+
+## Dated amendment: agent principals and roles (2026-07-16)
+
+`servicePrincipal` is admitted only for generated app-data calls through the
+app-data gate in an eligible local or trusted-local sessions deployment. Host
+operations (including `function.run`), provisioning, and lifecycle verbs do
+not resolve scoped tokens. Hosted use remains refused until LLP 0060's
+target-authored deployment contract lands; hosted mutations additionally
+require LLP 0019 F8's durable audit log.
+
+The MCP/CLI authority matrix preserves dev `devUser` and `devAdminBypass` and
+adds sessions-mode app-data `servicePrincipal`; one does not displace the
+other. Bare `--as-role <role>` must resolve to exactly one app-global
+membership declaration; ambiguous roles are refused, while
+`--as-role <declaration>:<role>` is declaration-qualified. Scoped declarations
+require `--as-membership <declaration>:<resource>:<role>`, which is row-seeding
+sugar, not ambient authority. `--as-agent` selects a synthetic
+dev-impersonation agent principal and never authenticates as a durable
+production agent.
 
 ## Open Questions
 
