@@ -5173,7 +5173,18 @@ fn session_online_protocol_refusal(
             .with_details(json!({ "capability": "onlineRequestResponse" })),
         );
     }
-    if AuthClientProtocolOffers::from_http_headers(headers).auth_client != Some(AUTH_PROTOCOL_V1) {
+    // Browser WebSockets cannot set the ordinary protocol headers, so the
+    // live-stream upgrade carries the same closed offers as subprotocols.
+    // Keep every non-upgrade route on the HTTP-only parser: a forged
+    // Sec-WebSocket-Protocol header must not become a second HTTP grammar.
+    // @ref LLP 0058#bootstrap-handshake — every online boundary repeats its
+    // exact protocol offer on the carrier available to that boundary.
+    let offers = if spec.path == "/live/{connection_id}/stream" {
+        AuthClientProtocolOffers::from_headers(headers)
+    } else {
+        AuthClientProtocolOffers::from_http_headers(headers)
+    };
+    if offers.auth_client != Some(AUTH_PROTOCOL_V1) {
         return Some(
             SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -17078,6 +17089,41 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(supported.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn sessions_live_stream_accepts_browser_subprotocol_offer_only_on_upgrade_route() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, false, false, false),
+            )
+            .expect("install item-5 sessions fixture");
+        let stream = route_registry()
+            .into_iter()
+            .find(|spec| spec.method == "GET" && spec.path == "/live/{connection_id}/stream")
+            .expect("registered live-stream route");
+        let ordinary_http = route_registry()
+            .into_iter()
+            .find(|spec| spec.method == "GET" && spec.path == "/inspect")
+            .expect("registered inspect route");
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            "snapback.v1, snapback.auth-client.1"
+                .parse()
+                .expect("valid subprotocol header"),
+        );
+
+        assert!(super::session_online_protocol_refusal(stream, &state, &headers).is_none());
+        assert_eq!(
+            super::session_online_protocol_refusal(ordinary_http, &state, &headers)
+                .expect("ordinary HTTP must ignore WebSocket protocol tokens")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
     }
 
     #[tokio::test]
