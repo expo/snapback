@@ -45,6 +45,12 @@ you never build around a feature because you didn't know it existed.
 - [The authoring loop](./getting-started/the-authoring-loop.md) — edit →
   regenerate → acceptance test → inspect.
 
+### Backend
+- [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
+  and the ordinary-vs-live boundary.
+- [Mutations](./backend/mutations.md) — buffered writes, one commit version,
+  read-set conflict validation, and structured results.
+
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.

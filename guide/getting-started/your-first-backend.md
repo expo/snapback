@@ -118,6 +118,8 @@ export const editTitle = defineMutation({
 
 `demos/todo-v2/snapback/functions.mjs` is the fully declarative variant of
 the same app — the side-by-side worth reading when choosing a style.
+The reference pages cover the semantics shared by both styles:
+[queries](../backend/queries.md) and [mutations](../backend/mutations.md).
 
 ## Write handlers (JS style only)
 

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "2a372af84752924154235532dc150e8f3bb8c2a9"
+    "commit": "bcd438bd726db4c9781cc35494e89327e268ba94"
   },
   "nav": {
     ".": [
@@ -37,6 +37,18 @@
         "id": "auth.targets",
         "order": 3,
         "title": "Targets — what each one claims"
+      }
+    ],
+    "backend": [
+      {
+        "id": "backend.queries",
+        "order": 1,
+        "title": "Queries"
+      },
+      {
+        "id": "backend.mutations",
+        "order": 2,
+        "title": "Mutations"
       }
     ],
     "clients": [
@@ -170,6 +182,97 @@
       "sha256": "27f84d8e8926c6e64422b74a82e4a445bce2e256f7fc11a8a75a37de2902205c",
       "snippets": []
     },
+    "backend.mutations": {
+      "path": "guide/backend/mutations.md",
+      "title": "Mutations",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.query-semantics"
+      ],
+      "authorities": [
+        "llp/0003-local-code-hosting-and-storage-core.rfc.md",
+        "llp/0004-application-data-api.rfc.md",
+        "llp/0007-storage-portability.spec.md",
+        "schemas/mutation.output.schema.json",
+        "demos/todo/snapback/functions.mjs",
+        "demos/todo/snapback/handlers.mjs",
+        "demos/todo/tests/acceptance/headless.mjs"
+      ],
+      "examples": [
+        "demos/todo",
+        "demos/todo-v2"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "bcd438bd726db4c9781cc35494e89327e268ba94",
+      "sha256": "4f5120de74acbc6e3dbcfe4b365493defbd2c55c4425ca81869c816a4d3a5496",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/headless.mjs"
+        }
+      ]
+    },
+    "backend.queries": {
+      "path": "guide/backend/queries.md",
+      "title": "Queries",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.query-semantics"
+      ],
+      "authorities": [
+        "llp/0003-local-code-hosting-and-storage-core.rfc.md",
+        "llp/0004-application-data-api.rfc.md",
+        "llp/0007-storage-portability.spec.md",
+        "packages/snapback-codegen/define.mjs",
+        "demos/todo/snapback/functions.mjs",
+        "demos/todo/snapback/handlers.mjs"
+      ],
+      "examples": [
+        "demos/todo",
+        "demos/todo-v2"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "bcd438bd726db4c9781cc35494e89327e268ba94",
+      "sha256": "0c97cc13401fbb617621233ec3ccf5c598358b8a11f46bf11af4595715cb3d37",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/handlers.mjs"
+        }
+      ]
+    },
     "meta.capabilities": {
       "path": "guide/capabilities.md",
       "title": "Capability index",
@@ -188,7 +291,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "eec9eea67ddccacd9734ab1b96ac420246785aecc18c68270bc9dc2dabda98ff",
+      "sha256": "acd3cc86dbd2b592b8b65847456025aa82ef68cc45da5b8ca9f2779a799a884e",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -356,7 +459,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "d1c77dd3cc70d185455bba2aa7ba13ae0d51e9a583b9d1a84ae6da5fc3df2327",
+      "sha256": "0486770450281730130873499d797659708824d320ba9372fe92d4c9038ec529",
       "snippets": [
         {
           "lang": "js",
@@ -424,7 +527,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "48696ffd31dedc77846efd84bff2742e34b171f7edb5a79828fabce2dd9ae6a4",
+      "sha256": "2ddef4e133c840422a3db407c7073b057551973a15a529d6f41c5d57ea05f63c",
       "snippets": []
     },
     "realtime.live-queries": {
@@ -647,6 +750,7 @@
       "backend.codegen",
       "backend.functions",
       "backend.provisioning",
+      "backend.query-semantics",
       "backend.schema",
       "backend.seed",
       "clients.contract",
@@ -665,7 +769,6 @@
       "auth.scoped-roles",
       "backend.actions",
       "backend.cron",
-      "backend.query-semantics",
       "clients.headless",
       "deploy.cloudflare",
       "operating.admin-console",
@@ -679,5 +782,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "8a2d798ca0ae1375d2b5ff9df60dc1ef17d8452fe1b6f46501df7b68d7e1b9e2"
+  "contentHash": "9aa2c2c84c9ac4ade18e0d6584448324eb86f9478aa0f3f1625c5cda37e044e3"
 }

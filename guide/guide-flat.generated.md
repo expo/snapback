@@ -42,7 +42,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate manifests, client api, Contract bindings | codegen, generate, artifacts | local | shipped | `runCodegenCli` in packages/snapback-codegen/index.mjs | llp/0037, llp/0021 | getting-started/your-first-backend.md |
-| backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | GAP (owner: ccheever, review: 2026-08-15) |
+| backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | GAP (owner: ccheever, review: 2026-08-15) |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | GAP (owner: ccheever, review: 2026-08-15) |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
@@ -221,6 +221,12 @@ you never build around a feature because you didn't know it existed.
   functions, handlers, seed, codegen, load, query.
 - [The authoring loop](./getting-started/the-authoring-loop.md) — edit →
   regenerate → acceptance test → inspect.
+
+### Backend
+- [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
+  and the ordinary-vs-live boundary.
+- [Mutations](./backend/mutations.md) — buffered writes, one commit version,
+  read-set conflict validation, and structured results.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
@@ -715,6 +721,224 @@ disagree, the server is right and the page has drifted — file a guide gap
 
 ---
 
+<!-- snapback-guide-source: guide/backend/queries.md -->
+---
+title: Queries
+id: backend.queries
+order: 1
+audience: agent-first
+capabilities: [backend.query-semantics]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, packages/snapback-codegen/define.mjs, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs]
+examples: [demos/todo, demos/todo-v2]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: bcd438bd726db4c9781cc35494e89327e268ba94
+---
+
+# Queries
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+A query is a read-only function over one consistent database snapshot. Its
+result is `{ rows, version }`: the rows and reported version come from the
+same pinned snapshot, so an author never has to reconcile a result with a
+separately sampled version.
+
+## Choose declarative or JavaScript execution
+
+Declarative queries spell out the table, arguments, predicates, ordering, and
+index in the function definition:
+
+```js source=demos/todo/snapback/functions.mjs
+export const listTodosOnce = defineQuery({
+  table: 'todos',
+  args: {},
+  filter: [eq('userId', authUserId())],
+  order: [asc('_createdAt')],
+  index: 'by_user',
+});
+```
+
+`defineJsQuery` and `defineJsLiveQuery` instead name a bundled handler and
+declare the tables they may read. The handler uses the bounded `ctx.db`
+surface:
+
+```js source=demos/todo/snapback/handlers.mjs
+  async listTodos(ctx) {
+    return await ctx.db
+      .query('todos')
+      .withIndex('by_user')
+      .eq('userId', ctx.auth.userId)
+      .order('_createdAt', 'asc')
+      .collect();
+  },
+```
+
+Use the declarative form when the plan vocabulary expresses the query. Use a
+JS handler for bounded logic the plan cannot express. Both styles return the
+same public query envelope and must use declared indexes for author-facing
+lookup paths.
+
+## Read one snapshot
+
+The local target runs query handlers on the WAL reader pool with a transaction
+pinned when the handler starts. Every `get`, indexed query, and the terminal
+`version` observes that snapshot. Queries never write; a write attempt is a
+typed refusal.
+
+Inside a mutation, `ctx.db` reads use the mutation's snapshot plus its own
+buffered writes. Those reads become commit dependencies, described in
+[mutations](./mutations.md).
+
+## Scope on the server
+
+Put authorization predicates in the query, not in client arguments or UI
+filters. `authUserId()` in declarative plans and `ctx.auth.userId` in JS
+handlers are server-derived. For sessions-mode details, see
+[sessions and principals](../auth/sessions-and-principals.md).
+
+## Make a query live only when needed
+
+`defineQuery` is callable but not subscribable. `defineLiveQuery` and
+`defineJsLiveQuery` opt into the analyzable live surface. A client that tries
+to subscribe to an ordinary query receives
+`SNAPBACK_FUNCTION_NOT_LIVE`; Snapback never silently converts it into a
+polling contract. See [live queries](../realtime/live-queries.md).
+
+## Anti-patterns
+
+- **Do not sample rows and version separately.** The query envelope already
+  binds them to one snapshot.
+- **Do not filter private rows in the client.** Put server-derived ownership
+  in the query predicate.
+- **Do not omit an available index.** A declarative `index` or JS
+  `withIndex` makes the intended lookup explicit and portable.
+- **Do not mark every query live.** Ordinary queries stay ordinary; opt into
+  live delivery only when the UI needs subscription semantics.
+
+---
+
+<!-- snapback-guide-source: guide/backend/mutations.md -->
+---
+title: Mutations
+id: backend.mutations
+order: 2
+audience: agent-first
+capabilities: [backend.query-semantics]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
+examples: [demos/todo, demos/todo-v2]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: bcd438bd726db4c9781cc35494e89327e268ba94
+---
+
+# Mutations
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+A mutation reads a snapshot, buffers writes, validates its dependencies, and
+commits once. Every row changed by that commit receives the same monotonic
+commit version. A rejected mutation commits nothing.
+
+## Define the write boundary
+
+The JS form declares arguments, handler source, and its possible writes:
+
+```js source=demos/todo/snapback/functions.mjs
+export const createTodo = defineJsMutation({
+  args: { title: v.string() },
+  source: 'handlers.mjs',
+  exportName: 'createTodo',
+  writes: ['todos'],
+});
+```
+
+The handler writes only through `ctx.db`. Server-owned ids, timestamps, and
+row versions are not arguments and are never authored by the handler:
+
+```js source=demos/todo/snapback/handlers.mjs
+    return await ctx.db.insert('todos', {
+      title,
+      completed: false,
+      userId: ctx.auth.userId,
+    });
+```
+
+`defineMutation` is the declarative twin: compose `insert`, `patch`,
+`delete`, conditions, and a declared return binding without running a JS
+handler.
+
+## Consume the structured result
+
+Successful direct mutations return one closed envelope:
+`version`, `changed_count`, `result`, an optional deterministic
+`ctx_ledger`, and the terminal `receipt`. The todo acceptance proves the
+created id, changed count, and server-owned row fields together:
+
+```js source=demos/todo/tests/acceptance/headless.mjs
+    const created = await db.mutate(api.createTodo, { args: { title: 'Buy milk' }, userId: ADA });
+    assert(typeof created.result === 'string' && created.result.length > 0, 'no id returned');
+    assertEqual(created.changed_count, 1, 'changed_count');
+    const rows = (await db.query(api.listTodos, { userId: ADA })).rows;
+```
+
+An error is a structured `SNAPBACK_*` diagnostic. A rejected queued mutation
+still has a terminal receipt on the error envelope so the client store can
+settle it without guessing.
+
+## Preserve invariants with read sets
+
+JS mutation reads are captured by the server. Declarative host-plan mutations
+that depend on an earlier client observation carry that explicit
+`readSet`. At commit, Snapback validates the exact row or predicate
+dependencies. If a concurrent writer changed a dependency, the whole mutation
+is rejected as `SNAPBACK_MUTATION_CONFLICT`:
+
+```js source=demos/todo/tests/acceptance/headless.mjs
+    const err = await assertThrows(
+      () => db.mutate(api.setCompleted, {
+        args: { id, completed: false },
+        userId: ADA,
+        readSet: [{ table: 'todos', id, version: observed }],
+      }),
+      'SNAPBACK_MUTATION_CONFLICT',
+      'expected conflict',
+    );
+```
+
+Treat that diagnostic as an invariant failure to reconcile, not as permission
+to force a last-writer-wins commit. Predicate-shaped captured reads are
+validated at predicate granularity, so unrelated writes do not spuriously
+conflict.
+
+## One commit, one version
+
+All affected rows share the mutation's `version`; no-op writes do not advance
+it. Durable live delivery is produced from the committed write set, so clients
+never observe a partial mutation. The version is a logical ordering within one
+app database, not a wall-clock timestamp.
+
+## Anti-patterns
+
+- **Do not implement read-then-write invariants as two unrelated requests.**
+  Read inside the JS mutation or carry the explicit host-plan baseline.
+- **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
+  blind retry may violate the invariant that caused the read.
+- **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
+  They are server-owned.
+- **Do not infer success from HTTP status alone.** Consume the result,
+  diagnostic, and terminal receipt envelope.
+
+---
+
 <!-- snapback-guide-source: guide/clients/contract-adapter.md -->
 ---
 title: The Contract adapter
@@ -1080,6 +1304,8 @@ export const editTitle = defineMutation({
 
 `demos/todo-v2/snapback/functions.mjs` is the fully declarative variant of
 the same app — the side-by-side worth reading when choosing a style.
+The reference pages cover the semantics shared by both styles:
+[queries](../backend/queries.md) and [mutations](../backend/mutations.md).
 
 ## Write handlers (JS style only)
 
