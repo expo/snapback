@@ -60,6 +60,14 @@ try {
   );
   assert.deepEqual(
     scanArtifactBytes(
+      'const docs = "https://react.dev/errors/123"; ' +
+      'const svg = "http://www.w3.org/2000/svg"; const mail = "mailto:test@example.com";',
+    ),
+    [],
+    'URI schemes are not Windows drive roots',
+  );
+  assert.deepEqual(
+    scanArtifactBytes(
       'import "/__exact_app__/main.ts"; import "/__exact_runtime__/router.ts"; ' +
       'import "/__exact_workspace__/demos/shared/model.mjs";',
     ),

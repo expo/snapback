@@ -72,7 +72,9 @@ export const ABSOLUTE_PATH_MARKERS = [
       /\/(?:workspace|workspaces|builds|opt|mnt\/(?:agent|workspace)|var\/lib\/(?:buildkite-agent|jenkins))\//,
   },
   { id: 'windows-home', pattern: /[A-Za-z]:[\\/]+Users[\\/]+/ },
-  { id: 'windows-drive-root', pattern: /[A-Za-z]:[\\/]+/ },
+  // A drive root must start at a token boundary. Without the guard, the
+  // trailing `s:/` in ordinary `https://` URLs is misclassified as a drive.
+  { id: 'windows-drive-root', pattern: /(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]+/ },
 ];
 
 function log(msg) {
