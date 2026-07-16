@@ -146,6 +146,65 @@ export class AdminClient {
       : sanitizeKnownSecrets(json, requestSecrets);
   }
 
+  async #guideReq(relativePath, { json = false, expectedIdentity = null } = {}) {
+    const path = String(relativePath ?? '');
+    if (
+      !path
+      || path.includes('..')
+      || !/^(?:guide-manifest\.generated\.json|[A-Za-z0-9._/-]+\.md)$/.test(path)
+    ) {
+      throw guideTransportError('SNAPBACK_GUIDE_PATH_INVALID', `invalid guide path ${JSON.stringify(path)}`);
+    }
+    let response;
+    let text;
+    try {
+      response = await fetch(`${guideBaseUrl(this.baseUrl)}/${path}`);
+      text = await response.text();
+    } catch (error) {
+      throw guideTransportError(
+        'SNAPBACK_GUIDE_UNAVAILABLE',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    if (!response.ok) {
+      throw guideTransportError(
+        'SNAPBACK_GUIDE_UNAVAILABLE',
+        `GET ${path} returned HTTP ${response.status}`,
+      );
+    }
+    const identity = {
+      contentHash: response.headers.get('x-snapback-guide-content-sha256') || '',
+      buildCommit: response.headers.get('x-snapback-server-build-commit') || '',
+    };
+    if (!identity.contentHash || !identity.buildCommit) {
+      throw guideTransportError(
+        'SNAPBACK_GUIDE_IDENTITY_MISSING',
+        `GET ${path} omitted the guide content/build identity headers`,
+      );
+    }
+    if (
+      expectedIdentity
+      && (
+        identity.contentHash !== expectedIdentity.contentHash
+        || identity.buildCommit !== expectedIdentity.buildCommit
+      )
+    ) {
+      throw guideTransportError(
+        'SNAPBACK_GUIDE_IDENTITY_MISMATCH',
+        `GET ${path} did not match the loaded guide manifest identity`,
+      );
+    }
+    if (!json) return { body: text, identity };
+    try {
+      return { body: JSON.parse(text), identity };
+    } catch {
+      throw guideTransportError(
+        'SNAPBACK_GUIDE_MANIFEST_INVALID',
+        `GET ${path} returned invalid JSON`,
+      );
+    }
+  }
+
   #knownSecrets() {
     const secrets = new Set();
     addSecret(secrets, this.masterToken);
@@ -225,6 +284,44 @@ export class AdminClient {
   verifyConfigEntry(entry) {
     return this.#req('POST', '/config/verify', { entry, source: 'http' });
   }
+
+  async guideManifest() {
+    const { body: manifest, identity } = await this.#guideReq(
+      'guide-manifest.generated.json',
+      { json: true },
+    );
+    if (
+      manifest?.contentHash !== identity.contentHash
+      || manifest?.buildIdentity?.commit !== identity.buildCommit
+    ) {
+      throw guideTransportError(
+        'SNAPBACK_GUIDE_IDENTITY_MISMATCH',
+        'served guide manifest body does not match its response identity headers',
+      );
+    }
+    return { manifest, identity };
+  }
+
+  async guidePage(path, expectedIdentity) {
+    const { body } = await this.#guideReq(path, { expectedIdentity });
+    return body;
+  }
+}
+
+function guideBaseUrl(adminApiBaseUrl) {
+  const base = String(adminApiBaseUrl ?? '').replace(/\/$/, '');
+  if (base.endsWith('/_snapback/api')) {
+    return `${base.slice(0, -'/_snapback/api'.length)}/_snapback/guide`;
+  }
+  if (base.endsWith('/api')) return `${base.slice(0, -'/api'.length)}/guide`;
+  return `${base}/guide`;
+}
+
+function guideTransportError(code, message) {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = { code, message };
+  return error;
 }
 
 function opaqueCredentialResponseError() {

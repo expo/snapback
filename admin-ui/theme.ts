@@ -231,6 +231,7 @@ export function navSections(): NavSection[] {
     { key: 'Capabilities', label: 'Capabilities' },
     { key: 'Realtime', label: 'Realtime' },
     { key: 'Diagnostics', label: 'Diagnostics' },
+    { key: 'Docs', label: 'Docs' },
   ];
 }
 

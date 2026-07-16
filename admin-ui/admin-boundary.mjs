@@ -11,17 +11,32 @@
 //   contract into views; the contract, not the template, is the source of truth.
 
 import { createSnapbackSystemContractSurface } from '../packages/snapback-contract/index.mjs';
+import {
+  failedGuidePage,
+  loadGuideCatalog,
+  loadGuidePage as loadGuideDocument,
+  loadingGuidePage,
+} from './guide-docs.mjs';
 
 export async function createAdminSurface({ runtime, client }) {
   // The most recent config.verify outcome, folded into the next inspect view so
   // the Secrets surface can show "verify ran and said X" next to durable state.
   let lastVerify = null;
+  let guideCatalog = null;
   const loadView = async () => buildView(...(await loadFacts(client)), lastVerify);
   const loadCommandView = async () => {
     try {
       return await loadView();
     } catch (error) {
       return buildInspectFailureView(error, lastVerify);
+    }
+  };
+  const loadGuideHome = async () => {
+    try {
+      guideCatalog = await loadGuideCatalog(client);
+      return await loadGuideDocument(client, guideCatalog, guideCatalog.initialPath);
+    } catch (error) {
+      return failedGuidePage(error);
     }
   };
   return createSnapbackSystemContractSurface({
@@ -31,6 +46,7 @@ export async function createAdminSurface({ runtime, client }) {
       inspect: async () => loadView(),
       tableScan: emptyScan,
       runResult: emptyRun,
+      guidePage: async () => loadGuideHome(),
     },
     commands: {
       refresh: async (_args, { publishOne }) => {
@@ -107,6 +123,22 @@ export async function createAdminSurface({ runtime, client }) {
           lastVerify = { entry, ok: false };
         }
         publishOne('inspect', await loadCommandView());
+      },
+      loadGuidePage: async ({ path }, { publishOne, queryRows }) => {
+        const current = queryRows('guidePage')[0];
+        if (!guideCatalog) {
+          publishOne('guidePage', failedGuidePage(
+            new Error('SNAPBACK_GUIDE_UNAVAILABLE: guide manifest did not load'),
+            current,
+          ));
+          return;
+        }
+        publishOne('guidePage', loadingGuidePage(current, path));
+        try {
+          publishOne('guidePage', await loadGuideDocument(client, guideCatalog, path));
+        } catch (error) {
+          publishOne('guidePage', failedGuidePage(error, current));
+        }
       },
     },
   });

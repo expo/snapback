@@ -18,6 +18,8 @@ use runResult from "./generated/contract/runResult.query.ts"
 use runFunction from "./generated/contract/runFunction.mutation.ts"
 use cleanup from "./generated/contract/cleanup.mutation.ts"
 use verifyConfig from "./generated/contract/verifyConfig.mutation.ts"
+use guidePage from "./generated/contract/guidePage.query.ts"
+use loadGuidePage from "./generated/contract/loadGuidePage.mutation.ts"
 use colors from "./theme.ts"
 use fonts from "./theme.ts"
 use navSections from "./theme.ts"
@@ -36,11 +38,13 @@ component AdminConsole
   query state = inspect({})
   query scan = tableScan({})
   query runResultQ = runResult({})
+  query guide = guidePage({})
   mutation reloadInspect = refresh
   mutation loadScan = loadTable
   mutation runMut = runFunction
   mutation cleanupMut = cleanup
   mutation verifyMut = verifyConfig
+  mutation loadGuide = loadGuidePage
 
   derive c = colors(theme)
   derive f = fonts()
@@ -53,6 +57,7 @@ component AdminConsole
   derive isCapabilities = activeTab == "Capabilities"
   derive isRealtime = activeTab == "Realtime"
   derive isDiagnostics = activeTab == "Diagnostics"
+  derive isDocs = activeTab == "Docs"
 
   action reload mutates reloadInspect
     reloadInspect()
@@ -77,6 +82,8 @@ component AdminConsole
     cleanupMut()
   action verifyEntry(name) mutates verifyMut
     verifyMut({ entry: name })
+  action openGuide(path) mutates loadGuide
+    loadGuide({ path: path })
 
   task themeWatcher mount
     onCleanup(watchSystemTheme(syncSystemTheme))
@@ -452,6 +459,65 @@ component AdminConsole
                     else
                       column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
                         text "No recent diagnostics." size=13 color=c.textMuted family=f.sans
+
+                when isDocs
+                  async guide
+                    loading
+                      column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                        text "Loading the build-matched Snapback Guide…" size=13 color=c.textMuted family=f.sans
+                    error guideErr
+                      column gap=6 padding=16 radius=12 background=c.errSoft width="100%"
+                        text "Guide unavailable" size=13 weight=700 color=c.err family=f.sans
+                        text guideErr.message size=12 color=c.err family=f.mono
+                    ready guideRows
+                      each gp in guideRows key=gp.id
+                        when gp.hasError
+                          column gap=8 padding=16 radius=12 background=c.errSoft width="100%"
+                            text "Guide unavailable" size=13 weight=700 color=c.err family=f.sans
+                            text gp.error size=12 color=c.err family=f.mono
+                            link href="/_snapback/guide" testId="guide-open-raw-fallback"
+                              text "Open the raw guide →" size=13 weight=600 color=c.accentText family=f.sans
+                        else
+                          row gap=16 align="flex-start" width="100%"
+                            column width=260 gap=12 padding=14 radius=12 background=c.surface borderWidth=1 borderColor=c.border boxShadow=c.shadowCard
+                              each group in gp.groups key=group.key
+                                column gap=4 width="100%"
+                                  text group.label size=11 weight=700 color=c.textFaint family=f.sans letterSpacing=0.5
+                                  each item in group.items key=item.key
+                                    button press=openGuide(item.path) testId=`guide-${item.key}` width="100%" radius=7 borderWidth=0 paddingTop=7 paddingBottom=7 paddingLeft=9 paddingRight=9 background=gp.currentPath == item.path ? c.accentSoft : "transparent"
+                                      text item.title size=12 weight=gp.currentPath == item.path ? 600 : 500 color=gp.currentPath == item.path ? c.accentText : c.textMuted family=f.sans textAlign="left"
+                            column gap=14 flex=1 minWidth=0 width="100%"
+                              row gap=10 align="center" width="100%"
+                                column gap=2 flex=1 minWidth=0
+                                  text gp.title size=20 weight=700 color=c.text family=f.sans
+                                  text gp.identityLabel size=11 color=c.textFaint family=f.mono
+                                link href=gp.rawHref testId="guide-open-raw"
+                                  text "Raw Markdown ↗" size=12 weight=600 color=c.accentText family=f.sans
+                              when gp.loading
+                                column padding=20 align="center" radius=10 background=c.surface width="100%"
+                                  text "Loading page…" size=13 color=c.textMuted family=f.sans
+                              else
+                                each block in gp.blocks key=block.key
+                                  when block.kind == "heading"
+                                    text block.text size=block.size weight=700 color=c.text family=f.sans lineHeight=block.size + 7
+                                  when block.kind == "paragraph"
+                                    text block.text size=13 color=c.text family=f.sans lineHeight=20
+                                  when block.kind == "quote"
+                                    text block.text size=13 color=c.textMuted family=f.sans lineHeight=20 background=c.infoSoft borderLeftWidth=3 borderLeftColor=c.info paddingTop=10 paddingBottom=10 paddingLeft=13 paddingRight=13
+                                  when block.kind == "list"
+                                    row gap=9 align="flex-start" width="100%"
+                                      text block.marker size=13 weight=700 color=c.accentText family=f.sans width=20
+                                      text block.text size=13 color=c.text family=f.sans lineHeight=20 flex=1 minWidth=0
+                                  when block.kind == "code"
+                                    column gap=6 width="100%"
+                                      text block.label size=10 weight=700 color=c.textFaint family=f.mono
+                                      scroll height=260 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                                        text block.text size=11 color=c.textMuted family=f.mono lineHeight=17
+                                  when block.kind == "table"
+                                    scroll height=220 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                                      text block.text size=11 color=c.textMuted family=f.mono lineHeight=17
+                                  when block.kind == "rule"
+                                    column height=1 background=c.border width="100%"
 
 component Card
   props

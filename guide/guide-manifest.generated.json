@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "18fda6f4cbc2d216179c107c20388567db2b310d"
+    "commit": "4f642f6c2cc01df2016986537fe7b72ab1d1ebeb"
   },
   "nav": {
     ".": [
@@ -663,8 +663,8 @@
         "cloudflare/app/all-aboard.app.js"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "18fda6f4cbc2d216179c107c20388567db2b310d",
-      "sha256": "d6777ffb30222be8d96407829622180943469462e9778c209bdab3092aa21281",
+      "reviewedCommit": "4f642f6c2cc01df2016986537fe7b72ab1d1ebeb",
+      "sha256": "684398f20c17d1de4841439cb06e9af854aa16e5839eee635d1b21231dd0e374",
       "snippets": [
         {
           "lang": "js",
@@ -826,7 +826,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9",
-      "sha256": "dab7426cf1a7721ddecb6802c7f84566924b3064dbd11566178c463e3d8b7e12",
+      "sha256": "1f3bdf547202a723975308aad4bc19050f5be8a81b601af04be28a5b47c35a2e",
       "snippets": [
         {
           "lang": "js",
@@ -1281,5 +1281,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "4cf131e18b589be1304aab36104502b3fe8cc3595019c586ea387df0e152f665"
+  "contentHash": "7c95190e1415fe891170be5688661262ef6eecf304d52debb2c3db1429e5f472"
 }

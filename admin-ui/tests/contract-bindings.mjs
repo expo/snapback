@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { createAdminSurface } from '../admin-boundary.mjs';
 import { adminContractBindings } from '../contract-bindings.mjs';
 import { generateAdminContractBindings } from '../generate-contract-bindings.mjs';
+import { parseGuideMarkdown } from '../guide-docs.mjs';
 import { initialTab } from '../theme.ts';
 
 const adminRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +49,19 @@ assert.equal(view.ui.subscriptions[0].connection, 'conn_a', 'Realtime tab accept
 assert.equal(view.ui.delivery.find((entry) => entry.key === 'lfs').value, '2', 'Realtime delivery counters accept camelCase');
 assert.equal(surface.queryRows('tableScan')[0].loaded, false, 'tableScan starts empty');
 assert.equal(surface.queryRows('runResult')[0].ran, false, 'runResult starts empty');
+const guideHome = surface.queryRows('guidePage')[0];
+assert.equal(guideHome.currentPath, 'index.md', 'Docs starts from the manifest-declared guide index');
+assert.equal(guideHome.identityLabel, 'aaaaaaaaaaaa · bbbbbbbbbbbb', 'Docs surfaces the served build/hash identity');
+assert.ok(guideHome.groups.some((group) => group.key === 'auth'), 'Docs navigation follows manifest groups');
+assert.equal(guideHome.blocks[0].text, 'Welcome bold.', 'Docs strips frontmatter/title and shapes prose blocks');
+await surface.links.loadGuidePage({ path: 'auth/targets.md' });
+assert.equal(surface.queryRows('guidePage')[0].title, 'Targets', 'Docs loads a manifest-declared page');
+assert.deepEqual(client.guidePaths, ['index.md', 'auth/targets.md'], 'Docs fetches only selected served pages');
+await surface.links.loadGuidePage({ path: '../secret.md' });
+assert.equal(surface.queryRows('guidePage')[0].hasError, true, 'Docs rejects paths outside its loaded manifest');
+const hostileGuide = parseGuideMarkdown('# Title\n\n<script>alert(1)</script>');
+assert.equal(hostileGuide[1].text, '<script>alert(1)</script>', 'guide HTML remains inert scalar text');
+assert.equal(hostileGuide.some((block) => block.kind === 'html'), false, 'guide parser has no HTML block type');
 
 // The Secrets surface: the LLP 0036 status primitive shaped for rendering —
 // names and states only; the view model must never carry a value field.
@@ -145,6 +159,8 @@ globalThis.location = { hash: '#%E0%A4%A' };
 assert.equal(initialTab(), 'Overview', 'malformed hash falls back without throwing');
 globalThis.location = { hash: '#Realtime' };
 assert.equal(initialTab(), 'Realtime', 'valid hash still selects the tab');
+globalThis.location = { hash: '#Docs' };
+assert.equal(initialTab(), 'Docs', 'Docs is deep-linkable from the URL hash');
 delete globalThis.location;
 
 console.log('admin contract bindings smoke: ok');
@@ -178,6 +194,7 @@ function createFakeAdminClient() {
   const client = {
     failInspect: false,
     scanOffsets: [],
+    guidePaths: [],
     configAppProvisioned: true,
     configEntries: null,
     configMissing: null,
@@ -347,6 +364,35 @@ function createFakeAdminClient() {
         },
         generation: 3,
       };
+    },
+    async guideManifest() {
+      return {
+        identity: {
+          contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          buildCommit: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        },
+        manifest: {
+          schemaVersion: 'snapback-guide.v1',
+          contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          buildIdentity: { commit: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+          nav: {
+            '.': [{ id: 'meta.index', order: 1, title: 'The Snapback Guide' }],
+            auth: [{ id: 'auth.targets', order: 1, title: 'Targets' }],
+          },
+          pages: {
+            'meta.index': { path: 'guide/index.md', title: 'The Snapback Guide' },
+            'auth.targets': { path: 'guide/auth/targets.md', title: 'Targets' },
+          },
+        },
+      };
+    },
+    async guidePage(path) {
+      client.guidePaths.push(path);
+      if (path === 'index.md') {
+        return '---\ntitle: The Snapback Guide\n---\n\n# The Snapback Guide\n\nWelcome **bold**.\n';
+      }
+      if (path === 'auth/targets.md') return '# Targets\n\nHosted claims stay explicit.\n';
+      throw new Error(`unexpected guide path ${path}`);
     },
     async scanTable(table, _limit, offset) {
       client.scanOffsets.push(offset);

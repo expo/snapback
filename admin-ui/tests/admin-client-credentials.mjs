@@ -470,6 +470,51 @@ assert.equal(
   'no persistence adapter ever receives the numeric master',
 );
 
+// The Docs tab reads the public served-guide projection. It must never attach
+// admin credentials, and it must bind every page to the manifest response's
+// content/build identity before returning bytes to the renderer.
+const GUIDE_HASH = 'a'.repeat(64);
+const GUIDE_COMMIT = 'b'.repeat(40);
+const guideRequests = [];
+fetchOverride = async (url, options = {}) => {
+  guideRequests.push({ url, options });
+  if (url.endsWith('/guide-manifest.generated.json')) {
+    return guideResponse(JSON.stringify({
+      schemaVersion: 'snapback-guide.v1',
+      contentHash: GUIDE_HASH,
+      buildIdentity: { commit: GUIDE_COMMIT },
+      nav: {},
+      pages: {},
+    }), GUIDE_HASH, GUIDE_COMMIT);
+  }
+  return guideResponse('# Guide', GUIDE_HASH, GUIDE_COMMIT);
+};
+const guideClient = new AdminClient('http://snapback.test/_snapback/api', { token: MASTER });
+const loadedGuideManifest = await guideClient.guideManifest();
+assert.equal(loadedGuideManifest.identity.contentHash, GUIDE_HASH);
+assert.equal(
+  guideRequests[0].url,
+  'http://snapback.test/_snapback/guide/guide-manifest.generated.json',
+  'guide manifest uses the public served-guide origin',
+);
+assert.deepEqual(guideRequests[0].options.headers, undefined, 'guide reads attach no admin credential');
+assert.equal(
+  await guideClient.guidePage('index.md', loadedGuideManifest.identity),
+  '# Guide',
+  'a page with the manifest identity is returned as Markdown',
+);
+await assert.rejects(
+  () => guideClient.guidePage('../secret.md', loadedGuideManifest.identity),
+  (error) => error.diagnostic?.code === 'SNAPBACK_GUIDE_PATH_INVALID',
+  'guide traversal is rejected before fetch',
+);
+fetchOverride = async () => guideResponse('# Wrong build', GUIDE_HASH, 'c'.repeat(40));
+await assert.rejects(
+  () => guideClient.guidePage('index.md', loadedGuideManifest.identity),
+  (error) => error.diagnostic?.code === 'SNAPBACK_GUIDE_IDENTITY_MISMATCH',
+  'guide pages from another build are rejected',
+);
+
 delete globalThis.fetch;
 delete globalThis.indexedDB;
 delete globalThis.localStorage;
@@ -483,6 +528,23 @@ function response(status, body) {
     status,
     async text() {
       return JSON.stringify(body);
+    },
+  };
+}
+
+function guideResponse(body, contentHash, buildCommit) {
+  return {
+    ok: true,
+    status: 200,
+    headers: {
+      get(name) {
+        if (name === 'x-snapback-guide-content-sha256') return contentHash;
+        if (name === 'x-snapback-server-build-commit') return buildCommit;
+        return null;
+      },
+    },
+    async text() {
+      return body;
     },
   };
 }

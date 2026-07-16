@@ -10,11 +10,14 @@ from-scratch redesign is logged in
 [diary 0005](../diaries/0005-admin-console-redesign.diary.md).
 
 It is an app-shell layout — a fixed sidebar (the Snapback toggle mark and
-navigation) beside a scrolling content pane — with seven surfaces:
+navigation) beside a scrolling content pane — with nine surfaces:
 **Overview**, **Schema**, a paginated **Data**
 explorer, a **Functions** runner that shows captured read/write sets,
 **Capabilities** (the full capability manifest), **Realtime** (durable
 subscriptions, live-delivery stats, ephemeral counters), and **Diagnostics**.
+The **Secrets** surface reports write-only configuration status, and **Docs**
+renders the build-matched Snapback Guide from its served manifest without
+injecting HTML.
 Every surface renders only what the admin API actually reports — no placeholder
 controls — and read-only operations stay open on loopback while writes honor
 `writes_require_token`.
@@ -100,7 +103,7 @@ remaining verification.
 
 ## Layout
 
-- `app.contract` — the console UI: the app-shell sidebar + the seven surfaces,
+- `app.contract` — the console UI: the app-shell sidebar + the nine surfaces,
   built from reusable components (`Card`, `Kv`, `Badge`, `StatTile`, `FieldRow`,
   `DiagRow`) and `when` panels. Code/JSON output (run payloads, host plans,
   diagnostic details) renders in fixed-height `scroll` blocks so content
@@ -112,6 +115,8 @@ remaining verification.
   appearance watcher for browser and native hosts. The resolved palette is
   threaded through the view and passed to child components as a `c` prop, so
   system appearance changes re-render the whole tree.
+- `guide-docs.mjs` — validates the served guide manifest/identity, shapes its
+  navigation, and parses Markdown into safe scalar blocks for the Docs tab.
 - `contract-bindings.mjs` — the source list for the admin Contract query and
   mutation bindings.
 - `generate-contract-bindings.mjs` / `generated/contract/` — generated

@@ -5,7 +5,7 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection to agent clients in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection to agent clients in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -609,11 +609,14 @@ versioned read-only MCP resources, inheriting the identity handshake;
 extend `guide-consistency` to verify the projection against the manifest.
 
 **Phase 3 — admin console rendering.**
-A docs tab in the admin console rendering the corpus from the manifest,
-reusing the Exact guide app's content pipeline and renderer if a supported
-dependency boundary exists (published or vendored), else applying the
-pattern with the console's own machinery. Optional; the corpus and MCP
-forms carry the agent-facing value.
+Implemented 2026-07-16 (ENG-25112). The Docs tab consumes the served generated
+manifest and pages, rejects a page
+whose content-hash/build-commit response identity differs from the manifest,
+and renders a safe scalar block model with the console's own Contract
+machinery. The conditional dependency check found no supported published
+`@exact/markdown` boundary in the admin package set, so the implementation
+does not couple Snapback to the sibling Exact source tree. Optional; the corpus
+and served/MCP forms carry the agent-facing value.
 
 **Ongoing.** The diary loop and reconcile-audit line (§5); the retrieval
 eval re-run on discovery-wiring changes; the capability index updated as

@@ -10,7 +10,7 @@ status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-07-16
-reviewed-commit: 18fda6f4cbc2d216179c107c20388567db2b310d
+reviewed-commit: 4f642f6c2cc01df2016986537fe7b72ab1d1ebeb
 ---
 
 # Deploying the Cloudflare proof

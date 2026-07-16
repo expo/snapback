@@ -10,6 +10,8 @@ export interface AdminContractLinks {
   runFunction(args: { name: string; argsText: string }): unknown;
   cleanup(args: Record<string, never>): unknown;
   verifyConfig(args: { entry: string }): unknown;
+  guidePage(args: Record<string, never>): unknown;
+  loadGuidePage(args: { path: string }): unknown;
 }
 
 let links: AdminContractLinks | null = null;

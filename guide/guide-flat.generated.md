@@ -1809,7 +1809,7 @@ status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-07-16
-reviewed-commit: 18fda6f4cbc2d216179c107c20388567db2b310d
+reviewed-commit: 4f642f6c2cc01df2016986537fe7b72ab1d1ebeb
 ---
 
 # Deploying the Cloudflare proof
@@ -2668,7 +2668,9 @@ reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
 The admin console is Snapback's browser debugger over
 `/_snapback/api/*`. Its Contract app exposes Overview, Schema, Data,
 Functions, Secrets, Capabilities, Realtime, and Diagnostics views from the same
-inspect/scan/runner/config boundaries used by tests and tools.
+inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
+renders the build-matched served guide from the generated manifest; the
+console's text renderer never injects guide HTML.
 
 ## Launch the built console
 
@@ -2750,6 +2752,8 @@ runtime exceptions, zero console errors, and zero policy violations.
   direct-runner boundary and inspect captured reads/writes.
 - **Secrets:** see declaration/set/verification state and run declared probes;
   values never render.
+- **Docs:** navigate the same manifest/corpus served at `/_snapback/guide`,
+  with response hash/build identity checked before a page renders.
 
 Use the [host operations](./host-ops.md) page for automation and
 [diagnostics](./diagnostics.md) for code-driven troubleshooting.

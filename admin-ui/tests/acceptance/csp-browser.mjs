@@ -123,6 +123,24 @@ try {
   assert.equal(adminBrand.complete, true);
   assert.ok(adminBrand.naturalWidth > 0, `static brand mark did not load: ${JSON.stringify(adminBrand)}`);
   assert.match(adminBrand.source, /snapback-mark-(?:light|dark)\.svg$/);
+  const adminDocs = await admin.eval(`(async () => {
+    document.querySelector('[data-testid="nav-Docs"]')?.click();
+    const deadline = Date.now() + 20000;
+    for (;;) {
+      const raw = document.querySelector('[data-testid="guide-open-raw"]');
+      const title = document.querySelector('[data-testid="title"]')?.textContent?.trim();
+      const text = document.querySelector('#exact-root')?.textContent || '';
+      if (title === 'Docs' && raw && text.includes('The Snapback Guide')) {
+        return { title, href: raw.getAttribute('href'), text };
+      }
+      if (Date.now() > deadline) return { title, href: raw?.getAttribute('href') || '', text };
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  })()`);
+  assert.equal(adminDocs.title, 'Docs');
+  assert.equal(adminDocs.href, '/_snapback/guide/index.md');
+  assert.match(adminDocs.text, /The Snapback Guide/);
+  assert.match(adminDocs.text, /Capability index/);
   const adminCustody = await browserCustodyProjection(admin);
   assert.equal(adminCustody.text.includes(MASTER), false);
   assert.equal(adminCustody.storage.includes(MASTER), false);
@@ -175,6 +193,7 @@ try {
       prompt: adminPrompt,
       title: adminTitle,
       staticBrandImage: true,
+      docsRendered: true,
       runtimeExceptions: adminEvents.runtimeExceptions.length,
       consoleErrors: adminEvents.consoleErrors.length,
       securityPolicyViolations: adminEvents.dom.violations.length,

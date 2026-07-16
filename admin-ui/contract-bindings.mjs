@@ -81,4 +81,21 @@ export const adminContractBindings = [
     effects: ['config.verify'],
     invalidates: ['inspect'],
   },
+  {
+    name: 'guidePage',
+    kind: 'query',
+    args: {},
+    reads: ['guidePage'],
+    readMode: 'sync',
+    cacheKey: 'guidePage',
+  },
+  {
+    name: 'loadGuidePage',
+    kind: 'mutation',
+    args: {
+      path: 'string',
+    },
+    effects: ['guidePage.load'],
+    invalidates: ['guidePage'],
+  },
 ];
