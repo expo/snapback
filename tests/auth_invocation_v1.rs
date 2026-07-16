@@ -225,7 +225,7 @@ Array.prototype.slice = function() { return ['forged']; };
     assert_eq!(row["inheritedPollution"], true);
     assert_eq!(
         row["keys"],
-        json!(["isAuthenticated", "roles", "sessionId", "userId"])
+        json!(["isAuthenticated", "kind", "roles", "sessionId", "userId"])
     );
 }
 
